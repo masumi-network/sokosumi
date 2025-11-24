@@ -1581,19 +1581,10 @@
           "subject": "Sokosumi - Verify your email address",
           "title": "Verify your email address",
           "greeting": "Hello {name}",
-          "message": "Thank you for registering! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+          "message": "Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
           "button": "Verify email",
           "linkInstructions": "Or copy and paste this URL into your browser:",
           "footer": "If you didn't create an account, you can safely ignore this email."
-        },
-        "ChangeEmail": {
-          "subject": "Verify your email change",
-          "title": "Verify Email Change",
-          "greeting": "Hello {name}",
-          "message": "Please click the button below to verify your email change request.",
-          "button": "Verify Email Change",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "If you didn't request this email change, you can safely ignore this email."
         },
         "InviteUserEmail": {
           "subject": "Sokosumi - Organization Invitation",

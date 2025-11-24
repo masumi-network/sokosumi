@@ -22,7 +22,7 @@ export const {
   signUp,
   signIn,
   signOut,
-  forgetPassword,
+  requestPasswordReset,
   resetPassword,
   deleteUser,
   useSession,
