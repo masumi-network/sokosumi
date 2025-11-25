@@ -364,7 +364,7 @@ model Category {
   slug        String  @unique
   description String?
   image       String?
-  styles      Json?
+  styles      String?
   priority    Int
 
   agents Agent[] @relation("AgentCategory")
