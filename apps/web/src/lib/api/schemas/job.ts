@@ -48,7 +48,7 @@ export const jobResponseSchema = z.object({
   agentJobStatus: z.enum(AgentJobStatus).nullable(),
   onChainStatus: z.enum(OnChainJobStatus).nullable(),
   input: z.string(), // JSON string
-  output: z.string().nullable(),
+  result: z.string().nullable(),
   startedAt: z.iso.datetime(),
   completedAt: z.iso.datetime().nullable(),
   jobType: z.enum(JobType),
