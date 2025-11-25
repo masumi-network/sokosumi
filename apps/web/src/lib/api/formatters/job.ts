@@ -23,7 +23,7 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
     organizationId: job.organizationId,
     agentJobId: job.agentJobId,
     agentJobStatus: job.events.at(0)?.status,
-    onChainStatus: job.purchase?.onChainStatus,
+    onChainStatus: job.purchase?.onChainStatus ?? null,
     input: job.input,
     result: job.result,
     startedAt: dateToISO(job.createdAt),
