@@ -6,8 +6,8 @@ import { Agent } from "@sokosumi/database";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   JobInputData,
-  jobInputDataSchemaDeprecated,
-  JobInputDataSchemaTypeDeprecated,
+  jobInputDataSchema,
+  JobInputDataSchemaType,
 } from "@/lib/job-input";
 import {
   jobStatusResponseSchema,
@@ -152,7 +152,7 @@ export const agentClient = (() => {
 
     async fetchAgentInputSchema(
       agent: Agent,
-    ): Promise<Result<JobInputDataSchemaTypeDeprecated, string>> {
+    ): Promise<Result<JobInputDataSchemaType, string>> {
       const agentContext = {
         agentId: agent.id,
         agentName: agent.name,
@@ -235,8 +235,7 @@ export const agentClient = (() => {
           return Err("Failed to parse JSON response");
         }
 
-        const parsedResult =
-          jobInputDataSchemaDeprecated().safeParse(responseData);
+        const parsedResult = jobInputDataSchema().safeParse(responseData);
 
         if (!parsedResult.success) {
           // Log schema validation errors

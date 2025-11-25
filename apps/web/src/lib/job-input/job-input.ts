@@ -18,6 +18,24 @@ import {
   optionalValidationSchema,
 } from "./validation";
 
+/*
+ * @deprecated This was a placeholder and is superseded by jobInputSchema.
+ *
+ */
+export const jobInputDataSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    input_data: z.array(jobInputSchema(t)),
+  });
+
+/*
+ * @deprecated This was a placeholder and is superseded by JobInputSchemaType.
+ */
+export type JobInputDataSchemaType = z.infer<
+  ReturnType<typeof jobInputDataSchema>
+>;
+
 export const jobInputGroupSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -31,25 +49,9 @@ export type JobInputGroupSchemaType = z.infer<
   ReturnType<typeof jobInputGroupSchema>
 >;
 
-/*
- * @deprecated This was a placeholder and is superseded by jobInputSchema.
- *
- */
-export const jobInputDataSchemaDeprecated = (
+export const jobInputsSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
-) =>
-  z.object({
-    input_data: z.array(jobInputSchema(t)),
-  });
-
-/*
- * @deprecated This was a placeholder and is superseded by JobInputSchemaType.
- */
-export type JobInputDataSchemaTypeDeprecated = z.infer<
-  ReturnType<typeof jobInputDataSchemaDeprecated>
->;
-
-export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) => {
+) => {
   const inputDataSchema = z.object({
     input_data: z.array(jobInputDataSchema(t)),
   });
@@ -70,11 +72,9 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) => {
   );
 };
 
-export type jobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
+export type JobInputsSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
 
-export const jobInputDataSchema = (
-  t?: IntlTranslation<JobInputSchemaIntlPath>,
-) =>
+export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
   jobInputNoneSchema(t)
     .or(jobInputStringSchema(t))
     .or(jobInputTextSchema(t))

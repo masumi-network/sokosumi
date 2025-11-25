@@ -2,17 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import {
-  jobInputDataSchemaDeprecated,
-  JobInputDataSchemaTypeDeprecated,
-} from "@/lib/job-input";
-
-// import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
+import { jobInputDataSchema, JobInputDataSchemaType } from "@/lib/job-input";
 
 export default function useAgentInputSchema(agentId: string) {
-  const [data, setData] = useState<JobInputDataSchemaTypeDeprecated | null>(
-    null,
-  );
+  const [data, setData] = useState<JobInputDataSchemaType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -43,9 +36,7 @@ export default function useAgentInputSchema(agentId: string) {
           }
 
           const json = await response.json();
-          const parsedResult = jobInputDataSchemaDeprecated().safeParse(
-            json.data,
-          );
+          const parsedResult = jobInputDataSchema().safeParse(json.data);
           if (!parsedResult.success) {
             setError(new Error("Failed to parse agent input schema"));
           } else {
