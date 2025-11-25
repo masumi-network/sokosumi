@@ -11,7 +11,7 @@ import {
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 import {
-  type JobInputsDataSchemaType,
+  type JobInputDataSchemaType,
   jobInputsFormSchema,
 } from "@/lib/job-input";
 import {
@@ -178,7 +178,7 @@ export function getAgentPricingAmounts(
 
 export function getAgentDemoValues(
   agent: Agent,
-  inputSchema: JobInputsDataSchemaType,
+  inputDataSchema: JobInputDataSchemaType,
 ): AgentDemoValues | null {
   const demoData = getAgentDemoData(agent);
   if (!demoData) {
@@ -187,7 +187,7 @@ export function getAgentDemoValues(
 
   try {
     const inputParsedResult = jobInputsFormSchema(
-      inputSchema.input_data,
+      inputDataSchema.input_data,
     ).safeParse(JSON.parse(demoData.demoInput));
     if (!inputParsedResult.success) {
       console.error(

@@ -19,7 +19,7 @@ interface JobInputsFormProps {
 }
 
 interface JobInputsFormInnerProps extends Omit<JobInputsFormProps, "isDemo"> {
-  inputData: JobInputDataSchemaType;
+  inputDataSchema: JobInputDataSchemaType;
   demoValues: AgentDemoValues | null;
 }
 
@@ -29,20 +29,24 @@ export default function JobInputsForm({
   isDemo,
   className,
 }: JobInputsFormProps) {
-  const { data: inputData, loading, error } = useAgentInputSchema(agent.id);
+  const {
+    data: inputDataSchema,
+    loading,
+    error,
+  } = useAgentInputSchema(agent.id);
 
   if (loading) {
     return <JobInputsFormSkeleton />;
   }
 
-  if (error || !inputData) {
+  if (error || !inputDataSchema) {
     return <JobInputsFormError />;
   }
 
   // check demo data is valid
   let demoValues: AgentDemoValues | null = null;
   if (isDemo) {
-    demoValues = getAgentDemoValues(agent, inputData);
+    demoValues = getAgentDemoValues(agent, inputDataSchema);
     if (!demoValues) {
       return <JobInputsFormDemoError />;
     }
@@ -53,7 +57,7 @@ export default function JobInputsForm({
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       demoValues={demoValues}
-      inputData={inputData}
+      inputDataSchema={inputDataSchema}
       className={className}
     />
   );
@@ -63,14 +67,14 @@ function JobInputsFormInner({
   agent,
   averageExecutionDuration,
   demoValues,
-  inputData,
+  inputDataSchema,
   className,
 }: JobInputsFormInnerProps) {
   return (
     <JobInputsFormClient
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
-      inputData={inputData}
+      inputDataSchema={inputDataSchema}
       demoValues={demoValues}
       legal={getAgentLegal(agent)}
       className={className}

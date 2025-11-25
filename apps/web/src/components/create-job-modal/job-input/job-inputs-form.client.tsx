@@ -50,7 +50,7 @@ import JobInput from "./job-input";
 interface JobInputsFormClientProps {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
-  inputData: JobInputDataSchemaType;
+  inputDataSchema: JobInputDataSchemaType;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   className?: string | undefined;
@@ -59,13 +59,13 @@ interface JobInputsFormClientProps {
 export default function JobInputsFormClient({
   agent,
   averageExecutionDuration,
-  inputData,
+  inputDataSchema,
   demoValues,
   legal,
   className,
 }: JobInputsFormClientProps) {
   const { id: agentId, creditsPrice } = agent;
-  const { input_data } = inputData;
+  const { input_data } = inputDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
   const formatter = useFormatter();
