@@ -6,15 +6,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 
 // Webhook configuration constants
 const WEBHOOK_TIMEOUT_MS = 10000; // 10 seconds
-const WEBHOOK_MAX_RETRIES = 3;
-const WEBHOOK_RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
-
-/**
- * Helper function to sleep for a given number of milliseconds.
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * Consumes the response body to prevent connection leaks.
@@ -30,14 +21,13 @@ async function consumeResponseBody(response: Response): Promise<string | null> {
 }
 
 /**
- * Calls a webhook with retry logic, timeout, and proper error handling.
- * Implements exponential backoff retry strategy.
+ * Calls a webhook with timeout and proper error handling.
  *
  * @param webhookUrl - The webhook URL to call
  * @param payload - The payload to send
  * @param webhookType - The type of webhook for error reporting
  * @param userId - The user ID for error reporting
- * @returns Promise that resolves when the webhook call succeeds or all retries are exhausted
+ * @returns Promise that resolves when the webhook call completes (success or failure)
  * @private
  */
 async function callWebHookWithRetry(
@@ -46,86 +36,72 @@ async function callWebHookWithRetry(
   webhookType: "userCreated" | "userUpdated" | "accountCreated" | "agentHired",
   userId: string,
 ): Promise<void> {
-  let lastError: Error | null = null;
-  let lastResponse: Response | null = null;
-  let lastResponseBody: string | null = null;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
 
-  for (let attempt = 0; attempt <= WEBHOOK_MAX_RETRIES; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+  let error: Error | null = null;
+  let response: Response | null = null;
+  let responseBody: string | null = null;
 
-    try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Sokosumi-Webhook/1.0",
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
+  try {
+    const fetchResponse = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Sokosumi-Webhook/1.0",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
 
-      clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
 
-      // Consume response body to prevent connection leaks
-      lastResponseBody = await consumeResponseBody(response);
-      lastResponse = response;
+    // Consume response body to prevent connection leaks
+    responseBody = await consumeResponseBody(fetchResponse);
+    response = fetchResponse;
 
-      if (response.ok) {
-        // Success - no need to retry
-        return;
-      }
+    if (response.ok) {
+      // Success - return early
+      return;
+    }
 
-      // Non-ok response - will retry
-      lastError = new Error(
-        `Response is not okay from ${webhookType} webhook: ${response.status} ${response.statusText}`,
-      );
-    } catch (error) {
-      clearTimeout(timeoutId);
+    // Non-ok response
+    error = new Error(
+      `Response is not okay from ${webhookType} webhook: ${response.status} ${response.statusText}`,
+    );
+  } catch (fetchError) {
+    clearTimeout(timeoutId);
 
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          lastError = new Error(
-            `Webhook request timed out after ${WEBHOOK_TIMEOUT_MS}ms`,
-          );
-        } else {
-          lastError = error;
-        }
+    if (fetchError instanceof Error) {
+      if (fetchError.name === "AbortError") {
+        error = new Error(
+          `Webhook request timed out after ${WEBHOOK_TIMEOUT_MS}ms`,
+        );
       } else {
-        lastError = new Error(String(error));
+        error = fetchError;
       }
+    } else {
+      error = new Error(String(fetchError));
     }
-
-    // If this was the last attempt, break and report error
-    if (attempt === WEBHOOK_MAX_RETRIES) {
-      break;
-    }
-
-    // Wait before retrying (exponential backoff)
-    const delay =
-      WEBHOOK_RETRY_DELAYS[attempt] ??
-      WEBHOOK_RETRY_DELAYS[WEBHOOK_RETRY_DELAYS.length - 1];
-    await sleep(delay);
   }
 
-  // All retries exhausted - report to Sentry with detailed context
+  // Report failure to Sentry with detailed context
   const errorContext: Record<string, unknown> = {
     webhookType,
     webhookUrl,
     userId,
-    attempts: WEBHOOK_MAX_RETRIES + 1,
-    error: lastError?.message ?? "Unknown error",
+    error: error?.message ?? "Unknown error",
   };
 
-  if (lastResponse) {
-    errorContext.responseStatus = lastResponse.status;
-    errorContext.responseStatusText = lastResponse.statusText;
-    if (lastResponseBody) {
+  if (response) {
+    errorContext.responseStatus = response.status;
+    errorContext.responseStatusText = response.statusText;
+    if (responseBody) {
       // Truncate response body if too long (max 500 chars)
       errorContext.responseBody =
-        lastResponseBody.length > 500
-          ? `${lastResponseBody.substring(0, 500)}... (truncated)`
-          : lastResponseBody;
+        responseBody.length > 500
+          ? `${responseBody.substring(0, 500)}... (truncated)`
+          : responseBody;
     }
   }
 
@@ -141,7 +117,7 @@ async function callWebHookWithRetry(
 /**
  * Base function to call marketing and analytics webhooks.
  * Handles webhook URL resolution and error reporting via Sentry.
- * Uses retry logic with exponential backoff and timeout protection.
+ * Uses timeout protection.
  *
  * @param userId - The unique identifier of the user triggering the webhook
  * @param payload - Additional data to include in the webhook payload
