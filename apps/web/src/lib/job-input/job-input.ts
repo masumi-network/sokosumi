@@ -42,7 +42,7 @@ export const jobInputGroupSchema = (
   z.object({
     id: z.string().min(1),
     title: z.string().min(1),
-    input_data: z.array(jobInputDataSchema(t)),
+    input_data: z.array(jobInputSchema(t)),
   });
 
 export type JobInputGroupSchemaType = z.infer<
