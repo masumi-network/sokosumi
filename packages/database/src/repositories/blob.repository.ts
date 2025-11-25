@@ -12,7 +12,7 @@ export const blobRepository = {
    */
   async createBlob(
     userId: string,
-    jobId: string,
+    jobEventId: string,
     fileUrl: string,
     fileName?: string,
     size?: bigint,
@@ -21,7 +21,7 @@ export const blobRepository = {
     return tx.blob.create({
       data: {
         user: { connect: { id: userId } },
-        job: { connect: { id: jobId } },
+        jobEvent: { connect: { id: jobEventId } },
         fileUrl,
         fileName,
         size,
@@ -30,24 +30,24 @@ export const blobRepository = {
   },
 
   /**
-   * Create a pending output Blob record from a source URL (extracted from markdown)
-   * Avoids duplicates by sourceUrl per job.
+   * Create a pending result Blob record from a source URL (extracted from markdown)
+   * Avoids duplicates by sourceUrl per job event.
    */
-  async createPendingOutputBlob(
+  async createPendingResultBlob(
     userId: string,
-    jobId: string,
+    jobEventId: string,
     sourceUrl: string,
     fileName?: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     const existing = await tx.blob.findFirst({
-      where: { jobId, sourceUrl },
+      where: { jobEventId, sourceUrl },
     });
     if (existing) return existing;
     return tx.blob.create({
       data: {
         user: { connect: { id: userId } },
-        job: { connect: { id: jobId } },
+        jobEvent: { connect: { id: jobEventId } },
         origin: BlobOrigin.OUTPUT,
         status: BlobStatus.PENDING,
         sourceUrl,
@@ -77,19 +77,29 @@ export const blobRepository = {
   },
 
   /**
-   * Get all Blob records for a job
+   * Get all Blob records for a job event
+   */
+  async getBlobsByJobEventId(
+    jobEventId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Blob[]> {
+    return tx.blob.findMany({ where: { jobEventId } });
+  },
+
+  /**
+   * Get all Blob records for a job event by job id
    */
   async getBlobsByJobId(
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
-    return tx.blob.findMany({ where: { jobId } });
+    return tx.blob.findMany({ where: { jobEvent: { jobId } } });
   },
 
   /**
-   * Get pending output blobs to import.
+   * Get pending result blobs to import.
    */
-  async getPendingOutputBlobs(
+  async getPendingResultBlobs(
     limit?: number,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {

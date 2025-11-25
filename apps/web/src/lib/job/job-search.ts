@@ -8,7 +8,6 @@ export interface SearchableJob {
   name: string | null;
   input: string | null;
   result: string | null;
-  links?: SearchableJobLink[] | null;
 }
 
 export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
@@ -29,9 +28,6 @@ export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
         return "";
       }
     })(),
-    ...(Array.isArray(job.links)
-      ? job.links.map((link) => `${link.title ?? ""} ${link.url ?? ""}`)
-      : []),
   ]
     .filter(
       (value): value is string => typeof value === "string" && value.length > 0,

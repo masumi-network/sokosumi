@@ -527,9 +527,6 @@ model Job {
 
   name String?
 
-  blobs Blob[] @relation("JobBlob")
-  links Link[] @relation("JobLink")
-
   // Public Share
   share JobShare?
 
@@ -589,6 +586,9 @@ model JobEvent {
 
   jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  blobs Blob[]
+  links Link[]
 
   @@index([externalId])
   @@index([jobId])
@@ -680,44 +680,44 @@ model Apikey {
 }
 
 model Blob {
-  id        String     @id @default(uuid())
-  userId    String
-  jobId     String
-  fileUrl   String?
-  fileName  String?
-  mime      String?
-  size      BigInt?
-  origin    BlobOrigin @default(INPUT)
-  sourceUrl String?
-  status    BlobStatus @default(READY)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String     @id @default(uuid())
+  userId     String
+  jobEventId String
+  fileUrl    String?
+  fileName   String?
+  mime       String?
+  size       BigInt?
+  origin     BlobOrigin @default(INPUT)
+  sourceUrl  String?
+  status     BlobStatus @default(READY)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
-  user User @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
-  job  Job  @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
+  user     User     @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
+  jobEvent JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
 
   // Performance indexes
-  @@index([status, origin, createdAt]) // For getPendingOutputBlobs query
-  @@index([jobId, origin]) // For fetching blobs by job with origin filter
-  @@index([jobId, sourceUrl]) // For deduplication checks
+  @@index([status, origin, createdAt]) // For getPendingResultBlobs query
+  @@index([jobEventId, origin]) // For fetching blobs by job event with origin filter
+  @@index([jobEventId, sourceUrl]) // For deduplication checks
   @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
 
 model Link {
-  id        String   @id @default(uuid())
-  userId    String
-  jobId     String
-  url       String
-  title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  userId     String
+  jobEventId String
+  url        String
+  title      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  user User @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
-  job  Job  @relation("JobLink", fields: [jobId], references: [id], onDelete: Cascade)
+  user     User     @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
+  jobEvent JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
 
-  @@unique([jobId, url])
-  @@index([jobId]) // For fetching all links for a job
+  @@unique([jobEventId, url])
+  @@index([jobEventId]) // For fetching all links for a job event
   @@map("link")
 }
 

@@ -104,11 +104,6 @@ describe("Job search functionality", () => {
     expect(jobMatchesQuery(mockJob, "world")).toBe(true);
   });
 
-  it("should match link content", () => {
-    expect(jobMatchesQuery(mockJob, "Example")).toBe(true);
-    expect(jobMatchesQuery(mockJob, "example.com")).toBe(true);
-  });
-
   it("should be case insensitive", () => {
     expect(jobMatchesQuery(mockJob, "TEST JOB")).toBe(true);
     expect(jobMatchesQuery(mockJob, "HELLO WORLD")).toBe(true);

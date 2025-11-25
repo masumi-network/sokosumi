@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       const timingStart = Date.now();
       console.log("Importing pending source imports");
       const pendingBlobsCount = await pTimeout(
-        sourceImportService.importPendingOutputBlobs(),
+        sourceImportService.importPendingResultBlobs(),
         {
           milliseconds:
             getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
