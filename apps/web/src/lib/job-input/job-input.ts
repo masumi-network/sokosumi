@@ -52,7 +52,9 @@ export type JobInputGroupSchemaType = z.infer<
 export const jobInputsSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) => {
-  const inputDataSchema = jobInputDataSchema(t);
+  const inputDataSchema = z.object({
+    input_data: z.array(jobInputSchema(t)),
+  });
 
   const inputGroupsSchema = z.object({
     input_groups: z.array(jobInputGroupSchema(t)),
