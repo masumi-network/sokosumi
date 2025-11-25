@@ -31,9 +31,9 @@ export type JobInputGroupSchemaType = z.infer<
   ReturnType<typeof jobInputGroupSchema>
 >;
 
-// TODO: Remove this once we have a proper input data schema
 /*
  * @deprecated This was a placeholder and is superseded by jobInputSchema.
+ *
  */
 export const jobInputDataSchemaDeprecated = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
