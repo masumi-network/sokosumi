@@ -18,12 +18,49 @@ import {
   optionalValidationSchema,
 } from "./validation";
 
-export const jobInputsDataSchema = (
+export const jobInputGroupSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
+    id: z.string().min(1),
+    title: z.string().min(1),
     input_data: z.array(jobInputSchema(t)),
   });
+
+export type JobInputGroupSchemaType = z.infer<
+  ReturnType<typeof jobInputGroupSchema>
+>;
+
+export const jobInputGroupsSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) => z.array(jobInputGroupSchema(t));
+
+export type JobInputGroupsSchemaType = z.infer<
+  ReturnType<typeof jobInputGroupsSchema>
+>;
+
+export const jobInputsDataSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) => {
+  const inputDataSchema = z.object({
+    input_data: z.array(jobInputSchema(t)),
+  });
+
+  const inputGroupsSchema = z.object({
+    input_groups: z.array(jobInputGroupSchema(t)),
+  });
+
+  return z.union([inputDataSchema, inputGroupsSchema]).refine(
+    (data) => {
+      const hasInputData = "input_data" in data;
+      const hasInputGroups = "input_groups" in data;
+      return hasInputData !== hasInputGroups; // Exactly one must be present
+    },
+    {
+      message: "Must provide exactly one of 'input_data' or 'input_groups'",
+    },
+  );
+};
 
 export type JobInputsDataSchemaType = z.infer<
   ReturnType<typeof jobInputsDataSchema>
