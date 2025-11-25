@@ -24,26 +24,34 @@ export const jobInputGroupSchema = (
   z.object({
     id: z.string().min(1),
     title: z.string().min(1),
-    input_data: z.array(jobInputSchema(t)),
+    input_data: z.array(jobInputDataSchema(t)),
   });
 
 export type JobInputGroupSchemaType = z.infer<
   ReturnType<typeof jobInputGroupSchema>
 >;
 
-export const jobInputGroupsSchema = (
+// TODO: Remove this once we have a proper input data schema
+/*
+ * @deprecated This was a placeholder and is superseded by jobInputSchema.
+ */
+export const jobInputDataSchemaDeprecated = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
-) => z.array(jobInputGroupSchema(t));
+) =>
+  z.object({
+    input_data: z.array(jobInputSchema(t)),
+  });
 
-export type JobInputGroupsSchemaType = z.infer<
-  ReturnType<typeof jobInputGroupsSchema>
+/*
+ * @deprecated This was a placeholder and is superseded by JobInputSchemaType.
+ */
+export type JobInputDataSchemaTypeDeprecated = z.infer<
+  ReturnType<typeof jobInputDataSchemaDeprecated>
 >;
 
-export const jobInputsDataSchema = (
-  t?: IntlTranslation<JobInputSchemaIntlPath>,
-) => {
+export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) => {
   const inputDataSchema = z.object({
-    input_data: z.array(jobInputSchema(t)),
+    input_data: z.array(jobInputDataSchema(t)),
   });
 
   const inputGroupsSchema = z.object({
@@ -62,11 +70,11 @@ export const jobInputsDataSchema = (
   );
 };
 
-export type JobInputsDataSchemaType = z.infer<
-  ReturnType<typeof jobInputsDataSchema>
->;
+export type jobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
 
-export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
+export const jobInputDataSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
   jobInputNoneSchema(t)
     .or(jobInputStringSchema(t))
     .or(jobInputTextSchema(t))

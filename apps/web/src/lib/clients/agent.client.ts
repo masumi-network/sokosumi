@@ -6,8 +6,8 @@ import { Agent } from "@sokosumi/database";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   JobInputData,
-  jobInputsDataSchema,
-  JobInputsDataSchemaType,
+  jobInputDataSchemaDeprecated,
+  JobInputDataSchemaTypeDeprecated,
 } from "@/lib/job-input";
 import {
   jobStatusResponseSchema,
@@ -152,7 +152,7 @@ export const agentClient = (() => {
 
     async fetchAgentInputSchema(
       agent: Agent,
-    ): Promise<Result<JobInputsDataSchemaType, string>> {
+    ): Promise<Result<JobInputDataSchemaTypeDeprecated, string>> {
       const agentContext = {
         agentId: agent.id,
         agentName: agent.name,
@@ -235,7 +235,8 @@ export const agentClient = (() => {
           return Err("Failed to parse JSON response");
         }
 
-        const parsedResult = jobInputsDataSchema().safeParse(responseData);
+        const parsedResult =
+          jobInputDataSchemaDeprecated().safeParse(responseData);
 
         if (!parsedResult.success) {
           // Log schema validation errors
@@ -263,32 +264,6 @@ export const agentClient = (() => {
         }
 
         const inputSchema = parsedResult.data;
-
-        // For now, only support input_data format, not input_groups
-        if ("input_groups" in inputSchema) {
-          Sentry.withScope((scope) => {
-            scope.setTag("service", "agent");
-            scope.setTag("operation", "fetchInputSchema");
-            scope.setTag("error_type", "unsupported_format");
-            scope.setContext("agent", agentContext);
-            scope.setContext("unsupported_format", {
-              message: "input_groups format is not yet supported",
-            });
-
-            Sentry.captureMessage(
-              "Agent returned input_groups format which is not yet supported",
-              "warning",
-            );
-          });
-
-          return Err("input_groups format is not yet supported");
-        }
-
-        // Ensure we have input_data (TypeScript type narrowing)
-        if (!("input_data" in inputSchema)) {
-          return Err("Invalid input schema format: missing input_data");
-        }
-
         return Ok(inputSchema);
       } catch (err) {
         // Log network errors and other unexpected errors
