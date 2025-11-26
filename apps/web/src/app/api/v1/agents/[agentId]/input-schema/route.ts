@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
 import { agentClient } from "@/lib/clients/agent.client";
-import { jobInputsDataSchema } from "@/lib/job-input";
+import { jobInputDataSchema } from "@/lib/job-input";
 
 interface RouteParams {
   params: Promise<{
@@ -41,7 +41,7 @@ export async function GET(
       throw new Error(inputSchemaResult.error);
     }
 
-    const inputSchema = jobInputsDataSchema().parse(inputSchemaResult.data);
+    const inputSchema = jobInputDataSchema().parse(inputSchemaResult.data);
     return createApiSuccessResponse(inputSchema);
   } catch (error) {
     return handleApiError(error, "retrieve agent input schema", {

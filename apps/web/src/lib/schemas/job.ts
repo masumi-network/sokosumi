@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { jobInputSchema } from "@/lib/job-input";
+import { jobInputSchema, jobInputsSchema } from "@/lib/job-input";
 import { JobScheduleType } from "@/lib/types/job";
 
 export const startJobInputSchema = z.object({
@@ -102,7 +102,6 @@ function requireFieldWhenStatus<T extends Record<string, unknown>>(
 
 // Agent job status values - single source of truth
 export const JOB_STATUS_VALUES = [
-  "pending",
   "awaiting_payment",
   "awaiting_input",
   "running",
@@ -117,11 +116,11 @@ export const jobStatusResponseSchema = z
     id: z.string().nullish(),
     job_id: z.string(),
     status: z.enum(JOB_STATUS_VALUES),
-    input_schema: z.array(jobInputSchema()).nullish(),
+    input_schema: jobInputsSchema().nullish(),
     result: z.string().nullish(),
   })
   .superRefine((data, ctx) => {
-    requireFieldWhenStatus("awaiting_input", "input_data")(data, ctx);
+    requireFieldWhenStatus("awaiting_input", "input_schema")(data, ctx);
     requireFieldWhenStatus("completed", "result")(data, ctx);
   });
 

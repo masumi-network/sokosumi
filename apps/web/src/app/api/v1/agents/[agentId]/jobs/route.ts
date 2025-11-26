@@ -17,7 +17,7 @@ import {
 } from "@/lib/api";
 import { getAuthContext } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/helpers/credit";
-import { jobInputsDataSchema } from "@/lib/job-input";
+import { jobInputDataSchema } from "@/lib/job-input";
 import { agentService } from "@/lib/services";
 
 interface RouteParams {
@@ -107,7 +107,7 @@ export async function POST(
     }
 
     const inputSchema = await response.json();
-    const validatedInputSchema = jobInputsDataSchema().parse(inputSchema.data);
+    const validatedInputSchema = jobInputDataSchema().parse(inputSchema.data);
 
     // Convert credits back to cents for the job service
     const maxAcceptedCents = convertCreditsToCents(
