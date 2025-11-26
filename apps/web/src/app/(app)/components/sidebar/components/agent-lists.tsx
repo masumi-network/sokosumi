@@ -2,7 +2,6 @@ import { Agent } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -31,7 +30,7 @@ export default function AgentLists({ userId }: AgentListsProps) {
 
 function AgentListsSkeleton() {
   return (
-    <ScrollArea className="h-full">
+    <>
       {[1, 2].map((groupIndex) => (
         <SidebarGroup key={groupIndex} className="w-full">
           <SidebarGroupLabel className="text-base">
@@ -50,8 +49,7 @@ function AgentListsSkeleton() {
           </SidebarGroupContent>
         </SidebarGroup>
       ))}
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    </>
   );
 }
 
@@ -117,11 +115,7 @@ async function AgentListsContent({ userId }: { userId: string }) {
     },
   ];
 
-  return (
-    <ScrollArea className="h-full">
-      <AgentListsClient agentLists={agentLists} userId={userId} />
-    </ScrollArea>
-  );
+  return <AgentListsClient agentLists={agentLists} userId={userId} />;
 }
 
 function filterDuplicatedAgents(hiredAgents: Agent[], favoriteAgents: Agent[]) {
