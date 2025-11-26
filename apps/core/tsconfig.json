@@ -8,16 +8,7 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "types": ["bun", "node"],
-    "paths": {
-      "@/*": ["./src/*"],
-      "@/helpers/*": ["./src/helpers/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/config/*": ["./src/config/*"],
-      "@/middleware/*": ["./src/middleware/*"],
-      "@/routes/*": ["./src/routes/*"],
-      "@/types/*": ["./src/types/*"]
-    }
+    "types": ["bun", "node"]
   },
   "exclude": ["node_modules"]
 }

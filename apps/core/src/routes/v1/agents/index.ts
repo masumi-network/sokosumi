@@ -1,5 +1,4 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
+import { OpenAPIHonoWithAuth } from "../../../lib/hono";
 import mountGetAgentById from "./[id]/get";
 import mountGetAgents from "./get";
 

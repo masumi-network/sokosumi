@@ -2,8 +2,7 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 
-import { errorHandler } from "@/helpers/error-handler";
-
+import { errorHandler } from "../../helpers/error-handler";
 import agentsRouter from "./agents";
 import usersRouter from "./users";
 
