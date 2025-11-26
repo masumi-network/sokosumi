@@ -15,7 +15,7 @@ import {
   JobInputTimeSchemaType,
   JobInputUrlSchemaType,
   JobInputWeekSchemaType,
-  jobInputsDataSchema,
+  jobInputDataSchema,
 } from "@/lib/job-input/job-input";
 import {
   ValidJobInputFormatValues,
@@ -40,14 +40,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid string input", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validStringInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should fail with empty id", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -59,7 +59,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with empty name", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -71,7 +71,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -83,7 +83,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should not fail with empty validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -95,7 +95,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should not fail with valid validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -113,7 +113,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -137,14 +137,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid number input", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validNumberInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validNumberInput,
@@ -156,7 +156,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should accept number input with validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validNumberInput,
@@ -172,7 +172,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validNumberInput,
@@ -195,14 +195,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid boolean input", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validBooleanInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validBooleanInput,
@@ -214,7 +214,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should accept boolean input with optional validation", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validBooleanInput,
@@ -226,7 +226,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validBooleanInput,
@@ -250,14 +250,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid option input", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validOptionInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should fail with undefined data", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -269,7 +269,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with empty values array", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -284,7 +284,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with empty value in values array", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -299,7 +299,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should succeed with valid validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -315,7 +315,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -326,7 +326,7 @@ describe("jobInputSchema", () => {
       expect(result.success).toBe(false);
     });
     it("should fail with invalid optional", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         ...validOptionInput,
         validations: [
           { validation: "min", value: "2" },
@@ -337,7 +337,7 @@ describe("jobInputSchema", () => {
       expect(result.success).toBe(false);
     });
     it("should fail with invalid optional", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         ...validOptionInput,
         validations: [
           { validation: "min", value: "2" },
@@ -360,14 +360,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid none input", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validNoneInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [
           {
             ...validNoneInput,
@@ -394,7 +394,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate date with min timestamp", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validDate],
       });
       expect(result.success).toBe(true);
@@ -413,7 +413,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate datetime with optional", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validDatetime],
       });
       expect(result.success).toBe(true);
@@ -432,7 +432,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate basic time schema definition", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validTime],
       });
       expect(result.success).toBe(true);
@@ -452,7 +452,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate range schema with step", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [validRange],
       });
       expect(result.success).toBe(true);
@@ -471,7 +471,7 @@ describe("jobInputSchema", () => {
       ],
     };
     it("should validate multiselect schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({ input_data: [ms] });
+      const result = jobInputDataSchema(mockT).safeParse({ input_data: [ms] });
       expect(result.success).toBe(true);
     });
   });
@@ -487,7 +487,7 @@ describe("jobInputSchema", () => {
       ],
     };
     it("should validate checkbox schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({ input_data: [cb] });
+      const result = jobInputDataSchema(mockT).safeParse({ input_data: [cb] });
       expect(result.success).toBe(true);
     });
   });
@@ -500,7 +500,7 @@ describe("jobInputSchema", () => {
       data: { values: ["a", "b"] },
     };
     it("should validate radio group schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({ input_data: [rg] });
+      const result = jobInputDataSchema(mockT).safeParse({ input_data: [rg] });
       expect(result.success).toBe(true);
     });
   });
@@ -520,7 +520,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate password input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [passwordInput],
       });
       expect(result.success).toBe(true);
@@ -542,7 +542,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate email input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [emailInput],
       });
       expect(result.success).toBe(true);
@@ -564,7 +564,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate url input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [urlInput],
       });
       expect(result.success).toBe(true);
@@ -583,7 +583,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate color input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [colorInput],
       });
       expect(result.success).toBe(true);
@@ -602,7 +602,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate month input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [monthInput],
       });
       expect(result.success).toBe(true);
@@ -618,7 +618,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate week input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [weekInput],
       });
       expect(result.success).toBe(true);
@@ -639,7 +639,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate search input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [searchInput],
       });
       expect(result.success).toBe(true);
@@ -655,7 +655,7 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate hidden input schema", () => {
-      const result = jobInputsDataSchema(mockT).safeParse({
+      const result = jobInputDataSchema(mockT).safeParse({
         input_data: [hiddenInput],
       });
       expect(result.success).toBe(true);

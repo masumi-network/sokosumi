@@ -1,8 +1,6 @@
 import { AgentStatus } from "@sokosumi/database";
 import * as z from "zod";
 
-import { jobInputsDataSchema } from "@/lib/job-input";
-
 // Schema for credit price with BigInt to string conversion
 export const creditsPriceSchema = z.object({
   credits: z.number(),
@@ -30,6 +28,3 @@ export const agentResponseSchema = z.object({
 // Type exports for use in API routes
 export type CreditsPriceResponse = z.infer<typeof creditsPriceSchema>;
 export type AgentResponse = z.infer<typeof agentResponseSchema>;
-export type AgentInputSchemaResponse = z.infer<
-  ReturnType<typeof jobInputsDataSchema>
->;

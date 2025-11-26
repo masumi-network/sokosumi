@@ -66,14 +66,20 @@ export const auth = betterAuth({
   databaseHooks: {
     account: {
       create: {
-        after: async (account) => {
+        after: async (account, _ctx) => {
           callAccountCreatedWebHook(account.userId, account.providerId);
         },
       },
     },
     user: {
       create: {
-        after: async (user) => {
+        before: async (user, _ctx) => {
+          if (!user.termsAccepted) {
+            return false;
+          }
+          return true;
+        },
+        after: async (user, _ctx) => {
           await stripeService.createStripeCustomerForUser(user.id);
 
           // Validate user data before calling webhook
@@ -92,7 +98,7 @@ export const auth = betterAuth({
         },
       },
       update: {
-        after: async (user) => {
+        after: async (user, _ctx) => {
           // Validate user data before calling webhook
           // Fires on any user update to keep marketing system synchronized
           const { success, data, error } =
@@ -150,7 +156,7 @@ export const auth = betterAuth({
       // Sync user email with Stripe after email change verification
       if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
         const user = ctx.context.newSession?.user;
-        if (user.stripeCustomerId && user.email) {
+        if (user.stripeCustomerId) {
           // Fire and forget - don't wait for sync to complete
           stripeService
             .syncUserEmailWithStripe(user.id, user.email)

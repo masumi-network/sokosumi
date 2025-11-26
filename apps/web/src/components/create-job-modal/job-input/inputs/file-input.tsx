@@ -60,7 +60,7 @@ export function FileInput({
           <FileUploadTrigger asChild>
             <Button
               variant="ghost"
-              className="cursor-pointer p-0 hover:!bg-transparent hover:!text-current"
+              className="cursor-pointer p-0 hover:bg-transparent! hover:text-current!"
             >
               <span className="flex flex-row items-center gap-2">
                 <CloudUpload className="size-4" />
