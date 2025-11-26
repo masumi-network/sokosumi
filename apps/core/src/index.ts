@@ -6,8 +6,8 @@ import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
-import { notFound } from "./helpers/error";
-import { ok } from "./helpers/response";
+import { notFound } from "@/helpers/error";
+import { ok } from "@/helpers/response";
 
 const app = new Hono<{ Variables: RequestIdVariables }>();
 
