@@ -1,4 +1,3 @@
-import { agentRepository } from "@sokosumi/database/repositories";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -20,6 +19,8 @@ app.notFound(() => {
 
 // Mount API v1 routes
 app.get("/v1", async (c) => {
+  // Lazy load the repository to avoid module instantiation issues with Bun on Vercel
+  const { agentRepository } = await import("@sokosumi/database/repositories");
   const agents = await agentRepository.getAgentsWithRelations();
 
   return ok(
