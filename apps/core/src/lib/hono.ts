@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import { requestId, type RequestIdVariables } from "hono/request-id";
 
-import { authMiddleware, type AuthVariables } from "../middleware/auth";
+// import { authMiddleware, type AuthVariables } from "../middleware/auth";
 
 /**
  * Type-safe Hono class with AuthContext in Variables
@@ -16,12 +16,12 @@ import { authMiddleware, type AuthVariables } from "../middleware/auth";
  * // requireAuth middleware is already applied
  */
 export class HonoWithAuth extends Hono<{
-  Variables: AuthVariables & RequestIdVariables;
+  Variables: RequestIdVariables;
 }> {
   constructor() {
     super();
     this.use(requestId());
-    this.use(authMiddleware);
+    // this.use(authMiddleware);
   }
 }
 
@@ -37,11 +37,11 @@ export class HonoWithAuth extends Hono<{
  * // requireAuth middleware is already applied
  */
 export class OpenAPIHonoWithAuth extends OpenAPIHono<{
-  Variables: AuthVariables & RequestIdVariables;
+  Variables: RequestIdVariables;
 }> {
   constructor() {
     super();
     this.use(requestId());
-    this.use(authMiddleware);
+    // this.use(authMiddleware);
   }
 }
