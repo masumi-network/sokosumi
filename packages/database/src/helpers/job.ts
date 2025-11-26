@@ -3,8 +3,8 @@ import {
   JobType,
   NextJobAction,
   OnChainJobStatus,
-} from "../generated/prisma/browser";
-import type { Job, JobEvent } from "../generated/prisma/client";
+} from "../generated/prisma/browser.js";
+import type { Job, JobEvent } from "../generated/prisma/client.js";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
@@ -12,7 +12,7 @@ import {
   type JobWithRelations,
   type JobWithStatus,
   PaidJobWithStatus,
-} from "../types/job";
+} from "../types/job.js";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 

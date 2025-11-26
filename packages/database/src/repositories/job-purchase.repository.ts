@@ -1,4 +1,4 @@
-import prisma from "../client";
+import prisma from "../client.js";
 import type {
   JobPurchase,
   NextJobAction,
@@ -6,7 +6,7 @@ import type {
   OnChainJobStatus,
   OnChainTransactionStatus,
   Prisma,
-} from "../generated/prisma/client";
+} from "../generated/prisma/client.js";
 
 interface CreateJobPurchaseData {
   externalId: string;
