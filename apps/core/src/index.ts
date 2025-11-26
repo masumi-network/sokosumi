@@ -5,7 +5,6 @@ import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
 import { notFound } from "./helpers/error";
-import apiV1 from "./routes/v1";
 
 const app = new Hono<{ Variables: RequestIdVariables }>();
 
@@ -18,7 +17,7 @@ app.notFound(() => {
 });
 
 // Mount API v1 routes
-app.route("/v1", apiV1);
+app.get("/v1", (c) => c.text("Hono!"));
 
 export default {
   port: Bun.env.PORT ?? 3000,

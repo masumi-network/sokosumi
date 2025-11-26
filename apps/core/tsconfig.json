@@ -8,7 +8,7 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "types": ["bun", "node"]
+    "types": ["bun"]
   },
   "exclude": ["node_modules"]
 }
