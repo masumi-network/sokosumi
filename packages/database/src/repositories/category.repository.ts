@@ -43,7 +43,7 @@ export const categoryRepository = {
         slug: data.slug,
         description: data.description,
         image: data.image,
-        styles: data.styles as InputJsonValue,
+        styles: data.styles,
         priority: data.priority,
       },
     });

@@ -79,6 +79,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(validStyles),
+          priority: 1,
         },
       ],
     });
@@ -106,6 +107,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: validStyles as never,
+          priority: 1,
         },
       ],
     });
@@ -125,6 +127,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: "{ invalid json }",
+          priority: 1,
         },
       ],
     });
@@ -162,6 +165,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(invalidStyles),
+          priority: 1,
         },
       ],
     });
@@ -203,6 +207,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: null,
+          priority: 1,
         },
       ],
     });
@@ -234,6 +239,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(validStyles),
+          priority: 1,
         },
       ],
     });
@@ -259,6 +265,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(validStyles),
+          priority: 1,
         },
       ],
     });
@@ -289,6 +296,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: null, // No styles
+          priority: 1,
         },
         {
           id: "cat-2",
@@ -299,6 +307,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(firstStyles), // First with styles
+          priority: 1,
         },
         {
           id: "cat-3",
@@ -309,6 +318,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(secondStyles), // Second with styles, but should be ignored
+          priority: 1,
         },
       ],
     });
@@ -347,6 +357,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(validStyles),
+          priority: 1,
         },
       ],
     });
@@ -378,6 +389,7 @@ describe("getAgentCategoryStyles", () => {
           description: null,
           image: null,
           styles: JSON.stringify(invalidStyles),
+          priority: 1,
         },
       ],
     });
