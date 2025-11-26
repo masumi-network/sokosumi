@@ -1,18 +1,18 @@
-import prisma from "../client";
+import prisma from "../client.js";
 import {
   AgentJobStatus,
   JobType,
   OnChainJobStatus,
-} from "../generated/prisma/browser";
-import type { Prisma } from "../generated/prisma/client";
-import { mapJobWithStatus } from "../helpers/job";
+} from "../generated/prisma/browser.js";
+import type { Prisma } from "../generated/prisma/client.js";
+import { mapJobWithStatus } from "../helpers/job.js";
 import {
   finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
   jobInclude,
   jobOrderBy,
   type JobWithStatus,
-} from "../types/job";
+} from "../types/job.js";
 
 interface CreateDemoJobData {
   jobType: typeof JobType.DEMO;

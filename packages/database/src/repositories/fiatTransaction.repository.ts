@@ -1,9 +1,9 @@
-import prisma from "../client";
+import prisma from "../client.js";
 import type {
   FiatTransaction,
   FiatTransactionStatus,
   Prisma,
-} from "../generated/prisma/client";
+} from "../generated/prisma/client.js";
 
 /**
  * Fiat Transaction Repository Interface
