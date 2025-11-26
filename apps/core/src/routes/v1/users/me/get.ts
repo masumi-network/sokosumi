@@ -1,14 +1,14 @@
 import { createRoute } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound } from "../../../../helpers/error";
+import { forbidden, notFound } from "../../../../helpers/error.js";
 import {
   jsonErrorResponse,
   jsonSuccessResponse,
-} from "../../../../helpers/openapi";
-import { ok } from "../../../../helpers/response";
-import type { OpenAPIHonoWithAuth } from "../../../../lib/hono";
-import { userSchema } from "../schemas";
+} from "../../../../helpers/openapi.js";
+import { ok } from "../../../../helpers/response.js";
+import type { OpenAPIHonoWithAuth } from "../../../../lib/hono.js";
+import { userSchema } from "../schemas.js";
 
 const route = createRoute({
   method: "get",

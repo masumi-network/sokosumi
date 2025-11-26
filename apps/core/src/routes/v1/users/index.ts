@@ -1,6 +1,6 @@
-import { OpenAPIHonoWithAuth } from "../../../lib/hono";
-import mountGetUser from "./[id]/get";
-import mountGetMe from "./me/get";
+import { OpenAPIHonoWithAuth } from "../../../lib/hono.js";
+import mountGetUser from "./[id]/get.js";
+import mountGetMe from "./me/get.js";
 
 const app = new OpenAPIHonoWithAuth();
 
