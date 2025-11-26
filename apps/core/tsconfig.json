@@ -1,23 +1,14 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "types": ["node"],
-    "paths": {
-      "@/*": ["./src/*"],
-      "@/helpers/*": ["./src/helpers/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/config/*": ["./src/config/*"],
-      "@/middleware/*": ["./src/middleware/*"],
-      "@/routes/*": ["./src/routes/*"],
-      "@/types/*": ["./src/types/*"]
-    }
+    "types": ["node"]
   },
   "exclude": ["node_modules"]
 }
