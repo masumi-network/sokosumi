@@ -17,10 +17,6 @@ const envSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
   MIN_FEE_CREDITS: z.coerce.number().min(0).default(1),
-  ALLOWED_EMAIL_DOMAINS: z
-    .string()
-    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
-    .default([]),
 
   // Usercentrics
   USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1).optional(),
