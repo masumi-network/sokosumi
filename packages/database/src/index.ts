@@ -33,22 +33,22 @@
  */
 
 // Export browser-safe types (includes Prisma namespace, model types, and all enums - no PrismaClient)
-export * from "./generated/prisma/browser";
+export * from "./generated/prisma/browser.js";
 
 // Explicitly re-export Prisma namespace for better discoverability
-export type { Prisma } from "./generated/prisma/browser";
+export type { Prisma } from "./generated/prisma/browser.js";
 
 // Export additional model-related types
-export * from "./generated/prisma/models";
+export * from "./generated/prisma/models.js";
 
 // Export shared types
-export * from "./types/agent";
-export * from "./types/agentList";
-export * from "./types/agentRating";
-export * from "./types/invitation";
-export * from "./types/job";
-export * from "./types/job-schedule";
-export * from "./types/job-share";
-export * from "./types/member";
-export * from "./types/organization";
-export * from "./types/utm";
+export * from "./types/agent.js";
+export * from "./types/agentList.js";
+export * from "./types/agentRating.js";
+export * from "./types/invitation.js";
+export * from "./types/job.js";
+export * from "./types/job-schedule.js";
+export * from "./types/job-share.js";
+export * from "./types/member.js";
+export * from "./types/organization.js";
+export * from "./types/utm.js";

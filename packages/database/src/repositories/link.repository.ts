@@ -1,5 +1,5 @@
-import prisma from "../client";
-import type { Link, Prisma } from "../generated/prisma/client";
+import prisma from "../client.js";
+import type { Link, Prisma } from "../generated/prisma/client.js";
 
 export const linkRepository = {
   async upsertLink(

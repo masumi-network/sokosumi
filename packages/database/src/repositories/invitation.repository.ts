@@ -1,10 +1,10 @@
-import prisma from "../client";
-import type { Prisma } from "../generated/prisma/client";
+import prisma from "../client.js";
+import type { Prisma } from "../generated/prisma/client.js";
 import {
   invitationInclude,
   InvitationStatus,
   InvitationWithRelations,
-} from "../types/invitation";
+} from "../types/invitation.js";
 
 /**
  * Repository for managing invitation records in the database.

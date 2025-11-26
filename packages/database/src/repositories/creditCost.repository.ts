@@ -1,5 +1,5 @@
-import prisma from "../client";
-import type { CreditCost, Prisma } from "../generated/prisma/client";
+import prisma from "../client.js";
+import type { CreditCost, Prisma } from "../generated/prisma/client.js";
 
 /**
  * Credit Cost Repository Interface
