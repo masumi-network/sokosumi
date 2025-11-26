@@ -127,17 +127,6 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
         case "/sign-up/email": {
-          const allowedEmailDomains = getEnvSecrets().ALLOWED_EMAIL_DOMAINS;
-          if (
-            allowedEmailDomains.length !== 0 &&
-            !allowedEmailDomains.includes(ctx.body?.email.split("@")[1])
-          ) {
-            throw new APIError("BAD_REQUEST", {
-              code: "EMAIL_DOMAIN_NOT_ALLOWED",
-              message: allowedEmailDomains.join(", "),
-            });
-          }
-
           if (!ctx.body?.termsAccepted) {
             throw new APIError("BAD_REQUEST", {
               code: "TERMS_NOT_ACCEPTED",
