@@ -1,3 +1,4 @@
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -34,7 +35,4 @@ app.get("/v1", async (c) => {
   );
 });
 
-export default {
-  port: Bun.env.PORT ?? 3000,
-  fetch: app.fetch,
-};
+serve({ fetch: app.fetch, port: 8787 });
