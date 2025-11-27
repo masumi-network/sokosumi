@@ -8,14 +8,7 @@
     "types": ["node"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "outDir": "./dist",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@/helpers/*": ["./src/helpers/*"],
-      "@/middleware/*": ["./src/middleware/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/routes/*": ["./src/routes/*"]
-    }
+    "outDir": "./dist"
   },
   "exclude": ["node_modules"]
 }
