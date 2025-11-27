@@ -1,14 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "types": ["node"]
+    "types": ["bun"]
   },
   "exclude": ["node_modules"]
 }
