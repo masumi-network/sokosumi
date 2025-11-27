@@ -20,8 +20,6 @@ app.notFound(() => {
   throw notFound();
 });
 
-app.get("/", (c) => c.text("Hello World"));
-
 // Mount API v1 routes
 app.route("/v1", apiV1);
 
