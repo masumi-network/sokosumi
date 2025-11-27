@@ -1,4 +1,3 @@
-
 import prisma from "../client.js";
 import type { Prisma, UTMAttribution } from "../generated/prisma/client.js";
 import type { UTMData } from "../types/utm.js";

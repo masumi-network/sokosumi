@@ -1,0 +1,4 @@
+# deps
+dist/
+node_modules/
+.vercel

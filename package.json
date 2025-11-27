@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "pnpm -r dev",
     "web:dev": "pnpm --filter web dev",
+    "core:dev": "pnpm --filter core dev",
     "build": "pnpm -r build",
     "web:build": "pnpm --filter web build",
+    "core:build": "pnpm --filter core build",
     "database:build": "pnpm --filter @sokosumi/database build",
     "start": "pnpm -r start",
+    "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
     "lint": "pnpm -r lint",
     "web:lint": "pnpm --filter web lint",
@@ -37,7 +40,7 @@
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-simple-import-sort": "12.1.1",
     "eslint-plugin-unused-imports": "4.3.0",
-    "prettier": "3.6.2",
+    "prettier": "3.7.1",
     "typescript-eslint": "8.48.0"
   }
 }
