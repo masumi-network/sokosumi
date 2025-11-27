@@ -20,13 +20,15 @@ app.notFound(() => {
   throw notFound();
 });
 
-app.get("/", (c) => {
-  return c.json({ message: "Hello World" });
-});
-
 // Mount API v1 routes
 app.route("/v1", apiV1);
 
-serve({ fetch: app.fetch, port: Number(process.env.PORT) ?? 8787 }, (info) => {
-  console.log(`Server is running on http://localhost:${info.port}`);
-});
+serve(
+  {
+    fetch: app.fetch,
+    port: Number(process.env.PORT) ?? 8787,
+  },
+  (info) => {
+    console.log(`Server is running on http://localhost:${info.port}`);
+  },
+);
