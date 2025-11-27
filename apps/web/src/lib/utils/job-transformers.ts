@@ -1,5 +1,9 @@
-import type {
+import {
   AgentJobStatus,
+  Blob,
+  BlobOrigin,
+  JobWithStatus,
+  Link,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
@@ -202,4 +206,44 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
   }
 
   return data;
+}
+
+/**
+ * Retrieves all input blobs from all events of a job.
+ *
+ * @param job - The job to extract input blobs from.
+ * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
+ */
+export function getInputBlobs(job: JobWithStatus): Blob[] {
+  return job.events.flatMap((event) =>
+    event.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
+  );
+}
+
+/**
+ * Retrieves all output blobs from all events of a job.
+ *
+ * @param job - The job to extract output blobs from.
+ * @returns An array of Blob objects with origin OUTPUT, or an empty array if none exist.
+ */
+export function getOutputBlobs(job: JobWithStatus): Blob[] {
+  return job.events.flatMap((event) =>
+    event.blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT),
+  );
+}
+
+/**
+ * Retrieves links from the latest completed event of a job.
+ *
+ * @param job - The job to extract result links from.
+ * @returns An array of Link objects, or an empty array if no completed event exists.
+ */
+export function getResultLinks(job: JobWithStatus): Link[] {
+  const latestCompletedEvent = job.events.find(
+    (event) => event.status === AgentJobStatus.COMPLETED,
+  );
+  if (!latestCompletedEvent) {
+    return [];
+  }
+  return latestCompletedEvent.links ?? [];
 }

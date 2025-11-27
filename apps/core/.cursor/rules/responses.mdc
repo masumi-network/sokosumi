@@ -1,0 +1,164 @@
+---
+alwaysApply: true
+---
+
+# Sokosumi Core API Response Guidelines
+
+## Response Helpers
+
+Always use standardized response helpers from `src/helpers/response.ts` and `src/helpers/error.ts`.
+
+### Success Responses
+
+Use these helpers for successful operations:
+
+```typescript
+import { ok, created, empty } from "../helpers/response";
+
+// 200 OK - Return data
+return ok(c, { user });
+
+// 201 Created - Return newly created resource
+return created(c, { user });
+
+// 204 No Content - No data to return
+return empty(c);
+```
+
+### Error Responses
+
+**NEVER** use `c.json({ error: "..." }, statusCode)` directly. Always use error helpers:
+
+```typescript
+import {
+  badRequest,
+  unauthorized,
+  forbidden,
+  notFound,
+  conflict,
+  unprocessableEntity,
+  tooManyRequests,
+  internalServerError,
+  serviceUnavailable,
+} from "../helpers/error";
+
+// 400 Bad Request - Client error in request format/validation
+badRequest("Invalid request parameters");
+
+// 401 Unauthorized - Authentication required or failed
+unauthorized("Authentication required");
+
+// 403 Forbidden - User doesn't have permission
+forbidden("You can only access your own user data");
+
+// 404 Not Found - Resource doesn't exist
+notFound("User not found");
+
+// 409 Conflict - Request conflicts with current state
+conflict("User already exists");
+
+// 422 Unprocessable Entity - Validation errors
+unprocessableEntity("Email format is invalid");
+
+// 429 Too Many Requests - Rate limit exceeded
+tooManyRequests("Rate limit exceeded");
+
+// 500 Internal Server Error - Unexpected server error
+internalServerError("An unexpected error occurred");
+
+// 503 Service Unavailable - Service temporarily unavailable
+serviceUnavailable("Database connection unavailable");
+```
+
+## Key Rules
+
+1. **Use error helpers, not c.json()**
+   - ❌ `return c.json({ error: "Forbidden" }, 403)`
+   - ✅ `forbidden("You can only access your own user data")`
+
+2. **Error helpers throw exceptions** - they use the `never` return type and throw, so no need to return:
+
+   ```typescript
+   // Correct - no return needed
+   if (auth.type !== "user") {
+     forbidden("Internal tokens cannot access user data");
+   }
+   ```
+
+3. **Provide clear, user-facing error messages**:
+   - ❌ `forbidden("Forbidden")`
+   - ✅ `forbidden("You can only access your own user data")`
+
+4. **Success responses always use helpers**:
+   - ❌ `return c.json({ data: user })`
+   - ✅ `return ok(c, { user })`
+
+5. **Optional error details** - use `ErrorOptions` for additional context:
+   ```typescript
+   badRequest("Validation failed", {
+     code: "VALIDATION_ERROR",
+     details: [{ field: "email", message: "Invalid format" }],
+   });
+   ```
+
+## Response Structure
+
+### Success Response Format
+
+```json
+{
+  "data": {
+    /* your data */
+  },
+  "meta": {
+    "timestamp": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+### Error Response Format
+
+```json
+{
+  "error": "NotFound",
+  "message": "User not found",
+  "code": "USER_NOT_FOUND",
+  "meta": {
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "requestId": "abc123",
+    "path": "/api/v1/users/123",
+    "method": "GET"
+  }
+}
+```
+
+## Example Route Implementation
+
+```typescript
+import { userRepository } from "@sokosumi/database/repositories";
+
+import { forbidden, notFound } from "../helpers/error";
+import { ok } from "../helpers/response";
+import { OpenAPIHonoWithAuth } from "../lib/hono";
+
+const app = new OpenAPIHonoWithAuth();
+
+app.get("/me", async (c) => {
+  const auth = c.get("auth");
+
+  // Check if the user is authenticated
+  if (auth.type !== "user") {
+    forbidden("Internal tokens cannot access user data");
+  }
+
+  const userAuth = auth as UserAuthContext;
+  const user = await userRepository.getUserById(userAuth.userId);
+  if (!user) {
+    notFound("User not found");
+  }
+
+  return ok(c, { user });
+});
+
+export default app;
+```

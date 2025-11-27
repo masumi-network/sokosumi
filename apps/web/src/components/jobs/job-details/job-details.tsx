@@ -1,6 +1,6 @@
 "use client";
 
-import { Blob, BlobOrigin, JobStatus, JobWithStatus } from "@sokosumi/database";
+import { JobStatus, JobWithStatus } from "@sokosumi/database";
 import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -10,6 +10,11 @@ import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+import {
+  getInputBlobs,
+  getOutputBlobs,
+  getResultLinks,
+} from "@/lib/utils/job-transformers";
 import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
@@ -45,14 +50,11 @@ export default function JobDetails({
   const rawInputSchema = job.inputSchema;
 
   const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.result;
-  // Only show Sources accordion if there are OUTPUT blobs or links
-  // Note: Only output blobs are shown in the Sources section
-  const hasOutputBlobs = job.blobs.some(
-    (blob: Blob) => blob.origin === BlobOrigin.OUTPUT,
-  );
-  const hasOutputLinks = job.links.length > 0;
-  const hasSources = hasOutputBlobs || hasOutputLinks;
-  const isAwaitingInput = true; //job.status === JobStatus.INPUT_REQUIRED;
+  // Get blobs separated by origin (INPUT and OUTPUT) from all events
+  const inputBlobs = getInputBlobs(job);
+  const outputBlobs = getOutputBlobs(job);
+  const resultLinks = getResultLinks(job);
+  const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
   const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
@@ -86,7 +88,7 @@ export default function JobDetails({
             <JobDetailsInputs
               rawInput={rawInput}
               rawInputSchema={rawInputSchema}
-              blobs={job.blobs}
+              blobs={inputBlobs}
             />
           </AccordionItemWrapper>
           <AccordionItemWrapper

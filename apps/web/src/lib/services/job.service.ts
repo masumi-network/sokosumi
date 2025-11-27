@@ -4,7 +4,6 @@ import * as Sentry from "@sentry/nextjs";
 import {
   AgentJobStatus,
   AgentWithRelations,
-  Job,
   JobShare,
   JobStatus,
   JobType,
@@ -449,7 +448,15 @@ export const jobService = (() => {
     try {
       const result = job.result;
       if (result !== null) {
-        await sourceImportService.enqueueFromMarkdown(userId, job.id, result);
+        // Find the latest COMPLETED event with a result for the demo job
+        const eventWithResult = job.events.find((e) => e.result === result);
+        if (eventWithResult) {
+          await sourceImportService.enqueueFromMarkdown(
+            userId,
+            eventWithResult.id,
+            result,
+          );
+        }
       }
     } catch {
       // Ignore errors
@@ -1047,7 +1054,7 @@ export const jobService = (() => {
             }
           }
 
-          await jobEventRepository.createJobEventForJobId(
+          const newJobEvent = await jobEventRepository.createJobEventForJobId(
             job.id,
             {
               externalId: agentJobStatusResult.data.id,
@@ -1070,7 +1077,7 @@ export const jobService = (() => {
             const outputResult = agentJobStatusResult.data?.result;
             if (typeof outputResult === "string") {
               sourceImportService
-                .enqueueFromMarkdown(job.userId, job.id, outputResult)
+                .enqueueFromMarkdown(job.userId, newJobEvent.id, outputResult)
                 .catch(() => {
                   // Ignore errors
                 });

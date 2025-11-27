@@ -236,7 +236,7 @@ export function createApiEmptyResponse(
   const emptyResponse = createEmptyResponse();
 
   return NextResponse.json(emptyResponse, {
-    status: options.status ?? 200,
+    status: options.status ?? 204,
   });
 }
 

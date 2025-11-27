@@ -1,4 +1,3 @@
-
 import prisma from "./client.js";
 import type { Prisma } from "./generated/prisma/client.js";
 

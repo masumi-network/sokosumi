@@ -14,7 +14,7 @@
     "lint:report": "eslint --output-file=lint-report.json --format json .",
     "test": "jest",
     "test:ci": "jest --ci",
-    "prepare": "pnpm --filter @sokosumi/database build && pnpm run generate:api-docs",
+    "prepare": "pnpm run generate:api-docs",
     "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",

@@ -1,0 +1,28 @@
+{
+  "name": "core",
+  "type": "module",
+  "engines": {
+    "node": ">=22.16.0 <23.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "1.19.6",
+    "@hono/swagger-ui": "0.5.2",
+    "@hono/zod-openapi": "1.1.5",
+    "@sokosumi/database": "workspace:*",
+    "better-auth": "1.4.3",
+    "dotenv": "17.2.3",
+    "hono": "4.10.7",
+    "uuid": "13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "tsup": "8.5.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

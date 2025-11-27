@@ -1,4 +1,7 @@
-import { AgentJobStatus, OnChainJobStatus } from "../generated/prisma/browser.js";
+import {
+  AgentJobStatus,
+  OnChainJobStatus,
+} from "../generated/prisma/browser.js";
 import type {
   CreditTransaction,
   JobType,
@@ -10,6 +13,10 @@ export const jobInclude = {
     orderBy: {
       createdAt: "desc",
     },
+    include: {
+      blobs: true,
+      links: true,
+    },
   },
   purchase: true,
   agent: true,
@@ -17,8 +24,6 @@ export const jobInclude = {
   organization: true,
   creditTransaction: true,
   refundedCreditTransaction: true,
-  blobs: true,
-  links: true,
   share: true,
 } as const;
 

@@ -152,7 +152,15 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       // Save files uploaded if any
-      await saveUploadedFiles(userId, job.id, uploadedFiles);
+      const jobEvent = job.events[0] ?? null;
+
+      if (!jobEvent) {
+        throw new Error("Input event not found");
+      }
+
+      if (uploadedFiles.length > 0) {
+        await saveUploadedFiles(userId, jobEvent.id, uploadedFiles);
+      }
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
