@@ -1,7 +1,7 @@
 
-import prisma from "../client";
-import type { Prisma, UTMAttribution } from "../generated/prisma/client";
-import type { UTMData } from "../types/utm";
+import prisma from "../client.js";
+import type { Prisma, UTMAttribution } from "../generated/prisma/client.js";
+import type { UTMData } from "../types/utm.js";
 
 /**
  * Repository for UTM attribution-related database operations.

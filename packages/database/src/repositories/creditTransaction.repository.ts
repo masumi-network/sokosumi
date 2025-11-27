@@ -1,5 +1,5 @@
-import prisma from "../client";
-import type { CreditTransaction, Prisma } from "../generated/prisma/client";
+import prisma from "../client.js";
+import type { CreditTransaction, Prisma } from "../generated/prisma/client.js";
 
 /**
  * Credit Transaction Repository Interface

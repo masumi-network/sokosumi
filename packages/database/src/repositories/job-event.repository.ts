@@ -1,9 +1,9 @@
-import prisma from "../client";
+import prisma from "../client.js";
 import type {
   AgentJobStatus,
   JobEvent,
   Prisma,
-} from "../generated/prisma/client";
+} from "../generated/prisma/client.js";
 
 interface CreateJobEventData {
   externalId?: string | null;

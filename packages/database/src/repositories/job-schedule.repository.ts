@@ -1,5 +1,5 @@
-import prisma from "../client";
-import type { Prisma } from "../generated/prisma/client";
+import prisma from "../client.js";
+import type { Prisma } from "../generated/prisma/client.js";
 
 export const jobScheduleRepository = {
   async create(
