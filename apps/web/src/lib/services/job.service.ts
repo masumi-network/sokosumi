@@ -449,9 +449,7 @@ export const jobService = (() => {
       const result = job.result;
       if (result !== null) {
         // Find the latest COMPLETED event with a result for the demo job
-        const eventWithResult = job.events.find(
-          (e) => e.status === AgentJobStatus.COMPLETED && e.result != null,
-        );
+        const eventWithResult = job.events.find((e) => e.result === result);
         if (eventWithResult) {
           await sourceImportService.enqueueFromMarkdown(
             userId,
