@@ -1,4 +1,3 @@
-import { serve } from "@hono/node-server";
 import { agentRepository } from "@sokosumi/database/repositories";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -34,4 +33,4 @@ app.get("/v1", async (c) => {
   );
 });
 
-serve({ fetch: app.fetch, port: 8787 });
+export default app;
