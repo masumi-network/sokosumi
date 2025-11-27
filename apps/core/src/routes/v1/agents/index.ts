@@ -1,4 +1,5 @@
-import { OpenAPIHonoWithAuth } from "../../../lib/hono.js";
+import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
+
 import mountGetAgentById from "./[id]/get.js";
 import mountGetAgents from "./get.js";
 
