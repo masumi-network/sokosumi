@@ -6,7 +6,6 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
-import { handle } from "hono/vercel";
 
 import { notFound } from "./helpers/error";
 import apiV1 from "./routes/v1/index";
@@ -26,16 +25,12 @@ app.get("/", (c) => c.text("Hello World"));
 // Mount API v1 routes
 app.route("/v1", apiV1);
 
-if (process.env.NODE_ENV === "development") {
-  serve(
-    {
-      fetch: app.fetch,
-      port: Number(process.env.PORT) || 8787,
-    },
-    (info) => {
-      console.log(`Server is running on http://localhost:${info.port}`);
-    },
-  );
-}
-
-export default handle(app);
+serve(
+  {
+    fetch: app.fetch,
+    port: Number(process.env.PORT) || 8787,
+  },
+  (info) => {
+    console.log(`Server is running on http://localhost:${info.port}`);
+  },
+);
