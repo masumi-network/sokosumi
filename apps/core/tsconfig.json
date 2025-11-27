@@ -10,5 +10,6 @@
     "noEmit": true,
     "types": ["bun", "node"]
   },
+  "include": ["src/**/*"],
   "exclude": ["node_modules"]
 }
