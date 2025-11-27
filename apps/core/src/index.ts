@@ -1,3 +1,6 @@
+import "dotenv/config";
+
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -17,10 +20,13 @@ app.notFound(() => {
   throw notFound();
 });
 
+app.get("/", (c) => {
+  return c.json({ message: "Hello World" });
+});
+
 // Mount API v1 routes
 app.route("/v1", apiV1);
 
-export default {
-  port: Bun.env.PORT ?? 3000,
-  fetch: app.fetch,
-};
+serve({ fetch: app.fetch, port: Number(process.env.PORT) ?? 8787 }, (info) => {
+  console.log(`Server is running on http://localhost:${info.port}`);
+});
