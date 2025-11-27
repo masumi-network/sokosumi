@@ -1,13 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound } from "../../../../helpers/error";
-import {
-  jsonErrorResponse,
-  jsonSuccessResponse,
-} from "../../../../helpers/openapi";
-import { ok } from "../../../../helpers/response";
-import type { OpenAPIHonoWithAuth } from "../../../../lib/hono";
+import { forbidden, notFound } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+
 import { userSchema } from "../schemas.js";
 
 const params = z.object({
