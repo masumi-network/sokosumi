@@ -8,8 +8,8 @@ import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 import { handle } from "hono/vercel";
 
-import { notFound } from "@/helpers/error";
-import apiV1 from "@/routes/v1/index";
+import { notFound } from "./helpers/error";
+import apiV1 from "./routes/v1/index";
 
 const app = new Hono<{ Variables: RequestIdVariables }>();
 

@@ -1,8 +1,8 @@
 import type { MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 
-import { unauthorized } from "@/helpers/error";
-import { auth } from "@/lib/auth";
+import { unauthorized } from "../helpers/error";
+import { auth } from "../lib/auth";
 
 export interface AuthenticatedUserContext {
   id: string;
