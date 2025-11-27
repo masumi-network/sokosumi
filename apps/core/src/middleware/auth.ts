@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 
 import { unauthorized } from "../helpers/error.js";
+import { auth } from "../lib/auth.js";
 
 export interface AuthenticatedUserContext {
   id: string;
@@ -25,15 +26,54 @@ const bearerMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = bearerAuth({
   verifyToken: async (token, c) => {
-    // Only static API_KEY check (better-auth removed for testing)
+    // Check 1: Static API_KEY (internal service)
     if (token === Bun.env.API_KEY) {
       setAuthContext(c, { isAuthenticated: true, user: undefined });
+      return true;
+    }
+
+    // Check 2: Better-Auth API Key (user)
+    const result = await auth.api.verifyApiKey({
+      body: { key: token },
+    });
+
+    if (result.valid && result.key) {
+      setAuthContext(c, {
+        isAuthenticated: true,
+        user: {
+          id: result.key.userId,
+          organizationId: result.key.metadata?.organizationId ?? null,
+        },
+      });
       return true;
     }
 
     throw unauthorized("Invalid token");
   },
 });
+
+const sessionMiddleware: MiddlewareHandler<{
+  Variables: AuthVariables;
+}> = async (c, next) => {
+  const response = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+
+  if (response?.session && response.user) {
+    const { session, user } = response;
+
+    setAuthContext(c, {
+      isAuthenticated: true,
+      user: {
+        id: user.id,
+        organizationId: session.activeOrganizationId ?? null,
+      },
+    });
+
+    await next();
+  }
+  throw unauthorized();
+};
 
 export const authMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
@@ -43,6 +83,6 @@ export const authMiddleware: MiddlewareHandler<{
   if (authHeader) {
     await bearerMiddleware(c, next);
   } else {
-    throw unauthorized("Authorization required");
+    await sessionMiddleware(c, next);
   }
 };
