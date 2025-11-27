@@ -3,7 +3,7 @@ import { JobWithStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { getResultBlobs, getResultLinks } from "@/lib/utils/job-transformers";
+import { getOutputBlobs, getResultLinks } from "@/lib/utils/job-transformers";
 
 import { SourcesGrid } from "./sources-grid";
 
@@ -20,7 +20,7 @@ export default function JotOutputSources({ job }: JobOutputSourcesProps) {
 function JobOutputSourcesInner({ job }: JobOutputSourcesProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Sources");
 
-  const { output: outputBlobs } = getResultBlobs(job);
+  const outputBlobs = getOutputBlobs(job);
   const links = getResultLinks(job);
   if (outputBlobs.length === 0 && links.length === 0) return null;
 

@@ -209,29 +209,27 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
 }
 
 /**
- * Retrieves blobs separated by origin (INPUT and OUTPUT) from the latest completed event of a job.
+ * Retrieves all input blobs from all events of a job.
  *
- * @param job - The job to extract blobs from.
- * @returns An object with `input` and `output` arrays of Blob objects, or empty arrays if no completed event exists.
+ * @param job - The job to extract input blobs from.
+ * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
  */
-export function getResultBlobs(job: JobWithStatus): {
-  input: Blob[];
-  output: Blob[];
-} {
-  const latestCompletedEvent = job.events.find(
-    (event) => event.status === AgentJobStatus.COMPLETED,
+export function getInputBlobs(job: JobWithStatus): Blob[] {
+  return job.events.flatMap((event) =>
+    event.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
   );
-  if (!latestCompletedEvent) {
-    return { input: [], output: [] };
-  }
-  return {
-    input: latestCompletedEvent.blobs.filter(
-      (blob) => blob.origin === BlobOrigin.INPUT,
-    ),
-    output: latestCompletedEvent.blobs.filter(
-      (blob) => blob.origin === BlobOrigin.OUTPUT,
-    ),
-  };
+}
+
+/**
+ * Retrieves all output blobs from all events of a job.
+ *
+ * @param job - The job to extract output blobs from.
+ * @returns An array of Blob objects with origin OUTPUT, or an empty array if none exist.
+ */
+export function getOutputBlobs(job: JobWithStatus): Blob[] {
+  return job.events.flatMap((event) =>
+    event.blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT),
+  );
 }
 
 /**

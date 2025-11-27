@@ -10,7 +10,11 @@ import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
-import { getResultBlobs, getResultLinks } from "@/lib/utils/job-transformers";
+import {
+  getInputBlobs,
+  getOutputBlobs,
+  getResultLinks,
+} from "@/lib/utils/job-transformers";
 import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
@@ -45,8 +49,9 @@ export default function JobDetails({
   const rawInputSchema = job.inputSchema;
 
   const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.result;
-  // Get blobs separated by origin (INPUT and OUTPUT) from latest completed event
-  const { input: inputBlobs, output: outputBlobs } = getResultBlobs(job);
+  // Get blobs separated by origin (INPUT and OUTPUT) from all events
+  const inputBlobs = getInputBlobs(job);
+  const outputBlobs = getOutputBlobs(job);
   const resultLinks = getResultLinks(job);
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
   const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
