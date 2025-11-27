@@ -4,34 +4,45 @@
 
 ## App-Specific Architecture
 
-**Framework**: Hono with Bun runtime
+**Framework**: Hono with Node.js runtime
 **Location**: `apps/core/` directory within the pnpm workspace
 **Key Directories**:
 
-- `src/routes/` - API route handlers
+- `src/routes/v1/` - API route handlers organized by version
 - `src/middleware/` - Request middleware (auth, logging, etc.)
 - `src/helpers/` - Response and error helpers
 - `src/lib/` - Shared utilities and configurations
-- `src/config/` - Environment configuration
 
 ## Core API Structure
 
 ```
 src/
 ├── routes/              # API route definitions
-│   ├── agents.ts        # Agent-related endpoints
-│   └── users.ts         # User-related endpoints
+│   └── v1/             # API version 1
+│       ├── agents/     # Agent-related endpoints
+│       │   ├── [id]/   # Dynamic route segments
+│       │   │   └── get.ts
+│       │   ├── get.ts  # Route handlers
+│       │   ├── index.ts # Route mounting
+│       │   └── schemas.ts # Zod schemas
+│       ├── users/      # User-related endpoints
+│       │   ├── [id]/
+│       │   │   └── get.ts
+│       │   ├── me/
+│       │   │   └── get.ts
+│       │   ├── index.ts
+│       │   └── schemas.ts
+│       └── index.ts    # V1 API mounting
 ├── middleware/          # Request middleware
 │   └── auth.ts          # Authentication middleware
 ├── helpers/             # Helper functions
 │   ├── response.ts      # Success response helpers
 │   ├── error.ts         # Error response helpers
-│   └── error-handler.ts # Global error handler
+│   ├── error-handler.ts # Global error handler
+│   └── openapi.ts       # OpenAPI helper utilities
 ├── lib/                 # Shared utilities
 │   ├── auth.ts          # Better Auth client
 │   └── hono.ts          # Type-safe Hono classes
-├── config/              # Configuration
-│   └── env.ts           # Environment variables
 └── index.ts             # Application entry point
 ```
 
@@ -42,7 +53,7 @@ src/
 Use type-safe Hono classes that automatically apply authentication:
 
 ```typescript
-import { HonoWithAuth, OpenAPIHonoWithAuth } from "../lib/hono";
+import { HonoWithAuth, OpenAPIHonoWithAuth } from "@/lib/hono";
 
 // For standard routes
 const router = new HonoWithAuth();
@@ -60,7 +71,7 @@ const app = new OpenAPIHonoWithAuth();
 #### Success Responses
 
 ```typescript
-import { ok, created, empty } from "../helpers/response";
+import { ok, created, empty } from "@/helpers/response";
 
 // Return data
 return ok(c, { user });
@@ -84,7 +95,7 @@ import {
   notFound,
   conflict,
   unprocessableEntity,
-} from "../helpers/error";
+} from "@/helpers/error";
 
 // ❌ Wrong
 return c.json({ error: "Forbidden" }, 403);
@@ -97,17 +108,14 @@ Error helpers throw exceptions and have `never` return type - no `return` needed
 
 ### Environment Variables
 
-Use the typed `env` object from `src/config/env.ts`:
+Environment variables are accessed via `process.env`. Common variables include:
 
-```typescript
-import { env } from "../config/env";
+- `PORT` - Server port (defaults to 8787)
+- `API_KEY` - Internal API key for service-to-service authentication
+- `BETTER_AUTH_SECRET` - Better Auth secret key
+- `BETTER_AUTH_URL` - Better Auth base URL
 
-// Access environment variables
-const port = env.PORT;
-const apiKey = env.API_KEY;
-```
-
-**Never** access `process.env` directly in route handlers.
+**Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
 
 ### Authentication Context
 
@@ -131,7 +139,7 @@ if (auth.type === "user") {
 **Type narrowing**: When checking auth type, use type assertions for TypeScript:
 
 ```typescript
-import type { UserAuthContext } from "../middleware/auth";
+import type { UserAuthContext } from "@/middleware/auth";
 
 if (auth.type !== "user") {
   forbidden("Internal tokens cannot access user data");
@@ -158,34 +166,64 @@ const sessionId = userAuth.sessionId;
 
 ### Creating a New Route
 
+Routes follow a modular pattern with separate files for each endpoint:
+
 ```typescript
-import { OpenAPIHonoWithAuth } from "../lib/hono";
-import { ok } from "../helpers/response";
-import { notFound } from "../helpers/error";
+// src/routes/v1/resource/get.ts
+import { createRoute, z } from "@hono/zod-openapi";
+import { notFound } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+
+import { resourceSchema } from "./schemas.js";
+
+const route = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Resources"],
+  responses: {
+    200: jsonSuccessResponse(z.array(resourceSchema), "Retrieve all resources"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const auth = c.get("auth");
+    const data = await fetchData();
+
+    if (!data) {
+      throw notFound("Resource not found");
+    }
+
+    return ok(c, resourceSchema.parse(data));
+  });
+}
+```
+
+Then mount it in the resource's `index.ts`:
+
+```typescript
+// src/routes/v1/resource/index.ts
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import mountGetResource from "./get.js";
 
 const app = new OpenAPIHonoWithAuth();
 
-app.get("/:id", async (c) => {
-  const id = c.req.param("id");
-  const auth = c.get("auth");
-
-  // Your logic here
-  const data = await fetchData(id);
-  if (!data) {
-    notFound("Resource not found");
-  }
-
-  return ok(c, data);
-});
+mountGetResource(app);
 
 export default app;
 ```
 
 ### Creating OpenAPI Route Definition
 
+Use the OpenAPI helper utilities for consistent response schemas:
+
 ```typescript
 import { createRoute, z } from "@hono/zod-openapi";
-import { successResponseSchema } from "../helpers/response";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 
 const dataSchema = z
   .object({
@@ -197,22 +235,26 @@ const dataSchema = z
 const route = createRoute({
   method: "get",
   path: "/",
+  tags: ["Data"],
   responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: successResponseSchema(z.array(dataSchema)),
-        },
-      },
-      description: "Retrieve all data",
-    },
+    200: jsonSuccessResponse(z.array(dataSchema), "Retrieve all data"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
   },
 });
 
-app.openapi(route, async (c) => {
-  // Handler implementation
-});
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    // Handler implementation
+  });
+}
 ```
+
+**Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
+
+- `@/helpers/*` → `src/helpers/*`
+- `@/lib/*` → `src/lib/*`
+- `@/routes/*` → `src/routes/*`
 
 ## Core API Gotchas
 
@@ -240,5 +282,5 @@ app.openapi(route, async (c) => {
 - [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines
 - [Response Guidelines](.cursor/rules/responses.mdc) - Response helper documentation
 - [Hono Documentation](https://hono.dev/)
-- [Bun Runtime](https://bun.sh/)
+- [Hono Node.js Server](https://hono.dev/getting-started/nodejs)
 - [Better Auth Hono Integration](https://www.better-auth.com/docs/integrations/hono#middleware)
