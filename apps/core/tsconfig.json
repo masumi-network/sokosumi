@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
@@ -9,12 +10,9 @@
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
     "outDir": "./dist",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/helpers/*": ["./src/helpers/*"],
-      "@/middleware/*": ["./src/middleware/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/routes/*": ["./src/routes/*"]
+      "@/*": ["./src/*"]
     }
   },
   "exclude": ["node_modules"]
