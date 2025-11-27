@@ -58,17 +58,29 @@ export function JobVerificationBadge({
         if (isFundsLocked) {
           return { isPending: true, isVerified: false, isNotApplicable: false };
         } else {
+          const resultVerificationOptions = {
+            identifierFromPurchaser: job.identifierFromPurchaser,
+            resultHash: job.purchase?.resultHash ?? null,
+            result: job.result,
+          };
+
           return {
             isPending: false,
-            isVerified: isJobVerified("result", job),
+            isVerified: isJobVerified("result", resultVerificationOptions),
             isNotApplicable: false,
           };
         }
       }
       case "input":
+        const inputVerificationOptions = {
+          identifierFromPurchaser: job.identifierFromPurchaser,
+          inputHash: job.inputHash ?? null,
+          input: job.input,
+        };
+
         return {
           isPending: false,
-          isVerified: isJobVerified("input", job),
+          isVerified: isJobVerified("input", inputVerificationOptions),
           isNotApplicable: false,
         };
       default:
