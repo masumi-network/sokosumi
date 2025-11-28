@@ -10,8 +10,12 @@ export const jobSchema = z
       .string()
       .nullish()
       .openapi({ example: "organization_123" }),
-    status: z.enum(JobStatus).openapi({ example: "awaiting_payment" }),
-    input: z.string().openapi({ example: "{}" }),
+    status: z.enum(JobStatus).openapi({ example: JobStatus.PROCESSING }),
+    input: z
+      .string()
+      .openapi({
+        example: '{"prompt":"How many planets are in the solar system?"}',
+      }),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
   })
   .openapi("Job");
