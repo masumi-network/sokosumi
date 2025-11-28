@@ -7,8 +7,7 @@ export interface SearchableJob {
   id: string;
   name: string | null;
   input: string | null;
-  output: string | null;
-  links?: SearchableJobLink[] | null;
+  result: string | null;
 }
 
 export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
@@ -18,14 +17,7 @@ export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
   const searchableFields = [
     job.name,
     job.id,
-    (() => {
-      try {
-        const output = JSON.parse(job.output ?? "{}");
-        return typeof output.result === "string" ? output.result : "";
-      } catch {
-        return "";
-      }
-    })(),
+    job.result,
     (() => {
       try {
         const input = JSON.parse(job.input ?? "{}");
@@ -36,9 +28,6 @@ export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
         return "";
       }
     })(),
-    ...(Array.isArray(job.links)
-      ? job.links.map((link) => `${link.title ?? ""} ${link.url ?? ""}`)
-      : []),
   ]
     .filter(
       (value): value is string => typeof value === "string" && value.length > 0,

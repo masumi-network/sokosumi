@@ -36,7 +36,7 @@ import { convertCentsToCredits } from "@/lib/helpers/credit";
 import {
   defaultValues,
   filterOutNullValues,
-  JobInputsDataSchemaType,
+  JobInputDataSchemaType,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
@@ -50,7 +50,7 @@ import JobInput from "./job-input";
 interface JobInputsFormClientProps {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
-  jobInputsDataSchema: JobInputsDataSchemaType;
+  inputDataSchema: JobInputDataSchemaType;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   className?: string | undefined;
@@ -59,13 +59,13 @@ interface JobInputsFormClientProps {
 export default function JobInputsFormClient({
   agent,
   averageExecutionDuration,
-  jobInputsDataSchema,
+  inputDataSchema,
   demoValues,
   legal,
   className,
 }: JobInputsFormClientProps) {
   const { id: agentId, creditsPrice } = agent;
-  const { input_data } = jobInputsDataSchema;
+  const { input_data } = inputDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
   const formatter = useFormatter();

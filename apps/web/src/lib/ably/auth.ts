@@ -10,6 +10,9 @@ export default async function createAuthTokenRequest(userId: string) {
   );
   const tokenRequest = await client.auth.createTokenRequest({
     clientId: userId,
+    capability: {
+      [`agent_jobs:*:user_${userId}`]: ["subscribe"],
+    },
   });
   return tokenRequest;
 }

@@ -2,7 +2,6 @@ import { Agent } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -31,7 +30,7 @@ export default function AgentLists({ userId }: AgentListsProps) {
 
 function AgentListsSkeleton() {
   return (
-    <ScrollArea className="h-full">
+    <>
       {[1, 2].map((groupIndex) => (
         <SidebarGroup key={groupIndex} className="w-full">
           <SidebarGroupLabel className="text-base">
@@ -50,8 +49,7 @@ function AgentListsSkeleton() {
           </SidebarGroupContent>
         </SidebarGroup>
       ))}
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    </>
   );
 }
 
@@ -70,12 +68,14 @@ async function AgentListsContent({ userId }: { userId: string }) {
     favoriteAgents,
   );
 
-  const [favoriteAgentsJobIndicatorStatuses, hiredAgentsJobIndicatorStatuses] =
+  const [favoriteAgentsJobStatusesData, hiredAgentsJobStatusesData] =
     await Promise.all([
-      jobService.getJobIndicatorStatuses(
+      jobService.getJobStatusesDataForAgents(
         favoriteAgents.map((agent) => agent.id),
       ),
-      jobService.getJobIndicatorStatuses(hiredAgents.map((agent) => agent.id)),
+      jobService.getJobStatusesDataForAgents(
+        hiredAgents.map((agent) => agent.id),
+      ),
     ]);
 
   // Determine availability for each agent
@@ -101,7 +101,7 @@ async function AgentListsContent({ userId }: { userId: string }) {
       groupKey: "favorite-agents",
       title: t("pinnedTitle"),
       agents: favoriteAgentsWithAvailability,
-      initialJobIndicatorStatuses: favoriteAgentsJobIndicatorStatuses,
+      initialJobStatusesData: favoriteAgentsJobStatusesData,
       noAgentsType: t("pinnedType"),
       iconKey: "pin",
     },
@@ -109,17 +109,13 @@ async function AgentListsContent({ userId }: { userId: string }) {
       groupKey: "hired-agents",
       title: t("hiredTitle"),
       agents: hiredAgentsWithAvailability,
-      initialJobIndicatorStatuses: hiredAgentsJobIndicatorStatuses,
+      initialJobStatusesData: hiredAgentsJobStatusesData,
       noAgentsType: t("hiredType"),
       iconKey: "history",
     },
   ];
 
-  return (
-    <ScrollArea className="h-full">
-      <AgentListsClient agentLists={agentLists} userId={userId} />
-    </ScrollArea>
-  );
+  return <AgentListsClient agentLists={agentLists} userId={userId} />;
 }
 
 function filterDuplicatedAgents(hiredAgents: Agent[], favoriteAgents: Agent[]) {

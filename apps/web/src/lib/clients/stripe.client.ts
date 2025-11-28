@@ -311,6 +311,15 @@ export const stripeClient = (() => {
             address: "auto",
             name: "auto",
           },
+          invoice_creation: {
+            enabled: true,
+            invoice_data: {
+              metadata: {
+                origin: "checkout_session",
+                fiatTransactionId: fiatTransaction.id,
+              },
+            },
+          },
           billing_address_collection: "required",
           tax_id_collection: { enabled: true },
           success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,

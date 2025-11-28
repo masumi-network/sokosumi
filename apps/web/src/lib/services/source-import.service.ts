@@ -27,19 +27,19 @@ export const sourceImportService = (() => {
    * Enqueues file and HTTP links found in a markdown string for processing.
    *
    * - Extracts file-like links (e.g., direct file URLs) and generic HTTP links from the provided markdown.
-   * - For each file-like link that is a valid HTTP URL, creates a pending output blob in the database,
+   * - For each file-like link that is a valid HTTP URL, creates a pending result blob in the database,
    *   guessing the file name from the URL if possible.
    * - For each HTTP link that is a valid HTTP URL, upserts a link record in the database.
    * - All operations are performed within a single database transaction for consistency.
    *
    * @param userId - The ID of the user who owns the job and links.
-   * @param jobId - The ID of the job associated with the links.
+   * @param jobEventId - The ID of the job event associated with the result (and blobs).
    * @param markdown - The markdown content to scan for links.
    * @returns A Promise that resolves when the operation is complete.
    */
   async function enqueueFromMarkdown(
     userId: string,
-    jobId: string,
+    jobEventId: string,
     markdown: string,
   ): Promise<void> {
     const fileLinks = extractFileLikeLinks(markdown);
@@ -49,9 +49,9 @@ export const sourceImportService = (() => {
       for (const url of fileLinks) {
         if (!isHttpUrl(url)) continue;
         const guessedName = getBasename(url) ?? undefined;
-        await blobRepository.createPendingOutputBlob(
+        await blobRepository.createPendingResultBlob(
           userId,
-          jobId,
+          jobEventId,
           url,
           guessedName,
           tx,
@@ -59,13 +59,13 @@ export const sourceImportService = (() => {
       }
       for (const url of httpLinks) {
         if (!isHttpUrl(url)) continue;
-        await linkRepository.upsertLink(userId, jobId, url, undefined, tx);
+        await linkRepository.upsertLink(userId, jobEventId, url, undefined, tx);
       }
     });
   }
 
   /**
-   * Imports a pending output blob by fetching its source URL, uploading the file,
+   * Imports a pending result blob by fetching its source URL, uploading the file,
    * and marking the blob as ready in the database. If the import fails at any step,
    * the blob is marked as failed.
    *
@@ -79,7 +79,7 @@ export const sourceImportService = (() => {
    *
    * @param blob - The Blob entity to import.
    */
-  async function importOutputBlob(blob: Blob): Promise<void> {
+  async function importResultBlob(blob: Blob): Promise<void> {
     if (blob.origin !== BlobOrigin.OUTPUT) return;
     if (blob.status !== BlobStatus.PENDING) return;
 
@@ -130,21 +130,21 @@ export const sourceImportService = (() => {
   }
 
   /**
-   * Imports all pending output blobs concurrently, up to a maximum of 5 at a time.
+   * Imports all pending result blobs concurrently, up to a maximum of 5 at a time.
    *
    * This function fetches all blobs with status PENDING and origin OUTPUT,
    * then processes each blob by attempting to import its data and update its status.
-   * Errors during individual blob imports are handled within the importOutputBlob function.
+   * Errors during individual blob imports are handled within the importResultBlob function.
    * The function returns the total number of blobs that were attempted to be imported.
    *
-   * @returns {Promise<number>} The number of pending output blobs found.
+   * @returns {Promise<number>} The number of pending result blobs found.
    */
-  async function importPendingOutputBlobs(): Promise<number> {
+  async function importPendingResultBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
-    const pendingBlobs = await blobRepository.getPendingOutputBlobs();
+    const pendingBlobs = await blobRepository.getPendingResultBlobs();
     const limit = pLimit(5);
     for (const blob of pendingBlobs) {
-      pendingPromises.push(limit(() => importOutputBlob(blob)));
+      pendingPromises.push(limit(() => importResultBlob(blob)));
     }
     try {
       await Promise.allSettled(pendingPromises);
@@ -155,5 +155,5 @@ export const sourceImportService = (() => {
     return pendingBlobs.length;
   }
 
-  return { enqueueFromMarkdown, importPendingOutputBlobs };
+  return { enqueueFromMarkdown, importPendingResultBlobs };
 })();

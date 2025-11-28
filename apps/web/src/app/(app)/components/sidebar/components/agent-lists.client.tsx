@@ -24,7 +24,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
-import { JobIndicatorStatus, makeAgentJobsChannel } from "@/lib/ably";
+import { type JobStatusData, makeAgentJobsChannelName } from "@/lib/ably";
 import { getAgentName } from "@/lib/helpers/agent";
 import { AgentWithAvailability } from "@/lib/types/agent";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ interface AgentListsClientProps {
     groupKey: string;
     title: string;
     agents: AgentWithAvailability[];
-    initialJobIndicatorStatuses: (JobIndicatorStatus | null)[];
+    initialJobStatusesData: (JobStatusData | null)[];
     noAgentsType: string;
     iconKey: string;
   }[];
@@ -75,7 +75,7 @@ export default function AgentListsClient({
           groupKey,
           title,
           agents,
-          initialJobIndicatorStatuses,
+          initialJobStatusesData,
           noAgentsType,
           iconKey,
         }) => {
@@ -107,8 +107,8 @@ export default function AgentListsClient({
                       <SidebarMenu>
                         {agents.map((agentWithAvailability, index) => {
                           const { agent, isAvailable } = agentWithAvailability;
-                          const initialJobIndicatorStatus =
-                            initialJobIndicatorStatuses[index];
+                          const initialJobStatusData =
+                            initialJobStatusesData[index];
 
                           return (
                             <SidebarMenuItem key={agent.id}>
@@ -140,7 +140,7 @@ export default function AgentListsClient({
                                       </span>
                                       {isAvailable && (
                                         <ChannelProvider
-                                          channelName={makeAgentJobsChannel(
+                                          channelName={makeAgentJobsChannelName(
                                             agent.id,
                                             userId,
                                           )}
@@ -148,8 +148,8 @@ export default function AgentListsClient({
                                           <AgentJobStatusIndicator
                                             agentId={agent.id}
                                             userId={userId}
-                                            initialJobIndicatorStatus={
-                                              initialJobIndicatorStatus
+                                            initialJobStatusData={
+                                              initialJobStatusData
                                             }
                                             className={cn("size-4", {
                                               "text-primary-foreground":

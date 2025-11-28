@@ -9,6 +9,10 @@
       "path": "apps/web",
     },
     {
+      "name": "App: Core",
+      "path": "apps/core",
+    },
+    {
       "name": "Package: Database",
       "path": "packages/database",
     },

@@ -1,5 +1,5 @@
 "use client";
-import type { Blob, Prisma } from "@sokosumi/database";
+import type { Blob } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import * as z from "zod";
 
@@ -10,20 +10,20 @@ import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 interface JobDetailsInputsProps {
   rawInput: string | null;
-  inputSchema: Prisma.JsonValue | null;
+  rawInputSchema: string | null;
   blobs?: Blob[];
 }
 
 export default function JobDetailsInputs({
   rawInput,
-  inputSchema,
+  rawInputSchema,
   blobs,
 }: JobDetailsInputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsInputsError />}>
       <JobDetailsInputsInner
         rawInput={rawInput}
-        inputSchema={inputSchema}
+        rawInputSchema={rawInputSchema}
         blobs={blobs}
       />
     </DefaultErrorBoundary>
@@ -73,11 +73,12 @@ function renderInputValue(
 
 function JobDetailsInputsInner({
   rawInput,
-  inputSchema,
+  rawInputSchema,
   blobs,
 }: JobDetailsInputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Input");
   const input = rawInput ? JSON.parse(rawInput) : {};
+  const inputSchema = rawInputSchema ? JSON.parse(rawInputSchema) : {};
 
   let inputsMap: Record<string, { name: string; type: ValidJobInputTypes }> =
     {};

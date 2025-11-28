@@ -13,8 +13,17 @@ function AgentDetailLink({
   agentId,
   className = "w-full md:w-auto",
 }: AgentDetailLinkProps) {
+  const handleClick = () => {
+    // Reset vertical scroll position to top when navigating to agent detail
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <Link className={className} href={`/agents/${agentId}`}>
+    <Link
+      className={className}
+      href={`/agents/${agentId}`}
+      onClick={handleClick}
+    >
       {children}
     </Link>
   );

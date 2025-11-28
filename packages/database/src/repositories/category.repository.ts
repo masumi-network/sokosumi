@@ -1,7 +1,5 @@
-import { InputJsonValue } from "@prisma/client/runtime/client";
-
-import prisma from "../client";
-import type { Category, Prisma } from "../generated/prisma/client";
+import prisma from "../client.js";
+import type { Category, Prisma } from "../generated/prisma/client.js";
 
 export const categoryRepository = {
   getCategories: async (
@@ -43,7 +41,7 @@ export const categoryRepository = {
         slug: data.slug,
         description: data.description,
         image: data.image,
-        styles: data.styles as InputJsonValue,
+        styles: data.styles,
         priority: data.priority,
       },
     });

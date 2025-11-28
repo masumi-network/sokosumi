@@ -1,8 +1,9 @@
 "use client";
-import { BlobOrigin, JobWithStatus } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
+import { getOutputBlobs, getResultLinks } from "@/lib/utils/job-transformers";
 
 import { SourcesGrid } from "./sources-grid";
 
@@ -19,14 +20,14 @@ export default function JotOutputSources({ job }: JobOutputSourcesProps) {
 function JobOutputSourcesInner({ job }: JobOutputSourcesProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Sources");
 
-  const blobs = job.blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT);
-  const links = job.links;
-  if (blobs.length === 0 && links.length === 0) return null;
+  const outputBlobs = getOutputBlobs(job);
+  const links = getResultLinks(job);
+  if (outputBlobs.length === 0 && links.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-4">
-      {blobs.length > 0 ? (
-        <SourcesGrid title={t("files")} blobs={blobs} />
+      {outputBlobs.length > 0 ? (
+        <SourcesGrid title={t("files")} blobs={outputBlobs} />
       ) : null}
       {links.length > 0 ? (
         <SourcesGrid title={t("links")} links={links} />

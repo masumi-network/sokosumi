@@ -1,47 +1,31 @@
+"use client";
+
 import { useChannel } from "ably/react";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
-  JobIndicatorStatus,
-  jobIndicatorStatusSchema,
-  makeAgentJobsChannel,
+  type JobStatusData,
+  jobStatusDataSchema,
+  makeAgentJobsChannelName,
 } from "@/lib/ably";
 
-export default function useAgentJobStatus(
+export default function useAgentJobStatusData(
   agentId: string,
   userId: string,
   currentJobId: string | null,
-  initialJobIndicatorStatus: JobIndicatorStatus | null,
-  refresh: boolean = false,
 ) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [jobStatusData, setJobStatusData] = useState<JobIndicatorStatus | null>(
-    initialJobIndicatorStatus,
+  const [jobStatusData, setJobStatusData] = useState<JobStatusData | null>(
+    null,
   );
 
-  // Effect is necessary: Syncs local state when server data changes
-  // This handles cases like navigation between jobs or server-side data refreshes
-  // The real-time updates come via Ably below, but initial data must sync with props
-  useEffect(() => {
-    setJobStatusData(initialJobIndicatorStatus);
-  }, [initialJobIndicatorStatus]);
-
-  useChannel(makeAgentJobsChannel(agentId, userId), (message) => {
-    const parsedResult = jobIndicatorStatusSchema.safeParse(message.data);
+  useChannel(makeAgentJobsChannelName(agentId, userId), (message) => {
+    const parsedResult = jobStatusDataSchema.safeParse(message.data);
     if (parsedResult.success) {
       const jobId = parsedResult.data.jobId;
       if (currentJobId && jobId !== currentJobId) {
         return;
       }
       setJobStatusData(parsedResult.data);
-      if (refresh) {
-        // check pathname is job details path
-        if (pathname.startsWith(`/agents/${agentId}/jobs/${jobId}`)) {
-          router.refresh();
-        }
-      }
     } else {
       setJobStatusData(null);
       console.error(

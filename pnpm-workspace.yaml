@@ -21,6 +21,7 @@ onlyBuiltDependencies:
   - prisma
 
 publicHoistPattern:
+  - bun-types
   - import-in-the-middle
   - require-in-the-middle
   - "@prisma/client"
@@ -29,3 +30,4 @@ publicHoistPattern:
   - pg-pool
   - eslint
   - prettier
+

@@ -18,7 +18,6 @@ import * as z from "zod";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { uploadImage } from "@/lib/blob/utils";
-import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
@@ -67,14 +66,20 @@ export const auth = betterAuth({
   databaseHooks: {
     account: {
       create: {
-        after: async (account) => {
+        after: async (account, _ctx) => {
           callAccountCreatedWebHook(account.userId, account.providerId);
         },
       },
     },
     user: {
       create: {
-        after: async (user) => {
+        before: async (user, _ctx) => {
+          if (!user.termsAccepted) {
+            return false;
+          }
+          return true;
+        },
+        after: async (user, _ctx) => {
           await stripeService.createStripeCustomerForUser(user.id);
 
           // Validate user data before calling webhook
@@ -93,7 +98,7 @@ export const auth = betterAuth({
         },
       },
       update: {
-        after: async (user) => {
+        after: async (user, _ctx) => {
           // Validate user data before calling webhook
           // Fires on any user update to keep marketing system synchronized
           const { success, data, error } =
@@ -128,17 +133,6 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
         case "/sign-up/email": {
-          const allowedEmailDomains = getEnvSecrets().ALLOWED_EMAIL_DOMAINS;
-          if (
-            allowedEmailDomains.length !== 0 &&
-            !allowedEmailDomains.includes(ctx.body?.email.split("@")[1])
-          ) {
-            throw new APIError("BAD_REQUEST", {
-              code: "EMAIL_DOMAIN_NOT_ALLOWED",
-              message: allowedEmailDomains.join(", "),
-            });
-          }
-
           if (!ctx.body?.termsAccepted) {
             throw new APIError("BAD_REQUEST", {
               code: "TERMS_NOT_ACCEPTED",
@@ -162,7 +156,7 @@ export const auth = betterAuth({
       // Sync user email with Stripe after email change verification
       if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
         const user = ctx.context.newSession?.user;
-        if (user.stripeCustomerId && user.email) {
+        if (user.stripeCustomerId) {
           // Fire and forget - don't wait for sync to complete
           stripeService
             .syncUserEmailWithStripe(user.id, user.email)
@@ -220,21 +214,6 @@ export const auth = betterAuth({
   user: {
     changeEmail: {
       enabled: true,
-      sendChangeEmailVerification: async ({ user, url }) => {
-        const t = await getTranslations("Library.Auth.Email.ChangeEmail");
-
-        postmarkClient.sendEmail({
-          From: fromEmail,
-          To: user.email,
-          Tag: "change-email",
-          Subject: t("subject"),
-          HtmlBody: await reactChangeEmailVerificationEmail({
-            name: user.name,
-            changeEmailLink: url,
-          }),
-          MessageStream: "authentications",
-        });
-      },
     },
     deleteUser: {
       enabled: true,

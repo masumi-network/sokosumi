@@ -1,18 +1,29 @@
-import { AgentJobStatus, OnChainJobStatus } from "../generated/prisma/browser";
+import {
+  AgentJobStatus,
+  OnChainJobStatus,
+} from "../generated/prisma/browser.js";
 import type {
   CreditTransaction,
   JobType,
   Prisma,
-} from "../generated/prisma/client";
+} from "../generated/prisma/client.js";
 
 export const jobInclude = {
+  events: {
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: {
+      blobs: true,
+      links: true,
+    },
+  },
+  purchase: true,
   agent: true,
   user: true,
   organization: true,
   creditTransaction: true,
   refundedCreditTransaction: true,
-  blobs: true,
-  links: true,
   share: true,
 } as const;
 
@@ -29,6 +40,11 @@ type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 type BaseJobWithStatus = JobWithRelations & {
   status: JobStatus;
   jobStatusSettled: boolean;
+  input: string | null;
+  inputHash: string | null;
+  inputSchema: string | null;
+  completedAt: Date | null;
+  result: string | null;
 };
 
 type BaseFreeJob = {

@@ -5,14 +5,12 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider   = "prisma-client" // ESM-first
-  output     = "../src/generated/prisma" // output directory for the generated client
-  engineType = "client" // No rust-engine (client-only)
+  provider = "prisma-client" // ESM-first
+  output   = "../src/generated/prisma" // output directory for the generated client
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -366,7 +364,7 @@ model Category {
   slug        String  @unique
   description String?
   image       String?
-  styles      Json?
+  styles      String?
   priority    Int
 
   agents Agent[] @relation("AgentCategory")
@@ -510,26 +508,7 @@ model Job {
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 
-  agentJobId     String
-  agentJobStatus AgentJobStatus?
-
-  purchaseId String?
-
-  inputSchema       String
-  input             String
-  inputHash         String? // On-Chain hash of the input data
-  output            String?
-  resultHash        String? // On-Chain hash of the result data
-  startedAt         DateTime  @default(now())
-  completedAt       DateTime?
-  resultSubmittedAt DateTime?
-
-  nextAction          NextJobAction           @default(NONE)
-  nextActionErrorType NextJobActionErrorType?
-  nextActionErrorNote String?
-
-  errorNote    String?
-  errorNoteKey String?
+  agentJobId String
 
   jobType JobType
 
@@ -541,11 +520,6 @@ model Job {
   externalDisputeUnlockTime DateTime?
   sellerVkey                String?
 
-  onChainStatus OnChainJobStatus?
-
-  onChainTransactionHash   String?
-  onChainTransactionStatus OnChainTransactionStatus?
-
   creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
   creditTransactionId         String?            @unique
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
@@ -553,11 +527,11 @@ model Job {
 
   name String?
 
-  blobs Blob[] @relation("JobBlob")
-  links Link[] @relation("JobLink")
-
   // Public Share
   share JobShare?
+
+  events   JobEvent[]
+  purchase JobPurchase?
 
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
@@ -565,6 +539,60 @@ model Job {
 
   @@index([jobType])
   @@index([jobScheduleId])
+}
+
+model JobPurchase {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String @unique
+
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  onChainStatus OnChainJobStatus?
+
+  onChainTransactionHash   String?
+  onChainTransactionStatus OnChainTransactionStatus?
+
+  resultHash String?
+
+  nextAction          NextJobAction           @default(NONE)
+  nextActionErrorType NextJobActionErrorType?
+  nextActionErrorNote String?
+
+  errorNote    String?
+  errorNoteKey String?
+
+  @@index([jobId])
+  @@map("jobPurchase")
+}
+
+model JobEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String?
+
+  status      AgentJobStatus @default(AWAITING_PAYMENT)
+  inputSchema String?
+  result      String?
+
+  input     String?
+  inputHash String?
+  signature String?
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  blobs Blob[]
+  links Link[]
+
+  @@index([externalId])
+  @@index([jobId])
+  @@map("jobEvent")
 }
 
 enum OnChainTransactionStatus {
@@ -609,7 +637,6 @@ enum OnChainJobStatus {
 }
 
 enum AgentJobStatus {
-  PENDING
   AWAITING_PAYMENT
   AWAITING_INPUT
   RUNNING
@@ -653,44 +680,44 @@ model Apikey {
 }
 
 model Blob {
-  id        String     @id @default(uuid())
-  userId    String
-  jobId     String
-  fileUrl   String?
-  fileName  String?
-  mime      String?
-  size      BigInt?
-  origin    BlobOrigin @default(INPUT)
-  sourceUrl String?
-  status    BlobStatus @default(READY)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String     @id @default(uuid())
+  userId     String
+  jobEventId String
+  fileUrl    String?
+  fileName   String?
+  mime       String?
+  size       BigInt?
+  origin     BlobOrigin @default(INPUT)
+  sourceUrl  String?
+  status     BlobStatus @default(READY)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
-  user User @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
-  job  Job  @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
+  user     User     @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
+  jobEvent JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
 
   // Performance indexes
-  @@index([status, origin, createdAt]) // For getPendingOutputBlobs query
-  @@index([jobId, origin]) // For fetching blobs by job with origin filter
-  @@index([jobId, sourceUrl]) // For deduplication checks
+  @@index([status, origin, createdAt]) // For getPendingResultBlobs query
+  @@index([jobEventId, origin]) // For fetching blobs by job event with origin filter
+  @@index([jobEventId, sourceUrl]) // For deduplication checks
   @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
 
 model Link {
-  id        String   @id @default(uuid())
-  userId    String
-  jobId     String
-  url       String
-  title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  userId     String
+  jobEventId String
+  url        String
+  title      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  user User @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
-  job  Job  @relation("JobLink", fields: [jobId], references: [id], onDelete: Cascade)
+  user     User     @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
+  jobEvent JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
 
-  @@unique([jobId, url])
-  @@index([jobId]) // For fetching all links for a job
+  @@unique([jobEventId, url])
+  @@index([jobEventId]) // For fetching all links for a job event
   @@map("link")
 }
 
@@ -748,7 +775,7 @@ model JobSchedule {
   endAfterOccurrences Int?
 
   // Job payload snapshot
-  inputSchema      Json
+  inputSchema      String
   input            String
   maxAcceptedCents BigInt
 
