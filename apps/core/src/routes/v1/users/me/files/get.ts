@@ -7,24 +7,16 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { fileSchema } from "@/schemas/files.schema";
 
-const params = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    example: "cmi4gmksz000104l8wps8p7fp",
-  }),
-});
-
 const route = createRoute({
   method: "get",
-  path: "/{id}/files",
-  tags: ["Jobs"],
-  request: {
-    params,
-  },
+  path: "/me/files",
+  tags: ["Users"],
   responses: {
-    200: jsonSuccessResponse(z.array(fileSchema), "Retrieve files by job ID"),
+    200: jsonSuccessResponse(
+      z.array(fileSchema),
+      "Retrieve files by current user",
+    ),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
@@ -33,13 +25,13 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { user } = c.var;
-    const { id } = c.req.valid("param");
+    console.log("user", user);
 
     if (!user) {
       throw unauthorized("A non-user cannot access files");
     }
 
-    const files = await blobRepository.getBlobsByUserIdAndJobId(user.id, id);
+    const files = await blobRepository.getBlobsByUserId(user.id);
     if (!files) {
       throw notFound("Files not found");
     }

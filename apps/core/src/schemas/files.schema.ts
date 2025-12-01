@@ -21,3 +21,5 @@ export const fileSchema = z.object({
     .openapi({ example: "https://example.com/file.pdf" }),
   sourceUrl: z.string().openapi({ example: "https://example.com/file.pdf" }),
 });
+
+export type File = z.infer<typeof fileSchema>;
