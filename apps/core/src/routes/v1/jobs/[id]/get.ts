@@ -2,22 +2,36 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
 import { convertCentsToCredits } from "@/helpers/credits.js";
-import { internalServerError, notFound, unauthorized } from "@/helpers/error";
+import {
+  forbidden,
+  internalServerError,
+  notFound,
+  unauthorized,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import { jobSchema } from "./schemas.js";
+import { jobSchema } from "../schemas.js";
 
-const jobsSchema = z.array(jobSchema);
+const params = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "cmi4gmksz000104l8wps8p7fp",
+  }),
+});
 
 const route = createRoute({
   method: "get",
-  path: "/",
+  path: "/{id}",
   tags: ["Jobs"],
+  request: {
+    params,
+  },
   responses: {
-    200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs"),
+    200: jsonSuccessResponse(jobSchema, "Retrieve job by ID"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
@@ -26,30 +40,35 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { user } = c.var;
+    const { id } = c.req.valid("param");
+
     if (!user) {
       throw unauthorized("Unauthorized");
     }
-    const jobs = await jobRepository.getJobs({
-      userId: user.id,
-      organizationId: user.organizationId,
-    });
 
-    if (!jobs) {
-      throw notFound("No jobs found");
+    const job = await jobRepository.getJobById(id);
+    if (!job) {
+      throw notFound("Job not found");
     }
-    const formattedJobs = jobs.map((job) => ({
+
+    if (job.userId !== user.id) {
+      throw forbidden("You can only access your own jobs");
+    }
+
+    const formattedJob = {
       ...job,
       credits: Math.abs(
         convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
       ),
       resultHash: job.purchase?.resultHash ?? null,
-    }));
+    };
+
     try {
-      const parsedJobs = jobsSchema.parse(formattedJobs);
-      return ok(c, parsedJobs);
+      const parsedJob = jobSchema.parse(formattedJob);
+      return ok(c, parsedJob);
     } catch (error) {
       console.error(error);
-      throw internalServerError("Failed to parse jobs");
+      throw internalServerError("Failed to parse job");
     }
   });
 }
