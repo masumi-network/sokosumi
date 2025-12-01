@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
 import { convertCentsToCredits } from "@/helpers/credits.js";
-import { badRequest, notFound, unauthorized } from "@/helpers/error";
+import { internalServerError, notFound, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -48,7 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, parsedJobs);
     } catch (error) {
       console.error(error);
-      throw badRequest("Invalid jobs");
+      throw internalServerError("Failed to parse jobs");
     }
   });
 }
