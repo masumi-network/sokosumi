@@ -4,7 +4,7 @@ import { JobStatus } from "@sokosumi/database/types/job";
 
 export const jobSchema = z
   .object({
-    id: z.string().openapi({ example: "job_123" }),
+    id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
     createdAt: z
       .date()
       .openapi({ example: new Date("2021-01-01T00:00:00.000Z") }),
