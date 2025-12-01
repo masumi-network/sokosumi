@@ -49,6 +49,7 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
+import { getInputHash } from "@/lib/utils";
 import {
   jobStatusToAgentJobStatus,
   transformPurchaseToJobUpdate,
@@ -1044,25 +1045,34 @@ export const jobService = (() => {
           }
 
           // If the latest job event is the same as the agent job status result, return the current job status
-          if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
+          if (
+            latestJobEvent.externalId === agentJobStatusResult.data.status_id
+          ) {
             return computeJobStatus(job);
           } else {
             // If the agent job status result has no external ID, check if the latest job event status is the same as the agent job status
-            if (!agentJobStatusResult.data.id) {
+            if (!agentJobStatusResult.data.status_id) {
               if (latestJobEvent.status === agentJobStatus) {
                 return computeJobStatus(job);
               }
             }
           }
 
+          const inputSchemaData = agentJobStatusResult.data.input_schema;
+          const inputSchemaValue = inputSchemaData
+            ? "input_data" in inputSchemaData
+              ? inputSchemaData.input_data
+              : inputSchemaData.input_groups
+            : null;
+
           const newJobEvent = await jobEventRepository.createJobEventForJobId(
             job.id,
             {
-              externalId: agentJobStatusResult.data.id,
+              externalId: agentJobStatusResult.data.status_id,
               status: agentJobStatus,
-              inputSchema: JSON.stringify(
-                agentJobStatusResult.data.input_schema,
-              ),
+              inputSchema: inputSchemaValue
+                ? JSON.stringify(inputSchemaValue)
+                : null,
               result: agentJobStatusResult.data.result,
             },
             tx,
@@ -1197,19 +1207,19 @@ export const jobService = (() => {
    *
    * This function:
    * - Validates the job exists and user owns it
-   * - Validates the job is in awaiting input state
-   * - Merges existing input with new input data
+   * - Validates the JobEvent (by statusId/externalId) is in awaiting input state
+   * - Stores the provided input data
    * - Calls the agent API to provide input
-   * - Updates the job with merged input and new status
+   * - Updates the existing JobEvent with input data and new status
    *
-   * @param input - Parameters including jobId, userId, and inputData
+   * @param input - Parameters including jobId, statusId (maps to externalId), userId, and inputData
    * @returns Promise resolving to the updated Job record
    * @throws {JobError} Various job-related errors
    */
   const provideJobInput = async (
     input: ProvideJobInputSchemaType & { userId: string },
-  ): Promise<Job> => {
-    const { jobId, userId, inputData } = input;
+  ): Promise<JobWithStatus> => {
+    const { jobId, statusId, userId, inputData } = input;
 
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -1217,37 +1227,32 @@ export const jobService = (() => {
       level: "info",
       data: {
         jobId,
+        statusId,
         userId,
       },
     });
 
-    // Get the job
+    // Get the job and verify ownership
     const job = await jobRepository.getJobById(jobId);
-    if (!job) {
+    if (!job || job.userId !== userId) {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
 
-    // Verify user owns the job
-    if (job.userId !== userId) {
-      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-    }
-
-    // Verify job is in awaiting input state
-    const jobStatus = computeJobStatus(job);
-    if (
-      job.agentJobStatus !== AgentJobStatus.AWAITING_INPUT &&
-      jobStatus !== JobStatus.INPUT_REQUIRED
-    ) {
+    // Get the JobEvent by externalId (statusId) that is awaiting input
+    const jobEvent =
+      await jobEventRepository.getAwaitingInputJobEventByExternalId(
+        statusId,
+        jobId,
+      );
+    if (!jobEvent) {
       throw new JobError(
         JobErrorCode.JOB_NOT_FOUND,
-        "Job is not awaiting input",
+        "Job event not found or is not awaiting input",
       );
     }
 
-    // Parse existing input and merge with new input data
-    const existingInput = job.input ? JSON.parse(job.input) : {};
-    const newInputData = Object.fromEntries(inputData);
-    const mergedInput = { ...existingInput, ...newInputData };
+    // Convert input data to JSON
+    const inputJson = JSON.stringify(Object.fromEntries(inputData));
 
     // Add breadcrumb for agent API call
     Sentry.addBreadcrumb({
@@ -1256,6 +1261,8 @@ export const jobService = (() => {
       level: "info",
       data: {
         jobId: job.id,
+        statusId,
+        jobEventId: jobEvent.id,
         agentId: job.agentId,
         agentJobId: job.agentJobId,
       },
@@ -1265,6 +1272,7 @@ export const jobService = (() => {
     const provideInputResult = await agentClient.provideJobInput(
       job.agent,
       job.agentJobId,
+      statusId,
       inputData,
     );
 
@@ -1272,6 +1280,8 @@ export const jobService = (() => {
       Sentry.setTag("error_type", "agent_provide_input_failed");
       Sentry.setContext("agent_provide_input", {
         jobId: job.id,
+        statusId,
+        jobEventId: jobEvent.id,
         agentId: job.agentId,
         agentJobId: job.agentJobId,
         error: provideInputResult.error,
@@ -1282,48 +1292,39 @@ export const jobService = (() => {
         "error",
       );
       throw new JobError(
-        JobErrorCode.AGENT_JOB_START_FAILED,
+        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
         provideInputResult.error,
       );
     }
 
     const statusResponse = provideInputResult.data;
 
-    // Update job with merged input and new status
-    const agentJobStatus = jobStatusToAgentJobStatus(statusResponse.status);
-    const output = JSON.stringify(statusResponse);
-
     const updatedJob = await prisma.$transaction(async (tx) => {
-      // Update job input
-      await tx.job.update({
-        where: { id: job.id },
-        data: { input: JSON.stringify(mergedInput) },
-      });
+      // Update the existing JobEvent with input data and new status
+      const newStatus =
+        statusResponse.status === "success"
+          ? AgentJobStatus.RUNNING
+          : AgentJobStatus.FAILED;
 
-      // Update job status
-      const updatedJob = await jobRepository.updateJobWithAgentJobStatus(
-        job.id,
-        agentJobStatus,
-        output,
+      await jobEventRepository.setInputForJobEventById(
+        jobEvent.id,
+        inputJson,
+        job.identifierFromPurchaser
+          ? (getInputHash(inputJson, job.identifierFromPurchaser) ?? "")
+          : "",
+        undefined,
+        newStatus,
         tx,
       );
 
+      // Refetch the job to get updated events
+      const updatedJob = await jobRepository.getJobById(job.id, tx);
+      if (!updatedJob) {
+        throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+      }
+
       return updatedJob;
     });
-
-    // Fire and forget: enqueue extraction if output is present
-    try {
-      const outputResult = statusResponse?.result;
-      if (typeof outputResult === "string") {
-        sourceImportService
-          .enqueueFromMarkdown(userId, updatedJob.id, outputResult)
-          .catch(() => {
-            // Ignore errors
-          });
-      }
-    } catch {
-      // Ignore errors
-    }
 
     // Publish job status update
     await publishJobStatusSafely(updatedJob);
@@ -1334,7 +1335,9 @@ export const jobService = (() => {
       level: "info",
       data: {
         jobId: updatedJob.id,
-        agentJobStatus,
+        statusId,
+        jobEventId: jobEvent.id,
+        statusResponse: statusResponse.status,
       },
     });
 

@@ -12,6 +12,8 @@ import {
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
+  provideJobInputResponseSchema,
+  ProvideJobInputResponseSchemaType,
   startFreeJobResponseSchema,
   StartFreeJobResponseSchemaType,
   startPaidJobResponseSchema,
@@ -153,13 +155,15 @@ export const agentClient = (() => {
     async provideJobInput(
       agent: Agent,
       jobId: string,
+      statusId: string,
       inputData: JobInputData,
-    ): Promise<Result<JobStatusResponseSchemaType, string>> {
+    ): Promise<Result<ProvideJobInputResponseSchemaType, string>> {
       try {
         const provideInputUrl = getAgentUrlWithPathComponent(
           agent,
           "provide_input",
         );
+
         const provideInputResponse = await fetch(provideInputUrl, {
           method: "POST",
           headers: {
@@ -167,15 +171,19 @@ export const agentClient = (() => {
           },
           body: JSON.stringify({
             job_id: jobId,
+            status_id: statusId,
             input_data: Object.fromEntries(inputData),
           }),
         });
 
         if (!provideInputResponse.ok) {
-          return Err("Failed to provide job input");
+          return Err(
+            `Failed to provide job input: ${provideInputResponse.status} ${provideInputResponse.statusText}`,
+          );
         }
         const responseJson = await provideInputResponse.json();
-        const parsedResult = jobStatusResponseSchema.safeParse(responseJson);
+        const parsedResult =
+          provideJobInputResponseSchema.safeParse(responseJson);
         if (!parsedResult.success) {
           return Err(
             `Failed to parse provide input response: ${JSON.stringify(

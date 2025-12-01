@@ -65,8 +65,28 @@ export const jobsListResponseSchema = z.object({
   total: z.number(),
 });
 
+// Schema for providing job input
+export const provideJobInputRequestSchema = z.object({
+  statusId: z.string(),
+  inputData: z.record(
+    z.string(),
+    z.union([
+      z.number(),
+      z.string(),
+      z.array(z.string()),
+      z.boolean(),
+      z.array(z.number()),
+      z.array(z.string()),
+      z.undefined(),
+    ]),
+  ),
+});
+
 // Type exports for use in API routes and formatters
 export type CreateJobRequest = z.infer<typeof createJobRequestSchema>;
 export type JobCredits = z.infer<typeof jobCreditsSchema>;
 export type JobResponse = z.infer<typeof jobResponseSchema>;
 export type JobsListResponse = z.infer<typeof jobsListResponseSchema>;
+export type ProvideJobInputRequestSchemaType = z.infer<
+  typeof provideJobInputRequestSchema
+>;

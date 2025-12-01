@@ -1,9 +1,6 @@
 import prisma from "../client.js";
-import type {
-  AgentJobStatus,
-  JobEvent,
-  Prisma,
-} from "../generated/prisma/client.js";
+import { AgentJobStatus } from "../generated/prisma/browser.js";
+import type { JobEvent, Prisma } from "../generated/prisma/client.js";
 
 interface CreateJobEventData {
   externalId?: string | null;
@@ -111,16 +108,34 @@ export const jobEventRepository = {
     });
   },
 
+  /**
+   * Retrieves a JobEvent by externalId for a specific job that is awaiting input
+   */
+  async getAwaitingInputJobEventByExternalId(
+    externalId: string,
+    jobId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobEvent | null> {
+    return await tx.jobEvent.findFirst({
+      where: {
+        externalId,
+        jobId,
+        status: AgentJobStatus.AWAITING_INPUT,
+      },
+    });
+  },
+
   async setInputForJobEventById(
     id: string,
     input: string,
     inputHash: string,
     signature?: string | null,
+    status?: AgentJobStatus,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobEvent> {
     return await tx.jobEvent.update({
       where: { id },
-      data: { input, inputHash, signature },
+      data: { input, inputHash, signature, status },
     });
   },
 
