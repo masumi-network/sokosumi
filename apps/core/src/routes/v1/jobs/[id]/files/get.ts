@@ -40,7 +40,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unauthorized("A non-user cannot access files");
     }
 
-    const files = await blobRepository.getBlobsByJobId(user.id, id);
+    const files = await blobRepository.getBlobsByUserIdAndJobId(user.id, id);
     if (!files) {
       throw notFound("Files not found");
     }

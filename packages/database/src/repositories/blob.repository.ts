@@ -89,7 +89,7 @@ export const blobRepository = {
   /**
    * Get all Blob records for a job event by job id
    */
-  async getBlobsByJobId(
+  async getBlobsByUserIdAndJobId(
     userId: string,
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
