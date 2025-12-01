@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
+import { convertCentsToCredits } from "@/helpers/credits.js";
 import { badRequest, notFound, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -27,14 +28,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!user) {
       throw unauthorized("Unauthorized");
     }
-    const jobs = await jobRepository.getJobsByUserId(user.id);
+    const jobs = await jobRepository.getJobs({
+      userId: user.id,
+      organizationId: user.organizationId,
+    });
 
     if (!jobs) {
       throw notFound("No jobs found");
     }
-    // console.log(jobs);
+    const formattedJobs = jobs.map((job) => ({
+      ...job,
+      credits: Math.abs(
+        convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
+      ),
+      resultHash: job.purchase?.resultHash ?? null,
+    }));
     try {
-      const parsedJobs = jobsSchema.parse(jobs);
+      const parsedJobs = jobsSchema.parse(formattedJobs);
       return ok(c, parsedJobs);
     } catch (error) {
       console.error(error);
