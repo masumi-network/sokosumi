@@ -10,7 +10,7 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { fileSchema } from "@/schemas/files.schema";
+import { fileSchema } from "@/schemas/file.schema";
 
 const params = z.object({
   id: z.string().openapi({

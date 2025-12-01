@@ -22,10 +22,29 @@ export const linkRepository = {
       },
     });
   },
+
   async getLinksByJobEventId(
     jobEventId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Link[]> {
     return tx.link.findMany({ where: { jobEventId } });
+  },
+
+  async getLinksByUserId(
+    userId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Link[]> {
+    return tx.link.findMany({ where: { userId } });
+  },
+
+  async getLinksByUserIdAndJobId(
+    userId: string,
+    jobId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Link[]> {
+    return tx.link.findMany({
+      where: { userId, jobEvent: { job: { id: jobId } } },
+      include: { jobEvent: { include: { job: true } } },
+    });
   },
 };
