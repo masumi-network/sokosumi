@@ -17,6 +17,7 @@ export const jobSchema = z
       .string()
       .nullish()
       .openapi({ example: "organization_123" }),
+    name: z.string().nullish().openapi({ example: "My Job" }),
     jobType: z.enum(JobType).openapi({ example: JobType.PAID }),
     status: z.enum(JobStatus).openapi({ example: JobStatus.PROCESSING }),
     completedAt: z
