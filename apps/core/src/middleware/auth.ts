@@ -11,6 +11,7 @@ export interface AuthenticatedUserContext {
 
 export type AuthVariables = {
   isAuthenticated: boolean;
+  isSuperUser: boolean;
   user?: AuthenticatedUserContext;
 };
 
@@ -19,6 +20,7 @@ function setAuthContext(
   context: AuthVariables,
 ) {
   c.set("isAuthenticated", context.isAuthenticated);
+  c.set("isSuperUser", context.isSuperUser);
   c.set("user", context.user);
 }
 
@@ -28,7 +30,11 @@ const bearerMiddleware: MiddlewareHandler<{
   verifyToken: async (token, c) => {
     // Check 1: Static API_KEY (internal service)
     if (token === process.env.API_KEY) {
-      setAuthContext(c, { isAuthenticated: true, user: undefined });
+      setAuthContext(c, {
+        isAuthenticated: true,
+        user: undefined,
+        isSuperUser: true,
+      });
       return true;
     }
 
@@ -44,6 +50,7 @@ const bearerMiddleware: MiddlewareHandler<{
           id: result.key.userId,
           organizationId: result.key.metadata?.organizationId ?? null,
         },
+        isSuperUser: false,
       });
       return true;
     }
@@ -68,6 +75,7 @@ const sessionMiddleware: MiddlewareHandler<{
         id: user.id,
         organizationId: session.activeOrganizationId ?? null,
       },
+      isSuperUser: false,
     });
 
     await next();
