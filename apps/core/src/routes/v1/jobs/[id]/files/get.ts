@@ -1,12 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { blobRepository } from "@sokosumi/database/repositories";
 
-import {
-  forbidden,
-  internalServerError,
-  notFound,
-  unauthorized,
-} from "@/helpers/error";
+import { internalServerError, notFound, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -45,31 +40,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unauthorized("A non-user cannot access files");
     }
 
-    const files = await blobRepository.getBlobsByJobId(id);
+    const files = await blobRepository.getBlobsByJobId(user.id, id);
     if (!files) {
       throw notFound("Files not found");
     }
-
-    if (files.some((file) => file.userId !== user.id)) {
-      throw forbidden("You can only access your own files");
-    }
-
-    // const job = await jobRepository.getJobById(id);
-    // if (!job) {
-    //   throw notFound("Job not found");
-    // }
-
-    // if (job.userId !== user.id) {
-    //   throw forbidden("You can only access your own jobs");
-    // }
-
-    // const formattedJob = {
-    //   ...job,
-    //   credits: Math.abs(
-    //     convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
-    //   ),
-    //   resultHash: job.purchase?.resultHash ?? null,
-    // };
 
     try {
       const parsedFiles = z.array(fileSchema).parse(files);

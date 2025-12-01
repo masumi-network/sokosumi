@@ -90,11 +90,12 @@ export const blobRepository = {
    * Get all Blob records for a job event by job id
    */
   async getBlobsByJobId(
+    userId: string,
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     return tx.blob.findMany({
-      where: { jobEvent: { jobId } },
+      where: { userId, jobEvent: { jobId } },
       include: { jobEvent: { include: { job: true } } },
     });
   },
