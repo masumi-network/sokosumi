@@ -32,5 +32,6 @@ export const jobSchema = z
     inputSchema: z.string().nullish().openapi({ example: "input_schema" }),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
+    hasFiles: z.boolean().openapi({ example: false }),
   })
   .openapi("Job");

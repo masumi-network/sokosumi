@@ -17,9 +17,9 @@ export const errorResponseSchema = z
     /** Metadata about the request and response */
     meta: z.object({
       /** ISO timestamp when the error was generated */
-      timestamp: z.iso
-        .datetime()
-        .openapi({ example: "2025-01-01T12:00:00.000Z" }),
+      timestamp: z
+        .date()
+        .openapi({ example: new Date("2025-01-01T12:00:00.000Z") }),
       requestId: z
         .string()
         .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),

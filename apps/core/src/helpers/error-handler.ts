@@ -13,7 +13,7 @@ export function errorHandler(
   c: Context<{ Variables: RequestIdVariables }>,
 ): Response {
   const meta = {
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(),
     requestId: c.var.requestId,
     path: c.req.path,
     method: c.req.method,

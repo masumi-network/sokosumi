@@ -93,7 +93,10 @@ export const blobRepository = {
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
-    return tx.blob.findMany({ where: { jobEvent: { jobId } } });
+    return tx.blob.findMany({
+      where: { jobEvent: { jobId } },
+      include: { jobEvent: { include: { job: true } } },
+    });
   },
 
   /**

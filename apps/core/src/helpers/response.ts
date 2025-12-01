@@ -14,7 +14,9 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
       /** Metadata about the response */
       meta: z.object({
         /** ISO timestamp when the response was generated */
-        timestamp: z.iso.datetime(),
+        timestamp: z
+          .date()
+          .openapi({ example: new Date("2025-01-01T12:00:00.000Z") }),
         // .openapi({ example: "2025-01-01T12:00:00.000Z" }),
         // Room for future additions: pagination, requestId, version, etc.
         requestId: z
@@ -36,7 +38,7 @@ export const ok = <T>(c: Context, data: T) => {
     {
       data,
       meta: {
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         requestId: c.var.requestId,
       },
     },
@@ -49,7 +51,7 @@ export const created = <T>(c: Context, data: T) => {
     {
       data,
       meta: {
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         requestId: c.var.requestId,
       },
     },
