@@ -1,8 +1,9 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
 
 ignoredBuiltDependencies:
+  - "@parcel/watcher"
   - "@prisma/client"
   - "@prisma/engines"
   - "@sentry/cli"
@@ -30,4 +31,3 @@ publicHoistPattern:
   - pg-pool
   - eslint
   - prettier
-
