@@ -31,11 +31,13 @@ function AgentHireButton({
     handleOpen(agentId);
   };
 
+  const handleClick = withAuthentication(handleHire);
+
   return (
     <Button
       size={size}
       variant="primary"
-      onClick={withAuthentication(handleHire)}
+      onClick={handleClick}
       disabled={isPending || disabled}
       className={cn("cursor-pointer", className)}
     >
