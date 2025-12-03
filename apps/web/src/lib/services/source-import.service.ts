@@ -1,5 +1,6 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { Blob, BlobOrigin, BlobStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
@@ -49,17 +50,33 @@ export const sourceImportService = (() => {
       for (const url of fileLinks) {
         if (!isHttpUrl(url)) continue;
         const guessedName = getBasename(url) ?? undefined;
-        await blobRepository.createPendingResultBlob(
-          userId,
-          jobEventId,
-          url,
-          guessedName,
-          tx,
-        );
+        try {
+          await blobRepository.upsertOutputBlob(
+            userId,
+            jobEventId,
+            url,
+            guessedName,
+            tx,
+          );
+        } catch (error) {
+          Sentry.captureException(error);
+          continue;
+        }
       }
       for (const url of httpLinks) {
         if (!isHttpUrl(url)) continue;
-        await linkRepository.upsertLink(userId, jobEventId, url, undefined, tx);
+        try {
+          await linkRepository.upsertLink(
+            userId,
+            jobEventId,
+            url,
+            undefined,
+            tx,
+          );
+        } catch (error) {
+          Sentry.captureException(error);
+          continue;
+        }
       }
     });
   }
@@ -141,7 +158,7 @@ export const sourceImportService = (() => {
    */
   async function importPendingResultBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
-    const pendingBlobs = await blobRepository.getPendingResultBlobs();
+    const pendingBlobs = await blobRepository.getPendingOutputBlobs();
     const limit = pLimit(5);
     for (const blob of pendingBlobs) {
       pendingPromises.push(limit(() => importResultBlob(blob)));

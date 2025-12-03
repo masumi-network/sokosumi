@@ -11,7 +11,7 @@ export const blobRepository = {
   /**
    * Create a new Blob record
    */
-  async createBlob(
+  async createInputBlob(
     userId: string,
     jobEventId: string,
     fileUrl: string,
@@ -21,8 +21,10 @@ export const blobRepository = {
   ): Promise<BlobWithJobId> {
     const blob = await tx.blob.create({
       data: {
+        origin: BlobOrigin.INPUT,
         user: { connect: { id: userId } },
         jobEvent: { connect: { id: jobEventId } },
+        status: BlobStatus.READY,
         fileUrl,
         fileName,
         size,
@@ -36,20 +38,22 @@ export const blobRepository = {
    * Create a pending result Blob record from a source URL (extracted from markdown)
    * Avoids duplicates by sourceUrl per job event.
    */
-  async createPendingResultBlob(
+  async upsertOutputBlob(
     userId: string,
     jobEventId: string,
     sourceUrl: string,
     fileName?: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<BlobWithJobId> {
-    const existing = await tx.blob.findFirst({
-      where: { jobEventId, sourceUrl },
-      include: blobInclude,
-    });
-    if (existing) return flattenBlobJobId(existing);
-    const blob = await tx.blob.create({
-      data: {
+    const blob = await tx.blob.upsert({
+      where: {
+        jobEventId_sourceUrl: { jobEventId, sourceUrl },
+        userId,
+      },
+      update: {
+        fileName,
+      },
+      create: {
         user: { connect: { id: userId } },
         jobEvent: { connect: { id: jobEventId } },
         origin: BlobOrigin.OUTPUT,
@@ -121,9 +125,9 @@ export const blobRepository = {
   },
 
   /**
-   * Get pending result blobs to import.
+   * Get pending output blobs to import.
    */
-  async getPendingResultBlobs(
+  async getPendingOutputBlobs(
     limit?: number,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<BlobWithJobId[]> {
