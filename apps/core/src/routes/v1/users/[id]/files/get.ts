@@ -74,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unauthorized("A non-user cannot access files");
     }
 
-    if (user && user.id !== id) {
+    if (user.id !== id) {
       throw forbidden("You can only access your own files");
     }
 
