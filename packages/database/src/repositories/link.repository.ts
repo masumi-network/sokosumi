@@ -55,7 +55,7 @@ export const linkRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
-      where: { userId, jobEvent: { job: { id: jobId } } },
+      where: { userId, jobEvent: { jobId } },
       include: linkInclude,
     });
     return links.map(flattenLinkJobId);
