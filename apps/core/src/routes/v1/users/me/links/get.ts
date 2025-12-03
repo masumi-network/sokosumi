@@ -33,12 +33,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     try {
-      const formattedLinks = links.map((link) => ({
-        ...link,
-        jobId: link.jobEvent.jobId,
-      }));
-
-      return ok(c, linksSchema.parse(formattedLinks));
+      return ok(c, linksSchema.parse(links));
     } catch (error) {
       console.error(error);
       throw internalServerError("Failed to parse job");

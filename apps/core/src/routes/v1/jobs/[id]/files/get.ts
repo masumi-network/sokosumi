@@ -44,13 +44,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Files not found");
     }
 
-    const formattedFiles = files.map((file) => ({
-      ...file,
-      jobId: file.jobEvent.jobId,
-    }));
-
     try {
-      const parsedFiles = filesSchema.parse(formattedFiles);
+      const parsedFiles = filesSchema.parse(files);
       return ok(c, parsedFiles);
     } catch (error) {
       console.error(error);

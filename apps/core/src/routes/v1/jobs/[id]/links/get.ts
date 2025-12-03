@@ -44,13 +44,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Links not found");
     }
 
-    const formattedLinks = links.map((link) => ({
-      ...link,
-      jobId: link.jobEvent.jobId,
-    }));
-
     try {
-      return ok(c, linksSchema.parse(formattedLinks));
+      return ok(c, linksSchema.parse(links));
     } catch (error) {
       console.error(error);
       throw internalServerError("Failed to parse job");
