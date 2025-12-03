@@ -1045,13 +1045,11 @@ export const jobService = (() => {
           }
 
           // If the latest job event is the same as the agent job status result, return the current job status
-          if (
-            latestJobEvent.externalId === agentJobStatusResult.data.status_id
-          ) {
+          if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
             return computeJobStatus(job);
           } else {
             // If the agent job status result has no external ID, check if the latest job event status is the same as the agent job status
-            if (!agentJobStatusResult.data.status_id) {
+            if (!agentJobStatusResult.data.id) {
               if (latestJobEvent.status === agentJobStatus) {
                 return computeJobStatus(job);
               }
@@ -1068,11 +1066,9 @@ export const jobService = (() => {
           const newJobEvent = await jobEventRepository.createJobEventForJobId(
             job.id,
             {
-              externalId: agentJobStatusResult.data.status_id,
+              externalId: agentJobStatusResult.data.id,
               status: agentJobStatus,
-              inputSchema: inputSchemaValue
-                ? JSON.stringify(inputSchemaValue)
-                : null,
+              inputSchema: inputSchemaValue,
               result: agentJobStatusResult.data.result,
             },
             tx,
