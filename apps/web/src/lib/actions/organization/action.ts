@@ -48,8 +48,7 @@ const updateInvoiceEmailSchema = z.object({
   invoiceEmail: z.email().nullable(),
 });
 
-interface UpdateOrganizationInvoiceEmailParameters
-  extends AuthenticatedRequest {
+interface UpdateOrganizationInvoiceEmailParameters extends AuthenticatedRequest {
   organizationId: string;
   invoiceEmail: string | null;
 }

@@ -1,81 +1,18 @@
-import DefaultMarkdown, { MarkdownToJSX } from "markdown-to-jsx";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
+import { cn } from "@/lib/utils";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
 interface MarkdownProps {
   children: string;
-  options?: MarkdownToJSX.Options | undefined;
   className?: string | undefined;
   highlightTerm?: string | undefined;
 }
 
-const defaultOptions: MarkdownToJSX.Options = {
-  disableParsingRawHTML: false,
-  wrapper: ({ children }) => (
-    <article className="prose dark:prose-invert max-w-none">{children}</article>
-  ),
-  forceWrapper: true,
-  overrides: {
-    a: {
-      component: ({ children, ...props }) => (
-        <a {...props} target="_blank" rel="noopener noreferrer">
-          {children}
-        </a>
-      ),
-    },
-    img: {
-      component: ({ alt, src, ...props }) => {
-        const isVideo = src?.match(/\.(mp4|webm|ogg)$/i);
-
-        if (isVideo) {
-          return (
-            <video
-              src={src}
-              controls
-              {...props}
-              className="w-full max-w-3xl rounded-lg"
-            >
-              <source src={src} type="video/mp4" />
-              {"Your browser does not support the video tag."}
-              <a href={src}>{"Download video"}</a>
-            </video>
-          );
-        }
-
-        return (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            alt={alt}
-            src={src}
-            {...props}
-            className="max-w-full rounded-lg"
-          />
-        );
-      },
-    },
-    video: {
-      component: ({ children, ...props }) => (
-        <video {...props} className="w-full max-w-3xl rounded-lg" controls>
-          {children}
-        </video>
-      ),
-    },
-    table: {
-      component: ({ children, ...props }) => (
-        <div className="overflow-x-auto">
-          <table {...props} className="w-full min-w-full">
-            {children}
-          </table>
-        </div>
-      ),
-    },
-  },
-};
-
 export default function Markdown({
   children,
-  options = defaultOptions,
   className,
   highlightTerm,
 }: MarkdownProps) {
@@ -84,9 +21,54 @@ export default function Markdown({
   });
   const sanitizedChildren = sanitizeMarkdown(highlightedChildren);
 
+  const components: Components = {
+    a: ({ href, children, ...props }) => (
+      <a href={href} {...props} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ),
+    img: ({ src, alt, ...props }) => {
+      const srcString = typeof src === "string" ? src : undefined;
+      const isVideo = srcString?.match(/\.(mp4|webm|ogg)$/i);
+
+      if (isVideo && srcString) {
+        return (
+          <video
+            src={srcString}
+            controls
+            className="w-full max-w-3xl rounded-lg"
+          >
+            <source src={srcString} type="video/mp4" />
+            {"Your browser does not support the video tag."}
+            <a href={srcString}>{"Download video"}</a>
+          </video>
+        );
+      }
+
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={alt} className="max-w-full rounded-lg" {...props} />
+      );
+    },
+    video: ({ children, ...props }) => (
+      <video {...props} className="w-full max-w-3xl rounded-lg" controls>
+        {children}
+      </video>
+    ),
+    table: ({ children, ...props }) => (
+      <div className="overflow-x-auto">
+        <table {...props} className="w-full min-w-full">
+          {children}
+        </table>
+      </div>
+    ),
+  };
+
   return (
-    <DefaultMarkdown options={options} className={className}>
-      {sanitizedChildren}
-    </DefaultMarkdown>
+    <div className={cn("prose dark:prose-invert max-w-none", className)}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {sanitizedChildren}
+      </ReactMarkdown>
+    </div>
   );
 }
