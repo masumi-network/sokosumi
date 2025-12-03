@@ -1056,11 +1056,16 @@ export const jobService = (() => {
           }
 
           const inputSchemaData = agentJobStatusResult.data.input_schema;
-          const inputSchemaValue = inputSchemaData
-            ? "input_data" in inputSchemaData
-              ? inputSchemaData.input_data
-              : inputSchemaData.input_groups
-            : null;
+          let inputSchemaValue: string | undefined;
+          if (inputSchemaData) {
+            if ("input_data" in inputSchemaData) {
+              inputSchemaValue = JSON.stringify(inputSchemaData.input_data);
+            } else {
+              inputSchemaValue = JSON.stringify(inputSchemaData.input_groups);
+            }
+          } else {
+            inputSchemaValue = undefined;
+          }
 
           const newJobEvent = await jobEventRepository.createJobEventForJobId(
             job.id,
