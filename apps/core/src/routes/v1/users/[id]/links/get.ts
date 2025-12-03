@@ -1,12 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { linkRepository } from "@sokosumi/database/repositories";
 
-import {
-  forbidden,
-  internalServerError,
-  notFound,
-  unauthorized,
-} from "@/helpers/error";
+import { forbidden, internalServerError, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -30,7 +25,6 @@ const route = createRoute({
     200: jsonSuccessResponse(linksSchema, "Retrieve links by user ID"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -49,9 +43,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const links = await linkRepository.getLinksByUserId(id);
-    if (!links) {
-      throw notFound("Links not found");
-    }
 
     try {
       return ok(c, linksSchema.parse(links));

@@ -32,11 +32,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const data = await agentRepository.getAgentWithRelationsById(id);
-    if (!data) {
+    const agent = await agentRepository.getAgentWithRelationsById(id);
+    if (!agent) {
       throw notFound("Agent not found");
     }
-
-    return ok(c, agentSchema.parse(data));
+    return ok(c, agentSchema.parse(agent));
   });
 }

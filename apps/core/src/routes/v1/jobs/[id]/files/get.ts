@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { blobRepository } from "@sokosumi/database/repositories";
 
-import { internalServerError, notFound, unauthorized } from "@/helpers/error";
+import { internalServerError, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -25,7 +25,6 @@ const route = createRoute({
     200: jsonSuccessResponse(filesSchema, "Retrieve files by job ID"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -40,9 +39,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const files = await blobRepository.getBlobsByUserIdAndJobId(user.id, id);
-    if (!files) {
-      throw notFound("Files not found");
-    }
 
     try {
       const parsedFiles = filesSchema.parse(files);

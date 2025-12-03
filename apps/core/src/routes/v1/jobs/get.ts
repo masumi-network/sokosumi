@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
 import { convertCentsToCredits } from "@/helpers/credits.js";
-import { internalServerError, notFound, unauthorized } from "@/helpers/error";
+import { internalServerError, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -18,7 +18,6 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs"),
     401: jsonErrorResponse("Unauthorized"),
-    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -34,9 +33,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId: user.organizationId,
     });
 
-    if (!jobs) {
-      throw notFound("No jobs found");
-    }
     const formattedJobs = jobs.map((job) => ({
       ...job,
       credits: Math.abs(
