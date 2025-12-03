@@ -36,7 +36,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     if (!user) {
-      throw unauthorized("A non-user cannot access files");
+      throw unauthorized("A non-user cannot access links");
     }
 
     const links = await linkRepository.getLinksByUserIdAndJobId(user.id, id);
