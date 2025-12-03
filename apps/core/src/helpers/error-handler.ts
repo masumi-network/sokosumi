@@ -2,11 +2,7 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 
-import {
-  type ErrorResponse,
-  errorResponseSchema,
-  getErrorName,
-} from "./error.js";
+import { type ErrorResponse, getErrorName } from "./error.js";
 
 /**
  * Centralized error handler for Hono app
@@ -16,15 +12,12 @@ export function errorHandler(
   error: Error,
   c: Context<{ Variables: RequestIdVariables }>,
 ): Response {
-  const rawMeta = {
-    timestamp: new Date(),
+  const meta = {
+    timestamp: new Date().toISOString(),
     requestId: c.var.requestId,
     path: c.req.path,
     method: c.req.method,
   };
-
-  // Parse meta through schema to convert Date to ISO string
-  const meta = errorResponseSchema.shape.meta.parse(rawMeta);
 
   if (error instanceof HTTPException) {
     const status = error.status;
