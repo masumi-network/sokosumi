@@ -10,7 +10,7 @@ export const linkRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Link> {
     return tx.link.upsert({
-      where: { jobEventId_url: { jobEventId, url } },
+      where: { jobEventId_url: { jobEventId, url }, userId },
       update: {
         title,
       },
