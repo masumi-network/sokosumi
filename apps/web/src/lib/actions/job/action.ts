@@ -287,7 +287,7 @@ export const provideJobInput = withAuthContext<
         fileName: string;
         size: number;
       }> = [];
-      if (inputData.size > 0) {
+      if (Object.keys(inputData).length > 0) {
         uploadedFiles = await handleInputDataFileUploads(userId, inputData);
       }
 

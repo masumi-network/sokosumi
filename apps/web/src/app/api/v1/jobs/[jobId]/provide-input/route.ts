@@ -24,7 +24,8 @@ const requestSchema = z.object({
       z.array(z.string()),
       z.boolean(),
       z.array(z.number()),
-      z.array(z.string()),
+      z.instanceof(File),
+      z.array(z.instanceof(File)),
       z.undefined(),
     ]),
   ),
@@ -64,15 +65,12 @@ export async function POST(
 
     const { statusId, inputData } = parseResult.data;
 
-    // Convert inputData object to Map for service compatibility
-    const inputDataMap = new Map(Object.entries(inputData ?? {}));
-
     // Call the job service to provide input
     const job = await jobService.provideJobInput({
       jobId,
       statusId,
       userId,
-      inputData: inputDataMap,
+      inputData,
     });
 
     return createApiSuccessResponse({ jobId: job.id });

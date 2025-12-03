@@ -9,7 +9,7 @@ export const startJobInputSchema = z.object({
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
   inputSchema: z.array(jobInputSchema()),
-  inputData: z.map(
+  inputData: z.record(
     z.string(),
     z.union([
       z.number(),
@@ -147,7 +147,7 @@ export const createJobScheduleInputSchema = z.object({
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
   inputSchema: z.array(jobInputSchema()),
-  inputData: z.map(
+  inputData: z.record(
     z.string(),
     z.union([
       z.number(),
@@ -175,7 +175,7 @@ export type CreateJobScheduleInputSchemaType = z.infer<
 export const provideJobInputSchema = z.object({
   jobId: z.string(),
   statusId: z.string(),
-  inputData: z.map(
+  inputData: z.record(
     z.string(),
     z.union([
       z.number(),

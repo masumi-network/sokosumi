@@ -68,7 +68,7 @@ export const agentClient = (() => {
           },
           body: JSON.stringify({
             identifier_from_purchaser: identifierFromPurchaser,
-            input_data: Object.fromEntries(inputData),
+            input_data: inputData,
           }),
         });
 
@@ -103,7 +103,7 @@ export const agentClient = (() => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            input_data: Object.fromEntries(inputData),
+            input_data: inputData,
           }),
         });
         if (!startJobResponse.ok) {
@@ -172,7 +172,7 @@ export const agentClient = (() => {
           body: JSON.stringify({
             job_id: jobId,
             status_id: statusId,
-            input_data: Object.fromEntries(inputData),
+            input_data: inputData,
           }),
         });
 

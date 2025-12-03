@@ -147,7 +147,7 @@ export const createSchedule = withAuthContext<
         },
       },
       inputSchema: JSON.stringify(input.inputSchema),
-      input: JSON.stringify(Object.fromEntries(input.inputData)),
+      input: JSON.stringify(input.inputData),
       scheduleType: scheduleType! as ScheduleType,
       timezone: scheduleSelection.timezone,
       maxAcceptedCents: input.maxAcceptedCents,

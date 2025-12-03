@@ -439,7 +439,7 @@ export const jobService = (() => {
       agentId,
       userId,
       organizationId: activeOrganizationId,
-      input: JSON.stringify(Object.fromEntries(inputData)),
+      input: JSON.stringify(inputData),
       inputSchema: inputSchema,
       name: "Demo Job",
       result: jobStatusResponse.result,
@@ -654,7 +654,7 @@ export const jobService = (() => {
       agentId,
       userId,
       organizationId,
-      input: JSON.stringify(Object.fromEntries(inputData)),
+      input: JSON.stringify(inputData),
       inputHash: startJobResponse.input_hash,
       inputSchema: inputSchema,
       creditsPrice: agentWithCreditsPrice.creditsPrice,
@@ -806,7 +806,7 @@ export const jobService = (() => {
       agentId,
       userId,
       organizationId,
-      input: JSON.stringify(Object.fromEntries(inputData)),
+      input: JSON.stringify(inputData),
       inputHash: null,
       inputSchema: inputSchema,
       name: generatedName,
@@ -1247,7 +1247,7 @@ export const jobService = (() => {
     }
 
     // Convert input data to JSON
-    const inputJson = JSON.stringify(Object.fromEntries(inputData));
+    const inputJson = JSON.stringify(inputData);
 
     // Add breadcrumb for agent API call
     Sentry.addBreadcrumb({
