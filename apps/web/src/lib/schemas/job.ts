@@ -130,6 +130,8 @@ export type JobStatusResponseSchemaType = z.infer<
 
 export const provideJobInputResponseSchema = z.object({
   status: z.enum(["success", "error"]),
+  input_hash: z.string(),
+  signature: z.string(),
 });
 
 export type ProvideJobInputResponseSchemaType = z.infer<
