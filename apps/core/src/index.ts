@@ -20,11 +20,6 @@ app.notFound(() => {
   throw notFound();
 });
 
-app.get("/", (c) => {
-  const apiKey = process.env.API_KEY;
-  return c.json({ apiKey });
-});
-
 // Mount API v1 routes
 app.route("/v1", apiV1);
 
