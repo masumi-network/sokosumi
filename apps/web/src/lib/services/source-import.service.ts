@@ -49,13 +49,18 @@ export const sourceImportService = (() => {
       for (const url of fileLinks) {
         if (!isHttpUrl(url)) continue;
         const guessedName = getBasename(url) ?? undefined;
-        await blobRepository.upsertOutputBlob(
-          userId,
-          jobEventId,
-          url,
-          guessedName,
-          tx,
-        );
+        try {
+          await blobRepository.upsertOutputBlob(
+            userId,
+            jobEventId,
+            url,
+            guessedName,
+            tx,
+          );
+        } catch (error) {
+          console.error(`Failed to upsert output blob for URL: ${url}`, error);
+          continue;
+        }
       }
       for (const url of httpLinks) {
         if (!isHttpUrl(url)) continue;
