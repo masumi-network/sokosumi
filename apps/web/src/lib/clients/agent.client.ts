@@ -154,8 +154,8 @@ export const agentClient = (() => {
 
     async provideJobInput(
       agent: Agent,
+      id: string,
       jobId: string,
-      statusId: string,
       inputData: JobInputData,
     ): Promise<Result<ProvideJobInputResponseSchemaType, string>> {
       try {
@@ -170,8 +170,8 @@ export const agentClient = (() => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            id,
             job_id: jobId,
-            status_id: statusId,
             input_data: Object.fromEntries(inputData),
           }),
         });

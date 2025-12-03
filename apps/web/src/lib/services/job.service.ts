@@ -49,7 +49,6 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
-import { getInputHash } from "@/lib/utils";
 import {
   jobStatusToAgentJobStatus,
   transformPurchaseToJobUpdate,
@@ -1267,8 +1266,8 @@ export const jobService = (() => {
     // Call agent API to provide input
     const provideInputResult = await agentClient.provideJobInput(
       job.agent,
-      job.agentJobId,
       statusId,
+      job.agentJobId,
       inputData,
     );
 
@@ -1293,17 +1292,15 @@ export const jobService = (() => {
       );
     }
 
-    const statusResponse = provideInputResult.data;
+    const responseData = provideInputResult.data;
 
     const updatedJob = await prisma.$transaction(async (tx) => {
       // Update the existing JobEvent with input data
       await jobEventRepository.setInputForJobEventById(
         jobEvent.id,
         inputJson,
-        job.identifierFromPurchaser
-          ? (getInputHash(inputJson, job.identifierFromPurchaser) ?? "")
-          : "",
-        undefined,
+        responseData.input_hash,
+        responseData.signature,
         tx,
       );
 
@@ -1327,7 +1324,7 @@ export const jobService = (() => {
         jobId: updatedJob.id,
         statusId,
         jobEventId: jobEvent.id,
-        statusResponse: statusResponse.status,
+        statusResponse: responseData.status,
       },
     });
 

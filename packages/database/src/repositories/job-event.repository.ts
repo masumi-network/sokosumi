@@ -129,7 +129,7 @@ export const jobEventRepository = {
     id: string,
     input: string,
     inputHash: string,
-    signature?: string | null,
+    signature: string | null,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobEvent> {
     return await tx.jobEvent.update({
