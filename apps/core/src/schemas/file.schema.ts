@@ -55,7 +55,5 @@ export const fileSchema = z
     },
   )
   .openapi("File");
-export type File = z.infer<typeof fileSchema>;
 
 export const filesSchema = z.array(fileSchema);
-export type Files = z.infer<typeof filesSchema>;

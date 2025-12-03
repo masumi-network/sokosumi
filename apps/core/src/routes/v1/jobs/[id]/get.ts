@@ -6,8 +6,7 @@ import { forbidden, notFound, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-import { jobSchema } from "../schemas.js";
+import { jobSchema } from "@/schemas/job.schema.js";
 
 const params = z.object({
   id: z.string().openapi({

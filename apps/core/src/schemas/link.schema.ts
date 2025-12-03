@@ -13,7 +13,5 @@ export const linkSchema = z
     title: z.string().nullish().openapi({ example: "My Job" }),
   })
   .openapi("Link");
-export type Link = z.infer<typeof linkSchema>;
 
 export const linksSchema = z.array(linkSchema);
-export type Links = z.infer<typeof linksSchema>;

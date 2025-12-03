@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
 import { convertCentsToCredits } from "@/helpers/credits.js";
@@ -6,10 +6,7 @@ import { unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-import { jobSchema } from "./schemas.js";
-
-const jobsSchema = z.array(jobSchema);
+import { jobsSchema } from "@/schemas/job.schema.js";
 
 const route = createRoute({
   method: "get",

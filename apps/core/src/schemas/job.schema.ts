@@ -29,3 +29,5 @@ export const jobSchema = z
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
   })
   .openapi("Job");
+
+export const jobsSchema = z.array(jobSchema);
