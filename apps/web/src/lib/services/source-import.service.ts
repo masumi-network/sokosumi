@@ -1,5 +1,6 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { Blob, BlobOrigin, BlobStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
@@ -58,13 +59,24 @@ export const sourceImportService = (() => {
             tx,
           );
         } catch (error) {
-          console.error(`Failed to upsert output blob for URL: ${url}`, error);
+          Sentry.captureException(error);
           continue;
         }
       }
       for (const url of httpLinks) {
         if (!isHttpUrl(url)) continue;
-        await linkRepository.upsertLink(userId, jobEventId, url, undefined, tx);
+        try {
+          await linkRepository.upsertLink(
+            userId,
+            jobEventId,
+            url,
+            undefined,
+            tx,
+          );
+        } catch (error) {
+          Sentry.captureException(error);
+          continue;
+        }
       }
     });
   }
