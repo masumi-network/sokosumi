@@ -10,7 +10,6 @@ export const userSchema = z
     name: z.string().openapi({ example: "John Doe" }),
     email: z.string().openapi({ example: "john.doe@example.com" }),
     image: z.string().openapi({ example: "https://example.com/image.png" }),
-
     credits: z.number().openapi({ example: 100.0 }),
   })
   .openapi("User");
