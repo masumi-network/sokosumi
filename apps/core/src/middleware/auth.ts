@@ -79,8 +79,9 @@ const sessionMiddleware: MiddlewareHandler<{
     });
 
     await next();
+  } else {
+    throw unauthorized();
   }
-  throw unauthorized();
 };
 
 export const authMiddleware: MiddlewareHandler<{
