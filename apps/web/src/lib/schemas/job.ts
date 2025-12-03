@@ -113,7 +113,7 @@ export type JobStatusValue = (typeof JOB_STATUS_VALUES)[number];
 
 export const jobStatusResponseSchema = z
   .object({
-    status_id: z.string().nullish(),
+    id: z.string().nullish(),
     job_id: z.string(),
     status: z.enum(JOB_STATUS_VALUES),
     input_schema: jobInputsSchema().nullish(),
