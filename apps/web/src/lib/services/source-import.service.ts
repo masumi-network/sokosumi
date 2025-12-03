@@ -141,7 +141,7 @@ export const sourceImportService = (() => {
    */
   async function importPendingResultBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
-    const pendingBlobs = await blobRepository.getPendingResultBlobs();
+    const pendingBlobs = await blobRepository.getPendingOutputBlobs();
     const limit = pLimit(5);
     for (const blob of pendingBlobs) {
       pendingPromises.push(limit(() => importResultBlob(blob)));
