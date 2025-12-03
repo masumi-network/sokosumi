@@ -130,12 +130,11 @@ export const jobEventRepository = {
     input: string,
     inputHash: string,
     signature?: string | null,
-    status?: AgentJobStatus,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobEvent> {
     return await tx.jobEvent.update({
       where: { id },
-      data: { input, inputHash, signature, status },
+      data: { input, inputHash, signature },
     });
   },
 

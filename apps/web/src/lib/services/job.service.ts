@@ -1300,12 +1300,7 @@ export const jobService = (() => {
     const statusResponse = provideInputResult.data;
 
     const updatedJob = await prisma.$transaction(async (tx) => {
-      // Update the existing JobEvent with input data and new status
-      const newStatus =
-        statusResponse.status === "success"
-          ? AgentJobStatus.RUNNING
-          : AgentJobStatus.FAILED;
-
+      // Update the existing JobEvent with input data
       await jobEventRepository.setInputForJobEventById(
         jobEvent.id,
         inputJson,
@@ -1313,7 +1308,6 @@ export const jobService = (() => {
           ? (getInputHash(inputJson, job.identifierFromPurchaser) ?? "")
           : "",
         undefined,
-        newStatus,
         tx,
       );
 
