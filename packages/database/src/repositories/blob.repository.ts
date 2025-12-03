@@ -91,16 +91,6 @@ export const blobRepository = {
     return tx.blob.findMany({ where: { jobEventId } });
   },
 
-  async getOutputBlobByJobEventIdAndUserId(
-    jobEventId: string,
-    userId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob | null> {
-    return tx.blob.findFirst({
-      where: { jobEventId, userId, origin: BlobOrigin.OUTPUT },
-    });
-  },
-
   /**
    * Get all Blob records for a job event by job id
    */
