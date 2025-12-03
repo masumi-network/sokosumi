@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { blobRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, internalServerError, unauthorized } from "@/helpers/error";
+import { forbidden, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -43,13 +43,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const files = await blobRepository.getBlobsByUserId(id);
-
-    try {
-      const parsedFiles = filesSchema.parse(files);
-      return ok(c, parsedFiles);
-    } catch (error) {
-      console.error(error);
-      throw internalServerError("Failed to parse files");
-    }
+    return ok(c, filesSchema.parse(files));
   });
 }

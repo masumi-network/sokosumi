@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { linkRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, internalServerError, unauthorized } from "@/helpers/error";
+import { forbidden, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -44,11 +44,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const links = await linkRepository.getLinksByUserId(id);
 
-    try {
-      return ok(c, linksSchema.parse(links));
-    } catch (error) {
-      console.error(error);
-      throw internalServerError("Failed to parse links");
-    }
+    return ok(c, linksSchema.parse(links));
   });
 }
