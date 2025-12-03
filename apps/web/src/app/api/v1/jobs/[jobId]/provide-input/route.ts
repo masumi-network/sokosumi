@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as z from "zod";
 
 import {
   createApiSuccessResponse,
   handleApiError,
-  provideJobInputRequestSchema,
   validateApiKey,
 } from "@/lib/api";
 import { jobService } from "@/lib/services/job.service";
@@ -13,6 +13,22 @@ interface RouteParams {
     jobId: string;
   }>;
 }
+
+const requestSchema = z.object({
+  statusId: z.string(),
+  inputData: z.record(
+    z.string(),
+    z.union([
+      z.number(),
+      z.string(),
+      z.array(z.string()),
+      z.boolean(),
+      z.array(z.number()),
+      z.array(z.string()),
+      z.undefined(),
+    ]),
+  ),
+});
 
 /**
  * Provide input for a job awaiting human-in-the-loop input
@@ -40,7 +56,7 @@ export async function POST(
 
     // Parse and validate request body
     const body = await request.json();
-    const parseResult = provideJobInputRequestSchema.safeParse(body);
+    const parseResult = requestSchema.safeParse(body);
 
     if (!parseResult.success) {
       throw parseResult.error;
