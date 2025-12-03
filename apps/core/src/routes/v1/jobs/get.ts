@@ -1,5 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
+import { JobType } from "@sokosumi/database";
 import { jobRepository } from "@sokosumi/database/repositories";
+import { JobStatus } from "@sokosumi/database/types/job";
 
 import { convertCentsToCredits } from "@/helpers/credits.js";
 import { unauthorized } from "@/helpers/error";
@@ -13,7 +15,50 @@ const route = createRoute({
   path: "/",
   tags: ["Jobs"],
   responses: {
-    200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs"),
+    200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs", {
+      data: [
+        {
+          id: "cmi4gmksz000104l8wps8p7fp",
+          createdAt: "2025-01-15T10:30:00.000Z",
+          updatedAt: "2025-01-15T10:35:00.000Z",
+          agentId: "agent_123",
+          userId: "user_123",
+          organizationId: "organization_123",
+          name: "Research Task",
+          jobType: JobType.PAID,
+          status: JobStatus.COMPLETED,
+          completedAt: "2025-01-15T10:35:00.000Z",
+          credits: 5,
+          input: '{"prompt":"How many planets are in the solar system?"}',
+          inputHash: "input_hash_123",
+          inputSchema: "input_schema_123",
+          result: "# Answer\n\nThere are 8 planets in the solar system.",
+          resultHash: "result_hash_123",
+        },
+        {
+          id: "cmi4gmksz000104l8wps8p8fp",
+          createdAt: "2025-01-15T11:00:00.000Z",
+          updatedAt: "2025-01-15T11:05:00.000Z",
+          agentId: "agent_456",
+          userId: "user_123",
+          organizationId: null,
+          name: "Analysis Job",
+          jobType: JobType.FREE,
+          status: JobStatus.PROCESSING,
+          completedAt: null,
+          credits: 0,
+          input: '{"query":"Analyze market trends"}',
+          inputHash: null,
+          inputSchema: null,
+          result: null,
+          resultHash: null,
+        },
+      ],
+      meta: {
+        timestamp: "2025-01-15T12:00:00.000Z",
+        requestId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+    }),
     401: jsonErrorResponse("Unauthorized"),
     500: jsonErrorResponse("Internal Server Error"),
   },
