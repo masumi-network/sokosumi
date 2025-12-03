@@ -6,3 +6,9 @@ export const agentSchema = z
     name: z.string().openapi({ example: "Research Assistant" }),
   })
   .openapi("Agent");
+
+export type Agent = z.infer<typeof agentSchema>;
+
+export const agentsSchema = z.array(agentSchema);
+
+export type Agents = z.infer<typeof agentsSchema>;
