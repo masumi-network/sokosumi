@@ -36,7 +36,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, linksSchema.parse(links));
     } catch (error) {
       console.error(error);
-      throw internalServerError("Failed to parse job");
+      throw internalServerError("Failed to parse links");
     }
   });
 }
