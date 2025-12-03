@@ -28,6 +28,32 @@ export const fileSchema = z
       .nullish()
       .openapi({ example: "https://example.com/file.pdf" }),
   })
+  .refine(
+    (data) => {
+      // If origin is OUTPUT, sourceUrl must be present
+      if (data.origin === BlobOrigin.OUTPUT) {
+        return data.sourceUrl != null && data.sourceUrl !== "";
+      }
+      return true;
+    },
+    {
+      message: "sourceUrl is required when origin is OUTPUT",
+      path: ["sourceUrl"],
+    },
+  )
+  .refine(
+    (data) => {
+      // If origin is INPUT, fileUrl must be present
+      if (data.origin === BlobOrigin.INPUT) {
+        return data.fileUrl != null && data.fileUrl !== "";
+      }
+      return true;
+    },
+    {
+      message: "fileUrl is required when origin is INPUT",
+      path: ["fileUrl"],
+    },
+  )
   .openapi("File");
 export type File = z.infer<typeof fileSchema>;
 
