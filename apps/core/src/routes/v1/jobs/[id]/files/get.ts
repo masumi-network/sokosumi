@@ -49,7 +49,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(c, parsedFiles);
     } catch (error) {
       console.error(error);
-      throw internalServerError("Failed to parse job");
+      throw internalServerError("Failed to parse files");
     }
   });
 }
