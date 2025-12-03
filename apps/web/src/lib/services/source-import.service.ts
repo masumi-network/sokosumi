@@ -49,7 +49,7 @@ export const sourceImportService = (() => {
       for (const url of fileLinks) {
         if (!isHttpUrl(url)) continue;
         const guessedName = getBasename(url) ?? undefined;
-        await blobRepository.createPendingResultBlob(
+        await blobRepository.upsertOutputBlob(
           userId,
           jobEventId,
           url,
