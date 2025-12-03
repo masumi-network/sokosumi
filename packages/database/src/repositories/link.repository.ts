@@ -9,12 +9,12 @@ export const linkRepository = {
     title?: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Link> {
-    const existing = await tx.link.findFirst({
-      where: { jobEventId, url },
-    });
-    if (existing) return existing;
-    return tx.link.create({
-      data: {
+    return tx.link.upsert({
+      where: { jobEventId_url: { jobEventId, url }, userId },
+      update: {
+        title,
+      },
+      create: {
         user: { connect: { id: userId } },
         jobEvent: { connect: { id: jobEventId } },
         url,

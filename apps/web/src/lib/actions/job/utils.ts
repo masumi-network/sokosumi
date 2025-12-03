@@ -66,7 +66,7 @@ export async function saveUploadedFiles(
   files: UploadedFileWithMeta[],
 ) {
   for (const file of files) {
-    await blobRepository.createBlob(
+    await blobRepository.createInputBlob(
       userId,
       jobEventId,
       file.url,

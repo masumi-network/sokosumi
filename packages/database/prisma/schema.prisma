@@ -687,19 +687,19 @@ model Blob {
   fileName   String?
   mime       String?
   size       BigInt?
-  origin     BlobOrigin @default(INPUT)
+  origin     BlobOrigin
   sourceUrl  String?
-  status     BlobStatus @default(READY)
+  status     BlobStatus
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
   user     User     @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
   jobEvent JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
 
+  @@unique([jobEventId, sourceUrl]) // For deduplication checks
   // Performance indexes
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
   @@index([jobEventId, origin]) // For fetching blobs by job event with origin filter
-  @@index([jobEventId, sourceUrl]) // For deduplication checks
   @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
