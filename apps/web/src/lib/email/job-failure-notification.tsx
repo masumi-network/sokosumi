@@ -26,8 +26,7 @@ export interface JobFailureNotificationEmailProps {
   resultHash: string | null;
 }
 
-interface JobFailureNotificationEmailComponentProps
-  extends JobFailureNotificationEmailProps {
+interface JobFailureNotificationEmailComponentProps extends JobFailureNotificationEmailProps {
   t: Awaited<ReturnType<typeof getTranslations>>;
 }
 

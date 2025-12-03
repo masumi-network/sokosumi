@@ -414,8 +414,7 @@ export const updateJobName = withAuthContext<
   return Ok();
 });
 
-interface RequestRefundJobByBlockchainIdentifierParameters
-  extends AuthenticatedRequest {
+interface RequestRefundJobByBlockchainIdentifierParameters extends AuthenticatedRequest {
   blockchainIdentifier: string;
 }
 

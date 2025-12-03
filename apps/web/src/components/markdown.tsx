@@ -1,4 +1,4 @@
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
@@ -21,59 +21,54 @@ export default function Markdown({
   });
   const sanitizedChildren = sanitizeMarkdown(highlightedChildren);
 
-  return (
-    <ReactMarkdown
-      className={cn("prose dark:prose-invert max-w-none", className)}
-      remarkPlugins={[remarkGfm]}
-      components={{
-        a: ({ href, children, ...props }) => (
-          <a href={href} {...props} target="_blank" rel="noopener noreferrer">
-            {children}
-          </a>
-        ),
-        img: ({ src, alt, ...props }) => {
-          const isVideo = src?.match(/\.(mp4|webm|ogg)$/i);
+  const components: Components = {
+    a: ({ href, children, ...props }) => (
+      <a href={href} {...props} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ),
+    img: ({ src, alt, ...props }) => {
+      const srcString = typeof src === "string" ? src : undefined;
+      const isVideo = srcString?.match(/\.(mp4|webm|ogg)$/i);
 
-          if (isVideo) {
-            return (
-              <video
-                src={src}
-                controls
-                className="w-full max-w-3xl rounded-lg"
-                {...props}
-              >
-                <source src={src} type="video/mp4" />
-                {"Your browser does not support the video tag."}
-                <a href={src}>{"Download video"}</a>
-              </video>
-            );
-          }
-
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={src}
-              alt={alt}
-              className="max-w-full rounded-lg"
-              {...props}
-            />
-          );
-        },
-        video: ({ children, ...props }) => (
-          <video {...props} className="w-full max-w-3xl rounded-lg" controls>
-            {children}
+      if (isVideo && srcString) {
+        return (
+          <video
+            src={srcString}
+            controls
+            className="w-full max-w-3xl rounded-lg"
+          >
+            <source src={srcString} type="video/mp4" />
+            {"Your browser does not support the video tag."}
+            <a href={srcString}>{"Download video"}</a>
           </video>
-        ),
-        table: ({ children, ...props }) => (
-          <div className="overflow-x-auto">
-            <table {...props} className="w-full min-w-full">
-              {children}
-            </table>
-          </div>
-        ),
-      }}
-    >
-      {sanitizedChildren}
-    </ReactMarkdown>
+        );
+      }
+
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={alt} className="max-w-full rounded-lg" {...props} />
+      );
+    },
+    video: ({ children, ...props }) => (
+      <video {...props} className="w-full max-w-3xl rounded-lg" controls>
+        {children}
+      </video>
+    ),
+    table: ({ children, ...props }) => (
+      <div className="overflow-x-auto">
+        <table {...props} className="w-full min-w-full">
+          {children}
+        </table>
+      </div>
+    ),
+  };
+
+  return (
+    <div className={cn("prose dark:prose-invert max-w-none", className)}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {sanitizedChildren}
+      </ReactMarkdown>
+    </div>
   );
 }
