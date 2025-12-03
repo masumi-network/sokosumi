@@ -11,7 +11,6 @@ export interface AuthenticatedUserContext {
 
 export type AuthVariables = {
   isAuthenticated: boolean;
-  isSuperUser: boolean;
   user?: AuthenticatedUserContext;
 };
 
@@ -20,7 +19,6 @@ function setAuthContext(
   context: AuthVariables,
 ) {
   c.set("isAuthenticated", context.isAuthenticated);
-  c.set("isSuperUser", context.isSuperUser);
   c.set("user", context.user);
 }
 
@@ -33,7 +31,6 @@ const bearerMiddleware: MiddlewareHandler<{
       setAuthContext(c, {
         isAuthenticated: true,
         user: undefined,
-        isSuperUser: true,
       });
       return true;
     }
@@ -50,7 +47,6 @@ const bearerMiddleware: MiddlewareHandler<{
           id: result.key.userId,
           organizationId: result.key.metadata?.organizationId ?? null,
         },
-        isSuperUser: false,
       });
       return true;
     }
@@ -75,7 +71,6 @@ const sessionMiddleware: MiddlewareHandler<{
         id: user.id,
         organizationId: session.activeOrganizationId ?? null,
       },
-      isSuperUser: false,
     });
 
     return await next();
