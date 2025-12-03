@@ -78,10 +78,9 @@ const sessionMiddleware: MiddlewareHandler<{
       isSuperUser: false,
     });
 
-    await next();
-  } else {
-    throw unauthorized();
+    return await next();
   }
+  throw unauthorized();
 };
 
 export const authMiddleware: MiddlewareHandler<{
