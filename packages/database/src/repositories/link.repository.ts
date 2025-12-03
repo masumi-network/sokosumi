@@ -47,4 +47,14 @@ export const linkRepository = {
       include: { jobEvent: { include: { job: true } } },
     });
   },
+
+  async getLinksByJobId(
+    jobId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Link[]> {
+    return tx.link.findMany({
+      where: { jobEvent: { jobId } },
+      include: { jobEvent: { include: { job: true } } },
+    });
+  },
 };
