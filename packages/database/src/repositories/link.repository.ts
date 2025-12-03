@@ -1,5 +1,6 @@
 import prisma from "../client.js";
-import type { Link, Prisma } from "../generated/prisma/client.js";
+import type { Prisma } from "../generated/prisma/client.js";
+import { linkInclude, LinkWithJob } from "../types/link.js";
 
 export const linkRepository = {
   async upsertLink(
@@ -8,9 +9,10 @@ export const linkRepository = {
     url: string,
     title?: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Link> {
+  ): Promise<LinkWithJob> {
     const existing = await tx.link.findFirst({
       where: { jobEventId, url },
+      include: linkInclude,
     });
     if (existing) return existing;
     return tx.link.create({
@@ -20,41 +22,42 @@ export const linkRepository = {
         url,
         title,
       },
+      include: linkInclude,
     });
   },
 
   async getLinksByJobEventId(
     jobEventId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Link[]> {
-    return tx.link.findMany({ where: { jobEventId } });
+  ): Promise<LinkWithJob[]> {
+    return tx.link.findMany({ where: { jobEventId }, include: linkInclude });
   },
 
   async getLinksByUserId(
     userId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Link[]> {
-    return tx.link.findMany({ where: { userId } });
+  ): Promise<LinkWithJob[]> {
+    return tx.link.findMany({ where: { userId }, include: linkInclude });
   },
 
   async getLinksByUserIdAndJobId(
     userId: string,
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Link[]> {
+  ): Promise<LinkWithJob[]> {
     return tx.link.findMany({
       where: { userId, jobEvent: { job: { id: jobId } } },
-      include: { jobEvent: { include: { job: true } } },
+      include: linkInclude,
     });
   },
 
   async getLinksByJobId(
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Link[]> {
+  ): Promise<LinkWithJob[]> {
     return tx.link.findMany({
       where: { jobEvent: { jobId } },
-      include: { jobEvent: { include: { job: true } } },
+      include: linkInclude,
     });
   },
 };

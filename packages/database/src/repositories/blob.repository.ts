@@ -1,6 +1,7 @@
 import prisma from "../client.js";
-import type { Blob, Prisma } from "../generated/prisma/client.js";
+import type { Prisma } from "../generated/prisma/client.js";
 import { BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
+import { blobInclude, BlobWithJob } from "../types/blob.js";
 
 /**
  * Repository for managing Blob entities and related queries.
@@ -17,7 +18,7 @@ export const blobRepository = {
     fileName?: string,
     size?: bigint,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob> {
+  ): Promise<BlobWithJob> {
     return tx.blob.create({
       data: {
         user: { connect: { id: userId } },
@@ -26,6 +27,7 @@ export const blobRepository = {
         fileName,
         size,
       },
+      include: blobInclude,
     });
   },
 
@@ -39,9 +41,10 @@ export const blobRepository = {
     sourceUrl: string,
     fileName?: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob> {
+  ): Promise<BlobWithJob> {
     const existing = await tx.blob.findFirst({
       where: { jobEventId, sourceUrl },
+      include: blobInclude,
     });
     if (existing) return existing;
     return tx.blob.create({
@@ -53,6 +56,7 @@ export const blobRepository = {
         sourceUrl,
         fileName,
       },
+      include: blobInclude,
     });
   },
 
@@ -62,8 +66,8 @@ export const blobRepository = {
   async getBlobById(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob | null> {
-    return tx.blob.findUnique({ where: { id } });
+  ): Promise<BlobWithJob | null> {
+    return tx.blob.findUnique({ where: { id }, include: blobInclude });
   },
 
   /**
@@ -72,8 +76,8 @@ export const blobRepository = {
   async getBlobsByUserId(
     userId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob[]> {
-    return tx.blob.findMany({ where: { userId } });
+  ): Promise<BlobWithJob[]> {
+    return tx.blob.findMany({ where: { userId }, include: blobInclude });
   },
 
   /**
@@ -82,8 +86,8 @@ export const blobRepository = {
   async getBlobsByJobEventId(
     jobEventId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob[]> {
-    return tx.blob.findMany({ where: { jobEventId } });
+  ): Promise<BlobWithJob[]> {
+    return tx.blob.findMany({ where: { jobEventId }, include: blobInclude });
   },
 
   /**
@@ -93,10 +97,10 @@ export const blobRepository = {
     userId: string,
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob[]> {
+  ): Promise<BlobWithJob[]> {
     return tx.blob.findMany({
       where: { userId, jobEvent: { jobId } },
-      include: { jobEvent: { include: { job: true } } },
+      include: blobInclude,
     });
   },
 
@@ -106,11 +110,12 @@ export const blobRepository = {
   async getPendingResultBlobs(
     limit?: number,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob[]> {
+  ): Promise<BlobWithJob[]> {
     return tx.blob.findMany({
       where: { status: BlobStatus.PENDING, origin: BlobOrigin.OUTPUT },
       take: limit,
       orderBy: { createdAt: "asc" },
+      include: blobInclude,
     });
   },
 
@@ -121,8 +126,8 @@ export const blobRepository = {
     id: string,
     data: Prisma.BlobUpdateInput,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob> {
-    return tx.blob.update({ where: { id }, data });
+  ): Promise<BlobWithJob> {
+    return tx.blob.update({ where: { id }, data, include: blobInclude });
   },
 
   async markBlobReady(
@@ -134,7 +139,7 @@ export const blobRepository = {
       fileName?: string | null;
     },
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob> {
+  ): Promise<BlobWithJob> {
     return tx.blob.update({
       where: { id },
       data: {
@@ -146,16 +151,18 @@ export const blobRepository = {
         }),
         status: BlobStatus.READY,
       },
+      include: blobInclude,
     });
   },
 
   async markBlobFailed(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob> {
+  ): Promise<BlobWithJob> {
     return tx.blob.update({
       where: { id },
       data: { status: BlobStatus.FAILED },
+      include: blobInclude,
     });
   },
 
@@ -165,7 +172,7 @@ export const blobRepository = {
   async deleteBlobById(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob> {
-    return tx.blob.delete({ where: { id } });
+  ): Promise<BlobWithJob> {
+    return tx.blob.delete({ where: { id }, include: blobInclude });
   },
 };

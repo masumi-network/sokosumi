@@ -10,7 +10,7 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { fileSchema } from "@/schemas/file.schema";
+import { filesSchema } from "@/schemas/file.schema";
 
 const params = z.object({
   id: z.string().openapi({
@@ -27,7 +27,7 @@ const route = createRoute({
     params,
   },
   responses: {
-    200: jsonSuccessResponse(z.array(fileSchema), "Retrieve files by user ID"),
+    200: jsonSuccessResponse(filesSchema, "Retrieve files by user ID"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -53,8 +53,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Files not found");
     }
 
+    const formattedFiles = files.map((file) => ({
+      ...file,
+      jobId: file.jobEvent.jobId,
+    }));
+
     try {
-      const parsedFiles = z.array(fileSchema).parse(files);
+      const parsedFiles = filesSchema.parse(formattedFiles);
       return ok(c, parsedFiles);
     } catch (error) {
       console.error(error);

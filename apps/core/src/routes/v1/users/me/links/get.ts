@@ -1,18 +1,18 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { linkRepository } from "@sokosumi/database/repositories";
 
 import { internalServerError, notFound, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { linkSchema } from "@/schemas/link.schema";
+import { linksSchema } from "@/schemas/link.schema";
 
 const route = createRoute({
   method: "get",
   path: "/me/links",
   tags: ["Users"],
   responses: {
-    200: jsonSuccessResponse(z.array(linkSchema), "Retrieve links by user ID"),
+    200: jsonSuccessResponse(linksSchema, "Retrieve links by current user"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
@@ -33,7 +33,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     try {
-      return ok(c, z.array(linkSchema).parse(links));
+      const formattedLinks = links.map((link) => ({
+        ...link,
+        jobId: link.jobEvent.jobId,
+      }));
+
+      return ok(c, linksSchema.parse(formattedLinks));
     } catch (error) {
       console.error(error);
       throw internalServerError("Failed to parse job");
