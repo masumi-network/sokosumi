@@ -6,3 +6,5 @@ export const agentSchema = z
     name: z.string().openapi({ example: "Research Assistant" }),
   })
   .openapi("Agent");
+
+export const agentsSchema = z.array(agentSchema);

@@ -2,6 +2,8 @@ import { z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
+import { dateTimeSchema } from "./datetime.js";
+
 /**
  * Standardized API error response schema
  * Mirrors success response structure for consistency
@@ -17,9 +19,7 @@ export const errorResponseSchema = z
     /** Metadata about the request and response */
     meta: z.object({
       /** ISO timestamp when the error was generated */
-      timestamp: z.iso
-        .datetime()
-        .openapi({ example: "2025-01-01T12:00:00.000Z" }),
+      timestamp: dateTimeSchema,
       requestId: z
         .string()
         .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),

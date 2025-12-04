@@ -45,3 +45,20 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<{
     this.use(authMiddleware);
   }
 }
+
+/**
+ * Type-safe OpenAPIHono class with RequestId in Variables
+ * Use this for OpenAPI routes that require a request ID
+ *
+ * @example
+ * const app = new OpenAPIHonoWithRequestId();
+ * // requestId middleware is already applied
+ */
+export class OpenAPIHonoWithRequestId extends OpenAPIHono<{
+  Variables: RequestIdVariables;
+}> {
+  constructor() {
+    super();
+    this.use(requestId());
+  }
+}
