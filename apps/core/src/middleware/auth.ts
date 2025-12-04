@@ -11,7 +11,7 @@ export interface AuthenticatedUserContext {
 
 export type AuthVariables = {
   isAuthenticated: boolean;
-  user?: AuthenticatedUserContext;
+  user: AuthenticatedUserContext;
 };
 
 function setAuthContext(
@@ -26,16 +26,7 @@ const bearerMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = bearerAuth({
   verifyToken: async (token, c) => {
-    // Check 1: Static API_KEY (internal service)
-    if (token === process.env.API_KEY) {
-      setAuthContext(c, {
-        isAuthenticated: true,
-        user: undefined,
-      });
-      return true;
-    }
-
-    // Check 2: Better-Auth API Key (user)
+    // Check: Better-Auth API Key
     const result = await auth.api.verifyApiKey({
       body: { key: token },
     });
