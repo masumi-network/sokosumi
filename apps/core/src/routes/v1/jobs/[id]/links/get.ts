@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { linkRepository } from "@sokosumi/database/repositories";
 
+import { requireJobOwnership } from "@/helpers/job.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -48,6 +49,8 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -57,7 +60,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { user } = c.var;
     const { id } = c.req.valid("param");
 
-    const links = await linkRepository.getLinksByUserIdAndJobId(user.id, id);
+    await requireJobOwnership(user.id, id);
+
+    const links = await linkRepository.getLinksByJobId(id);
     return ok(c, linksSchema.parse(links));
   });
 }
