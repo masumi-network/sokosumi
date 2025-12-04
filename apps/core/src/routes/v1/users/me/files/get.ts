@@ -55,9 +55,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
 
-    const files = await blobRepository.getBlobsByUserId(user.id);
+    const files = await blobRepository.getBlobsByUserId(authContext.userId);
 
     return ok(c, filesSchema.parse(files));
   });

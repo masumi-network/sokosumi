@@ -20,14 +20,14 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const user = c.var.user;
+    const { authContext } = c.var;
 
-    const userRecord = await userRepository.getUserById(user.id);
+    const user = await userRepository.getUserById(authContext.userId);
 
-    if (!userRecord) {
+    if (!user) {
       throw notFound("User not found");
     }
 
-    return ok(c, userSchema.parse(userRecord));
+    return ok(c, userSchema.parse(user));
   });
 }
