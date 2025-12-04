@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       displayHeaderFooter: true,
     });
 
-    const fileName = sanitizeFileName(json.fileName ?? "output") + ".pdf";
+    const fileName = sanitizeFileName(json.fileName ?? "result") + ".pdf";
     const body =
       pdfBuffer instanceof Blob
         ? pdfBuffer
