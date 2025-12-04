@@ -4,11 +4,17 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey, organization } from "better-auth/plugins";
 
 export const auth = betterAuth({
+  advanced: {
+    crossSubDomainCookies: {
+      enabled: true,
+    },
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  basePath: "/v1/auth",
   rateLimit: {
     storage: "database",
   },

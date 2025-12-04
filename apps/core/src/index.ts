@@ -36,7 +36,7 @@ app.use(
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-    exposeHeaders: ["X-Request-Id"],
+    exposeHeaders: ["X-Request-Id", "Content-Length"],
     maxAge: 86400,
   }),
 );
