@@ -40,8 +40,6 @@ export function errorHandler(
       meta,
     };
 
-    // Capture validation error with validation details
-    // Request context is already set by Sentry middleware
     Sentry.captureException(error, {
       contexts: {
         validation: {
@@ -61,9 +59,6 @@ export function errorHandler(
   if (error instanceof HTTPException) {
     const status = error.status;
 
-    // Capture 5xx errors to Sentry (server errors)
-    // Skip 4xx errors (client errors) to reduce noise
-    // Request context is already set by Sentry middleware
     if (status >= 500) {
       Sentry.captureException(error);
     }
@@ -77,7 +72,6 @@ export function errorHandler(
     return c.json(errorResponse, status);
   }
 
-  // Handle unexpected errors
   console.error("Unexpected error:", {
     requestId: c.var.requestId,
     path: c.req.path,
@@ -86,8 +80,6 @@ export function errorHandler(
     stack: error.stack,
   });
 
-  // Capture unexpected errors to Sentry for monitoring
-  // Request context is already set by Sentry middleware
   Sentry.captureException(error, {
     level: "fatal",
     tags: { error_type: "unexpected" },

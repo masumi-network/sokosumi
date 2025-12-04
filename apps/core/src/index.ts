@@ -10,7 +10,6 @@ import { requestId } from "hono/request-id";
 
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
-// Initialize Sentry before other imports to capture all errors
 import { initSentry } from "@/lib/sentry";
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
@@ -46,13 +45,8 @@ app.notFound(() => {
   throw notFound();
 });
 
-// Mount API v1 routes
 app.route("/v1", apiV1);
-app.get("/crash", () => {
-  throw new Error("Crash test");
-});
 
-// Generate OpenAPI spec from the API routes (publicly accessible)
 app.doc("/openapi.json", {
   openapi: "3.0.3",
   info: {
