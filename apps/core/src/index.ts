@@ -60,10 +60,6 @@ app.doc("/openapi.json", {
       url: `http://localhost:8787/`,
       description: "Local Server",
     },
-    {
-      url: `https://sokosumi-core-preprod-git-core-cors-masumi.vercel.app/`,
-      description: "Preview Server",
-    },
   ],
   security: [{ bearerAuth: [] }],
 });
