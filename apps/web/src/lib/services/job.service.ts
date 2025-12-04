@@ -45,6 +45,7 @@ import { getJobStatusData } from "@/lib/helpers/job";
 import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
+  ProvideJobInputSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
@@ -438,7 +439,7 @@ export const jobService = (() => {
       agentId,
       userId,
       organizationId: activeOrganizationId,
-      input: JSON.stringify(Object.fromEntries(inputData)),
+      input: JSON.stringify(inputData),
       inputSchema: inputSchema,
       name: "Demo Job",
       result: jobStatusResponse.result,
@@ -653,7 +654,7 @@ export const jobService = (() => {
       agentId,
       userId,
       organizationId,
-      input: JSON.stringify(Object.fromEntries(inputData)),
+      input: JSON.stringify(inputData),
       inputHash: startJobResponse.input_hash,
       inputSchema: inputSchema,
       creditsPrice: agentWithCreditsPrice.creditsPrice,
@@ -805,7 +806,7 @@ export const jobService = (() => {
       agentId,
       userId,
       organizationId,
-      input: JSON.stringify(Object.fromEntries(inputData)),
+      input: JSON.stringify(inputData),
       inputHash: null,
       inputSchema: inputSchema,
       name: generatedName,
@@ -1054,14 +1055,24 @@ export const jobService = (() => {
             }
           }
 
+          const inputSchemaData = agentJobStatusResult.data.input_schema;
+          let inputSchemaValue: string | undefined;
+          if (inputSchemaData) {
+            if ("input_data" in inputSchemaData) {
+              inputSchemaValue = JSON.stringify(inputSchemaData.input_data);
+            } else {
+              inputSchemaValue = JSON.stringify(inputSchemaData.input_groups);
+            }
+          } else {
+            inputSchemaValue = undefined;
+          }
+
           const newJobEvent = await jobEventRepository.createJobEventForJobId(
             job.id,
             {
               externalId: agentJobStatusResult.data.id,
               status: agentJobStatus,
-              inputSchema: JSON.stringify(
-                agentJobStatusResult.data.input_schema,
-              ),
+              inputSchema: inputSchemaValue,
               result: agentJobStatusResult.data.result,
             },
             tx,
@@ -1191,6 +1202,140 @@ export const jobService = (() => {
     });
   };
 
+  /**
+   * Provides input for a job that is awaiting input (human-in-the-loop).
+   *
+   * This function:
+   * - Validates the job exists and user owns it
+   * - Validates the JobEvent (by statusId/externalId) is in awaiting input state
+   * - Stores the provided input data
+   * - Calls the agent API to provide input
+   * - Updates the existing JobEvent with input data and new status
+   *
+   * @param input - Parameters including jobId, statusId (maps to externalId), userId, and inputData
+   * @returns Promise resolving to the updated Job record
+   * @throws {JobError} Various job-related errors
+   */
+  const provideJobInput = async (
+    input: ProvideJobInputSchemaType & { userId: string },
+  ): Promise<JobWithStatus> => {
+    const { jobId, statusId, userId, inputData } = input;
+
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Providing job input",
+      level: "info",
+      data: {
+        jobId,
+        statusId,
+        userId,
+      },
+    });
+
+    // Get the job and verify ownership
+    const job = await jobRepository.getJobById(jobId);
+    if (!job || job.userId !== userId) {
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+    }
+
+    // Get the JobEvent by externalId (statusId) that is awaiting input
+    const jobEvent =
+      await jobEventRepository.getAwaitingInputJobEventByExternalId(
+        statusId,
+        jobId,
+      );
+    if (!jobEvent) {
+      throw new JobError(
+        JobErrorCode.JOB_NOT_FOUND,
+        "Job event not found or is not awaiting input",
+      );
+    }
+
+    // Convert input data to JSON
+    const inputJson = JSON.stringify(inputData);
+
+    // Add breadcrumb for agent API call
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Calling agent API to provide input",
+      level: "info",
+      data: {
+        jobId: job.id,
+        statusId,
+        jobEventId: jobEvent.id,
+        agentId: job.agentId,
+        agentJobId: job.agentJobId,
+      },
+    });
+
+    // Call agent API to provide input
+    const provideInputResult = await agentClient.provideJobInput(
+      job.agent,
+      statusId,
+      job.agentJobId,
+      inputData,
+    );
+
+    if (!provideInputResult.ok) {
+      Sentry.setTag("error_type", "agent_provide_input_failed");
+      Sentry.setContext("agent_provide_input", {
+        jobId: job.id,
+        statusId,
+        jobEventId: jobEvent.id,
+        agentId: job.agentId,
+        agentJobId: job.agentJobId,
+        error: provideInputResult.error,
+      });
+
+      Sentry.captureMessage(
+        `Agent provide input failed: ${provideInputResult.error}`,
+        "error",
+      );
+      throw new JobError(
+        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
+        provideInputResult.error,
+      );
+    }
+
+    const responseData = provideInputResult.data;
+
+    const updatedJob = await prisma.$transaction(async (tx) => {
+      // Update the existing JobEvent with input data
+      await jobEventRepository.setInputForJobEventById(
+        jobEvent.id,
+        inputJson,
+        responseData.input_hash,
+        responseData.signature,
+        tx,
+      );
+
+      // Refetch the job to get updated events
+      const updatedJob = await jobRepository.getJobById(job.id, tx);
+      if (!updatedJob) {
+        throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+      }
+
+      return updatedJob;
+    });
+
+    // Publish job status update
+    await publishJobStatusSafely(updatedJob);
+
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Job input provided successfully",
+      level: "info",
+      data: {
+        jobId: updatedJob.id,
+        statusId,
+        jobEventId: jobEvent.id,
+        statusResponse: responseData.status,
+      },
+    });
+
+    return updatedJob;
+  };
+
   return {
     startJob,
     startDemoJob,
@@ -1198,5 +1343,6 @@ export const jobService = (() => {
     syncJob,
     getJobStatusesDataForAgents,
     getPubliclySharedJob,
+    provideJobInput,
   };
 })();

@@ -75,10 +75,9 @@ async function processSchedule(schedule: JobSchedule) {
     const inputSchema = JSON.parse(
       schedule.inputSchema,
     ) as StartJobInputSchemaType["inputSchema"];
-    const inputRecord = JSON.parse(
+    const inputData = JSON.parse(
       schedule.input,
     ) as StartJobInputSchemaType["inputData"];
-    const inputData = new Map<string, unknown>(Object.entries(inputRecord));
 
     // Validation
     const inputDataForService = {

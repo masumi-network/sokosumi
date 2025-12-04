@@ -27,23 +27,11 @@ export type JobInputsFormSchemaType = z.infer<
 export function filterOutNullValues(
   values: JobInputsFormSchemaType,
 ): JobInputData {
-  return new Map(
+  return Object.fromEntries(
     Object.entries(values).filter(
       ([_, value]) => value !== null && value !== undefined,
-    ) as [
-      string,
-      (
-        | string
-        | string[]
-        | number
-        | boolean
-        | number[]
-        | File
-        | File[]
-        | undefined
-      ),
-    ][],
-  );
+    ),
+  ) as JobInputData;
 }
 
 export const defaultValues = (jobInputSchemas: JobInputSchemaType[]) => {

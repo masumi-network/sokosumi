@@ -23,10 +23,10 @@ export async function handleInputDataFileUploads(
   inputData: JobInputData,
 ): Promise<UploadedFileWithMeta[]> {
   const results: UploadedFileWithMeta[] = [];
-  for (const [key, value] of inputData.entries()) {
+  for (const [key, value] of Object.entries(inputData)) {
     if (value instanceof File) {
       const blob = await uploadFile(userId, value);
-      inputData.set(key, blob.url);
+      inputData[key] = blob.url;
       results.push({
         url: blob.url,
         fileName: value.name,
@@ -46,8 +46,11 @@ export async function handleInputDataFileUploads(
       results.push(...uploaded);
 
       const fileUrls = uploaded.map((u) => u.url);
-      if (fileUrls.length === 1) inputData.set(key, fileUrls[0]);
-      else inputData.set(key, fileUrls);
+      if (fileUrls.length === 1) {
+        inputData[key] = fileUrls[0];
+      } else {
+        inputData[key] = fileUrls;
+      }
     }
   }
   return results;
