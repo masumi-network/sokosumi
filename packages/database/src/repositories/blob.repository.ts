@@ -110,6 +110,20 @@ export const blobRepository = {
   },
 
   /**
+   * Get all Blob records for a job
+   */
+  async getBlobsByJobId(
+    jobId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<BlobWithJobId[]> {
+    const blobs = await tx.blob.findMany({
+      where: { jobEvent: { jobId } },
+      include: blobInclude,
+    });
+    return blobs.map(flattenBlobJobId);
+  },
+
+  /**
    * Get all Blob records for a job event by job id
    */
   async getBlobsByUserIdAndJobId(

@@ -36,11 +36,11 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
 
-    const record = await prisma.$transaction(async (tx) => {
-      const userRecord = await userRepository.getUserById(user.id, tx);
-      if (!userRecord) {
+    const user = await prisma.$transaction(async (tx) => {
+      const user = await userRepository.getUserById(authContext.userId, tx);
+      if (!user) {
         throw notFound("User not found");
       }
 
@@ -49,11 +49,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
       return {
-        ...userRecord,
+        ...user,
         credits: convertCentsToCredits(centsBalance),
       };
     });
 
-    return ok(c, userSchema.parse(record));
+    return ok(c, userSchema.parse(user));
   });
 }

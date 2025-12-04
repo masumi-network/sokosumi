@@ -1,12 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
-import {
-  creditTransactionRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
+import { creditTransactionRepository } from "@sokosumi/database/repositories";
 
+import { requireUserAccess } from "@/helpers/access-control";
 import { convertCentsToCredits } from "@/helpers/credits";
-import { forbidden, notFound, unauthorized } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -36,20 +34,12 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    if (!user) {
-      throw unauthorized("Unauthorized");
-    }
-
-    if (user.id !== id) {
-      throw forbidden("You can only access your own user data");
-    }
-
-    const record = await prisma.$transaction(async (tx) => {
-      const userRecord = await userRepository.getUserById(id, tx);
-      if (!userRecord) {
+    const user = await prisma.$transaction(async (tx) => {
+      const user = await requireUserAccess(authContext.userId, id, tx);
+      if (!user) {
         throw notFound("User not found");
       }
 
@@ -58,11 +48,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
       return {
-        ...userRecord,
+        ...user,
         credits: convertCentsToCredits(centsBalance),
       };
     });
 
-    return ok(c, userSchema.parse(record));
+    return ok(c, userSchema.parse(user));
   });
 }

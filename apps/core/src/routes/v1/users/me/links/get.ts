@@ -44,9 +44,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
 
-    const links = await linkRepository.getLinksByUserId(user.id);
+    const links = await linkRepository.getLinksByUserId(authContext.userId);
 
     return ok(c, linksSchema.parse(links));
   });

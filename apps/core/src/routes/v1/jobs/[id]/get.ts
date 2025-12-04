@@ -1,10 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
-import { jobRepository } from "@sokosumi/database/repositories";
 import { JobStatus } from "@sokosumi/database/types/job";
 
+import { requireJobAccess } from "@/helpers/access-control.js";
 import { convertCentsToCredits } from "@/helpers/credits.js";
-import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -58,17 +57,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    const job = await jobRepository.getJobById(id);
-    if (!job) {
-      throw notFound("Job not found");
-    }
-
-    if (job.userId !== user.id) {
-      throw forbidden("You can only access your own jobs");
-    }
+    const job = await requireJobAccess(authContext, id);
 
     const formattedJob = {
       ...job,

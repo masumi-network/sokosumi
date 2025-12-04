@@ -3,7 +3,7 @@ import { JobType } from "@sokosumi/database";
 import { jobRepository } from "@sokosumi/database/repositories";
 import { JobStatus } from "@sokosumi/database/types/job";
 
-import { convertCentsToCredits } from "@/helpers/credits.js";
+import { convertCentsToCredits } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -65,10 +65,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
     const jobs = await jobRepository.getJobs({
-      userId: user.id,
-      organizationId: user.organizationId,
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
     });
 
     const formattedJobs = jobs.map((job) => ({
