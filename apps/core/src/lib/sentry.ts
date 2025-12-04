@@ -30,9 +30,6 @@ export function initSentry() {
 
     // Set to true for debugging Sentry configuration issues
     debug: false,
-
-    // Automatically capture unhandled rejections and exceptions
-    autoSessionTracking: true,
   });
 
   console.log(`[Sentry] Initialized`);
