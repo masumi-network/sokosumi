@@ -4,7 +4,7 @@ import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { OpenAPIHonoWithRequestId } from "@/lib/hono";
 import { agentSchema } from "@/schemas/agent.schema";
 
 const params = z.object({
@@ -28,7 +28,7 @@ const route = createRoute({
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithRequestId) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
