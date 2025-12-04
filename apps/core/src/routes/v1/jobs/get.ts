@@ -3,7 +3,7 @@ import { JobType } from "@sokosumi/database";
 import { jobRepository } from "@sokosumi/database/repositories";
 import { JobStatus } from "@sokosumi/database/types/job";
 
-import { convertCentsToCredits } from "@/helpers/credits.js";
+import { convertCentsToCredits } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
