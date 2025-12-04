@@ -56,10 +56,6 @@ app.doc("/openapi.json", {
       url: `https://preprod.api.sokosumi.com/`,
       description: "Pre-production Server",
     },
-    {
-      url: `http://localhost:8787/`,
-      description: "Local Server",
-    },
   ],
   security: [{ bearerAuth: [] }],
 });
