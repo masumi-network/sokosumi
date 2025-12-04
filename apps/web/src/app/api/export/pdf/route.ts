@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
         ...launchOptions,
         args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
         executablePath: await chromium.executablePath(
-          "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar",
+          getEnvSecrets().CHROMIUM_EXECUTABLE_URL,
         ),
       };
     } else {
