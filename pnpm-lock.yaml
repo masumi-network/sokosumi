@@ -129,7 +129,7 @@ importers:
       '@sokosumi/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@sparticuz/chromium':
+      '@sparticuz/chromium-min':
         specifier: 141.0.0
         version: 141.0.0
       '@tanstack/react-query':
@@ -2897,8 +2897,8 @@ packages:
   '@sinonjs/fake-timers@13.0.5':
     resolution: {integrity: sha512-36/hTbH2uaWuGVERyC6da9YwGWnzUZXuPro/F2LfsdOsLnCojz/iSH8MxUt/FD2S5XBSVPhmArFUXcpCQ2Hkiw==}
 
-  '@sparticuz/chromium@141.0.0':
-    resolution: {integrity: sha512-JsTp4AqgStkqKki4dUpEM0GoisAjQhsqZ1lQTNMSKK5A9pw6BbIuIvv2HVYMYzSZGyDdQNJYBPPDg2eggCkezA==}
+  '@sparticuz/chromium-min@141.0.0':
+    resolution: {integrity: sha512-1EAR1NBrY4sa0hysDUCxCSI+9xc88/LYB3YjWFqMMu3CF82ATp8FzOeu7icwGxI02NAPcwzb0Uf1kIzsfH7Eiw==}
     engines: {node: '>=20.11.0'}
 
   '@standard-schema/spec@1.0.0':
@@ -10632,7 +10632,7 @@ snapshots:
     dependencies:
       '@sinonjs/commons': 3.0.1
 
-  '@sparticuz/chromium@141.0.0':
+  '@sparticuz/chromium-min@141.0.0':
     dependencies:
       follow-redirects: 1.15.11
       tar-fs: 3.1.1

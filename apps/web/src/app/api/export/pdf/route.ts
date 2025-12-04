@@ -142,17 +142,16 @@ export async function POST(request: NextRequest) {
     };
 
     if (isVercel) {
-      const chromium = (await import("@sparticuz/chromium")).default;
+      const chromium = (await import("@sparticuz/chromium-min")).default;
       chromium.setGraphicsMode = false;
-
-      const path = await chromium.executablePath();
-      console.log("chromium path:", path);
 
       puppeteer = await import("puppeteer-core");
       launchOptions = {
         ...launchOptions,
         args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-        executablePath: path,
+        executablePath: await chromium.executablePath(
+          "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar",
+        ),
       };
     } else {
       puppeteer = await import("puppeteer");
