@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -14,7 +14,6 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(userSchema, "Retrieve the current user"),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
   },
 });
@@ -22,10 +21,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const user = c.var.user;
-
-    if (!user) {
-      throw forbidden("A non-user cannot access their own data");
-    }
 
     const userRecord = await userRepository.getUserById(user.id);
 
