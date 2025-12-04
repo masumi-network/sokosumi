@@ -14,6 +14,8 @@ import { initSentry } from "@/lib/sentry";
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
+import { errorHandler } from "./helpers/error-handler";
+
 initSentry();
 
 const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
@@ -23,6 +25,8 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   scheme: "bearer",
   bearerFormat: "JWT",
 });
+
+app.onError(errorHandler);
 
 app.use(logger());
 app.use(requestId());
