@@ -1,8 +1,8 @@
 import "dotenv/config";
 
 import { serve } from "@hono/node-server";
-import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
@@ -47,6 +47,20 @@ app.notFound(() => {
 
 app.route("/v1", apiV1);
 
+app.get(
+  "/",
+  Scalar({
+    pageTitle: "Sokosumi API Documentation",
+    sources: [
+      { url: "/openapi.json", title: "Content" },
+      { url: "/v1/auth/open-api/generate-schema", title: "Auth" },
+    ],
+    defaultOpenAllTags: true,
+    layout: "modern",
+    theme: "saturn",
+  }),
+);
+
 app.doc("/openapi.json", {
   openapi: "3.0.3",
   info: {
@@ -65,15 +79,6 @@ app.doc("/openapi.json", {
   ],
   security: [{ bearerAuth: [] }],
 });
-app.get(
-  "/",
-  swaggerUI({
-    url: "openapi.json",
-    persistAuthorization: true,
-    withCredentials: true,
-    tryItOutEnabled: true,
-  }),
-);
 
 serve(
   {
