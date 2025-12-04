@@ -9,12 +9,11 @@ import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
 import { notFound } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 // Initialize Sentry before other imports to capture all errors
 import { initSentry } from "@/lib/sentry";
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
-
-import { errorHandler } from "./helpers/error-handler";
 
 initSentry();
 
