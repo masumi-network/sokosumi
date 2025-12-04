@@ -143,11 +143,16 @@ export async function POST(request: NextRequest) {
 
     if (isVercel) {
       const chromium = (await import("@sparticuz/chromium")).default;
+      chromium.setGraphicsMode = false;
+
+      const path = await chromium.executablePath();
+      console.log("chromium path:", path);
+
       puppeteer = await import("puppeteer-core");
       launchOptions = {
         ...launchOptions,
-        args: chromium.args,
-        executablePath: await chromium.executablePath(),
+        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: path,
       };
     } else {
       puppeteer = await import("puppeteer");
