@@ -60,7 +60,7 @@ app.doc("/openapi.json", {
   security: [{ bearerAuth: [] }],
 });
 app.get(
-  "/doc",
+  "/",
   swaggerUI({
     url: "openapi.json",
     persistAuthorization: true,
