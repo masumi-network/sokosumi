@@ -4,7 +4,6 @@ import { creditTransactionRepository } from "@sokosumi/database/repositories";
 
 import { requireUserAccess } from "@/helpers/access-control";
 import { convertCentsToCredits } from "@/helpers/credits";
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -39,12 +38,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const user = await prisma.$transaction(async (tx) => {
       const user = await requireUserAccess(authContext.userId, id, tx);
-      if (!user) {
-        throw notFound("User not found");
-      }
 
       const centsBalance = await creditTransactionRepository.getCentsByUserId(
-        id,
+        user.id,
         tx,
       );
       return {
