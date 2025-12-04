@@ -9,6 +9,8 @@ import { createAuthClient } from "better-auth/react";
 import { auth } from "./auth";
 
 export const authClient = createAuthClient({
+  baseURL: "http://localhost:8787",
+  basePath: "/v1/auth",
   plugins: [
     apiKeyClient(),
     inferAdditionalFields<typeof auth>(),
