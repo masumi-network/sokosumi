@@ -9,7 +9,12 @@ import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
 import { notFound } from "@/helpers/error";
+// Initialize Sentry before other imports to capture all errors
+import { initSentry } from "@/lib/sentry";
+import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
+
+initSentry();
 
 const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
 
@@ -21,6 +26,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 
 app.use(logger());
 app.use(requestId());
+app.use(sentryMiddleware());
 app.use(
   "*",
   cors({

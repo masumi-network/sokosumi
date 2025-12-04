@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
@@ -39,11 +40,33 @@ export function errorHandler(
       meta,
     };
 
+    // Capture validation error with validation details
+    // Request context is already set by Sentry middleware
+    Sentry.captureException(error, {
+      contexts: {
+        validation: {
+          issues: error.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        },
+      },
+      level: "fatal",
+      tags: { error_type: "validation" },
+    });
+
     return c.json(errorResponse, status);
   }
 
   if (error instanceof HTTPException) {
     const status = error.status;
+
+    // Capture 5xx errors to Sentry (server errors)
+    // Skip 4xx errors (client errors) to reduce noise
+    // Request context is already set by Sentry middleware
+    if (status >= 500) {
+      Sentry.captureException(error);
+    }
 
     const errorResponse: ErrorResponse = {
       error: getErrorName(status),
@@ -61,6 +84,13 @@ export function errorHandler(
     method: c.req.method,
     error: error.message,
     stack: error.stack,
+  });
+
+  // Capture unexpected errors to Sentry for monitoring
+  // Request context is already set by Sentry middleware
+  Sentry.captureException(error, {
+    level: "fatal",
+    tags: { error_type: "unexpected" },
   });
 
   return c.json(

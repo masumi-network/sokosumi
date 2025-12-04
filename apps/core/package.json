@@ -10,12 +10,14 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "decimal.js": "10.6.0",
     "@hono/node-server": "1.19.6",
     "@hono/swagger-ui": "0.5.2",
     "@hono/zod-openapi": "1.1.5",
+    "@sentry/node": "10.28.0",
+    "@sentry/profiling-node": "10.28.0",
     "@sokosumi/database": "workspace:*",
     "better-auth": "1.4.5",
+    "decimal.js": "10.6.0",
     "dotenv": "17.2.3",
     "hono": "4.10.7",
     "uuid": "13.0.0"
