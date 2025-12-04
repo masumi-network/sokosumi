@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/database/repositories";
 
 import { convertCentsToCredits } from "@/helpers/credits";
-import { forbidden, notFound } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -30,18 +30,13 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const user = c.var.user;
-
-    if (!user) {
-      throw forbidden("A non-user cannot access their own data");
-    }
+    const { user } = c.var;
 
     const record = await prisma.$transaction(async (tx) => {
       const userRecord = await userRepository.getUserById(user.id, tx);

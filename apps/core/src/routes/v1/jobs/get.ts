@@ -4,7 +4,6 @@ import { jobRepository } from "@sokosumi/database/repositories";
 import { JobStatus } from "@sokosumi/database/types/job";
 
 import { convertCentsToCredits } from "@/helpers/credits.js";
-import { unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -67,9 +66,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { user } = c.var;
-    if (!user) {
-      throw unauthorized("Unauthorized");
-    }
     const jobs = await jobRepository.getJobs({
       userId: user.id,
       organizationId: user.organizationId,

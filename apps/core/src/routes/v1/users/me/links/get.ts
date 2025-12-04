@@ -1,7 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { linkRepository } from "@sokosumi/database/repositories";
 
-import { unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -39,7 +38,6 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
-    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -47,10 +45,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { user } = c.var;
-
-    if (!user) {
-      throw unauthorized("A non-user cannot access links");
-    }
 
     const links = await linkRepository.getLinksByUserId(user.id);
 
