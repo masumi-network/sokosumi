@@ -1,6 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import prisma from "@sokosumi/database/client";
+import { creditTransactionRepository } from "@sokosumi/database/repositories";
 
-import { requireUserAccess } from "@/helpers/access-control.js";
+import { requireUserAccess } from "@/helpers/access-control";
+import { convertCentsToCredits } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -33,8 +36,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    const userRecord = await requireUserAccess(authContext.userId, id);
+    const user = await prisma.$transaction(async (tx) => {
+      const user = await requireUserAccess(authContext.userId, id, tx);
 
-    return ok(c, userSchema.parse(userRecord));
+      const centsBalance = await creditTransactionRepository.getCentsByUserId(
+        user.id,
+        tx,
+      );
+      return {
+        ...user,
+        credits: convertCentsToCredits(centsBalance),
+      };
+    });
+
+    return ok(c, userSchema.parse(user));
   });
 }
