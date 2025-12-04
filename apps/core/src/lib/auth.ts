@@ -39,6 +39,25 @@ export const auth = betterAuth({
     storage: "database",
   },
   trustedOrigins,
+  emailAndPassword: {
+    enabled: true,
+    maxPasswordLength: 256,
+    minPasswordLength: 8,
+    requireEmailVerification: false,
+    autoSignIn: false,
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      overrideUserInfoOnSignIn: true,
+    },
+    microsoft: {
+      clientId: process.env.MICROSOFT_CLIENT_ID!,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+      overrideUserInfoOnSignIn: true,
+    },
+  },
   plugins: [
     openAPI(),
     apiKey({
