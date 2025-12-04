@@ -56,8 +56,6 @@ BETTER_AUTH_URL=                    # Better Auth base URL
 ```bash
 # Sentry Configuration (Error Tracking & Performance Monitoring)
 SENTRY_DSN=                         # Sentry project DSN
-SENTRY_ENVIRONMENT=                 # Environment: development/staging/production
-NODE_ENV=                           # Node environment (used if SENTRY_ENVIRONMENT not set)
 ```
 
 ## Sentry Integration
@@ -74,7 +72,6 @@ To enable Sentry:
 2. Add to your `.env` file:
    ```bash
    SENTRY_DSN=https://your-dsn@sentry.io/project-id
-   SENTRY_ENVIRONMENT=development  # or staging, production
    ```
 3. Restart the server
 
@@ -95,7 +92,7 @@ To enable Sentry:
 To verify Sentry is working:
 
 1. Start the server with `SENTRY_DSN` configured
-2. Check logs for: `[Sentry] Initialized in {environment} environment`
+2. Check logs for: `[Sentry] Initialized`
 3. Trigger a test error (e.g., invalid route or server error)
 4. Check your Sentry dashboard for the error event
 
