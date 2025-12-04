@@ -19,15 +19,19 @@ export default function useWithAuthentication() {
 
   const withAuthentication = useCallback(
     (callback: Callback) => {
-      if (isPending) {
-        return () => {};
-      }
+      return (...args: unknown[]) => {
+        // Check authentication status at execution time, not creation time
+        if (isPending) {
+          return;
+        }
 
-      if (!session) {
-        return showAuthenticationModal;
-      }
+        if (!session) {
+          showAuthenticationModal();
+          return;
+        }
 
-      return callback;
+        return callback(...args);
+      };
     },
     [isPending, session, showAuthenticationModal],
   );

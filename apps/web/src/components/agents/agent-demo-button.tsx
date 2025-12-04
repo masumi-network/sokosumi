@@ -31,10 +31,12 @@ export function AgentDemoButton({
     handleOpen(agentId, true);
   };
 
+  const handleClick = withAuthentication(handleDemo);
+
   return (
     <Button
       size={size}
-      onClick={withAuthentication(handleDemo)}
+      onClick={handleClick}
       disabled={isPending || disabled}
       className={cn("cursor-pointer", className)}
     >

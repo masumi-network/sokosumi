@@ -11,10 +11,25 @@ export function jsonContent(schema: z.ZodTypeAny) {
   };
 }
 
-export function jsonSuccessResponse(schema: z.ZodTypeAny, description: string) {
+export function jsonSuccessResponse(
+  schema: z.ZodTypeAny,
+  description: string,
+  example?: Record<string, unknown>,
+) {
+  const baseContent = jsonContent(successResponseSchema(schema));
+
+  const content = example
+    ? {
+        "application/json": {
+          ...baseContent["application/json"],
+          example,
+        },
+      }
+    : baseContent;
+
   return {
     description,
-    content: jsonContent(successResponseSchema(schema)),
+    content,
   };
 }
 

@@ -12,6 +12,7 @@
 - `src/middleware/` - Request middleware (auth, logging, etc.)
 - `src/helpers/` - Response and error helpers
 - `src/lib/` - Shared utilities and configurations
+- `src/schemas/` - Zod schemas for API validation
 
 ## Core API Structure
 
@@ -23,15 +24,30 @@ src/
 │       │   ├── [id]/   # Dynamic route segments
 │       │   │   └── get.ts
 │       │   ├── get.ts  # Route handlers
-│       │   ├── index.ts # Route mounting
-│       │   └── schemas.ts # Zod schemas
+│       │   └── index.ts # Route mounting
+│       ├── jobs/       # Job-related endpoints
+│       │   ├── [id]/
+│       │   │   ├── files/
+│       │   │   │   └── get.ts  # Get files for job
+│       │   │   ├── links/
+│       │   │   │   └── get.ts  # Get links for job
+│       │   │   └── get.ts      # Get job by ID
+│       │   ├── get.ts          # List all jobs
+│       │   └── index.ts
 │       ├── users/      # User-related endpoints
 │       │   ├── [id]/
-│       │   │   └── get.ts
+│       │   │   ├── files/
+│       │   │   │   └── get.ts  # Get files for user
+│       │   │   ├── links/
+│       │   │   │   └── get.ts  # Get links for user
+│       │   │   └── get.ts      # Get user by ID
 │       │   ├── me/
-│       │   │   └── get.ts
-│       │   ├── index.ts
-│       │   └── schemas.ts
+│       │   │   ├── files/
+│       │   │   │   └── get.ts  # Get current user files
+│       │   │   ├── links/
+│       │   │   │   └── get.ts  # Get current user links
+│       │   │   └── get.ts      # Get current user
+│       │   └── index.ts
 │       └── index.ts    # V1 API mounting
 ├── middleware/          # Request middleware
 │   └── auth.ts          # Authentication middleware
@@ -39,10 +55,18 @@ src/
 │   ├── response.ts      # Success response helpers
 │   ├── error.ts         # Error response helpers
 │   ├── error-handler.ts # Global error handler
-│   └── openapi.ts       # OpenAPI helper utilities
+│   ├── openapi.ts       # OpenAPI helper utilities
+│   ├── credits.ts       # Credit conversion helpers
+│   └── datetime.ts      # Datetime schema utilities
 ├── lib/                 # Shared utilities
 │   ├── auth.ts          # Better Auth client
 │   └── hono.ts          # Type-safe Hono classes
+├── schemas/             # Zod validation schemas
+│   ├── agent.schema.ts  # Agent schemas
+│   ├── job.schema.ts    # Job schemas
+│   ├── file.schema.ts   # File/blob schemas
+│   ├── link.schema.ts   # Link schemas
+│   └── user.schema.ts   # User schemas
 └── index.ts             # Application entry point
 ```
 
@@ -111,7 +135,6 @@ Error helpers throw exceptions and have `never` return type - no `return` needed
 Environment variables are accessed via `process.env`. Common variables include:
 
 - `PORT` - Server port (defaults to 8787)
-- `API_KEY` - Internal API key for service-to-service authentication
 - `BETTER_AUTH_SECRET` - Better Auth secret key
 - `BETTER_AUTH_URL` - Better Auth base URL
 
@@ -123,10 +146,6 @@ Routes using `HonoWithAuth` or `OpenAPIHonoWithAuth` have access to `AuthContext
 
 ```typescript
 const auth = c.get("auth");
-
-if (auth.type === "internal") {
-  // Internal service token
-}
 
 if (auth.type === "user") {
   // User token with userId and organizationId
@@ -150,11 +169,57 @@ const userId = userAuth.userId; // Now type-safe
 const sessionId = userAuth.sessionId;
 ```
 
+**Alternative**: Access user directly from context variables:
+
+```typescript
+const { user } = c.var;
+
+if (!user) {
+  throw unauthorized("Unauthorized");
+}
+
+// user.id and user.organizationId are now available
+```
+
 **Authentication sources**: The shared `requireAuth` middleware accepts:
 
 - Static API key (internal automation)
 - User API key issued via Better Auth
 - Better Auth session cookies (see [Better Auth Hono middleware](https://www.better-auth.com/docs/integrations/hono#middleware))
+
+### Credit Conversion
+
+Use the credit helpers for converting between cents (stored) and credits (user-facing):
+
+```typescript
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+} from "@/helpers/credits";
+
+// Convert stored BigInt cents to user-facing decimal
+const credits = convertCentsToCredits(BigInt(1000000000000)); // 1.0
+
+// Convert user-facing decimal to stored BigInt cents
+const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
+```
+
+**Note**: Credits use base 10^12 for precision (1 credit = 10^12 cents).
+
+### Datetime Schemas
+
+Use the reusable datetime schema for consistent date handling:
+
+```typescript
+import { dateTimeSchema } from "@/helpers/datetime";
+
+const schema = z.object({
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
+});
+```
+
+This schema automatically converts Date objects to ISO strings and validates ISO datetime format.
 
 ## App-Specific Commands
 
@@ -176,7 +241,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import { resourceSchema } from "./schemas.js";
+import { resourceSchema } from "@/schemas/resource.schema.js";
 
 const route = createRoute({
   method: "get",
@@ -191,7 +256,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const auth = c.get("auth");
+    const { user } = c.var;
     const data = await fetchData();
 
     if (!data) {
@@ -250,11 +315,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 }
 ```
 
+### Accessing Job-Related Resources
+
+Jobs have associated files (blobs) and links that can be accessed through dedicated endpoints:
+
+```typescript
+// Get files for a job
+const files = await blobRepository.getBlobsByUserIdAndJobId(userId, jobId);
+
+// Get links for a job
+const links = await linkRepository.getLinksByUserIdAndJobId(userId, jobId);
+
+// Get all files for current user
+const userFiles = await blobRepository.getBlobsByUserId(userId);
+
+// Get all links for current user
+const userLinks = await linkRepository.getLinksByUserId(userId);
+```
+
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
 
 - `@/helpers/*` → `src/helpers/*`
 - `@/lib/*` → `src/lib/*`
 - `@/routes/*` → `src/routes/*`
+- `@/schemas/*` → `src/schemas/*`
 
 ## Core API Gotchas
 
@@ -264,6 +348,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 - Don't manually call `app.use("*", requireAuth)` when using these classes
 - Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
+- Use `c.var.user` for direct user access, or `c.get("auth")` for full auth context
 
 ### Error Handling
 
@@ -276,6 +361,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 - All success responses use `data` + `meta` structure
 - All error responses use `error` + `message` + `meta` structure
 - Don't create custom response formats
+
+### Credit Handling
+
+- Credits are stored as BigInt cents (base 10^12)
+- Always use `convertCentsToCredits()` when returning credit values to users
+- Use `convertCreditsToCents()` when storing user-provided credit values
+- Take absolute value when displaying credits: `Math.abs(convertCentsToCredits(amount))`
+
+### File/Blob Resources
+
+- Files have different behaviors based on `origin`:
+  - `INPUT` files require `fileUrl` (uploaded to storage)
+  - `OUTPUT` files require `sourceUrl` (external URLs from agent results)
+- Files are scoped to users and jobs
+- Always verify user ownership before returning file data
 
 ## References
 

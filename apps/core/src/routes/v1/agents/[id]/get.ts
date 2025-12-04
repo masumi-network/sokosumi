@@ -4,9 +4,8 @@ import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-import { agentSchema } from "../schemas.js";
+import type { OpenAPIHonoWithRequestId } from "@/lib/hono";
+import { agentSchema } from "@/schemas/agent.schema";
 
 const params = z.object({
   id: z.string().openapi({
@@ -29,15 +28,14 @@ const route = createRoute({
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHonoWithRequestId) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const data = await agentRepository.getAgentWithRelationsById(id);
-    if (!data) {
+    const agent = await agentRepository.getAgentWithRelationsById(id);
+    if (!agent) {
       throw notFound("Agent not found");
     }
-
-    return ok(c, agentSchema.parse(data));
+    return ok(c, agentSchema.parse(agent));
   });
 }

@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
+import { dateTimeSchema } from "./datetime.js";
+
 /**
  * Standardized API success response schema
  * Provides consistent success structure across all API endpoints
@@ -14,8 +16,7 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
       /** Metadata about the response */
       meta: z.object({
         /** ISO timestamp when the response was generated */
-        timestamp: z.iso.datetime(),
-        // .openapi({ example: "2025-01-01T12:00:00.000Z" }),
+        timestamp: dateTimeSchema,
         // Room for future additions: pagination, requestId, version, etc.
         requestId: z
           .string()
