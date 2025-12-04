@@ -8,6 +8,7 @@ import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
+import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initSentry } from "@/lib/sentry";
@@ -64,7 +65,7 @@ app.get(
 serve(
   {
     fetch: app.fetch,
-    port: Number(process.env.PORT) || 8787,
+    port: getEnv().PORT,
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);

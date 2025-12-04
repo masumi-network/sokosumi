@@ -3,24 +3,16 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey, openAPI, organization } from "better-auth/plugins";
 
+import { getEnv } from "../config/env.js";
+
+const env = getEnv();
+
 // Build trusted origins based on environment
 const trustedOrigins = ["https://*.sokosumi.com"];
 
-// Add localhost origins in non-production environments
-if (process.env.NODE_ENV !== "production") {
-  trustedOrigins.push(
-    "http://localhost:3000",
-    "http://localhost:8787", // Core API default port
-  );
-}
-
 // Add additional trusted origins from environment variable
-// Format: comma-separated list (e.g., "http://localhost:4000,https://custom.dev")
-if (process.env.TRUSTED_ORIGINS) {
-  const additionalOrigins = process.env.TRUSTED_ORIGINS.split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  trustedOrigins.push(...additionalOrigins);
+if (env.TRUSTED_ORIGINS) {
+  trustedOrigins.push(...env.TRUSTED_ORIGINS);
 }
 
 export const auth = betterAuth({
@@ -32,8 +24,8 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL,
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
   basePath: "/v1/auth",
   rateLimit: {
     storage: "database",
@@ -48,13 +40,13 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
       overrideUserInfoOnSignIn: true,
     },
     microsoft: {
-      clientId: process.env.MICROSOFT_CLIENT_ID!,
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+      clientId: env.MICROSOFT_CLIENT_ID,
+      clientSecret: env.MICROSOFT_CLIENT_SECRET,
       overrideUserInfoOnSignIn: true,
     },
   },

@@ -1,16 +1,19 @@
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
-export function initSentry() {
-  const dsn = process.env.SENTRY_DSN;
+import { getEnv } from "../config/env.js";
 
-  if (!dsn) {
+export function initSentry() {
+  const env = getEnv();
+
+  if (!env.SENTRY_DSN) {
     console.log("[Sentry] DSN not provided, skipping initialization");
     return;
   }
 
   Sentry.init({
-    dsn,
+    dsn: env.SENTRY_DSN,
+    environment: env.SENTRY_ENVIRONMENT,
     sendDefaultPii: true,
     tracesSampleRate: 0.005,
     profilesSampleRate: 0.005,
