@@ -45,6 +45,9 @@ app.notFound(() => {
 
 // Mount API v1 routes
 app.route("/v1", apiV1);
+app.get("/crash", () => {
+  throw new Error("Crash test");
+});
 
 // Generate OpenAPI spec from the API routes (publicly accessible)
 app.doc("/openapi.json", {
