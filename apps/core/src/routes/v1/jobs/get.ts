@@ -65,10 +65,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
     const jobs = await jobRepository.getJobs({
-      userId: user.id,
-      organizationId: user.organizationId,
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
     });
 
     const formattedJobs = jobs.map((job) => ({

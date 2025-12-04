@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { linkRepository } from "@sokosumi/database/repositories";
 
-import { forbidden } from "@/helpers/error";
+import { requireUserAccess } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -56,12 +56,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    if (user.id !== id) {
-      throw forbidden("You can only access your own links");
-    }
+    await requireUserAccess(authContext.userId, id);
 
     const links = await linkRepository.getLinksByUserId(id);
 

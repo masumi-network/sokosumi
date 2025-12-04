@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { BlobOrigin, BlobStatus } from "@sokosumi/database";
 import { blobRepository } from "@sokosumi/database/repositories";
 
-import { forbidden } from "@/helpers/error";
+import { requireUserAccess } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -67,12 +67,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { user } = c.var;
+    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    if (user.id !== id) {
-      throw forbidden("You can only access your own files");
-    }
+    await requireUserAccess(authContext.userId, id);
 
     const files = await blobRepository.getBlobsByUserId(id);
     return ok(c, filesSchema.parse(files));

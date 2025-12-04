@@ -4,14 +4,14 @@ import { bearerAuth } from "hono/bearer-auth";
 import { unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 
-export interface AuthenticatedUserContext {
-  id: string;
+export interface AuthenticationContext {
+  userId: string;
   organizationId: string | null;
 }
 
 export type AuthVariables = {
   isAuthenticated: boolean;
-  user: AuthenticatedUserContext;
+  authContext: AuthenticationContext;
 };
 
 function setAuthContext(
@@ -19,7 +19,7 @@ function setAuthContext(
   context: AuthVariables,
 ) {
   c.set("isAuthenticated", context.isAuthenticated);
-  c.set("user", context.user);
+  c.set("authContext", context.authContext);
 }
 
 const bearerMiddleware: MiddlewareHandler<{
@@ -34,8 +34,8 @@ const bearerMiddleware: MiddlewareHandler<{
     if (result.valid && result.key) {
       setAuthContext(c, {
         isAuthenticated: true,
-        user: {
-          id: result.key.userId,
+        authContext: {
+          userId: result.key.userId,
           organizationId: result.key.metadata?.organizationId ?? null,
         },
       });
@@ -58,8 +58,8 @@ const sessionMiddleware: MiddlewareHandler<{
 
     setAuthContext(c, {
       isAuthenticated: true,
-      user: {
-        id: user.id,
+      authContext: {
+        userId: user.id,
         organizationId: session.activeOrganizationId ?? null,
       },
     });
