@@ -52,7 +52,7 @@ app.get(
   Scalar({
     pageTitle: "Sokosumi API Documentation",
     sources: [
-      { url: "/openapi.json", title: "Content" },
+      { url: "/v1/openapi.json", title: "Content" },
       { url: "/v1/auth/open-api/generate-schema", title: "Auth" },
     ],
     defaultOpenAllTags: true,
@@ -60,25 +60,6 @@ app.get(
     theme: "saturn",
   }),
 );
-
-app.doc("/openapi.json", {
-  openapi: "3.0.3",
-  info: {
-    version: "1.0.0",
-    title: "Sokosumi API",
-  },
-  servers: [
-    {
-      url: `https://api.sokosumi.com/`,
-      description: "Production Server",
-    },
-    {
-      url: `https://preprod.api.sokosumi.com/`,
-      description: "Pre-production Server",
-    },
-  ],
-  security: [{ bearerAuth: [] }],
-});
 
 serve(
   {
