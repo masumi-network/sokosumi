@@ -20,8 +20,11 @@ const route = createRoute({
     200: jsonSuccessResponse(userSchema, "Retrieve the current user", {
       data: {
         id: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        updatedAt: "2025-01-01T00:00:00.000Z",
         name: "John Doe",
         email: "john.doe@example.com",
+        image: "https://example.com/image.png",
         credits: 100.0,
       },
       meta: {

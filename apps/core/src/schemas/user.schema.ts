@@ -9,7 +9,10 @@ export const userSchema = z
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "John Doe" }),
     email: z.email().openapi({ example: "john.doe@example.com" }),
-    image: z.string().openapi({ example: "https://example.com/image.png" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/image.png" }),
     credits: z.number().openapi({ example: 100.0 }),
   })
   .openapi("User");
