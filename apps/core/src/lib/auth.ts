@@ -1,7 +1,7 @@
 import prisma from "@sokosumi/database/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { apiKey, organization } from "better-auth/plugins";
+import { apiKey, openAPI, organization } from "better-auth/plugins";
 
 export const auth = betterAuth({
   advanced: {
@@ -19,6 +19,7 @@ export const auth = betterAuth({
     storage: "database",
   },
   plugins: [
+    openAPI(),
     apiKey({
       rateLimit: {
         enabled: true,
