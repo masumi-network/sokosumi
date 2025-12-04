@@ -12,6 +12,8 @@ import {
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
+  provideJobInputResponseSchema,
+  ProvideJobInputResponseSchemaType,
   startFreeJobResponseSchema,
   StartFreeJobResponseSchemaType,
   startPaidJobResponseSchema,
@@ -66,7 +68,7 @@ export const agentClient = (() => {
           },
           body: JSON.stringify({
             identifier_from_purchaser: identifierFromPurchaser,
-            input_data: Object.fromEntries(inputData),
+            input_data: inputData,
           }),
         });
 
@@ -101,7 +103,7 @@ export const agentClient = (() => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            input_data: Object.fromEntries(inputData),
+            input_data: inputData,
           }),
         });
         if (!startJobResponse.ok) {
@@ -142,6 +144,52 @@ export const agentClient = (() => {
         );
         if (!parsedResult.success) {
           return Err("Failed to parse job status response");
+        }
+
+        return Ok(parsedResult.data);
+      } catch (err) {
+        return Err(String(err));
+      }
+    },
+
+    async provideJobInput(
+      agent: Agent,
+      statusId: string,
+      jobId: string,
+      inputData: JobInputData,
+    ): Promise<Result<ProvideJobInputResponseSchemaType, string>> {
+      try {
+        const provideInputUrl = getAgentUrlWithPathComponent(
+          agent,
+          "provide_input",
+        );
+
+        const provideInputResponse = await fetch(provideInputUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            job_id: jobId,
+            status_id: statusId,
+            input_data: inputData,
+          }),
+        });
+
+        if (!provideInputResponse.ok) {
+          return Err(
+            `Failed to provide job input: ${provideInputResponse.status} ${provideInputResponse.statusText}`,
+          );
+        }
+        const responseJson = await provideInputResponse.json();
+        const parsedResult =
+          provideJobInputResponseSchema.safeParse(responseJson);
+        if (!parsedResult.success) {
+          return Err(
+            `Failed to parse provide input response: ${JSON.stringify(
+              parsedResult.error,
+            )}`,
+          );
         }
 
         return Ok(parsedResult.data);

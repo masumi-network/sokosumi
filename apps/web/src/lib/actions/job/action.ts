@@ -21,6 +21,8 @@ import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
   JobStatusResponseSchemaType,
+  provideJobInputSchema,
+  ProvideJobInputSchemaType,
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
@@ -238,6 +240,132 @@ export const startJob = withAuthContext<
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
       }
+    }
+  });
+});
+
+interface ProvideJobInputParameters extends AuthenticatedRequest {
+  input: ProvideJobInputSchemaType;
+}
+
+export const provideJobInput = withAuthContext<
+  ProvideJobInputParameters,
+  Result<{ jobId: string }, ActionError>
+>(async ({ input, authContext }) => {
+  return await Sentry.withScope(async (scope) => {
+    try {
+      const { userId } = authContext;
+      const { jobId, statusId, inputData } = input;
+
+      // Validate input
+      const parsedResult = provideJobInputSchema.safeParse(input);
+      if (!parsedResult.success) {
+        scope.setTag("error_type", "validation_error");
+        scope.setContext("validation_error", {
+          issues: parsedResult.error.issues,
+        });
+
+        Sentry.captureMessage(
+          "Job input submission validation failed",
+          "warning",
+        );
+
+        return Err({
+          message: "Bad Input",
+          code: CommonErrorCode.BAD_INPUT,
+        });
+      }
+
+      // Set user context for Sentry
+      Sentry.setUser({
+        id: userId,
+      });
+
+      // Upload files if any
+      let uploadedFiles: Array<{
+        url: string;
+        fileName: string;
+        size: number;
+      }> = [];
+      if (Object.keys(inputData).length > 0) {
+        uploadedFiles = await handleInputDataFileUploads(userId, inputData);
+      }
+
+      // Set job context
+      scope.setTag("action", "submitJobInput");
+      scope.setTag("service", "job");
+      scope.setContext("job_input_request", {
+        jobId,
+        inputDataSize: JSON.stringify(inputData).length,
+      });
+
+      // Add breadcrumb for job input submission flow
+      Sentry.addBreadcrumb({
+        category: "Job Action",
+        message: "Submitting job input",
+        level: "info",
+        data: {
+          jobId,
+          statusId,
+          userId,
+        },
+      });
+
+      // Call service to provide job input
+      const job = await jobService.provideJobInput({
+        jobId,
+        statusId,
+        userId,
+        inputData,
+      });
+
+      // Save uploaded files
+      if (uploadedFiles.length > 0) {
+        await saveUploadedFiles(userId, job.id, uploadedFiles);
+      }
+
+      // Add success breadcrumb
+      Sentry.addBreadcrumb({
+        category: "Job Action",
+        message: "Job input submitted successfully",
+        level: "info",
+        data: {
+          jobId: job.id,
+          statusId,
+          agentId: job.agentId,
+        },
+      });
+
+      revalidatePath(`/agents/${job.agentId}/jobs/${job.id}`, "layout");
+      return Ok({ jobId: job.id });
+    } catch (error) {
+      console.error("Failed to provide job input", error);
+      scope.setTag("error_type", "job_input_submission_error");
+      scope.setContext("error", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "error",
+            domain: "job_input_submission",
+            category: "action_layer",
+          },
+        },
+      });
+
+      if (isJobError(error)) {
+        return Err({
+          message: error.message,
+          code: error.code,
+        });
+      }
+
+      return Err({
+        message: "Failed to submit job input",
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      });
     }
   });
 });

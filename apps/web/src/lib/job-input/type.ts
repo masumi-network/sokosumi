@@ -58,7 +58,7 @@ export type JobInputFormatValue = ValidJobInputFormatValues;
 export type JobInputSchemaIntlPath = "Library.JobInput.Schema";
 export type JobInputFormIntlPath = "Library.JobInput.Form";
 
-export type JobInputData = Map<
+export type JobInputData = Record<
   string,
   string | string[] | number | boolean | number[] | File | File[] | undefined
 >;

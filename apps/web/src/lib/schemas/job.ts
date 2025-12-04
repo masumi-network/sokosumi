@@ -9,7 +9,7 @@ export const startJobInputSchema = z.object({
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
   inputSchema: z.array(jobInputSchema()),
-  inputData: z.map(
+  inputData: z.record(
     z.string(),
     z.union([
       z.number(),
@@ -128,6 +128,16 @@ export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
 >;
 
+export const provideJobInputResponseSchema = z.object({
+  status: z.enum(["success", "error"]),
+  input_hash: z.string(),
+  signature: z.string(),
+});
+
+export type ProvideJobInputResponseSchemaType = z.infer<
+  typeof provideJobInputResponseSchema
+>;
+
 export const createJobScheduleInputSchema = z.object({
   agentId: z.string(),
   userId: z.string(),
@@ -137,7 +147,7 @@ export const createJobScheduleInputSchema = z.object({
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
   inputSchema: z.array(jobInputSchema()),
-  inputData: z.map(
+  inputData: z.record(
     z.string(),
     z.union([
       z.number(),
@@ -161,3 +171,23 @@ export const createJobScheduleInputSchema = z.object({
 export type CreateJobScheduleInputSchemaType = z.infer<
   typeof createJobScheduleInputSchema
 >;
+
+export const provideJobInputSchema = z.object({
+  jobId: z.string(),
+  statusId: z.string(),
+  inputData: z.record(
+    z.string(),
+    z.union([
+      z.number(),
+      z.string(),
+      z.array(z.string()),
+      z.boolean(),
+      z.array(z.number()),
+      z.instanceof(File),
+      z.array(z.instanceof(File)),
+      z.undefined(),
+    ]),
+  ),
+});
+
+export type ProvideJobInputSchemaType = z.infer<typeof provideJobInputSchema>;

@@ -114,16 +114,13 @@ export async function POST(
       validatedData.maxAcceptedCredits,
     );
 
-    // Convert inputData to Map format expected by the service
-    const inputDataMap = new Map(Object.entries(validatedData.inputData ?? {}));
-
     // Create the job using the existing action
     const result = await startJob({
       input: {
         agentId,
         maxAcceptedCents,
         inputSchema: validatedInputSchema.input_data,
-        inputData: inputDataMap,
+        inputData: validatedData.inputData,
       },
       authContext,
     });
