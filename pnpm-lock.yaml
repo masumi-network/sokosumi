@@ -82,8 +82,8 @@ importers:
   apps/web:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: 0.71.0
-        version: 0.71.0(zod@4.1.13)
+        specifier: 0.71.1
+        version: 0.71.1(zod@4.1.13)
       '@better-auth/utils':
         specifier: 0.3.0
         version: 0.3.0
@@ -504,8 +504,8 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@anthropic-ai/sdk@0.71.0':
-    resolution: {integrity: sha512-go1XeWXmpxuiTkosSXpb8tokLk2ZLkIRcXpbWVwJM6gH5OBtHOVsfPfGuqI1oW7RRt4qc59EmYbrXRZ0Ng06Jw==}
+  '@anthropic-ai/sdk@0.71.1':
+    resolution: {integrity: sha512-ViVzuaWMxHygfB2G6/1OufWDjbJGRl3duR0N1CEx/D5O9nv1yLNtbO3Lri5sQdF+aDHP+0nL6WyOMwCJUDicRQ==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -8005,7 +8005,7 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.0.2
 
-  '@anthropic-ai/sdk@0.71.0(zod@4.1.13)':
+  '@anthropic-ai/sdk@0.71.1(zod@4.1.13)':
     dependencies:
       json-schema-to-ts: 3.1.1
     optionalDependencies:
