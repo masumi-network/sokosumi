@@ -17,19 +17,6 @@ const marketingOptInUserSchema = z.object({
 });
 
 /**
- * Consumes the response body to prevent connection leaks.
- * Reads the body even if we don't use it.
- */
-async function consumeResponseBody(response: Response): Promise<string | null> {
-  try {
-    const text = await response.text();
-    return text;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Base function to call webhooks with timeout protection.
  * Fire-and-forget pattern - does not throw errors, only logs them.
  *
@@ -58,9 +45,6 @@ async function callWebHook(
     });
 
     clearTimeout(timeoutId);
-
-    // Consume response body to prevent connection leaks
-    await consumeResponseBody(response);
 
     if (!response.ok) {
       console.error(
