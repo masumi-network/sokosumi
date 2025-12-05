@@ -3,7 +3,10 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey, openAPI, organization } from "better-auth/plugins";
 
-import { renderEmailVerificationTemplate } from "@/lib/email/index.js";
+import {
+  renderEmailVerificationTemplate,
+  renderPasswordResetTemplate,
+} from "@/lib/email/index.js";
 
 import { getEnv } from "../config/env.js";
 import { i18next } from "./i18next.js";
@@ -41,10 +44,28 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     requireEmailVerification: false,
     autoSignIn: false,
+    sendResetPassword: async ({ user, url }) => {
+      const language = "en";
+      const t = i18next.getFixedT(language, "emails");
+
+      postmarkClient.sendEmail({
+        From: env.POSTMARK_FROM_EMAIL,
+        To: user.email,
+        Tag: "reset-password",
+        Subject: t("resetPassword.subject"),
+        HtmlBody: renderPasswordResetTemplate({
+          name: user.name,
+          resetLink: url,
+          lng: language,
+        }),
+        MessageStream: "authentications",
+      });
+    },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      const t = i18next.getFixedT("en", "emails");
+      const language = "en";
+      const t = i18next.getFixedT(language, "emails");
 
       postmarkClient.sendEmail({
         From: env.POSTMARK_FROM_EMAIL,
@@ -54,7 +75,7 @@ export const auth = betterAuth({
         HtmlBody: renderEmailVerificationTemplate({
           name: user.name,
           verificationLink: url,
-          lng: "en",
+          lng: language,
         }),
         MessageStream: "authentications",
       });
@@ -64,6 +85,7 @@ export const auth = betterAuth({
     expiresIn: 172800, // 2 days in seconds
     autoSignInAfterVerification: true,
   },
+
   socialProviders: {
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
