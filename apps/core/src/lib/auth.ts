@@ -111,6 +111,8 @@ export const auth = betterAuth({
     }),
     organization({
       invitationLimit: 100,
+      organizationLimit: 100,
+      invitationExpiresIn: 604800, // 7 days in seconds
       cancelPendingInvitationsOnReInvite: true,
       allowUserToCreateOrganization(user) {
         return user.emailVerified;
