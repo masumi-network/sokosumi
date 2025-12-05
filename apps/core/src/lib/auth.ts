@@ -4,6 +4,9 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey, openAPI, organization } from "better-auth/plugins";
 
 import { getEnv } from "../config/env.js";
+import { renderVerificationEmail } from "./email/templates.js";
+import { i18next } from "./i18next.js";
+import { postmarkClient } from "./postmark.js";
 
 const env = getEnv();
 
@@ -37,6 +40,28 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     requireEmailVerification: false,
     autoSignIn: false,
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      const t = i18next.getFixedT("en", "emails");
+
+      postmarkClient.sendEmail({
+        From: env.POSTMARK_FROM_EMAIL,
+        To: user.email,
+        Tag: "verification-email",
+        Subject: t("verification.subject"),
+        HtmlBody: renderVerificationEmail({
+          name: user.name,
+          verificationLink: url,
+          lng: "en",
+        }),
+        MessageStream: "authentications",
+      });
+    },
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+    expiresIn: 172800, // 2 days in seconds
+    autoSignInAfterVerification: true,
   },
   socialProviders: {
     google: {
