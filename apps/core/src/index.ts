@@ -23,7 +23,15 @@ import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
 initSentry();
-await initI18next();
+
+// Initialize i18next lazily to avoid top-level await
+let i18nextInitialized = false;
+async function ensureI18nextInitialized() {
+  if (!i18nextInitialized) {
+    await initI18next();
+    i18nextInitialized = true;
+  }
+}
 
 const app = new OpenAPIHono<{
   Variables: RequestIdVariables & LanguageVariables;
@@ -84,7 +92,11 @@ app.get(
 
 serve(
   {
-    fetch: app.fetch,
+    fetch: async (request, server) => {
+      // Ensure i18next is initialized before processing requests
+      await ensureI18nextInitialized();
+      return app.fetch(request, server);
+    },
     port: getEnv().PORT,
   },
   (info) => {
