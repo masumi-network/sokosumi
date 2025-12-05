@@ -11,6 +11,7 @@ import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
 import { TIME } from "@/config/constants";
+import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initI18next } from "@/lib/i18next";
@@ -23,15 +24,7 @@ import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
 initSentry();
-
-// Initialize i18next lazily to avoid top-level await
-let i18nextInitialized = false;
-async function ensureI18nextInitialized() {
-  if (!i18nextInitialized) {
-    await initI18next();
-    i18nextInitialized = true;
-  }
-}
+await initI18next();
 
 // THIS NEEDS TO BE EXPORTED AT THE END
 const mainApp = new Hono();
@@ -98,12 +91,8 @@ mainApp.route("/", app);
 
 serve(
   {
-    fetch: async (request, server) => {
-      // Ensure i18next is initialized before processing requests
-      await ensureI18nextInitialized();
-      return mainApp.fetch(request, server);
-    },
-    port: Number(process.env.PORT) || 8787,
+    fetch: mainApp.fetch,
+    port: getEnv().PORT,
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);
