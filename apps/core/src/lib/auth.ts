@@ -130,7 +130,7 @@ export const auth = betterAuth({
     enabled: true,
     maxPasswordLength: 256,
     minPasswordLength: 8,
-    requireEmailVerification: false,
+    requireEmailVerification: true,
     autoSignIn: false,
     sendResetPassword: async ({ user, url }) => {
       const language = "en";
