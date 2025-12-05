@@ -54,6 +54,9 @@ const envSchema = z.object({
   WEBHOOK_USER_CREATED: z.url().optional(),
   WEBHOOK_USER_UPDATED: z.url().optional(),
   WEBHOOK_ACCOUNT_CREATED: z.url().optional(),
+
+  // Vercel Blob Storage
+  BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

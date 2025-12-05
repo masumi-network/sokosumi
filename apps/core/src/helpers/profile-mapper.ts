@@ -98,14 +98,13 @@ async function mapProfileToUserInner(profile: {
     // Upload the image to Vercel Blob Storage
     try {
       const uploaded = await uploadImage(imageData, mimeType);
+
       return {
         name: profile.name,
         image: uploaded.url,
         imageHash,
       };
-    } catch (error) {
-      console.error("Failed to upload profile image to Vercel Blob:", error);
-      // Return imageHash but no image - can be retried later
+    } catch {
       return {
         name: profile.name,
         image: undefined,
