@@ -5,6 +5,7 @@ import { apiKey, openAPI, organization } from "better-auth/plugins";
 
 import {
   renderEmailVerificationTemplate,
+  renderOrganizationInvitationTemplate,
   renderPasswordResetTemplate,
 } from "@/lib/email/index.js";
 
@@ -109,10 +110,30 @@ export const auth = betterAuth({
       enableMetadata: true,
     }),
     organization({
+      invitationLimit: 100,
+      cancelPendingInvitationsOnReInvite: true,
       allowUserToCreateOrganization(user) {
         return user.emailVerified;
       },
-      cancelPendingInvitationsOnReInvite: true,
+      async sendInvitationEmail(data) {
+        const inviteLink = `${env.BETTER_AUTH_URL}/accept-invitation/${data.id}`;
+        const language = "en";
+        const t = i18next.getFixedT(language, "emails");
+
+        postmarkClient.sendEmail({
+          From: env.POSTMARK_FROM_EMAIL,
+          To: data.email,
+          Tag: "invitation-email",
+          Subject: t("invitation.subject"),
+          HtmlBody: renderOrganizationInvitationTemplate({
+            organizationName: data.organization.name,
+            invitorUsername: data.inviter.user.name,
+            invitationLink: inviteLink,
+            lng: language,
+          }),
+          MessageStream: "organizations",
+        });
+      },
       schema: {
         organization: {
           additionalFields: {
