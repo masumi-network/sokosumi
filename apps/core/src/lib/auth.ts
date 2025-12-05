@@ -9,6 +9,7 @@ import {
 } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 
+import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { getEnv } from "@/config/env";
 import { mapProfileToUser } from "@/helpers/profile-mapper";
@@ -18,7 +19,6 @@ import {
   renderPasswordResetTemplate,
 } from "@/lib/email/index.js";
 import { i18next } from "@/lib/i18next";
-import { postmarkClient } from "@/lib/postmark";
 import { webhookService } from "@/services/webhook.service";
 
 // Example getUserLocale implementation (adapt to your needs)
