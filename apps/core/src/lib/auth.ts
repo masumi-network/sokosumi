@@ -42,6 +42,12 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        before: async (user, _ctx) => {
+          if (!user.termsAccepted) {
+            return false;
+          }
+          return true;
+        },
         after: async (user, _ctx) => {
           await stripeClient.createUserCustomer(user.id, user.name, user.email);
         },
@@ -166,6 +172,16 @@ export const auth = betterAuth({
       enableMetadata: true,
     }),
     organization({
+      organizationCreation: {
+        afterCreate: async ({ organization }) => {
+          await stripeClient.createOrganizationCustomer(
+            organization.id,
+            organization.name,
+            organization.invoiceEmail ?? null,
+            organization.slug,
+          );
+        },
+      },
       invitationLimit: 100,
       organizationLimit: 100,
       invitationExpiresIn: 604800, // 7 days in seconds

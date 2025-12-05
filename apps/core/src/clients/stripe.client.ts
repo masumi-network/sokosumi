@@ -1,4 +1,3 @@
-import type { Organization } from "@sokosumi/database";
 import Stripe from "stripe";
 
 import { getEnv } from "@/config/env";
@@ -26,22 +25,25 @@ export const stripeClient = (() => {
     },
 
     async createOrganizationCustomer(
-      organization: Organization,
+      organizationId: string,
+      name: string,
+      invoiceEmail: string | null,
+      slug: string,
     ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create(
         {
-          name: organization.name,
-          ...(organization.invoiceEmail && {
-            email: organization.invoiceEmail,
+          name,
+          ...(invoiceEmail && {
+            email: invoiceEmail,
           }),
           metadata: {
-            organizationId: organization.id,
-            organizationSlug: organization.slug,
+            organizationId,
+            organizationSlug: slug,
             type: "organization",
           },
         },
         {
-          idempotencyKey: `${organization.id}`,
+          idempotencyKey: `${organizationId}`,
         },
       );
       return customer;
