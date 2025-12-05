@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { cors } from "hono/cors";
 
 import { auth } from "@/lib/auth.js";
 
@@ -26,6 +27,18 @@ app.doc("/openapi.json", {
   ],
   security: [{ bearerAuth: [] }],
 });
+
+app.use(
+  "/auth/*", // or replace with "*" to enable cors for all routes
+  cors({
+    origin: "http://localhost:3000", // replace with your origin
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
+    credentials: true,
+  }),
+);
 
 app.on(["POST", "GET"], "/auth/*", (c) => {
   return auth.handler(c.req.raw);

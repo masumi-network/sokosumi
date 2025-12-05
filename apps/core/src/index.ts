@@ -4,22 +4,15 @@ import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { languageDetector } from "hono/language";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
-import { TIME } from "@/config/constants";
 import { getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initI18next } from "@/lib/i18next";
 import { initSentry } from "@/lib/sentry";
-import {
-  type LanguageVariables,
-  translationMiddleware,
-} from "@/middleware/language";
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
@@ -31,7 +24,7 @@ await initI18next();
 const mainApp = new Hono();
 
 const app = new OpenAPIHono<{
-  Variables: RequestIdVariables & LanguageVariables;
+  Variables: RequestIdVariables;
 }>();
 
 app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
@@ -43,27 +36,6 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 app.use(logger());
 app.use(requestId());
 app.use(sentryMiddleware());
-app.use(
-  languageDetector({
-    supportedLanguages: ["en"], // Must include fallback
-    fallbackLanguage: "en", // Required
-    cookieOptions: {
-      sameSite: "Lax", // Cookie same-site policy
-    },
-  }),
-);
-app.use(translationMiddleware());
-app.use(
-  "*",
-  cors({
-    origin: (origin) => origin || "*",
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    exposeHeaders: ["X-Request-Id", "Content-Length"],
-    maxAge: TIME.CORS_MAX_AGE,
-  }),
-);
 
 app.onError(errorHandler);
 

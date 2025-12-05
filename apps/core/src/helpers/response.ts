@@ -21,7 +21,6 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
         requestId: z
           .string()
           .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
-        language: z.string().openapi({ example: "en" }),
       }),
     })
     .openapi("SuccessResponse");
@@ -40,7 +39,6 @@ export const ok = <T>(c: Context, data: T) => {
       meta: {
         timestamp: new Date().toISOString(),
         requestId: c.var.requestId,
-        language: c.var.language,
       },
     },
     200,
@@ -54,7 +52,6 @@ export const created = <T>(c: Context, data: T) => {
       meta: {
         timestamp: new Date().toISOString(),
         requestId: c.var.requestId,
-        language: c.var.language,
       },
     },
     201,

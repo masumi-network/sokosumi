@@ -4,8 +4,6 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 
-import { type LanguageVariables } from "@/middleware/language";
-
 import { type ErrorResponse, getErrorName } from "./error.js";
 
 /**
@@ -15,14 +13,13 @@ import { type ErrorResponse, getErrorName } from "./error.js";
  */
 export function errorHandler(
   error: Error,
-  c: Context<{ Variables: RequestIdVariables & LanguageVariables }>,
+  c: Context<{ Variables: RequestIdVariables }>,
 ): Response {
   const meta = {
     timestamp: new Date().toISOString(),
     requestId: c.var.requestId,
     path: c.req.path,
     method: c.req.method,
-    language: c.var.language,
   };
 
   if (error instanceof z.ZodError) {
