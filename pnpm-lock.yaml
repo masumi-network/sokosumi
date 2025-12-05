@@ -62,6 +62,9 @@ importers:
       hono:
         specifier: 4.10.7
         version: 4.10.7
+      postmark:
+        specifier: 4.0.5
+        version: 4.0.5
       uuid:
         specifier: 13.0.0
         version: 13.0.0

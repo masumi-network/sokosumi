@@ -42,6 +42,10 @@ const envSchema = z.object({
   SENTRY_ENVIRONMENT: z
     .enum(["development", "staging", "production"])
     .optional(),
+
+  // Postmark
+  POSTMARK_SERVER_ID: z.string().min(1),
+  POSTMARK_FROM_EMAIL: z.email(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
