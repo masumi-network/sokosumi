@@ -1,4 +1,4 @@
-import type { Organization, User } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/database";
 import Stripe from "stripe";
 
 import { getEnv } from "@/config/env";
@@ -7,15 +7,19 @@ export const stripeClient = (() => {
   const stripe = new Stripe(getEnv().STRIPE_SECRET_KEY);
 
   return {
-    async createUserCustomer(user: User): Promise<Stripe.Customer> {
+    async createUserCustomer(
+      userId: string,
+      name: string,
+      email: string,
+    ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create(
         {
-          name: user.name,
-          email: user.email,
-          metadata: { userId: user.id, type: "user" },
+          name,
+          email,
+          metadata: { userId, type: "user" },
         },
         {
-          idempotencyKey: `${user.id}`,
+          idempotencyKey: `${userId}`,
         },
       );
       return customer;

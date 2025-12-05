@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey, openAPI, organization } from "better-auth/plugins";
 
+import { stripeClient } from "@/clients/stripe.client";
 import { getEnv } from "@/config/env";
 import { mapProfileToUser } from "@/helpers/profile-mapper";
 import {
@@ -38,6 +39,15 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user, _ctx) => {
+          await stripeClient.createUserCustomer(user.id, user.name, user.email);
+        },
+      },
+    },
+  },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   basePath: "/v1/auth",
