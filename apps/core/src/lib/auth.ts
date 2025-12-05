@@ -3,8 +3,9 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey, openAPI, organization } from "better-auth/plugins";
 
+import { renderEmailVerificationTemplate } from "@/lib/email/index.js";
+
 import { getEnv } from "../config/env.js";
-import { renderVerificationEmail } from "./email/templates.js";
 import { i18next } from "./i18next.js";
 import { postmarkClient } from "./postmark.js";
 
@@ -50,7 +51,7 @@ export const auth = betterAuth({
         To: user.email,
         Tag: "verification-email",
         Subject: t("verification.subject"),
-        HtmlBody: renderVerificationEmail({
+        HtmlBody: renderEmailVerificationTemplate({
           name: user.name,
           verificationLink: url,
           lng: "en",
