@@ -22,7 +22,8 @@
     "hono": "4.10.7",
     "uuid": "13.0.0",
     "postmark": "4.0.5",
-    "i18next": "25.7.1"
+    "i18next": "25.7.1",
+    "i18next-fs-backend": "2.6.1"
   },
   "devDependencies": {
     "@types/node": "22.19.1",

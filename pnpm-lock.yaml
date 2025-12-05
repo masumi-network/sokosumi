@@ -65,6 +65,9 @@ importers:
       i18next:
         specifier: 25.7.1
         version: 25.7.1(typescript@5.9.3)
+      i18next-fs-backend:
+        specifier: 2.6.1
+        version: 2.6.1
       postmark:
         specifier: 4.0.5
         version: 4.0.5
@@ -5310,6 +5313,9 @@ packages:
 
   humanize-duration@3.33.1:
     resolution: {integrity: sha512-hwzSCymnRdFx9YdRkQQ0OYequXiVAV6ZGQA2uzocwB0F4309Ke6pO8dg0P8LHhRQJyVjGteRTAA/zNfEcpXn8A==}
+
+  i18next-fs-backend@2.6.1:
+    resolution: {integrity: sha512-eYWTX7QT7kJ0sZyCPK6x1q+R63zvNKv2D6UdbMf15A8vNb2ZLyw4NNNZxPFwXlIv/U+oUtg8SakW6ZgJZcoqHQ==}
 
   i18next@25.7.1:
     resolution: {integrity: sha512-XbTnkh1yCZWSAZGnA9xcQfHcYNgZs2cNxm+c6v1Ma9UAUGCeJPplRe1ILia6xnDvXBjk0uXU+Z8FYWhA19SKFw==}
@@ -13241,6 +13247,8 @@ snapshots:
   human-signals@2.1.0: {}
 
   humanize-duration@3.33.1: {}
+
+  i18next-fs-backend@2.6.1: {}
 
   i18next@25.7.1(typescript@5.9.3):
     dependencies:
