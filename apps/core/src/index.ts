@@ -12,12 +12,17 @@ import { requestId } from "hono/request-id";
 import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { initI18next } from "@/lib/i18next";
 import { initSentry } from "@/lib/sentry";
-import { type LanguageVariables } from "@/middleware/language";
+import {
+  type LanguageVariables,
+  translationMiddleware,
+} from "@/middleware/language";
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
 initSentry();
+await initI18next();
 
 const app = new OpenAPIHono<{
   Variables: RequestIdVariables & LanguageVariables;
@@ -41,6 +46,7 @@ app.use(
     },
   }),
 );
+app.use(translationMiddleware());
 app.use(
   "*",
   cors({
@@ -57,6 +63,11 @@ app.onError(errorHandler);
 
 app.notFound(() => {
   throw notFound();
+});
+
+app.get("/health", (c) => {
+  const t = c.var.t;
+  return c.json({ status: t("common:healthy") }, 200);
 });
 
 app.route("/v1", apiV1);
