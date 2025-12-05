@@ -142,12 +142,16 @@ export async function POST(request: NextRequest) {
     };
 
     if (isVercel) {
-      const chromium = (await import("@sparticuz/chromium")).default;
+      const chromium = (await import("@sparticuz/chromium-min")).default;
+      chromium.setGraphicsMode = false;
+
       puppeteer = await import("puppeteer-core");
       launchOptions = {
         ...launchOptions,
-        args: chromium.args,
-        executablePath: await chromium.executablePath(),
+        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: await chromium.executablePath(
+          getEnvSecrets().CHROMIUM_EXECUTABLE_URL,
+        ),
       };
     } else {
       puppeteer = await import("puppeteer");
@@ -169,7 +173,7 @@ export async function POST(request: NextRequest) {
       displayHeaderFooter: true,
     });
 
-    const fileName = sanitizeFileName(json.fileName ?? "output") + ".pdf";
+    const fileName = sanitizeFileName(json.fileName ?? "result") + ".pdf";
     const body =
       pdfBuffer instanceof Blob
         ? pdfBuffer

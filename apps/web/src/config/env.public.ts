@@ -35,27 +35,7 @@ const envPublicConfigSchema = z.object({
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
 
 function validateEnv() {
-  const parsedConfig = envPublicConfigSchema.safeParse({
-    NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID:
-      process.env.NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID,
-    NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:
-      process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID,
-    NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME:
-      process.env.NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
-    NEXT_PUBLIC_PASSWORD_MIN_LENGTH:
-      process.env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
-    NEXT_PUBLIC_PASSWORD_MAX_LENGTH:
-      process.env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
-    NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
-    NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
-    NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
-    NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
-    NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
-    NEXT_PUBLIC_FEE_PERCENTAGE: process.env.NEXT_PUBLIC_FEE_PERCENTAGE,
-    NEXT_PUBLIC_CREDITS_BASE: process.env.NEXT_PUBLIC_CREDITS_BASE,
-    NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG:
-      process.env.NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG,
-  });
+  const parsedConfig = envPublicConfigSchema.safeParse(process.env);
   if (!parsedConfig.success) {
     console.error(
       "❌ Invalid environment variables:",

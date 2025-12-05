@@ -18,6 +18,12 @@ const envSecretsSchema = z.object({
   DATABASE_URL: z.url(),
   MIN_FEE_CREDITS: z.coerce.number().min(0).default(1),
 
+  CHROMIUM_EXECUTABLE_URL: z
+    .url()
+    .default(
+      "https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar",
+    ),
+
   // Usercentrics
   USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1).optional(),
   DRAFT_USER_CENTRICS: z
