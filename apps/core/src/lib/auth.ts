@@ -21,6 +21,7 @@ import {
   renderPasswordResetTemplate,
 } from "@/lib/email/index.js";
 import { i18next } from "@/lib/i18next";
+import { stripeService } from "@/services/stripe.service";
 import { webhookService } from "@/services/webhook.service";
 
 const env = getEnv();
@@ -68,7 +69,11 @@ export const auth = betterAuth({
           return true;
         },
         after: async (user, _ctx) => {
-          await stripeClient.createUserCustomer(user.id, user.name, user.email);
+          await stripeService.createUserCustomerAndSave(
+            user.id,
+            user.name,
+            user.email,
+          );
           await webhookService.callUserCreated(user);
         },
       },
@@ -251,7 +256,7 @@ export const auth = betterAuth({
     organization({
       organizationCreation: {
         afterCreate: async ({ organization }) => {
-          await stripeClient.createOrganizationCustomer(
+          await stripeService.createOrganizationCustomerAndSave(
             organization.id,
             organization.name,
             organization.invoiceEmail ?? null,
