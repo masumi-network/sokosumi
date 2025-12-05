@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
+import { getEnv } from "@/config/env.js";
 import { auth } from "@/lib/auth.js";
 
 import agentsRouter from "./agents/index.js";
@@ -29,9 +30,9 @@ app.doc("/openapi.json", {
 });
 
 app.use(
-  "/auth/*", // or replace with "*" to enable cors for all routes
+  "/auth/*",
   cors({
-    origin: "http://localhost:3000", // replace with your origin
+    origin: getEnv().BETTER_AUTH_TRUSTED_ORIGIN,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["POST", "GET", "OPTIONS"],
     exposeHeaders: ["Content-Length"],

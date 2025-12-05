@@ -19,23 +19,13 @@ const envSchema = z.object({
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
+  BETTER_AUTH_TRUSTED_ORIGIN: z.url(),
 
   // Social Providers
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   MICROSOFT_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
-
-  // Additional trusted origins (comma-separated)
-  TRUSTED_ORIGINS: z
-    .string()
-    .transform((val) =>
-      val
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter(Boolean),
-    )
-    .optional(),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),

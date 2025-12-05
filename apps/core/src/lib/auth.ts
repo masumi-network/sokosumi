@@ -26,14 +26,6 @@ import { webhookService } from "@/services/webhook.service";
 
 const env = getEnv();
 
-// Build trusted origins based on environment
-const trustedOrigins = ["https://*.sokosumi.com"];
-
-// Add additional trusted origins from environment variable
-if (env.TRUSTED_ORIGINS) {
-  trustedOrigins.push(...env.TRUSTED_ORIGINS);
-}
-
 export const auth = betterAuth({
   advanced: {
     crossSubDomainCookies: {
@@ -140,7 +132,7 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins,
+  trustedOrigins: [env.BETTER_AUTH_TRUSTED_ORIGIN],
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: LIMITS.PASSWORD_MAX_LENGTH,
