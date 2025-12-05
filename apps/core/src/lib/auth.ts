@@ -29,6 +29,12 @@ export const auth = betterAuth({
       enabled: true,
     },
   },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 300, // 5 minutes in seconds
+    },
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -86,7 +92,45 @@ export const auth = betterAuth({
     expiresIn: 172800, // 2 days in seconds
     autoSignInAfterVerification: true,
   },
-
+  user: {
+    changeEmail: {
+      enabled: true,
+    },
+    deleteUser: {
+      enabled: true,
+    },
+    additionalFields: {
+      termsAccepted: {
+        type: "boolean",
+        required: true,
+        defaultValue: true,
+      },
+      marketingOptIn: {
+        type: "boolean",
+        required: true,
+        defaultValue: true,
+      },
+      jobStatusNotificationsOptIn: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+      },
+      stripeCustomerId: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+      onboardingCompleted: {
+        type: "boolean",
+        required: true,
+        defaultValue: false,
+      },
+      imageHash: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
   socialProviders: {
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
