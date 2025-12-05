@@ -61,9 +61,11 @@ export const auth = betterAuth({
       create: {
         before: async (user, _ctx) => {
           if (!user.termsAccepted) {
-            return false;
+            throw new APIError("BAD_REQUEST", {
+              message: "Terms of service must be accepted to create an account",
+              code: "TERMS_NOT_ACCEPTED",
+            });
           }
-          return true;
         },
         after: async (user, _ctx) => {
           await stripeService.createUserCustomerAndSave(
@@ -88,6 +90,7 @@ export const auth = betterAuth({
         case "/sign-up/email": {
           if (!ctx.body?.termsAccepted) {
             throw new APIError("BAD_REQUEST", {
+              message: "Terms of service must be accepted to sign up",
               code: "TERMS_NOT_ACCEPTED",
             });
           }
@@ -101,6 +104,7 @@ export const auth = betterAuth({
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
           throw new APIError("BAD_REQUEST", {
+            message: "Terms of service must be accepted to sign in",
             code: "TERMS_NOT_ACCEPTED",
           });
         }
