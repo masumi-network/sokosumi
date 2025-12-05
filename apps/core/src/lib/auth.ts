@@ -15,6 +15,20 @@ import { postmarkClient } from "./postmark.js";
 
 const env = getEnv();
 
+/**
+ * Maps OAuth profile data to user fields
+ * Simplified version for Core API - passes through profile picture URL directly
+ */
+async function mapProfileToUser(profile: {
+  name: string;
+  picture: string;
+}): Promise<{ name: string; image: string | undefined }> {
+  return {
+    name: profile.name,
+    image: profile.picture || undefined,
+  };
+}
+
 // Build trusted origins based on environment
 const trustedOrigins = ["https://*.sokosumi.com"];
 
@@ -136,11 +150,13 @@ export const auth = betterAuth({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
       overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
     },
     microsoft: {
       clientId: env.MICROSOFT_CLIENT_ID,
       clientSecret: env.MICROSOFT_CLIENT_SECRET,
       overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
     },
   },
   plugins: [
@@ -200,37 +216,4 @@ export const auth = betterAuth({
       },
     }),
   ],
-  user: {
-    additionalFields: {
-      termsAccepted: {
-        type: "boolean",
-        required: true,
-        defaultValue: true,
-      },
-      marketingOptIn: {
-        type: "boolean",
-        required: true,
-        defaultValue: true,
-      },
-      jobStatusNotificationsOptIn: {
-        type: "boolean",
-        required: false,
-        defaultValue: true,
-      },
-      stripeCustomerId: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-      },
-      onboardingCompleted: {
-        type: "boolean",
-        required: true,
-        defaultValue: false,
-      },
-      imageHash: {
-        type: "string",
-        required: false,
-      },
-    },
-  },
 });
