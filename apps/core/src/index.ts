@@ -65,11 +65,6 @@ app.notFound(() => {
   throw notFound();
 });
 
-app.get("/health", (c) => {
-  const t = c.var.t;
-  return c.json({ status: t("common:healthy") }, 200);
-});
-
 app.route("/v1", apiV1);
 
 app.get(

@@ -18,7 +18,7 @@ export async function initI18next() {
     fallbackLng: "en",
 
     // Enable namespaces
-    ns: ["common"],
+    ns: ["common", "emails"],
     defaultNS: "common",
 
     // File system backend configuration
