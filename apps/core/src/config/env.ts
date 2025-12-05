@@ -51,7 +51,6 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1),
 
   // Analytics Webhooks
-  WEBHOOK_AGENT_HIRED: z.url().optional(),
   WEBHOOK_USER_CREATED: z.url().optional(),
   WEBHOOK_USER_UPDATED: z.url().optional(),
   WEBHOOK_ACCOUNT_CREATED: z.url().optional(),
