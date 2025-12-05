@@ -3,6 +3,7 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
+import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { languageDetector } from "hono/language";
 import { logger } from "hono/logger";
@@ -10,7 +11,6 @@ import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
 import { TIME } from "@/config/constants";
-import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initI18next } from "@/lib/i18next";
@@ -23,7 +23,18 @@ import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
 initSentry();
-await initI18next();
+
+// Initialize i18next lazily to avoid top-level await
+let i18nextInitialized = false;
+async function ensureI18nextInitialized() {
+  if (!i18nextInitialized) {
+    await initI18next();
+    i18nextInitialized = true;
+  }
+}
+
+// THIS NEEDS TO BE EXPORTED AT THE END
+const mainApp = new Hono();
 
 const app = new OpenAPIHono<{
   Variables: RequestIdVariables & LanguageVariables;
@@ -82,10 +93,17 @@ app.get(
   }),
 );
 
+// Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
+mainApp.route("/", app);
+
 serve(
   {
-    fetch: app.fetch,
-    port: getEnv().PORT,
+    fetch: async (request, server) => {
+      // Ensure i18next is initialized before processing requests
+      await ensureI18nextInitialized();
+      return mainApp.fetch(request, server);
+    },
+    port: Number(process.env.PORT) || 8787,
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);
