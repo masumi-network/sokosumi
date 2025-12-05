@@ -48,5 +48,20 @@ export const stripeClient = (() => {
       );
       return customer;
     },
+
+    async updateCustomerEmail(
+      customerId: string,
+      email: string | null,
+    ): Promise<Stripe.Customer> {
+      return await stripe.customers.update(
+        customerId,
+        { email: email ?? undefined },
+        { idempotencyKey: `${customerId}-${email ?? "null"}` },
+      );
+    },
+
+    async deleteCustomer(customerId: string): Promise<void> {
+      await stripe.customers.del(customerId);
+    },
   };
 })();

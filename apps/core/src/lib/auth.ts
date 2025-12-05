@@ -1,7 +1,12 @@
 import prisma from "@sokosumi/database/client";
-import { betterAuth } from "better-auth";
+import { APIError, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { apiKey, openAPI, organization } from "better-auth/plugins";
+import {
+  apiKey,
+  createAuthMiddleware,
+  openAPI,
+  organization,
+} from "better-auth/plugins";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { getEnv } from "@/config/env";
@@ -53,6 +58,52 @@ export const auth = betterAuth({
         },
       },
     },
+  },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      switch (ctx.path) {
+        // Check if user has accepted terms
+        case "/sign-up/email": {
+          if (!ctx.body?.termsAccepted) {
+            throw new APIError("BAD_REQUEST", {
+              code: "TERMS_NOT_ACCEPTED",
+            });
+          }
+          break;
+        }
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      // Check if user has accepted terms
+      if (ctx.path.startsWith("/sign-in")) {
+        const user = ctx.context.newSession?.user;
+        if (user && !user.termsAccepted) {
+          throw new APIError("BAD_REQUEST", {
+            code: "TERMS_NOT_ACCEPTED",
+          });
+        }
+      }
+      // Sync user email with Stripe after email change verification
+      if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
+        const user = ctx.context.newSession?.user;
+        if (user.stripeCustomerId && user.email) {
+          // Fire and forget - don't wait for sync to complete
+          stripeClient
+            .updateCustomerEmail(user.stripeCustomerId, user.email)
+            .then(() => {
+              console.log(
+                `✅ Synced user ${user.id} (${user.email}) email to Stripe customer ${user.stripeCustomerId}`,
+              );
+            })
+            .catch((error) => {
+              console.error(
+                `Error syncing user email with Stripe for user ${user.id} (${user.email}):`,
+                error,
+              );
+            });
+        }
+      }
+    }),
   },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
