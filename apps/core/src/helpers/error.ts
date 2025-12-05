@@ -25,6 +25,7 @@ export const errorResponseSchema = z
         .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
       path: z.string().openapi({ example: "/v1/agents" }),
       method: z.string().openapi({ example: "GET" }),
+      language: z.string().openapi({ example: "en" }),
     }),
   })
   .openapi("ErrorResponse");

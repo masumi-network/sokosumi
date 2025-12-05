@@ -4,6 +4,7 @@ import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
+import { languageDetector } from "hono/language";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
@@ -12,12 +13,15 @@ import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initSentry } from "@/lib/sentry";
+import { type LanguageVariables } from "@/middleware/language";
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
 initSentry();
 
-const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
+const app = new OpenAPIHono<{
+  Variables: RequestIdVariables & LanguageVariables;
+}>();
 
 app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   type: "http",
@@ -25,11 +29,18 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   bearerFormat: "JWT",
 });
 
-app.onError(errorHandler);
-
 app.use(logger());
 app.use(requestId());
 app.use(sentryMiddleware());
+app.use(
+  languageDetector({
+    supportedLanguages: ["en"], // Must include fallback
+    fallbackLanguage: "en", // Required
+    cookieOptions: {
+      sameSite: "Lax", // Cookie same-site policy
+    },
+  }),
+);
 app.use(
   "*",
   cors({
@@ -41,6 +52,8 @@ app.use(
     maxAge: 86400,
   }),
 );
+
+app.onError(errorHandler);
 
 app.notFound(() => {
   throw notFound();
