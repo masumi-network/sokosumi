@@ -1,8 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 
 import { authMiddleware, type AuthVariables } from "@/middleware/auth";
-import type { LanguageVariables } from "@/middleware/language";
 
 /**
  * Type-safe OpenAPIHono class with AuthContext in Variables
@@ -16,7 +14,7 @@ import type { LanguageVariables } from "@/middleware/language";
  * // requireAuth middleware is already applied
  */
 export class OpenAPIHonoWithAuth extends OpenAPIHono<{
-  Variables: AuthVariables & RequestIdVariables & LanguageVariables;
+  Variables: AuthVariables;
 }> {
   constructor() {
     super();
