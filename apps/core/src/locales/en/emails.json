@@ -2,7 +2,7 @@
   "verification": {
     "subject": "Sokosumi - Verify your email address",
     "title": "Verify your email address",
-    "greeting": "Hello {{name}}",
+    "greeting": "Hello {name}",
     "message": "Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
     "button": "Verify email",
     "linkInstructions": "Or copy and paste this URL into your browser:",
