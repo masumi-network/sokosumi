@@ -18,8 +18,6 @@ interface JobDetailsInputsProps {
   rawInput: string | null;
   rawInputSchema: string | null;
   blobs?: Blob[];
-  inputHash?: string | null;
-  identifierFromPurchaser?: string | null;
   data?: JobWithEvent;
 }
 
@@ -27,8 +25,6 @@ export default function JobDetailsInputs({
   rawInput,
   rawInputSchema,
   blobs,
-  inputHash,
-  identifierFromPurchaser,
   data,
 }: JobDetailsInputsProps) {
   return (
@@ -37,8 +33,6 @@ export default function JobDetailsInputs({
         rawInput={rawInput}
         rawInputSchema={rawInputSchema}
         blobs={blobs}
-        inputHash={inputHash}
-        identifierFromPurchaser={identifierFromPurchaser}
         data={data}
       />
     </DefaultErrorBoundary>
@@ -90,10 +84,12 @@ function JobDetailsInputsInner({
   rawInput,
   rawInputSchema,
   blobs,
-  inputHash,
-  identifierFromPurchaser,
   data,
 }: JobDetailsInputsProps) {
+  const { job, event } = data ?? {};
+  const inputHash = event?.inputHash ?? null;
+  const identifierFromPurchaser = job?.identifierFromPurchaser ?? null;
+
   const t = useTranslations("Components.Jobs.JobDetails.Input");
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
   const input = rawInput ? JSON.parse(rawInput) : {};

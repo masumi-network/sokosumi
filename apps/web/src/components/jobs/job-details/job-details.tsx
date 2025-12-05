@@ -168,8 +168,6 @@ function JobDetailsContent({
             rawInput={data.event.input}
             rawInputSchema={data.event.inputSchema ?? null}
             blobs={inputBlobs}
-            inputHash={data.event.inputHash ?? null}
-            identifierFromPurchaser={data.job.identifierFromPurchaser ?? null}
             data={data}
           />
         </AccordionItemWrapper>
