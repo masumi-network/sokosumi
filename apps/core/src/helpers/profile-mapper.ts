@@ -5,6 +5,12 @@ import { userRepository } from "@sokosumi/database/repositories";
 
 import { uploadImage } from "@/lib/blob";
 
+export type ProfileToUserResult = {
+  name: string;
+  image: string | undefined;
+  imageHash: string | null;
+};
+
 /**
  * Maps OAuth profile data to user fields
  * Hash-based approach to avoid cookie size limits with base64 images
@@ -12,7 +18,7 @@ import { uploadImage } from "@/lib/blob";
 export async function mapProfileToUser(profile: {
   name: string;
   picture: string;
-}) {
+}): Promise<ProfileToUserResult> {
   try {
     return await mapProfileToUserInner(profile);
   } catch (error) {
@@ -36,11 +42,7 @@ export async function mapProfileToUser(profile: {
 async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
-}): Promise<{
-  name: string;
-  image: string | undefined;
-  imageHash: string | null;
-}> {
+}): Promise<ProfileToUserResult> {
   const profilePicture = profile.picture;
 
   if (!profilePicture) {
