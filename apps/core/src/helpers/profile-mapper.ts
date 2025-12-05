@@ -23,6 +23,7 @@ export async function mapProfileToUser(profile: {
     return {
       name: profile.name,
       image: undefined,
+      imageHash: null,
     };
   }
 }
