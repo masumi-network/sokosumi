@@ -1,6 +1,7 @@
 import { getEnv } from "@/config/env";
+import { TIME } from "@/config/constants";
 
-const WEBHOOK_TIMEOUT_MS = 10000; // 10 seconds
+const WEBHOOK_TIMEOUT_MS = TIME.WEBHOOK_TIMEOUT * 1000;
 
 export type WebhookType = "userCreated" | "userUpdated" | "accountCreated";
 

@@ -9,6 +9,7 @@ import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
+import { TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
@@ -55,7 +56,7 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
     exposeHeaders: ["X-Request-Id", "Content-Length"],
-    maxAge: 86400,
+    maxAge: TIME.CORS_MAX_AGE,
   }),
 );
 

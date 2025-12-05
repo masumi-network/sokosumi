@@ -11,6 +11,7 @@ import { localization } from "better-auth-localization";
 
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
+import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { mapProfileToUser } from "@/helpers/profile-mapper";
 import {
@@ -20,14 +21,6 @@ import {
 } from "@/lib/email/index.js";
 import { i18next } from "@/lib/i18next";
 import { webhookService } from "@/services/webhook.service";
-
-// Example getUserLocale implementation (adapt to your needs)
-async function getUserLocale(request: Request): Promise<string | null> {
-  // Could check user preferences from database, cookies, headers, etc.
-  // return await db.user.getLocale(userId);
-  // return getCookieValue(request, 'locale');
-  return request.headers.get("x-user-locale");
-}
 
 const env = getEnv();
 
@@ -48,7 +41,7 @@ export const auth = betterAuth({
   session: {
     cookieCache: {
       enabled: true,
-      maxAge: 300, // 5 minutes in seconds
+      maxAge: TIME.SESSION_COOKIE_CACHE_MAX_AGE,
     },
   },
   database: prismaAdapter(prisma, {
@@ -137,8 +130,8 @@ export const auth = betterAuth({
   trustedOrigins,
   emailAndPassword: {
     enabled: true,
-    maxPasswordLength: 256,
-    minPasswordLength: 8,
+    maxPasswordLength: LIMITS.PASSWORD_MAX_LENGTH,
+    minPasswordLength: LIMITS.PASSWORD_MIN_LENGTH,
     requireEmailVerification: true,
     autoSignIn: false,
     sendResetPassword: async ({ user, url }) => {
@@ -179,7 +172,7 @@ export const auth = betterAuth({
     },
     sendOnSignUp: true,
     sendOnSignIn: true,
-    expiresIn: 172800, // 2 days in seconds
+    expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
     autoSignInAfterVerification: true,
   },
   user: {
@@ -243,8 +236,8 @@ export const auth = betterAuth({
     apiKey({
       rateLimit: {
         enabled: true,
-        timeWindow: 60, // 60 seconds
-        maxRequests: 100, // 100 requests per minute
+        timeWindow: TIME.RATE_LIMIT_WINDOW,
+        maxRequests: LIMITS.API_KEY_MAX_REQUESTS_PER_MINUTE,
       },
       enableMetadata: true,
     }),
@@ -259,9 +252,9 @@ export const auth = betterAuth({
           );
         },
       },
-      invitationLimit: 100,
-      organizationLimit: 100,
-      invitationExpiresIn: 604800, // 7 days in seconds
+      invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
+      organizationLimit: LIMITS.ORGANIZATION_LIMIT,
+      invitationExpiresIn: TIME.INVITATION_EXPIRES,
       cancelPendingInvitationsOnReInvite: true,
       allowUserToCreateOrganization(user) {
         return user.emailVerified;

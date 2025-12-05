@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { z } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
+import { CRYPTO } from "@/config/constants";
 import { uploadImage } from "@/lib/blob";
 
 export type ProfileToUserResult = {
@@ -71,7 +72,7 @@ async function mapProfileToUserInner(profile: {
 
   if (dataUriMatch) {
     const imageHash = crypto
-      .createHash("sha256")
+      .createHash(CRYPTO.IMAGE_HASH_ALGORITHM)
       .update(profilePicture)
       .digest("hex");
 
