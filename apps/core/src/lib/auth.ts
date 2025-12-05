@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import prisma from "@sokosumi/database/client";
 import { APIError, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -51,7 +52,10 @@ export const auth = betterAuth({
     account: {
       create: {
         after: async (account, _ctx) => {
-          webhookService.callAccountCreated(account.userId, account.providerId);
+          await webhookService.callAccountCreated(
+            account.userId,
+            account.providerId,
+          );
         },
       },
     },
@@ -65,12 +69,12 @@ export const auth = betterAuth({
         },
         after: async (user, _ctx) => {
           await stripeClient.createUserCustomer(user.id, user.name, user.email);
-          webhookService.callUserCreated(user);
+          await webhookService.callUserCreated(user);
         },
       },
       update: {
         after: async (user, _ctx) => {
-          webhookService.callUserUpdated(user);
+          await webhookService.callUserUpdated(user);
         },
       },
     },
@@ -112,10 +116,13 @@ export const auth = betterAuth({
               );
             })
             .catch((error) => {
-              console.error(
-                `Error syncing user email with Stripe for user ${user.id} (${user.email}):`,
-                error,
-              );
+              Sentry.captureException(error, {
+                tags: {
+                  user_id: user.id,
+                  email: user.email,
+                  stripe_customer_id: user.stripeCustomerId,
+                },
+              });
             });
         }
       }
