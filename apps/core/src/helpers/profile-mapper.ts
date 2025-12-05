@@ -4,7 +4,7 @@ import { z } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
 import { CRYPTO } from "@/config/constants";
-import { uploadImage } from "@/lib/blob";
+import { uploadImage } from "@/lib/blob.js";
 
 export type ProfileToUserResult = {
   name: string;

@@ -27,7 +27,7 @@ validateEnv();
 initSentry();
 await initI18next();
 
-// THIS NEEDS TO BE EXPORTED AT THE END
+// Main app is exported at the end to combine OpenAPI and auth routes
 const mainApp = new Hono();
 
 const app = new OpenAPIHono<{
