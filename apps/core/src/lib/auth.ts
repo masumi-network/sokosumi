@@ -7,6 +7,7 @@ import {
   openAPI,
   organization,
 } from "better-auth/plugins";
+import { localization } from "better-auth-localization";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { getEnv } from "@/config/env";
@@ -19,6 +20,14 @@ import {
 import { i18next } from "@/lib/i18next";
 import { postmarkClient } from "@/lib/postmark";
 import { webhookService } from "@/services/webhook.service";
+
+// Example getUserLocale implementation (adapt to your needs)
+async function getUserLocale(request: Request): Promise<string | null> {
+  // Could check user preferences from database, cookies, headers, etc.
+  // return await db.user.getLocale(userId);
+  // return getCookieValue(request, 'locale');
+  return request.headers.get("x-user-locale");
+}
 
 const env = getEnv();
 
@@ -227,6 +236,9 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    localization({
+      defaultLocale: "default",
+    }),
     openAPI(),
     apiKey({
       rateLimit: {
