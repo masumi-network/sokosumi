@@ -18,6 +18,11 @@ import {
 } from "@/lib/email/index.js";
 import { i18next } from "@/lib/i18next";
 import { postmarkClient } from "@/lib/postmark";
+import {
+  callAccountCreatedWebHook,
+  callUserCreatedWebHook,
+  callUserUpdatedWebHook,
+} from "@/services/webhook.service";
 
 const env = getEnv();
 
@@ -45,6 +50,13 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   databaseHooks: {
+    account: {
+      create: {
+        after: async (account, _ctx) => {
+          callAccountCreatedWebHook(account.userId, account.providerId);
+        },
+      },
+    },
     user: {
       create: {
         before: async (user, _ctx) => {
@@ -55,6 +67,12 @@ export const auth = betterAuth({
         },
         after: async (user, _ctx) => {
           await stripeClient.createUserCustomer(user.id, user.name, user.email);
+          callUserCreatedWebHook(user);
+        },
+      },
+      update: {
+        after: async (user, _ctx) => {
+          callUserUpdatedWebHook(user);
         },
       },
     },
