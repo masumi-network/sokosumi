@@ -46,6 +46,9 @@ const envSchema = z.object({
   // Postmark
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
+
+  // Stripe
+  STRIPE_SECRET_KEY: z.string().min(1),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
