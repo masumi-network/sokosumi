@@ -11,7 +11,7 @@ import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
 import { TIME } from "@/config/constants";
-import { getEnv } from "@/config/env";
+import { getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initI18next } from "@/lib/i18next";
@@ -23,6 +23,7 @@ import {
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
+validateEnv();
 initSentry();
 await initI18next();
 

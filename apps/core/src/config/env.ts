@@ -63,7 +63,7 @@ export type EnvConfig = z.infer<typeof envSchema>;
 
 let envConfig: EnvConfig | null = null;
 
-function validateEnv(): EnvConfig {
+export function validateEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
