@@ -1,6 +1,13 @@
 {
-  "name": "core",
+  "name": "@sokosumi/core",
   "type": "module",
+  "exports": {
+    "./lib/auth": {
+      "types": "./src/lib/auth.ts",
+      "import": "./src/lib/auth.ts",
+      "default": "./src/lib/auth.ts"
+    }
+  },
   "engines": {
     "node": ">=22.16.0 <23.0.0"
   },
