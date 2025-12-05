@@ -53,10 +53,7 @@ export const auth = betterAuth({
     account: {
       create: {
         after: async (account, _ctx) => {
-          await webhookService.callAccountCreated(
-            account.userId,
-            account.providerId,
-          );
+          webhookService.callAccountCreated(account.userId, account.providerId);
         },
       },
     },
@@ -74,12 +71,12 @@ export const auth = betterAuth({
             user.name,
             user.email,
           );
-          await webhookService.callUserCreated(user);
+          webhookService.callUserCreated(user);
         },
       },
       update: {
         after: async (user, _ctx) => {
-          await webhookService.callUserUpdated(user);
+          webhookService.callUserUpdated(user);
         },
       },
     },
