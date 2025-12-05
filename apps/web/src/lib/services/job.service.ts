@@ -200,6 +200,9 @@ export const jobService = (() => {
   function extractJobFailureNotificationData(
     job: JobWithStatus,
   ): JobFailureNotificationEmailProps {
+    const completedEvent = job.events.find(
+      (event) => event.status === AgentJobStatus.COMPLETED,
+    );
     return {
       network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       agentId: job.agentId,
@@ -209,7 +212,7 @@ export const jobService = (() => {
       jobBlockchainIdentifier: job.blockchainIdentifier,
       onChainStatus: job.purchase?.onChainStatus ?? "N/A",
       agentStatus: job.status,
-      result: job.result,
+      result: completedEvent?.result ?? null,
       resultHash: job.purchase?.resultHash ?? "N/A",
     };
   }
@@ -447,17 +450,16 @@ export const jobService = (() => {
 
     // Enqueue any sources from demo output
     try {
-      const result = job.result;
-      if (result !== null) {
-        // Find the latest COMPLETED event with a result for the demo job
-        const eventWithResult = job.events.find((e) => e.result === result);
-        if (eventWithResult) {
-          await sourceImportService.enqueueFromMarkdown(
-            userId,
-            eventWithResult.id,
-            result,
-          );
-        }
+      // Find the COMPLETED event with a result for the demo job
+      const eventWithResult = job.events.find(
+        (e) => e.status === AgentJobStatus.COMPLETED && e.result !== null,
+      );
+      if (eventWithResult?.result) {
+        await sourceImportService.enqueueFromMarkdown(
+          userId,
+          eventWithResult.id,
+          eventWithResult.result,
+        );
       }
     } catch {
       // Ignore errors

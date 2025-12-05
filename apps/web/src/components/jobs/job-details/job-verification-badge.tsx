@@ -1,7 +1,7 @@
 "use client";
 
 import { OnChainJobStatus } from "@sokosumi/database";
-import { type JobWithStatus } from "@sokosumi/database";
+import { type JobWithEvent } from "@sokosumi/database";
 import { isDemoJob, isFreeJob } from "@sokosumi/database/helpers";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
@@ -24,13 +24,13 @@ interface VerificationState {
 
 interface JobVerificationBadgeProps {
   direction: "input" | "result";
-  job: JobWithStatus;
+  data: JobWithEvent;
   className?: string;
 }
 
 export function JobVerificationBadge({
   direction,
-  job,
+  data,
   className,
 }: JobVerificationBadgeProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
@@ -40,12 +40,15 @@ export function JobVerificationBadge({
 
   const verificationState = useMemo<VerificationState>(() => {
     // For FREE and DEMO jobs without identifier, verification is not applicable
-    if (!job.identifierFromPurchaser && (isDemoJob(job) || isFreeJob(job))) {
+    if (
+      !data.job.identifierFromPurchaser &&
+      (isDemoJob(data.job) || isFreeJob(data.job))
+    ) {
       return { isPending: false, isVerified: false, isNotApplicable: true };
     }
 
     // For jobs without identifier but not FREE/DEMO, show as unverified
-    if (!job.identifierFromPurchaser) {
+    if (!data.job.identifierFromPurchaser) {
       return { isPending: false, isVerified: false, isNotApplicable: false };
     }
 
@@ -54,14 +57,14 @@ export function JobVerificationBadge({
         // Direction: output → pending only when on-chain state is FUNDS_LOCKED
         // Otherwise, try to verify the hash
         const isFundsLocked =
-          job.purchase?.onChainStatus === OnChainJobStatus.FUNDS_LOCKED;
+          data.job.purchase?.onChainStatus === OnChainJobStatus.FUNDS_LOCKED;
         if (isFundsLocked) {
           return { isPending: true, isVerified: false, isNotApplicable: false };
         } else {
           const resultVerificationOptions = {
-            identifierFromPurchaser: job.identifierFromPurchaser,
-            resultHash: job.purchase?.resultHash ?? null,
-            result: job.result,
+            identifierFromPurchaser: data.job.identifierFromPurchaser,
+            resultHash: data.job.purchase?.resultHash ?? null,
+            result: data.event.result,
           };
 
           return {
@@ -73,9 +76,9 @@ export function JobVerificationBadge({
       }
       case "input":
         const inputVerificationOptions = {
-          identifierFromPurchaser: job.identifierFromPurchaser,
-          inputHash: job.inputHash ?? null,
-          input: job.input,
+          identifierFromPurchaser: data.job.identifierFromPurchaser,
+          inputHash: data.event.inputHash ?? null,
+          input: data.event.input,
         };
 
         return {
@@ -86,7 +89,7 @@ export function JobVerificationBadge({
       default:
         return { isPending: false, isVerified: false, isNotApplicable: false };
     }
-  }, [direction, job]);
+  }, [direction, data]);
 
   const { isPending, isVerified, isNotApplicable } = verificationState;
 

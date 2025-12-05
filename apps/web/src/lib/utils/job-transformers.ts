@@ -209,27 +209,23 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
 }
 
 /**
- * Retrieves all input blobs from all events of a job.
+ * Filters blobs to return only those with INPUT origin.
  *
- * @param job - The job to extract input blobs from.
+ * @param blobs - The array of blobs to filter.
  * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
  */
-export function getInputBlobs(job: JobWithStatus): Blob[] {
-  return job.events.flatMap((event) =>
-    event.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
-  );
+export function getInputBlobs(blobs: Blob[]): Blob[] {
+  return blobs.filter((blob) => blob.origin === BlobOrigin.INPUT);
 }
 
 /**
- * Retrieves all output blobs from all events of a job.
+ * Filters blobs to return only those with OUTPUT origin.
  *
- * @param job - The job to extract output blobs from.
+ * @param blobs - The array of blobs to filter.
  * @returns An array of Blob objects with origin OUTPUT, or an empty array if none exist.
  */
-export function getOutputBlobs(job: JobWithStatus): Blob[] {
-  return job.events.flatMap((event) =>
-    event.blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT),
-  );
+export function getOutputBlobs(blobs: Blob[]): Blob[] {
+  return blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT);
 }
 
 /**

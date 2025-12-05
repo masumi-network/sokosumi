@@ -1,23 +1,35 @@
 "use client";
-import type { Blob } from "@sokosumi/database";
+
+import type { Blob, JobWithEvent } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 import * as z from "zod";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
+import { Separator } from "@/components/ui/separator";
 import { jobInputSchema, ValidJobInputTypes } from "@/lib/job-input";
+import { getInputHash } from "@/lib/utils";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
+
+import { HashGroupRow } from "./hash-group-row";
 
 interface JobDetailsInputsProps {
   rawInput: string | null;
   rawInputSchema: string | null;
   blobs?: Blob[];
+  inputHash?: string | null;
+  identifierFromPurchaser?: string | null;
+  data?: JobWithEvent;
 }
 
 export default function JobDetailsInputs({
   rawInput,
   rawInputSchema,
   blobs,
+  inputHash,
+  identifierFromPurchaser,
+  data,
 }: JobDetailsInputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsInputsError />}>
@@ -25,6 +37,9 @@ export default function JobDetailsInputs({
         rawInput={rawInput}
         rawInputSchema={rawInputSchema}
         blobs={blobs}
+        inputHash={inputHash}
+        identifierFromPurchaser={identifierFromPurchaser}
+        data={data}
       />
     </DefaultErrorBoundary>
   );
@@ -75,10 +90,19 @@ function JobDetailsInputsInner({
   rawInput,
   rawInputSchema,
   blobs,
+  inputHash,
+  identifierFromPurchaser,
+  data,
 }: JobDetailsInputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Input");
+  const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
   const input = rawInput ? JSON.parse(rawInput) : {};
   const inputSchema = rawInputSchema ? JSON.parse(rawInputSchema) : {};
+
+  const calculatedInputHash = useMemo(() => {
+    if (!identifierFromPurchaser || !rawInput) return null;
+    return getInputHash(rawInput, identifierFromPurchaser);
+  }, [rawInput, identifierFromPurchaser]);
 
   let inputsMap: Record<string, { name: string; type: ValidJobInputTypes }> =
     {};
@@ -94,6 +118,8 @@ function JobDetailsInputsInner({
         {} as Record<string, { name: string; type: ValidJobInputTypes }>,
       );
   }
+
+  const showHashSection = data && (inputHash || calculatedInputHash);
 
   return (
     <div className="flex flex-col gap-2">
@@ -119,6 +145,21 @@ function JobDetailsInputsInner({
         </div>
       ) : (
         <p className="text-base">{t("none")}</p>
+      )}
+      {showHashSection && (
+        <>
+          <Separator className="my-2" />
+          <HashGroupRow
+            label={tMeta("inputHash")}
+            direction="input"
+            onChainHash={inputHash ?? null}
+            calculatedHash={calculatedInputHash}
+            data={data}
+            tLabelOnChain={tMeta("onChain")}
+            tLabelCalculated={tMeta("calculated")}
+            tMissing={tMeta("missing")}
+          />
+        </>
       )}
     </div>
   );

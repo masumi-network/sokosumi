@@ -15,8 +15,6 @@ describe("Job search functionality", () => {
     agentId: "agent-1",
     createdAt: new Date(),
     updatedAt: new Date(),
-    input: JSON.stringify({ query: "hello world" }),
-    result: JSON.stringify({ result: "Hello World Response" }),
     links: [
       {
         title: "Example",
@@ -116,8 +114,21 @@ describe("Job search functionality", () => {
   it("should handle malformed JSON gracefully", () => {
     const jobWithBadJson = {
       ...mockJob,
-      input: "invalid json",
-      output: "also invalid",
+      events: [
+        {
+          id: "event-bad",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          status: AgentJobStatus.AWAITING_PAYMENT,
+          input: "invalid json",
+          result: "also invalid",
+          inputHash: null,
+          inputSchema: null,
+          jobId: "job-1",
+          externalId: "external-bad",
+          signature: null,
+        },
+      ],
     };
 
     expect(jobMatchesQuery(jobWithBadJson, "Test")).toBe(true); // Should still match name

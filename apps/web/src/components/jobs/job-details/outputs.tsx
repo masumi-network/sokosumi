@@ -1,21 +1,25 @@
 "use client";
 
-import { JobStatus, JobWithStatus } from "@sokosumi/database";
+import { JobStatus, type JobWithEvent } from "@sokosumi/database";
 import { isPaidJob } from "@sokosumi/database/helpers";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
+import { Separator } from "@/components/ui/separator";
+import { getResultHash } from "@/lib/utils";
 
 import CopyMarkdown from "./copy-markdown";
 import DownloadButton from "./download-button";
+import { HashGroupRow } from "./hash-group-row";
 import JobShareButton from "./job-share-button";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
 
 interface JobDetailsOutputsProps {
-  job: JobWithStatus;
+  data: JobWithEvent;
   readOnly?: boolean;
   activeOrganizationId?: string | null;
 }
@@ -29,14 +33,14 @@ function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
 }
 
 export default function JobDetailsOutputs({
-  job,
+  data,
   readOnly = false,
   activeOrganizationId,
 }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
       <JobDetailsOutputsInner
-        job={job}
+        data={data}
         readOnly={readOnly}
         activeOrganizationId={activeOrganizationId}
       />
@@ -45,14 +49,24 @@ export default function JobDetailsOutputs({
 }
 
 function JobDetailsOutputsInner({
-  job,
+  data,
   readOnly,
   activeOrganizationId,
 }: JobDetailsOutputsProps) {
+  const { job, event } = data;
   const t = useTranslations("Components.Jobs.JobDetails.Output");
+  const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
   const searchParams = useSearchParams();
 
-  const result = job.result;
+  const result = event.result;
+
+  const calculatedResultHash = useMemo(() => {
+    if (!job.identifierFromPurchaser || !result) return null;
+    return getResultHash(result, job.identifierFromPurchaser);
+  }, [result, job.identifierFromPurchaser]);
+
+  const onChainResultHash = job.purchase?.resultHash ?? null;
+  const showHashSection = onChainResultHash || calculatedResultHash;
 
   return (
     <JobDetailsOutputsLayout>
@@ -79,11 +93,26 @@ function JobDetailsOutputsInner({
               <RequestRefundButton initialJob={job} />
             )}
           </div>
+          {showHashSection && (
+            <>
+              <Separator className="my-2" />
+              <HashGroupRow
+                label={tMeta("resultHash")}
+                direction="result"
+                onChainHash={onChainResultHash}
+                calculatedHash={calculatedResultHash}
+                data={data}
+                tLabelOnChain={tMeta("onChain")}
+                tLabelCalculated={tMeta("calculated")}
+                tMissing={tMeta("missing")}
+              />
+            </>
+          )}
         </>
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {job.status === JobStatus.FAILED && !readOnly && isPaidJob(job) && (
+          {event.status === JobStatus.FAILED && !readOnly && isPaidJob(job) && (
             <div className="flex justify-end">
               <RequestRefundButton initialJob={job} />
             </div>

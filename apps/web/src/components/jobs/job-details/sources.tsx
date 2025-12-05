@@ -20,7 +20,8 @@ export default function JotOutputSources({ job }: JobOutputSourcesProps) {
 function JobOutputSourcesInner({ job }: JobOutputSourcesProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Sources");
 
-  const outputBlobs = getOutputBlobs(job);
+  const allBlobs = job.events.flatMap((event) => event.blobs);
+  const outputBlobs = getOutputBlobs(allBlobs);
   const links = getResultLinks(job);
   if (outputBlobs.length === 0 && links.length === 0) return null;
 

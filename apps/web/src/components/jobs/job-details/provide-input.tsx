@@ -1,17 +1,20 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { JobWithStatus } from "@sokosumi/database";
-import { Loader2 } from "lucide-react";
+import { type JobWithEvent } from "@sokosumi/database";
+import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React from "react";
-import { SubmitHandler, useForm } from "react-hook-form";
+import React, { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import JobInput from "@/components/create-job-modal/job-input/job-input";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
+import { CommonErrorCode } from "@/lib/actions";
+import { provideJobInput } from "@/lib/actions/job/action";
 import {
   defaultValues,
   filterOutNullValues,
@@ -20,23 +23,22 @@ import {
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
+import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 interface JobDetailsProvideInputProps {
-  job: JobWithStatus;
+  data: JobWithEvent;
 }
 
 export default function JobDetailsProvideInput({
-  job,
+  data,
 }: JobDetailsProvideInputProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
-  const tForm = useTranslations("Library.JobInput.Form");
-  const _router = useRouter();
 
   // Parse input schema from job - validate each entry individually
-  const inputSchemas = React.useMemo<JobInputSchemaType[]>(() => {
+  const inputSchemas = useMemo<JobInputSchemaType[]>(() => {
     try {
-      if (job.inputSchema) {
-        const parsed = JSON.parse(job.inputSchema);
+      if (data.event.inputSchema) {
+        const parsed = JSON.parse(data.event.inputSchema);
         if (Array.isArray(parsed)) {
           // Validate each entry individually to allow partial success
           const validatedSchemas: JobInputSchemaType[] = [];
@@ -55,58 +57,14 @@ export default function JobDetailsProvideInput({
       console.error("Failed to parse input schema", _error);
     }
     return [];
-  }, [job.inputSchema]);
+  }, [data.event.inputSchema]);
 
-  const form = useForm<JobInputsFormSchemaType>({
-    resolver: zodResolver(jobInputsFormSchema(inputSchemas, tForm)),
-    defaultValues: defaultValues(inputSchemas),
-    mode: "onChange",
-  });
-
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-
-  const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
-    values,
-  ) => {
-    setIsSubmitting(true);
-
-    try {
-      const _transformedInputData = filterOutNullValues(values);
-
-      // TODO: Handle agent input schema
-      // const result = await provideJobInput({
-      //   input: {
-      //     jobId: job.id,
-      //     inputData: transformedInputData,
-      //   },
-      // });
-
-      // setIsSubmitting(false);
-
-      // if (result.ok) {
-      //   toast.success(t("submitSuccess"));
-      //   router.refresh();
-      // } else {
-      //   console.log("result", result);
-      //   switch (result.error.code) {
-      //     case CommonErrorCode.UNAUTHENTICATED:
-      //       toast.error(tForm("Error.unauthenticated"));
-      //       break;
-      //     case CommonErrorCode.BAD_INPUT:
-      //       toast.error(tForm("Error.badInput"));
-      //       break;
-      //     default:
-      //       toast.error(t("submitError"));
-      //       break;
-      //   }
-      // }
-    } catch (_error) {
-      setIsSubmitting(false);
-      toast.error(t("submitError"));
-    }
-  };
-
-  const { isSubmitting: formIsSubmitting, isValid } = form.formState;
+  // Create a stable key to force form remount when schemas change
+  // This ensures useForm is re-initialized with correct resolver and defaultValues
+  const formKey = useMemo(
+    () => inputSchemas.map((s) => s.id).join(","),
+    [inputSchemas],
+  );
 
   if (inputSchemas.length === 0) {
     return (
@@ -116,9 +74,94 @@ export default function JobDetailsProvideInput({
     );
   }
 
+  // Render form in a keyed component so useForm re-initializes when schemas change
+  return (
+    <ProvideInputForm key={formKey} data={data} inputSchemas={inputSchemas} />
+  );
+}
+
+interface ProvideInputFormProps {
+  data: JobWithEvent;
+  inputSchemas: JobInputSchemaType[];
+}
+
+function ProvideInputForm({ data, inputSchemas }: ProvideInputFormProps) {
+  const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
+  const tForm = useTranslations("Library.JobInput.Form");
+  const router = useRouter();
+
+  // Defer OS detection to client-side to avoid hydration mismatch
+  const [{ os, isMobile }, setOsInfo] = useState<{
+    os: OS;
+    isMobile: boolean;
+  }>({ os: "Unknown", isMobile: false });
+
+  useEffect(() => {
+    setOsInfo(getOSFromUserAgent());
+  }, []);
+
+  const form = useForm<JobInputsFormSchemaType>({
+    resolver: zodResolver(jobInputsFormSchema(inputSchemas, tForm)),
+    defaultValues: defaultValues(inputSchemas),
+    mode: "onChange",
+  });
+
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const onSubmit = async () => {
+    setIsSubmitting(true);
+
+    // Use form.getValues() directly to get the current form values
+    const values = form.getValues();
+
+    try {
+      const transformedInputData = filterOutNullValues(values);
+
+      const statusId = data.event.statusId;
+      if (!statusId) {
+        throw new Error("Status ID is required");
+      }
+
+      const result = await provideJobInput({
+        input: {
+          jobId: data.job.id,
+          statusId: data.event.statusId ?? "",
+          inputData: transformedInputData,
+        },
+      });
+
+      setIsSubmitting(false);
+
+      if (result.ok) {
+        toast.success(t("submitSuccess"));
+        router.refresh();
+      } else {
+        switch (result.error.code) {
+          case CommonErrorCode.UNAUTHENTICATED:
+            toast.error(tForm("Error.unauthenticated"));
+            break;
+          case CommonErrorCode.BAD_INPUT:
+            toast.error(tForm("Error.badInput"));
+            break;
+          default:
+            toast.error(t("submitError"));
+            break;
+        }
+      }
+    } catch (_error) {
+      setIsSubmitting(false);
+      toast.error(t("submitError"));
+    }
+  };
+
+  const { isSubmitting: formIsSubmitting, isValid } = form.formState;
+
+  const { formRef, handleSubmit: enterPreventedHandleSubmit } =
+    usePreventEnterSubmit(form, onSubmit, true);
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
+      <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
         <fieldset
           disabled={isSubmitting || formIsSubmitting}
           className="flex flex-1 flex-col gap-6"
@@ -135,11 +178,20 @@ export default function JobDetailsProvideInput({
             <Button
               type="submit"
               disabled={isSubmitting || formIsSubmitting || !isValid}
+              className="items-center justify-between gap-1"
             >
-              {(isSubmitting || formIsSubmitting) && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+              <div className="flex items-center gap-1">
+                {(isSubmitting || formIsSubmitting) && (
+                  <Loader2 className="size-4 animate-spin" />
+                )}
+                {t("submit")}
+              </div>
+              {!isMobile && (
+                <div className="flex items-center gap-1">
+                  {os === "MacOS" ? <Command /> : tForm("ctrl")}
+                  <CornerDownLeft />
+                </div>
               )}
-              {t("submit")}
             </Button>
           </div>
         </fieldset>

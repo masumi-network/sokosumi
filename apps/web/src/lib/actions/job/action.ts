@@ -1,7 +1,11 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { JobShare, PaidJobWithStatus } from "@sokosumi/database";
+import {
+  JobEventWithStatus,
+  JobShare,
+  PaidJobWithStatus,
+} from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   jobRepository,
@@ -154,7 +158,7 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       // Save files uploaded if any
-      const jobEvent = job.events[0] ?? null;
+      const jobEvent: JobEventWithStatus = job.events[0];
 
       if (!jobEvent) {
         throw new Error("Input event not found");
@@ -339,7 +343,6 @@ export const provideJobInput = withAuthContext<
       revalidatePath(`/agents/${job.agentId}/jobs/${job.id}`, "layout");
       return Ok({ jobId: job.id });
     } catch (error) {
-      console.error("Failed to provide job input", error);
       scope.setTag("error_type", "job_input_submission_error");
       scope.setContext("error", {
         message: error instanceof Error ? error.message : String(error),

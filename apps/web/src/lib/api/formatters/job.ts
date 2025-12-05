@@ -1,12 +1,32 @@
 import "server-only";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { AgentJobStatus, JobWithStatus } from "@sokosumi/database";
 
 import { JobResponse, jobResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 import { formatJobShareResponse } from "./job-share";
+
+/**
+ * Extracts input from job events.
+ * Returns the first event's input that is not null.
+ */
+function getJobInput(job: JobWithStatus): string {
+  const inputEvent = job.events.find((event) => event.input !== null);
+  return inputEvent?.input ?? "{}";
+}
+
+/**
+ * Extracts result from job events.
+ * Returns the completed event's result, or null if not found.
+ */
+function getJobResult(job: JobWithStatus): string | null {
+  const completedEvent = job.events.find(
+    (event) => event.status === AgentJobStatus.COMPLETED,
+  );
+  return completedEvent?.result ?? null;
+}
 
 /**
  * Formats job data for API response
@@ -24,8 +44,8 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
     agentJobId: job.agentJobId,
     agentJobStatus: job.events.at(0)?.status,
     onChainStatus: job.purchase?.onChainStatus ?? null,
-    input: job.input,
-    result: job.result,
+    input: getJobInput(job),
+    result: getJobResult(job),
     startedAt: dateToISO(job.createdAt),
     completedAt: job.completedAt ? dateToISO(job.completedAt) : null,
     jobType: job.jobType,

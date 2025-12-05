@@ -1,5 +1,4 @@
 import { JobType, type JobWithStatus } from "@sokosumi/database";
-import { computeJobStatus } from "@sokosumi/database/helpers";
 
 import { type JobStatusData } from "@/lib/ably";
 
@@ -30,7 +29,7 @@ export function getJobStatusData(job: JobWithStatus): JobStatusData {
 
   return {
     jobId: job.id,
-    jobStatus: computeJobStatus(job),
+    jobStatus: job.status,
     jobStatusSettled,
   };
 }

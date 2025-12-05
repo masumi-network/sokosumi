@@ -6,7 +6,6 @@ export { DatetimeInput } from "./datetime-input";
 export { EmailInput } from "./email-input";
 export { FileInput } from "./file-input";
 export { HiddenInput } from "./hidden-input";
-export { InputGroupTextareaInput } from "./input-group-textarea-input";
 export { MonthInput } from "./month-input";
 export { MultiselectInput } from "./multiselect-input";
 export { NumberInput } from "./number-input";

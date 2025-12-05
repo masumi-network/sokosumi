@@ -3,15 +3,17 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type {
+  Blob,
   CreditTransaction,
   JobType,
+  Link,
   Prisma,
 } from "../generated/prisma/client.js";
 
 export const jobInclude = {
   events: {
     orderBy: {
-      createdAt: "desc",
+      createdAt: "asc",
     },
     include: {
       blobs: true,
@@ -35,16 +37,28 @@ export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
 
+export interface JobEventWithStatus {
+  id: string;
+  statusId: string | null;
+  input: string | null;
+  inputHash: string | null;
+  status: JobStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  result: string | null;
+  inputSchema: string | null;
+  signature: string | null;
+  blobs?: Blob[] | null;
+  links?: Link[] | null;
+}
+
 type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
 type BaseJobWithStatus = JobWithRelations & {
   status: JobStatus;
   jobStatusSettled: boolean;
-  input: string | null;
-  inputHash: string | null;
-  inputSchema: string | null;
   completedAt: Date | null;
-  result: string | null;
+  events: JobEventWithStatus[];
 };
 
 type BaseFreeJob = {
@@ -142,3 +156,8 @@ export type JobWithStatus =
   | FreeJobWithStatus
   | PaidJobWithStatus
   | DemoJobWithStatus;
+
+export interface JobWithEvent {
+  job: JobWithStatus;
+  event: JobEventWithStatus;
+}

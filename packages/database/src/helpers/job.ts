@@ -8,6 +8,7 @@ import type { Job, JobEvent } from "../generated/prisma/client.js";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
+  type JobEventWithStatus,
   JobStatus,
   type JobWithRelations,
   type JobWithStatus,
@@ -162,7 +163,7 @@ export function computeJobStatus(job: JobWithRelations): JobStatus {
 }
 
 function computeFreeJobStatus(job: JobWithRelations): JobStatus {
-  const latestJobEvent = job.events.at(0);
+  const latestJobEvent = job.events.at(-1);
   if (!latestJobEvent) {
     return JobStatus.FAILED;
   }
@@ -206,7 +207,7 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
     return nextActionStatus;
   }
 
-  const latestJobEvent = job.events.at(0);
+  const latestJobEvent = job.events.at(-1);
   if (!latestJobEvent) {
     return JobStatus.FAILED;
   }
@@ -234,6 +235,8 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
       switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
+        case AgentJobStatus.AWAITING_PAYMENT:
+          return JobStatus.PROCESSING;
         default:
           return JobStatus.FAILED;
       }
@@ -255,20 +258,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
     (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
   );
   const completedAt = completedEvent?.createdAt ?? null;
-  const result = completedEvent?.result ?? null;
-  const inputEvent = job.events.find((event: JobEvent) => {
-    switch (job.jobType) {
-      case JobType.FREE:
-        return event.status === AgentJobStatus.RUNNING;
-      case JobType.PAID:
-        return event.status === AgentJobStatus.AWAITING_PAYMENT;
-      case JobType.DEMO:
-        return event.status === AgentJobStatus.COMPLETED;
-    }
-  });
-  const input = inputEvent?.input ?? null;
-  const inputSchema = inputEvent?.inputSchema ?? null;
-  const inputHash = inputEvent?.inputHash ?? null;
 
   const jobStatusSettled =
     job.jobType === JobType.PAID
@@ -277,15 +266,30 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
         : false
       : completedAt != null;
 
+  const computedStatus = computeJobStatus(job);
+
+  // Map all events with computed status (events already in ASC order from repo)
+  const mappedEvents: JobEventWithStatus[] = job.events.map((event) => ({
+    id: event.id,
+    statusId: event.externalId,
+    input: event.input,
+    inputHash: event.inputHash,
+    status: computeJobStatus({ ...job, events: [event] }),
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt,
+    result: event.result,
+    inputSchema: event.inputSchema,
+    signature: event.signature,
+    blobs: event.blobs,
+    links: event.links,
+  }));
+
   const baseJobWithStatus = {
     ...job,
-    status: computeJobStatus(job),
+    status: computedStatus,
     jobStatusSettled,
-    completedAt: completedAt ?? null,
-    result: result ?? null,
-    input: input ?? null,
-    inputHash: inputHash ?? null,
-    inputSchema: inputSchema ?? null,
+    completedAt,
+    events: mappedEvents,
   };
 
   switch (job.jobType) {
