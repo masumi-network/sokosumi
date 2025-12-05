@@ -200,9 +200,7 @@ export const jobService = (() => {
   function extractJobFailureNotificationData(
     job: JobWithStatus,
   ): JobFailureNotificationEmailProps {
-    const completedEvent = job.events.find(
-      (event) => event.status === AgentJobStatus.COMPLETED,
-    );
+    const latestEvent = job.events.at(-1);
     return {
       network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       agentId: job.agentId,
@@ -212,7 +210,7 @@ export const jobService = (() => {
       jobBlockchainIdentifier: job.blockchainIdentifier,
       onChainStatus: job.purchase?.onChainStatus ?? "N/A",
       agentStatus: job.status,
-      result: completedEvent?.result ?? null,
+      result: latestEvent?.result ?? "N/A",
       resultHash: job.purchase?.resultHash ?? "N/A",
     };
   }
