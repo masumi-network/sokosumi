@@ -1,5 +1,14 @@
-import { ShieldCheck } from "lucide-react";
+"use client";
 
+import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface AgentVerifiedBadgeProps {
@@ -7,18 +16,37 @@ interface AgentVerifiedBadgeProps {
 }
 
 function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
+  const t = useTranslations("Components.Agents.AgentVerifiedBadge");
+
   return (
-    <div
-      className={cn(
-        "bg-agent-verified-background flex items-center gap-1 rounded-md p-2",
-        className,
-      )}
-    >
-      <ShieldCheck
-        strokeWidth={1}
-        className="text-agent-verified-foreground size-6"
-      />
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            "bg-agent-verified-background flex items-center gap-1 rounded-md p-2",
+            className,
+          )}
+        >
+          <ShieldCheck
+            strokeWidth={1}
+            className="text-agent-verified-foreground size-6"
+          />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">
+        <p>{t("tooltip")}</p>
+        <Link
+          href="https://docs.masumi.network/core-concepts/identity"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {t("learnMore")}
+        </Link>
+        <span className="pl-1">{t("aboutAgentIdentities")}</span>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
