@@ -8,22 +8,20 @@ import { dateTimeSchema } from "./datetime.js";
  * Provides consistent success structure across all API endpoints
  */
 export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
-  z
-    .object({
-      /** The actual response data */
-      data: dataSchema,
+  z.object({
+    /** The actual response data */
+    data: dataSchema,
 
-      /** Metadata about the response */
-      meta: z.object({
-        /** ISO timestamp when the response was generated */
-        timestamp: dateTimeSchema,
-        // Room for future additions: pagination, requestId, version, etc.
-        requestId: z
-          .string()
-          .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
-      }),
-    })
-    .openapi("SuccessResponse");
+    /** Metadata about the response */
+    meta: z.object({
+      /** ISO timestamp when the response was generated */
+      timestamp: dateTimeSchema,
+      // Room for future additions: pagination, requestId, version, etc.
+      requestId: z
+        .string()
+        .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
+    }),
+  });
 
 /**
  * Generic TypeScript type for API success responses
