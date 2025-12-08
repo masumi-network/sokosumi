@@ -6,14 +6,14 @@ import { type User, userSchema } from "@/schemas/user.schema";
 import { convertCentsToCredits } from "./credits";
 
 /**
- * Fetches a user by ID with their credit balance
+ * Maps a user to a response object
  *
  * @param userId - The user ID to fetch
  * @param tx - Optional Prisma transaction client for transaction support
- * @returns User with credits converted from cents
+ * @returns Response object with user data and credits converted from cents
  * @throws {notFound} If user doesn't exist
  */
-export async function getUserWithCredits(
+export async function mapUserToResponse(
   user: DatabaseUser,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<User> {

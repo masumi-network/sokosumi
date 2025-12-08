@@ -3,7 +3,7 @@ import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { getUserWithCredits } from "@/helpers/user";
+import { mapUserToResponse } from "@/helpers/user";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { type User, userSchema } from "@/schemas/user.schema";
 
@@ -85,7 +85,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      return await getUserWithCredits(updatedUser, tx);
+      return await mapUserToResponse(updatedUser, tx);
     });
 
     return ok(c, user);
