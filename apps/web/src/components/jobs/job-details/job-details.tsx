@@ -81,9 +81,8 @@ export default function JobDetails({
         </Accordion>
 
         {visibleEvents.map((event: JobEventWithStatus, index) => (
-          <div key={`${job.id}-event-${index}`}>
+          <div key={`${job.id}-event-${event.id}`}>
             <JobDetailsContent
-              key={`${job.id}-event-${index}`}
               data={{ job, event }}
               readOnly={readOnly}
               activeOrganizationId={activeOrganizationId}
