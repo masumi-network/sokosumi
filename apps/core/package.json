@@ -2,7 +2,7 @@
   "name": "core",
   "type": "module",
   "engines": {
-    "node": ">=22.16.0 <23.0.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -23,7 +23,7 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "22.19.1",
+    "@types/node": "24.10.1",
     "tsup": "8.5.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
