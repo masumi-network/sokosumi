@@ -1,9 +1,9 @@
-import { OpenAPIHonoWithRequestId } from "@/lib/hono.js";
+import { OpenAPIHono } from "@hono/zod-openapi";
 
 import mountGetAgentById from "./[id]/get.js";
 import mountGetAgents from "./get.js";
 
-const app = new OpenAPIHonoWithRequestId();
+const app = new OpenAPIHono();
 
 mountGetAgents(app);
 mountGetAgentById(app);

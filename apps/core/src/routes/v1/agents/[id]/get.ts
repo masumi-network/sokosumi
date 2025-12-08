@@ -1,10 +1,9 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithRequestId } from "@/lib/hono";
 import { agentSchema } from "@/schemas/agent.schema";
 
 const params = z.object({
@@ -28,7 +27,7 @@ const route = createRoute({
   },
 });
 
-export default function mount(app: OpenAPIHonoWithRequestId) {
+export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 

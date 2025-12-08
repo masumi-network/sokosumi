@@ -1,22 +1,31 @@
 import "dotenv/config";
 
 import { serve } from "@hono/node-server";
-import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { cors } from "hono/cors";
+import { Scalar } from "@scalar/hono-api-reference";
+import { Hono } from "hono";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
+import { getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { initI18next } from "@/lib/i18next";
 import { initSentry } from "@/lib/sentry";
 import { sentryMiddleware } from "@/middleware/sentry";
 import apiV1 from "@/routes/v1/index";
 
+validateEnv();
 initSentry();
+await initI18next();
 
-const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
+// Main app is exported at the end to combine OpenAPI and auth routes
+const mainApp = new Hono();
+
+const app = new OpenAPIHono<{
+  Variables: RequestIdVariables;
+}>();
 
 app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   type: "http",
@@ -24,22 +33,11 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   bearerFormat: "JWT",
 });
 
-app.onError(errorHandler);
-
 app.use(logger());
 app.use(requestId());
 app.use(sentryMiddleware());
-app.use(
-  "*",
-  cors({
-    origin: (origin) => origin || "*",
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    exposeHeaders: ["X-Request-Id"],
-    maxAge: 86400,
-  }),
-);
+
+app.onError(errorHandler);
 
 app.notFound(() => {
   throw notFound();
@@ -47,38 +45,27 @@ app.notFound(() => {
 
 app.route("/v1", apiV1);
 
-app.doc("/openapi.json", {
-  openapi: "3.0.3",
-  info: {
-    version: "1.0.0",
-    title: "Sokosumi API",
-  },
-  servers: [
-    {
-      url: `https://api.sokosumi.com/`,
-      description: "Production Server",
-    },
-    {
-      url: `https://preprod.api.sokosumi.com/`,
-      description: "Pre-production Server",
-    },
-  ],
-  security: [{ bearerAuth: [] }],
-});
 app.get(
   "/",
-  swaggerUI({
-    url: "openapi.json",
-    persistAuthorization: true,
-    withCredentials: true,
-    tryItOutEnabled: true,
+  Scalar({
+    pageTitle: "Sokosumi API Documentation",
+    sources: [
+      { url: "/v1/openapi.json", title: "Content" },
+      { url: "/v1/auth/open-api/generate-schema", title: "Auth" },
+    ],
+    defaultOpenAllTags: true,
+    layout: "modern",
+    theme: "saturn",
   }),
 );
 
+// Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
+mainApp.route("/", app);
+
 serve(
   {
-    fetch: app.fetch,
-    port: Number(process.env.PORT) || 8787,
+    fetch: mainApp.fetch,
+    port: getEnv().PORT,
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);

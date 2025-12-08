@@ -1,0 +1,13 @@
+{
+  "i18n-ally.localesPaths": ["src/locales"],
+  "i18n-ally.keystyle": "nested",
+  "i18n-ally.namespace": true,
+  "i18n-ally.enabledParsers": ["json"],
+  "i18n-ally.sourceLanguage": "en",
+  "i18n-ally.displayLanguage": "en",
+  "i18n-ally.enabledFrameworks": ["i18next"],
+  "i18n-ally.extract.keygenStyle": "nested",
+  "i18n-ally.pathMatcher": "{locale}/{namespace}.json",
+  "i18n-ally.namespaceDelimiter": ":",
+  "i18n-ally.refactor.templates": ["t('{key}')", "t('{namespace}:{key}')"]
+}

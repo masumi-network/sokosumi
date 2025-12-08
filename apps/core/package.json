@@ -1,6 +1,13 @@
 {
-  "name": "core",
+  "name": "@sokosumi/core",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/lib/auth.ts",
+      "import": "./src/lib/auth.ts",
+      "default": "./src/lib/auth.ts"
+    }
+  },
   "engines": {
     "node": "24.x"
   },
@@ -11,15 +18,21 @@
   },
   "dependencies": {
     "@hono/node-server": "1.19.6",
-    "@hono/swagger-ui": "0.5.2",
     "@hono/zod-openapi": "1.1.5",
+    "@scalar/hono-api-reference": "0.9.26",
     "@sentry/node": "10.29.0",
     "@sentry/profiling-node": "10.29.0",
     "@sokosumi/database": "workspace:*",
+    "@vercel/blob": "2.0.0",
     "better-auth": "1.4.5",
+    "better-auth-localization": "2.2.2",
     "decimal.js": "10.6.0",
     "dotenv": "17.2.3",
     "hono": "4.10.7",
+    "i18next": "25.7.1",
+    "i18next-fs-backend": "2.6.1",
+    "postmark": "4.0.5",
+    "stripe": "20.0.0",
     "uuid": "13.0.0"
   },
   "devDependencies": {
