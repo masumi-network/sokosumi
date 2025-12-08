@@ -1,6 +1,6 @@
 import type { Prisma, User } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { jobRepository, userRepository } from "@sokosumi/database/repositories";
+import { jobRepository } from "@sokosumi/database/repositories";
 import type { JobWithStatus } from "@sokosumi/database/types/job";
 
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -91,7 +91,9 @@ export async function requireUserAccess(
     throw forbidden("You can only access your own user data");
   }
 
-  const user = await userRepository.getUserById(requestedUserId, tx);
+  const user = await tx.user.findUnique({
+    where: { id: requestedUserId },
+  });
 
   if (!user) {
     throw notFound("User not found");

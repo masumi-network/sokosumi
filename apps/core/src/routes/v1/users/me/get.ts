@@ -1,14 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
-import {
-  creditTransactionRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
 
-import { convertCentsToCredits } from "@/helpers/credits";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { getUserWithCredits } from "@/helpers/user";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { userSchema } from "@/schemas/user.schema";
 
@@ -42,19 +38,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
 
     const user = await prisma.$transaction(async (tx) => {
-      const user = await userRepository.getUserById(authContext.userId, tx);
+      const user = await tx.user.findUnique({
+        where: { id: authContext.userId },
+      });
       if (!user) {
         throw notFound("User not found");
       }
-
-      const centsBalance = await creditTransactionRepository.getCentsByUserId(
-        user.id,
-        tx,
-      );
-      return {
-        ...user,
-        credits: convertCentsToCredits(centsBalance),
-      };
+      return await getUserWithCredits(user, tx);
     });
 
     return ok(c, userSchema.parse(user));
