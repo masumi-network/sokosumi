@@ -17,6 +17,22 @@ import {
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
+/**
+ * Returns the latest (most recent) job event from a job's events array.
+ *
+ * This helper assumes that events are ordered ascending by `createdAt`,
+ * which is enforced by `jobInclude` in `packages/database/src/types/job.ts`.
+ * The latest event is the last element in the array.
+ *
+ * @param job - An object containing an `events` array.
+ * @returns The latest event, or `undefined` if the events array is empty.
+ */
+export function getLatestJobEvent<TEvent>(job: {
+  events: TEvent[];
+}): TEvent | undefined {
+  return job.events.at(-1);
+}
+
 function checkPaymentStatus(
   job: JobWithRelations,
   now: Date,
@@ -163,7 +179,7 @@ export function computeJobStatus(job: JobWithRelations): JobStatus {
 }
 
 function computeFreeJobStatus(job: JobWithRelations): JobStatus {
-  const latestJobEvent = job.events.at(-1);
+  const latestJobEvent = getLatestJobEvent(job);
   if (!latestJobEvent) {
     return JobStatus.FAILED;
   }
@@ -207,7 +223,7 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
     return nextActionStatus;
   }
 
-  const latestJobEvent = job.events.at(-1);
+  const latestJobEvent = getLatestJobEvent(job);
   if (!latestJobEvent) {
     return JobStatus.FAILED;
   }
@@ -228,6 +244,14 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
       switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
+        case AgentJobStatus.AWAITING_PAYMENT:
+          return JobStatus.PROCESSING;
+        case AgentJobStatus.FAILED:
+          return JobStatus.FAILED;
+        case AgentJobStatus.RUNNING:
+          return JobStatus.PROCESSING;
+        case AgentJobStatus.AWAITING_INPUT:
+          return JobStatus.INPUT_REQUIRED;
         default:
           return JobStatus.RESULT_PENDING;
       }

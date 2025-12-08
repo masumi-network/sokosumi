@@ -1,6 +1,7 @@
 import "server-only";
 
 import { AgentJobStatus, JobWithStatus } from "@sokosumi/database";
+import { getLatestJobEvent } from "@sokosumi/database/helpers";
 
 import { JobResponse, jobResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
@@ -42,7 +43,7 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
     userId: job.userId,
     organizationId: job.organizationId,
     agentJobId: job.agentJobId,
-    agentJobStatus: job.events.at(0)?.status,
+    agentJobStatus: getLatestJobEvent(job)?.status,
     onChainStatus: job.purchase?.onChainStatus ?? null,
     input: getJobInput(job),
     result: getJobResult(job),

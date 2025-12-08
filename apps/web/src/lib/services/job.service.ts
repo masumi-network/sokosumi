@@ -15,7 +15,11 @@ import {
   Prisma,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";
+import {
+  computeJobStatus,
+  getLatestJobEvent,
+  isPaidJob,
+} from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
   jobEventRepository,
@@ -200,7 +204,7 @@ export const jobService = (() => {
   function extractJobFailureNotificationData(
     job: JobWithStatus,
   ): JobFailureNotificationEmailProps {
-    const latestEvent = job.events.at(-1);
+    const latestEvent = getLatestJobEvent(job);
     return {
       network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       agentId: job.agentId,
