@@ -27,9 +27,9 @@ const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
  * @param job - An object containing an `events` array.
  * @returns The latest event, or `undefined` if the events array is empty.
  */
-export function getLatestJobEvent<TEvent>(job: {
-  events: TEvent[];
-}): TEvent | undefined {
+export function getLatestJobEvent(job: {
+  events: JobEvent[];
+}): JobEvent | undefined {
   return job.events.at(-1);
 }
 
