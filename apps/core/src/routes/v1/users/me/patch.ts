@@ -29,8 +29,7 @@ const requestBodySchema = z
       message: "At least one field must be provided",
       path: ["marketingOptIn", "notificationsOptIn"],
     },
-  )
-  .openapi("UpdateUserPreferences");
+  );
 
 const route = createRoute({
   method: "patch",

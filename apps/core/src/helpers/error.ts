@@ -8,26 +8,24 @@ import { dateTimeSchema } from "./datetime.js";
  * Standardized API error response schema
  * Mirrors success response structure for consistency
  */
-export const errorResponseSchema = z
-  .object({
-    /** Machine-readable error identifier */
-    error: z.string().openapi({ example: "Unauthorized" }),
+export const errorResponseSchema = z.object({
+  /** Machine-readable error identifier */
+  error: z.string().openapi({ example: "Unauthorized" }),
 
-    /** Human-readable description of the error */
-    message: z.string().openapi({ example: "Authentication required" }),
+  /** Human-readable description of the error */
+  message: z.string().openapi({ example: "Authentication required" }),
 
-    /** Metadata about the request and response */
-    meta: z.object({
-      /** ISO timestamp when the error was generated */
-      timestamp: dateTimeSchema,
-      requestId: z
-        .string()
-        .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
-      path: z.string().openapi({ example: "/v1/agents" }),
-      method: z.string().openapi({ example: "GET" }),
-    }),
-  })
-  .openapi("ErrorResponse");
+  /** Metadata about the request and response */
+  meta: z.object({
+    /** ISO timestamp when the error was generated */
+    timestamp: dateTimeSchema,
+    requestId: z
+      .string()
+      .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
+    path: z.string().openapi({ example: "/v1/agents" }),
+    method: z.string().openapi({ example: "GET" }),
+  }),
+});
 
 /**
  * Error response structure (for TypeScript types and onError handler)
