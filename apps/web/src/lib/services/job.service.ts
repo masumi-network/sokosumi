@@ -149,7 +149,7 @@ export const jobService = (() => {
     job: JobWithStatus,
     jobStatus: JobStatus,
   ) {
-    if (job.jobType === JobType.DEMO || !job.user.jobStatusNotificationsOptIn) {
+    if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
       return;
     }
 

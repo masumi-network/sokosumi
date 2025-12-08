@@ -14,5 +14,10 @@ export const userSchema = z
       .nullable()
       .openapi({ example: "https://example.com/image.png" }),
     credits: z.number().openapi({ example: 100.0 }),
+    marketingOptIn: z.boolean().openapi({ example: true }),
+    notificationsOptIn: z.boolean().openapi({ example: true }),
+    onboardingCompleted: z.boolean().openapi({ example: false }),
   })
   .openapi("User");
+
+export type User = z.infer<typeof userSchema>;

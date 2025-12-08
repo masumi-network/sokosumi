@@ -198,7 +198,7 @@ export const auth = betterAuth({
         required: true,
         defaultValue: true,
       },
-      jobStatusNotificationsOptIn: {
+      notificationsOptIn: {
         type: "boolean",
         required: false,
         defaultValue: true,

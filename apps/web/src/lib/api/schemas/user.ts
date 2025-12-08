@@ -8,7 +8,7 @@ export function updateUserProfileSchema() {
   return z.object({
     name: z.string().min(1).max(255).optional(),
     marketingOptIn: z.boolean().optional(),
-    jobStatusNotificationsOptIn: z.boolean().optional(),
+    notificationsOptIn: z.boolean().optional(),
   });
 }
 
@@ -19,7 +19,7 @@ export function updateUserProfileFullSchema() {
   return z.object({
     name: z.string().min(1).max(255),
     marketingOptIn: z.boolean(),
-    jobStatusNotificationsOptIn: z.boolean(),
+    notificationsOptIn: z.boolean(),
   });
 }
 
@@ -43,7 +43,7 @@ export const userResponseSchema = z.object({
   email: z.string(),
   termsAccepted: z.boolean(),
   marketingOptIn: z.boolean(),
-  jobStatusNotificationsOptIn: z.boolean(),
+  notificationsOptIn: z.boolean(),
   stripeCustomerId: z.string().nullable(),
 });
 

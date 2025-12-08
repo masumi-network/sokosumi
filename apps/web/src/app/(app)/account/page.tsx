@@ -19,9 +19,7 @@ export default async function Page() {
     <div>
       <AccountSettings
         accounts={accounts}
-        jobStatusNotificationsOptIn={
-          session?.user.jobStatusNotificationsOptIn ?? true
-        }
+        notificationsOptIn={session?.user.notificationsOptIn ?? true}
         marketingOptIn={session?.user.marketingOptIn ?? false}
       />
     </div>

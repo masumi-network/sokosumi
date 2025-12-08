@@ -1,16 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
-import {
-  creditTransactionRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
 
-import { convertCentsToCredits } from "@/helpers/credits";
-import { notFound } from "@/helpers/error";
+import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapUserToResponse } from "@/helpers/user";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { userSchema } from "@/schemas/user.schema";
+import { type User, userSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "get",
@@ -26,6 +22,9 @@ const route = createRoute({
         email: "john.doe@example.com",
         image: "https://example.com/image.png",
         credits: 100.0,
+        marketingOptIn: true,
+        notificationsOptIn: true,
+        onboardingCompleted: false,
       },
       meta: {
         timestamp: "2025-01-01T00:00:00.000Z",
@@ -33,7 +32,7 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
-    404: jsonErrorResponse("Not Found"),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
@@ -41,22 +40,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
 
-    const user = await prisma.$transaction(async (tx) => {
-      const user = await userRepository.getUserById(authContext.userId, tx);
+    const user: User = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: authContext.userId },
+      });
       if (!user) {
-        throw notFound("User not found");
+        throw internalServerError("Failed to retrieve user");
       }
-
-      const centsBalance = await creditTransactionRepository.getCentsByUserId(
-        user.id,
-        tx,
-      );
-      return {
-        ...user,
-        credits: convertCentsToCredits(centsBalance),
-      };
+      return await mapUserToResponse(user, tx);
     });
 
-    return ok(c, userSchema.parse(user));
+    return ok(c, user);
   });
 }
