@@ -1,12 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 
-import { notFound } from "@/helpers/error";
+import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { getUserWithCredits } from "@/helpers/user";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { userSchema } from "@/schemas/user.schema";
+import { type User, userSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "get",
@@ -29,7 +29,7 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
-    404: jsonErrorResponse("Not Found"),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
@@ -37,16 +37,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
 
-    const user = await prisma.$transaction(async (tx) => {
+    const user: User = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: authContext.userId },
       });
       if (!user) {
-        throw notFound("User not found");
+        throw internalServerError("Failed to retrieve user");
       }
       return await getUserWithCredits(user, tx);
     });
 
-    return ok(c, userSchema.parse(user));
+    return ok(c, user);
   });
 }

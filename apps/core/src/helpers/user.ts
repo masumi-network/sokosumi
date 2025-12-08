@@ -1,9 +1,9 @@
-import type { Prisma, User } from "@sokosumi/database";
+import type { Prisma, User as DatabaseUser } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 
-import { convertCentsToCredits } from "./credits";
+import { type User, userSchema } from "@/schemas/user.schema";
 
-export type UserWithCredits = User & { credits: number };
+import { convertCentsToCredits } from "./credits";
 
 /**
  * Fetches a user by ID with their credit balance
@@ -14,9 +14,9 @@ export type UserWithCredits = User & { credits: number };
  * @throws {notFound} If user doesn't exist
  */
 export async function getUserWithCredits(
-  user: User,
+  user: DatabaseUser,
   tx: Prisma.TransactionClient = prisma,
-): Promise<UserWithCredits> {
+): Promise<User> {
   const { _sum } = await tx.creditTransaction.aggregate({
     where: { userId: user.id, organizationId: null },
     _sum: {
@@ -24,8 +24,9 @@ export async function getUserWithCredits(
     },
   });
 
-  return {
+  return userSchema.parse({
     ...user,
     credits: convertCentsToCredits(_sum.amount ?? BigInt(0)),
-  };
+    notificationsOptIn: user.jobStatusNotificationsOptIn,
+  });
 }
