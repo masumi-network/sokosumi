@@ -1,4 +1,5 @@
 import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
@@ -66,7 +67,11 @@ export default function Markdown({
 
   return (
     <div className={cn("prose dark:prose-invert max-w-none", className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        components={components}
+      >
         {sanitizedChildren}
       </ReactMarkdown>
     </div>
