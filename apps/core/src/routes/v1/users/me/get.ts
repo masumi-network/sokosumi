@@ -22,6 +22,9 @@ const route = createRoute({
         email: "john.doe@example.com",
         image: "https://example.com/image.png",
         credits: 100.0,
+        marketingOptIn: true,
+        notificationsOptIn: true,
+        onboardingCompleted: false,
       },
       meta: {
         timestamp: "2025-01-01T00:00:00.000Z",
