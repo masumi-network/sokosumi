@@ -7,7 +7,9 @@ import {
   JobWithStatus,
 } from "@sokosumi/database";
 import { useQuery } from "@tanstack/react-query";
+import { List, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";
 import { Accordion, AccordionItem } from "@/components/ui/accordion";
@@ -39,6 +41,7 @@ export default function JobDetails({
   activeOrganizationId,
 }: JobDetailsProps) {
   const { data: session } = useSession();
+  const [showAllEvents, setShowAllEvents] = useState(false);
 
   const { data: job } = useQuery({
     ...getJobQueryOptions(initialJob.id, session),
@@ -51,6 +54,13 @@ export default function JobDetails({
       (event: JobEventWithStatus) =>
         !(event.input == null && event.result == null),
     ) ?? [];
+
+  const shouldCollapse = filteredEvents.length > 2 && !showAllEvents;
+  const collapsedCount = filteredEvents.length - 2;
+
+  const visibleEvents = shouldCollapse
+    ? [filteredEvents[0], filteredEvents[filteredEvents.length - 1]]
+    : filteredEvents;
 
   return (
     <div
@@ -70,14 +80,22 @@ export default function JobDetails({
           </AccordionItem>
         </Accordion>
 
-        {filteredEvents.map((event: JobEventWithStatus, index) => (
-          <JobDetailsContent
-            key={`${job.id}-event-${index}`}
-            data={{ job, event }}
-            readOnly={readOnly}
-            activeOrganizationId={activeOrganizationId}
-            isLast={index === job.events.length - 1}
-          />
+        {visibleEvents.map((event: JobEventWithStatus, index) => (
+          <>
+            <JobDetailsContent
+              key={`${job.id}-event-${index}`}
+              data={{ job, event }}
+              readOnly={readOnly}
+              activeOrganizationId={activeOrganizationId}
+              isLast={index === visibleEvents.length - 1}
+            />
+            {shouldCollapse && index === 0 && (
+              <CollapsedEventsButton
+                count={collapsedCount}
+                onExpand={() => setShowAllEvents(true)}
+              />
+            )}
+          </>
         ))}
       </ScrollArea>
     </div>
@@ -101,6 +119,33 @@ function JobDetailsHeader({
         activeOrganizationId={activeOrganizationId}
       />
     </div>
+  );
+}
+
+function CollapsedEventsButton({
+  count,
+  onExpand,
+}: {
+  count: number;
+  onExpand: () => void;
+}) {
+  const t = useTranslations("Components.Jobs.JobDetails");
+
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      className="text-muted-foreground hover:text-muted-foreground/50 mx-3 my-4 flex w-[calc(100%-1.5rem)] cursor-pointer items-center justify-between gap-2 py-4 pb-2 transition-colors hover:underline"
+    >
+      <div className="flex shrink-0 items-center gap-2">
+        <List className="size-4" />
+        <span className="text-sm">
+          {t("CollapsedEvents.seeMore", { count })}
+        </span>
+      </div>
+      <hr className="w-full" />
+      <Plus className="size-4" />
+    </button>
   );
 }
 

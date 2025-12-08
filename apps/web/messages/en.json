@@ -416,6 +416,9 @@
         "BlobStatusBadge": {
           "pending": "Pending",
           "failed": "Failed"
+        },
+        "CollapsedEvents": {
+          "seeMore": "See more ({count})"
         }
       },
       "JobsTable": {
