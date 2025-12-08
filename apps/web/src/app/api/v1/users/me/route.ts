@@ -21,7 +21,7 @@ async function updateUserAndFetch(
   data: {
     name?: string;
     marketingOptIn?: boolean;
-    jobStatusNotificationsOptIn?: boolean;
+    notificationsOptIn?: boolean;
   },
 ): Promise<User> {
   // Update via Better Auth API (fires hooks, updates session cache)

@@ -80,7 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             marketingOptIn: body.marketingOptIn,
           }),
           ...(body.notificationsOptIn !== undefined && {
-            jobStatusNotificationsOptIn: body.notificationsOptIn,
+            notificationsOptIn: body.notificationsOptIn,
           }),
         },
       });

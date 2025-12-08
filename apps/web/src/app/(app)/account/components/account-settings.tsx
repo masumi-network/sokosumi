@@ -14,13 +14,13 @@ import { SocialAccounts } from "./social-accounts";
 
 interface AccountSettingsProps {
   accounts: Account[];
-  jobStatusNotificationsOptIn: boolean;
+  notificationsOptIn: boolean;
   marketingOptIn: boolean;
 }
 
 export function AccountSettings({
   accounts,
-  jobStatusNotificationsOptIn,
+  notificationsOptIn,
   marketingOptIn,
 }: AccountSettingsProps) {
   const t = useTranslations("App.Account");
@@ -56,7 +56,7 @@ export function AccountSettings({
 
         <div className="border-t pt-8">
           <EmailPreferences
-            jobStatusNotificationsOptIn={jobStatusNotificationsOptIn}
+            notificationsOptIn={notificationsOptIn}
             marketingOptIn={marketingOptIn}
           />
         </div>

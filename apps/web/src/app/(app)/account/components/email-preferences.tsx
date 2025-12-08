@@ -15,23 +15,24 @@ import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface EmailPreferencesProps {
-  jobStatusNotificationsOptIn: boolean;
+  notificationsOptIn: boolean;
   marketingOptIn: boolean;
 }
 
 export function EmailPreferences({
-  jobStatusNotificationsOptIn: initialJobStatusNotificationsOptIn,
+  notificationsOptIn: initialNotificationsOptIn,
   marketingOptIn: initialMarketingOptIn,
 }: EmailPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
-  const [jobStatusNotificationsOptIn, setJobStatusNotificationsOptIn] =
-    useState(initialJobStatusNotificationsOptIn);
+  const [notificationsOptIn, setNotificationsOptIn] = useState(
+    initialNotificationsOptIn,
+  );
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn);
   const [isJobStatusSaving, setIsJobStatusSaving] = useState(false);
   const [isMarketingSaving, setIsMarketingSaving] = useState(false);
 
   const createToggleHandler = (
-    field: "jobStatusNotificationsOptIn" | "marketingOptIn",
+    field: "notificationsOptIn" | "marketingOptIn",
     currentValue: boolean,
     setValue: (value: boolean) => void,
     setLoading: (loading: boolean) => void,
@@ -77,10 +78,10 @@ export function EmailPreferences({
     };
   };
 
-  const handleJobStatusNotificationsOptInToggle = createToggleHandler(
-    "jobStatusNotificationsOptIn",
-    jobStatusNotificationsOptIn,
-    setJobStatusNotificationsOptIn,
+  const handleNotificationsOptInToggle = createToggleHandler(
+    "notificationsOptIn",
+    notificationsOptIn,
+    setNotificationsOptIn,
     setIsJobStatusSaving,
     "jobStatusEmailsEnabledSuccess",
     "jobStatusEmailsDisabledSuccess",
@@ -112,8 +113,8 @@ export function EmailPreferences({
             </p>
           </div>
           <Switch
-            checked={jobStatusNotificationsOptIn}
-            onCheckedChange={handleJobStatusNotificationsOptInToggle}
+            checked={notificationsOptIn}
+            onCheckedChange={handleNotificationsOptInToggle}
             disabled={isJobStatusSaving}
             aria-label={t("jobStatusEmailsAriaLabel")}
           />

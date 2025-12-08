@@ -27,6 +27,5 @@ export async function getUserWithCredits(
   return userSchema.parse({
     ...user,
     credits: convertCentsToCredits(_sum.amount ?? BigInt(0)),
-    notificationsOptIn: user.jobStatusNotificationsOptIn,
   });
 }
