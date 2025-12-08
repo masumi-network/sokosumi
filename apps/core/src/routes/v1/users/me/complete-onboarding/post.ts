@@ -9,12 +9,12 @@ import { type User, userSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "post",
-  path: "/me/onboarding-completed",
+  path: "/me/complete-onboarding",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(
       userSchema,
-      "Mark onboarding as completed for the current user",
+      "Complete onboarding for the current user",
       {
         data: {
           id: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
