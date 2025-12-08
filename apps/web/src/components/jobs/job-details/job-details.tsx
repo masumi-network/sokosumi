@@ -81,7 +81,7 @@ export default function JobDetails({
         </Accordion>
 
         {visibleEvents.map((event: JobEventWithStatus, index) => (
-          <>
+          <div key={`${job.id}-event-${index}`}>
             <JobDetailsContent
               key={`${job.id}-event-${index}`}
               data={{ job, event }}
@@ -95,7 +95,7 @@ export default function JobDetails({
                 onExpand={() => setShowAllEvents(true)}
               />
             )}
-          </>
+          </div>
         ))}
       </ScrollArea>
     </div>
