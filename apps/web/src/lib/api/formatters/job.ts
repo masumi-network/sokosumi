@@ -14,6 +14,7 @@ import { formatJobShareResponse } from "./job-share";
  * Returns the first event's input that is not null.
  */
 function getJobInput(job: JobWithStatus): string {
+  // TODO: Rethink this, as this is being used for the SOKOSUMI API, but we should return inputs in the events array.
   const inputEvent = job.events.find((event) => event.input !== null);
   return inputEvent?.input ?? "{}";
 }
