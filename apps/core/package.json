@@ -17,7 +17,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@hono/node-server": "1.19.6",
+    "@hono/node-server": "1.19.7",
     "@hono/zod-openapi": "1.1.5",
     "@scalar/hono-api-reference": "0.9.26",
     "@sentry/node": "10.29.0",
@@ -29,7 +29,7 @@
     "decimal.js": "10.6.0",
     "dotenv": "17.2.3",
     "hono": "4.10.7",
-    "i18next": "25.7.1",
+    "i18next": "25.7.2",
     "i18next-fs-backend": "2.6.1",
     "postmark": "4.0.5",
     "stripe": "20.0.0",
