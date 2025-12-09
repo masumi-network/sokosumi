@@ -42,27 +42,47 @@ export type JobDetailsNameFormSchemaType = z.infer<
   ReturnType<typeof jobDetailsNameFormSchema>
 >;
 
-// Base schema for FREE jobs (includes both id and job_id for parsing)
-export const startFreeJobResponseSchema = z.object({
-  id: z.string().min(1),
-});
+// Preprocess helper for backwards compatibility: normalize job_id to id
+// Id is required in the Masumi Docs, but some agents return job_id instead.
+function preprocessJobId(val: unknown): unknown {
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, unknown>;
+    return {
+      ...obj,
+      id: obj.id ?? obj.job_id,
+    };
+  }
+  return val;
+}
+
+// Base schema for FREE jobs with preprocessing
+export const startFreeJobResponseSchema = z.preprocess(
+  preprocessJobId,
+  z.object({
+    id: z.string().min(1),
+  }),
+);
 
 export type StartFreeJobResponseSchemaType = z.infer<
   typeof startFreeJobResponseSchema
 >;
 
-// Base schema for PAID jobs (extends free base with additional fields)
-export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
-  input_hash: z.string().min(1),
-  identifierFromPurchaser: z.string().min(1),
-  blockchainIdentifier: z.string().min(1),
-  payByTime: z.coerce.number().int(),
-  submitResultTime: z.coerce.number().int(),
-  unlockTime: z.coerce.number().int(),
-  externalDisputeUnlockTime: z.coerce.number().int(),
-  agentIdentifier: z.string().min(1),
-  sellerVKey: z.string().min(1),
-});
+// Schema for PAID jobs with preprocessing (cannot extend preprocessed schema)
+export const startPaidJobResponseSchema = z.preprocess(
+  preprocessJobId,
+  z.object({
+    id: z.string().min(1),
+    input_hash: z.string().min(1),
+    identifierFromPurchaser: z.string().min(1),
+    blockchainIdentifier: z.string().min(1),
+    payByTime: z.coerce.number().int(),
+    submitResultTime: z.coerce.number().int(),
+    unlockTime: z.coerce.number().int(),
+    externalDisputeUnlockTime: z.coerce.number().int(),
+    agentIdentifier: z.string().min(1),
+    sellerVKey: z.string().min(1),
+  }),
+);
 
 export type StartPaidJobResponseSchemaType = z.infer<
   typeof startPaidJobResponseSchema
