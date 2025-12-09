@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const session = await getSessionOrRedirect();
   const shouldShowOnboarding = await userService.showOnboarding(session);
 
-  const { data: invitations, error } =
+  const { data: invitations } =
     await authClient.organization.listUserInvitations({
       fetchOptions: {
         headers: await headers(),
@@ -52,7 +52,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     );
 
     if (pendingInvitation) {
-      console.log("Redirecting to accept invitation", pendingInvitation.id);
       return redirect(`/accept-invitation/${pendingInvitation.id}`);
     }
   }
