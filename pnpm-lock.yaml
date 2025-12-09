@@ -79,14 +79,14 @@ importers:
         version: 4.0.5
       stripe:
         specifier: 20.0.0
-        version: 20.0.0(@types/node@24.10.1)
+        version: 20.0.0(@types/node@24.10.2)
       uuid:
         specifier: 13.0.0
         version: 13.0.0
     devDependencies:
       '@types/node':
-        specifier: 24.10.1
-        version: 24.10.1
+        specifier: 24.10.2
+        version: 24.10.2
       tsup:
         specifier: 8.5.1
         version: 8.5.1(@swc/core@1.15.3(@swc/helpers@0.5.17))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -489,8 +489,8 @@ importers:
         version: 13.0.0
     devDependencies:
       '@types/node':
-        specifier: 22.19.1
-        version: 22.19.1
+        specifier: 24.10.2
+        version: 24.10.2
       '@types/pg':
         specifier: 8.15.6
         version: 8.15.6
@@ -3370,12 +3370,6 @@ packages:
 
   '@types/node@20.19.25':
     resolution: {integrity: sha512-ZsJzA5thDQMSQO788d7IocwwQbI8B5OPzmqNvpf3NY/+MHDAS759Wo0gd2WQeXYt5AAAQjzcrTVC6SKCuYgoCQ==}
-
-  '@types/node@22.19.1':
-    resolution: {integrity: sha512-LCCV0HdSZZZb34qifBsyWlUmok6W7ouER+oQIGBScS8EsZsQbrtFTUrDX4hOl+CS6p7cnNC4td+qrSVGSCTUfQ==}
-
-  '@types/node@24.10.1':
-    resolution: {integrity: sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==}
 
   '@types/node@24.10.2':
     resolution: {integrity: sha512-WOhQTZ4G8xZ1tjJTvKOpyEVSGgOTvJAfDK3FNFgELyaTpzhdgHVHeqW8V+UJvzF5BT+/B54T/1S2K6gd9c7bbA==}
@@ -11085,14 +11079,6 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@22.19.1':
-    dependencies:
-      undici-types: 6.21.0
-
-  '@types/node@24.10.1':
-    dependencies:
-      undici-types: 7.16.0
-
   '@types/node@24.10.2':
     dependencies:
       undici-types: 7.16.0
@@ -16011,12 +15997,6 @@ snapshots:
       min-indent: 1.0.1
 
   strip-json-comments@3.1.1: {}
-
-  stripe@20.0.0(@types/node@24.10.1):
-    dependencies:
-      qs: 6.14.0
-    optionalDependencies:
-      '@types/node': 24.10.1
 
   stripe@20.0.0(@types/node@24.10.2):
     dependencies:
