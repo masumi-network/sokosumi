@@ -1,16 +1,20 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import mountPostMeCompleteOnboarding from "./me/complete-onboarding/post.js";
 import mountGetMeFiles from "./me/files/get.js";
 import mountGetMe from "./me/get.js";
 import mountGetMeLinks from "./me/links/get.js";
-import mountPatchMe from "./me/patch.js";
+import mountGetMeOnboarding from "./me/onboarding/get.js";
+import mountPostMeOnboarding from "./me/onboarding/post.js";
+import mountGetMePreferences from "./me/preferences/get.js";
+import mountPatchMePreferences from "./me/preferences/patch.js";
 
 const app = new OpenAPIHonoWithAuth();
 
 mountGetMe(app);
-mountPatchMe(app);
-mountPostMeCompleteOnboarding(app);
+mountGetMePreferences(app);
+mountPatchMePreferences(app);
+mountGetMeOnboarding(app);
+mountPostMeOnboarding(app);
 mountGetMeFiles(app);
 mountGetMeLinks(app);
 
