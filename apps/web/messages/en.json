@@ -68,8 +68,8 @@
         "unacceptable": "Unacceptable Risk"
       },
       "AgentVerifiedBadge": {
-        "tooltip": "This agent is connected to an Agent Identity that verifies its authenticity.",
-        "learnMore": "Click here to learn more",
+        "tooltip": "This agent's authenticity is verified through an Agent Identity.",
+        "learnMore": "Learn more",
         "aboutAgentIdentities": "about Agent Identities."
       },
       "Rating": {

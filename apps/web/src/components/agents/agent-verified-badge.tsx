@@ -34,17 +34,19 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
         </div>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">
-        <p>{t("tooltip")}</p>
-        <Link
-          href="https://docs.masumi.network/core-concepts/identity"
-          target="_blank"
-          rel="noreferrer noopener"
-          className="underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {t("learnMore")}
-        </Link>
-        <span className="pl-1">{t("aboutAgentIdentities")}</span>
+        <p>
+          {t("tooltip")}{" "}
+          <Link
+            href="https://docs.masumi.network/core-concepts/identity"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {t("learnMore")}
+          </Link>{" "}
+          {t("aboutAgentIdentities")}
+        </p>
       </TooltipContent>
     </Tooltip>
   );
