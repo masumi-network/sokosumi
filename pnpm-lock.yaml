@@ -33,13 +33,13 @@ importers:
     dependencies:
       "@hono/node-server":
         specifier: 1.19.7
-        version: 1.19.7(hono@4.10.7)
+        version: 1.19.7(hono@4.10.8)
       "@hono/zod-openapi":
         specifier: 1.1.5
-        version: 1.1.5(hono@4.10.7)(zod@4.1.13)
+        version: 1.1.5(hono@4.10.8)(zod@4.1.13)
       "@scalar/hono-api-reference":
         specifier: 0.9.27
-        version: 0.9.27(hono@4.10.7)
+        version: 0.9.27(hono@4.10.8)
       "@sentry/node":
         specifier: 10.29.0
         version: 10.29.0
@@ -53,11 +53,11 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       better-auth:
-        specifier: 1.4.5
-        version: 1.4.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+        specifier: 1.4.6
+        version: 1.4.6(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       better-auth-localization:
         specifier: 2.2.2
-        version: 2.2.2(better-auth@1.4.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1))
+        version: 2.2.2(better-auth@1.4.6(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1))
       decimal.js:
         specifier: 10.6.0
         version: 10.6.0
@@ -65,8 +65,8 @@ importers:
         specifier: 17.2.3
         version: 17.2.3
       hono:
-        specifier: 4.10.7
-        version: 4.10.7
+        specifier: 4.10.8
+        version: 4.10.8
       i18next:
         specifier: 25.7.2
         version: 25.7.2(typescript@5.9.3)
@@ -183,11 +183,11 @@ importers:
         specifier: 1.0.0
         version: 1.0.0
       better-auth:
-        specifier: 1.4.5
-        version: 1.4.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+        specifier: 1.4.6
+        version: 1.4.6(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       better-auth-localization:
         specifier: 2.2.2
-        version: 2.2.2(better-auth@1.4.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1))
+        version: 2.2.2(better-auth@1.4.6(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1))
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -273,8 +273,8 @@ importers:
         specifier: 4.0.5
         version: 4.0.5
       puppeteer-core:
-        specifier: 24.26.1
-        version: 24.26.1
+        specifier: 24.32.1
+        version: 24.32.1
       radix-ui:
         specifier: 1.4.3
         version: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -349,7 +349,7 @@ importers:
         version: 2.0.7(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       stripe:
         specifier: 20.0.0
-        version: 20.0.0(@types/node@24.10.1)
+        version: 20.0.0(@types/node@24.10.2)
       superjson:
         specifier: 2.2.6
         version: 2.2.6
@@ -415,8 +415,8 @@ importers:
         specifier: 30.0.0
         version: 30.0.0
       "@types/node":
-        specifier: 24.10.1
-        version: 24.10.1
+        specifier: 24.10.2
+        version: 24.10.2
       "@types/react":
         specifier: 19.2.7
         version: 19.2.7
@@ -443,7 +443,7 @@ importers:
         version: 1.6.1
       jest:
         specifier: 30.2.0
-        version: 30.2.0(@types/node@24.10.1)
+        version: 30.2.0(@types/node@24.10.2)
       next-openapi-gen:
         specifier: 0.8.9
         version: 0.8.9
@@ -457,8 +457,8 @@ importers:
         specifier: 7.1.0
         version: 7.1.0(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.9.3)
       puppeteer:
-        specifier: 24.32.0
-        version: 24.32.0(typescript@5.9.3)
+        specifier: 24.32.1
+        version: 24.32.1(typescript@5.9.3)
       tailwindcss:
         specifier: 4.1.17
         version: 4.1.17
@@ -841,26 +841,26 @@ packages:
         integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==,
       }
 
-  "@better-auth/core@1.4.5":
+  "@better-auth/core@1.4.6":
     resolution:
       {
-        integrity: sha512-dQ3hZOkUJzeBXfVEPTm2LVbzmWwka1nqd9KyWmB2OMlMfjr7IdUeBX4T7qJctF67d7QDhlX95jMoxu6JG0Eucw==,
+        integrity: sha512-cYjscr4wU5ZJPhk86JuUkecJT+LSYCFmUzYaitiLkizl+wCr1qdPFSEoAnRVZVTUEEoKpeS2XW69voBJ1NoB3g==,
       }
     peerDependencies:
       "@better-auth/utils": 0.3.0
       "@better-fetch/fetch": 1.1.18
-      better-call: 1.1.4
+      better-call: 1.1.5
       jose: ^6.1.0
       kysely: ^0.28.5
       nanostores: ^1.0.1
 
-  "@better-auth/telemetry@1.4.5":
+  "@better-auth/telemetry@1.4.6":
     resolution:
       {
-        integrity: sha512-r3NyksbaBYA10SC86JA6QwmZfHwFutkUGcphgWGfu6MVx1zutYmZehIeC8LxTjOWZqqF9FI8vLjglWBHvPQeTg==,
+        integrity: sha512-idc9MGJXxWA7zl2U9zsbdG6+2ZCeqWdPq1KeFSfyqGMFtI1VPQOx9YWLqNPOt31YnOX77ojZSraU2sb7IRdBMA==,
       }
     peerDependencies:
-      "@better-auth/core": 1.4.5
+      "@better-auth/core": 1.4.6
 
   "@better-auth/utils@0.3.0":
     resolution:
@@ -2543,14 +2543,6 @@ packages:
       "@types/react": ^18.0.0 || ^19.0.0
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
-
-  "@puppeteer/browsers@2.10.12":
-    resolution:
-      {
-        integrity: sha512-mP9iLFZwH+FapKJLeA7/fLqOlSUwYpMwjR1P5J23qd4e7qGJwecJccJqHYrjw33jmIZYV4dtiTHPD/J+1e7cEw==,
-      }
-    engines: { node: ">=18" }
-    hasBin: true
 
   "@puppeteer/browsers@2.11.0":
     resolution:
@@ -4919,6 +4911,12 @@ packages:
         integrity: sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==,
       }
 
+  "@types/node@24.10.2":
+    resolution:
+      {
+        integrity: sha512-WOhQTZ4G8xZ1tjJTvKOpyEVSGgOTvJAfDK3FNFgELyaTpzhdgHVHeqW8V+UJvzF5BT+/B54T/1S2K6gd9c7bbA==,
+      }
+
   "@types/pg-pool@2.0.6":
     resolution:
       {
@@ -5905,10 +5903,10 @@ packages:
     peerDependencies:
       better-auth: ^1.3.27
 
-  better-auth@1.4.5:
+  better-auth@1.4.6:
     resolution:
       {
-        integrity: sha512-pHV2YE0OogRHvoA6pndHXCei4pcep/mjY7psSaHVrRgjBtumVI68SV1g9U9XPRZ4KkoGca9jfwuv+bB2UILiFw==,
+        integrity: sha512-5wEBzjolrQA26b4uT6FVVYICsE3SmE/MzrZtl8cb2a3TJtswpP8v3OVV5yTso+ef9z85swgZk0/qBzcULFWVtA==,
       }
     peerDependencies:
       "@lynx-js/react": "*"
@@ -5940,10 +5938,10 @@ packages:
       vue:
         optional: true
 
-  better-call@1.1.4:
+  better-call@1.1.5:
     resolution:
       {
-        integrity: sha512-NJouLY6IVKv0nDuFoc6FcbKDFzEnmgMNofC9F60Mwx1Ecm7X6/Ecyoe5b+JSVZ42F/0n46/M89gbYP1ZCVv8xQ==,
+        integrity: sha512-nQJ3S87v6wApbDwbZ++FrQiSiVxWvZdjaO+2v6lZJAG2WWggkB2CziUDjPciz3eAt9TqfRursIQMZIcpkBnvlw==,
       }
     peerDependencies:
       zod: ^4.0.0
@@ -6213,14 +6211,6 @@ packages:
         integrity: sha512-rNjApaLzuwaOTjCiT8lSDdGN1APCiqkChLMJxJPWLunPAt5fy8xgU9/jNOchV84wfIxrA0lRQB7oCT8jrn/wrQ==,
       }
     engines: { node: ">=6.0" }
-
-  chromium-bidi@10.5.1:
-    resolution:
-      {
-        integrity: sha512-rlj6OyhKhVTnk4aENcUme3Jl9h+cq4oXu4AzBcvr8RMmT6BR4a3zSNT9dbIfXr9/BS6ibzRyDhowuw4n2GgzsQ==,
-      }
-    peerDependencies:
-      devtools-protocol: "*"
 
   chromium-bidi@11.0.0:
     resolution:
@@ -7020,12 +7010,6 @@ packages:
     resolution:
       {
         integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==,
-      }
-
-  devtools-protocol@0.0.1508733:
-    resolution:
-      {
-        integrity: sha512-QJ1R5gtck6nDcdM+nlsaJXcelPEI7ZxSMw1ujHpO1c4+9l+Nue5qlebi9xO1Z2MGr92bFOQTW7/rrheh5hHxDg==,
       }
 
   devtools-protocol@0.0.1534754:
@@ -8209,10 +8193,10 @@ packages:
       }
     engines: { node: ">=16.9.0" }
 
-  hono@4.10.7:
+  hono@4.10.8:
     resolution:
       {
-        integrity: sha512-icXIITfw/07Q88nLSkB9aiUrd8rYzSweK681Kjo/TSggaGbOX4RRyxxm71v+3PC8C/j+4rlxGeoTRxQDkaJkUw==,
+        integrity: sha512-DDT0A0r6wzhe8zCGoYOmMeuGu3dyTAE40HHjwUsWFTEy5WxK1x2WDSsBPlEXgPbRIFY6miDualuUDbasPogIww==,
       }
     engines: { node: ">=16.9.0" }
 
@@ -10963,24 +10947,17 @@ packages:
       }
     engines: { node: ">=6" }
 
-  puppeteer-core@24.26.1:
+  puppeteer-core@24.32.1:
     resolution:
       {
-        integrity: sha512-YHZdo3chJ5b9pTYVnuDuoI3UX/tWJFJyRZvkLbThGy6XeHWC+0KI8iN0UMCkvde5l/YOk3huiVZ/PvwgSbwdrA==,
+        integrity: sha512-GdWTOgy3RqaW6Etgx93ydlVJ4FBJ6TmhMksG5W7v4uawKAzLHNj33k4kBQ1SFZ9NvoXNjhdQuIQ+uik2kWnarA==,
       }
     engines: { node: ">=18" }
 
-  puppeteer-core@24.32.0:
+  puppeteer@24.32.1:
     resolution:
       {
-        integrity: sha512-MqzLLeJjqjtHK9J44+KE3kjtXXhFpPvg+AvXl/oy/jB8MeeNH66/4MNotOTqGZ6MPaxWi51YJ1ASga6OIff6xw==,
-      }
-    engines: { node: ">=18" }
-
-  puppeteer@24.32.0:
-    resolution:
-      {
-        integrity: sha512-exyxHPV5DSsigIhM/pzLcyzl5XU4Dp5lNP+APwIeStDxAdYqpMnJ1qN0QHXghjJx+cQJczby+ySH5rgv/5GQLw==,
+        integrity: sha512-wa8vGswFjH1iCyG6bGGydIYssEBluXixbMibK4x2x6/lIAuR87gF+c+Jjzom2Wiw/dDOtuki89VBurRWrgYaUA==,
       }
     engines: { node: ">=18" }
     hasBin: true
@@ -12743,12 +12720,6 @@ packages:
         integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==,
       }
 
-  webdriver-bidi-protocol@0.3.8:
-    resolution:
-      {
-        integrity: sha512-21Yi2GhGntMc671vNBCjiAeEVknXjVRoyu+k+9xOMShu+ZQfpGQwnBqbNz/Sv4GXZ6JmutlPAi2nIJcrymAWuQ==,
-      }
-
   webdriver-bidi-protocol@0.3.9:
     resolution:
       {
@@ -13232,20 +13203,20 @@ snapshots:
 
   "@bcoe/v8-coverage@0.2.3": {}
 
-  "@better-auth/core@1.4.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.4(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)":
+  "@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)":
     dependencies:
       "@better-auth/utils": 0.3.0
       "@better-fetch/fetch": 1.1.18
       "@standard-schema/spec": 1.0.0
-      better-call: 1.1.4(zod@4.1.13)
+      better-call: 1.1.5(zod@4.1.13)
       jose: 6.1.3
       kysely: 0.28.8
       nanostores: 1.1.0
       zod: 4.1.13
 
-  "@better-auth/telemetry@1.4.5(@better-auth/core@1.4.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.4(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))":
+  "@better-auth/telemetry@1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))":
     dependencies:
-      "@better-auth/core": 1.4.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.4(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
+      "@better-auth/core": 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
       "@better-auth/utils": 0.3.0
       "@better-fetch/fetch": 1.1.18
 
@@ -13534,21 +13505,21 @@ snapshots:
     dependencies:
       hono: 4.10.6
 
-  "@hono/node-server@1.19.7(hono@4.10.7)":
+  "@hono/node-server@1.19.7(hono@4.10.8)":
     dependencies:
-      hono: 4.10.7
+      hono: 4.10.8
 
-  "@hono/zod-openapi@1.1.5(hono@4.10.7)(zod@4.1.13)":
+  "@hono/zod-openapi@1.1.5(hono@4.10.8)(zod@4.1.13)":
     dependencies:
       "@asteasolutions/zod-to-openapi": 8.1.0(zod@4.1.13)
-      "@hono/zod-validator": 0.7.5(hono@4.10.7)(zod@4.1.13)
-      hono: 4.10.7
+      "@hono/zod-validator": 0.7.5(hono@4.10.8)(zod@4.1.13)
+      hono: 4.10.8
       openapi3-ts: 4.5.0
       zod: 4.1.13
 
-  "@hono/zod-validator@0.7.5(hono@4.10.7)(zod@4.1.13)":
+  "@hono/zod-validator@0.7.5(hono@4.10.8)(zod@4.1.13)":
     dependencies:
-      hono: 4.10.7
+      hono: 4.10.8
       zod: 4.1.13
 
   "@hookform/resolvers@5.2.2(react-hook-form@7.68.0(react@19.2.1))":
@@ -13698,7 +13669,7 @@ snapshots:
   "@jest/console@30.2.0":
     dependencies:
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       chalk: 4.1.2
       jest-message-util: 30.2.0
       jest-util: 30.2.0
@@ -13712,14 +13683,14 @@ snapshots:
       "@jest/test-result": 30.2.0
       "@jest/transform": 30.2.0
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 4.3.1
       exit-x: 0.2.2
       graceful-fs: 4.2.11
       jest-changed-files: 30.2.0
-      jest-config: 30.2.0(@types/node@24.10.1)
+      jest-config: 30.2.0(@types/node@24.10.2)
       jest-haste-map: 30.2.0
       jest-message-util: 30.2.0
       jest-regex-util: 30.0.1
@@ -13746,7 +13717,7 @@ snapshots:
     dependencies:
       "@jest/fake-timers": 30.2.0
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       jest-mock: 30.2.0
 
   "@jest/expect-utils@30.2.0":
@@ -13764,7 +13735,7 @@ snapshots:
     dependencies:
       "@jest/types": 30.2.0
       "@sinonjs/fake-timers": 13.0.5
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       jest-message-util: 30.2.0
       jest-mock: 30.2.0
       jest-util: 30.2.0
@@ -13782,7 +13753,7 @@ snapshots:
 
   "@jest/pattern@30.0.1":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       jest-regex-util: 30.0.1
 
   "@jest/reporters@30.2.0":
@@ -13793,7 +13764,7 @@ snapshots:
       "@jest/transform": 30.2.0
       "@jest/types": 30.2.0
       "@jridgewell/trace-mapping": 0.3.31
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit-x: 0.2.2
@@ -13870,7 +13841,7 @@ snapshots:
       "@jest/schemas": 30.0.5
       "@types/istanbul-lib-coverage": 2.0.6
       "@types/istanbul-reports": 3.0.4
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       "@types/yargs": 17.0.35
       chalk: 4.1.2
 
@@ -14351,21 +14322,6 @@ snapshots:
       "@types/react": 19.2.7
       react: 19.2.1
       react-dom: 19.2.1(react@19.2.1)
-
-  "@puppeteer/browsers@2.10.12":
-    dependencies:
-      debug: 4.4.3
-      extract-zip: 2.0.1
-      progress: 2.0.3
-      proxy-agent: 6.5.0
-      semver: 7.7.3
-      tar-fs: 3.1.1
-      yargs: 17.7.2
-    transitivePeerDependencies:
-      - bare-abort-controller
-      - bare-buffer
-      - react-native-b4a
-      - supports-color
 
   "@puppeteer/browsers@2.11.0":
     dependencies:
@@ -15361,10 +15317,10 @@ snapshots:
     dependencies:
       "@scalar/types": 0.5.1
 
-  "@scalar/hono-api-reference@0.9.27(hono@4.10.7)":
+  "@scalar/hono-api-reference@0.9.27(hono@4.10.8)":
     dependencies:
       "@scalar/core": 0.3.25
-      hono: 4.10.7
+      hono: 4.10.8
 
   "@scalar/types@0.5.1":
     dependencies:
@@ -15844,12 +15800,12 @@ snapshots:
     dependencies:
       "@types/http-cache-semantics": 4.0.4
       "@types/keyv": 3.1.4
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       "@types/responselike": 1.0.3
 
   "@types/connect@3.4.38":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
 
   "@types/d3-array@3.2.2": {}
 
@@ -16021,7 +15977,7 @@ snapshots:
 
   "@types/keyv@3.1.4":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
 
   "@types/mdast@4.0.4":
     dependencies:
@@ -16031,7 +15987,7 @@ snapshots:
 
   "@types/mysql@2.15.27":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
 
   "@types/node@20.19.25":
     dependencies:
@@ -16045,13 +16001,17 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
+  "@types/node@24.10.2":
+    dependencies:
+      undici-types: 7.16.0
+
   "@types/pg-pool@2.0.6":
     dependencies:
       "@types/pg": 8.15.6
 
   "@types/pg@8.15.6":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       pg-protocol: 1.10.3
       pg-types: 2.2.0
 
@@ -16076,7 +16036,7 @@ snapshots:
 
   "@types/responselike@1.0.3":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
 
   "@types/sanitize-html@2.16.0":
     dependencies:
@@ -16086,7 +16046,7 @@ snapshots:
 
   "@types/tedious@4.0.14":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
 
   "@types/trusted-types@2.0.7":
     optional: true
@@ -16105,7 +16065,7 @@ snapshots:
 
   "@types/yauzl@2.10.3":
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
     optional: true
 
   "@typescript-eslint/eslint-plugin@8.49.0(@typescript-eslint/parser@8.49.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)":
@@ -16665,19 +16625,19 @@ snapshots:
 
   basic-ftp@5.0.5: {}
 
-  better-auth-localization@2.2.2(better-auth@1.4.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)):
+  better-auth-localization@2.2.2(better-auth@1.4.6(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)):
     dependencies:
-      better-auth: 1.4.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      better-auth: 1.4.6(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
 
-  better-auth@1.4.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
+  better-auth@1.4.6(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
     dependencies:
-      "@better-auth/core": 1.4.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.4(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
-      "@better-auth/telemetry": 1.4.5(@better-auth/core@1.4.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.4(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))
+      "@better-auth/core": 1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0)
+      "@better-auth/telemetry": 1.4.6(@better-auth/core@1.4.6(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.18)(better-call@1.1.5(zod@4.1.13))(jose@6.1.3)(kysely@0.28.8)(nanostores@1.1.0))
       "@better-auth/utils": 0.3.0
       "@better-fetch/fetch": 1.1.18
       "@noble/ciphers": 2.1.1
       "@noble/hashes": 2.0.1
-      better-call: 1.1.4(zod@4.1.13)
+      better-call: 1.1.5(zod@4.1.13)
       defu: 6.1.4
       jose: 6.1.3
       kysely: 0.28.8
@@ -16689,7 +16649,7 @@ snapshots:
       react: 19.2.1
       react-dom: 19.2.1(react@19.2.1)
 
-  better-call@1.1.4(zod@4.1.13):
+  better-call@1.1.5(zod@4.1.13):
     dependencies:
       "@better-auth/utils": 0.3.0
       "@better-fetch/fetch": 1.1.18
@@ -16873,12 +16833,6 @@ snapshots:
       readdirp: 4.1.2
 
   chrome-trace-event@1.0.4: {}
-
-  chromium-bidi@10.5.1(devtools-protocol@0.0.1508733):
-    dependencies:
-      devtools-protocol: 0.0.1508733
-      mitt: 3.0.1
-      zod: 3.25.76
 
   chromium-bidi@11.0.0(devtools-protocol@0.0.1534754):
     dependencies:
@@ -17306,8 +17260,6 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
-  devtools-protocol@0.0.1508733: {}
-
   devtools-protocol@0.0.1534754: {}
 
   doctrine@2.1.0:
@@ -17316,7 +17268,7 @@ snapshots:
 
   docx@9.5.1:
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       hash.js: 1.1.7
       jszip: 3.10.1
       nanoid: 5.1.6
@@ -18227,7 +18179,7 @@ snapshots:
 
   hono@4.10.6: {}
 
-  hono@4.10.7: {}
+  hono@4.10.8: {}
 
   html-escaper@2.0.2: {}
 
@@ -18593,7 +18545,7 @@ snapshots:
       "@jest/expect": 30.2.0
       "@jest/test-result": 30.2.0
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       chalk: 4.1.2
       co: 4.6.0
       dedent: 1.7.0
@@ -18613,7 +18565,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  jest-cli@30.2.0(@types/node@24.10.1):
+  jest-cli@30.2.0(@types/node@24.10.2):
     dependencies:
       "@jest/core": 30.2.0
       "@jest/test-result": 30.2.0
@@ -18621,7 +18573,7 @@ snapshots:
       chalk: 4.1.2
       exit-x: 0.2.2
       import-local: 3.2.0
-      jest-config: 30.2.0(@types/node@24.10.1)
+      jest-config: 30.2.0(@types/node@24.10.2)
       jest-util: 30.2.0
       jest-validate: 30.2.0
       yargs: 17.7.2
@@ -18632,7 +18584,7 @@ snapshots:
       - supports-color
       - ts-node
 
-  jest-config@30.2.0(@types/node@24.10.1):
+  jest-config@30.2.0(@types/node@24.10.2):
     dependencies:
       "@babel/core": 7.28.5
       "@jest/get-type": 30.1.0
@@ -18659,7 +18611,7 @@ snapshots:
       slash: 3.0.0
       strip-json-comments: 3.1.1
     optionalDependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -18688,7 +18640,7 @@ snapshots:
       "@jest/environment": 30.2.0
       "@jest/fake-timers": 30.2.0
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       jest-mock: 30.2.0
       jest-util: 30.2.0
       jest-validate: 30.2.0
@@ -18696,7 +18648,7 @@ snapshots:
   jest-haste-map@30.2.0:
     dependencies:
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -18735,7 +18687,7 @@ snapshots:
   jest-mock@30.2.0:
     dependencies:
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       jest-util: 30.2.0
 
   jest-pnp-resolver@1.2.3(jest-resolve@30.2.0):
@@ -18769,7 +18721,7 @@ snapshots:
       "@jest/test-result": 30.2.0
       "@jest/transform": 30.2.0
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       chalk: 4.1.2
       emittery: 0.13.1
       exit-x: 0.2.2
@@ -18798,7 +18750,7 @@ snapshots:
       "@jest/test-result": 30.2.0
       "@jest/transform": 30.2.0
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       chalk: 4.1.2
       cjs-module-lexer: 2.1.1
       collect-v8-coverage: 1.0.3
@@ -18845,7 +18797,7 @@ snapshots:
   jest-util@30.2.0:
     dependencies:
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       chalk: 4.1.2
       ci-info: 4.3.1
       graceful-fs: 4.2.11
@@ -18864,7 +18816,7 @@ snapshots:
     dependencies:
       "@jest/test-result": 30.2.0
       "@jest/types": 30.2.0
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       emittery: 0.13.1
@@ -18873,24 +18825,24 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
   jest-worker@30.2.0:
     dependencies:
-      "@types/node": 24.10.1
+      "@types/node": 24.10.2
       "@ungap/structured-clone": 1.3.0
       jest-util: 30.2.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
-  jest@30.2.0(@types/node@24.10.1):
+  jest@30.2.0(@types/node@24.10.2):
     dependencies:
       "@jest/core": 30.2.0
       "@jest/types": 30.2.0
       import-local: 3.2.0
-      jest-cli: 30.2.0(@types/node@24.10.1)
+      jest-cli: 30.2.0(@types/node@24.10.2)
     transitivePeerDependencies:
       - "@types/node"
       - babel-plugin-macros
@@ -20157,24 +20109,7 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  puppeteer-core@24.26.1:
-    dependencies:
-      "@puppeteer/browsers": 2.10.12
-      chromium-bidi: 10.5.1(devtools-protocol@0.0.1508733)
-      debug: 4.4.3
-      devtools-protocol: 0.0.1508733
-      typed-query-selector: 2.12.0
-      webdriver-bidi-protocol: 0.3.8
-      ws: 8.18.3
-    transitivePeerDependencies:
-      - bare-abort-controller
-      - bare-buffer
-      - bufferutil
-      - react-native-b4a
-      - supports-color
-      - utf-8-validate
-
-  puppeteer-core@24.32.0:
+  puppeteer-core@24.32.1:
     dependencies:
       "@puppeteer/browsers": 2.11.0
       chromium-bidi: 11.0.0(devtools-protocol@0.0.1534754)
@@ -20191,13 +20126,13 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  puppeteer@24.32.0(typescript@5.9.3):
+  puppeteer@24.32.1(typescript@5.9.3):
     dependencies:
       "@puppeteer/browsers": 2.11.0
       chromium-bidi: 11.0.0(devtools-protocol@0.0.1534754)
       cosmiconfig: 9.0.0(typescript@5.9.3)
       devtools-protocol: 0.0.1534754
-      puppeteer-core: 24.32.0
+      puppeteer-core: 24.32.1
       typed-query-selector: 2.12.0
     transitivePeerDependencies:
       - bare-abort-controller
@@ -20991,6 +20926,12 @@ snapshots:
     optionalDependencies:
       "@types/node": 24.10.1
 
+  stripe@20.0.0(@types/node@24.10.2):
+    dependencies:
+      qs: 6.14.0
+    optionalDependencies:
+      "@types/node": 24.10.2
+
   style-to-js@1.1.21:
     dependencies:
       style-to-object: 1.0.14
@@ -21477,8 +21418,6 @@ snapshots:
       graceful-fs: 4.2.11
 
   web-namespaces@2.0.1: {}
-
-  webdriver-bidi-protocol@0.3.8: {}
 
   webdriver-bidi-protocol@0.3.9: {}
 
