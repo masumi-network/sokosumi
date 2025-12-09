@@ -19,13 +19,13 @@ export default async function AcceptInvitationPage({
 
   const session = await getSession();
 
-  const { error, invitation } =
-    await organizationService.getPendingInvitation(id);
+  const result = await organizationService.getPendingInvitation(id);
 
-  if (error) {
-    return <InvitationErrorCard errorCode={error} />;
+  if (result.error) {
+    return <InvitationErrorCard errorCode={result.error} />;
   }
 
+  const { invitation } = result;
   const inviter = await userRepository.getUserById(invitation.inviterId);
 
   if (!inviter) {
