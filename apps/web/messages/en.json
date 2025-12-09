@@ -67,6 +67,11 @@
         "high": "High Risk",
         "unacceptable": "Unacceptable Risk"
       },
+      "AgentVerifiedBadge": {
+        "tooltip": "This agent's authenticity is verified through an Agent Identity.",
+        "learnMore": "Learn more",
+        "aboutAgentIdentities": "about Agent Identities."
+      },
       "Rating": {
         "title": "Ratings",
         "noRatings": "No ratings yet",
