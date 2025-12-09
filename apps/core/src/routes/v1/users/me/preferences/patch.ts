@@ -3,9 +3,7 @@ import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapUserToResponse } from "@/helpers/user";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { type User, userSchema } from "@/schemas/user.schema";
 
 const requestBodySchema = z
   .object({
@@ -31,9 +29,22 @@ const requestBodySchema = z
     },
   );
 
+const preferencesResponseSchema = z
+  .object({
+    marketingOptIn: z.boolean().openapi({
+      description: "Whether the user wants to receive marketing emails",
+      example: true,
+    }),
+    notificationsOptIn: z.boolean().openapi({
+      description: "Whether the user wants to receive job status notifications",
+      example: true,
+    }),
+  })
+  .openapi("UserPreferences");
+
 const route = createRoute({
   method: "patch",
-  path: "/me",
+  path: "/me/preferences",
   tags: ["Users"],
   request: {
     body: {
@@ -45,24 +56,20 @@ const route = createRoute({
     },
   },
   responses: {
-    200: jsonSuccessResponse(userSchema, "Update the current user", {
-      data: {
-        id: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
-        createdAt: "2025-01-01T00:00:00.000Z",
-        updatedAt: "2025-01-01T00:00:00.000Z",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        image: "https://example.com/image.png",
-        credits: 100.0,
-        marketingOptIn: true,
-        notificationsOptIn: true,
-        onboardingCompleted: false,
+    200: jsonSuccessResponse(
+      preferencesResponseSchema,
+      "Update the current user's preferences",
+      {
+        data: {
+          marketingOptIn: true,
+          notificationsOptIn: true,
+        },
+        meta: {
+          timestamp: "2025-01-01T00:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+        },
       },
-      meta: {
-        timestamp: "2025-01-01T00:00:00.000Z",
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-      },
-    }),
+    ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
   },
@@ -73,7 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const body = c.req.valid("json");
 
-    const user: User = await prisma.$transaction(async (tx) => {
+    const preferences = await prisma.$transaction(async (tx) => {
       // Update user preferences
       const updatedUser = await tx.user.update({
         where: { id: authContext.userId },
@@ -85,11 +92,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             notificationsOptIn: body.notificationsOptIn,
           }),
         },
+        select: {
+          marketingOptIn: true,
+          notificationsOptIn: true,
+        },
       });
 
-      return await mapUserToResponse(updatedUser, tx);
+      return updatedUser;
     });
 
-    return ok(c, user);
+    return ok(c, preferences);
   });
 }
