@@ -1,10 +1,5 @@
-import { userRepository } from "@sokosumi/database/repositories";
-
 import { getSession } from "@/lib/auth/utils";
-import {
-  organizationService,
-  PendingInvitationErrorCode,
-} from "@/lib/services";
+import { organizationService } from "@/lib/services";
 
 import InvitationCard, {
   InvitationErrorCard,
@@ -25,22 +20,9 @@ export default async function AcceptInvitationPage({
     return <InvitationErrorCard errorCode={result.error} />;
   }
 
-  const { invitation } = result;
-  const inviter = await userRepository.getUserById(invitation.inviterId);
-
-  if (!inviter) {
-    return (
-      <div className="container flex items-center justify-center px-8 py-12">
-        <InvitationErrorCard
-          errorCode={PendingInvitationErrorCode.INVITER_NOT_FOUND}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="container flex items-center justify-center px-8 py-12">
-      <InvitationCard invitation={invitation} user={session?.user} />
+      <InvitationCard invitation={result.invitation} user={session?.user} />
     </div>
   );
 }

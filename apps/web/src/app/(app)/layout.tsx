@@ -37,16 +37,28 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const session = await getSessionOrRedirect();
   const shouldShowOnboarding = await userService.showOnboarding(session);
 
-  const invitations = await authClient.organization.listUserInvitations({
-    fetchOptions: {
-      headers: await headers(),
-    },
-  });
+  const { data: invitations, error } =
+    await authClient.organization.listUserInvitations({
+      fetchOptions: {
+        headers: await headers(),
+      },
+    });
+  // Check for pending, non-expired invitations
+  if (invitations && invitations.length > 0) {
+    const now = new Date();
+    const pendingInvitation = invitations.find(
+      (invitation) =>
+        invitation.status === "pending" && new Date(invitation.expiresAt) > now,
+    );
 
-  console.log("Invitations", invitations);
+    if (pendingInvitation) {
+      console.log("Redirecting to accept invitation", pendingInvitation.id);
+      return redirect(`/accept-invitation/${pendingInvitation.id}`);
+    }
+  }
 
   if (shouldShowOnboarding) {
-    redirect("/onboarding");
+    return redirect("/onboarding");
   }
 
   return (
