@@ -1,5 +1,5 @@
 import prisma from "../client.js";
-import type { Prisma } from "../generated/prisma/client.js";
+import type { Invitation, Prisma } from "../generated/prisma/client.js";
 import {
   invitationInclude,
   InvitationStatus,
@@ -75,10 +75,9 @@ export const invitationRepository = {
   async getPendingInvitationsByOrganizationId(
     organizationId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<InvitationWithRelations[]> {
+  ): Promise<Invitation[]> {
     return tx.invitation.findMany({
       where: { organizationId, status: InvitationStatus.PENDING },
-      include: invitationInclude,
       orderBy: { expiresAt: "desc" },
     });
   },

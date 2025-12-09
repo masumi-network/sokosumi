@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  Invitation,
   InvitationWithRelations,
   MemberRole,
   MemberWithUser,
@@ -122,13 +123,13 @@ export const organizationService = (() => {
 
   async function getPendingInvitations(
     organizationId: string,
-  ): Promise<InvitationWithRelations[]> {
+  ): Promise<Invitation[]> {
     const invitations =
       await invitationRepository.getPendingInvitationsByOrganizationId(
         organizationId,
       );
     // Group by email and take the first (latest) invitation per email
-    const emailMap = new Map<string, InvitationWithRelations>();
+    const emailMap = new Map<string, Invitation>();
     for (const invitation of invitations) {
       if (!emailMap.has(invitation.email)) {
         emailMap.set(invitation.email, invitation);
