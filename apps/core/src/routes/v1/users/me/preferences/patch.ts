@@ -4,6 +4,7 @@ import prisma from "@sokosumi/database/client";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { userPreferencesResponseSchema } from "@/schemas/user.schema";
 
 const requestBodySchema = z
   .object({
@@ -29,19 +30,6 @@ const requestBodySchema = z
     },
   );
 
-const preferencesResponseSchema = z
-  .object({
-    marketingOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive marketing emails",
-      example: true,
-    }),
-    notificationsOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive job status notifications",
-      example: true,
-    }),
-  })
-  .openapi("UserPreferences");
-
 const route = createRoute({
   method: "patch",
   path: "/me/preferences",
@@ -57,7 +45,7 @@ const route = createRoute({
   },
   responses: {
     200: jsonSuccessResponse(
-      preferencesResponseSchema,
+      userPreferencesResponseSchema,
       "Update the current user's preferences",
       {
         data: {
@@ -81,7 +69,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     const preferences = await prisma.$transaction(async (tx) => {
-      // Update user preferences
       const updatedUser = await tx.user.update({
         where: { id: authContext.userId },
         data: {
@@ -101,6 +88,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return updatedUser;
     });
 
-    return ok(c, preferencesResponseSchema.parse(preferences));
+    return ok(c, userPreferencesResponseSchema.parse(preferences));
   });
 }

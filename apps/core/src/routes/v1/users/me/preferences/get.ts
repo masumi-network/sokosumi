@@ -1,23 +1,11 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-const preferencesResponseSchema = z
-  .object({
-    marketingOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive marketing emails",
-      example: true,
-    }),
-    notificationsOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive job status notifications",
-      example: true,
-    }),
-  })
-  .openapi("UserPreferences");
+import { userPreferencesResponseSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "get",
@@ -25,7 +13,7 @@ const route = createRoute({
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(
-      preferencesResponseSchema,
+      userPreferencesResponseSchema,
       "Retrieve the current user's preferences",
       {
         data: {
@@ -63,6 +51,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return user;
     });
 
-    return ok(c, preferencesResponseSchema.parse(preferences));
+    return ok(c, userPreferencesResponseSchema.parse(preferences));
   });
 }
