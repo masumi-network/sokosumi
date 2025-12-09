@@ -70,15 +70,33 @@ function combineMembersAndPendingInvitations(
   members: MemberWithUser[],
   pendingInvitations: Invitation[],
 ): MemberRowData[] {
-  return members
-    .sort((a, b) => {
-      const roleScoreDiff =
-        (RoleScoreMap[a.role] ?? 0) - (RoleScoreMap[b.role] ?? 0);
-      const nameDiff = a.user.name.localeCompare(b.user.name);
-      return roleScoreDiff !== 0 ? roleScoreDiff : nameDiff;
-    })
-    .map(convertMemberWithUserToMemberRowData)
-    .concat(pendingInvitations.map(convertInvitationToMemberRowData));
+  // Sort members by role score, then by name
+  const sortedMembers = [...members].sort((a, b) => {
+    const roleScoreDiff =
+      (RoleScoreMap[a.role] ?? 0) - (RoleScoreMap[b.role] ?? 0);
+    const nameDiff = a.user.name.localeCompare(b.user.name);
+    return roleScoreDiff !== 0 ? roleScoreDiff : nameDiff;
+  });
+
+  // Get set of member emails for quick lookup
+  const memberEmails = new Set(
+    sortedMembers.map((member) => member.user.email.toLowerCase()),
+  );
+
+  // Filter invitations: exclude those matching member emails
+  const filteredInvitations = pendingInvitations.filter(
+    (invitation) => !memberEmails.has(invitation.email.toLowerCase()),
+  );
+
+  // Convert members to row data
+  const memberRows = sortedMembers.map(convertMemberWithUserToMemberRowData);
+
+  // Convert filtered invitations to row data
+  const invitationRows = filteredInvitations.map(
+    convertInvitationToMemberRowData,
+  );
+
+  return memberRows.concat(invitationRows);
 }
 
 function convertMemberWithUserToMemberRowData(
