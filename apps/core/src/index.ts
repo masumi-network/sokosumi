@@ -27,12 +27,6 @@ const app = new OpenAPIHono<{
   Variables: RequestIdVariables;
 }>();
 
-app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
-  type: "http",
-  scheme: "bearer",
-  bearerFormat: "JWT",
-});
-
 app.use(logger());
 app.use(requestId());
 app.use(sentryMiddleware());
@@ -50,8 +44,8 @@ app.get(
   Scalar({
     pageTitle: "Sokosumi API Documentation",
     sources: [
-      { url: "/v1/openapi.json", title: "Content" },
-      { url: "/v1/auth/open-api/generate-schema", title: "Auth" },
+      { url: "/v1/openapi.json", title: "v1" },
+      { url: "/v1/auth/open-api/generate-schema", title: "Better Auth" },
     ],
     defaultOpenAllTags: true,
     layout: "modern",

@@ -10,6 +10,12 @@ import usersRouter from "./users/index.js";
 
 const app = new OpenAPIHono();
 
+app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
+  type: "http",
+  scheme: "bearer",
+  bearerFormat: "JWT",
+});
+
 app.doc("/openapi.json", {
   openapi: "3.0.3",
   info: {
@@ -18,17 +24,18 @@ app.doc("/openapi.json", {
   },
   servers: [
     {
-      url: `https://api.sokosumi.com/`,
+      url: `https://api.sokosumi.com/v1`,
       description: "Mainnet Server",
     },
     {
-      url: `https://preprod.api.sokosumi.com/`,
+      url: `https://preprod.api.sokosumi.com/v1`,
       description: "Pre-production Server",
     },
   ],
   security: [{ bearerAuth: [] }],
 });
 
+// CORS for auth routes
 app.use(
   "/auth/*",
   cors({
@@ -41,6 +48,20 @@ app.use(
   }),
 );
 
+// CORS for all API routes
+app.use(
+  "*",
+  cors({
+    origin: "*",
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
+    credentials: false,
+  }),
+);
+
+// Mount Auth routes
 app.on(["POST", "GET"], "/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
