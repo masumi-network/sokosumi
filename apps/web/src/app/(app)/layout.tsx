@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -7,7 +7,6 @@ import { EmergencyDialog } from "@/components/emergency-dialog";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
-import { authClient } from "@/lib/auth/auth.client";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
@@ -35,27 +34,13 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   const session = await getSessionOrRedirect();
-  const shouldShowOnboarding = await userService.showOnboarding(session);
 
-  const { data: invitations } =
-    await authClient.organization.listUserInvitations({
-      fetchOptions: {
-        headers: await headers(),
-      },
-    });
-  // Check for pending, non-expired invitations
-  if (invitations && invitations.length > 0) {
-    const now = new Date();
-    const pendingInvitation = invitations.find(
-      (invitation) =>
-        invitation.status === "pending" && new Date(invitation.expiresAt) > now,
-    );
-
-    if (pendingInvitation) {
-      return redirect(`/accept-invitation/${pendingInvitation.id}`);
-    }
+  const pendingInvitationId = await userService.getFirstPendingInvitationId();
+  if (pendingInvitationId) {
+    return redirect(`/accept-invitation/${pendingInvitationId}`);
   }
 
+  const shouldShowOnboarding = await userService.showOnboarding(session);
   if (shouldShowOnboarding) {
     return redirect("/onboarding");
   }
