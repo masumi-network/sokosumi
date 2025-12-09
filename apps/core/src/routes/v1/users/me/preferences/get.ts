@@ -1,33 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 
+import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-const requestBodySchema = z
-  .object({
-    marketingOptIn: z.boolean().optional().openapi({
-      description: "Whether the user wants to receive marketing emails",
-      example: true,
-    }),
-    notificationsOptIn: z.boolean().optional().openapi({
-      description: "Whether the user wants to receive job status notifications",
-      example: true,
-    }),
-  })
-  .refine(
-    (data) => {
-      return (
-        data.marketingOptIn !== undefined ||
-        data.notificationsOptIn !== undefined
-      );
-    },
-    {
-      message: "At least one field must be provided",
-      path: ["marketingOptIn", "notificationsOptIn"],
-    },
-  );
 
 const preferencesResponseSchema = z
   .object({
@@ -43,22 +20,13 @@ const preferencesResponseSchema = z
   .openapi("UserPreferences");
 
 const route = createRoute({
-  method: "patch",
+  method: "get",
   path: "/me/preferences",
   tags: ["Users"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: requestBodySchema,
-        },
-      },
-    },
-  },
   responses: {
     200: jsonSuccessResponse(
       preferencesResponseSchema,
-      "Update the current user's preferences",
+      "Retrieve the current user's preferences",
       {
         data: {
           marketingOptIn: true,
@@ -70,35 +38,29 @@ const route = createRoute({
         },
       },
     ),
-    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const body = c.req.valid("json");
 
     const preferences = await prisma.$transaction(async (tx) => {
-      // Update user preferences
-      const updatedUser = await tx.user.update({
+      const user = await tx.user.findUnique({
         where: { id: authContext.userId },
-        data: {
-          ...(body.marketingOptIn !== undefined && {
-            marketingOptIn: body.marketingOptIn,
-          }),
-          ...(body.notificationsOptIn !== undefined && {
-            notificationsOptIn: body.notificationsOptIn,
-          }),
-        },
         select: {
           marketingOptIn: true,
           notificationsOptIn: true,
         },
       });
 
-      return updatedUser;
+      if (!user) {
+        throw internalServerError("Failed to retrieve user");
+      }
+
+      return user;
     });
 
     return ok(c, preferencesResponseSchema.parse(preferences));
