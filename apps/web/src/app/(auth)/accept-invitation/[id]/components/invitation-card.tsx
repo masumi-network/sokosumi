@@ -1,8 +1,4 @@
-import {
-  Invitation,
-  OrganizationWithRelations,
-  User as DBUser,
-} from "@sokosumi/database";
+import { InvitationWithRelations } from "@sokosumi/database";
 import { User } from "better-auth";
 import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
@@ -24,20 +20,16 @@ import { PendingInvitationErrorCode } from "@/lib/services";
 import InvitationActions from "./invitation-actions";
 
 interface InvitationCardProps {
-  invitation: Invitation;
-  organization: OrganizationWithRelations;
-  inviter: DBUser;
+  invitation: InvitationWithRelations;
   user?: User;
 }
 
 export default async function InvitationCard({
   invitation,
-  organization,
-  inviter,
   user,
 }: InvitationCardProps) {
   const t = await getTranslations("AcceptInvitation.InvitationCard");
-  const { status } = invitation;
+  const { status, inviter, organization } = invitation;
 
   return (
     <Card className="w-full max-w-lg">
@@ -177,7 +169,5 @@ function getTranslationPathForInvitationErrorCode(
       return "AcceptInvitation.InvitationErrorCard.Expired";
     case PendingInvitationErrorCode.INVITER_NOT_FOUND:
       return "AcceptInvitation.InvitationErrorCard.InviterNotFound";
-    case PendingInvitationErrorCode.ORGANIZATION_NOT_FOUND:
-      return "AcceptInvitation.InvitationErrorCard.OrganizationNotFound";
   }
 }

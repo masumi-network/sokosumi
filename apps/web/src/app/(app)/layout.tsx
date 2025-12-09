@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -7,6 +7,7 @@ import { EmergencyDialog } from "@/components/emergency-dialog";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
+import { authClient } from "@/lib/auth/auth.client";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
@@ -35,6 +36,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   const session = await getSessionOrRedirect();
   const shouldShowOnboarding = await userService.showOnboarding(session);
+
+  const invitations = await authClient.organization.listUserInvitations({
+    fetchOptions: {
+      headers: await headers(),
+    },
+  });
+
+  console.log("Invitations", invitations);
 
   if (shouldShowOnboarding) {
     redirect("/onboarding");

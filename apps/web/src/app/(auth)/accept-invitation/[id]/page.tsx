@@ -1,11 +1,10 @@
-import {
-  organizationRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
+import { userRepository } from "@sokosumi/database/repositories";
 
-import { authClient } from "@/lib/auth/auth.client";
 import { getSession } from "@/lib/auth/utils";
-import { PendingInvitationErrorCode } from "@/lib/services";
+import {
+  organizationService,
+  PendingInvitationErrorCode,
+} from "@/lib/services";
 
 import InvitationCard, {
   InvitationErrorCard,
@@ -20,41 +19,11 @@ export default async function AcceptInvitationPage({
 
   const session = await getSession();
 
-  const { data: invitation } = await authClient.organization.getInvitation({
-    query: {
-      id,
-    },
-  });
+  const { error, invitation } =
+    await organizationService.getPendingInvitation(id);
 
-  if (!invitation) {
-    return (
-      <div className="container flex items-center justify-center px-8 py-12">
-        <InvitationErrorCard errorCode={PendingInvitationErrorCode.NOT_FOUND} />
-      </div>
-    );
-  }
-
-  if (invitation.expiresAt < new Date()) {
-    return (
-      <div className="container flex items-center justify-center px-8 py-12">
-        <InvitationErrorCard errorCode={PendingInvitationErrorCode.EXPIRED} />
-      </div>
-    );
-  }
-
-  const organization =
-    await organizationRepository.getOrganizationWithRelationsById(
-      invitation.organizationId,
-    );
-
-  if (!organization) {
-    return (
-      <div className="container flex items-center justify-center px-8 py-12">
-        <InvitationErrorCard
-          errorCode={PendingInvitationErrorCode.ORGANIZATION_NOT_FOUND}
-        />
-      </div>
-    );
+  if (error) {
+    return <InvitationErrorCard errorCode={error} />;
   }
 
   const inviter = await userRepository.getUserById(invitation.inviterId);
@@ -71,12 +40,7 @@ export default async function AcceptInvitationPage({
 
   return (
     <div className="container flex items-center justify-center px-8 py-12">
-      <InvitationCard
-        invitation={invitation}
-        organization={organization}
-        inviter={inviter}
-        user={session?.user}
-      />
+      <InvitationCard invitation={invitation} user={session?.user} />
     </div>
   );
 }
