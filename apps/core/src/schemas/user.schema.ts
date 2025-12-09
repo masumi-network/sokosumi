@@ -14,7 +14,6 @@ export const userSchema = z
       .nullish()
       .openapi({ example: "https://example.com/image.png" }),
     credits: z.number().openapi({ example: 100.0 }),
-    onboardingCompleted: z.boolean().openapi({ example: false }),
   })
   .openapi("User");
 
@@ -32,3 +31,12 @@ export const userPreferencesResponseSchema = z
     }),
   })
   .openapi("UserPreferences");
+
+export const userOnboardingResponseSchema = z
+  .object({
+    completed: z.boolean().openapi({
+      description: "Whether the user has completed onboarding",
+      example: true,
+    }),
+  })
+  .openapi("UserOnboarding");
