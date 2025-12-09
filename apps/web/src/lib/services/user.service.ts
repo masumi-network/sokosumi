@@ -196,8 +196,7 @@ export const userService = (() => {
     const now = new Date();
     const pendingInvitation = invitations.find(
       (invitation) =>
-        invitation.status === "pending" &&
-        new Date(invitation.expiresAt) > now,
+        invitation.status === "pending" && new Date(invitation.expiresAt) > now,
     );
 
     return pendingInvitation?.id ?? null;
