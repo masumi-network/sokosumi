@@ -652,7 +652,7 @@ export const jobService = (() => {
       },
     });
 
-    const agentJobId = startJobResponse.id ?? "";
+    const agentJobId = startJobResponse.id;
 
     const agentJobStatusResult = await agentClient.fetchAgentJobStatus(
       agentWithCreditsPrice,
@@ -836,9 +836,11 @@ export const jobService = (() => {
       },
     });
 
+    const agentJobId = startJobResponse.id;
+
     const job = await jobRepository.createJob({
       jobType: JobType.FREE,
-      agentJobId: startJobResponse.id ?? "",
+      agentJobId,
       agentId,
       userId,
       organizationId,

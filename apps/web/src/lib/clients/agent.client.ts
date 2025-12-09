@@ -53,6 +53,17 @@ export const agentClient = (() => {
     return new URL(usedUrl);
   }
 
+  // Backwards compatibility mapping for old agent API
+  // Id is required in the Masumi Docs, but agents are not returning it.
+  function mapResponseWithId(
+    responseJson: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return {
+      ...responseJson,
+      id: responseJson.id ?? responseJson.job_id,
+    };
+  }
+
   return {
     async startPaidAgentJob(
       agent: Agent,
@@ -76,7 +87,11 @@ export const agentClient = (() => {
           return Err("Failed to start agent job");
         }
         const responseJson = await startJobResponse.json();
-        const parsedResult = startPaidJobResponseSchema.safeParse(responseJson);
+
+        const responseJsonWithId = mapResponseWithId(responseJson);
+
+        const parsedResult =
+          startPaidJobResponseSchema.safeParse(responseJsonWithId);
         if (!parsedResult.success) {
           return Err(
             `Failed to parse start job response: ${JSON.stringify(
@@ -110,7 +125,11 @@ export const agentClient = (() => {
           return Err("Failed to start free agent job");
         }
         const responseJson = await startJobResponse.json();
-        const parsedResult = startFreeJobResponseSchema.safeParse(responseJson);
+
+        const responseJsonWithId = mapResponseWithId(responseJson);
+
+        const parsedResult =
+          startFreeJobResponseSchema.safeParse(responseJsonWithId);
         if (!parsedResult.success) {
           return Err(
             `Failed to parse start free job response: ${JSON.stringify(

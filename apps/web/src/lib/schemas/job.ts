@@ -43,24 +43,16 @@ export type JobDetailsNameFormSchemaType = z.infer<
 >;
 
 // Base schema for FREE jobs (includes both id and job_id for parsing)
-const startFreeJobBaseSchema = z.object({
-  id: z.string().nullish(),
-  job_id: z.string().nullish(),
+export const startFreeJobResponseSchema = z.object({
+  id: z.string().min(1),
 });
-
-// Response for FREE jobs (normalizes id from id ?? job_id, drops job_id)
-export const startFreeJobResponseSchema = startFreeJobBaseSchema.transform(
-  ({ id, job_id }) => ({
-    id: id ?? job_id,
-  }),
-);
 
 export type StartFreeJobResponseSchemaType = z.infer<
   typeof startFreeJobResponseSchema
 >;
 
 // Base schema for PAID jobs (extends free base with additional fields)
-const startPaidJobBaseSchema = startFreeJobBaseSchema.extend({
+export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
   input_hash: z.string().min(1),
   identifierFromPurchaser: z.string().min(1),
   blockchainIdentifier: z.string().min(1),
@@ -71,14 +63,6 @@ const startPaidJobBaseSchema = startFreeJobBaseSchema.extend({
   agentIdentifier: z.string().min(1),
   sellerVKey: z.string().min(1),
 });
-
-// Response for PAID jobs (normalizes id from id ?? job_id, drops job_id)
-export const startPaidJobResponseSchema = startPaidJobBaseSchema.transform(
-  ({ id, job_id, ...rest }) => ({
-    id: id ?? job_id,
-    ...rest,
-  }),
-);
 
 export type StartPaidJobResponseSchemaType = z.infer<
   typeof startPaidJobResponseSchema
