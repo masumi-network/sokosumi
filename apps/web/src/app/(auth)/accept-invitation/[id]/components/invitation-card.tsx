@@ -1,8 +1,13 @@
-import { InvitationWithRelations } from "@sokosumi/database";
+import {
+  Invitation,
+  OrganizationWithRelations,
+  User as DBUser,
+} from "@sokosumi/database";
 import { User } from "better-auth";
 import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,18 +24,20 @@ import { PendingInvitationErrorCode } from "@/lib/services";
 import InvitationActions from "./invitation-actions";
 
 interface InvitationCardProps {
-  invitation: InvitationWithRelations;
-  user?: User | undefined;
+  invitation: Invitation;
+  organization: OrganizationWithRelations;
+  inviter: DBUser;
+  user?: User;
 }
 
-export default function InvitationCard({
+export default async function InvitationCard({
   invitation,
+  organization,
+  inviter,
   user,
 }: InvitationCardProps) {
-  const t = useTranslations("AcceptInvitation.InvitationCard");
-  const { status, organization, inviter } = invitation;
-  const { name: organizationName, slug: organizationSlug } = organization;
-  const { email: inviterEmail } = inviter;
+  const t = await getTranslations("AcceptInvitation.InvitationCard");
+  const { status } = invitation;
 
   return (
     <Card className="w-full max-w-lg">
@@ -42,8 +49,8 @@ export default function InvitationCard({
         {status === "pending" && (
           <div className="space-y-4">
             <p>
-              <strong>{inviterEmail}</strong> {t("hasInvitedYouToJoin")}{" "}
-              <strong>{organizationName}</strong>
+              <strong>{inviter.email}</strong> {t("hasInvitedYouToJoin")}{" "}
+              <strong>{organization.name}</strong>
             </p>
           </div>
         )}
@@ -54,17 +61,17 @@ export default function InvitationCard({
             </div>
             <h1 className="text-center text-2xl font-light">
               {t("acceptedTitle", {
-                organizationName,
+                organizationName: organization.name,
               })}
             </h1>
             <p className="text-center">
               {t("acceptedDescription", {
-                organizationName,
+                organizationName: organization.name,
               })}
             </p>
             <Button variant="outline" asChild className="w-full">
               <Link
-                href={`/organizations/${encodeURIComponent(organizationSlug)}`}
+                href={`/organizations/${encodeURIComponent(organization.slug)}`}
               >
                 {t("goToOrganization")}
               </Link>
@@ -81,7 +88,7 @@ export default function InvitationCard({
             </h1>
             <p className="text-center">
               {t("declinedDescription", {
-                organizationName,
+                organizationName: organization.name,
               })}
             </p>
             <Button variant="outline" asChild className="w-full">
@@ -91,7 +98,11 @@ export default function InvitationCard({
         )}
       </CardContent>
       {status === "pending" && (
-        <InvitationActions invitation={invitation} user={user} />
+        <InvitationActions
+          invitation={invitation}
+          organizationSlug={organization.slug}
+          user={user}
+        />
       )}
     </Card>
   );
@@ -166,5 +177,7 @@ function getTranslationPathForInvitationErrorCode(
       return "AcceptInvitation.InvitationErrorCard.Expired";
     case PendingInvitationErrorCode.INVITER_NOT_FOUND:
       return "AcceptInvitation.InvitationErrorCard.InviterNotFound";
+    case PendingInvitationErrorCode.ORGANIZATION_NOT_FOUND:
+      return "AcceptInvitation.InvitationErrorCard.OrganizationNotFound";
   }
 }

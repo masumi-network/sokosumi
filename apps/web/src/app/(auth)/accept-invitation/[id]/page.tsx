@@ -1,7 +1,11 @@
-import { redirect } from "next/navigation";
+import {
+  organizationRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
 
+import { authClient } from "@/lib/auth/auth.client";
 import { getSession } from "@/lib/auth/utils";
-import { organizationService } from "@/lib/services";
+import { PendingInvitationErrorCode } from "@/lib/services";
 
 import InvitationCard, {
   InvitationErrorCard,
@@ -14,28 +18,65 @@ export default async function AcceptInvitationPage({
 }) {
   const { id } = await params;
 
-  const invitationResult = await organizationService.getPendingInvitation(id);
+  const session = await getSession();
 
-  if (invitationResult.error) {
+  const { data: invitation } = await authClient.organization.getInvitation({
+    query: {
+      id,
+    },
+  });
+
+  if (!invitation) {
     return (
       <div className="container flex items-center justify-center px-8 py-12">
-        <InvitationErrorCard errorCode={invitationResult.error} />
+        <InvitationErrorCard errorCode={PendingInvitationErrorCode.NOT_FOUND} />
       </div>
     );
   }
 
-  const session = await getSession();
+  if (invitation.expiresAt < new Date()) {
+    return (
+      <div className="container flex items-center justify-center px-8 py-12">
+        <InvitationErrorCard errorCode={PendingInvitationErrorCode.EXPIRED} />
+      </div>
+    );
+  }
 
-  const invitation = invitationResult.invitation;
-  const { organization, status } = invitation;
+  const organization =
+    await organizationRepository.getOrganizationWithRelationsById(
+      invitation.organizationId,
+    );
 
-  if (status === "accepted") {
-    redirect(`/organizations/${organization.slug}`);
+  if (!organization) {
+    return (
+      <div className="container flex items-center justify-center px-8 py-12">
+        <InvitationErrorCard
+          errorCode={PendingInvitationErrorCode.ORGANIZATION_NOT_FOUND}
+        />
+      </div>
+    );
+  }
+
+  const inviter = await userRepository.getUserById(invitation.inviterId);
+
+  if (!inviter) {
+    return (
+      <div className="container flex items-center justify-center px-8 py-12">
+        <InvitationErrorCard
+          errorCode={PendingInvitationErrorCode.INVITER_NOT_FOUND}
+        />
+      </div>
+    );
   }
 
   return (
     <div className="container flex items-center justify-center px-8 py-12">
-      <InvitationCard invitation={invitation} user={session?.user} />
+      <InvitationCard
+        invitation={invitation}
+        organization={organization}
+        inviter={inviter}
+        user={session?.user}
+      />
     </div>
   );
 }

@@ -616,6 +616,12 @@
         "description": "There was an issue with your invitation.",
         "content": "The inviter of the invitation you're trying to access was not found.",
         "footer": "Go back to home"
+      },
+      "OrganizationNotFound": {
+        "title": "Organization Not Found",
+        "description": "There was an issue with your invitation.",
+        "content": "The organization you're trying to access was not found.",
+        "footer": "Go back to home"
       }
     }
   },
