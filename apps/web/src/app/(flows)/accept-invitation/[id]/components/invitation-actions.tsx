@@ -1,6 +1,6 @@
 "use client";
 
-import { InvitationWithRelations } from "@sokosumi/database";
+import { Invitation } from "@sokosumi/database";
 import { User } from "better-auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -15,18 +15,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface InvitationActionsProps {
-  invitation: InvitationWithRelations;
+  invitation: Invitation;
+  organizationSlug: string;
   user: User | undefined;
 }
 
 export default function InvitationActions({
   invitation,
+  organizationSlug,
   user,
 }: InvitationActionsProps) {
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
 
-  const { id, email, organization } = invitation;
-  const { slug: organizationSlug } = organization;
+  const { id, email } = invitation;
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);

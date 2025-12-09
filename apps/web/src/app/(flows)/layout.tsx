@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 
-export default async function SharedLayout({
+export default async function FlowsLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -17,13 +17,13 @@ export default async function SharedLayout({
         <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
           {children}
         </div>
-        <SharedLayoutFooter />
+        <FlowsLayoutFooter />
       </div>
     </div>
   );
 }
 
-function SharedLayoutFooter() {
+function FlowsLayoutFooter() {
   const t = useTranslations("Auth.Footer");
 
   return (
@@ -37,3 +37,4 @@ function SharedLayoutFooter() {
     </div>
   );
 }
+

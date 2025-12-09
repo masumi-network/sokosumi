@@ -34,10 +34,15 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   const session = await getSessionOrRedirect();
-  const shouldShowOnboarding = await userService.showOnboarding(session);
 
+  const pendingInvitationId = await userService.getFirstPendingInvitationId();
+  if (pendingInvitationId) {
+    return redirect(`/accept-invitation/${pendingInvitationId}`);
+  }
+
+  const shouldShowOnboarding = await userService.showOnboarding(session);
   if (shouldShowOnboarding) {
-    redirect("/onboarding");
+    return redirect("/onboarding");
   }
 
   return (

@@ -18,6 +18,7 @@ import {
 import { headers } from "next/headers";
 
 import { auth, type Session } from "@/lib/auth/auth";
+import { authClient } from "@/lib/auth/auth.client";
 import { getAuthContext } from "@/lib/auth/utils";
 
 /**
@@ -175,6 +176,33 @@ export const userService = (() => {
   }
 
   /**
+   * Gets the first pending, non-expired invitation ID for the current user.
+   * Returns null if no valid pending invitation exists.
+   *
+   * @returns Promise resolving to the invitation ID or null.
+   */
+  async function getFirstPendingInvitationId(): Promise<string | null> {
+    const { data: invitations } =
+      await authClient.organization.listUserInvitations({
+        fetchOptions: {
+          headers: await headers(),
+        },
+      });
+
+    if (!invitations || invitations.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+    const pendingInvitation = invitations.find(
+      (invitation) =>
+        invitation.status === "pending" && new Date(invitation.expiresAt) > now,
+    );
+
+    return pendingInvitation?.id ?? null;
+  }
+
+  /**
    * Determines whether the onboarding flow should be shown for the current user.
    *
    * Logic:
@@ -280,6 +308,7 @@ export const userService = (() => {
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getMyValidPendingInvitations,
+    getFirstPendingInvitationId,
     showOnboarding,
     checkExistingUsers,
     markOnboardingCompleteForMe,
