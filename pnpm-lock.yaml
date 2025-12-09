@@ -39,8 +39,8 @@ importers:
         specifier: 1.1.5
         version: 1.1.5(hono@4.10.7)(zod@4.1.13)
       '@scalar/hono-api-reference':
-        specifier: 0.9.26
-        version: 0.9.26(hono@4.10.7)
+        specifier: 0.9.27
+        version: 0.9.27(hono@4.10.7)
       '@sentry/node':
         specifier: 10.29.0
         version: 10.29.0
@@ -2773,12 +2773,12 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
-  '@scalar/core@0.3.24':
-    resolution: {integrity: sha512-8d/xcjcExGRAzg+49peLIjP1XyDKyuJlJXx0J6Zy6k3gFHjA/2o98FhZRBVvVCvzeFKTfz3hg2CQHrm50JonBA==}
+  '@scalar/core@0.3.25':
+    resolution: {integrity: sha512-bbdkH17+0nArlrEHEyf/xNCPcnvjghkFmi7xz989k16SaaLZBn962WWG0ODPQUetK1anmv8nnfzufZJYZuGR/g==}
     engines: {node: '>=20'}
 
-  '@scalar/hono-api-reference@0.9.26':
-    resolution: {integrity: sha512-QcGTQ5vXu5f3W1ZmofdSHYqKMCPwQgBLuhAQSPRpaW3+G0XDI7ZYImqKoXzrgHp3PNGn2xTV9oYbTNmLHbfbOA==}
+  '@scalar/hono-api-reference@0.9.27':
+    resolution: {integrity: sha512-+puF9ZqiZU4YvP+sOJJji/9OVA1G6ksvjN+5M1axA4rEMEUWUGLr6xV1DU+v/Or77ySU2X+zY0HpVzsWsbt1Gw==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4.10.3
@@ -10440,13 +10440,13 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@scalar/core@0.3.24':
+  '@scalar/core@0.3.25':
     dependencies:
       '@scalar/types': 0.5.1
 
-  '@scalar/hono-api-reference@0.9.26(hono@4.10.7)':
+  '@scalar/hono-api-reference@0.9.27(hono@4.10.7)':
     dependencies:
-      '@scalar/core': 0.3.24
+      '@scalar/core': 0.3.25
       hono: 4.10.7
 
   '@scalar/types@0.5.1':
