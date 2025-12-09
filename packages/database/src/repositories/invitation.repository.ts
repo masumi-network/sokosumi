@@ -71,4 +71,15 @@ export const invitationRepository = {
     });
     return count > 0;
   },
+
+  async getPendingInvitationsByOrganizationId(
+    organizationId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<InvitationWithRelations[]> {
+    return tx.invitation.findMany({
+      where: { organizationId, status: InvitationStatus.PENDING },
+      include: invitationInclude,
+      orderBy: { expiresAt: "desc" },
+    });
+  },
 };
