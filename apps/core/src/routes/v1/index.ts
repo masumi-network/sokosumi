@@ -1,9 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
-import { getEnv } from "@/config/env.js";
-import { auth } from "@/lib/auth.js";
-
 import agentsRouter from "./agents/index.js";
 import jobsRouter from "./jobs/index.js";
 import usersRouter from "./users/index.js";
@@ -35,39 +32,18 @@ app.doc("/openapi.json", {
   security: [{ bearerAuth: [] }],
 });
 
-// CORS for auth routes
+// CORS for all API routes
 app.use(
-  "/auth/*",
+  "*",
   cors({
-    origin: getEnv().BETTER_AUTH_TRUSTED_ORIGIN,
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["POST", "GET", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: 600,
-    credentials: true,
-  }),
-);
-
-// CORS for all API routes (excluding auth routes)
-app.use("*", async (c, next) => {
-  // Skip CORS for auth routes - they have their own handler
-  if (c.req.path.startsWith("/auth/")) {
-    return next();
-  }
-  return cors({
     origin: "*",
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
     credentials: false,
-  })(c, next);
-});
-
-// Mount Auth routes
-app.on(["POST", "GET"], "/auth/*", (c) => {
-  return auth.handler(c.req.raw);
-});
+  }),
+);
 
 // Mount Routes
 app.route("/agents", agentsRouter);
