@@ -3,7 +3,6 @@ import { User } from "better-auth";
 import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,11 +23,11 @@ interface InvitationCardProps {
   user?: User;
 }
 
-export default async function InvitationCard({
+export default function InvitationCard({
   invitation,
   user,
 }: InvitationCardProps) {
-  const t = await getTranslations("AcceptInvitation.InvitationCard");
+  const t = useTranslations("AcceptInvitation.InvitationCard");
   const { status, inviter, organization } = invitation;
 
   return (
