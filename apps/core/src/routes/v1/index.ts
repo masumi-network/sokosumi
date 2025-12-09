@@ -48,18 +48,21 @@ app.use(
   }),
 );
 
-// CORS for all API routes
-app.use(
-  "*",
-  cors({
+// CORS for all API routes (excluding auth routes)
+app.use("*", async (c, next) => {
+  // Skip CORS for auth routes - they have their own handler
+  if (c.req.path.startsWith("/auth/")) {
+    return next();
+  }
+  return cors({
     origin: "*",
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
     credentials: false,
-  }),
-);
+  })(c, next);
+});
 
 // Mount Auth routes
 app.on(["POST", "GET"], "/auth/*", (c) => {
