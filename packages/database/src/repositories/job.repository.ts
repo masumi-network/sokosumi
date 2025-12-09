@@ -36,12 +36,12 @@ interface CreateJobBase {
   inputHash: string | null;
   name: string | null;
   jobScheduleId?: string | null | undefined;
+  statusId?: string | null | undefined;
   agentJobStatus: AgentJobStatus;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
   jobType: typeof JobType.PAID;
-  agentJobStatus: typeof AgentJobStatus.AWAITING_PAYMENT;
   identifierFromPurchaser: string;
   creditsPrice: {
     cents: bigint;
@@ -261,6 +261,7 @@ export const jobRepository = {
       }),
       events: {
         create: {
+          externalId: data.statusId,
           status: data.agentJobStatus,
           inputSchema: JSON.stringify(data.inputSchema),
           input: data.input,

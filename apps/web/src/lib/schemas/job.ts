@@ -42,20 +42,25 @@ export type JobDetailsNameFormSchemaType = z.infer<
   ReturnType<typeof jobDetailsNameFormSchema>
 >;
 
-// Base response for FREE jobs
-export const startFreeJobResponseSchema = z.object({
+// Base schema for FREE jobs (includes both id and job_id for parsing)
+const startFreeJobBaseSchema = z.object({
   id: z.string().nullish(),
-  status: z.enum(["success", "error"]),
-  job_id: z.string().min(1),
+  job_id: z.string().nullish(),
 });
+
+// Response for FREE jobs (normalizes id from id ?? job_id, drops job_id)
+export const startFreeJobResponseSchema = startFreeJobBaseSchema.transform(
+  ({ id, job_id }) => ({
+    id: id ?? job_id,
+  }),
+);
 
 export type StartFreeJobResponseSchemaType = z.infer<
   typeof startFreeJobResponseSchema
 >;
 
-// Response for PAID jobs
-export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
-  id: z.string().nullish(),
+// Base schema for PAID jobs (extends free base with additional fields)
+const startPaidJobBaseSchema = startFreeJobBaseSchema.extend({
   input_hash: z.string().min(1),
   identifierFromPurchaser: z.string().min(1),
   blockchainIdentifier: z.string().min(1),
@@ -66,6 +71,14 @@ export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
   agentIdentifier: z.string().min(1),
   sellerVKey: z.string().min(1),
 });
+
+// Response for PAID jobs (normalizes id from id ?? job_id, drops job_id)
+export const startPaidJobResponseSchema = startPaidJobBaseSchema.transform(
+  ({ id, job_id, ...rest }) => ({
+    id: id ?? job_id,
+    ...rest,
+  }),
+);
 
 export type StartPaidJobResponseSchemaType = z.infer<
   typeof startPaidJobResponseSchema
@@ -114,7 +127,6 @@ export type JobStatusValue = (typeof JOB_STATUS_VALUES)[number];
 export const jobStatusResponseSchema = z
   .object({
     id: z.string().nullish(),
-    job_id: z.string(),
     status: z.enum(JOB_STATUS_VALUES),
     input_schema: jobInputsSchema().nullish(),
     result: z.string().nullish(),
@@ -129,7 +141,6 @@ export type JobStatusResponseSchemaType = z.infer<
 >;
 
 export const provideJobInputResponseSchema = z.object({
-  status: z.enum(["success", "error"]),
   input_hash: z.string(),
   signature: z.string(),
 });

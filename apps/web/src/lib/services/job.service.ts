@@ -628,7 +628,7 @@ export const jobService = (() => {
       message: "Agent job started successfully",
       level: "info",
       data: {
-        agentJobId: startJobResponse.job_id,
+        agentJobId: startJobResponse.id,
         blockchainIdentifier: startJobResponse.blockchainIdentifier,
       },
     });
@@ -646,102 +646,134 @@ export const jobService = (() => {
       message: "Creating job in database",
       level: "info",
       data: {
-        agentJobId: startJobResponse.job_id,
+        agentJobId: startJobResponse.id,
         blockchainIdentifier: startJobResponse.blockchainIdentifier,
         generatedName: generatedName,
       },
     });
 
-    const job = await jobRepository.createJob({
-      jobType: JobType.PAID,
-      agentJobId: startJobResponse.job_id,
-      agentId,
-      userId,
-      organizationId,
-      input: JSON.stringify(inputData),
-      inputHash: startJobResponse.input_hash,
-      inputSchema: inputSchema,
-      creditsPrice: agentWithCreditsPrice.creditsPrice,
-      identifierFromPurchaser,
-      externalDisputeUnlockTime: new Date(
-        startJobResponse.externalDisputeUnlockTime,
-      ),
-      payByTime: new Date(startJobResponse.payByTime),
-      submitResultTime: new Date(startJobResponse.submitResultTime),
-      unlockTime: new Date(startJobResponse.unlockTime),
-      blockchainIdentifier: startJobResponse.blockchainIdentifier,
-      sellerVkey: startJobResponse.sellerVKey,
-      name: generatedName,
-      jobScheduleId,
-      agentJobStatus: AgentJobStatus.AWAITING_PAYMENT,
-    });
+    const agentJobId = startJobResponse.id ?? "";
 
-    // Add breadcrumb for purchase creation
-    Sentry.addBreadcrumb({
-      category: "Job Service",
-      message: "Creating purchase record",
-      level: "info",
-      data: {
-        jobId: job.id,
-        blockchainIdentifier: startJobResponse.blockchainIdentifier,
-      },
-    });
-
-    // Create purchase
-    const createPurchaseResult = await paymentClient.createPurchase(
-      agentWithCreditsPrice.blockchainIdentifier,
-      startJobResponse,
-      inputData,
-      identifierFromPurchaser,
+    const agentJobStatusResult = await agentClient.fetchAgentJobStatus(
+      agentWithCreditsPrice,
+      agentJobId,
     );
-    if (createPurchaseResult.ok) {
-      const purchase = createPurchaseResult.data;
-      const purchaseData = transformPurchaseToJobUpdate(purchase);
-      await jobPurchaseRepository.createJobPurchase({
-        jobId: job.id,
-        ...purchaseData,
+
+    if (agentJobStatusResult.ok) {
+      const statusId = agentJobStatusResult.data.id;
+      const agentJobStatus = jobStatusToAgentJobStatus(
+        agentJobStatusResult.data.status,
+      );
+
+      const job = await jobRepository.createJob({
+        jobType: JobType.PAID,
+        agentJobId,
+        agentId,
+        userId,
+        organizationId,
+        input: JSON.stringify(inputData),
+        inputHash: startJobResponse.input_hash,
+        inputSchema: inputSchema,
+        creditsPrice: agentWithCreditsPrice.creditsPrice,
+        identifierFromPurchaser,
+        externalDisputeUnlockTime: new Date(
+          startJobResponse.externalDisputeUnlockTime,
+        ),
+        payByTime: new Date(startJobResponse.payByTime),
+        submitResultTime: new Date(startJobResponse.submitResultTime),
+        unlockTime: new Date(startJobResponse.unlockTime),
+        blockchainIdentifier: startJobResponse.blockchainIdentifier,
+        sellerVkey: startJobResponse.sellerVKey,
+        name: generatedName,
+        jobScheduleId,
+        statusId: statusId,
+        agentJobStatus,
       });
 
-      // Add breadcrumb for successful purchase creation
+      // Add breadcrumb for purchase creation
       Sentry.addBreadcrumb({
         category: "Job Service",
-        message: "Purchase created successfully",
+        message: "Creating purchase record",
         level: "info",
         data: {
           jobId: job.id,
-          purchaseId: purchase.id,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
         },
       });
+
+      // Create purchase
+      const createPurchaseResult = await paymentClient.createPurchase(
+        agentWithCreditsPrice.blockchainIdentifier,
+        startJobResponse,
+        inputData,
+        identifierFromPurchaser,
+      );
+      if (createPurchaseResult.ok) {
+        const purchase = createPurchaseResult.data;
+        const purchaseData = transformPurchaseToJobUpdate(purchase);
+        await jobPurchaseRepository.createJobPurchase({
+          jobId: job.id,
+          ...purchaseData,
+        });
+
+        // Add breadcrumb for successful purchase creation
+        Sentry.addBreadcrumb({
+          category: "Job Service",
+          message: "Purchase created successfully",
+          level: "info",
+          data: {
+            jobId: job.id,
+            purchaseId: purchase.id,
+          },
+        });
+      } else {
+        Sentry.setTag("error_type", "purchase_creation_failed");
+        Sentry.setContext("purchase_creation", {
+          jobId: job.id,
+          agentId,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          error: createPurchaseResult.error,
+        });
+
+        Sentry.captureMessage(
+          `Purchase creation failed: ${createPurchaseResult.error}`,
+          "warning",
+        );
+      }
+
+      await publishJobStatusSafely(job);
+
+      // Add final success breadcrumb
+      Sentry.addBreadcrumb({
+        category: "Job Service",
+        message: "Job started successfully",
+        level: "info",
+        data: {
+          jobId: job.id,
+          agentJobId: startJobResponse.id,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+        },
+      });
+
+      return job;
     } else {
-      Sentry.setTag("error_type", "purchase_creation_failed");
-      Sentry.setContext("purchase_creation", {
-        jobId: job.id,
+      Sentry.setTag("error_type", "agent_job_status_fetch_failed");
+      Sentry.setContext("agent_job_status_fetch", {
         agentId,
         blockchainIdentifier: startJobResponse.blockchainIdentifier,
-        error: createPurchaseResult.error,
+        error: agentJobStatusResult.error,
       });
 
       Sentry.captureMessage(
-        `Purchase creation failed: ${createPurchaseResult.error}`,
-        "warning",
+        `Agent job status fetch failed: ${agentJobStatusResult.error}`,
+        "error",
+      );
+
+      throw new JobError(
+        JobErrorCode.AGENT_JOB_START_FAILED,
+        agentJobStatusResult.error,
       );
     }
-
-    await publishJobStatusSafely(job);
-
-    // Add final success breadcrumb
-    Sentry.addBreadcrumb({
-      category: "Job Service",
-      message: "Job started successfully",
-      level: "info",
-      data: {
-        jobId: job.id,
-        agentJobId: startJobResponse.job_id,
-        blockchainIdentifier: startJobResponse.blockchainIdentifier,
-      },
-    });
-
-    return job;
   }
 
   /**
@@ -799,14 +831,14 @@ export const jobService = (() => {
       message: "Creating free job in database",
       level: "info",
       data: {
-        agentJobId: startJobResponse.job_id,
+        agentJobId: startJobResponse.id,
         generatedName: generatedName,
       },
     });
 
     const job = await jobRepository.createJob({
       jobType: JobType.FREE,
-      agentJobId: startJobResponse.job_id,
+      agentJobId: startJobResponse.id ?? "",
       agentId,
       userId,
       organizationId,
@@ -826,7 +858,7 @@ export const jobService = (() => {
       level: "info",
       data: {
         jobId: job.id,
-        agentJobId: startJobResponse.job_id,
+        agentJobId: startJobResponse.id,
       },
     });
 
@@ -1333,7 +1365,6 @@ export const jobService = (() => {
         jobId: updatedJob.id,
         statusId,
         jobEventId: jobEvent.id,
-        statusResponse: responseData.status,
       },
     });
 

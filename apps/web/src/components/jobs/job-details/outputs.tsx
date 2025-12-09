@@ -66,7 +66,9 @@ function JobDetailsOutputsInner({
   }, [result, job.identifierFromPurchaser]);
 
   const onChainResultHash = job.purchase?.resultHash ?? null;
-  const showHashSection = onChainResultHash || calculatedResultHash;
+  const showHashSection =
+    event.status === JobStatus.COMPLETED &&
+    (onChainResultHash || calculatedResultHash);
 
   return (
     <JobDetailsOutputsLayout>
