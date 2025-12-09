@@ -14,6 +14,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { initI18next } from "@/lib/i18next";
 import { initSentry } from "@/lib/sentry";
 import { sentryMiddleware } from "@/middleware/sentry";
+import authRouter from "@/routes/auth/index";
 import apiV1 from "@/routes/v1/index";
 
 validateEnv();
@@ -27,12 +28,6 @@ const app = new OpenAPIHono<{
   Variables: RequestIdVariables;
 }>();
 
-app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
-  type: "http",
-  scheme: "bearer",
-  bearerFormat: "JWT",
-});
-
 app.use(logger());
 app.use(requestId());
 app.use(sentryMiddleware());
@@ -43,6 +38,7 @@ app.notFound(() => {
   throw notFound();
 });
 
+app.route("/auth", authRouter);
 app.route("/v1", apiV1);
 
 app.get(
@@ -50,8 +46,8 @@ app.get(
   Scalar({
     pageTitle: "Sokosumi API Documentation",
     sources: [
-      { url: "/v1/openapi.json", title: "Content" },
-      { url: "/v1/auth/open-api/generate-schema", title: "Auth" },
+      { url: "/v1/openapi.json", title: "v1" },
+      { url: "/auth/open-api/generate-schema", title: "Better Auth" },
     ],
     defaultOpenAllTags: true,
     layout: "modern",
