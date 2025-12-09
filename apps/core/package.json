@@ -19,7 +19,7 @@
   "dependencies": {
     "@hono/node-server": "1.19.7",
     "@hono/zod-openapi": "1.1.5",
-    "@scalar/hono-api-reference": "0.9.26",
+    "@scalar/hono-api-reference": "0.9.27",
     "@sentry/node": "10.29.0",
     "@sentry/profiling-node": "10.29.0",
     "@sokosumi/database": "workspace:*",
