@@ -209,41 +209,41 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
 }
 
 /**
- * Retrieves all input blobs from all events of a job.
+ * Retrieves all input blobs from all inputs of a job.
  *
  * @param job - The job to extract input blobs from.
  * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
  */
 export function getInputBlobs(job: JobWithStatus): Blob[] {
-  return job.events.flatMap((event) =>
-    event.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
+  return job.inputs.flatMap((input) =>
+    input.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
   );
 }
 
 /**
- * Retrieves all output blobs from all events of a job.
+ * Retrieves all output blobs from all statuses of a job.
  *
  * @param job - The job to extract output blobs from.
  * @returns An array of Blob objects with origin OUTPUT, or an empty array if none exist.
  */
 export function getOutputBlobs(job: JobWithStatus): Blob[] {
-  return job.events.flatMap((event) =>
-    event.blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT),
+  return job.statuses.flatMap((status) =>
+    status.blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT),
   );
 }
 
 /**
- * Retrieves links from the latest completed event of a job.
+ * Retrieves links from the latest completed status of a job.
  *
  * @param job - The job to extract result links from.
- * @returns An array of Link objects, or an empty array if no completed event exists.
+ * @returns An array of Link objects, or an empty array if no completed status exists.
  */
 export function getResultLinks(job: JobWithStatus): Link[] {
-  const latestCompletedEvent = job.events.find(
-    (event) => event.status === AgentJobStatus.COMPLETED,
+  const latestCompletedStatus = job.statuses.find(
+    (status) => status.status === AgentJobStatus.COMPLETED,
   );
-  if (!latestCompletedEvent) {
+  if (!latestCompletedStatus) {
     return [];
   }
-  return latestCompletedEvent.links ?? [];
+  return latestCompletedStatus.links ?? [];
 }
