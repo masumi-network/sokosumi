@@ -270,6 +270,11 @@ export const jobRepository = {
           inputHash: data.inputHash,
         },
       },
+      statuses: {
+        create: {
+          status: data.agentJobStatus,
+        },
+      },
       name: data.name,
       ...(data.jobScheduleId && {
         jobSchedule: { connect: { id: data.jobScheduleId } },
