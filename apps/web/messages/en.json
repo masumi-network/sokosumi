@@ -1071,7 +1071,8 @@
             "disputeResolved": "Dispute Resolved",
             "refundRequested": "Refund Requested",
             "refundResolved": "Refunded",
-            "outputPending": "Output Missing"
+            "outputPending": "Output Missing",
+            "resultPending": "Result Pending"
           }
         }
       }
