@@ -609,15 +609,15 @@ model JobInput {
 
   status JobStatus?
 
-  inputSchema String
-
-  input     String
-  inputHash String?
-  signature String?
+  inputSchema String?
+  input       String
+  inputHash   String?
+  signature   String?
 
   blobs Blob[]
 
   @@index([externalId])
+  @@index([jobId])
   @@map("jobInput")
 }
 

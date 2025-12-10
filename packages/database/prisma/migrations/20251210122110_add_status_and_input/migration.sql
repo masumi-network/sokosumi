@@ -35,7 +35,7 @@ CREATE TABLE "jobInput" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "externalId" TEXT,
     "jobId" TEXT NOT NULL,
-    "inputSchema" TEXT NOT NULL,
+    "inputSchema" TEXT,
     "input" TEXT NOT NULL,
     "inputHash" TEXT,
     "signature" TEXT,
@@ -54,6 +54,9 @@ CREATE INDEX "jobStatus_jobId_idx" ON "jobStatus"("jobId");
 
 -- CreateIndex
 CREATE INDEX "jobInput_externalId_idx" ON "jobInput"("externalId");
+
+-- CreateIndex
+CREATE INDEX "jobInput_jobId_idx" ON "jobInput"("jobId");
 
 -- CreateIndex
 CREATE INDEX "blob_jobStatusId_origin_idx" ON "blob"("jobStatusId", "origin");
