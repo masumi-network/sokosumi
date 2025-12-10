@@ -2,12 +2,13 @@
 -- This migration:
 -- 1. Creates JobInput and JobStatus tables
 -- 2. Migrates first JobEvent per Job to JobInput (dummy event)
--- 3. Migrates all other JobEvents to JobStatus
--- 4. Adds jobStatusId columns to Blob and Link tables
--- 5. Updates Blob and Link references from jobEventId to jobStatusId
--- 6. Makes jobStatusId NOT NULL and adds constraints/indexes
--- 7. Removes jobEventId columns and constraints
--- 8. Drops JobEvent table
+-- 3. Migrates all JobEvents to JobStatus (first event's JobStatus links to JobInput)
+-- 4. Adds jobStatusId and jobInputId columns to Blob table, jobStatusId to Link table
+-- 5. Updates Blob references: first event blobs get both jobStatusId and jobInputId, others get jobStatusId
+-- 6. Updates Link references from jobEventId to jobStatusId
+-- 7. Adds foreign key constraints and indexes
+-- 8. Removes jobEventId columns and constraints
+-- 9. Drops JobEvent table
 
 -- ============================================================================
 -- STEP 1: Create JobInput table
@@ -160,28 +161,51 @@ FROM "jobEvent" je
 INNER JOIN "_job_event_migration_mapping" m ON je.id = m.job_event_id;
 
 -- ============================================================================
--- STEP 7: Add jobStatusId columns to Blob and Link tables
+-- STEP 7: Add jobStatusId and jobInputId columns to Blob and Link tables
 -- ============================================================================
 
 -- Add jobStatusId column to blob (nullable initially)
 ALTER TABLE "blob" ADD COLUMN "jobStatusId" TEXT;
 
+-- Add jobInputId column to blob (nullable - for blobs from first event/JobInput)
+ALTER TABLE "blob" ADD COLUMN "jobInputId" TEXT;
+
 -- Add jobStatusId column to link (nullable initially)
 ALTER TABLE "link" ADD COLUMN "jobStatusId" TEXT;
 
 -- ============================================================================
--- STEP 8: Update Blob references from jobEventId to jobStatusId
+-- STEP 8: Update Blob references from jobEventId
+-- For first event: Set both jobStatusId (from JobStatus) and jobInputId (from JobInput)
+-- For other events: Set only jobStatusId
 -- ============================================================================
+
+-- Migrate blobs from first event to both JobStatus and JobInput
+UPDATE "blob" b
+SET 
+    "jobStatusId" = m.job_status_id,
+    "jobInputId" = m.job_input_id
+FROM "_job_event_migration_mapping" m
+WHERE m.job_event_id = b."jobEventId"
+  AND m.is_first_event = true
+  AND m.job_input_id IS NOT NULL;
+
+-- Migrate blobs from other events to JobStatus only
 UPDATE "blob" b
 SET "jobStatusId" = m.job_status_id
 FROM "_job_event_migration_mapping" m
-WHERE m.job_event_id = b."jobEventId";
+WHERE m.job_event_id = b."jobEventId"
+  AND m.is_first_event = false;
 
 -- Verify all blobs have been migrated
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM "blob" WHERE "jobStatusId" IS NULL AND "jobEventId" IS NOT NULL) THEN
-        RAISE EXCEPTION 'Migration failed: Found blob records without jobStatusId';
+    IF EXISTS (
+        SELECT 1 FROM "blob" b
+        INNER JOIN "_job_event_migration_mapping" m ON m.job_event_id = b."jobEventId"
+        WHERE (m.is_first_event = true AND (b."jobStatusId" IS NULL OR b."jobInputId" IS NULL))
+           OR (m.is_first_event = false AND b."jobStatusId" IS NULL)
+    ) THEN
+        RAISE EXCEPTION 'Migration failed: Found blob records that were not properly migrated';
     END IF;
 END $$;
 
@@ -202,34 +226,36 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 10: Make jobStatusId NOT NULL and add constraints
+-- STEP 10: Add foreign key constraints and indexes
+-- Note: Both jobStatusId and jobInputId are nullable (can be null)
 -- ============================================================================
-
--- Make jobStatusId NOT NULL (only if there are records)
-DO $$
-BEGIN
-    -- Only enforce NOT NULL if there are records
-    IF EXISTS (SELECT 1 FROM "blob") THEN
-        ALTER TABLE "blob" ALTER COLUMN "jobStatusId" SET NOT NULL;
-    END IF;
-    IF EXISTS (SELECT 1 FROM "link") THEN
-        ALTER TABLE "link" ALTER COLUMN "jobStatusId" SET NOT NULL;
-    END IF;
-END $$;
 
 -- Add foreign key constraints
 ALTER TABLE "blob" ADD CONSTRAINT "blob_jobStatusId_fkey"
     FOREIGN KEY ("jobStatusId") REFERENCES "jobStatus"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+ALTER TABLE "blob" ADD CONSTRAINT "blob_jobInputId_fkey"
+    FOREIGN KEY ("jobInputId") REFERENCES "JobInput"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
 ALTER TABLE "link" ADD CONSTRAINT "link_jobStatusId_fkey"
     FOREIGN KEY ("jobStatusId") REFERENCES "jobStatus"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Make jobStatusId NOT NULL for link (link always needs jobStatusId)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM "link") THEN
+        ALTER TABLE "link" ALTER COLUMN "jobStatusId" SET NOT NULL;
+    END IF;
+END $$;
+
 -- Add unique constraints for deduplication
-CREATE UNIQUE INDEX "blob_jobStatusId_sourceUrl_key" ON "blob"("jobStatusId", "sourceUrl");
+CREATE UNIQUE INDEX "blob_jobStatusId_sourceUrl_key" ON "blob"("jobStatusId", "sourceUrl") WHERE "jobStatusId" IS NOT NULL;
+CREATE UNIQUE INDEX "blob_jobInputId_sourceUrl_key" ON "blob"("jobInputId", "sourceUrl") WHERE "jobInputId" IS NOT NULL;
 CREATE UNIQUE INDEX "link_jobStatusId_url_key" ON "link"("jobStatusId", "url");
 
 -- Add performance indexes
-CREATE INDEX "blob_jobStatusId_origin_idx" ON "blob"("jobStatusId", "origin");
+CREATE INDEX "blob_jobStatusId_origin_idx" ON "blob"("jobStatusId", "origin") WHERE "jobStatusId" IS NOT NULL;
+CREATE INDEX "blob_jobInputId_origin_idx" ON "blob"("jobInputId", "origin") WHERE "jobInputId" IS NOT NULL;
 CREATE INDEX "link_jobStatusId_idx" ON "link"("jobStatusId");
 
 -- ============================================================================
