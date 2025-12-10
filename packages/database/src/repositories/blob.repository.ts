@@ -36,7 +36,7 @@ export const blobRepository = {
 
   /**
    * Create a pending result Blob record from a source URL (extracted from markdown)
-   * Avoids duplicates by sourceUrl per job event.
+   * Avoids duplicates by sourceUrl per job status.
    */
   async upsertOutputBlob(
     userId: string,
@@ -96,7 +96,7 @@ export const blobRepository = {
   },
 
   /**
-   * Get all Blob records for a job event
+   * Get all Blob records for a job status
    */
   async getBlobsByJobStatusId(
     jobStatusId: string,
@@ -135,7 +135,7 @@ export const blobRepository = {
   },
 
   /**
-   * Get all Blob records for a job event by job id
+   * Get all Blob records for a job status by job id
    */
   async getBlobsByUserIdAndJobId(
     userId: string,
