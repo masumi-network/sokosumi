@@ -1,10 +1,10 @@
 import {
-  JobStatus,
   JobWithStatus,
   OnChainTransactionStatus,
   OnChainJobStatus,
   NextJobAction,
   AgentJobStatus,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
 import { jobMatchesQuery } from "@/lib/job/job-search";
 
@@ -28,7 +28,7 @@ describe("Job search functionality", () => {
         jobId: "",
       },
     ],
-    status: JobStatus.COMPLETED,
+    status: SokosumiJobStatus.COMPLETED,
     identifierFromPurchaser: "test-1",
     inputHash: "hash-1",
     purchase: {

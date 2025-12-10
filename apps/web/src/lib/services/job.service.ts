@@ -5,7 +5,6 @@ import {
   AgentJobStatus,
   AgentWithRelations,
   JobShare,
-  JobStatus,
   JobType,
   JobWithStatus,
   NextJobAction,
@@ -13,6 +12,7 @@ import {
   PaidJobWithStatus,
   PricingType,
   Prisma,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";
@@ -61,17 +61,17 @@ import { userService } from "./user.service";
 const { POSTMARK_FROM_EMAIL } = getEnvSecrets();
 const { NEXT_PUBLIC_SOKOSUMI_URL } = getEnvPublicConfig();
 
-const finalJobStatuses = new Set<JobStatus>([
-  JobStatus.COMPLETED,
-  JobStatus.FAILED,
-  JobStatus.PAYMENT_FAILED,
-  JobStatus.REFUND_RESOLVED,
-  JobStatus.DISPUTE_RESOLVED,
+const finalJobStatuses = new Set<SokosumiJobStatus>([
+  SokosumiJobStatus.COMPLETED,
+  SokosumiJobStatus.FAILED,
+  SokosumiJobStatus.PAYMENT_FAILED,
+  SokosumiJobStatus.REFUND_RESOLVED,
+  SokosumiJobStatus.DISPUTE_RESOLVED,
 ]);
 
-const failedJobStatuses = new Set<JobStatus>([
-  JobStatus.FAILED,
-  JobStatus.PAYMENT_FAILED,
+const failedJobStatuses = new Set<SokosumiJobStatus>([
+  SokosumiJobStatus.FAILED,
+  SokosumiJobStatus.PAYMENT_FAILED,
 ]);
 
 export const jobService = (() => {
@@ -88,7 +88,7 @@ export const jobService = (() => {
     }
     if (
       job.purchase?.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-      job.status === JobStatus.COMPLETED
+      job.status === SokosumiJobStatus.COMPLETED
     ) {
       return null;
     }
@@ -143,7 +143,7 @@ export const jobService = (() => {
 
   async function dispatchFinalStatusNotification(
     job: JobWithStatus,
-    jobStatus: JobStatus,
+    jobStatus: SokosumiJobStatus,
   ) {
     if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
       return;
@@ -1099,8 +1099,8 @@ export const jobService = (() => {
         }
         const jobStatus = computeJobStatus(job);
         switch (jobStatus) {
-          case JobStatus.PAYMENT_FAILED:
-          case JobStatus.REFUND_RESOLVED:
+          case SokosumiJobStatus.PAYMENT_FAILED:
+          case SokosumiJobStatus.REFUND_RESOLVED:
             await jobRepository.refundJob(job.id, tx);
             break;
           default:

@@ -1,6 +1,6 @@
 "use client";
 
-import { JobStatus, PaidJobWithStatus } from "@sokosumi/database";
+import { PaidJobWithStatus, SokosumiJobStatus } from "@sokosumi/database";
 import {
   ExternalLink,
   HandCoins,
@@ -54,22 +54,22 @@ interface StatusConfig {
   isAnimated?: boolean;
 }
 
-const STATUS_CONFIGS: Partial<Record<JobStatus, StatusConfig>> = {
-  [JobStatus.REFUND_PENDING]: {
+const STATUS_CONFIGS: Partial<Record<SokosumiJobStatus, StatusConfig>> = {
+  [SokosumiJobStatus.REFUND_PENDING]: {
     icon: LoaderCircle,
     labelKey: "requested",
     isAnimated: true,
   },
-  [JobStatus.DISPUTE_PENDING]: {
+  [SokosumiJobStatus.DISPUTE_PENDING]: {
     icon: LoaderCircle,
     labelKey: "disputePending",
     isAnimated: true,
   },
-  [JobStatus.DISPUTE_RESOLVED]: {
+  [SokosumiJobStatus.DISPUTE_RESOLVED]: {
     icon: HandCoins,
     labelKey: "disputeResolved",
   },
-  [JobStatus.REFUND_RESOLVED]: {
+  [SokosumiJobStatus.REFUND_RESOLVED]: {
     icon: HandCoins,
     labelKey: "refunded",
   },
@@ -147,7 +147,7 @@ function makeTitleAndDescription(
 ) {
   const isEnabled = isRefundEnabled(job);
 
-  if (job.status === JobStatus.FAILED) {
+  if (job.status === SokosumiJobStatus.FAILED) {
     // For failed jobs, use submitResultTime as the unlock time for refunds
     const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
       dateStyle: "medium",
@@ -200,9 +200,9 @@ function makeTitleAndDescription(
 function isRefundEnabled(job: PaidJobWithStatus): boolean {
   const now = new Date();
   switch (job.status) {
-    case JobStatus.FAILED:
+    case SokosumiJobStatus.FAILED:
       return now > job.submitResultTime && now < job.unlockTime;
-    case JobStatus.COMPLETED:
+    case SokosumiJobStatus.COMPLETED:
       return now < job.unlockTime;
     default:
       return false;

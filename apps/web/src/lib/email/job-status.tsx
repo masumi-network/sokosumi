@@ -13,14 +13,14 @@ import {
   Tailwind,
   Text,
 } from "@react-email/components";
-import { JobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
 
 interface JobStatusEmailProps {
   recipientName: string;
   agentName: string;
   jobName?: string | null;
-  jobStatus: JobStatus;
+  jobStatus: SokosumiJobStatus;
   jobLink: string;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { JobStatus, JobWithStatus } from "@sokosumi/database";
+import { JobWithStatus, SokosumiJobStatus } from "@sokosumi/database";
 import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -48,7 +48,8 @@ export default function JobDetails({
   const rawInput = job.input;
   const rawInputSchema = job.inputSchema;
 
-  const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.result;
+  const hasCompletedOutput =
+    job.status === SokosumiJobStatus.COMPLETED && !!job.result;
   // Get blobs separated by origin (INPUT and OUTPUT) from all events
   const inputBlobs = getInputBlobs(job);
   const outputBlobs = getOutputBlobs(job);

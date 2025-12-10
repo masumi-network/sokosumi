@@ -1,6 +1,6 @@
 "use client";
 
-import { JobStatus, JobWithStatus } from "@sokosumi/database";
+import { JobWithStatus, SokosumiJobStatus } from "@sokosumi/database";
 import { isPaidJob } from "@sokosumi/database/helpers";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -83,11 +83,13 @@ function JobDetailsOutputsInner({
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {job.status === JobStatus.FAILED && !readOnly && isPaidJob(job) && (
-            <div className="flex justify-end">
-              <RequestRefundButton initialJob={job} />
-            </div>
-          )}
+          {job.status === SokosumiJobStatus.FAILED &&
+            !readOnly &&
+            isPaidJob(job) && (
+              <div className="flex justify-end">
+                <RequestRefundButton initialJob={job} />
+              </div>
+            )}
         </>
       )}
     </JobDetailsOutputsLayout>
