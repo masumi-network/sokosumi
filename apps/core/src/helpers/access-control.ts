@@ -42,9 +42,6 @@ export async function requireJobAccess(
     },
   });
 
-  console.log("CHECKING JOB ACCESS FOR");
-  console.log(job);
-
   if (!job) {
     throw forbidden(
       "You can only access your own jobs or jobs shared with your organization",
