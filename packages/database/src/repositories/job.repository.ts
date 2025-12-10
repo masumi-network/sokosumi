@@ -214,11 +214,15 @@ export const jobRepository = {
             },
           },
         }),
-        events: {
+        inputs: {
           create: {
-            status: AgentJobStatus.COMPLETED,
             inputSchema: JSON.stringify(data.inputSchema),
             input: data.input,
+          },
+        },
+        statuses: {
+          create: {
+            status: AgentJobStatus.COMPLETED,
             result: data.result,
           },
         },
@@ -259,9 +263,8 @@ export const jobRepository = {
           },
         },
       }),
-      events: {
+      inputs: {
         create: {
-          status: data.agentJobStatus,
           inputSchema: JSON.stringify(data.inputSchema),
           input: data.input,
           inputHash: data.inputHash,
@@ -587,7 +590,7 @@ function jobsNotFinishedWhereQuery(
       // Filter out free jobs that are completed or failed on agentJobStatus
       {
         jobType: JobType.FREE,
-        events: {
+        statuses: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,
@@ -612,7 +615,7 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
     AND: [
       {
-        events: {
+        statuses: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,
