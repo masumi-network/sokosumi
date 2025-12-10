@@ -18,9 +18,11 @@ import prisma from "@sokosumi/database/client";
 import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
+  jobInputRepository,
   jobPurchaseRepository,
   jobRepository,
   jobShareRepository,
+  jobStatusRepository,
 } from "@sokosumi/database/repositories";
 import { track } from "@vercel/analytics/server";
 import { getTranslations } from "next-intl/server";
@@ -1038,7 +1040,7 @@ export const jobService = (() => {
             agentJobStatusResult.data.status,
           );
           const latestJobEvent =
-            await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
+            await jobStatusRepository.getLatestJobStatusByJobId(job.id, tx);
 
           if (!latestJobEvent) {
             return computeJobStatus(job);
@@ -1068,7 +1070,7 @@ export const jobService = (() => {
             inputSchemaValue = undefined;
           }
 
-          const newJobEvent = await jobEventRepository.createJobEventForJobId(
+          const newJobEvent = await jobStatusRepository.createJobStatusForJobId(
             job.id,
             {
               externalId: agentJobStatusResult.data.id,
@@ -1240,12 +1242,12 @@ export const jobService = (() => {
     }
 
     // Get the JobEvent by externalId (statusId) that is awaiting input
-    const jobEvent =
-      await jobEventRepository.getAwaitingInputJobEventByExternalId(
-        statusId,
+    const jobStatus =
+      await jobStatusRepository.getAwaitingInputJobStatusByJobIdAndExternalId(
         jobId,
+        statusId,
       );
-    if (!jobEvent) {
+    if (!jobStatus) {
       throw new JobError(
         JobErrorCode.JOB_NOT_FOUND,
         "Job event not found or is not awaiting input",
@@ -1263,7 +1265,7 @@ export const jobService = (() => {
       data: {
         jobId: job.id,
         statusId,
-        jobEventId: jobEvent.id,
+        jobStatusId: jobStatus.id,
         agentId: job.agentId,
         agentJobId: job.agentJobId,
       },
@@ -1282,7 +1284,7 @@ export const jobService = (() => {
       Sentry.setContext("agent_provide_input", {
         jobId: job.id,
         statusId,
-        jobEventId: jobEvent.id,
+        jobStatusId: jobStatus.id,
         agentId: job.agentId,
         agentJobId: job.agentJobId,
         error: provideInputResult.error,
@@ -1301,12 +1303,14 @@ export const jobService = (() => {
     const responseData = provideInputResult.data;
 
     const updatedJob = await prisma.$transaction(async (tx) => {
-      // Update the existing JobEvent with input data
-      await jobEventRepository.setInputForJobEventById(
-        jobEvent.id,
-        inputJson,
-        responseData.input_hash,
-        responseData.signature,
+      await jobInputRepository.createJobInputForJobIdAndJobStatusId(
+        job.id,
+        jobStatus.id,
+        {
+          input: inputJson,
+          inputHash: responseData.input_hash,
+          signature: responseData.signature,
+        },
         tx,
       );
 
@@ -1329,7 +1333,7 @@ export const jobService = (() => {
       data: {
         jobId: updatedJob.id,
         statusId,
-        jobEventId: jobEvent.id,
+        jobStatusId: jobStatus.id,
         statusResponse: responseData.status,
       },
     });

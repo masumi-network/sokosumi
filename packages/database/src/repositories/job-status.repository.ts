@@ -87,4 +87,14 @@ export const jobStatusRepository = {
       },
     });
   },
+
+  async getAwaitingInputJobStatusByJobIdAndExternalId(
+    jobId: string,
+    externalId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobStatus | null> {
+    return await tx.jobStatus.findFirst({
+      where: { externalId, jobId, status: AgentJobStatus.AWAITING_INPUT },
+    });
+  },
 };

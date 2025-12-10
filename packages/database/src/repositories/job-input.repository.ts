@@ -3,7 +3,7 @@ import type { JobInput, Prisma } from "../generated/prisma/client.js";
 
 interface CreateJobInputData {
   externalId?: string | null;
-  inputSchema: string;
+  inputSchema?: string | null;
   input: string;
   inputHash: string;
   signature?: string | null;
