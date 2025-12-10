@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  Invitation,
   InvitationWithRelations,
   MemberRole,
   MemberWithUser,
@@ -13,7 +14,7 @@ import { nanoid } from "nanoid";
 import { headers } from "next/headers";
 import slugify from "slugify";
 
-import { auth, Invitation } from "@/lib/auth/auth";
+import { auth } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
 
 /**
@@ -123,23 +124,10 @@ export const organizationService = (() => {
   async function getPendingInvitations(
     organizationId: string,
   ): Promise<Invitation[]> {
-    const invitations = await auth.api.listInvitations({
-      query: {
+    const invitations =
+      await invitationRepository.getPendingInvitationsByOrganizationId(
         organizationId,
-      },
-      headers: await headers(),
-    });
-    return filterPendingInvitation(invitations);
-  }
-
-  /**
-   * Filters and sorts pending invitations by email, keeping only the latest per email.
-   *
-   * @param invitations - An array of pending invitations to filter and sort.
-   * @returns A new array of invitations with the latest per email.
-   */
-  function filterPendingInvitation(invitations: Invitation[]): Invitation[] {
-    invitations.sort((a, b) => b.expiresAt.valueOf() - a.expiresAt.valueOf());
+      );
     // Group by email and take the first (latest) invitation per email
     const emailMap = new Map<string, Invitation>();
     for (const invitation of invitations) {
