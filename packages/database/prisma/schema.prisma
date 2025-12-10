@@ -619,6 +619,7 @@ model JobInput {
   blobs Blob[]
 
   @@index([externalId])
+  @@map("jobInput")
 }
 
 model JobEvent {
@@ -781,8 +782,8 @@ model Link {
   jobEventId String
   jobEvent   JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
 
-  jobStatusId String
-  jobStatus   JobStatus @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
+  jobStatusId String?
+  jobStatus   JobStatus? @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
 
   @@unique([jobEventId, url])
   @@unique([jobStatusId, url]) // For deduplication checks
