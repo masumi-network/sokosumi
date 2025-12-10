@@ -1211,10 +1211,10 @@ export const jobService = (() => {
    *
    * This function:
    * - Validates the job exists and user owns it
-   * - Validates the JobEvent (by statusId/externalId) is in awaiting input state
+   * - Validates the JobStatus (by statusId/externalId) is in awaiting input state
    * - Stores the provided input data
    * - Calls the agent API to provide input
-   * - Updates the existing JobEvent with input data and new status
+   * - Updates the existing JobStatus with input data and new status
    *
    * @param input - Parameters including jobId, statusId (maps to externalId), userId, and inputData
    * @returns Promise resolving to the updated Job record
@@ -1242,7 +1242,7 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
 
-    // Get the JobEvent by externalId (statusId) that is awaiting input
+    // Get the JobStatus by externalId (statusId) that is awaiting input
     const jobStatus =
       await jobStatusRepository.getAwaitingInputJobStatusByJobIdAndExternalId(
         jobId,
@@ -1251,7 +1251,7 @@ export const jobService = (() => {
     if (!jobStatus) {
       throw new JobError(
         JobErrorCode.JOB_NOT_FOUND,
-        "Job event not found or is not awaiting input",
+        "Job status not found or is not awaiting input",
       );
     }
 
