@@ -615,6 +615,8 @@ model JobInput {
   inputHash String
   signature String?
 
+  blobs Blob[]
+
   @@index([externalId])
 }
 
@@ -721,10 +723,14 @@ model Blob {
   jobStatusId String
   jobStatus   JobStatus @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
 
+  jobInputId String?
+  jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
+
   @@unique([jobStatusId, sourceUrl]) // For deduplication checks
   // Performance indexes
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
   @@index([jobStatusId, origin]) // For fetching blobs by job status with origin filter
+  @@index([jobInputId, origin]) // For fetching blobs by job input with origin filter
   @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
