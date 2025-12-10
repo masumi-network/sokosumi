@@ -154,14 +154,14 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       // Save files uploaded if any
-      const jobEvent = job.events[0] ?? null;
+      const jobStatus = job.statuses[0] ?? null;
 
-      if (!jobEvent) {
+      if (!jobStatus) {
         throw new Error("Input event not found");
       }
 
       if (uploadedFiles.length > 0) {
-        await saveUploadedFiles(userId, jobEvent.id, uploadedFiles);
+        await saveUploadedFiles(userId, jobStatus.id, uploadedFiles);
       }
 
       // Add success breadcrumb
