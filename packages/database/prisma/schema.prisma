@@ -580,7 +580,7 @@ model JobStatus {
 
   externalId String?
 
-  jobId String @unique
+  jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   inputId String?   @unique
@@ -605,7 +605,7 @@ model JobInput {
 
   externalId String?
 
-  jobId String @unique
+  jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   status JobStatus?
