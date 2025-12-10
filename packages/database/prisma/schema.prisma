@@ -531,6 +531,9 @@ model Job {
   // Public Share
   share JobShare?
 
+  inputs   JobInput[]
+  statuses JobStatus[]
+
   events   JobEvent[]
   purchase JobPurchase?
 
@@ -568,6 +571,49 @@ model JobPurchase {
 
   @@index([jobId])
   @@map("jobPurchase")
+}
+
+model JobStatus {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String?
+
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  inputId String?   @unique
+  input   JobInput? @relation(fields: [inputId], references: [id], onDelete: Cascade)
+
+  status      AgentJobStatus @default(AWAITING_PAYMENT)
+  inputSchema String?
+  result      String?
+
+  @@index([externalId])
+  @@index([jobId])
+  @@map("jobStatus")
+}
+
+model JobInput {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String?
+
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  status JobStatus?
+
+  inputSchema String
+
+  input     String
+  inputHash String
+  signature String?
+
+  @@index([externalId])
 }
 
 model JobEvent {
