@@ -1,4 +1,4 @@
-import { JobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/database";
 import { jobRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Parse query parameters
     const { searchParams } = request.nextUrl;
     const agentIdFilter = searchParams.get("agentId");
-    const statusFilter = searchParams.get("status") as JobStatus | null;
+    const statusFilter = searchParams.get("status") as SokosumiJobStatus | null;
 
     // Get organization context from API key
     const activeOrganizationId = apiKey.metadata?.organizationId;
@@ -46,7 +46,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Apply filters
     let filteredJobs = jobs;
 
-    if (statusFilter && Object.values(JobStatus).includes(statusFilter)) {
+    if (
+      statusFilter &&
+      Object.values(SokosumiJobStatus).includes(statusFilter)
+    ) {
       filteredJobs = filteredJobs.filter((job) => job.status === statusFilter);
     }
 
