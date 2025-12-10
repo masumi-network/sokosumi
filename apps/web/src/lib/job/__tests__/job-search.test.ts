@@ -5,11 +5,12 @@ import {
   NextJobAction,
   AgentJobStatus,
   SokosumiJobStatus,
+  JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { jobMatchesQuery } from "@/lib/job/job-search";
 
 describe("Job search functionality", () => {
-  const mockJob: JobWithStatus = {
+  const mockJob: JobWithSokosumiStatus = {
     id: "job-1",
     name: "Test Job",
     agentId: "agent-1",
@@ -45,7 +46,7 @@ describe("Job search functionality", () => {
       errorNote: null,
       errorNoteKey: null,
     },
-    events: [
+    statuses: [
       {
         id: "event-1",
         createdAt: new Date(),
@@ -77,7 +78,7 @@ describe("Job search functionality", () => {
     userId: "user-1",
     blobs: [],
     share: null,
-  } as unknown as JobWithStatus;
+  } as unknown as JobWithSokosumiStatus;
 
   it("should return true when no query is provided", () => {
     expect(jobMatchesQuery(mockJob, "")).toBe(true);
