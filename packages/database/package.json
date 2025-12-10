@@ -2,6 +2,9 @@
   "name": "@sokosumi/database",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -63,7 +66,7 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "22.19.1",
+    "@types/node": "24.10.2",
     "@types/pg": "8.15.6",
     "dotenv": "17.2.3",
     "prisma": "7.1.0",
