@@ -720,8 +720,8 @@ model Blob {
   userId String
   user   User   @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
 
-  jobStatusId String
-  jobStatus   JobStatus @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
+  jobStatusId String?
+  jobStatus   JobStatus? @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
 
   jobInputId String?
   jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
