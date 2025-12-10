@@ -1,7 +1,5 @@
 import type { Prisma, User } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { jobRepository } from "@sokosumi/database/repositories";
-import type { JobWithStatus } from "@sokosumi/database/types/job";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -34,30 +32,24 @@ export async function requireJobAccess(
   authContext: AuthenticationContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithStatus> {
-  const job = await jobRepository.getJobById(jobId, tx);
+): Promise<void> {
+  const job = await tx.job.findFirst({
+    where: {
+      OR: [
+        { id: jobId, userId: authContext.userId },
+        { id: jobId, share: { organizationId: authContext.organizationId } },
+      ],
+    },
+  });
+
+  console.log("CHECKING JOB ACCESS FOR");
+  console.log(job);
 
   if (!job) {
-    throw notFound("Job not found");
-  }
-
-  // Check direct ownership
-  const hasDirectAccess = job.userId === authContext.userId;
-
-  if (hasDirectAccess) return job;
-
-  // Check organization-level sharing
-  const hasOrganizationAccess =
-    authContext.organizationId !== null &&
-    job.share?.organizationId === authContext.organizationId;
-
-  if (!hasOrganizationAccess) {
     throw forbidden(
       "You can only access your own jobs or jobs shared with your organization",
     );
   }
-
-  return job;
 }
 
 /**
