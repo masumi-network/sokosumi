@@ -1,7 +1,12 @@
 import type { Prisma } from "../generated/prisma/client.js";
 
 export const blobInclude = {
-  jobEvent: {
+  jobStatus: {
+    select: {
+      jobId: true,
+    },
+  },
+  jobInput: {
     select: {
       jobId: true,
     },
@@ -13,15 +18,15 @@ type BlobWithJobIdRaw = Prisma.BlobGetPayload<{
 }>;
 
 // Flattened type
-export type BlobWithJobId = Omit<BlobWithJobIdRaw, "jobEvent"> & {
-  jobId: string;
+export type BlobWithJobId = Omit<BlobWithJobIdRaw, "jobStatus" | "jobInput"> & {
+  jobId?: string;
 };
 
 // Mapper function to flatten the jobId
 export function flattenBlobJobId(blob: BlobWithJobIdRaw): BlobWithJobId {
-  const { jobEvent, ...rest } = blob;
+  const { jobStatus, jobInput, ...rest } = blob;
   return {
     ...rest,
-    jobId: jobEvent.jobId,
+    jobId: jobStatus?.jobId ?? jobInput?.jobId,
   };
 }
