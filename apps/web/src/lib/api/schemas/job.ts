@@ -1,8 +1,8 @@
 import {
   AgentJobStatus,
-  JobStatus,
   JobType,
   OnChainJobStatus,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
 import * as z from "zod";
 
@@ -43,7 +43,7 @@ export const jobResponseSchema = z.object({
   createdAt: z.iso.datetime(), // ISO date string
   updatedAt: z.iso.datetime(), // ISO date string
   name: z.string().nullable(),
-  status: z.enum(JobStatus),
+  status: z.enum(SokosumiJobStatus),
   agentId: z.string(),
   userId: z.string(),
   organizationId: z.string().nullable(),
