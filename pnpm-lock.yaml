@@ -79,14 +79,14 @@ importers:
         version: 4.0.5
       stripe:
         specifier: 20.0.0
-        version: 20.0.0(@types/node@24.10.2)
+        version: 20.0.0(@types/node@24.10.3)
       uuid:
         specifier: 13.0.0
         version: 13.0.0
     devDependencies:
       '@types/node':
-        specifier: 24.10.2
-        version: 24.10.2
+        specifier: 24.10.3
+        version: 24.10.3
       tsup:
         specifier: 8.5.1
         version: 8.5.1(@swc/core@1.15.3(@swc/helpers@0.5.17))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -241,8 +241,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       lucide-react:
-        specifier: 0.556.0
-        version: 0.556.0(react@19.2.1)
+        specifier: 0.559.0
+        version: 0.559.0(react@19.2.1)
       marked:
         specifier: 17.0.1
         version: 17.0.1
@@ -262,8 +262,8 @@ importers:
         specifier: 0.4.6
         version: 0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       nuqs:
-        specifier: 2.8.4
-        version: 2.8.4(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react@19.2.1)
+        specifier: 2.8.5
+        version: 2.8.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react@19.2.1)
       p-limit:
         specifier: 7.2.0
         version: 7.2.0
@@ -350,7 +350,7 @@ importers:
         version: 2.0.7(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       stripe:
         specifier: 20.0.0
-        version: 20.0.0(@types/node@24.10.2)
+        version: 20.0.0(@types/node@24.10.3)
       superjson:
         specifier: 2.2.6
         version: 2.2.6
@@ -416,8 +416,8 @@ importers:
         specifier: 30.0.0
         version: 30.0.0
       '@types/node':
-        specifier: 24.10.2
-        version: 24.10.2
+        specifier: 24.10.3
+        version: 24.10.3
       '@types/react':
         specifier: 19.2.7
         version: 19.2.7
@@ -444,7 +444,7 @@ importers:
         version: 1.6.1
       jest:
         specifier: 30.2.0
-        version: 30.2.0(@types/node@24.10.2)
+        version: 30.2.0(@types/node@24.10.3)
       next-openapi-gen:
         specifier: 0.8.9
         version: 0.8.9
@@ -489,11 +489,11 @@ importers:
         version: 13.0.0
     devDependencies:
       '@types/node':
-        specifier: 24.10.2
-        version: 24.10.2
+        specifier: 24.10.3
+        version: 24.10.3
       '@types/pg':
-        specifier: 8.15.6
-        version: 8.15.6
+        specifier: 8.16.0
+        version: 8.16.0
       dotenv:
         specifier: 17.2.3
         version: 17.2.3
@@ -3371,14 +3371,17 @@ packages:
   '@types/node@20.19.26':
     resolution: {integrity: sha512-0l6cjgF0XnihUpndDhk+nyD3exio3iKaYROSgvh/qSevPXax3L8p5DBRFjbvalnwatGgHEQn2R88y2fA3g4irg==}
 
-  '@types/node@24.10.2':
-    resolution: {integrity: sha512-WOhQTZ4G8xZ1tjJTvKOpyEVSGgOTvJAfDK3FNFgELyaTpzhdgHVHeqW8V+UJvzF5BT+/B54T/1S2K6gd9c7bbA==}
+  '@types/node@24.10.3':
+    resolution: {integrity: sha512-gqkrWUsS8hcm0r44yn7/xZeV1ERva/nLgrLxFRUGb7aoNMIJfZJ3AC261zDQuOAKC7MiXai1WCpYc48jAHoShQ==}
 
   '@types/pg-pool@2.0.6':
     resolution: {integrity: sha512-TaAUE5rq2VQYxab5Ts7WZhKNmuN78Q6PiFonTDdpbx8a1H0M1vhy3rhiMjl+e2iHmogyMw7jZF4FrE6eJUy5HQ==}
 
   '@types/pg@8.15.6':
     resolution: {integrity: sha512-NoaMtzhxOrubeL/7UZuNTrejB4MPAJ0RpxZqXQf2qXuVlTPuG6Y8p4u9dKRaue4yjmC7ZhzVO2/Yyyn25znrPQ==}
+
+  '@types/pg@8.16.0':
+    resolution: {integrity: sha512-RmhMd/wD+CF8Dfo+cVIy3RR5cl8CyfXQ0tGgW6XBL8L4LM/UTEbNXYRbLwU6w+CgrKBNbrQWt4FUtTfaU5jSYQ==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -6035,8 +6038,8 @@ packages:
     resolution: {integrity: sha512-Lkk/vx6ak3rYkRR0Nhu4lFUT2VDnQSxBe8Hbl7f36358p6ow8Bnvr8lrLt98H8J1aGxfhbX4Fs5tYg2+FTwr5Q==}
     engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
 
-  lucide-react@0.556.0:
-    resolution: {integrity: sha512-iOb8dRk7kLaYBZhR2VlV1CeJGxChBgUthpSP8wom9jfj79qovgG6qcSdiy6vkoREKPnbUYzJsCn4o4PtG3Iy+A==}
+  lucide-react@0.559.0:
+    resolution: {integrity: sha512-3ymrkBPXWk3U2bwUDg6TdA6hP5iGDMgPEAMLhchEgTQmA+g0Zk24tOtKtXMx35w1PizTmsBC3RhP88QYm+7mHQ==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -6435,8 +6438,8 @@ packages:
     resolution: {integrity: sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==}
     engines: {node: '>=8'}
 
-  nuqs@2.8.4:
-    resolution: {integrity: sha512-jyMlfTRGYTyWqKonwTys0B+EITpL/ueWa/6mJ3lTHG1MCCevYUSMW2TOuS+NCYBpNtNyD7h1cw2HOlCEfuLghQ==}
+  nuqs@2.8.5:
+    resolution: {integrity: sha512-ndhnNB9eLX/bsiGFkBNsrfOWf3BCbzBMD+b5GkD5o2Q96Q+llHnoUlZsrO3tgJKZZV7LLlVCvFKdj+sjBITRzg==}
     peerDependencies:
       '@remix-run/react': '>=2'
       '@tanstack/react-router': ^1
@@ -8752,7 +8755,7 @@ snapshots:
   '@jest/console@30.2.0':
     dependencies:
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       chalk: 4.1.2
       jest-message-util: 30.2.0
       jest-util: 30.2.0
@@ -8766,14 +8769,14 @@ snapshots:
       '@jest/test-result': 30.2.0
       '@jest/transform': 30.2.0
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 4.3.1
       exit-x: 0.2.2
       graceful-fs: 4.2.11
       jest-changed-files: 30.2.0
-      jest-config: 30.2.0(@types/node@24.10.2)
+      jest-config: 30.2.0(@types/node@24.10.3)
       jest-haste-map: 30.2.0
       jest-message-util: 30.2.0
       jest-regex-util: 30.0.1
@@ -8800,7 +8803,7 @@ snapshots:
     dependencies:
       '@jest/fake-timers': 30.2.0
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       jest-mock: 30.2.0
 
   '@jest/expect-utils@30.2.0':
@@ -8818,7 +8821,7 @@ snapshots:
     dependencies:
       '@jest/types': 30.2.0
       '@sinonjs/fake-timers': 13.0.5
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       jest-message-util: 30.2.0
       jest-mock: 30.2.0
       jest-util: 30.2.0
@@ -8836,7 +8839,7 @@ snapshots:
 
   '@jest/pattern@30.0.1':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       jest-regex-util: 30.0.1
 
   '@jest/reporters@30.2.0':
@@ -8847,7 +8850,7 @@ snapshots:
       '@jest/transform': 30.2.0
       '@jest/types': 30.2.0
       '@jridgewell/trace-mapping': 0.3.31
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit-x: 0.2.2
@@ -8924,7 +8927,7 @@ snapshots:
       '@jest/schemas': 30.0.5
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -10883,12 +10886,12 @@ snapshots:
     dependencies:
       '@types/http-cache-semantics': 4.0.4
       '@types/keyv': 3.1.4
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       '@types/responselike': 1.0.3
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
 
   '@types/d3-array@3.2.2': {}
 
@@ -11060,7 +11063,7 @@ snapshots:
 
   '@types/keyv@3.1.4':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
 
   '@types/mdast@4.0.4':
     dependencies:
@@ -11070,23 +11073,29 @@ snapshots:
 
   '@types/mysql@2.15.27':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
 
   '@types/node@20.19.26':
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@24.10.2':
+  '@types/node@24.10.3':
     dependencies:
       undici-types: 7.16.0
 
   '@types/pg-pool@2.0.6':
     dependencies:
-      '@types/pg': 8.15.6
+      '@types/pg': 8.16.0
 
   '@types/pg@8.15.6':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
+      pg-protocol: 1.10.3
+      pg-types: 2.2.0
+
+  '@types/pg@8.16.0':
+    dependencies:
+      '@types/node': 24.10.3
       pg-protocol: 1.10.3
       pg-types: 2.2.0
 
@@ -11111,7 +11120,7 @@ snapshots:
 
   '@types/responselike@1.0.3':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
 
   '@types/sanitize-html@2.16.0':
     dependencies:
@@ -11121,7 +11130,7 @@ snapshots:
 
   '@types/tedious@4.0.14':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
 
   '@types/trusted-types@2.0.7':
     optional: true
@@ -11140,7 +11149,7 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
     optional: true
 
   '@typescript-eslint/eslint-plugin@8.49.0(@typescript-eslint/parser@8.49.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)':
@@ -12343,7 +12352,7 @@ snapshots:
 
   docx@9.5.1:
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       hash.js: 1.1.7
       jszip: 3.10.1
       nanoid: 5.1.6
@@ -13620,7 +13629,7 @@ snapshots:
       '@jest/expect': 30.2.0
       '@jest/test-result': 30.2.0
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       chalk: 4.1.2
       co: 4.6.0
       dedent: 1.7.0
@@ -13640,7 +13649,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  jest-cli@30.2.0(@types/node@24.10.2):
+  jest-cli@30.2.0(@types/node@24.10.3):
     dependencies:
       '@jest/core': 30.2.0
       '@jest/test-result': 30.2.0
@@ -13648,7 +13657,7 @@ snapshots:
       chalk: 4.1.2
       exit-x: 0.2.2
       import-local: 3.2.0
-      jest-config: 30.2.0(@types/node@24.10.2)
+      jest-config: 30.2.0(@types/node@24.10.3)
       jest-util: 30.2.0
       jest-validate: 30.2.0
       yargs: 17.7.2
@@ -13659,7 +13668,7 @@ snapshots:
       - supports-color
       - ts-node
 
-  jest-config@30.2.0(@types/node@24.10.2):
+  jest-config@30.2.0(@types/node@24.10.3):
     dependencies:
       '@babel/core': 7.28.5
       '@jest/get-type': 30.1.0
@@ -13686,7 +13695,7 @@ snapshots:
       slash: 3.0.0
       strip-json-comments: 3.1.1
     optionalDependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -13715,7 +13724,7 @@ snapshots:
       '@jest/environment': 30.2.0
       '@jest/fake-timers': 30.2.0
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       jest-mock: 30.2.0
       jest-util: 30.2.0
       jest-validate: 30.2.0
@@ -13723,7 +13732,7 @@ snapshots:
   jest-haste-map@30.2.0:
     dependencies:
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -13762,7 +13771,7 @@ snapshots:
   jest-mock@30.2.0:
     dependencies:
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       jest-util: 30.2.0
 
   jest-pnp-resolver@1.2.3(jest-resolve@30.2.0):
@@ -13796,7 +13805,7 @@ snapshots:
       '@jest/test-result': 30.2.0
       '@jest/transform': 30.2.0
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       chalk: 4.1.2
       emittery: 0.13.1
       exit-x: 0.2.2
@@ -13825,7 +13834,7 @@ snapshots:
       '@jest/test-result': 30.2.0
       '@jest/transform': 30.2.0
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       chalk: 4.1.2
       cjs-module-lexer: 2.1.1
       collect-v8-coverage: 1.0.3
@@ -13872,7 +13881,7 @@ snapshots:
   jest-util@30.2.0:
     dependencies:
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       chalk: 4.1.2
       ci-info: 4.3.1
       graceful-fs: 4.2.11
@@ -13891,7 +13900,7 @@ snapshots:
     dependencies:
       '@jest/test-result': 30.2.0
       '@jest/types': 30.2.0
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       emittery: 0.13.1
@@ -13900,24 +13909,24 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
   jest-worker@30.2.0:
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
       '@ungap/structured-clone': 1.3.0
       jest-util: 30.2.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
-  jest@30.2.0(@types/node@24.10.2):
+  jest@30.2.0(@types/node@24.10.3):
     dependencies:
       '@jest/core': 30.2.0
       '@jest/types': 30.2.0
       import-local: 3.2.0
-      jest-cli: 30.2.0(@types/node@24.10.2)
+      jest-cli: 30.2.0(@types/node@24.10.3)
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -14132,7 +14141,7 @@ snapshots:
 
   lru.min@1.1.3: {}
 
-  lucide-react@0.556.0(react@19.2.1):
+  lucide-react@0.559.0(react@19.2.1):
     dependencies:
       react: 19.2.1
 
@@ -14770,7 +14779,7 @@ snapshots:
     dependencies:
       path-key: 3.1.1
 
-  nuqs@2.8.4(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react@19.2.1):
+  nuqs@2.8.5(next@16.0.8(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1))(react@19.2.1):
     dependencies:
       '@standard-schema/spec': 1.0.0
       react: 19.2.1
@@ -15995,11 +16004,11 @@ snapshots:
 
   strip-json-comments@3.1.1: {}
 
-  stripe@20.0.0(@types/node@24.10.2):
+  stripe@20.0.0(@types/node@24.10.3):
     dependencies:
       qs: 6.14.0
     optionalDependencies:
-      '@types/node': 24.10.2
+      '@types/node': 24.10.3
 
   style-to-js@1.1.21:
     dependencies:
