@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
-import { JobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
@@ -17,7 +17,9 @@ export const jobSchema = z
       .openapi({ example: "organization_123" }),
     name: z.string().nullish().openapi({ example: "My Job" }),
     jobType: z.enum(JobType).openapi({ example: JobType.PAID }),
-    status: z.enum(JobStatus).openapi({ example: JobStatus.PROCESSING }),
+    status: z
+      .enum(SokosumiJobStatus)
+      .openapi({ example: SokosumiJobStatus.PROCESSING }),
     completedAt: dateTimeSchema.nullish(),
     credits: z.number().openapi({ example: 5 }),
     input: z.string().openapi({
