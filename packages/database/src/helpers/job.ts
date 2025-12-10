@@ -4,7 +4,10 @@ import {
   NextJobAction,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
-import type { Job, JobEvent } from "../generated/prisma/client.js";
+import type {
+  Job,
+  JobStatus as PrismaJobStatus,
+} from "../generated/prisma/client.js";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
@@ -162,11 +165,14 @@ export function computeJobStatus(job: JobWithRelations): JobStatus {
 }
 
 function computeFreeJobStatus(job: JobWithRelations): JobStatus {
-  const latestJobEvent = job.events.at(0);
-  if (!latestJobEvent) {
+  if (job.statuses.length === 0) {
+    return JobStatus.PAYMENT_PENDING;
+  }
+  const latestJobStatus = job.statuses.at(0);
+  if (!latestJobStatus) {
     return JobStatus.FAILED;
   }
-  switch (latestJobEvent.status) {
+  switch (latestJobStatus.status) {
     case AgentJobStatus.AWAITING_PAYMENT:
       return JobStatus.FAILED;
     case AgentJobStatus.AWAITING_INPUT:
@@ -206,8 +212,8 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
     return nextActionStatus;
   }
 
-  const latestJobEvent = job.events.at(0);
-  if (!latestJobEvent) {
+  const latestJobStatus = job.statuses.at(0);
+  if (!latestJobStatus) {
     return JobStatus.FAILED;
   }
   // 5. If the job has a purchase, it means the job is started
@@ -222,16 +228,16 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
       }
       return JobStatus.PAYMENT_PENDING;
     case OnChainJobStatus.FUNDS_LOCKED:
-      return getFundsLockedJobStatus(job, latestJobEvent.status, now);
+      return getFundsLockedJobStatus(job, latestJobStatus.status, now);
     case OnChainJobStatus.RESULT_SUBMITTED:
-      switch (latestJobEvent.status) {
+      switch (latestJobStatus.status) {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
           return JobStatus.RESULT_PENDING;
       }
     case OnChainJobStatus.FUNDS_WITHDRAWN:
-      switch (latestJobEvent.status) {
+      switch (latestJobStatus.status) {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
@@ -251,24 +257,16 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
 }
 
 export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
-  const completedEvent = job.events.find(
-    (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+  const completedStatus = job.statuses.find(
+    (event: PrismaJobStatus) => event.status === AgentJobStatus.COMPLETED,
   );
-  const completedAt = completedEvent?.createdAt ?? null;
-  const result = completedEvent?.result ?? null;
-  const inputEvent = job.events.find((event: JobEvent) => {
-    switch (job.jobType) {
-      case JobType.FREE:
-        return event.status === AgentJobStatus.RUNNING;
-      case JobType.PAID:
-        return event.status === AgentJobStatus.AWAITING_PAYMENT;
-      case JobType.DEMO:
-        return event.status === AgentJobStatus.COMPLETED;
-    }
-  });
-  const input = inputEvent?.input ?? null;
-  const inputSchema = inputEvent?.inputSchema ?? null;
-  const inputHash = inputEvent?.inputHash ?? null;
+  const completedAt = completedStatus?.createdAt ?? null;
+  const result = completedStatus?.result ?? null;
+
+  const jobInput = job.inputs.at(0) ?? null;
+  const input = jobInput?.input ?? null;
+  const inputSchema = jobInput?.inputSchema ?? null;
+  const inputHash = jobInput?.inputHash ?? null;
 
   const jobStatusSettled =
     job.jobType === JobType.PAID
