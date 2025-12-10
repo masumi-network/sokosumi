@@ -450,7 +450,7 @@ export const jobService = (() => {
     try {
       const result = job.result;
       if (result !== null) {
-        // Find the latest COMPLETED event with a result for the demo job
+        // Find the latest COMPLETED status with a result for the demo job
         const statusWithResult = job.statuses.find(
           (status) => status.result === result,
         );
@@ -1039,20 +1039,20 @@ export const jobService = (() => {
           const agentJobStatus = jobStatusToAgentJobStatus(
             agentJobStatusResult.data.status,
           );
-          const latestJobEvent =
+          const latestJobStatus =
             await jobStatusRepository.getLatestJobStatusByJobId(job.id, tx);
 
-          if (!latestJobEvent) {
+          if (!latestJobStatus) {
             return computeJobStatus(job);
           }
 
           // If the latest job event is the same as the agent job status result, return the current job status
-          if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
+          if (latestJobStatus.externalId === agentJobStatusResult.data.id) {
             return computeJobStatus(job);
           } else {
             // If the agent job status result has no external ID, check if the latest job event status is the same as the agent job status
             if (!agentJobStatusResult.data.id) {
-              if (latestJobEvent.status === agentJobStatus) {
+              if (latestJobStatus.status === agentJobStatus) {
                 return computeJobStatus(job);
               }
             }
@@ -1070,16 +1070,17 @@ export const jobService = (() => {
             inputSchemaValue = undefined;
           }
 
-          const newJobEvent = await jobStatusRepository.createJobStatusForJobId(
-            job.id,
-            {
-              externalId: agentJobStatusResult.data.id,
-              status: agentJobStatus,
-              inputSchema: inputSchemaValue,
-              result: agentJobStatusResult.data.result,
-            },
-            tx,
-          );
+          const newJobStatus =
+            await jobStatusRepository.createJobStatusForJobId(
+              job.id,
+              {
+                externalId: agentJobStatusResult.data.id,
+                status: agentJobStatus,
+                inputSchema: inputSchemaValue,
+                result: agentJobStatusResult.data.result,
+              },
+              tx,
+            );
 
           job = await jobRepository.getJobById(job.id, tx);
           if (!job) {
@@ -1091,7 +1092,7 @@ export const jobService = (() => {
             const outputResult = agentJobStatusResult.data?.result;
             if (typeof outputResult === "string") {
               sourceImportService
-                .enqueueFromMarkdown(job.userId, newJobEvent.id, outputResult)
+                .enqueueFromMarkdown(job.userId, newJobStatus.id, outputResult)
                 .catch(() => {
                   // Ignore errors
                 });
