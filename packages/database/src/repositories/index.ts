@@ -34,6 +34,7 @@ export * from "./fiatTransaction.repository.js";
 export * from "./invitation.repository.js";
 export * from "./job.repository.js";
 export * from "./job-event.repository.js";
+export * from "./job-input.repository.js";
 export * from "./job-purchase.repository.js";
 export * from "./job-schedule.repository.js";
 export * from "./job-share.repository.js";
