@@ -9,13 +9,21 @@ import type {
 } from "../generated/prisma/client.js";
 
 export const jobInclude = {
-  events: {
+  statuses: {
     orderBy: {
       createdAt: "desc",
     },
     include: {
       blobs: true,
       links: true,
+    },
+  },
+  inputs: {
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: {
+      blobs: true,
     },
   },
   purchase: true,
