@@ -728,7 +728,6 @@ model Blob {
 
   @@unique([jobStatusId, sourceUrl]) // For deduplication checks
   @@unique([jobInputId, sourceUrl]) // For deduplication checks
-  // Performance indexes
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
   @@index([jobStatusId, origin]) // For fetching blobs by job status with origin filter
   @@index([jobInputId, origin]) // For fetching blobs by job input with origin filter
