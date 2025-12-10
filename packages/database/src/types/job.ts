@@ -11,13 +11,21 @@ import type {
 } from "../generated/prisma/client.js";
 
 export const jobInclude = {
-  events: {
+  statuses: {
     orderBy: {
       createdAt: "asc",
     },
     include: {
       blobs: true,
       links: true,
+    },
+  },
+  inputs: {
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: {
+      blobs: true,
     },
   },
   purchase: true,
@@ -37,12 +45,12 @@ export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
 
-export interface JobEventWithStatus {
+export interface JobStatusWithSokosumiStatus {
   id: string;
   statusId: string | null;
   input: string | null;
   inputHash: string | null;
-  status: JobStatus;
+  status: SokosumiJobStatus;
   createdAt: Date;
   updatedAt: Date;
   result: string | null;
@@ -55,10 +63,10 @@ export interface JobEventWithStatus {
 type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
 type BaseJobWithStatus = JobWithRelations & {
-  status: JobStatus;
+  status: SokosumiJobStatus;
   jobStatusSettled: boolean;
   completedAt: Date | null;
-  events: JobEventWithStatus[];
+  statuses: JobStatusWithSokosumiStatus[];
 };
 
 type BaseFreeJob = {
@@ -123,7 +131,7 @@ export enum JobErrorNoteKeys {
   Unknown = "Job.UnknownState",
 }
 
-export enum JobStatus {
+export enum SokosumiJobStatus {
   COMPLETED = "completed",
   PROCESSING = "processing",
   INPUT_REQUIRED = "input_required",
@@ -152,12 +160,12 @@ export const finalizedAgentJobStatuses: AgentJobStatus[] = [
   AgentJobStatus.FAILED,
 ];
 
-export type JobWithStatus =
+export type JobWithSokosumiStatus =
   | FreeJobWithStatus
   | PaidJobWithStatus
   | DemoJobWithStatus;
 
-export interface JobWithEvent {
-  job: JobWithStatus;
-  event: JobEventWithStatus;
+export interface JobWithStatus {
+  job: JobWithSokosumiStatus;
+  status: JobStatusWithSokosumiStatus;
 }

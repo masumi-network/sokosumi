@@ -34,13 +34,13 @@ export const sourceImportService = (() => {
    * - All operations are performed within a single database transaction for consistency.
    *
    * @param userId - The ID of the user who owns the job and links.
-   * @param jobEventId - The ID of the job event associated with the result (and blobs).
+   * @param jobStatusId - The ID of the job status associated with the result (and blobs).
    * @param markdown - The markdown content to scan for links.
    * @returns A Promise that resolves when the operation is complete.
    */
   async function enqueueFromMarkdown(
     userId: string,
-    jobEventId: string,
+    jobStatusId: string,
     markdown: string,
   ): Promise<void> {
     const fileLinks = extractFileLikeLinks(markdown);
@@ -53,7 +53,7 @@ export const sourceImportService = (() => {
         try {
           await blobRepository.upsertOutputBlob(
             userId,
-            jobEventId,
+            jobStatusId,
             url,
             guessedName,
             tx,
@@ -68,7 +68,7 @@ export const sourceImportService = (() => {
         try {
           await linkRepository.upsertLink(
             userId,
-            jobEventId,
+            jobStatusId,
             url,
             undefined,
             tx,

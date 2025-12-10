@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
@@ -14,8 +14,8 @@ import { jobMatchesQuery } from "@/lib/job";
 const MAX_QUERY_LENGTH = 256;
 
 interface JobsSearchProps {
-  jobs: JobWithStatus[];
-  onFilteredChange?: (filtered: JobWithStatus[], query: string) => void;
+  jobs: JobWithSokosumiStatus[];
+  onFilteredChange?: (filtered: JobWithSokosumiStatus[], query: string) => void;
 }
 
 export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {

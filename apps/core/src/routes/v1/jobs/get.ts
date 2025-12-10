@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
 import { jobRepository } from "@sokosumi/database/repositories";
-import { JobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { convertCentsToCredits } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -25,7 +25,7 @@ const route = createRoute({
           organizationId: "organization_123",
           name: "Research Task",
           jobType: JobType.PAID,
-          status: JobStatus.COMPLETED,
+          status: SokosumiJobStatus.COMPLETED,
           completedAt: "2025-01-15T10:35:00.000Z",
           credits: 5,
           input: '{"prompt":"How many planets are in the solar system?"}',
@@ -43,7 +43,7 @@ const route = createRoute({
           organizationId: null,
           name: "Analysis Job",
           jobType: JobType.FREE,
-          status: JobStatus.PROCESSING,
+          status: SokosumiJobStatus.PROCESSING,
           completedAt: null,
           credits: 0,
           input: '{"query":"Analyze market trends"}',

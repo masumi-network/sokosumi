@@ -60,18 +60,18 @@ export async function handleInputDataFileUploads(
  * This function save uploaded files to blob storage
  *
  * @param userId - The user id
- * @param jobEventId - The job event id
+ * @param jobStatusId - The job status id
  * @param files - The uploaded files with metadata
  */
 export async function saveUploadedFiles(
   userId: string,
-  jobEventId: string,
+  jobStatusId: string,
   files: UploadedFileWithMeta[],
 ) {
   for (const file of files) {
     await blobRepository.createInputBlob(
       userId,
-      jobEventId,
+      jobStatusId,
       file.url,
       file.fileName,
       BigInt(file.size),

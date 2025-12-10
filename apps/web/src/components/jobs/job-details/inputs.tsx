@@ -1,6 +1,6 @@
 "use client";
 
-import type { Blob, JobWithEvent } from "@sokosumi/database";
+import type { Blob, JobWithStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import * as z from "zod";
@@ -18,7 +18,7 @@ interface JobDetailsInputsProps {
   rawInput: string | null;
   rawInputSchema: string | null;
   blobs?: Blob[];
-  data?: JobWithEvent;
+  data?: JobWithStatus;
 }
 
 export default function JobDetailsInputs({
@@ -86,8 +86,8 @@ function JobDetailsInputsInner({
   blobs,
   data,
 }: JobDetailsInputsProps) {
-  const { job, event } = data ?? {};
-  const inputHash = event?.inputHash ?? null;
+  const { job, status } = data ?? {};
+  const inputHash = status?.inputHash ?? null;
   const identifierFromPurchaser = job?.identifierFromPurchaser ?? null;
 
   const t = useTranslations("Components.Jobs.JobDetails.Input");

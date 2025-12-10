@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithEvent } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 
 import { CopyableValue } from "@/components/copyable-value";
 import {
@@ -17,7 +17,7 @@ export interface HashGroupProps {
   direction: "input" | "result";
   onChainHash: string | null;
   calculatedHash: string | null;
-  data: JobWithEvent;
+  data: JobWithStatus;
   tLabelOnChain: string;
   tLabelCalculated: string;
   tMissing: string;

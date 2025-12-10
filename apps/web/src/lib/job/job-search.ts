@@ -11,7 +11,7 @@ interface SearchableJobEvent {
 export interface SearchableJob {
   id: string;
   name: string | null;
-  events: SearchableJobEvent[];
+  statuses: SearchableJobEvent[];
 }
 
 export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
@@ -19,11 +19,11 @@ export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
   const term = query.toLowerCase();
 
   // Collect input/result from all events
-  const eventFields = job.events.flatMap((event) => [
-    event.result,
+  const eventFields = job.statuses.flatMap((status) => [
+    status.result,
     (() => {
       try {
-        const input = JSON.parse(event.input ?? "{}");
+        const input = JSON.parse(status.input ?? "{}");
         return Object.values(input)
           .filter((value) => typeof value === "string")
           .join(" ");

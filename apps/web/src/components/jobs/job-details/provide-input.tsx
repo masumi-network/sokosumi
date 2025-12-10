@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type JobWithEvent } from "@sokosumi/database";
+import { type JobWithStatus } from "@sokosumi/database";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -26,7 +26,7 @@ import {
 import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 interface JobDetailsProvideInputProps {
-  data: JobWithEvent;
+  data: JobWithStatus;
 }
 
 export default function JobDetailsProvideInput({
@@ -37,8 +37,8 @@ export default function JobDetailsProvideInput({
   // Parse input schema from job - validate each entry individually
   const inputSchemas = useMemo<JobInputSchemaType[]>(() => {
     try {
-      if (data.event.inputSchema) {
-        const parsed = JSON.parse(data.event.inputSchema);
+      if (data.status.inputSchema) {
+        const parsed = JSON.parse(data.status.inputSchema);
         if (Array.isArray(parsed)) {
           // Validate each entry individually to allow partial success
           const validatedSchemas: JobInputSchemaType[] = [];
@@ -57,7 +57,7 @@ export default function JobDetailsProvideInput({
       console.error("Failed to parse input schema", _error);
     }
     return [];
-  }, [data.event.inputSchema]);
+  }, [data.status.inputSchema]);
 
   // Create a stable key to force form remount when schemas change
   // This ensures useForm is re-initialized with correct resolver and defaultValues
@@ -81,7 +81,7 @@ export default function JobDetailsProvideInput({
 }
 
 interface ProvideInputFormProps {
-  data: JobWithEvent;
+  data: JobWithStatus;
   inputSchemas: JobInputSchemaType[];
 }
 
@@ -117,7 +117,7 @@ function ProvideInputForm({ data, inputSchemas }: ProvideInputFormProps) {
     try {
       const transformedInputData = filterOutNullValues(values);
 
-      const statusId = data.event.statusId;
+      const statusId = data.status.statusId;
       if (!statusId) {
         throw new Error("Status ID is required");
       }
@@ -125,7 +125,7 @@ function ProvideInputForm({ data, inputSchemas }: ProvideInputFormProps) {
       const result = await provideJobInput({
         input: {
           jobId: data.job.id,
-          statusId: data.event.statusId ?? "",
+          statusId: data.status.statusId ?? "",
           inputData: transformedInputData,
         },
       });

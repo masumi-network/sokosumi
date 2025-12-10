@@ -2,7 +2,7 @@ import {
   AgentJobStatus,
   Blob,
   BlobOrigin,
-  JobWithStatus,
+  JobWithSokosumiStatus,
   Link,
   NextJobAction,
   NextJobActionErrorType,
@@ -209,7 +209,7 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
 }
 
 /**
- * Filters blobs to return only those with INPUT origin.
+ * Retrieves all input blobs from all inputs of a job.
  *
  * @param blobs - The array of blobs to filter.
  * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
@@ -219,7 +219,7 @@ export function getInputBlobs(blobs: Blob[]): Blob[] {
 }
 
 /**
- * Filters blobs to return only those with OUTPUT origin.
+ * Retrieves all output blobs from all statuses of a job.
  *
  * @param blobs - The array of blobs to filter.
  * @returns An array of Blob objects with origin OUTPUT, or an empty array if none exist.
@@ -229,17 +229,17 @@ export function getOutputBlobs(blobs: Blob[]): Blob[] {
 }
 
 /**
- * Retrieves links from the latest completed event of a job.
+ * Retrieves links from the latest completed status of a job.
  *
  * @param job - The job to extract result links from.
- * @returns An array of Link objects, or an empty array if no completed event exists.
+ * @returns An array of Link objects, or an empty array if no completed status exists.
  */
-export function getResultLinks(job: JobWithStatus): Link[] {
-  const latestCompletedEvent = job.events.find(
-    (event) => event.status === AgentJobStatus.COMPLETED,
+export function getResultLinks(job: JobWithSokosumiStatus): Link[] {
+  const latestCompletedStatus = job.statuses.find(
+    (status) => status.status === AgentJobStatus.COMPLETED,
   );
-  if (!latestCompletedEvent) {
+  if (!latestCompletedStatus) {
     return [];
   }
-  return latestCompletedEvent.links ?? [];
+  return latestCompletedStatus.links ?? [];
 }

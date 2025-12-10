@@ -531,7 +531,9 @@ model Job {
   // Public Share
   share JobShare?
 
-  events   JobEvent[]
+  inputs   JobInput[]
+  statuses JobStatus[]
+
   purchase JobPurchase?
 
   // Optional link to the schedule that initiated this job
@@ -570,30 +572,53 @@ model JobPurchase {
   @@map("jobPurchase")
 }
 
-model JobEvent {
+model JobStatus {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   externalId String?
 
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  inputId String?   @unique
+  input   JobInput? @relation(fields: [inputId], references: [id], onDelete: Cascade)
+
   status      AgentJobStatus @default(AWAITING_PAYMENT)
   inputSchema String?
   result      String?
-
-  input     String?
-  inputHash String?
-  signature String?
-
-  jobId String
-  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   blobs Blob[]
   links Link[]
 
   @@index([externalId])
   @@index([jobId])
-  @@map("jobEvent")
+  @@map("jobStatus")
+}
+
+model JobInput {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String?
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  status JobStatus?
+
+  inputSchema String?
+  input       String
+  inputHash   String?
+  signature   String?
+
+  blobs Blob[]
+
+  @@index([externalId])
+  @@index([jobId])
+  @@map("jobInput")
 }
 
 enum OnChainTransactionStatus {
@@ -681,44 +706,52 @@ model Apikey {
 }
 
 model Blob {
-  id         String     @id @default(uuid())
-  userId     String
-  jobEventId String
-  fileUrl    String?
-  fileName   String?
-  mime       String?
-  size       BigInt?
-  origin     BlobOrigin
-  sourceUrl  String?
-  status     BlobStatus
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user     User     @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
-  jobEvent JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
+  fileUrl   String?
+  fileName  String?
+  mime      String?
+  size      BigInt?
+  origin    BlobOrigin
+  sourceUrl String?
+  status    BlobStatus
 
-  @@unique([jobEventId, sourceUrl]) // For deduplication checks
-  // Performance indexes
+  userId String
+  user   User   @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
+
+  jobStatusId String?
+  jobStatus   JobStatus? @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
+
+  jobInputId String?
+  jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
+
+  @@unique([jobStatusId, sourceUrl]) // For deduplication checks
+  @@unique([jobInputId, sourceUrl]) // For deduplication checks
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
-  @@index([jobEventId, origin]) // For fetching blobs by job event with origin filter
+  @@index([jobStatusId, origin]) // For fetching blobs by job status with origin filter
+  @@index([jobInputId, origin]) // For fetching blobs by job input with origin filter
   @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
 
 model Link {
-  id         String   @id @default(uuid())
-  userId     String
-  jobEventId String
-  url        String
-  title      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user     User     @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
-  jobEvent JobEvent @relation(fields: [jobEventId], references: [id], onDelete: Cascade)
+  url   String
+  title String?
 
-  @@unique([jobEventId, url])
-  @@index([jobEventId]) // For fetching all links for a job event
+  userId String
+  user   User   @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
+
+  jobStatusId String
+  jobStatus   JobStatus @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
+
+  @@unique([jobStatusId, url]) // For deduplication checks
+  @@index([jobStatusId]) // For fetching all links for a job status
   @@map("link")
 }
 

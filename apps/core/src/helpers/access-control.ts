@@ -1,7 +1,7 @@
 import type { Prisma, User } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { jobRepository } from "@sokosumi/database/repositories";
-import type { JobWithStatus } from "@sokosumi/database/types/job";
+import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -34,7 +34,7 @@ export async function requireJobAccess(
   authContext: AuthenticationContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithStatus> {
+): Promise<JobWithSokosumiStatus> {
   const job = await jobRepository.getJobById(jobId, tx);
 
   if (!job) {

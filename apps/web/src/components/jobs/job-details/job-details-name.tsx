@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Globe, Loader2, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -183,7 +183,7 @@ export default function JobDetailsName({
   readOnly,
   activeOrganizationId,
 }: {
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
   readOnly: boolean;
   activeOrganizationId?: string | null;
 }) {

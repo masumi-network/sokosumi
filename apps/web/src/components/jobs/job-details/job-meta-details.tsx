@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -16,7 +16,7 @@ import { formatDateTimeMedium } from "@/lib/utils/format";
 import { buildJobTransactionUrl } from "@/lib/utils/url";
 
 export interface JobMetaDetailsProps {
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
 }
 
 export function JobMetaDetails({ job }: JobMetaDetailsProps) {

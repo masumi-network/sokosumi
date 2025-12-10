@@ -1,13 +1,13 @@
 "use client";
 
-import { JobStatus, JobType } from "@sokosumi/database";
+import { JobType, SokosumiJobStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {
-  status: JobStatus;
+  status: SokosumiJobStatus;
   jobType?: JobType;
   className?: string;
 }
@@ -31,7 +31,7 @@ export function JobStatusBadge({
   }
 
   switch (status) {
-    case JobStatus.COMPLETED:
+    case SokosumiJobStatus.COMPLETED:
       return (
         <Badge
           variant="default"
@@ -40,7 +40,7 @@ export function JobStatusBadge({
           {t("completed")}
         </Badge>
       );
-    case JobStatus.FAILED:
+    case SokosumiJobStatus.FAILED:
       return (
         <Badge
           variant="default"
@@ -49,7 +49,7 @@ export function JobStatusBadge({
           {t("failed")}
         </Badge>
       );
-    case JobStatus.PAYMENT_FAILED:
+    case SokosumiJobStatus.PAYMENT_FAILED:
       return (
         <Badge
           variant="default"
@@ -58,7 +58,7 @@ export function JobStatusBadge({
           {t("paymentFailed")}
         </Badge>
       );
-    case JobStatus.PAYMENT_PENDING:
+    case SokosumiJobStatus.PAYMENT_PENDING:
       return (
         <Badge
           variant="default"
@@ -67,7 +67,7 @@ export function JobStatusBadge({
           {t("paymentPending")}
         </Badge>
       );
-    case JobStatus.PROCESSING:
+    case SokosumiJobStatus.PROCESSING:
       return (
         <Badge
           variant="default"
@@ -76,7 +76,7 @@ export function JobStatusBadge({
           {t("processing")}
         </Badge>
       );
-    case JobStatus.INPUT_REQUIRED:
+    case SokosumiJobStatus.INPUT_REQUIRED:
       return (
         <Badge
           variant="default"
@@ -85,7 +85,7 @@ export function JobStatusBadge({
           {t("inputRequired")}
         </Badge>
       );
-    case JobStatus.REFUND_PENDING:
+    case SokosumiJobStatus.REFUND_PENDING:
       return (
         <Badge
           variant="default"
@@ -94,7 +94,7 @@ export function JobStatusBadge({
           {t("refundRequested")}
         </Badge>
       );
-    case JobStatus.REFUND_RESOLVED:
+    case SokosumiJobStatus.REFUND_RESOLVED:
       return (
         <Badge
           variant="default"
@@ -103,7 +103,7 @@ export function JobStatusBadge({
           {t("refundResolved")}
         </Badge>
       );
-    case JobStatus.DISPUTE_PENDING:
+    case SokosumiJobStatus.DISPUTE_PENDING:
       return (
         <Badge
           variant="default"
@@ -112,7 +112,7 @@ export function JobStatusBadge({
           {t("disputeRequested")}
         </Badge>
       );
-    case JobStatus.DISPUTE_RESOLVED:
+    case SokosumiJobStatus.DISPUTE_RESOLVED:
       return (
         <Badge
           variant="default"
@@ -121,7 +121,7 @@ export function JobStatusBadge({
           {t("disputeResolved")}
         </Badge>
       );
-    case JobStatus.RESULT_PENDING:
+    case SokosumiJobStatus.RESULT_PENDING:
       return (
         <Badge
           variant="default"

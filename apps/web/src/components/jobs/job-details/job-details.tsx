@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  JobEventWithStatus,
-  JobStatus,
-  JobWithEvent,
+  JobStatusWithSokosumiStatus,
+  JobWithSokosumiStatus,
   JobWithStatus,
+  SokosumiJobStatus,
 } from "@sokosumi/database";
 import { useQuery } from "@tanstack/react-query";
 import { List, Plus } from "lucide-react";
@@ -28,7 +28,7 @@ import JotOutputSources from "./sources";
 import StatusDivider from "./status-divider";
 
 interface JobDetailsProps {
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
   readOnly?: boolean;
   className?: string;
   activeOrganizationId?: string | null;
@@ -50,9 +50,9 @@ export default function JobDetails({
   });
 
   const filteredEvents =
-    job.events.filter(
-      (event: JobEventWithStatus) =>
-        !(event.input == null && event.result == null),
+    job.statuses.filter(
+      (status: JobStatusWithSokosumiStatus) =>
+        !(status.input == null && status.result == null),
     ) ?? [];
 
   const shouldCollapse = filteredEvents.length > 2 && !showAllEvents;
@@ -80,10 +80,10 @@ export default function JobDetails({
           </AccordionItem>
         </Accordion>
 
-        {visibleEvents.map((event: JobEventWithStatus, index) => (
-          <div key={`${job.id}-event-${event.id}`}>
+        {visibleEvents.map((status: JobStatusWithSokosumiStatus, index) => (
+          <div key={`${job.id}-event-${status.id}`}>
             <JobDetailsContent
-              data={{ job, event }}
+              data={{ job, status: status }}
               readOnly={readOnly}
               activeOrganizationId={activeOrganizationId}
               isLast={index === visibleEvents.length - 1}
@@ -106,7 +106,7 @@ function JobDetailsHeader({
   readOnly,
   activeOrganizationId,
 }: {
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
   readOnly: boolean;
   activeOrganizationId?: string | null;
 }) {
@@ -148,12 +148,12 @@ function CollapsedEventsButton({
   );
 }
 
-function JobDetailsProvideInputSection({ data }: { data: JobWithEvent }) {
+function JobDetailsProvideInputSection({ data }: { data: JobWithStatus }) {
   const _t = useTranslations("Components.Jobs.JobDetails");
   return (
     <div
       className="mt-1.5 flex flex-col gap-2"
-      key={`${data.job.id}-${data.event.status}-details-awaiting-input`}
+      key={`${data.job.id}-${data.status.status}-details-awaiting-input`}
     >
       <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
         <div className="flex flex-1 flex-col gap-4">
@@ -171,25 +171,26 @@ function JobDetailsContent({
   activeOrganizationId,
   isLast,
 }: {
-  data: JobWithEvent;
+  data: JobWithStatus;
   readOnly: boolean;
   activeOrganizationId?: string | null;
   isLast: boolean;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails");
-  const inputBlobs = getInputBlobs(data.event.blobs ?? []);
-  const outputBlobs = getOutputBlobs(data.event.blobs ?? []);
-  const resultLinks = data.event.links ?? [];
+  const inputBlobs = getInputBlobs(data.status.blobs ?? []);
+  const outputBlobs = getOutputBlobs(data.status.blobs ?? []);
+  const resultLinks = data.status.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
 
-  const hasCompletedOutput = data.event.status === JobStatus.COMPLETED;
+  const hasCompletedOutput = data.status.status === SokosumiJobStatus.COMPLETED;
   const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
     : baseAccordion;
 
   const isAwaitingInput =
-    data.event.status === JobStatus.INPUT_REQUIRED && data.event.input === null;
+    data.status.status === SokosumiJobStatus.INPUT_REQUIRED &&
+    data.status.input === null;
 
   return (
     <Accordion
@@ -200,7 +201,7 @@ function JobDetailsContent({
       <div className="flex flex-col gap-2 p-3 pt-4">
         <StatusDivider data={data} />
       </div>
-      {data.event.input ? (
+      {data.status.input ? (
         <AccordionItemWrapper
           value="input"
           title={t("Input.title")}
@@ -209,14 +210,14 @@ function JobDetailsContent({
           }
         >
           <JobDetailsInputs
-            rawInput={data.event.input}
-            rawInputSchema={data.event.inputSchema ?? null}
+            rawInput={data.status.input}
+            rawInputSchema={data.status.inputSchema ?? null}
             blobs={inputBlobs}
             data={data}
           />
         </AccordionItemWrapper>
       ) : null}
-      {data.event.result ? (
+      {data.status.result ? (
         <AccordionItemWrapper
           value="output"
           title={t("Output.title")}

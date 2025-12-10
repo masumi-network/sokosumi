@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
-import { JobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import { convertCentsToCredits } from "@/helpers/credits.js";
@@ -34,7 +34,7 @@ const route = createRoute({
         organizationId: "organization_123",
         name: "Research Task",
         jobType: JobType.PAID,
-        status: JobStatus.COMPLETED,
+        status: SokosumiJobStatus.COMPLETED,
         completedAt: "2025-01-15T10:35:00.000Z",
         credits: 5,
         input: '{"prompt":"How many planets are in the solar system?"}',

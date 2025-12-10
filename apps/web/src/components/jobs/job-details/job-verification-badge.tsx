@@ -1,7 +1,7 @@
 "use client";
 
 import { OnChainJobStatus } from "@sokosumi/database";
-import { type JobWithEvent } from "@sokosumi/database";
+import { type JobWithStatus } from "@sokosumi/database";
 import { isDemoJob, isFreeJob } from "@sokosumi/database/helpers";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
@@ -24,7 +24,7 @@ interface VerificationState {
 
 interface JobVerificationBadgeProps {
   direction: "input" | "result";
-  data: JobWithEvent;
+  data: JobWithStatus;
   className?: string;
 }
 
@@ -33,7 +33,7 @@ export function JobVerificationBadge({
   data,
   className,
 }: JobVerificationBadgeProps) {
-  const { job, event } = data;
+  const { job, status } = data;
 
   const t = useTranslations("Components.Jobs.JobDetails");
 
@@ -63,7 +63,7 @@ export function JobVerificationBadge({
           const resultVerificationOptions = {
             identifierFromPurchaser: job.identifierFromPurchaser,
             resultHash: job.purchase?.resultHash ?? null,
-            result: event.result,
+            result: status.result,
           };
 
           return {
@@ -76,8 +76,8 @@ export function JobVerificationBadge({
       case "input":
         const inputVerificationOptions = {
           identifierFromPurchaser: job.identifierFromPurchaser,
-          inputHash: event.inputHash ?? null,
-          input: event.input,
+          inputHash: status.inputHash ?? null,
+          input: status.input,
         };
 
         return {
@@ -88,7 +88,7 @@ export function JobVerificationBadge({
       default:
         return { isPending: false, isVerified: false, isNotApplicable: false };
     }
-  }, [direction, job, event]);
+  }, [direction, job, status]);
 
   const { isPending, isVerified, isNotApplicable } = verificationState;
 

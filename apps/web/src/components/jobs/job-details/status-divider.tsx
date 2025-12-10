@@ -1,18 +1,18 @@
-import { type JobWithEvent } from "@sokosumi/database";
+import { type JobWithStatus } from "@sokosumi/database";
 import { Clock } from "lucide-react";
 import { useFormatter } from "next-intl";
 
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 
 interface StatusDividerProps {
-  data: JobWithEvent;
+  data: JobWithStatus;
 }
 
 export default function StatusDivider({ data }: StatusDividerProps) {
   const { jobType } = data.job;
-  const { status } = data.event;
+  const { status } = data.status;
   const formatter = useFormatter();
-  const label = formatter.dateTime(data.event.updatedAt, {
+  const label = formatter.dateTime(data.status.updatedAt, {
     dateStyle: "full",
     timeStyle: "short",
   });
@@ -23,7 +23,7 @@ export default function StatusDivider({ data }: StatusDividerProps) {
       <span className="text-muted-foreground text-xs uppercase">{label}</span>
       <hr className="border-muted h-0 flex-1 border-0 border-t" />
       <JobStatusBadge
-        key={`${data.job.id}-${data.event.status}-details-badge`}
+        key={`${data.job.id}-${data.status.status}-details-badge`}
         status={status}
         jobType={jobType}
       />

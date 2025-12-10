@@ -3,7 +3,7 @@ import "server-only";
 import type { Member, User } from "@sokosumi/database";
 import {
   InvitationWithRelations,
-  JobWithStatus,
+  JobWithSokosumiStatus,
   MemberWithOrganization,
   OrganizationWithRelations,
 } from "@sokosumi/database";
@@ -74,10 +74,10 @@ export const userService = (() => {
    * Otherwise, returns personal jobs for the user and agent.
    *
    * @param {string} agentId - The ID of the agent to filter jobs by.
-   * @returns {Promise<JobWithStatus[]>} An array of jobs with status for the user and agent.
+   * @returns {Promise<JobWithSokosumiStatus[]>} An array of jobs with status for the user and agent.
    *
    */
-  async function getMyJobs(agentId: string): Promise<JobWithStatus[]> {
+  async function getMyJobs(agentId: string): Promise<JobWithSokosumiStatus[]> {
     const context = await getAuthContext();
     if (!context) {
       return [];
@@ -93,7 +93,7 @@ export const userService = (() => {
     });
 
     // Get shared jobs from organization if user is in an organization
-    let sharedJobs: JobWithStatus[] = [];
+    let sharedJobs: JobWithSokosumiStatus[] = [];
     if (activeOrganizationId) {
       sharedJobs = await jobRepository.getJobsSharedWithOrganization(
         userId,
