@@ -46,7 +46,7 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
 type BaseJobWithStatus = JobWithRelations & {
-  status: JobStatus;
+  status: SokosumiJobStatus;
   jobStatusSettled: boolean;
   input: string | null;
   inputHash: string | null;
@@ -117,7 +117,7 @@ export enum JobErrorNoteKeys {
   Unknown = "Job.UnknownState",
 }
 
-export enum JobStatus {
+export enum SokosumiJobStatus {
   COMPLETED = "completed",
   PROCESSING = "processing",
   INPUT_REQUIRED = "input_required",
