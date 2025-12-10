@@ -34,6 +34,25 @@ export const jobInputRepository = {
     });
   },
 
+  async createJobInputForJobIdAndJobStatusId(
+    jobId: string,
+    jobStatusId: string,
+    data: CreateJobInputData,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobInput> {
+    return await tx.jobInput.create({
+      data: {
+        job: { connect: { id: jobId } },
+        status: { connect: { id: jobStatusId } },
+        externalId: data.externalId,
+        inputSchema: data.inputSchema,
+        input: data.input,
+        inputHash: data.inputHash,
+        signature: data.signature,
+      },
+    });
+  },
+
   /**
    * Retrieves a JobInput by its ID
    */
