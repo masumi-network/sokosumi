@@ -18,7 +18,6 @@ import prisma from "@sokosumi/database/client";
 import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
-  jobEventRepository,
   jobPurchaseRepository,
   jobRepository,
   jobShareRepository,
@@ -450,11 +449,13 @@ export const jobService = (() => {
       const result = job.result;
       if (result !== null) {
         // Find the latest COMPLETED event with a result for the demo job
-        const eventWithResult = job.events.find((e) => e.result === result);
-        if (eventWithResult) {
+        const statusWithResult = job.statuses.find(
+          (status) => status.result === result,
+        );
+        if (statusWithResult) {
           await sourceImportService.enqueueFromMarkdown(
             userId,
-            eventWithResult.id,
+            statusWithResult.id,
             result,
           );
         }
