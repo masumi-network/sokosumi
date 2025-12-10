@@ -37,7 +37,7 @@ CREATE TABLE "jobInput" (
     "jobId" TEXT NOT NULL,
     "inputSchema" TEXT NOT NULL,
     "input" TEXT NOT NULL,
-    "inputHash" TEXT NOT NULL,
+    "inputHash" TEXT,
     "signature" TEXT,
 
     CONSTRAINT "jobInput_pkey" PRIMARY KEY ("id")

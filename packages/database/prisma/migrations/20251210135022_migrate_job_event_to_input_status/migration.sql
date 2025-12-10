@@ -8,7 +8,7 @@
 -- 6. Migrates links from jobEvent to jobStatus
 
 -- Step 1: Create JobInput from first jobEvent per job
--- Only create if required fields (input, inputHash, inputSchema) are present
+-- Only create if required fields (input, inputSchema) are present
 WITH first_events AS (
   SELECT DISTINCT ON ("jobId")
     id,
@@ -21,7 +21,6 @@ WITH first_events AS (
     "createdAt"
   FROM "jobEvent"
   WHERE input IS NOT NULL
-    AND "inputHash" IS NOT NULL
     AND "inputSchema" IS NOT NULL
   ORDER BY "jobId", "createdAt" ASC
 )
@@ -74,7 +73,6 @@ WHERE origin = 'INPUT'
         "jobId"
       FROM "jobEvent"
       WHERE input IS NOT NULL
-        AND "inputHash" IS NOT NULL
         AND "inputSchema" IS NOT NULL
       ORDER BY "jobId", "createdAt" ASC
     ) first_je ON je.id = first_je.id

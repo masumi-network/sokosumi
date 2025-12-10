@@ -612,7 +612,7 @@ model JobInput {
   inputSchema String
 
   input     String
-  inputHash String
+  inputHash String?
   signature String?
 
   blobs Blob[]
