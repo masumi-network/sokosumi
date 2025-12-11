@@ -527,8 +527,8 @@ model Job {
   refundedCreditTransactionId String?            @unique
 
   name        String?
-  inputSchema String?
-  input       String?
+  inputSchema String
+  input       String
   inputHash   String?
   inputBlobs  Blob[]
 
