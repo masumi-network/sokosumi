@@ -711,6 +711,8 @@ export const jobService = (() => {
       agentJobStatus: agentJobStatus ?? AgentJobStatus.AWAITING_PAYMENT,
     });
 
+    console.log("job", job);
+
     // Add breadcrumb for purchase creation
     Sentry.addBreadcrumb({
       category: "Job Service",

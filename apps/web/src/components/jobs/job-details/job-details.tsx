@@ -40,6 +40,7 @@ export default function JobDetails({
   className,
   activeOrganizationId,
 }: JobDetailsProps) {
+  const t = useTranslations("Components.Jobs.JobDetails");
   const { data: session } = useSession();
   const [showAllEvents, setShowAllEvents] = useState(false);
 
@@ -70,7 +71,7 @@ export default function JobDetails({
       )}
     >
       <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]>div]:block!">
-        <Accordion type="single" className="w-full space-y-1.5" collapsible>
+        <Accordion type="multiple" className="w-full space-y-1.5">
           <AccordionItem value="job-details-header">
             <JobDetailsHeader
               job={job}
@@ -78,6 +79,55 @@ export default function JobDetails({
               activeOrganizationId={activeOrganizationId}
             />
           </AccordionItem>
+          <AccordionItemWrapper
+            value="input"
+            title={t("Input.title")}
+            verificationBadge={
+              <JobVerificationBadge
+                direction="input"
+                data={{
+                  job,
+                  status: {
+                    input: job.input,
+                    inputHash: job.inputHash,
+                    inputSchema: job.inputSchema,
+                    status: job.status,
+                    statusId: null,
+                    id: "",
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    blobs: [],
+                    links: [],
+                    result: null,
+                    signature: null,
+                  },
+                }}
+              />
+            }
+          >
+            <JobDetailsInputs
+              rawInput={job.input}
+              rawInputSchema={job.inputSchema ?? null}
+              // blobs={inputBlobs ?? []}
+              data={{
+                job,
+                status: {
+                  input: job.input,
+                  inputHash: job.inputHash,
+                  inputSchema: job.inputSchema,
+                  status: job.status,
+                  statusId: null,
+                  id: "",
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  blobs: [],
+                  links: [],
+                  result: null,
+                  signature: null,
+                },
+              }}
+            />
+          </AccordionItemWrapper>
         </Accordion>
 
         {visibleEvents.map((status: JobStatusWithSokosumiStatus, index) => (
@@ -153,7 +203,7 @@ function JobDetailsProvideInputSection({ data }: { data: JobWithStatus }) {
   return (
     <div
       className="mt-1.5 flex flex-col gap-2"
-      key={`${data.job.id}-${data.status.status}-details-awaiting-input`}
+      key={`${data.job.id}-${data.status?.status}-details-awaiting-input`}
     >
       <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
         <div className="flex flex-1 flex-col gap-4">
@@ -176,21 +226,23 @@ function JobDetailsContent({
   activeOrganizationId?: string | null;
   isLast: boolean;
 }) {
+  const { job, status } = data;
   const t = useTranslations("Components.Jobs.JobDetails");
-  const inputBlobs = getInputBlobs(data.status.blobs ?? []);
-  const outputBlobs = getOutputBlobs(data.status.blobs ?? []);
-  const resultLinks = data.status.links ?? [];
+  const inputBlobs = getInputBlobs(status.blobs ?? []);
+  const outputBlobs = getOutputBlobs(status.blobs ?? []);
+  const resultLinks = status.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
 
-  const hasCompletedOutput = data.status.status === SokosumiJobStatus.COMPLETED;
+  const hasCompletedOutput = status.status === SokosumiJobStatus.COMPLETED;
   const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
     : baseAccordion;
 
   const isAwaitingInput =
-    data.status.status === SokosumiJobStatus.INPUT_REQUIRED &&
-    data.status.input === null;
+    status.status === SokosumiJobStatus.INPUT_REQUIRED &&
+    status.input === null &&
+    status.inputSchema !== null;
 
   return (
     <Accordion
@@ -201,7 +253,7 @@ function JobDetailsContent({
       <div className="flex flex-col gap-2 p-3 pt-4">
         <StatusDivider data={data} />
       </div>
-      {data.status.input ? (
+      {status.input ? (
         <AccordionItemWrapper
           value="input"
           title={t("Input.title")}
@@ -210,19 +262,20 @@ function JobDetailsContent({
           }
         >
           <JobDetailsInputs
-            rawInput={data.status.input}
-            rawInputSchema={data.status.inputSchema ?? null}
+            rawInput={status.input}
+            rawInputSchema={status.inputSchema ?? null}
             blobs={inputBlobs}
             data={data}
           />
         </AccordionItemWrapper>
       ) : null}
-      {data.status.result ? (
+      {status.result ? (
         <AccordionItemWrapper
           value="output"
           title={t("Output.title")}
           verificationBadge={
-            data.job.completedAt != null ? (
+            job.completedAt != null &&
+            status.status === SokosumiJobStatus.COMPLETED ? (
               <JobVerificationBadge direction="result" data={data} />
             ) : null
           }
@@ -236,7 +289,7 @@ function JobDetailsContent({
       ) : null}
       {hasSources ? (
         <AccordionItemWrapper value="sources" title={t("Sources.title")}>
-          <JotOutputSources job={data.job} />
+          <JotOutputSources job={job} />
         </AccordionItemWrapper>
       ) : null}
       {isAwaitingInput ? <JobDetailsProvideInputSection data={data} /> : null}

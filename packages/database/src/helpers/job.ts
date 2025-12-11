@@ -10,6 +10,7 @@ import type { Job, JobStatus } from "../generated/prisma/client.js";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
+  type JobStatusWithSokosumiStatus,
   type JobWithRelations,
   type JobWithSokosumiStatus,
   PaidJobWithStatus,
@@ -294,29 +295,39 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
 
   const computedStatus = computeJobStatus(job);
 
-  // Map all events with computed status (events already in ASC order from repo)
-  // const mappedStatuses: JobStatus[] = job.statuses.map((status) => ({
-  //   id: event.id,
-  //   statusId: event.externalId,
-  //   input: event.input,
-  //   inputHash: event.inputHash,
-  //   status: computeJobStatus({ ...job, events: [event] }),
-  //   createdAt: event.createdAt,
-  //   updatedAt: event.updatedAt,
-  //   result: event.result,
-  //   inputSchema: event.inputSchema,
-  //   signature: event.signature,
-  //   blobs: event.blobs,
-  //   links: event.links,
-  // }));
+  // Map all statuses with computed status (statuses already in ASC order from repo)
+  const mappedStatuses: JobStatusWithSokosumiStatus[] = job.statuses.map(
+    (status) => ({
+      id: status.id,
+      statusId: status.externalId,
+      input: status.input?.input ?? null,
+      inputHash: status.input?.inputHash ?? null,
+      status: computeJobStatus({ ...job, statuses: [status] }),
+      createdAt: status.createdAt,
+      updatedAt: status.updatedAt,
+      result: status.result,
+      inputSchema: status.input?.inputSchema ?? null,
+      signature: status.input?.signature ?? null,
+      blobs: status.blobs,
+      links: status.links,
+    }),
+  );
+
+  // TODO: Tempory map for initial Input, and InputSchema
+  const input = job.inputs.at(0)?.input ?? null;
+  const inputSchema = job.inputs.at(0)?.inputSchema ?? null;
+  const inputHash = job.inputs.at(0)?.inputHash ?? null;
 
   const baseJobWithStatus = {
     ...job,
+    input,
+    inputSchema,
+    inputHash,
     status: computedStatus,
     jobStatusSettled,
     completedAt,
     inputs: job.inputs,
-    statuses: job.statuses,
+    statuses: mappedStatuses,
     cents: job.creditTransaction?.amount ?? BigInt(0),
     credits: Math.abs(
       convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),

@@ -263,22 +263,13 @@ export const jobRepository = {
           },
         },
       }),
-      inputs: {
-        create: {
-          inputSchema: JSON.stringify(data.inputSchema),
-          input: data.input,
-          inputHash: data.inputHash,
-        },
-      },
-      statuses: {
-        create: {
-          status: data.agentJobStatus,
-        },
-      },
       name: data.name,
       ...(data.jobScheduleId && {
         jobSchedule: { connect: { id: data.jobScheduleId } },
       }),
+      input: data.input,
+      inputHash: data.inputHash,
+      inputSchema: JSON.stringify(data.inputSchema),
     };
 
     switch (data.jobType) {
