@@ -60,7 +60,7 @@ export async function handleInputDataFileUploads(
  * This function save uploaded files to blob storage
  *
  * @param userId - The user id
- * @param jobStatusId - The job status id
+ * @param jobInputId - The job input id
  * @param files - The uploaded files with metadata
  */
 export async function saveUploadedFilesForInput(
@@ -72,6 +72,29 @@ export async function saveUploadedFilesForInput(
     await blobRepository.createInputBlobForInput(
       userId,
       jobInputId,
+      file.url,
+      file.fileName,
+      BigInt(file.size),
+    );
+  }
+}
+
+/**
+ * This function save uploaded files to blob storage
+ *
+ * @param userId - The user id
+ * @param jobInputId - The job input id
+ * @param files - The uploaded files with metadata
+ */
+export async function saveUploadedFilesForJob(
+  userId: string,
+  jobId: string,
+  files: UploadedFileWithMeta[],
+) {
+  for (const file of files) {
+    await blobRepository.createInputBlobForJob(
+      userId,
+      jobId,
       file.url,
       file.fileName,
       BigInt(file.size),
