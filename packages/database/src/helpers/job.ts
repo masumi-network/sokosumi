@@ -262,11 +262,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   const completedAt = completedStatus?.createdAt ?? null;
   const result = completedStatus?.result ?? null;
 
-  const jobInput = job.inputs.at(0) ?? null;
-  const input = jobInput?.input ?? null;
-  const inputSchema = jobInput?.inputSchema ?? null;
-  const inputHash = jobInput?.inputHash ?? null;
-
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
@@ -280,9 +275,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
     jobStatusSettled,
     completedAt: completedAt ?? null,
     result: result ?? null,
-    input: input ?? null,
-    inputHash: inputHash ?? null,
-    inputSchema: inputSchema ?? null,
     cents: job.creditTransaction?.amount ?? BigInt(0),
     credits: Math.abs(
       convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
