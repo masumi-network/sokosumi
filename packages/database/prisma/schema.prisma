@@ -535,7 +535,6 @@ model Job {
   // Public Share
   share JobShare?
 
-  inputs   JobInput[]
   statuses JobStatus[]
 
   purchase JobPurchase?
@@ -587,8 +586,7 @@ model JobStatus {
   jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  inputId String?   @unique
-  input   JobInput? @relation(fields: [inputId], references: [id], onDelete: Cascade)
+  input JobInput?
 
   status      AgentJobStatus @default(AWAITING_PAYMENT)
   inputSchema String?
@@ -607,22 +605,15 @@ model JobInput {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  externalId String?
+  statusId String    @unique
+  status   JobStatus @relation(fields: [statusId], references: [id])
 
-  jobId String
-  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  status JobStatus?
-
-  inputSchema String?
-  input       String
-  inputHash   String?
-  signature   String?
+  input     String
+  inputHash String?
+  signature String?
 
   blobs Blob[]
 
-  @@index([externalId])
-  @@index([jobId])
   @@map("jobInput")
 }
 
