@@ -45,8 +45,6 @@ type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
 export type InputRequest = {
   id: string;
-  createdAt: Date;
-  requestedAt: Date;
   message: string | null;
   inputSchema: string;
   input: string;

@@ -18,7 +18,7 @@ const params = z.object({
 
 const inputRequestSchema = z.object({
   id: z.string().openapi({ example: "input_request_123" }),
-  requestedAt: dateTimeSchema,
+  createdAt: dateTimeSchema,
   message: z
     .string()
     .nullish()
@@ -40,7 +40,7 @@ const route = createRoute({
       {
         data: {
           id: "input_request_123",
-          requestedAt: "2025-01-15T10:30:00.000Z",
+          createdAt: "2025-01-15T10:30:00.000Z",
           message: "How many planets are in the solar system?",
           inputSchema: "input_schema",
         },
@@ -85,7 +85,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const inputRequest = {
       id: jobStatus.id,
-      requestedAt: jobStatus.createdAt,
+      createdAt: jobStatus.createdAt,
       message: jobStatus.result,
       inputSchema: jobStatus.inputSchema,
     };

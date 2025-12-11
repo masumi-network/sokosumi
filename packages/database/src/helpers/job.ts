@@ -271,8 +271,6 @@ function mapInputRequests(
       const input = status.input;
       return {
         id: status.id,
-        createdAt: input.createdAt,
-        requestedAt: status.createdAt,
         message: status.result,
         inputSchema: status.inputSchema!,
         input: input.input,
