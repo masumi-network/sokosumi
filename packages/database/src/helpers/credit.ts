@@ -27,8 +27,8 @@ export function convertCreditsToCents(credits: number): bigint {
 /**
  * Calculates the fee from cents based on percentage points.
  * @param cents - Credit amount in cents
- * @param percentagePoints - Fee percentage points
- * @returns Fee in cents
+ * @param percentagePoints - Fee percentage points default to 5%
+ * @returns Fee in cents (rounded up to the nearest integer)
  */
 export function feeFromCentsBasedOnPercentagePoints(
   cents: bigint,
