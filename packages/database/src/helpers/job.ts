@@ -10,6 +10,7 @@ import type { Job, JobStatus } from "../generated/prisma/client.js";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
+  InputRequest,
   type JobWithRelations,
   type JobWithStatus,
   PaidJobWithStatus,
@@ -255,6 +256,33 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
   }
 }
 
+function mapInputRequests(
+  statuses: JobWithRelations["statuses"],
+): InputRequest[] {
+  const inputRequests = statuses
+    .filter(
+      (
+        status,
+      ): status is JobWithRelations["statuses"][number] & {
+        input: NonNullable<JobWithRelations["statuses"][number]["input"]>;
+      } => status.input !== null,
+    )
+    .map((status) => {
+      const input = status.input;
+      return {
+        id: status.id,
+        createdAt: input.createdAt,
+        requestedAt: status.createdAt,
+        message: status.result,
+        inputSchema: status.inputSchema!,
+        input: input.input,
+        inputHash: input.inputHash,
+        signature: input.signature,
+      };
+    });
+  return inputRequests;
+}
+
 export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   const completedStatus = job.statuses.find(
     (event: JobStatus) => event.status === AgentJobStatus.COMPLETED,
@@ -266,6 +294,8 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   const input = jobInput?.input ?? null;
   const inputSchema = jobInput?.inputSchema ?? null;
   const inputHash = jobInput?.inputHash ?? null;
+
+  const inputRequests = mapInputRequests(job.statuses);
 
   const jobStatusSettled =
     job.jobType === JobType.PAID
@@ -283,6 +313,7 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
     input: input ?? null,
     inputHash: inputHash ?? null,
     inputSchema: inputSchema ?? null,
+    inputRequests: inputRequests ?? null,
     cents: job.creditTransaction?.amount ?? BigInt(0),
     credits: Math.abs(
       convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),

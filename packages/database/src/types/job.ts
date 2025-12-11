@@ -14,6 +14,7 @@ export const jobInclude = {
       createdAt: "desc",
     },
     include: {
+      input: true,
       blobs: true,
       links: true,
     },
@@ -45,12 +46,24 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 
 type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
+export type InputRequest = {
+  id: string;
+  createdAt: Date;
+  requestedAt: Date;
+  message: string | null;
+  inputSchema: string;
+  input: string;
+  inputHash: string | null;
+  signature: string | null;
+};
+
 type BaseJobWithStatus = JobWithRelations & {
   status: SokosumiJobStatus;
   jobStatusSettled: boolean;
   input: string | null;
   inputHash: string | null;
   inputSchema: string | null;
+  inputRequests: InputRequest[] | null;
   completedAt: Date | null;
   result: string | null;
   resultHash: string | null;
