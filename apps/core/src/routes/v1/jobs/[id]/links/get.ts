@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import prisma from "@sokosumi/database/client";
 import { linkRepository } from "@sokosumi/database/repositories";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
@@ -60,9 +61,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    await requireJobAccess(authContext, id);
+    const links = await prisma.$transaction(async (tx) => {
+      await requireJobAccess(authContext, id, tx);
+      return await linkRepository.getLinksByJobId(id, tx);
+    });
 
-    const links = await linkRepository.getLinksByJobId(id);
     return ok(c, linksSchema.parse(links));
   });
 }

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { BlobOrigin, BlobStatus } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import { blobRepository } from "@sokosumi/database/repositories";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
@@ -71,9 +72,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    await requireJobAccess(authContext, id);
-
-    const files = await blobRepository.getBlobsByJobId(id);
+    const files = await prisma.$transaction(async (tx) => {
+      await requireJobAccess(authContext, id, tx);
+      return await blobRepository.getBlobsByJobId(id, tx);
+    });
 
     return ok(c, filesSchema.parse(files));
   });
