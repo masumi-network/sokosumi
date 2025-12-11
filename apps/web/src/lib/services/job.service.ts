@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import {
   AgentJobStatus,
   AgentWithRelations,
+  JobInput,
   JobShare,
   JobType,
   JobWithStatus,
@@ -1222,7 +1223,7 @@ export const jobService = (() => {
    */
   const provideJobInput = async (
     input: ProvideJobInputSchemaType & { userId: string },
-  ): Promise<JobWithStatus> => {
+  ): Promise<{ job: JobWithStatus; input: JobInput }> => {
     const { jobId, statusId, userId, inputData } = input;
 
     Sentry.addBreadcrumb({
@@ -1303,26 +1304,27 @@ export const jobService = (() => {
 
     const responseData = provideInputResult.data;
 
-    const updatedJob = await prisma.$transaction(async (tx) => {
-      await jobInputRepository.createJobInputForJobIdAndJobStatusId(
-        job.id,
-        jobStatus.id,
-        {
-          input: inputJson,
-          inputHash: responseData.input_hash,
-          signature: responseData.signature,
-        },
-        tx,
-      );
+    const { job: updatedJob, input: jobInput } = await prisma.$transaction(
+      async (tx) => {
+        const jobInput = await jobInputRepository.createJobInputForJobStatusId(
+          jobStatus.id,
+          {
+            input: inputJson,
+            inputHash: responseData.input_hash,
+            signature: responseData.signature,
+          },
+          tx,
+        );
 
-      // Refetch the job to get updated events
-      const updatedJob = await jobRepository.getJobById(job.id, tx);
-      if (!updatedJob) {
-        throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-      }
+        // Refetch the job to get updated events
+        const updatedJob = await jobRepository.getJobById(job.id, tx);
+        if (!updatedJob) {
+          throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+        }
 
-      return updatedJob;
-    });
+        return { job: updatedJob, input: jobInput };
+      },
+    );
 
     // Publish job status update
     await publishJobStatusSafely(updatedJob);
@@ -1339,7 +1341,7 @@ export const jobService = (() => {
       },
     });
 
-    return updatedJob;
+    return { job: updatedJob, input: jobInput };
   };
 
   return {
