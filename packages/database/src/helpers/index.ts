@@ -30,4 +30,5 @@
  * ```
  */
 
+export * from "./credit.js";
 export * from "./job.js";

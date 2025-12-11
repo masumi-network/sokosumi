@@ -1,12 +1,12 @@
 "use client";
 
 import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { useTranslations } from "next-intl";
 
 import { AgentBookmarkButton, AgentHireButton } from "@/components/agents";
 import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import VerticalDivider from "@/components/vertical-divider";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 interface AgentBottomNavigationProps {
   agent: AgentWithCreditsPrice;

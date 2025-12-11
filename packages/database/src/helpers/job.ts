@@ -1,3 +1,5 @@
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
+
 import {
   AgentJobStatus,
   JobType,
@@ -281,6 +283,11 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
     input: input ?? null,
     inputHash: inputHash ?? null,
     inputSchema: inputSchema ?? null,
+    cents: job.creditTransaction?.amount ?? BigInt(0),
+    credits: Math.abs(
+      convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
+    ),
+    resultHash: job.purchase?.resultHash ?? null,
   };
 
   switch (job.jobType) {

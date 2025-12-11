@@ -53,6 +53,9 @@ type BaseJobWithStatus = JobWithRelations & {
   inputSchema: string | null;
   completedAt: Date | null;
   result: string | null;
+  resultHash: string | null;
+  credits: number;
+  cents: bigint;
 };
 
 type BaseFreeJob = {

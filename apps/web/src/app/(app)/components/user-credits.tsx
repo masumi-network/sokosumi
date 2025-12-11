@@ -1,3 +1,4 @@
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
   userRepository,
@@ -6,7 +7,6 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { Session } from "@/lib/auth/auth";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { userService } from "@/lib/services/user.service";
 
 import BuyCreditsButton from "./buy-credits-button";

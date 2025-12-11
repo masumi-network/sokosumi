@@ -1,9 +1,8 @@
 import type { Prisma, User as DatabaseUser } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import { type User, userSchema } from "@/schemas/user.schema";
-
-import { convertCentsToCredits } from "./credits";
 
 /**
  * Maps a user to a response object

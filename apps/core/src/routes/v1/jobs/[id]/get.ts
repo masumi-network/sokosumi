@@ -5,7 +5,6 @@ import { jobRepository } from "@sokosumi/database/repositories";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
-import { convertCentsToCredits } from "@/helpers/credits.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -72,14 +71,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Job not found");
     }
 
-    const formattedJob = {
-      ...job,
-      credits: Math.abs(
-        convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
-      ),
-      resultHash: job.purchase?.resultHash ?? null,
-    };
-
-    return ok(c, jobSchema.parse(formattedJob));
+    return ok(c, jobSchema.parse(job));
   });
 }
