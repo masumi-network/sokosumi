@@ -26,9 +26,85 @@ export const jobSchema = z
       example: '{"prompt":"How many planets are in the solar system?"}',
     }),
     inputHash: z.string().nullish().openapi({ example: "input_hash" }),
-    inputSchema: z.string().nullish().openapi({ example: "input_schema" }),
+    inputSchema: z.string().nullish(),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
+    inputRequests: z.array(
+      z.object({
+        id: z.string().openapi({ example: "input_request_123" }),
+        createdAt: dateTimeSchema,
+        message: z
+          .string()
+          .nullish()
+          .openapi({ example: "How many planets are in the solar system?" }),
+        inputSchema: z.string().openapi({ example: "input_schema" }),
+        input: z.string().openapi({
+          example: '{"prompt":"How many planets are in the solar system?"}',
+        }),
+        inputHash: z.string().openapi({ example: "input_hash" }),
+        signature: z.string().openapi({ example: "signature" }),
+      }),
+    ),
+    pendingInputRequest: z
+      .object({
+        id: z.string().openapi({ example: "input_request_123" }),
+        message: z
+          .string()
+          .nullish()
+          .openapi({ example: "How many planets are in the solar system?" }),
+        inputSchema: z.record(z.string(), z.any()).openapi({
+          example: {
+            input_data: [
+              {
+                id: "linkedin_url",
+                type: "string",
+                name: "LinkedIn Profile URL",
+                data: {
+                  placeholder: "https://linkedin.com/in/yourprofile",
+                  description:
+                    "Optional: Add your LinkedIn profile for more details",
+                },
+                validations: [
+                  {
+                    validation: "format",
+                    value: "url",
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+        requestedAt: dateTimeSchema,
+      })
+      .nullish()
+      .openapi({
+        description: "The pending input request for the job",
+        example: {
+          id: "input_request_123",
+          message: "How many planets are in the solar system?",
+          inputSchema: {
+            input_data: [
+              {
+                id: "linkedin_url",
+                type: "string",
+                name: "LinkedIn Profile URL",
+                data: {
+                  placeholder: "https://linkedin.com/in/yourprofile",
+                  description:
+                    "Optional: Add your LinkedIn profile for more details",
+                },
+                validations: [
+                  {
+                    validation: "format",
+                    value: "url",
+                  },
+                ],
+              },
+            ],
+          },
+          requestedAt: "2025-01-01T00:00:00.000Z",
+        },
+      }),
   })
   .openapi("Job");
 
