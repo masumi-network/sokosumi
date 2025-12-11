@@ -14,7 +14,6 @@ export const jobInclude = {
       createdAt: "desc",
     },
     include: {
-      input: true,
       blobs: true,
       input: {
         include: {
