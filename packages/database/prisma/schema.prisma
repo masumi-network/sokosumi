@@ -606,7 +606,7 @@ model JobInput {
   updatedAt DateTime @updatedAt
 
   statusId String    @unique
-  status   JobStatus @relation(fields: [statusId], references: [id])
+  status   JobStatus @relation(fields: [statusId], references: [id], onDelete: Cascade)
 
   input     String
   inputHash String?
