@@ -83,7 +83,7 @@ export async function saveUploadedFilesForInput(
  * This function save uploaded files to blob storage
  *
  * @param userId - The user id
- * @param jobInputId - The job input id
+ * @param jobId - The job id
  * @param files - The uploaded files with metadata
  */
 export async function saveUploadedFilesForJob(
