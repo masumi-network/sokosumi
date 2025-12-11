@@ -29,22 +29,46 @@ export const jobSchema = z
     inputSchema: z.string().nullish(),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
     resultHash: z.string().nullish().openapi({ example: "result_hash" }),
-    inputRequests: z.array(
-      z.object({
-        id: z.string().openapi({ example: "input_request_123" }),
-        createdAt: dateTimeSchema,
-        message: z
-          .string()
-          .nullish()
-          .openapi({ example: "How many planets are in the solar system?" }),
-        inputSchema: z.string().openapi({ example: "input_schema" }),
-        input: z.string().openapi({
-          example: '{"prompt":"How many planets are in the solar system?"}',
+    inputRequests: z
+      .array(
+        z.object({
+          id: z.string().openapi({ example: "input_request_123" }),
+          createdAt: dateTimeSchema,
+          message: z
+            .string()
+            .nullish()
+            .openapi({ example: "How many planets are in the solar system?" }),
+          inputSchema: z.string().openapi({ example: "input_schema" }),
+          input: z.string().openapi({
+            example: '{"prompt":"How many planets are in the solar system?"}',
+          }),
+          inputHash: z.string().openapi({ example: "input_hash" }),
+          signature: z.string().openapi({ example: "signature" }),
         }),
-        inputHash: z.string().openapi({ example: "input_hash" }),
-        signature: z.string().openapi({ example: "signature" }),
+      )
+      .nullish()
+      .openapi({
+        example: [
+          {
+            id: "input_request_123",
+            createdAt: "2025-01-01T00:00:00.000Z",
+            message: "How many planets are in the solar system?",
+            inputSchema: "input_schema",
+            input: '{"prompt":"How many planets are in the solar system?"}',
+            inputHash: "input_hash",
+            signature: "signature",
+          },
+          {
+            id: "input_request_124",
+            createdAt: "2025-01-02T00:00:00.000Z",
+            message: "How many planets are in the solar system?",
+            inputSchema: "input_schema",
+            input: '{"prompt":"How many planets are in the solar system?"}',
+            inputHash: "input_hash",
+            signature: "signature",
+          },
+        ],
       }),
-    ),
     pendingInputRequest: z
       .object({
         id: z.string().openapi({ example: "input_request_123" }),
