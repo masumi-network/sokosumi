@@ -23,3 +23,19 @@ export function convertCentsToCredits(cents: bigint): number {
 export function convertCreditsToCents(credits: number): bigint {
   return BigInt(new Decimal(credits).mul(CREDITS_BASE).toFixed(0).toString());
 }
+
+/**
+ * Calculates the fee from cents based on percentage points.
+ * @param cents - Credit amount in cents
+ * @param percentagePoints - Fee percentage points
+ * @returns Fee in cents
+ */
+export function feeFromCentsBasedOnPercentagePoints(
+  cents: bigint,
+  percentagePoints: number = 5,
+): bigint {
+  const multiplier = percentagePoints / 100;
+  return BigInt(
+    new Decimal(cents.toString()).mul(multiplier).toFixed(0).toString(),
+  );
+}

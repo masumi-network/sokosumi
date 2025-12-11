@@ -14,6 +14,11 @@ import {
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  feeFromCentsBasedOnPercentagePoints,
+} from "@sokosumi/database/helpers";
+import {
   agentListRepository,
   agentRatingRepository,
   agentRepository,
@@ -21,16 +26,11 @@ import {
   jobRepository,
   memberRepository,
 } from "@sokosumi/database/repositories";
-import { Decimal } from "decimal.js";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getAuthContext } from "@/lib/auth/utils";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
-import {
-  convertCentsToCredits,
-  convertCreditsToCents,
-} from "@/lib/helpers/credit";
 import { pricingAmountsSchema } from "@/lib/schemas";
 
 export const agentService = (() => {
@@ -384,13 +384,12 @@ export const agentService = (() => {
       }
 
       const feePercentagePoints =
-        getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
+        getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE_POINTS;
       if (feePercentagePoints < 0) {
         throw new Error(
           "Added fee percentage must be equal to or greater than 0",
         );
       }
-      const feeMultiplier = feePercentagePoints / 100;
       const amountsParsed = pricingAmountsSchema.parse(amounts);
 
       let totalCents = BigInt(0);
@@ -407,11 +406,9 @@ export const agentService = (() => {
           throw new Error(`Credit cost not found for unit ${amount.unit}`);
         }
         const cents = amount.amount * creditCost.centsPerUnit;
-        const fee = BigInt(
-          new Decimal(cents.toString())
-            .mul(feeMultiplier) // feeMultiplier = feePercentagePoints / 100
-            .ceil()
-            .toFixed(0),
+        const fee = feeFromCentsBasedOnPercentagePoints(
+          cents,
+          feePercentagePoints,
         );
 
         // round up to the nearest integer
