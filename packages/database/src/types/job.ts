@@ -137,6 +137,7 @@ export enum JobErrorNoteKeys {
 }
 
 export enum SokosumiJobStatus {
+  STARTED = "started",
   COMPLETED = "completed",
   PROCESSING = "processing",
   INPUT_REQUIRED = "input_required",

@@ -368,7 +368,10 @@ export function makeInitialJobStatus(
     inputSchema: job.inputSchema,
     signature: null,
     inputBlobs: job.inputBlobs ?? [],
-    status: job.status,
+    status:
+      job.status === SokosumiJobStatus.COMPLETED
+        ? SokosumiJobStatus.STARTED
+        : job.status,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     result: null,

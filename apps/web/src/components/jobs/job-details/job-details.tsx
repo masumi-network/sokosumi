@@ -82,6 +82,9 @@ export default function JobDetails({
               activeOrganizationId={activeOrganizationId}
             />
           </AccordionItem>
+          <div className="flex flex-col gap-2 p-3 pt-4">
+            <StatusDivider data={{ job, status: initialStatus }} />
+          </div>
           <AccordionItemWrapper
             value="input"
             title={t("Input.title")}
