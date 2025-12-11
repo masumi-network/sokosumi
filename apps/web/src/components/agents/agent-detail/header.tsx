@@ -1,4 +1,5 @@
 import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
@@ -18,7 +19,6 @@ import {
   getFullAgentAuthorName,
   isAgentNew,
 } from "@/lib/helpers/agent";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn } from "@/lib/utils";
 
 interface AgentDetailHeaderProps {

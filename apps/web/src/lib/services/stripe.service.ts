@@ -2,6 +2,7 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import prisma from "@sokosumi/database/client";
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
   fiatTransactionRepository,
   organizationRepository,
@@ -19,7 +20,6 @@ import {
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
-import { convertCreditsToCents } from "@/lib/helpers/credit";
 
 export const stripeService = (() => {
   async function getStripeCustomerId(

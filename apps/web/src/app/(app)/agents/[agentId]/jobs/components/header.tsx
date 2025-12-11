@@ -2,6 +2,7 @@
 
 import type { AgentRatingStats } from "@sokosumi/database";
 import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -12,7 +13,6 @@ import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentName } from "@/lib/helpers/agent";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");

@@ -1,6 +1,7 @@
 "use client";
 
 import { JobWithSokosumiStatus } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -10,7 +11,6 @@ import { CopyableValue } from "@/components/copyable-value";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { Separator } from "@/components/ui/separator";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn } from "@/lib/utils";
 import { formatDateTimeMedium } from "@/lib/utils/format";
 import { buildJobTransactionUrl } from "@/lib/utils/url";

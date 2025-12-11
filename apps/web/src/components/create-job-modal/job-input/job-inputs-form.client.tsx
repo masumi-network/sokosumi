@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AgentWithCreditsPrice } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { track } from "@vercel/analytics";
 import {
   CalendarClock,
@@ -32,7 +33,6 @@ import { createSchedule } from "@/lib/actions/job-schedule";
 import { useSession } from "@/lib/auth/auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 import {
   defaultValues,
   filterOutNullValues,

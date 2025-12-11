@@ -23,8 +23,7 @@ const envPublicConfigSchema = z.object({
     .literal("Preprod")
     .or(z.literal("Mainnet"))
     .default("Preprod"),
-  NEXT_PUBLIC_FEE_PERCENTAGE: z.coerce.number().min(0).default(5),
-  NEXT_PUBLIC_CREDITS_BASE: z.coerce.number().default(12),
+  NEXT_PUBLIC_FEE_PERCENTAGE_POINTS: z.coerce.number().min(0).default(5),
   NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD: z.coerce
     .number()
     .min(0)

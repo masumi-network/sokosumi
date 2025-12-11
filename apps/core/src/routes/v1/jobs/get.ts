@@ -3,7 +3,6 @@ import { JobType } from "@sokosumi/database";
 import { jobRepository } from "@sokosumi/database/repositories";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
-import { convertCentsToCredits } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -70,14 +69,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userId: authContext.userId,
       organizationId: authContext.organizationId,
     });
-
-    const formattedJobs = jobs.map((job) => ({
-      ...job,
-      credits: Math.abs(
-        convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
-      ),
-      resultHash: job.purchase?.resultHash ?? null,
-    }));
-    return ok(c, jobsSchema.parse(formattedJobs));
+    return ok(c, jobsSchema.parse(jobs));
   });
 }

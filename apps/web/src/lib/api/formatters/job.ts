@@ -1,11 +1,13 @@
 import "server-only";
 
 import { AgentJobStatus, JobWithSokosumiStatus } from "@sokosumi/database";
-import { getLatestJobStatus } from "@sokosumi/database/helpers";
+import {
+  convertCentsToCredits,
+  getLatestJobStatus,
+} from "@sokosumi/database/helpers";
 
 import { JobResponse, jobResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 import { formatJobShareResponse } from "./job-share";
 

@@ -61,6 +61,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "7.1.0",
     "@prisma/client": "7.1.0",
+    "decimal.js": "10.6.0",
     "pg": "8.16.3",
     "pg-pool": "3.10.1",
     "uuid": "13.0.0"

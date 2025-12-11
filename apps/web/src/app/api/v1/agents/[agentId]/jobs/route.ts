@@ -1,3 +1,4 @@
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -16,7 +17,6 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { getAuthContext } from "@/lib/auth/utils";
-import { convertCreditsToCents } from "@/lib/helpers/credit";
 import { jobInputDataSchema } from "@/lib/job-input";
 import { agentService } from "@/lib/services";
 

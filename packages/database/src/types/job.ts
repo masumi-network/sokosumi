@@ -68,6 +68,9 @@ type BaseJobWithStatus = JobWithRelations & {
   jobStatusSettled: boolean;
   completedAt: Date | null;
   statuses: JobStatusWithSokosumiStatus[];
+  credits: number;
+  cents: bigint;
+  resultHash: string | null;
 };
 
 type BaseFreeJob = {

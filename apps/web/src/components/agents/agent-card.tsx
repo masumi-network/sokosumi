@@ -1,5 +1,6 @@
 import type { AgentRatingStats } from "@sokosumi/database";
 import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -18,7 +19,6 @@ import {
   getAgentSummary,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
-import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn, generateGradientBorder } from "@/lib/utils";
 import { getCategoryColor } from "@/lib/utils/theme";
 

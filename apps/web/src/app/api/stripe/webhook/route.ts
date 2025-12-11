@@ -1,6 +1,10 @@
 import { FiatTransactionStatus, MemberRole } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+} from "@sokosumi/database/helpers";
+import {
   fiatTransactionRepository,
   memberRepository,
   organizationRepository,
@@ -11,10 +15,6 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
-import {
-  convertCentsToCredits,
-  convertCreditsToCents,
-} from "@/lib/helpers/credit";
 import { stripeService } from "@/lib/services/stripe.service";
 
 export async function POST(req: Request) {
