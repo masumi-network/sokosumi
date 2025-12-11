@@ -215,9 +215,14 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
  * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
  */
 export function getInputBlobs(job: JobWithStatus): Blob[] {
-  return job.inputs.flatMap((input) =>
-    input.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
-  );
+  const inputBlobs = job.inputBlobs;
+
+  return job.statuses
+    .filter((status) => status.input)
+    .flatMap((input) =>
+      input.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
+    )
+    .concat(inputBlobs);
 }
 
 /**

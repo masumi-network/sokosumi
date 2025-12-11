@@ -214,12 +214,8 @@ export const jobRepository = {
             },
           },
         }),
-        inputs: {
-          create: {
-            inputSchema: JSON.stringify(data.inputSchema),
-            input: data.input,
-          },
-        },
+        input: data.input,
+        inputSchema: JSON.stringify(data.inputSchema),
         statuses: {
           create: {
             status: AgentJobStatus.COMPLETED,
@@ -263,13 +259,9 @@ export const jobRepository = {
           },
         },
       }),
-      inputs: {
-        create: {
-          inputSchema: JSON.stringify(data.inputSchema),
-          input: data.input,
-          inputHash: data.inputHash,
-        },
-      },
+      inputSchema: JSON.stringify(data.inputSchema),
+      input: data.input,
+      inputHash: data.inputHash,
       statuses: {
         create: {
           status: data.agentJobStatus,

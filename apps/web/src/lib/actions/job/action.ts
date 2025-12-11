@@ -35,7 +35,8 @@ import {
 
 import {
   handleInputDataFileUploads,
-  saveUploadedFiles,
+  saveUploadedFilesForInput,
+  saveUploadedFilesForJob,
   type UploadedFileWithMeta,
 } from "./utils";
 
@@ -161,7 +162,7 @@ export const startJob = withAuthContext<
       }
 
       if (uploadedFiles.length > 0) {
-        await saveUploadedFiles(userId, jobStatus.id, uploadedFiles);
+        await saveUploadedFilesForJob(userId, job.id, uploadedFiles);
       }
 
       // Add success breadcrumb
@@ -312,7 +313,7 @@ export const provideJobInput = withAuthContext<
       });
 
       // Call service to provide job input
-      const job = await jobService.provideJobInput({
+      const { job, input: jobInput } = await jobService.provideJobInput({
         jobId,
         statusId,
         userId,
@@ -321,7 +322,7 @@ export const provideJobInput = withAuthContext<
 
       // Save uploaded files
       if (uploadedFiles.length > 0) {
-        await saveUploadedFiles(userId, job.id, uploadedFiles);
+        await saveUploadedFilesForInput(userId, jobInput.id, uploadedFiles);
       }
 
       // Add success breadcrumb

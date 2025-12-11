@@ -16,17 +16,15 @@ export const jobInclude = {
     include: {
       input: true,
       blobs: true,
+      input: {
+        include: {
+          blobs: true,
+        },
+      },
       links: true,
     },
   },
-  inputs: {
-    orderBy: {
-      createdAt: "desc",
-    },
-    include: {
-      blobs: true,
-    },
-  },
+  inputBlobs: true,
   purchase: true,
   agent: true,
   user: true,
