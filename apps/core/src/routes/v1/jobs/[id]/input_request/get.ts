@@ -3,7 +3,6 @@ import { AgentJobStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
-import { dateTimeSchema } from "@/helpers/datetime";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -18,7 +17,6 @@ const params = z.object({
 
 const inputRequestSchema = z.object({
   id: z.string().openapi({ example: "input_request_123" }),
-  createdAt: dateTimeSchema,
   message: z
     .string()
     .nullish()
@@ -40,7 +38,6 @@ const route = createRoute({
       {
         data: {
           id: "input_request_123",
-          createdAt: "2025-01-15T10:30:00.000Z",
           message: "How many planets are in the solar system?",
           inputSchema: "input_schema",
         },
@@ -85,7 +82,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const inputRequest = {
       id: jobStatus.id,
-      createdAt: jobStatus.createdAt,
       message: jobStatus.result,
       inputSchema: jobStatus.inputSchema,
     };
