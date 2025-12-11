@@ -1,6 +1,7 @@
 import { OpenAPIHonoWithAuth } from "../../../lib/hono";
 import mountGetFilesByJobId from "./[id]/files/get.js";
 import mountGetJobById from "./[id]/get.js";
+import mountGetInputRequestByJobId from "./[id]/input_request/get.js";
 import mountGetLinksByJobId from "./[id]/links/get.js";
 import mountGetJobs from "./get.js";
 
@@ -10,5 +11,6 @@ mountGetJobs(app);
 mountGetJobById(app);
 mountGetFilesByJobId(app);
 mountGetLinksByJobId(app);
+mountGetInputRequestByJobId(app);
 
 export default app;
