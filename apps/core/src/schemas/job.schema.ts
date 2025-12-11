@@ -72,3 +72,15 @@ export const jobSchema = z
   .openapi("Job");
 
 export const jobsSchema = z.array(jobSchema);
+
+export const jobInputSchema = z.object({
+  id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
+  statusId: z.string().openapi({ example: "status_123" }),
+  input: z
+    .string()
+    .openapi({
+      example: '{"prompt":"How many planets are in the solar system?"}',
+    }),
+  inputHash: z.string().nullish().openapi({ example: "input_hash" }),
+  signature: z.string().nullish().openapi({ example: "signature" }),
+});

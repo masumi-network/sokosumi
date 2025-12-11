@@ -16,17 +16,15 @@ const params = z.object({
   }),
 });
 
-const inputRequestSchema = z
-  .object({
-    id: z.string().openapi({ example: "input_request_123" }),
-    requestedAt: dateTimeSchema,
-    message: z
-      .string()
-      .nullish()
-      .openapi({ example: "How many planets are in the solar system?" }),
-    inputSchema: z.string().openapi({ example: "input_schema" }),
-  })
-  .openapi("InputRequest");
+const inputRequestSchema = z.object({
+  id: z.string().openapi({ example: "input_request_123" }),
+  requestedAt: dateTimeSchema,
+  message: z
+    .string()
+    .nullish()
+    .openapi({ example: "How many planets are in the solar system?" }),
+  inputSchema: z.string().openapi({ example: "input_schema" }),
+});
 
 const route = createRoute({
   method: "get",
