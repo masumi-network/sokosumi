@@ -6,6 +6,7 @@ import {
   JobWithStatus,
   SokosumiJobStatus,
 } from "@sokosumi/database";
+import { makeInitialJobStatus } from "@sokosumi/database/helpers";
 import { useQuery } from "@tanstack/react-query";
 import { List, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -56,12 +57,14 @@ export default function JobDetails({
         !(status.input == null && status.result == null),
     ) ?? [];
 
-  const shouldCollapse = filteredEvents.length > 2 && !showAllEvents;
-  const collapsedCount = filteredEvents.length - 2;
+  const shouldCollapse = filteredEvents.length > 1 && !showAllEvents;
+  const collapsedCount = filteredEvents.length - 1;
 
   const visibleEvents = shouldCollapse
-    ? [filteredEvents[0], filteredEvents[filteredEvents.length - 1]]
+    ? [filteredEvents[filteredEvents.length - 1]]
     : filteredEvents;
+
+  const initialStatus = makeInitialJobStatus(job);
 
   return (
     <div
@@ -72,7 +75,7 @@ export default function JobDetails({
     >
       <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]>div]:block!">
         <Accordion type="multiple" className="w-full space-y-1.5">
-          <AccordionItem value="job-details-header">
+          <AccordionItem value="job-details-header" className="border-0">
             <JobDetailsHeader
               job={job}
               readOnly={readOnly}
@@ -85,65 +88,33 @@ export default function JobDetails({
             verificationBadge={
               <JobVerificationBadge
                 direction="input"
-                data={{
-                  job,
-                  status: {
-                    input: job.input,
-                    inputHash: job.inputHash,
-                    inputSchema: job.inputSchema,
-                    status: job.status,
-                    statusId: null,
-                    id: "",
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    blobs: [],
-                    links: [],
-                    result: null,
-                    signature: null,
-                  },
-                }}
+                data={{ job, status: initialStatus }}
               />
             }
           >
             <JobDetailsInputs
               rawInput={job.input}
               rawInputSchema={job.inputSchema ?? null}
-              // blobs={inputBlobs ?? []}
-              data={{
-                job,
-                status: {
-                  input: job.input,
-                  inputHash: job.inputHash,
-                  inputSchema: job.inputSchema,
-                  status: job.status,
-                  statusId: null,
-                  id: "",
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                  blobs: [],
-                  links: [],
-                  result: null,
-                  signature: null,
-                },
-              }}
+              blobs={job.inputBlobs ?? []}
+              data={{ job, status: initialStatus }}
             />
           </AccordionItemWrapper>
         </Accordion>
 
         {visibleEvents.map((status: JobStatusWithSokosumiStatus, index) => (
           <div key={`${job.id}-event-${status.id}`}>
-            <JobDetailsContent
-              data={{ job, status: status }}
-              readOnly={readOnly}
-              activeOrganizationId={activeOrganizationId}
-              isLast={index === visibleEvents.length - 1}
-            />
             {shouldCollapse && index === 0 && (
               <CollapsedEventsButton
                 count={collapsedCount}
                 onExpand={() => setShowAllEvents(true)}
               />
             )}
+            <JobDetailsContent
+              data={{ job, status: status }}
+              readOnly={readOnly}
+              activeOrganizationId={activeOrganizationId}
+              isLast={index === visibleEvents.length - 1}
+            />
           </div>
         ))}
       </ScrollArea>
@@ -228,7 +199,7 @@ function JobDetailsContent({
 }) {
   const { job, status } = data;
   const t = useTranslations("Components.Jobs.JobDetails");
-  const inputBlobs = getInputBlobs(status.blobs ?? []);
+  const inputBlobs = getInputBlobs(status.inputBlobs ?? []);
   const outputBlobs = getOutputBlobs(status.blobs ?? []);
   const resultLinks = status.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
@@ -289,7 +260,7 @@ function JobDetailsContent({
       ) : null}
       {hasSources ? (
         <AccordionItemWrapper value="sources" title={t("Sources.title")}>
-          <JotOutputSources job={job} />
+          <JotOutputSources status={status} />
         </AccordionItemWrapper>
       ) : null}
       {isAwaitingInput ? <JobDetailsProvideInputSection data={data} /> : null}

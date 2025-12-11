@@ -664,7 +664,6 @@ export const jobService = (() => {
       agentJobId,
     );
 
-    //TODO: Move it down after create the job. When we have the JobStatus JobInputs refactor
     let statusId: string | null | undefined = null;
     let agentJobStatus: AgentJobStatus | null = null;
 

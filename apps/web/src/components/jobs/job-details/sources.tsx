@@ -1,28 +1,26 @@
 "use client";
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import { JobStatusWithSokosumiStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { getOutputBlobs, getResultLinks } from "@/lib/utils/job-transformers";
 
 import { SourcesGrid } from "./sources-grid";
 
 interface JobOutputSourcesProps {
-  job: JobWithSokosumiStatus;
+  status: JobStatusWithSokosumiStatus;
 }
-export default function JotOutputSources({ job }: JobOutputSourcesProps) {
+export default function JotOutputSources({ status }: JobOutputSourcesProps) {
   return (
     <DefaultErrorBoundary fallback={<div />}>
-      <JobOutputSourcesInner job={job} />
+      <JobOutputSourcesInner status={status} />
     </DefaultErrorBoundary>
   );
 }
-function JobOutputSourcesInner({ job }: JobOutputSourcesProps) {
+function JobOutputSourcesInner({ status }: JobOutputSourcesProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Sources");
 
-  const allBlobs = job.statuses.flatMap((status) => status.blobs);
-  const outputBlobs = getOutputBlobs(allBlobs);
-  const links = getResultLinks(job);
+  const outputBlobs = status.blobs ?? [];
+  const links = status.links ?? [];
   if (outputBlobs.length === 0 && links.length === 0) return null;
 
   return (

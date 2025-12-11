@@ -303,6 +303,7 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
       input: status.input?.input ?? null,
       inputHash: status.input?.inputHash ?? null,
       inputSchema: status.inputSchema ?? null,
+      inputBlobs: status.input?.blobs ?? [],
       signature: status.input?.signature ?? null,
       status: computeJobStatus({ ...job, statuses: [status] }),
       createdAt: status.createdAt,
@@ -346,6 +347,34 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
       throw new Error(`Unhandled job type: ${_exhaustive}`);
     }
   }
+}
+
+/**
+ * Creates a synthetic `JobStatusWithSokosumiStatus` representing the initial input
+ * associated with a job. This is used in the UI when displaying the job's initial
+ * input section, which exists at the job level rather than as a separate status entry.
+ *
+ * @param job - The job object containing initial input data.
+ * @returns A `JobStatusWithSokosumiStatus` representing the job's initial input.
+ */
+export function makeInitialJobStatus(
+  job: JobWithSokosumiStatus,
+): JobStatusWithSokosumiStatus {
+  return {
+    id: `${job.id}-initial`,
+    statusId: null,
+    input: job.input,
+    inputHash: job.inputHash,
+    inputSchema: job.inputSchema,
+    signature: null,
+    inputBlobs: job.inputBlobs ?? [],
+    status: job.status,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    result: null,
+    blobs: [],
+    links: [],
+  };
 }
 
 export function isFreeJob(

@@ -50,6 +50,7 @@ export interface JobStatusWithSokosumiStatus {
   inputHash: string | null;
   inputSchema: string | null;
   signature: string | null;
+  inputBlobs: Blob[] | null;
   status: SokosumiJobStatus;
   createdAt: Date;
   updatedAt: Date;

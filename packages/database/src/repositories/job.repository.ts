@@ -266,6 +266,12 @@ export const jobRepository = {
       ...(data.jobScheduleId && {
         jobSchedule: { connect: { id: data.jobScheduleId } },
       }),
+      statuses: {
+        create: {
+          externalId: data.statusId,
+          status: data.agentJobStatus,
+        },
+      },
     };
 
     switch (data.jobType) {

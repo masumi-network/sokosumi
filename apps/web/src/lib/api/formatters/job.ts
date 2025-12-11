@@ -12,16 +12,6 @@ import { dateToISO } from "@/lib/api/utils";
 import { formatJobShareResponse } from "./job-share";
 
 /**
- * Extracts input from job events.
- * Returns the first event's input that is not null.
- */
-function getJobInput(job: JobWithSokosumiStatus): string {
-  // TODO: Rethink this, as this is being used for the SOKOSUMI API, but we should return inputs in the events array.
-  const inputEvent = job.inputs.find((input) => input.input !== null);
-  return inputEvent?.input ?? "{}";
-}
-
-/**
  * Extracts result from job events.
  * Returns the completed event's result, or null if not found.
  */
@@ -48,7 +38,7 @@ export function formatJobResponse(job: JobWithSokosumiStatus): JobResponse {
     agentJobId: job.agentJobId,
     agentJobStatus: getLatestJobStatus(job)?.status,
     onChainStatus: job.purchase?.onChainStatus ?? null,
-    input: getJobInput(job),
+    input: job.input ?? "{}",
     result: getJobResult(job),
     startedAt: dateToISO(job.createdAt),
     completedAt: job.completedAt ? dateToISO(job.completedAt) : null,

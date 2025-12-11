@@ -115,7 +115,7 @@ describe("Job search functionality", () => {
   it("should handle malformed JSON gracefully", () => {
     const jobWithBadJson = {
       ...mockJob,
-      events: [
+      statuses: [
         {
           id: "event-bad",
           createdAt: new Date(),
