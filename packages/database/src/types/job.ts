@@ -16,19 +16,16 @@ export const jobInclude = {
       createdAt: "asc",
     },
     include: {
-      input: true,
       blobs: true,
+      input: {
+        include: {
+          blobs: true,
+        },
+      },
       links: true,
     },
   },
-  inputs: {
-    orderBy: {
-      createdAt: "desc",
-    },
-    include: {
-      blobs: true,
-    },
-  },
+  inputBlobs: true,
   purchase: true,
   agent: true,
   user: true,
@@ -51,12 +48,12 @@ export interface JobStatusWithSokosumiStatus {
   statusId: string | null;
   input: string | null;
   inputHash: string | null;
+  inputSchema: string | null;
+  signature: string | null;
   status: SokosumiJobStatus;
   createdAt: Date;
   updatedAt: Date;
   result: string | null;
-  inputSchema: string | null;
-  signature: string | null;
   blobs?: Blob[] | null;
   links?: Link[] | null;
 }

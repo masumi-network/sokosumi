@@ -302,21 +302,21 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
       statusId: status.externalId,
       input: status.input?.input ?? null,
       inputHash: status.input?.inputHash ?? null,
+      inputSchema: status.inputSchema ?? null,
+      signature: status.input?.signature ?? null,
       status: computeJobStatus({ ...job, statuses: [status] }),
       createdAt: status.createdAt,
       updatedAt: status.updatedAt,
       result: status.result,
-      inputSchema: status.input?.inputSchema ?? null,
-      signature: status.input?.signature ?? null,
       blobs: status.blobs,
       links: status.links,
     }),
   );
 
   // TODO: Tempory map for initial Input, and InputSchema
-  const input = job.inputs.at(0)?.input ?? null;
-  const inputSchema = job.inputs.at(0)?.inputSchema ?? null;
-  const inputHash = job.inputs.at(0)?.inputHash ?? null;
+  const input = job.input ?? null;
+  const inputSchema = job.inputSchema ?? null;
+  const inputHash = job.inputHash ?? null;
 
   const baseJobWithStatus = {
     ...job,
@@ -325,14 +325,13 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
     inputHash,
     status: computedStatus,
     jobStatusSettled,
-    completedAt,
-    inputs: job.inputs,
-    statuses: mappedStatuses,
+    completedAt: completedAt ?? null,
     cents: job.creditTransaction?.amount ?? BigInt(0),
     credits: Math.abs(
       convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
     ),
     resultHash: job.purchase?.resultHash ?? null,
+    statuses: mappedStatuses,
   };
 
   switch (job.jobType) {

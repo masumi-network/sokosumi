@@ -1,7 +1,6 @@
 import prisma from "../client.js";
 import type { Prisma } from "../generated/prisma/client.js";
-import { BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
-import { blobInclude, BlobWithJobId, flattenBlobJobId } from "../types/blob.js";
+import { Blob, BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
 
 /**
  * Repository for managing Blob entities and related queries.
@@ -11,14 +10,14 @@ export const blobRepository = {
   /**
    * Create a new Blob record
    */
-  async createInputBlob(
+  async createInputBlobForInput(
     userId: string,
     jobInputId: string,
     fileUrl: string,
     fileName?: string,
     size?: bigint,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId> {
+  ): Promise<Blob> {
     const blob = await tx.blob.create({
       data: {
         origin: BlobOrigin.INPUT,
@@ -29,9 +28,30 @@ export const blobRepository = {
         fileName,
         size,
       },
-      include: blobInclude,
     });
-    return flattenBlobJobId(blob);
+    return blob;
+  },
+
+  async createInputBlobForJob(
+    userId: string,
+    jobId: string,
+    fileUrl: string,
+    fileName?: string,
+    size?: bigint,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Blob> {
+    const blob = await tx.blob.create({
+      data: {
+        origin: BlobOrigin.INPUT,
+        user: { connect: { id: userId } },
+        job: { connect: { id: jobId } },
+        status: BlobStatus.READY,
+        fileUrl,
+        fileName,
+        size,
+      },
+    });
+    return blob;
   },
 
   /**
@@ -44,7 +64,7 @@ export const blobRepository = {
     sourceUrl: string,
     fileName?: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId> {
+  ): Promise<Blob> {
     const blob = await tx.blob.upsert({
       where: {
         jobStatusId_sourceUrl: { jobStatusId, sourceUrl },
@@ -61,9 +81,8 @@ export const blobRepository = {
         sourceUrl,
         fileName,
       },
-      include: blobInclude,
     });
-    return flattenBlobJobId(blob);
+    return blob;
   },
 
   /**
@@ -72,13 +91,11 @@ export const blobRepository = {
   async getBlobById(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId | null> {
+  ): Promise<Blob | null> {
     const blob = await tx.blob.findUnique({
       where: { id },
-      include: blobInclude,
     });
-    if (!blob) return null;
-    return flattenBlobJobId(blob);
+    return blob;
   },
 
   /**
@@ -87,12 +104,11 @@ export const blobRepository = {
   async getBlobsByUserId(
     userId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId[]> {
+  ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { userId },
-      include: blobInclude,
     });
-    return blobs.map(flattenBlobJobId);
+    return blobs;
   },
 
   /**
@@ -101,23 +117,21 @@ export const blobRepository = {
   async getBlobsByJobStatusId(
     jobStatusId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId[]> {
+  ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { jobStatusId },
-      include: blobInclude,
     });
-    return blobs.map(flattenBlobJobId);
+    return blobs;
   },
 
   async getBlobsByJobInputId(
     jobInputId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId[]> {
+  ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { jobInputId },
-      include: blobInclude,
     });
-    return blobs.map(flattenBlobJobId);
+    return blobs;
   },
 
   /**
@@ -126,12 +140,17 @@ export const blobRepository = {
   async getBlobsByJobId(
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId[]> {
+  ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
-      where: { OR: [{ jobStatus: { jobId } }, { jobInput: { jobId } }] },
-      include: blobInclude,
+      where: {
+        OR: [
+          { jobStatus: { jobId } },
+          { jobInput: { status: { jobId } } },
+          { job: { id: jobId } },
+        ],
+      },
     });
-    return blobs.map(flattenBlobJobId);
+    return blobs;
   },
 
   /**
@@ -141,15 +160,18 @@ export const blobRepository = {
     userId: string,
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId[]> {
+  ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: {
         userId,
-        OR: [{ jobStatus: { jobId } }, { jobInput: { jobId } }],
+        OR: [
+          { jobStatus: { jobId } },
+          { jobInput: { status: { jobId } } },
+          { job: { id: jobId } },
+        ],
       },
-      include: blobInclude,
     });
-    return blobs.map(flattenBlobJobId);
+    return blobs;
   },
 
   /**
@@ -158,14 +180,13 @@ export const blobRepository = {
   async getPendingOutputBlobs(
     limit?: number,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId[]> {
+  ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { status: BlobStatus.PENDING, origin: BlobOrigin.OUTPUT },
       take: limit,
       orderBy: { createdAt: "asc" },
-      include: blobInclude,
     });
-    return blobs.map(flattenBlobJobId);
+    return blobs;
   },
 
   /**
@@ -175,13 +196,12 @@ export const blobRepository = {
     id: string,
     data: Prisma.BlobUpdateInput,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId> {
+  ): Promise<Blob> {
     const blob = await tx.blob.update({
       where: { id },
       data,
-      include: blobInclude,
     });
-    return flattenBlobJobId(blob);
+    return blob;
   },
 
   async markBlobReady(
@@ -193,7 +213,7 @@ export const blobRepository = {
       fileName?: string | null;
     },
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId> {
+  ): Promise<Blob> {
     const blob = await tx.blob.update({
       where: { id },
       data: {
@@ -205,21 +225,19 @@ export const blobRepository = {
         }),
         status: BlobStatus.READY,
       },
-      include: blobInclude,
     });
-    return flattenBlobJobId(blob);
+    return blob;
   },
 
   async markBlobFailed(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId> {
+  ): Promise<Blob> {
     const blob = await tx.blob.update({
       where: { id },
       data: { status: BlobStatus.FAILED },
-      include: blobInclude,
     });
-    return flattenBlobJobId(blob);
+    return blob;
   },
 
   /**
@@ -228,8 +246,8 @@ export const blobRepository = {
   async deleteBlobById(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<BlobWithJobId> {
-    const blob = await tx.blob.delete({ where: { id }, include: blobInclude });
-    return flattenBlobJobId(blob);
+  ): Promise<Blob | null> {
+    const blob = await tx.blob.delete({ where: { id } });
+    return blob;
   },
 };

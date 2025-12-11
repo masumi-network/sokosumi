@@ -526,12 +526,15 @@ model Job {
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
 
-  name String?
+  name        String?
+  inputSchema String
+  input       String
+  inputHash   String?
+  inputBlobs  Blob[]
 
   // Public Share
   share JobShare?
 
-  inputs   JobInput[]
   statuses JobStatus[]
 
   purchase JobPurchase?
@@ -583,8 +586,7 @@ model JobStatus {
   jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  inputId String?   @unique
-  input   JobInput? @relation(fields: [inputId], references: [id], onDelete: Cascade)
+  input JobInput?
 
   status      AgentJobStatus @default(AWAITING_PAYMENT)
   inputSchema String?
@@ -603,22 +605,15 @@ model JobInput {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  externalId String?
+  statusId String    @unique
+  status   JobStatus @relation(fields: [statusId], references: [id], onDelete: Cascade)
 
-  jobId String
-  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  status JobStatus?
-
-  inputSchema String?
-  input       String
-  inputHash   String?
-  signature   String?
+  input     String
+  inputHash String?
+  signature String?
 
   blobs Blob[]
 
-  @@index([externalId])
-  @@index([jobId])
   @@map("jobInput")
 }
 
@@ -728,9 +723,14 @@ model Blob {
   jobInputId String?
   jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
 
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sourceUrl]) // For deduplication checks
   @@unique([jobStatusId, sourceUrl]) // For deduplication checks
   @@unique([jobInputId, sourceUrl]) // For deduplication checks
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
+  @@index([jobId, origin]) // For fetching blobs by job with origin filter
   @@index([jobStatusId, origin]) // For fetching blobs by job status with origin filter
   @@index([jobInputId, origin]) // For fetching blobs by job input with origin filter
   @@index([userId, status]) // For user-specific blob queries

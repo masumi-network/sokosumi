@@ -214,12 +214,8 @@ export const jobRepository = {
             },
           },
         }),
-        inputs: {
-          create: {
-            inputSchema: JSON.stringify(data.inputSchema),
-            input: data.input,
-          },
-        },
+        input: data.input,
+        inputSchema: JSON.stringify(data.inputSchema),
         statuses: {
           create: {
             status: AgentJobStatus.COMPLETED,
@@ -263,13 +259,13 @@ export const jobRepository = {
           },
         },
       }),
+      input: data.input,
+      inputSchema: JSON.stringify(data.inputSchema),
+      inputHash: data.inputHash,
       name: data.name,
       ...(data.jobScheduleId && {
         jobSchedule: { connect: { id: data.jobScheduleId } },
       }),
-      input: data.input,
-      inputHash: data.inputHash,
-      inputSchema: JSON.stringify(data.inputSchema),
     };
 
     switch (data.jobType) {
