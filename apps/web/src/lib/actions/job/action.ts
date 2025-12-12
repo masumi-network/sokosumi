@@ -1,11 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import {
-  JobShare,
-  JobStatusWithRelations,
-  PaidJobWithStatus,
-} from "@sokosumi/database";
+import { JobShare, PaidJobWithStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   jobRepository,
@@ -157,13 +153,6 @@ export const startJob = withAuthContext<
       const parsed = parsedResult.data;
 
       const job = await jobService.startJob(parsed);
-
-      // Save files uploaded if any
-      const jobStatus: JobStatusWithRelations = job.statuses[0];
-
-      if (!jobStatus) {
-        throw new Error("Input event not found");
-      }
 
       if (uploadedFiles.length > 0) {
         await saveUploadedFilesForJob(userId, job.id, uploadedFiles);
