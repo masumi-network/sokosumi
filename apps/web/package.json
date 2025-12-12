@@ -127,7 +127,7 @@
     "@noble/hashes": "2.0.1",
     "@swc/core": "1.15.3",
     "@swc/helpers": "0.5.17",
-    "@tailwindcss/postcss": "4.1.17",
+    "@tailwindcss/postcss": "4.1.18",
     "@tailwindcss/typography": "0.5.19",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.0",
@@ -148,7 +148,7 @@
     "prettier-plugin-tailwindcss": "0.7.2",
     "prisma": "7.1.0",
     "puppeteer": "24.32.1",
-    "tailwindcss": "4.1.17",
+    "tailwindcss": "4.1.18",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   }
