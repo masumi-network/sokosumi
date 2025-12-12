@@ -181,7 +181,7 @@ function JobVerificationBadgeBase({
   const t = useTranslations("Components.Jobs.JobDetails");
 
   const directionText =
-    direction === "input" ? t("Input.title") : t("Output.title");
+    direction === "input" ? t("Input.title") : t("Output.result");
 
   const Icon = isPending
     ? Loader2
