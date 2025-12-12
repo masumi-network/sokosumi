@@ -183,7 +183,7 @@ export function computeJobStatus(job: JobWithRelations): SokosumiJobStatus {
 function computeFreeJobStatus(job: JobWithRelations): SokosumiJobStatus {
   const latestJobStatus = getLatestJobStatus(job);
   if (!latestJobStatus) {
-    return SokosumiJobStatus.FAILED;
+    return SokosumiJobStatus.STARTED;
   }
 
   switch (latestJobStatus.status) {
@@ -228,7 +228,7 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
 
   const latestJobStatus = getLatestJobStatus(job);
   if (!latestJobStatus) {
-    return SokosumiJobStatus.FAILED;
+    return SokosumiJobStatus.STARTED;
   }
   // 5. If the job has a purchase, it means the job is started
   switch (job.purchase?.onChainStatus) {
@@ -247,14 +247,6 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
       switch (latestJobStatus.status) {
         case AgentJobStatus.COMPLETED:
           return SokosumiJobStatus.COMPLETED;
-        case AgentJobStatus.AWAITING_PAYMENT:
-          return SokosumiJobStatus.PROCESSING;
-        case AgentJobStatus.FAILED:
-          return SokosumiJobStatus.FAILED;
-        case AgentJobStatus.RUNNING:
-          return SokosumiJobStatus.PROCESSING;
-        case AgentJobStatus.AWAITING_INPUT:
-          return SokosumiJobStatus.INPUT_REQUIRED;
         default:
           return SokosumiJobStatus.RESULT_PENDING;
       }
@@ -262,8 +254,6 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
       switch (latestJobStatus.status) {
         case AgentJobStatus.COMPLETED:
           return SokosumiJobStatus.COMPLETED;
-        case AgentJobStatus.AWAITING_PAYMENT:
-          return SokosumiJobStatus.PROCESSING;
         default:
           return SokosumiJobStatus.FAILED;
       }
