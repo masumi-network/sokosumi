@@ -285,25 +285,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
 
   const computedStatus = computeJobStatus(job);
 
-  // Map all statuses with computed status (statuses already in ASC order from repo)
-  const mappedStatuses: JobStatusWithSokosumiStatus[] = job.statuses.map(
-    (status) => ({
-      id: status.id,
-      statusId: status.externalId,
-      input: status.input?.input ?? null,
-      inputHash: status.input?.inputHash ?? null,
-      inputSchema: status.inputSchema ?? null,
-      inputBlobs: status.input?.blobs ?? [],
-      signature: status.input?.signature ?? null,
-      status: computeJobStatus({ ...job, statuses: [status] }),
-      createdAt: status.createdAt,
-      updatedAt: status.updatedAt,
-      result: status.result,
-      blobs: status.blobs,
-      links: status.links,
-    }),
-  );
-
   // TODO: Tempory map for initial Input, and InputSchema
   const input = job.input ?? null;
   const inputSchema = job.inputSchema ?? null;
@@ -322,7 +303,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
       convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
     ),
     resultHash: job.purchase?.resultHash ?? null,
-    statuses: mappedStatuses,
   };
 
   switch (job.jobType) {

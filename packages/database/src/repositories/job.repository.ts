@@ -36,7 +36,6 @@ interface CreateJobBase {
   inputHash: string | null;
   name: string | null;
   jobScheduleId?: string | null | undefined;
-  agentJobStatus: AgentJobStatus;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
@@ -57,7 +56,6 @@ interface CreatePaidJobData extends CreateJobBase {
 
 interface CreateFreeJobData extends CreateJobBase {
   jobType: typeof JobType.FREE;
-  agentJobStatus: typeof AgentJobStatus.RUNNING;
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;

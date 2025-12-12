@@ -657,38 +657,9 @@ export const jobService = (() => {
       },
     });
 
-    const agentJobId = startJobResponse.id;
-
-    const agentJobStatusResult = await agentClient.fetchAgentJobStatus(
-      agentWithCreditsPrice,
-      agentJobId,
-    );
-
-    let statusId: string | null | undefined = null;
-    let agentJobStatus: AgentJobStatus | null = null;
-
-    if (agentJobStatusResult.ok) {
-      statusId = agentJobStatusResult.data.id;
-      agentJobStatus = jobStatusToAgentJobStatus(
-        agentJobStatusResult.data.status,
-      );
-    } else {
-      Sentry.setTag("error_type", "agent_job_status_fetch_failed");
-      Sentry.setContext("agent_job_status_fetch", {
-        agentId,
-        blockchainIdentifier: startJobResponse.blockchainIdentifier,
-        error: agentJobStatusResult.error,
-      });
-
-      Sentry.captureMessage(
-        `Agent job status fetch failed: ${agentJobStatusResult.error}`,
-        "error",
-      );
-    }
-
     const job = await jobRepository.createJob({
       jobType: JobType.PAID,
-      agentJobId,
+      agentJobId: startJobResponse.id,
       agentId,
       userId,
       organizationId,
@@ -707,8 +678,6 @@ export const jobService = (() => {
       sellerVkey: startJobResponse.sellerVKey,
       name: generatedName,
       jobScheduleId,
-      statusId: statusId,
-      agentJobStatus: agentJobStatus ?? AgentJobStatus.AWAITING_PAYMENT,
     });
 
     // Add breadcrumb for purchase creation
@@ -852,7 +821,6 @@ export const jobService = (() => {
       inputSchema: inputSchema,
       name: generatedName,
       jobScheduleId,
-      agentJobStatus: AgentJobStatus.RUNNING,
     });
 
     await publishJobStatusSafely(job);
