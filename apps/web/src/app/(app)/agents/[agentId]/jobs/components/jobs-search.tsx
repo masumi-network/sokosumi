@@ -9,9 +9,20 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { jobMatchesQuery } from "@/lib/job";
+import { jobMatchesQuery, type SearchableJob } from "@/lib/job";
 
 const MAX_QUERY_LENGTH = 256;
+
+function toSearchableJob(job: JobWithSokosumiStatus): SearchableJob {
+  return {
+    id: job.id,
+    name: job.name,
+    statuses: job.statuses.map((status) => ({
+      input: status.input?.input ?? null,
+      result: status.result ?? null,
+    })),
+  };
+}
 
 interface JobsSearchProps {
   jobs: JobWithSokosumiStatus[];
@@ -43,7 +54,7 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
   const filteredJobs = useMemo(() => {
     const q = searchValue.trim();
     if (!q || q.length > MAX_QUERY_LENGTH) return jobs;
-    return jobs.filter((j) => matcher(j, q));
+    return jobs.filter((j) => matcher(toSearchableJob(j), q));
   }, [jobs, searchValue, matcher]);
 
   // Effect is necessary: Notifying parent component of filtered results
