@@ -263,6 +263,14 @@
         "resultPending": "Result Missing",
         "unknown": "Unknown"
       },
+      "AgentStatusBadge": {
+        "awaitingPayment": "Awaiting Payment",
+        "awaitingInput": "Awaiting Input",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "unknown": "Unknown"
+      },
       "SharedBadge": {
         "shared": "Shared",
         "sharedBy": "Shared by"
