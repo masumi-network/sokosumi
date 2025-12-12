@@ -4,7 +4,6 @@ import {
   AgentJobStatus,
   JobStatusWithRelations,
   JobWithSokosumiStatus,
-  SokosumiJobStatus,
 } from "@sokosumi/database";
 import { useQuery } from "@tanstack/react-query";
 import { List, Plus } from "lucide-react";
@@ -257,8 +256,7 @@ function JobDetailsContent({
           value="output"
           title={t("Output.title")}
           verificationBadge={
-            job.completedAt != null &&
-            job.status === SokosumiJobStatus.COMPLETED ? (
+            status.status === AgentJobStatus.COMPLETED ? (
               <JobResultVerificationBadge
                 direction="result"
                 jobType={job.jobType}
