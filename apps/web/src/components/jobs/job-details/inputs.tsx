@@ -1,6 +1,7 @@
 "use client";
 
-import type { Blob, JobWithStatus } from "@sokosumi/database";
+import type { Blob, JobWithSokosumiStatus } from "@sokosumi/database";
+import { JobStatusWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import * as z from "zod";
@@ -15,26 +16,17 @@ import { isUrlArray, isUrlString } from "@/lib/utils/file";
 import { HashGroupRow } from "./hash-group-row";
 
 interface JobDetailsInputsProps {
-  rawInput: string | null;
-  rawInputSchema: string | null;
-  blobs?: Blob[];
-  data?: JobWithStatus;
+  job: JobWithSokosumiStatus;
+  status: JobStatusWithRelations;
 }
 
 export default function JobDetailsInputs({
-  rawInput,
-  rawInputSchema,
-  blobs,
-  data,
+  job,
+  status,
 }: JobDetailsInputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsInputsError />}>
-      <JobDetailsInputsInner
-        rawInput={rawInput}
-        rawInputSchema={rawInputSchema}
-        blobs={blobs}
-        data={data}
-      />
+      <JobDetailsInputsInner job={job} status={status} />
     </DefaultErrorBoundary>
   );
 }
@@ -80,25 +72,20 @@ function renderInputValue(
   );
 }
 
-function JobDetailsInputsInner({
-  rawInput,
-  rawInputSchema,
-  blobs,
-  data,
-}: JobDetailsInputsProps) {
-  const { job, status } = data ?? {};
-  const inputHash = status?.inputHash ?? null;
-  const identifierFromPurchaser = job?.identifierFromPurchaser ?? null;
+function JobDetailsInputsInner({ job, status }: JobDetailsInputsProps) {
+  const inputHash = status.input?.inputHash ?? null;
+  const identifierFromPurchaser = job.identifierFromPurchaser ?? null;
 
   const t = useTranslations("Components.Jobs.JobDetails.Input");
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
-  const input = rawInput ? JSON.parse(rawInput) : {};
-  const inputSchema = rawInputSchema ? JSON.parse(rawInputSchema) : {};
+  const blobs = status.input?.blobs ?? [];
+  const input = status.input?.input ? JSON.parse(status.input.input) : {};
+  const inputSchema = status.inputSchema ? JSON.parse(status.inputSchema) : {};
 
   const calculatedInputHash = useMemo(() => {
-    if (!identifierFromPurchaser || !rawInput) return null;
-    return getInputHash(rawInput, identifierFromPurchaser);
-  }, [rawInput, identifierFromPurchaser]);
+    if (!identifierFromPurchaser || !job.input) return null;
+    return getInputHash(job.input, identifierFromPurchaser);
+  }, [job.input, identifierFromPurchaser]);
 
   let inputsMap: Record<string, { name: string; type: ValidJobInputTypes }> =
     {};
@@ -115,7 +102,7 @@ function JobDetailsInputsInner({
       );
   }
 
-  const showHashSection = data && (inputHash || calculatedInputHash);
+  const showHashSection = job && (inputHash || calculatedInputHash);
 
   return (
     <div className="flex flex-col gap-2">
@@ -146,11 +133,11 @@ function JobDetailsInputsInner({
         <>
           <Separator className="my-2" />
           <HashGroupRow
+            job={job}
             label={tMeta("inputHash")}
             direction="input"
             onChainHash={inputHash ?? null}
             calculatedHash={calculatedInputHash}
-            data={data}
             tLabelOnChain={tMeta("onChain")}
             tLabelCalculated={tMeta("calculated")}
             tMissing={tMeta("missing")}
