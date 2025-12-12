@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithSokosumiStatus } from "@sokosumi/database";
+import { JobType, OnChainJobStatus } from "@sokosumi/database";
 
 import { CopyableValue } from "@/components/copyable-value";
 import {
@@ -11,22 +11,44 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
-import { JobVerificationBadge } from "./job-verification-badge";
+import {
+  JobInputVerificationBadge,
+  JobResultVerificationBadge,
+} from "./job-verification-badge";
 
-export interface HashGroupProps {
-  direction: "input" | "result";
+interface HashGroupInputProps {
+  direction: "input";
+  jobType: JobType;
+  identifierFromPurchaser: string | null;
+  input: string | null;
+  inputHash: string | null;
+}
+
+interface HashGroupResultProps {
+  direction: "result";
+  jobType: JobType;
+  onChainStatus?: OnChainJobStatus | null;
+  identifierFromPurchaser: string | null;
+  result: string | null;
+  resultHash?: string | null;
+}
+
+type HashGroupBaseProps = {
   onChainHash: string | null;
   calculatedHash: string | null;
-  job: JobWithSokosumiStatus;
   tLabelOnChain: string;
   tLabelCalculated: string;
   tMissing: string;
-}
+};
 
-export interface HashGroupRowProps extends HashGroupProps {
+export type HashGroupProps =
+  | (HashGroupInputProps & HashGroupBaseProps)
+  | (HashGroupResultProps & HashGroupBaseProps);
+
+export type HashGroupRowProps = HashGroupProps & {
   label: string;
   rowClassName?: string;
-}
+};
 
 export function HashGroupRow({
   label,
@@ -37,13 +59,33 @@ export function HashGroupRow({
     direction,
     onChainHash,
     calculatedHash,
-    job,
     tLabelOnChain,
     tLabelCalculated,
     tMissing,
   } = props;
   const bothPresent = Boolean(onChainHash) && Boolean(calculatedHash);
   const areEqual = bothPresent && onChainHash === calculatedHash;
+
+  const verificationBadge =
+    direction === "input" ? (
+      <JobInputVerificationBadge
+        direction={direction}
+        jobType={props.jobType}
+        identifierFromPurchaser={props.identifierFromPurchaser}
+        input={props.input ?? ""}
+        inputHash={props.inputHash}
+      />
+    ) : (
+      <JobResultVerificationBadge
+        direction={direction}
+        jobType={props.jobType}
+        onChainStatus={props.onChainStatus}
+        identifierFromPurchaser={props.identifierFromPurchaser}
+        result={props.result}
+        resultHash={props.resultHash}
+      />
+    );
+
   if (areEqual) {
     return (
       <div
@@ -56,7 +98,7 @@ export function HashGroupRow({
         <div className="break-all md:col-span-2">
           <div className="flex items-center gap-2">
             <CopyableValue value={onChainHash} />
-            <JobVerificationBadge direction={direction} job={job} />
+            {verificationBadge}
           </div>
         </div>
       </div>
@@ -82,7 +124,7 @@ export function HashGroupRow({
                   shouldStopPropagation
                 />
               </div>
-              <JobVerificationBadge direction={direction} job={job} />
+              {verificationBadge}
             </div>
           </div>
         </AccordionTrigger>

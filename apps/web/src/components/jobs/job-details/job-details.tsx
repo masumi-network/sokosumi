@@ -102,7 +102,14 @@ export default function JobDetails({
               />
             }
           >
-            <JobDetailsInputs job={job} />
+            <JobDetailsInputs
+              input={job.input}
+              inputSchema={job.inputSchema}
+              blobs={job.inputBlobs}
+              inputHash={job.inputHash}
+              identifierFromPurchaser={job.identifierFromPurchaser}
+              jobType={job.jobType}
+            />
           </AccordionItemWrapper>
         </Accordion>
 
@@ -251,7 +258,14 @@ function JobDetailsContent({
             />
           }
         >
-          <JobDetailsInputs job={job} status={status} />
+          <JobDetailsInputs
+            input={status.input.input}
+            inputSchema={status.inputSchema}
+            blobs={status.input.blobs}
+            inputHash={status.input.inputHash}
+            identifierFromPurchaser={job.identifierFromPurchaser}
+            jobType={job.jobType}
+          />
         </AccordionItemWrapper>
       ) : null}
       {status.result ? (

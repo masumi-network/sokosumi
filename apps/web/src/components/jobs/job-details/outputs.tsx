@@ -106,9 +106,13 @@ function JobDetailsOutputsInner({
               <HashGroupRow
                 label={tMeta("resultHash")}
                 direction="result"
+                jobType={job.jobType}
+                onChainStatus={job.purchase?.onChainStatus}
+                identifierFromPurchaser={job.identifierFromPurchaser}
+                result={result}
+                resultHash={job.purchase?.resultHash}
                 onChainHash={onChainResultHash}
                 calculatedHash={calculatedResultHash}
-                job={job}
                 tLabelOnChain={tMeta("onChain")}
                 tLabelCalculated={tMeta("calculated")}
                 tMissing={tMeta("missing")}
