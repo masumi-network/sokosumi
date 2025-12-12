@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 
 import { CopyableValue } from "@/components/copyable-value";
 import {
@@ -17,7 +17,7 @@ export interface HashGroupProps {
   direction: "input" | "result";
   onChainHash: string | null;
   calculatedHash: string | null;
-  data: JobWithStatus;
+  job: JobWithSokosumiStatus;
   tLabelOnChain: string;
   tLabelCalculated: string;
   tMissing: string;
@@ -37,14 +37,13 @@ export function HashGroupRow({
     direction,
     onChainHash,
     calculatedHash,
-    data,
+    job,
     tLabelOnChain,
     tLabelCalculated,
     tMissing,
   } = props;
   const bothPresent = Boolean(onChainHash) && Boolean(calculatedHash);
   const areEqual = bothPresent && onChainHash === calculatedHash;
-
   if (areEqual) {
     return (
       <div
@@ -57,7 +56,7 @@ export function HashGroupRow({
         <div className="break-all md:col-span-2">
           <div className="flex items-center gap-2">
             <CopyableValue value={onChainHash} />
-            <JobVerificationBadge direction={direction} data={data} />
+            <JobVerificationBadge direction={direction} job={job} />
           </div>
         </div>
       </div>
@@ -83,7 +82,7 @@ export function HashGroupRow({
                   shouldStopPropagation
                 />
               </div>
-              <JobVerificationBadge direction={direction} data={data} />
+              <JobVerificationBadge direction={direction} job={job} />
             </div>
           </div>
         </AccordionTrigger>
