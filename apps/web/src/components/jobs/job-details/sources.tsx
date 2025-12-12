@@ -1,5 +1,5 @@
 "use client";
-import { JobStatusWithSokosumiStatus } from "@sokosumi/database";
+import { JobStatusWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
@@ -7,7 +7,7 @@ import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { SourcesGrid } from "./sources-grid";
 
 interface JobOutputSourcesProps {
-  status: JobStatusWithSokosumiStatus;
+  status: JobStatusWithRelations;
 }
 export default function JotOutputSources({ status }: JobOutputSourcesProps) {
   return (
