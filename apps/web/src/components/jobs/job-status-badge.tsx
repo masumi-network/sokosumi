@@ -31,15 +31,6 @@ export function JobStatusBadge({
   }
 
   switch (status) {
-    case SokosumiJobStatus.STARTED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-blue-100 text-blue-800", className)}
-        >
-          {t("started")}
-        </Badge>
-      );
     case SokosumiJobStatus.COMPLETED:
       return (
         <Badge
@@ -67,6 +58,7 @@ export function JobStatusBadge({
           {t("paymentFailed")}
         </Badge>
       );
+    case SokosumiJobStatus.STARTED:
     case SokosumiJobStatus.PAYMENT_PENDING:
       return (
         <Badge
