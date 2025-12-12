@@ -1,7 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type JobWithStatus } from "@sokosumi/database";
+import {
+  JobStatusWithRelations,
+  JobWithSokosumiStatus,
+} from "@sokosumi/database";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -26,19 +29,21 @@ import {
 import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 interface JobDetailsProvideInputProps {
-  data: JobWithStatus;
+  job: JobWithSokosumiStatus;
+  status: JobStatusWithRelations;
 }
 
 export default function JobDetailsProvideInput({
-  data,
+  job,
+  status,
 }: JobDetailsProvideInputProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
 
   // Parse input schema from job - validate each entry individually
   const inputSchemas = useMemo<JobInputSchemaType[]>(() => {
     try {
-      if (data.status.inputSchema) {
-        const parsed = JSON.parse(data.status.inputSchema);
+      if (status.inputSchema) {
+        const parsed = JSON.parse(status.inputSchema);
         if (Array.isArray(parsed)) {
           // Validate each entry individually to allow partial success
           const validatedSchemas: JobInputSchemaType[] = [];
@@ -57,7 +62,7 @@ export default function JobDetailsProvideInput({
       console.error("Failed to parse input schema", _error);
     }
     return [];
-  }, [data.status.inputSchema]);
+  }, [status.inputSchema]);
 
   // Create a stable key to force form remount when schemas change
   // This ensures useForm is re-initialized with correct resolver and defaultValues
@@ -76,16 +81,25 @@ export default function JobDetailsProvideInput({
 
   // Render form in a keyed component so useForm re-initializes when schemas change
   return (
-    <ProvideInputForm key={formKey} data={data} inputSchemas={inputSchemas} />
+    <ProvideInputForm
+      key={formKey}
+      jobId={job.id}
+      statusId={status.id}
+      inputSchemas={inputSchemas}
+    />
   );
 }
 
 interface ProvideInputFormProps {
-  data: JobWithStatus;
+  jobId: string;
+  statusId?: string | null;
   inputSchemas: JobInputSchemaType[];
 }
-
-function ProvideInputForm({ data, inputSchemas }: ProvideInputFormProps) {
+function ProvideInputForm({
+  jobId,
+  statusId,
+  inputSchemas,
+}: ProvideInputFormProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
   const tForm = useTranslations("Library.JobInput.Form");
   const router = useRouter();
@@ -117,15 +131,14 @@ function ProvideInputForm({ data, inputSchemas }: ProvideInputFormProps) {
     try {
       const transformedInputData = filterOutNullValues(values);
 
-      const statusId = data.status.statusId;
       if (!statusId) {
         throw new Error("Status ID is required");
       }
 
       const result = await provideJobInput({
         input: {
-          jobId: data.job.id,
-          statusId: data.status.statusId ?? "",
+          jobId,
+          statusId,
           inputData: transformedInputData,
         },
       });
