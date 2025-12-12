@@ -43,7 +43,11 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 
 export type JobStatusWithRelations = Prisma.JobStatusGetPayload<{
   include: {
-    input: true;
+    input: {
+      include: {
+        blobs: true;
+      };
+    };
     blobs: true;
     links: true;
   };
