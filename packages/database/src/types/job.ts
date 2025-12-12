@@ -170,8 +170,3 @@ export type JobWithSokosumiStatus =
   | FreeJobWithStatus
   | PaidJobWithStatus
   | DemoJobWithStatus;
-
-export interface JobWithStatus {
-  job: JobWithSokosumiStatus;
-  status: JobStatusWithSokosumiStatus;
-}
