@@ -1046,18 +1046,16 @@ export const jobService = (() => {
           const latestJobStatus =
             await jobStatusRepository.getLatestJobStatusByJobId(job.id, tx);
 
-          if (!latestJobStatus) {
-            return computeJobStatus(job);
-          }
-
-          // If the latest job status is the same as the agent job status result, return the current job status
-          if (latestJobStatus.externalId === agentJobStatusResult.data.id) {
-            return computeJobStatus(job);
-          } else {
-            // If the agent job status result has no external ID, check if the latest job status status is the same as the agent job status
-            if (!agentJobStatusResult.data.id) {
-              if (latestJobStatus.status === agentJobStatus) {
-                return computeJobStatus(job);
+          if (latestJobStatus) {
+            // If the latest job status is the same as the agent job status result, return the current job status
+            if (latestJobStatus.externalId === agentJobStatusResult.data.id) {
+              return computeJobStatus(job);
+            } else {
+              // If the agent job status result has no external ID, check if the latest job status status is the same as the agent job status
+              if (!agentJobStatusResult.data.id) {
+                if (latestJobStatus.status === agentJobStatus) {
+                  return computeJobStatus(job);
+                }
               }
             }
           }
@@ -1085,7 +1083,6 @@ export const jobService = (() => {
               },
               tx,
             );
-
           job = await jobRepository.getJobById(job.id, tx);
           if (!job) {
             throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
