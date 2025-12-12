@@ -808,11 +808,9 @@ export const jobService = (() => {
       },
     });
 
-    const agentJobId = startJobResponse.id;
-
     const job = await jobRepository.createJob({
       jobType: JobType.FREE,
-      agentJobId,
+      agentJobId: startJobResponse.id,
       agentId,
       userId,
       organizationId,
