@@ -59,8 +59,8 @@ export default function JobDetails({
   //       !(status.input == null && status.result == null),
   //   ) ?? [];
 
-  const shouldCollapse = job.statuses.length > 1 && !showAllEvents;
-  const collapsedCount = job.statuses.length - 1;
+  const shouldCollapse = job.statuses.length > 2 && !showAllEvents;
+  const collapsedCount = job.statuses.length;
 
   // const visibleEvents = shouldCollapse
   //   ? [filteredEvents[filteredEvents.length - 1]]
@@ -82,13 +82,6 @@ export default function JobDetails({
               activeOrganizationId={activeOrganizationId}
             />
           </AccordionItem>
-          <div className="flex flex-col gap-2 p-3 pt-4">
-            <StatusDivider
-              jobId={job.id}
-              status={AgentJobStatus.AWAITING_PAYMENT}
-              updatedAt={job.createdAt}
-            />
-          </div>
           <AccordionItemWrapper
             value="input"
             title={t("Input.title")}
