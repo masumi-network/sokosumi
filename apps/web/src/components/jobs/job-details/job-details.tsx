@@ -172,7 +172,7 @@ function JobDetailsProvideInputSection({
   job: JobWithSokosumiStatus;
   status: JobStatusWithRelations;
 }) {
-  const _t = useTranslations("Components.Jobs.JobDetails");
+  const t = useTranslations("Components.Jobs.JobDetails");
   return (
     <div
       className="mt-1.5 flex flex-col gap-2"
@@ -180,7 +180,7 @@ function JobDetailsProvideInputSection({
     >
       <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
         <div className="flex flex-1 flex-col gap-4">
-          {/* <h3 className="font-semibold">{t("AwaitingInput.title")}</h3> */}
+          <h3 className="font-semibold">{t("AwaitingInput.title")}</h3>
           <JobDetailsProvideInput job={job} status={status} />
         </div>
       </div>
