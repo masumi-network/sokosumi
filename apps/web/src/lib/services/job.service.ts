@@ -1242,7 +1242,6 @@ export const jobService = (() => {
     if (!job || job.userId !== userId) {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
-
     // Get the JobStatus by externalId (statusId) that is awaiting input
     const jobStatus =
       await jobStatusRepository.getAwaitingInputJobStatusByJobIdAndExternalId(
