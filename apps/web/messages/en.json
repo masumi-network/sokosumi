@@ -362,7 +362,8 @@
           "none": "No input"
         },
         "Output": {
-          "title": "Result",
+          "result": "Result",
+          "message": "Message",
           "failedToParseResult": "Failed to parse result",
           "none": "No result available",
           "download": "Download",

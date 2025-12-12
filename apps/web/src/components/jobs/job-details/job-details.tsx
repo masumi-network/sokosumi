@@ -205,8 +205,8 @@ function JobDetailsContent({
   const resultLinks = status.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
 
-  const hasCompletedOutput = status.status === AgentJobStatus.COMPLETED;
-  const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
+  const isCompleted = status.status === AgentJobStatus.COMPLETED;
+  const baseAccordion = isCompleted ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
     : baseAccordion;
@@ -254,9 +254,9 @@ function JobDetailsContent({
       {status.result ? (
         <AccordionItemWrapper
           value="output"
-          title={t("Output.title")}
+          title={isCompleted ? t("Output.result") : t("Output.message")}
           verificationBadge={
-            status.status === AgentJobStatus.COMPLETED ? (
+            isCompleted ? (
               <JobResultVerificationBadge
                 direction="result"
                 jobType={job.jobType}
