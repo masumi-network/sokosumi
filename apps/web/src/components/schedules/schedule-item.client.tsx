@@ -257,22 +257,20 @@ export function ScheduleItem({ schedule, title }: Props) {
             </Tooltip>
           </div>
         </div>
-        {schedule.input && schedule.inputSchema && (
-          <Accordion type="single" collapsible className="mt-4">
-            <AccordionItem
-              value="input"
-              className="bg-muted/50 rounded-xl border-none px-4"
-            >
-              <AccordionTrigger>{t("Schedules.inputPreview")}</AccordionTrigger>
-              <AccordionContent>
-                <JobDetailsInputs
-                  input={schedule.input}
-                  inputSchema={schedule.inputSchema}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
+        <Accordion type="single" collapsible className="mt-4">
+          <AccordionItem
+            value="input"
+            className="bg-muted/50 rounded-xl border-none px-4"
+          >
+            <AccordionTrigger>{t("Schedules.inputPreview")}</AccordionTrigger>
+            <AccordionContent>
+              <JobDetailsInputs
+                input={schedule.input}
+                inputSchema={schedule.inputSchema}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </CardContent>
     </Card>
   );
