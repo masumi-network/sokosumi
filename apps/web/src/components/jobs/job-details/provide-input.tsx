@@ -84,7 +84,7 @@ export default function JobDetailsProvideInput({
     <ProvideInputForm
       key={formKey}
       jobId={job.id}
-      statusId={status.id}
+      statusId={status.externalId}
       inputSchemas={inputSchemas}
     />
   );
@@ -127,7 +127,6 @@ function ProvideInputForm({
 
     // Use form.getValues() directly to get the current form values
     const values = form.getValues();
-
     try {
       const transformedInputData = filterOutNullValues(values);
 
@@ -142,7 +141,6 @@ function ProvideInputForm({
           inputData: transformedInputData,
         },
       });
-
       setIsSubmitting(false);
 
       if (result.ok) {
