@@ -1,6 +1,10 @@
 "use client";
 
-import { JobWithStatus, SokosumiJobStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobStatusWithRelations,
+  JobWithSokosumiStatus,
+} from "@sokosumi/database";
 import { isPaidJob } from "@sokosumi/database/helpers";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -19,7 +23,8 @@ import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
 
 interface JobDetailsOutputsProps {
-  data: JobWithStatus;
+  job: JobWithSokosumiStatus;
+  status: JobStatusWithRelations;
   readOnly?: boolean;
   activeOrganizationId?: string | null;
 }
@@ -33,14 +38,16 @@ function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
 }
 
 export default function JobDetailsOutputs({
-  data,
+  job,
+  status,
   readOnly = false,
   activeOrganizationId,
 }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
       <JobDetailsOutputsInner
-        data={data}
+        job={job}
+        status={status}
         readOnly={readOnly}
         activeOrganizationId={activeOrganizationId}
       />
@@ -49,11 +56,11 @@ export default function JobDetailsOutputs({
 }
 
 function JobDetailsOutputsInner({
-  data,
+  job,
+  status,
   readOnly,
   activeOrganizationId,
 }: JobDetailsOutputsProps) {
-  const { job, status } = data;
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
   const searchParams = useSearchParams();
@@ -66,9 +73,7 @@ function JobDetailsOutputsInner({
   }, [result, job.identifierFromPurchaser]);
 
   const onChainResultHash = job.purchase?.resultHash ?? null;
-  const showHashSection =
-    status.status === SokosumiJobStatus.COMPLETED &&
-    (onChainResultHash || calculatedResultHash);
+  const showHashSection = status.status === AgentJobStatus.COMPLETED;
 
   return (
     <JobDetailsOutputsLayout>
@@ -103,7 +108,7 @@ function JobDetailsOutputsInner({
                 direction="result"
                 onChainHash={onChainResultHash}
                 calculatedHash={calculatedResultHash}
-                data={data}
+                job={job}
                 tLabelOnChain={tMeta("onChain")}
                 tLabelCalculated={tMeta("calculated")}
                 tMissing={tMeta("missing")}
@@ -114,7 +119,7 @@ function JobDetailsOutputsInner({
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {status.status === SokosumiJobStatus.FAILED &&
+          {status.status === AgentJobStatus.FAILED &&
             !readOnly &&
             isPaidJob(job) && (
               <div className="flex justify-end">
