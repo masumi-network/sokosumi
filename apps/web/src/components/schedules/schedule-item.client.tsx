@@ -59,8 +59,8 @@ interface ScheduleRecord {
   isActive: boolean;
   lastRunAt: Date | null;
   nextRunAt: Date | null;
-  input?: string | null;
-  inputSchema?: string | null;
+  input: string;
+  inputSchema: string;
   pauseReason?: string | null;
 }
 
