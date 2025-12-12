@@ -212,7 +212,8 @@ function JobDetailsContent({
     ? [...baseAccordion, "sources"]
     : baseAccordion;
 
-  const isAwaitingInput = status.status === AgentJobStatus.AWAITING_INPUT;
+  const isAwaitingInput =
+    status.status === AgentJobStatus.AWAITING_INPUT && status.input == null;
 
   return (
     <Accordion
