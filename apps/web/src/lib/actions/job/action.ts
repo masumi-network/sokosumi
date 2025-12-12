@@ -3,7 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 import {
   JobShare,
-  JobStatusWithSokosumiStatus,
+  JobStatusWithRelations,
   PaidJobWithStatus,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
@@ -159,7 +159,7 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       // Save files uploaded if any
-      const jobStatus: JobStatusWithSokosumiStatus = job.statuses[0];
+      const jobStatus: JobStatusWithRelations = job.statuses[0];
 
       if (!jobStatus) {
         throw new Error("Input event not found");
