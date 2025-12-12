@@ -53,7 +53,7 @@ export default function JobDetails({
     initialData: initialJob,
   });
 
-  const shouldCollapse = job.statuses.length > 2 && !showAllEvents;
+  const shouldCollapse = job.statuses.length > 1 && !showAllEvents;
   const collapsedCount = job.statuses.length;
 
   return (
