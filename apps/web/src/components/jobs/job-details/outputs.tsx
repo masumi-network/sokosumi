@@ -110,11 +110,10 @@ function JobDetailsOutputsInner({
                 onChainStatus={job.purchase?.onChainStatus}
                 identifierFromPurchaser={job.identifierFromPurchaser}
                 result={result}
-                resultHash={job.purchase?.resultHash}
-                onChainHash={onChainResultHash}
-                calculatedHash={calculatedResultHash}
-                tLabelOnChain={tMeta("onChain")}
-                tLabelCalculated={tMeta("calculated")}
+                externalHash={onChainResultHash}
+                hash={calculatedResultHash}
+                tLabelExternal={tMeta("onChain")}
+                tLabelHash={tMeta("calculated")}
                 tMissing={tMeta("missing")}
               />
             </>

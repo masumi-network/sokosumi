@@ -160,11 +160,10 @@ function JobDetailsInputsInner({
             jobType={jobType}
             identifierFromPurchaser={identifierFromPurchaser}
             input={rawInput}
-            inputHash={inputHash}
-            onChainHash={inputHash ?? null}
-            calculatedHash={calculatedInputHash}
-            tLabelOnChain={tMeta("onChain")}
-            tLabelCalculated={tMeta("calculated")}
+            externalHash={inputHash}
+            hash={calculatedInputHash}
+            tLabelExternal={tMeta("onChain")}
+            tLabelHash={tMeta("calculated")}
             tMissing={tMeta("missing")}
           />
         </>

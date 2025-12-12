@@ -21,7 +21,6 @@ interface HashGroupInputProps {
   jobType: JobType;
   identifierFromPurchaser: string | null;
   input: string | null;
-  inputHash: string | null;
 }
 
 interface HashGroupResultProps {
@@ -30,14 +29,13 @@ interface HashGroupResultProps {
   onChainStatus?: OnChainJobStatus | null;
   identifierFromPurchaser: string | null;
   result: string | null;
-  resultHash?: string | null;
 }
 
 type HashGroupBaseProps = {
-  onChainHash: string | null;
-  calculatedHash: string | null;
-  tLabelOnChain: string;
-  tLabelCalculated: string;
+  externalHash: string | null;
+  hash: string | null;
+  tLabelExternal: string;
+  tLabelHash: string;
   tMissing: string;
 };
 
@@ -57,14 +55,14 @@ export function HashGroupRow({
 }: HashGroupRowProps) {
   const {
     direction,
-    onChainHash,
-    calculatedHash,
-    tLabelOnChain,
-    tLabelCalculated,
+    externalHash,
+    hash,
+    tLabelExternal,
+    tLabelHash,
     tMissing,
   } = props;
-  const bothPresent = Boolean(onChainHash) && Boolean(calculatedHash);
-  const areEqual = bothPresent && onChainHash === calculatedHash;
+  const bothPresent = Boolean(externalHash) && Boolean(hash);
+  const areEqual = bothPresent && externalHash === hash;
 
   const verificationBadge =
     direction === "input" ? (
@@ -73,7 +71,7 @@ export function HashGroupRow({
         jobType={props.jobType}
         identifierFromPurchaser={props.identifierFromPurchaser}
         input={props.input ?? ""}
-        inputHash={props.inputHash}
+        inputHash={props.externalHash}
       />
     ) : (
       <JobResultVerificationBadge
@@ -82,7 +80,7 @@ export function HashGroupRow({
         onChainStatus={props.onChainStatus}
         identifierFromPurchaser={props.identifierFromPurchaser}
         result={props.result}
-        resultHash={props.resultHash}
+        resultHash={props.externalHash}
       />
     );
 
@@ -97,7 +95,7 @@ export function HashGroupRow({
         <span className="font-bold break-all md:col-span-1">{label}</span>
         <div className="break-all md:col-span-2">
           <div className="flex items-center gap-2">
-            <CopyableValue value={onChainHash} />
+            <CopyableValue value={externalHash} />
             {verificationBadge}
           </div>
         </div>
@@ -119,7 +117,7 @@ export function HashGroupRow({
             <div className="flex items-center gap-1">
               <div className="pl-4 md:pl-2.5">
                 <CopyableValue
-                  value={onChainHash ?? calculatedHash}
+                  value={externalHash ?? hash}
                   renderButtonAsChild
                   shouldStopPropagation
                 />
@@ -131,11 +129,11 @@ export function HashGroupRow({
         <AccordionContent className="px-0">
           <div className="grid grid-cols-2 items-center gap-5 text-sm md:grid-cols-3">
             <span className="font-bold break-all md:col-span-1">
-              {tLabelOnChain}
+              {tLabelExternal}
             </span>
             <div className="break-all md:col-span-2">
-              {onChainHash ? (
-                <CopyableValue value={onChainHash} />
+              {externalHash ? (
+                <CopyableValue value={externalHash} />
               ) : (
                 <span className="text-destructive inline-flex items-center gap-1">
                   {tMissing}
@@ -145,10 +143,10 @@ export function HashGroupRow({
           </div>
           <div className="grid grid-cols-2 items-center gap-4 text-sm md:grid-cols-3">
             <span className="font-bold break-all md:col-span-1">
-              {tLabelCalculated}
+              {tLabelHash}
             </span>
             <div className="break-all md:col-span-2">
-              <CopyableValue value={calculatedHash} />
+              <CopyableValue value={hash} />
             </div>
           </div>
         </AccordionContent>
