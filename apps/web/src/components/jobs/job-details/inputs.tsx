@@ -17,7 +17,7 @@ import { HashGroupRow } from "./hash-group-row";
 
 interface JobDetailsInputsProps {
   job: JobWithSokosumiStatus;
-  status: JobStatusWithRelations;
+  status?: JobStatusWithRelations;
 }
 
 export default function JobDetailsInputs({
@@ -73,14 +73,18 @@ function renderInputValue(
 }
 
 function JobDetailsInputsInner({ job, status }: JobDetailsInputsProps) {
-  const inputHash = status.input?.inputHash ?? null;
   const identifierFromPurchaser = job.identifierFromPurchaser ?? null;
 
   const t = useTranslations("Components.Jobs.JobDetails.Input");
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
-  const blobs = status.input?.blobs ?? [];
-  const input = status.input?.input ? JSON.parse(status.input.input) : {};
-  const inputSchema = status.inputSchema ? JSON.parse(status.inputSchema) : {};
+
+  // Use status fields if available, otherwise fall back to job table fields
+  const inputHash = status?.input?.inputHash ?? job.inputHash ?? null;
+  const blobs = status?.input?.blobs ?? job.inputBlobs ?? [];
+  const rawInput = status?.input?.input ?? job.input;
+  const input = rawInput ? JSON.parse(rawInput) : {};
+  const rawInputSchema = status?.inputSchema ?? job.inputSchema;
+  const inputSchema = rawInputSchema ? JSON.parse(rawInputSchema) : {};
 
   const calculatedInputHash = useMemo(() => {
     if (!identifierFromPurchaser || !job.input) return null;

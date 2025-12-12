@@ -3,7 +3,6 @@
 import {
   AgentJobStatus,
   JobStatusWithRelations,
-  JobStatusWithSokosumiStatus,
   JobWithSokosumiStatus,
   SokosumiJobStatus,
 } from "@sokosumi/database";
@@ -107,7 +106,7 @@ export default function JobDetails({
           </AccordionItemWrapper>
         </Accordion>
 
-        {job.statuses.map((status: JobStatusWithSokosumiStatus, index) => (
+        {job.statuses.map((status: JobStatusWithRelations, index) => (
           <div key={`${job.id}-event-${status.id}`}>
             {shouldCollapse && index === 0 && (
               <CollapsedEventsButton
