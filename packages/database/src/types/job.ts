@@ -72,6 +72,7 @@ type BaseJobWithStatus = JobWithRelations & {
   credits: number;
   cents: bigint;
   resultHash: string | null;
+  result: string | null;
 };
 
 type BaseFreeJob = {

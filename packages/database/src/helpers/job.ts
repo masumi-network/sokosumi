@@ -275,6 +275,7 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
     (event: JobStatus) => event.status === AgentJobStatus.COMPLETED,
   );
   const completedAt = completedStatus?.createdAt ?? null;
+  const result = completedStatus?.result ?? null;
 
   const jobStatusSettled =
     job.jobType === JobType.PAID
@@ -302,6 +303,7 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
     credits: Math.abs(
       convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
     ),
+    result,
     resultHash: job.purchase?.resultHash ?? null,
   };
 
