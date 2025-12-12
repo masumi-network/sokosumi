@@ -113,12 +113,16 @@ function checkNextAction(job: JobWithRelations): SokosumiJobStatus | null {
  */
 function getFundsLockedJobStatus(
   job: Job,
-  agentJobStatus: AgentJobStatus,
+  latestJobStatus: JobStatusWithRelations,
   now: Date,
 ): SokosumiJobStatus {
-  switch (agentJobStatus) {
+  switch (latestJobStatus.status) {
     case AgentJobStatus.AWAITING_INPUT:
-      return SokosumiJobStatus.INPUT_REQUIRED;
+      if (latestJobStatus.input === null) {
+        return SokosumiJobStatus.INPUT_REQUIRED;
+      } else {
+        return SokosumiJobStatus.PROCESSING;
+      }
     case AgentJobStatus.COMPLETED:
       return SokosumiJobStatus.COMPLETED;
     case AgentJobStatus.FAILED:
@@ -190,7 +194,11 @@ function computeFreeJobStatus(job: JobWithRelations): SokosumiJobStatus {
     case AgentJobStatus.AWAITING_PAYMENT:
       return SokosumiJobStatus.FAILED;
     case AgentJobStatus.AWAITING_INPUT:
-      return SokosumiJobStatus.INPUT_REQUIRED;
+      if (latestJobStatus.input === null) {
+        return SokosumiJobStatus.INPUT_REQUIRED;
+      } else {
+        return SokosumiJobStatus.PROCESSING;
+      }
     case AgentJobStatus.COMPLETED:
       return SokosumiJobStatus.COMPLETED;
     case AgentJobStatus.FAILED:
@@ -242,7 +250,7 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
       }
       return SokosumiJobStatus.PAYMENT_PENDING;
     case OnChainJobStatus.FUNDS_LOCKED:
-      return getFundsLockedJobStatus(job, latestJobStatus.status, now);
+      return getFundsLockedJobStatus(job, latestJobStatus, now);
     case OnChainJobStatus.RESULT_SUBMITTED:
       switch (latestJobStatus.status) {
         case AgentJobStatus.COMPLETED:
