@@ -53,18 +53,8 @@ export default function JobDetails({
     initialData: initialJob,
   });
 
-  // const filteredStatuses =
-  //   job.statuses.filter(
-  //     (status: JobStatusWithSokosumiStatus) =>
-  //       !(status.input == null && status.result == null),
-  //   ) ?? [];
-
   const shouldCollapse = job.statuses.length > 2 && !showAllEvents;
   const collapsedCount = job.statuses.length;
-
-  // const visibleEvents = shouldCollapse
-  //   ? [filteredEvents[filteredEvents.length - 1]]
-  //   : filteredEvents;
 
   return (
     <div
