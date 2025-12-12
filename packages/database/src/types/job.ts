@@ -3,10 +3,8 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type {
-  Blob,
   CreditTransaction,
   JobType,
-  Link,
   Prisma,
 } from "../generated/prisma/client.js";
 
@@ -43,21 +41,13 @@ export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
 
-export interface JobStatusWithSokosumiStatus {
-  id: string;
-  statusId: string | null;
-  input: string | null;
-  inputHash: string | null;
-  inputSchema: string | null;
-  signature: string | null;
-  inputBlobs: Blob[] | null;
-  status: SokosumiJobStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  result: string | null;
-  blobs?: Blob[] | null;
-  links?: Link[] | null;
-}
+export type JobStatusWithRelations = Prisma.JobStatusGetPayload<{
+  include: {
+    input: true;
+    blobs: true;
+    links: true;
+  };
+}>;
 
 type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
@@ -68,7 +58,7 @@ type BaseJobWithStatus = JobWithRelations & {
   input: string | null;
   inputSchema: string | null;
   inputHash: string | null;
-  statuses: JobStatusWithSokosumiStatus[];
+  statuses: JobStatusWithRelations[];
   credits: number;
   cents: bigint;
   resultHash: string | null;

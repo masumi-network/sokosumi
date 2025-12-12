@@ -6,13 +6,13 @@ import {
   NextJobAction,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
-import type { Job, JobStatus } from "../generated/prisma/client.js";
+import type { Job } from "../generated/prisma/client.js";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
-  type JobStatusWithSokosumiStatus,
+  type JobStatusWithRelations,
   type JobWithRelations,
-  type JobWithSokosumiStatus,
+  JobWithSokosumiStatus,
   PaidJobWithStatus,
   SokosumiJobStatus,
 } from "../types/job.js";
@@ -30,8 +30,8 @@ const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
  * @returns The latest event, or `undefined` if the events array is empty.
  */
 export function getLatestJobStatus(job: {
-  statuses: JobStatus[];
-}): JobStatus | undefined {
+  statuses: JobStatusWithRelations[];
+}): JobStatusWithRelations | undefined {
   return job.statuses.at(-1);
 }
 
@@ -272,7 +272,8 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
 
 export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
   const completedStatus = job.statuses.find(
-    (event: JobStatus) => event.status === AgentJobStatus.COMPLETED,
+    (event: JobStatusWithRelations) =>
+      event.status === AgentJobStatus.COMPLETED,
   );
   const completedAt = completedStatus?.createdAt ?? null;
   const result = completedStatus?.result ?? null;
@@ -321,51 +322,14 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
   }
 }
 
-/**
- * Creates a synthetic `JobStatusWithSokosumiStatus` representing the initial input
- * associated with a job. This is used in the UI when displaying the job's initial
- * input section, which exists at the job level rather than as a separate status entry.
- *
- * @param job - The job object containing initial input data.
- * @returns A `JobStatusWithSokosumiStatus` representing the job's initial input.
- */
-export function makeInitialJobStatus(
-  job: JobWithSokosumiStatus,
-): JobStatusWithSokosumiStatus {
-  return {
-    id: `${job.id}-initial`,
-    statusId: null,
-    input: job.input,
-    inputHash: job.inputHash,
-    inputSchema: job.inputSchema,
-    signature: null,
-    inputBlobs: job.inputBlobs ?? [],
-    status:
-      job.status === SokosumiJobStatus.COMPLETED
-        ? SokosumiJobStatus.STARTED
-        : job.status,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-    result: null,
-    blobs: [],
-    links: [],
-  };
-}
-
-export function isFreeJob(
-  job: JobWithSokosumiStatus,
-): job is FreeJobWithStatus {
+export function isFreeJob(job: JobWithRelations): job is FreeJobWithStatus {
   return job.jobType === JobType.FREE;
 }
 
-export function isPaidJob(
-  job: JobWithSokosumiStatus,
-): job is PaidJobWithStatus {
+export function isPaidJob(job: JobWithRelations): job is PaidJobWithStatus {
   return job.jobType === JobType.PAID;
 }
 
-export function isDemoJob(
-  job: JobWithSokosumiStatus,
-): job is DemoJobWithStatus {
+export function isDemoJob(job: JobWithRelations): job is DemoJobWithStatus {
   return job.jobType === JobType.DEMO;
 }
