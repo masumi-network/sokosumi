@@ -1,12 +1,12 @@
 "use client";
 
 import {
+  AgentJobStatus,
+  JobStatusWithRelations,
   JobStatusWithSokosumiStatus,
   JobWithSokosumiStatus,
-  JobWithStatus,
   SokosumiJobStatus,
 } from "@sokosumi/database";
-import { makeInitialJobStatus } from "@sokosumi/database/helpers";
 import { useQuery } from "@tanstack/react-query";
 import { List, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -17,12 +17,15 @@ import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
-import { getInputBlobs, getOutputBlobs } from "@/lib/utils/job-transformers";
+import { getOutputBlobs } from "@/lib/utils/job-transformers";
 import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
-import { JobVerificationBadge } from "./job-verification-badge";
+import {
+  JobInputVerificationBadge,
+  JobResultVerificationBadge,
+} from "./job-verification-badge";
 import JobDetailsOutputs from "./outputs";
 import JobDetailsProvideInput from "./provide-input";
 import JotOutputSources from "./sources";
@@ -51,20 +54,18 @@ export default function JobDetails({
     initialData: initialJob,
   });
 
-  const filteredEvents =
-    job.statuses.filter(
-      (status: JobStatusWithSokosumiStatus) =>
-        !(status.input == null && status.result == null),
-    ) ?? [];
+  // const filteredStatuses =
+  //   job.statuses.filter(
+  //     (status: JobStatusWithSokosumiStatus) =>
+  //       !(status.input == null && status.result == null),
+  //   ) ?? [];
 
-  const shouldCollapse = filteredEvents.length > 1 && !showAllEvents;
-  const collapsedCount = filteredEvents.length - 1;
+  const shouldCollapse = job.statuses.length > 1 && !showAllEvents;
+  const collapsedCount = job.statuses.length - 1;
 
-  const visibleEvents = shouldCollapse
-    ? [filteredEvents[filteredEvents.length - 1]]
-    : filteredEvents;
-
-  const initialStatus = makeInitialJobStatus(job);
+  // const visibleEvents = shouldCollapse
+  //   ? [filteredEvents[filteredEvents.length - 1]]
+  //   : filteredEvents;
 
   return (
     <div
@@ -83,28 +84,30 @@ export default function JobDetails({
             />
           </AccordionItem>
           <div className="flex flex-col gap-2 p-3 pt-4">
-            <StatusDivider data={{ job, status: initialStatus }} />
+            <StatusDivider
+              jobId={job.id}
+              status={AgentJobStatus.AWAITING_PAYMENT}
+              updatedAt={job.createdAt}
+            />
           </div>
           <AccordionItemWrapper
             value="input"
             title={t("Input.title")}
             verificationBadge={
-              <JobVerificationBadge
+              <JobInputVerificationBadge
                 direction="input"
-                data={{ job, status: initialStatus }}
+                jobType={job.jobType}
+                identifierFromPurchaser={job.identifierFromPurchaser}
+                input={job.input}
+                inputHash={job.inputHash}
               />
             }
           >
-            <JobDetailsInputs
-              rawInput={job.input}
-              rawInputSchema={job.inputSchema ?? null}
-              blobs={job.inputBlobs ?? []}
-              data={{ job, status: initialStatus }}
-            />
+            <JobDetailsInputs job={job} />
           </AccordionItemWrapper>
         </Accordion>
 
-        {visibleEvents.map((status: JobStatusWithSokosumiStatus, index) => (
+        {job.statuses.map((status: JobStatusWithSokosumiStatus, index) => (
           <div key={`${job.id}-event-${status.id}`}>
             {shouldCollapse && index === 0 && (
               <CollapsedEventsButton
@@ -113,10 +116,11 @@ export default function JobDetails({
               />
             )}
             <JobDetailsContent
-              data={{ job, status: status }}
+              job={job}
+              status={status}
               readOnly={readOnly}
               activeOrganizationId={activeOrganizationId}
-              isLast={index === visibleEvents.length - 1}
+              isLast={index === job.statuses.length - 1}
             />
           </div>
         ))}
@@ -172,17 +176,23 @@ function CollapsedEventsButton({
   );
 }
 
-function JobDetailsProvideInputSection({ data }: { data: JobWithStatus }) {
+function JobDetailsProvideInputSection({
+  job,
+  status,
+}: {
+  job: JobWithSokosumiStatus;
+  status: JobStatusWithRelations;
+}) {
   const _t = useTranslations("Components.Jobs.JobDetails");
   return (
     <div
       className="mt-1.5 flex flex-col gap-2"
-      key={`${data.job.id}-${data.status?.status}-details-awaiting-input`}
+      key={`${job.id}-${status.status}-details-awaiting-input`}
     >
       <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
         <div className="flex flex-1 flex-col gap-4">
           {/* <h3 className="font-semibold">{t("AwaitingInput.title")}</h3> */}
-          <JobDetailsProvideInput data={data} />
+          <JobDetailsProvideInput job={job} status={status} />
         </div>
       </div>
     </div>
@@ -190,33 +200,30 @@ function JobDetailsProvideInputSection({ data }: { data: JobWithStatus }) {
 }
 
 function JobDetailsContent({
-  data,
+  job,
+  status,
   readOnly,
   activeOrganizationId,
   isLast,
 }: {
-  data: JobWithStatus;
+  job: JobWithSokosumiStatus;
+  status: JobStatusWithRelations;
   readOnly: boolean;
   activeOrganizationId?: string | null;
   isLast: boolean;
 }) {
-  const { job, status } = data;
   const t = useTranslations("Components.Jobs.JobDetails");
-  const inputBlobs = getInputBlobs(status.inputBlobs ?? []);
   const outputBlobs = getOutputBlobs(status.blobs ?? []);
   const resultLinks = status.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
 
-  const hasCompletedOutput = status.status === SokosumiJobStatus.COMPLETED;
+  const hasCompletedOutput = status.status === AgentJobStatus.COMPLETED;
   const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
     : baseAccordion;
 
-  const isAwaitingInput =
-    status.status === SokosumiJobStatus.INPUT_REQUIRED &&
-    status.input === null &&
-    status.inputSchema !== null;
+  const isAwaitingInput = status.status === AgentJobStatus.AWAITING_INPUT;
 
   return (
     <Accordion
@@ -225,22 +232,27 @@ function JobDetailsContent({
       className="w-full space-y-1.5"
     >
       <div className="flex flex-col gap-2 p-3 pt-4">
-        <StatusDivider data={data} />
+        <StatusDivider
+          jobId={status.jobId}
+          status={status.status}
+          updatedAt={status.createdAt}
+        />
       </div>
       {status.input ? (
         <AccordionItemWrapper
           value="input"
           title={t("Input.title")}
           verificationBadge={
-            <JobVerificationBadge direction="input" data={data} />
+            <JobInputVerificationBadge
+              direction="input"
+              jobType={job.jobType}
+              identifierFromPurchaser={job.identifierFromPurchaser}
+              input={status.input.input}
+              inputHash={status.input.inputHash}
+            />
           }
         >
-          <JobDetailsInputs
-            rawInput={status.input}
-            rawInputSchema={status.inputSchema ?? null}
-            blobs={inputBlobs}
-            data={data}
-          />
+          <JobDetailsInputs job={job} status={status} />
         </AccordionItemWrapper>
       ) : null}
       {status.result ? (
@@ -249,13 +261,21 @@ function JobDetailsContent({
           title={t("Output.title")}
           verificationBadge={
             job.completedAt != null &&
-            status.status === SokosumiJobStatus.COMPLETED ? (
-              <JobVerificationBadge direction="result" data={data} />
+            job.status === SokosumiJobStatus.COMPLETED ? (
+              <JobResultVerificationBadge
+                direction="result"
+                jobType={job.jobType}
+                onChainStatus={job.purchase?.onChainStatus}
+                identifierFromPurchaser={job.identifierFromPurchaser}
+                result={status.result}
+                resultHash={job.purchase?.resultHash}
+              />
             ) : null
           }
         >
           <JobDetailsOutputs
-            data={data}
+            job={job}
+            status={status}
             readOnly={readOnly}
             activeOrganizationId={activeOrganizationId}
           />
@@ -266,7 +286,9 @@ function JobDetailsContent({
           <JotOutputSources status={status} />
         </AccordionItemWrapper>
       ) : null}
-      {isAwaitingInput ? <JobDetailsProvideInputSection data={data} /> : null}
+      {isAwaitingInput ? (
+        <JobDetailsProvideInputSection job={job} status={status} />
+      ) : null}
     </Accordion>
   );
 }
