@@ -659,6 +659,7 @@ enum OnChainJobStatus {
 }
 
 enum AgentJobStatus {
+  INITIATED
   AWAITING_PAYMENT
   AWAITING_INPUT
   RUNNING
