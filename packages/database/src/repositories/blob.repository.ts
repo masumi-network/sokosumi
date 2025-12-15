@@ -7,12 +7,9 @@ import { Blob, BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
  * Provides CRUD methods for Blob table.
  */
 export const blobRepository = {
-  /**
-   * Create a new Blob record
-   */
-  async createInputBlobForInput(
+  async createInputBlobForJobStatus(
     userId: string,
-    jobInputId: string,
+    jobStatusId: string,
     fileUrl: string,
     fileName?: string,
     size?: bigint,
@@ -22,29 +19,7 @@ export const blobRepository = {
       data: {
         origin: BlobOrigin.INPUT,
         user: { connect: { id: userId } },
-        jobInput: { connect: { id: jobInputId } },
-        status: BlobStatus.READY,
-        fileUrl,
-        fileName,
-        size,
-      },
-    });
-    return blob;
-  },
-
-  async createInputBlobForJob(
-    userId: string,
-    jobId: string,
-    fileUrl: string,
-    fileName?: string,
-    size?: bigint,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<Blob> {
-    const blob = await tx.blob.create({
-      data: {
-        origin: BlobOrigin.INPUT,
-        user: { connect: { id: userId } },
-        job: { connect: { id: jobId } },
+        jobStatus: { connect: { id: jobStatusId } },
         status: BlobStatus.READY,
         fileUrl,
         fileName,
@@ -129,7 +104,7 @@ export const blobRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
-      where: { jobInputId },
+      where: { jobStatus: { input: { id: jobInputId } } },
     });
     return blobs;
   },
@@ -143,11 +118,7 @@ export const blobRepository = {
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: {
-        OR: [
-          { jobStatus: { jobId } },
-          { jobInput: { status: { jobId } } },
-          { job: { id: jobId } },
-        ],
+        jobStatus: { job: { id: jobId } },
       },
     });
     return blobs;
@@ -164,11 +135,7 @@ export const blobRepository = {
     const blobs = await tx.blob.findMany({
       where: {
         userId,
-        OR: [
-          { jobStatus: { jobId } },
-          { jobInput: { status: { jobId } } },
-          { job: { id: jobId } },
-        ],
+        jobStatus: { job: { id: jobId } },
       },
     });
     return blobs;
