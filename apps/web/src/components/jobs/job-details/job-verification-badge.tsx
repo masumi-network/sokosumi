@@ -1,6 +1,11 @@
 "use client";
 
 import { JobType, OnChainJobStatus } from "@sokosumi/database";
+import {
+  type InputVerificationOptions,
+  isHashVerified,
+  type ResultVerificationOptions,
+} from "@sokosumi/masumi";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -12,12 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
-import {
-  cn,
-  InputVerificationOptions,
-  isHashVerified,
-  ResultVerificationOptions,
-} from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface VerificationState {
   direction: "input" | "result";
