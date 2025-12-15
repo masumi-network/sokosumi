@@ -59,26 +59,6 @@ export default function JobDetails({
     ? [job.statuses[job.statuses.length - 1]]
     : job.statuses;
 
-  const initiatedStatus = job.statuses.find(
-    (event: JobStatusWithRelations) =>
-      event.status === AgentJobStatus.INITIATED,
-  );
-
-  if (!initiatedStatus) {
-    throw new Error("Initiated status not found");
-  }
-
-  const inputSchema = initiatedStatus.inputSchema ?? null;
-  const inputBlobs = initiatedStatus.blobs ?? [];
-
-  const jobInput = initiatedStatus.input;
-  if (!jobInput) {
-    throw new Error("Input not found");
-  }
-
-  const input = jobInput.input ?? null;
-  const inputHash = jobInput.inputHash ?? null;
-
   return (
     <div
       className={cn(
@@ -95,28 +75,6 @@ export default function JobDetails({
               activeOrganizationId={activeOrganizationId}
             />
           </AccordionItem>
-          <AccordionItemWrapper
-            value="input"
-            title={t("Input.title")}
-            verificationBadge={
-              <JobInputVerificationBadge
-                direction="input"
-                jobType={job.jobType}
-                identifierFromPurchaser={job.identifierFromPurchaser}
-                input={input}
-                inputHash={inputHash}
-              />
-            }
-          >
-            <JobDetailsInputs
-              input={input}
-              inputSchema={inputSchema}
-              blobs={inputBlobs}
-              inputHash={inputHash}
-              identifierFromPurchaser={job.identifierFromPurchaser}
-              jobType={job.jobType}
-            />
-          </AccordionItemWrapper>
         </Accordion>
 
         {visibleEvents.map((status: JobStatusWithRelations, index) => (
