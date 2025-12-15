@@ -189,8 +189,9 @@ function computeFreeJobStatus(job: JobWithRelations): SokosumiJobStatus {
   if (!latestJobStatus) {
     return SokosumiJobStatus.STARTED;
   }
-
   switch (latestJobStatus.status) {
+    case AgentJobStatus.INITIATED:
+      return SokosumiJobStatus.PROCESSING;
     case AgentJobStatus.AWAITING_PAYMENT:
       return SokosumiJobStatus.FAILED;
     case AgentJobStatus.AWAITING_INPUT:
