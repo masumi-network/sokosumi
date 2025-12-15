@@ -28,7 +28,7 @@
     "better-auth-localization": "2.2.2",
     "dotenv": "17.2.3",
     "hono": "4.11.1",
-    "i18next": "25.7.2",
+    "i18next": "25.7.3",
     "i18next-fs-backend": "2.6.1",
     "postmark": "4.0.5",
     "stripe": "20.0.0",
