@@ -211,12 +211,16 @@ export const jobRepository = {
             },
           },
         }),
-        input: data.input,
-        inputSchema: JSON.stringify(data.inputSchema),
         statuses: {
           create: {
-            status: AgentJobStatus.COMPLETED,
-            result: data.result,
+            status: AgentJobStatus.INITIATED,
+            result: null,
+            inputSchema: JSON.stringify(data.inputSchema),
+            input: {
+              create: {
+                input: data.input,
+              },
+            },
           },
         },
         payByTime: null,
@@ -229,7 +233,22 @@ export const jobRepository = {
       },
       include: jobInclude,
     });
-    return mapJobWithStatus(job);
+
+    const updatedJob = await tx.job.update({
+      where: { id: job.id },
+      data: {
+        ...(data.result && {
+          statuses: {
+            create: {
+              status: AgentJobStatus.COMPLETED,
+              result: data.result,
+            },
+          },
+        }),
+      },
+      include: jobInclude,
+    });
+    return mapJobWithStatus(updatedJob);
   },
 
   async createJob(
@@ -256,9 +275,20 @@ export const jobRepository = {
           },
         },
       }),
-      input: data.input,
-      inputSchema: JSON.stringify(data.inputSchema),
-      inputHash: data.inputHash,
+      statuses: {
+        create: {
+          status: AgentJobStatus.INITIATED,
+          result: null,
+          inputSchema: JSON.stringify(data.inputSchema),
+          input: {
+            create: {
+              input: data.input,
+              inputHash: data.inputHash,
+            },
+          },
+        },
+      },
+
       name: data.name,
       ...(data.jobScheduleId && {
         jobSchedule: { connect: { id: data.jobScheduleId } },
