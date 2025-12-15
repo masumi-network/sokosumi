@@ -3,7 +3,8 @@
 import { JobType, OnChainJobStatus } from "@sokosumi/database";
 import {
   type InputVerificationOptions,
-  isHashVerified,
+  isInputHashVerified,
+  isResultHashVerified,
   type ResultVerificationOptions,
 } from "@sokosumi/masumi";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
@@ -86,7 +87,7 @@ export function JobInputVerificationBadge({
     return {
       direction,
       isPending: false,
-      isVerified: isHashVerified("input", inputVerificationOptions),
+      isVerified: isInputHashVerified(inputVerificationOptions),
       isNotApplicable: false,
     };
   }, [direction, identifierFromPurchaser, inputHash, input, jobType]);
@@ -149,7 +150,7 @@ export function JobResultVerificationBadge({
       return {
         direction,
         isPending: false,
-        isVerified: isHashVerified("result", resultVerificationOptions),
+        isVerified: isResultHashVerified(resultVerificationOptions),
         isNotApplicable: false,
       };
     }

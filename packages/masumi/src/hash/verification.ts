@@ -13,6 +13,71 @@ export interface ResultVerificationOptions {
 }
 
 /**
+ * Verifies whether a given input hash matches the computed hash for the provided input data.
+ *
+ * Checks if the provided input hash matches either the current or deprecated input hash format
+ * for backward compatibility.
+ *
+ * @param options - An object containing input data, input hash, and identifier.
+ * @returns True if the provided hash matches the computed hash, false otherwise.
+ */
+export function isInputHashVerified(
+  options: InputVerificationOptions,
+): boolean {
+  return verifyHashMatch(
+    "input",
+    options.inputHash,
+    options.input,
+    options.identifierFromPurchaser,
+  );
+}
+
+/**
+ * Verifies whether a given result hash matches the computed hash for the provided result data.
+ *
+ * @param options - An object containing result data, result hash, and identifier.
+ * @returns True if the provided hash matches the computed hash, false otherwise.
+ */
+export function isResultHashVerified(
+  options: ResultVerificationOptions,
+): boolean {
+  return verifyHashMatch(
+    "result",
+    options.resultHash,
+    options.result,
+    options.identifierFromPurchaser,
+  );
+}
+
+/**
+ * Compares a provided hash with the computed hash for input or result data.
+ *
+ * This utility supports verification of both input and result hashes.
+ * For input hashes, also attempts a deprecated hash function for backward compatibility.
+ *
+ * @param mode - Either "input" or "result", determines which hash function is used
+ * @param hash - The hash value to verify
+ * @param data - The raw input/result data (JSON string for input, string for result)
+ * @param identifierFromPurchaser - Unique identifier from the purchaser, used in the hash computation
+ * @returns True if the provided hash matches the computed hash (including deprecated formats if applicable), false otherwise
+ */
+function verifyHashMatch(
+  mode: "input" | "result",
+  hash: string | null,
+  data: string | null,
+  identifierFromPurchaser: string,
+): boolean {
+  if (!hash || !data) return false;
+  const matchedHash = findMatchingHash(
+    mode,
+    identifierFromPurchaser,
+    data,
+    hash,
+  );
+  return matchedHash !== null;
+}
+
+/**
  * Returns the matching hash (input or result) supporting deprecated input hash.
  *
  * For input verification:
@@ -46,62 +111,4 @@ function findMatchingHash(
     const resultHash = hashResult(data, identifierFromPurchaser);
     return hashToMatch === resultHash ? resultHash : null;
   }
-}
-
-/**
- * Verifies whether a given hash matches the computed hash for the provided input or result data.
- *
- * For input verification:
- * - Checks if the provided input hash matches either the current or deprecated input hash format.
- *
- * For result verification:
- * - Checks if the provided result hash matches the computed result hash.
- *
- * @param mode - Determines the verification type: "input" for input hash verification, "result" for result hash verification.
- * @param options - An object containing either input or result data and the associated hash and identifier.
- *   - For "input", expects {@link InputVerificationOptions}
- *   - For "result", expects {@link ResultVerificationOptions}
- * @returns True if the provided hash matches the computed hash, false otherwise.
- */
-export function isHashVerified(
-  mode: "input" | "result",
-  options: InputVerificationOptions | ResultVerificationOptions,
-): boolean {
-  if (mode === "input") {
-    const inputOptions = options as InputVerificationOptions;
-    return verifyHashMatch(
-      "input",
-      inputOptions.inputHash,
-      inputOptions.input,
-      inputOptions.identifierFromPurchaser,
-    );
-  }
-
-  if (mode === "result") {
-    const resultOptions = options as ResultVerificationOptions;
-    return verifyHashMatch(
-      "result",
-      resultOptions.resultHash,
-      resultOptions.result,
-      resultOptions.identifierFromPurchaser,
-    );
-  }
-
-  return false;
-}
-
-function verifyHashMatch(
-  mode: "input" | "result",
-  hash: string | null,
-  data: string | null,
-  identifierFromPurchaser: string,
-) {
-  if (!hash || !data) return false;
-  const matchedHash = findMatchingHash(
-    mode,
-    identifierFromPurchaser,
-    data,
-    hash,
-  );
-  return matchedHash !== null;
 }
