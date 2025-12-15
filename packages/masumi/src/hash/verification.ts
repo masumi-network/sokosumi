@@ -68,13 +68,7 @@ function verifyHashMatch(
   identifierFromPurchaser: string,
 ): boolean {
   if (!hash || !data) return false;
-  const matchedHash = findMatchingHash(
-    mode,
-    identifierFromPurchaser,
-    data,
-    hash,
-  );
-  return matchedHash !== null;
+  return isHashMatching(mode, identifierFromPurchaser, data, hash);
 }
 
 /**
@@ -93,22 +87,24 @@ function verifyHashMatch(
  * @param hashToMatch - The hash value to verify against
  * @returns The matched hash string if verification succeeds, null if no match found
  */
-function findMatchingHash(
+function isHashMatching(
   mode: "input" | "result",
   identifierFromPurchaser: string,
   data: string,
   hashToMatch?: string | null,
-): string | null {
-  if (!hashToMatch) return null;
-  if (mode === "input") {
-    const inputHash = hashInput(data, identifierFromPurchaser);
-    if (hashToMatch === inputHash) return inputHash;
-    const deprecated = hashInputDeprecated(data, identifierFromPurchaser);
-    if (hashToMatch === deprecated) return deprecated;
-    return null;
-  } else {
-    // result hash
-    const resultHash = hashResult(data, identifierFromPurchaser);
-    return hashToMatch === resultHash ? resultHash : null;
+): boolean {
+  if (!hashToMatch) return false;
+  switch (mode) {
+    case "input":
+      const inputHash = hashInput(data, identifierFromPurchaser);
+      if (hashToMatch === inputHash) return true;
+      const deprecated = hashInputDeprecated(data, identifierFromPurchaser);
+      if (hashToMatch === deprecated) return true;
+      return false;
+    case "result":
+      const resultHash = hashResult(data, identifierFromPurchaser);
+      return hashToMatch === resultHash;
+    default:
+      return false;
   }
 }
