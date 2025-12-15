@@ -15,15 +15,10 @@ export const jobInclude = {
     },
     include: {
       blobs: true,
-      input: {
-        include: {
-          blobs: true,
-        },
-      },
+      input: true,
       links: true,
     },
   },
-  inputBlobs: true,
   purchase: true,
   agent: true,
   user: true,
@@ -43,11 +38,7 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 
 export type JobStatusWithRelations = Prisma.JobStatusGetPayload<{
   include: {
-    input: {
-      include: {
-        blobs: true;
-      };
-    };
+    input: true;
     blobs: true;
     links: true;
   };
