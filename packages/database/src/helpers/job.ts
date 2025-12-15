@@ -295,10 +295,13 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
 
   const computedStatus = computeJobStatus(job);
 
-  // TODO: Tempory map for initial Input, and InputSchema
-  const input = job.input ?? null;
-  const inputSchema = job.inputSchema ?? null;
-  const inputHash = job.inputHash ?? null;
+  const initiatedStatus = job.statuses.find(
+    (event: JobStatusWithRelations) =>
+      event.status === AgentJobStatus.INITIATED,
+  );
+  const input = initiatedStatus?.input?.input ?? null;
+  const inputSchema = initiatedStatus?.inputSchema ?? null;
+  const inputHash = initiatedStatus?.input?.inputHash ?? null;
 
   const baseJobWithStatus = {
     ...job,
