@@ -3,6 +3,10 @@
 -- 1. Creates an INITIATED jobStatus for each Job that doesn't already have one
 -- 2. Creates a jobInput linked to each new INITIATED jobStatus with data from Job.input
 -- 3. Sets createdAt for both jobStatus and jobInput to match Job.createdAt
+--
+-- Note: We use gen_random_uuid()::text for ID generation instead of Prisma's cuid()
+-- because CUIDs cannot be generated natively in PostgreSQL SQL. UUIDs are standard,
+-- cryptographically secure, and work well for migration-generated records.
 
 -- Step 1: Insert INITIATED jobStatus for all jobs missing one
 WITH jobs_missing_initiated AS (
@@ -25,7 +29,7 @@ inserted_statuses AS (
     "inputSchema"
   )
   SELECT
-    md5(random()::text || jmi.id::text || extract(epoch from now())::text || random()::text) || substr(md5(random()::text), 1, 8),
+    gen_random_uuid()::text,
     jmi."createdAt",
     jmi."createdAt",
     jmi.id,
@@ -45,7 +49,7 @@ INSERT INTO "jobInput" (
   signature
 )
 SELECT
-  md5(random()::text || ins.id::text || extract(epoch from now())::text || random()::text) || substr(md5(random()::text), 1, 8),
+  gen_random_uuid()::text,
   j."createdAt",
   j."createdAt",
   ins.id,
