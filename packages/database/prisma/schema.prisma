@@ -526,11 +526,9 @@ model Job {
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
 
-  name        String?
-  inputSchema String
-  input       String
-  inputHash   String?
-  inputBlobs  Blob[]
+  name String?
+
+  blobs Blob[]
 
   // Public Share
   share JobShare?
