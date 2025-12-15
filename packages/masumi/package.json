@@ -34,13 +34,18 @@
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
     "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "jest",
+    "test:ci": "jest --ci"
   },
   "dependencies": {
     "json-canonicalize": "2.0.0"
   },
   "devDependencies": {
+    "@types/jest": "30.0.0",
     "@types/node": "24.10.3",
+    "jest": "30.2.0",
+    "ts-jest": "29.4.6",
     "typescript": "5.9.3"
   }
 }
