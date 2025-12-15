@@ -104,7 +104,5 @@ function isHashMatching(
     case "result":
       const resultHash = hashResult(data, identifierFromPurchaser);
       return hashToMatch === resultHash;
-    default:
-      return false;
   }
 }
