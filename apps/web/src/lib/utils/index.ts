@@ -80,8 +80,8 @@ export function isHashVerified(
 ): boolean {
   if (mode === "input") {
     const inputOptions = options as InputVerificationOptions;
-    return verifyHashMatch(
-      "input",
+    return _isHashVerified(
+      mode,
       inputOptions.inputHash,
       inputOptions.input,
       inputOptions.identifierFromPurchaser,
@@ -90,8 +90,8 @@ export function isHashVerified(
 
   if (mode === "result") {
     const resultOptions = options as ResultVerificationOptions;
-    return verifyHashMatch(
-      "result",
+    return _isHashVerified(
+      mode,
       resultOptions.resultHash,
       resultOptions.result,
       resultOptions.identifierFromPurchaser,
@@ -101,7 +101,7 @@ export function isHashVerified(
   return false;
 }
 
-function verifyHashMatch(
+function _isHashVerified(
   mode: "input" | "result",
   hash: string | null,
   data: string | null,
