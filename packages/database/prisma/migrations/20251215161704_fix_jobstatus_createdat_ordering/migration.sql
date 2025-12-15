@@ -1,12 +1,21 @@
 -- Fix JobStatus createdAt ordering
--- This migration ensures that when multiple JobStatus records have the same createdAt,
--- the INITIATED status remains unchanged (same as job.createdAt) and other statuses
--- are adjusted to be a few milliseconds newer to maintain proper ordering.
+-- This migration ensures that:
+-- 1. When multiple JobStatus records have the same createdAt, the INITIATED status
+--    remains unchanged (same as job.createdAt) and other statuses are adjusted to be
+--    a few milliseconds newer to maintain proper ordering.
+-- 2. COMPLETED status for demo jobs is always the newest (latest createdAt).
+-- 3. AWAITING_PAYMENT statuses are removed for demo jobs.
 --
 -- Strategy:
--- 1. Identify statuses with duplicate createdAt timestamps per job
--- 2. Leave INITIATED statuses unchanged
--- 3. Update other statuses incrementally (1ms, 2ms, 3ms, etc.) based on their ID order
+-- Part 1: Fix duplicate timestamps
+--   - Identify statuses with duplicate createdAt timestamps per job
+--   - Leave INITIATED statuses unchanged
+--   - Update other statuses incrementally (1ms, 2ms, 3ms, etc.) based on their ID order
+-- Part 2: Ensure COMPLETED is newest for demo jobs
+--   - Find demo jobs with COMPLETED status
+--   - If COMPLETED is not the newest, update it to be max(createdAt) + 1ms
+-- Part 3: Remove AWAITING_PAYMENT statuses for demo jobs
+--   - Delete all AWAITING_PAYMENT JobStatus records for demo jobs
 
 WITH duplicate_statuses AS (
   -- Find all statuses that have duplicate createdAt values within the same job
@@ -55,4 +64,44 @@ SET
   "updatedAt" = stu.base_timestamp + (stu.row_num || ' milliseconds')::interval
 FROM statuses_to_update stu
 WHERE js.id = stu.id;
+
+-- Ensure COMPLETED status for demo jobs is always the newest (latest createdAt)
+WITH demo_job_statuses AS (
+  -- Find all statuses for demo jobs
+  SELECT
+    js.id,
+    js."jobId",
+    js."createdAt",
+    js.status,
+    MAX(js."createdAt") OVER (PARTITION BY js."jobId") AS max_created_at
+  FROM "jobStatus" js
+  INNER JOIN "Job" j ON j.id = js."jobId"
+  WHERE j."jobType" = 'DEMO'
+),
+demo_completed_to_update AS (
+  -- Find COMPLETED statuses for demo jobs that are not the newest
+  SELECT
+    id,
+    "jobId",
+    "createdAt",
+    max_created_at
+  FROM demo_job_statuses
+  WHERE status = 'COMPLETED'
+    AND "createdAt" < max_created_at
+)
+-- Update COMPLETED status to be the newest (max + 1ms to ensure it's definitely the latest)
+UPDATE "jobStatus" js
+SET 
+  "createdAt" = dctu.max_created_at + ('1 millisecond')::interval,
+  "updatedAt" = dctu.max_created_at + ('1 millisecond')::interval
+FROM demo_completed_to_update dctu
+WHERE js.id = dctu.id;
+
+-- Remove AWAITING_PAYMENT statuses for demo jobs
+-- Note: This will cascade delete related JobInput records due to onDelete: Cascade
+DELETE FROM "jobStatus" js
+USING "Job" j
+WHERE js."jobId" = j.id
+  AND j."jobType" = 'DEMO'
+  AND js.status = 'AWAITING_PAYMENT';
 
