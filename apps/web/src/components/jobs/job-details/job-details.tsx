@@ -15,7 +15,7 @@ import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
-import { getOutputBlobs } from "@/lib/utils/job-transformers";
+import { getInputBlobs, getOutputBlobs } from "@/lib/utils/job-transformers";
 import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
@@ -225,7 +225,7 @@ function JobDetailsContent({
           <JobDetailsInputs
             input={status.input.input}
             inputSchema={status.inputSchema}
-            blobs={status.blobs}
+            blobs={getInputBlobs(status.blobs)}
             inputHash={status.input.inputHash}
             identifierFromPurchaser={job.identifierFromPurchaser}
             jobType={job.jobType}
