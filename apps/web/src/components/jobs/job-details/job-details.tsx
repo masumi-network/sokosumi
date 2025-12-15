@@ -42,7 +42,6 @@ export default function JobDetails({
   className,
   activeOrganizationId,
 }: JobDetailsProps) {
-  const t = useTranslations("Components.Jobs.JobDetails");
   const { data: session } = useSession();
   const [showAllEvents, setShowAllEvents] = useState(false);
 
@@ -52,11 +51,11 @@ export default function JobDetails({
     initialData: initialJob,
   });
 
-  const shouldCollapse = job.statuses.length > 1 && !showAllEvents;
-  const collapsedCount = job.statuses.length - 1;
+  const shouldCollapse = job.statuses.length > 2 && !showAllEvents;
+  const collapsedCount = job.statuses.length - 2;
 
   const visibleEvents = shouldCollapse
-    ? [job.statuses[job.statuses.length - 1]]
+    ? [job.statuses[0], job.statuses[job.statuses.length - 1]]
     : job.statuses;
 
   return (
@@ -79,12 +78,6 @@ export default function JobDetails({
 
         {visibleEvents.map((status: JobStatusWithRelations, index) => (
           <div key={`${job.id}-event-${status.id}`}>
-            {shouldCollapse && index === 0 && (
-              <CollapsedEventsButton
-                count={collapsedCount}
-                onExpand={() => setShowAllEvents(true)}
-              />
-            )}
             <JobDetailsContent
               job={job}
               status={status}
@@ -92,6 +85,12 @@ export default function JobDetails({
               activeOrganizationId={activeOrganizationId}
               isLast={index === visibleEvents.length - 1}
             />
+            {shouldCollapse && index === 0 && (
+              <CollapsedEventsButton
+                count={collapsedCount}
+                onExpand={() => setShowAllEvents(true)}
+              />
+            )}
           </div>
         ))}
       </ScrollArea>
