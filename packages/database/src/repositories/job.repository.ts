@@ -237,14 +237,12 @@ export const jobRepository = {
     const updatedJob = await tx.job.update({
       where: { id: job.id },
       data: {
-        ...(data.result && {
-          statuses: {
-            create: {
-              status: AgentJobStatus.COMPLETED,
-              result: data.result,
-            },
+        statuses: {
+          create: {
+            status: AgentJobStatus.COMPLETED,
+            result: data.result,
           },
-        }),
+        },
       },
       include: jobInclude,
     });
