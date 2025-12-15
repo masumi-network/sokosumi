@@ -54,7 +54,6 @@ export const jobInputRepository = {
             job: true,
           },
         },
-        blobs: true,
       },
     });
   },
@@ -88,7 +87,6 @@ export const jobInputRepository = {
             job: true,
           },
         },
-        blobs: true,
       },
     });
   },
