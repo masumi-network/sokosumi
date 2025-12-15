@@ -76,4 +76,3 @@ export const getResultHash = (
     return null;
   }
 };
-

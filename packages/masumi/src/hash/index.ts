@@ -1,6 +1,1 @@
-export {
-  getInputHash,
-  getInputHashDeprecated,
-  getResultHash,
-} from "./hash.js";
-
+export { getInputHash, getInputHashDeprecated, getResultHash } from "./hash.js";
