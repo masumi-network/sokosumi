@@ -54,7 +54,7 @@ export default function JobDetails({
   const shouldCollapse = job.statuses.length > 2 && !showAllEvents;
   const collapsedCount = job.statuses.length - 2;
 
-  const visibleEvents = shouldCollapse
+  const visibleStatuses = shouldCollapse
     ? [job.statuses[0], job.statuses[job.statuses.length - 1]]
     : job.statuses;
 
@@ -76,14 +76,14 @@ export default function JobDetails({
           </AccordionItem>
         </Accordion>
 
-        {visibleEvents.map((status: JobStatusWithRelations, index) => (
+        {visibleStatuses.map((status: JobStatusWithRelations, index) => (
           <div key={`${job.id}-event-${status.id}`}>
             <JobDetailsContent
               job={job}
               status={status}
               readOnly={readOnly}
               activeOrganizationId={activeOrganizationId}
-              isLast={index === visibleEvents.length - 1}
+              isLast={index === visibleStatuses.length - 1}
             />
             {shouldCollapse && index === 0 && (
               <CollapsedEventsButton
