@@ -11,6 +11,7 @@
     "web:build": "pnpm --filter web build",
     "core:build": "pnpm --filter core build",
     "database:build": "pnpm --filter @sokosumi/database build",
+    "masumi:build": "pnpm --filter @sokosumi/masumi build",
     "start": "pnpm -r start",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
