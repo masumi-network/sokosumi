@@ -28,7 +28,7 @@ export interface ResultVerificationOptions {
  * @param hashToMatch - The hash value to verify against
  * @returns The matched hash string if verification succeeds, null if no match found
  */
-export function findMatchingHash(
+function findMatchingHash(
   mode: "input" | "result",
   identifierFromPurchaser: string,
   data: string,
