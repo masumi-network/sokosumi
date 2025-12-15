@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  JobType,
-  JobWithSokosumiStatus,
-  OnChainJobStatus,
-} from "@sokosumi/database";
+import { JobType, OnChainJobStatus } from "@sokosumi/database";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -235,37 +231,4 @@ function JobVerificationBadgeBase({
       </Tooltip>
     </span>
   );
-}
-
-interface JobVerificationBadgeProps {
-  direction: "input" | "result";
-  job: JobWithSokosumiStatus;
-}
-export function JobVerificationBadge({
-  direction,
-  job,
-}: JobVerificationBadgeProps) {
-  switch (direction) {
-    case "input":
-      return (
-        <JobInputVerificationBadge
-          direction={direction}
-          jobType={job.jobType}
-          identifierFromPurchaser={job.identifierFromPurchaser}
-          input={job.input}
-          inputHash={job.inputHash}
-        />
-      );
-    case "result":
-      return (
-        <JobResultVerificationBadge
-          direction={direction}
-          jobType={job.jobType}
-          onChainStatus={job.purchase?.onChainStatus}
-          identifierFromPurchaser={job.identifierFromPurchaser}
-          result={job.result}
-          resultHash={job.purchase?.resultHash}
-        />
-      );
-  }
 }

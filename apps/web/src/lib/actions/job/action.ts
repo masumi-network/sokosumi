@@ -1,7 +1,12 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { JobShare, PaidJobWithStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobShare,
+  JobStatusWithRelations,
+  PaidJobWithStatus,
+} from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   jobRepository,
@@ -35,8 +40,7 @@ import {
 
 import {
   handleInputDataFileUploads,
-  saveUploadedFilesForInput,
-  saveUploadedFilesForJob,
+  saveUploadedFilesForJobStatus,
   type UploadedFileWithMeta,
 } from "./utils";
 
@@ -155,7 +159,17 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       if (uploadedFiles.length > 0) {
-        await saveUploadedFilesForJob(userId, job.id, uploadedFiles);
+        const initiatedStatus = job.statuses.find(
+          (event: JobStatusWithRelations) =>
+            event.status === AgentJobStatus.INITIATED,
+        );
+        if (initiatedStatus) {
+          await saveUploadedFilesForJobStatus(
+            userId,
+            initiatedStatus.id,
+            uploadedFiles,
+          );
+        }
       }
 
       // Add success breadcrumb
@@ -306,7 +320,7 @@ export const provideJobInput = withAuthContext<
       });
 
       // Call service to provide job input
-      const { job, input: jobInput } = await jobService.provideJobInput({
+      const job = await jobService.provideJobInput({
         jobId,
         statusId,
         userId,
@@ -315,7 +329,7 @@ export const provideJobInput = withAuthContext<
 
       // Save uploaded files
       if (uploadedFiles.length > 0) {
-        await saveUploadedFilesForInput(userId, jobInput.id, uploadedFiles);
+        await saveUploadedFilesForJobStatus(userId, statusId, uploadedFiles);
       }
 
       // Add success breadcrumb
