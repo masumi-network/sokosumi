@@ -528,8 +528,6 @@ model Job {
 
   name String?
 
-  blobs Blob[]
-
   // Public Share
   share JobShare?
 
@@ -722,14 +720,9 @@ model Blob {
   jobInputId String?
   jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
 
-  jobId String?
-  job   Job?    @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
-  @@unique([jobId, sourceUrl]) // For deduplication checks
   @@unique([jobStatusId, sourceUrl]) // For deduplication checks
   @@unique([jobInputId, sourceUrl]) // For deduplication checks
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
-  @@index([jobId, origin]) // For fetching blobs by job with origin filter
   @@index([jobStatusId, origin]) // For fetching blobs by job status with origin filter
   @@index([jobInputId, origin]) // For fetching blobs by job input with origin filter
   @@index([userId, status]) // For user-specific blob queries

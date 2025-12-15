@@ -29,3 +29,16 @@ ALTER TABLE "Job"
   DROP COLUMN "inputSchema",
   DROP COLUMN "inputHash";
 
+-- Step 3: Remove jobId column and related constraints/indexes from blob table
+-- Drop the unique constraint on [jobId, sourceUrl]
+DROP INDEX IF EXISTS "blob_jobId_sourceUrl_key";
+
+-- Drop the index on [jobId, origin]
+DROP INDEX IF EXISTS "blob_jobId_origin_idx";
+
+-- Drop the foreign key constraint
+ALTER TABLE "blob" DROP CONSTRAINT IF EXISTS "blob_jobId_fkey";
+
+-- Drop the jobId column
+ALTER TABLE "blob" DROP COLUMN "jobId";
+
