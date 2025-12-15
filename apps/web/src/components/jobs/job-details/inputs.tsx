@@ -2,6 +2,7 @@
 
 import type { Blob } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
+import { hashInput } from "@sokosumi/masumi";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import * as z from "zod";
@@ -10,7 +11,6 @@ import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
 import { Separator } from "@/components/ui/separator";
 import { jobInputSchema, ValidJobInputTypes } from "@/lib/job-input";
-import { getInputHash } from "@/lib/utils";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 import { HashGroupRow } from "./hash-group-row";
@@ -103,7 +103,7 @@ function JobDetailsInputsInner({
 
   const calculatedInputHash = useMemo(() => {
     if (!identifierFromPurchaser || !rawInput) return null;
-    return getInputHash(rawInput, identifierFromPurchaser);
+    return hashInput(rawInput, identifierFromPurchaser);
   }, [identifierFromPurchaser, rawInput]);
 
   let inputsMap: Record<string, { name: string; type: ValidJobInputTypes }> =

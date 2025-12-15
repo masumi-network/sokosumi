@@ -1,17 +1,7 @@
-import {
-  AgentJobStatus,
-  OnChainJobStatus,
-  OnChainTransactionStatus,
-  type JobWithStatus,
-} from "@sokosumi/database";
 import { JobInputData } from "@/lib/job-input";
-import { JobStatusResponseSchemaType } from "@/lib/schemas";
+import { hashInput, hashInputDeprecated, hashResult } from "@sokosumi/masumi";
 import {
-  createHash,
-  getInputHash,
-  getInputHashDeprecated,
   getMatchedHash,
-  getResultHash,
   InputVerificationOptions,
   isJobVerified,
   ResultVerificationOptions,
@@ -154,7 +144,7 @@ describe("getMatchedHash", () => {
     const mockInputString = JSON.stringify(mockInputData);
 
     it("should return current hash when it matches", () => {
-      const currentHash = getInputHash(mockInputString, mockIdentifier);
+      const currentHash = hashInput(mockInputString, mockIdentifier);
       const result = getMatchedHash(
         "input",
         mockIdentifier,
@@ -165,7 +155,7 @@ describe("getMatchedHash", () => {
     });
 
     it("should return deprecated hash when current does not match but deprecated does", () => {
-      const deprecatedHash = getInputHashDeprecated(
+      const deprecatedHash = hashInputDeprecated(
         mockInputString,
         mockIdentifier,
       );
@@ -190,8 +180,8 @@ describe("getMatchedHash", () => {
     });
 
     it("should handle different identifiers correctly", () => {
-      const hash1 = getInputHash(mockInputString, "identifier1");
-      const hash2 = getInputHash(mockInputString, "identifier2");
+      const hash1 = hashInput(mockInputString, "identifier1");
+      const hash2 = hashInput(mockInputString, "identifier2");
 
       // Hash generated with identifier1 should match
       const result1 = getMatchedHash(
@@ -226,7 +216,7 @@ describe("getMatchedHash", () => {
     const resultString: string = "success";
 
     it("should return result hash when it matches", () => {
-      const resultHash = getResultHash(resultString, mockIdentifier);
+      const resultHash = hashResult(resultString, mockIdentifier);
       const result = getMatchedHash(
         "result",
         mockIdentifier,
@@ -251,8 +241,8 @@ describe("getMatchedHash", () => {
       const resultString1: string = "different";
       const resultString2: string = "another";
 
-      const hash1 = getResultHash(resultString1, mockIdentifier);
-      const hash2 = getResultHash(resultString2, mockIdentifier);
+      const hash1 = hashResult(resultString1, mockIdentifier);
+      const hash2 = hashResult(resultString2, mockIdentifier);
 
       // Different data should produce different hashes
       expect(hash1).not.toBe(hash2);
@@ -287,7 +277,7 @@ describe("getMatchedHash", () => {
     describe("edge cases", () => {
       it("should handle empty input data", () => {
         const emptyInputData = "";
-        const hash = getInputHash(emptyInputData, mockIdentifier);
+        const hash = hashInput(emptyInputData, mockIdentifier);
         const result = getMatchedHash(
           "input",
           mockIdentifier,
@@ -300,7 +290,7 @@ describe("getMatchedHash", () => {
       it("should handle special characters in identifier", () => {
         const specialIdentifier = "test!@#$%^&*()_+-=[]{}|;:,.<>?";
         const inputString = JSON.stringify({ test: "value" });
-        const hash = getInputHash(inputString, specialIdentifier);
+        const hash = hashInput(inputString, specialIdentifier);
         const result = getMatchedHash(
           "input",
           specialIdentifier,
@@ -312,7 +302,7 @@ describe("getMatchedHash", () => {
 
       it("should be case sensitive for hash matching", () => {
         const inputString = JSON.stringify({ test: "value" });
-        const hash = getInputHash(inputString, mockIdentifier);
+        const hash = hashInput(inputString, mockIdentifier);
         const upperCaseHash = hash?.toUpperCase();
         const result = getMatchedHash(
           "input",
@@ -379,7 +369,7 @@ describe("getMatchedHash", () => {
       it("should return true when input hash matches current format", () => {
         const inputData = { field1: "value1", field2: 123 };
         const inputString = JSON.stringify(inputData);
-        const inputHash = getInputHash(inputString, mockIdentifier);
+        const inputHash = hashInput(inputString, mockIdentifier);
 
         const inputMock = createInputMock({
           input: inputString,
@@ -391,10 +381,7 @@ describe("getMatchedHash", () => {
       it("should return true when input hash matches deprecated format", () => {
         const inputData = { field1: "value1", field2: 456 };
         const inputString = JSON.stringify(inputData);
-        const deprecatedHash = getInputHashDeprecated(
-          inputString,
-          mockIdentifier,
-        );
+        const deprecatedHash = hashInputDeprecated(inputString, mockIdentifier);
 
         const inputMock = createInputMock({
           input: inputString,
@@ -431,7 +418,7 @@ describe("getMatchedHash", () => {
 
       it("should return true when output hash matches", () => {
         const resultString = "success";
-        const resultHash = getResultHash(resultString, mockIdentifier);
+        const resultHash = hashResult(resultString, mockIdentifier);
 
         const resultMock = createResultMock({
           result: resultString,
@@ -449,18 +436,5 @@ describe("getMatchedHash", () => {
         expect(isJobVerified("result", resultMock)).toBe(false);
       });
     });
-  });
-});
-
-describe("createHash", () => {
-  it("should match expected hash for provided meme markdown string", () => {
-    const data =
-      // "9caaffd05cee4d839e04;# **Your Memes**\\n\\n### Meme 1\\n![Meme 1](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_1.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_1.png)\\n\\n### Meme 2\\n![Meme 2](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_2.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_2.png)\\n\\n### Meme 3\\n![Meme 3](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_3.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_3.png)\\n\\n### Meme 4\\n![Meme 4](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_4.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_4.png)\\n\\n### Meme 5\\n![Meme 5](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_5.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_5.png)\\n\\n### Meme 6\\n![Meme 6](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_6.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_6.png)\\n\\n### Meme 7\\n![Meme 7](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_7.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_7.png)\\n\\n### Meme 8\\n![Meme 8](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_8.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_8.png)\\n\\n### Meme 9\\n![Meme 9](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_9.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_9.png)\\n\\n### Meme 10\\n![Meme 10](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_10.png)\\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_10.png)\\n\\n";
-      "9caaffd05cee4d839e04;# **Your Memes**\n\n### Meme 1\n![Meme 1](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_1.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_1.png)\n\n### Meme 2\n![Meme 2](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_2.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_2.png)\n\n### Meme 3\n![Meme 3](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_3.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_3.png)\n\n### Meme 4\n![Meme 4](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_4.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_4.png)\n\n### Meme 5\n![Meme 5](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_5.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_5.png)\n\n### Meme 6\n![Meme 6](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_6.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_6.png)\n\n### Meme 7\n![Meme 7](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_7.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_7.png)\n\n### Meme 8\n![Meme 8](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_8.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_8.png)\n\n### Meme 9\n![Meme 9](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_9.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_9.png)\n\n### Meme 10\n![Meme 10](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_10.png)\n[Download](https://nmkr-general-bucket.fra1.digitaloceanspaces.com/memes/20250929_161417_When_you_build_the_best_AI_Age_10.png)\n\n";
-    const expected =
-      "1776cd8e429d53559bdf40566f88827724dcceed285f50019df09b62ed92e02f";
-
-    const escaped = JSON.stringify(data).slice(1, -1);
-    expect(createHash(escaped)).toBe(expected);
   });
 });

@@ -6,6 +6,7 @@ import {
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { isPaidJob } from "@sokosumi/database/helpers";
+import { hashResult } from "@sokosumi/masumi";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -13,7 +14,6 @@ import { useMemo } from "react";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
 import { Separator } from "@/components/ui/separator";
-import { getResultHash } from "@/lib/utils";
 
 import CopyMarkdown from "./copy-markdown";
 import DownloadButton from "./download-button";
@@ -69,7 +69,7 @@ function JobDetailsOutputsInner({
 
   const calculatedResultHash = useMemo(() => {
     if (!job.identifierFromPurchaser || !result) return null;
-    return getResultHash(result, job.identifierFromPurchaser);
+    return hashResult(result, job.identifierFromPurchaser);
   }, [result, job.identifierFromPurchaser]);
 
   const onChainResultHash = job.purchase?.resultHash ?? null;

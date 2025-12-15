@@ -150,6 +150,9 @@ importers:
       '@sokosumi/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@sokosumi/masumi':
+        specifier: workspace:*
+        version: link:../../packages/masumi
       '@sparticuz/chromium-min':
         specifier: 143.0.0
         version: 143.0.0

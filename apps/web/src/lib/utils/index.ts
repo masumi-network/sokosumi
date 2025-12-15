@@ -1,6 +1,5 @@
+import { hashInput, hashInputDeprecated, hashResult } from "@sokosumi/masumi";
 import { type ClassValue, clsx } from "clsx";
-import crypto from "crypto";
-import { canonicalizeEx } from "json-canonicalize";
 import { twMerge } from "tailwind-merge";
 
 import { JobInputData } from "@/lib/job-input";
@@ -11,72 +10,6 @@ export function cn(...inputs: ClassValue[]) {
 
 export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
-
-const calculateInputHash = (
-  input: string,
-  identifierFromPurchaser: string,
-  delimiter: string = ";",
-) => {
-  try {
-    const object = JSON.parse(input);
-    const inputString = canonicalizeEx(object, {
-      filterUndefined: true,
-    });
-    return createHash(identifierFromPurchaser + delimiter + inputString);
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Calculates a hash for job input data combined with a purchaser identifier.
- *
- * @deprecated Use getInputHash instead.
- * @param inputData - The job input data as key-value pairs
- * @param identifierFromPurchaser - Unique identifier from the purchaser
- * @returns SHA-256 hash of the combined data
- */
-export const getInputHashDeprecated = (
-  input: string,
-  identifierFromPurchaser: string,
-) => {
-  return calculateInputHash(input, identifierFromPurchaser, "");
-};
-
-/**
- * Calculates a hash for job input data combined with a purchaser identifier.
- *
- * @param inputData - The job input data as key-value pairs
- * @param identifierFromPurchaser - Unique identifier from the purchaser
- * @returns SHA-256 hash of the combined data
- */
-export const getInputHash = (
-  input: string,
-  identifierFromPurchaser: string,
-) => {
-  return calculateInputHash(input, identifierFromPurchaser, ";");
-};
-
-/**
- * Calculates a hash for job result combined with a purchaser identifier.
- *
- * @param result - The job result as a string
- * @param identifierFromPurchaser - Unique identifier from the purchaser
- * @returns SHA-256 hash of the combined data
- */
-export const getResultHash = (
-  result: string,
-  identifierFromPurchaser: string,
-) => {
-  // JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
-  // Slicing to remove the quotes
-  try {
-    const escaped = JSON.stringify(result).slice(1, -1);
-    return createHash(identifierFromPurchaser + ";" + escaped);
-  } catch {
-    return null;
-  }
-};
 
 /**
  * Returns the matching hash (input or result) supporting deprecated input hash.
@@ -102,14 +35,14 @@ export function getMatchedHash(
 ): string | null {
   if (!hashToMatch) return null;
   if (mode === "input") {
-    const inputHash = getInputHash(data, identifierFromPurchaser);
+    const inputHash = hashInput(data, identifierFromPurchaser);
     if (hashToMatch === inputHash) return inputHash;
-    const deprecated = getInputHashDeprecated(data, identifierFromPurchaser);
+    const deprecated = hashInputDeprecated(data, identifierFromPurchaser);
     if (hashToMatch === deprecated) return deprecated;
     return null;
   } else {
     // result hash
-    const resultHash = getResultHash(data, identifierFromPurchaser);
+    const resultHash = hashResult(data, identifierFromPurchaser);
     return hashToMatch === resultHash ? resultHash : null;
   }
 }
@@ -211,16 +144,6 @@ export function tryParseJson<T>(value: string | null): T | null {
     return null;
   }
 }
-
-/**
- * Creates a SHA-256 hash of the input string.
- *
- * @param input - The input string to hash
- * @returns SHA-256 hash of the input string
- */
-export const createHash = (input: string) => {
-  return crypto.createHash("sha256").update(input, "utf-8").digest("hex");
-};
 
 export * from "./datetime";
 export * from "./duration";
