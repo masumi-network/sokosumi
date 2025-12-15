@@ -27,7 +27,7 @@ export const sleep = (ms: number) =>
  * @param hashToMatch - The hash value to verify against
  * @returns The matched hash string if verification succeeds, null if no match found
  */
-export function getMatchedHash(
+export function findingMatchingHash(
   mode: "input" | "result",
   identifierFromPurchaser: string,
   data: string,
@@ -108,8 +108,13 @@ function verifyHashMatch(
   identifierFromPurchaser: string,
 ) {
   if (!hash || !data) return false;
-  const matched = getMatchedHash(mode, identifierFromPurchaser, data, hash);
-  return matched !== null;
+  const matchedHash = findingMatchingHash(
+    mode,
+    identifierFromPurchaser,
+    data,
+    hash,
+  );
+  return matchedHash !== null;
 }
 
 /**
