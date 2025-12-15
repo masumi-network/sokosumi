@@ -15,7 +15,7 @@ import { siteConfig } from "@/config/site";
 import {
   cn,
   InputVerificationOptions,
-  isJobVerified,
+  isHashVerified,
   ResultVerificationOptions,
 } from "@/lib/utils";
 
@@ -86,7 +86,7 @@ export function JobInputVerificationBadge({
     return {
       direction,
       isPending: false,
-      isVerified: isJobVerified("input", inputVerificationOptions),
+      isVerified: isHashVerified("input", inputVerificationOptions),
       isNotApplicable: false,
     };
   }, [direction, identifierFromPurchaser, inputHash, input, jobType]);
@@ -149,7 +149,7 @@ export function JobResultVerificationBadge({
       return {
         direction,
         isPending: false,
-        isVerified: isJobVerified("result", resultVerificationOptions),
+        isVerified: isHashVerified("result", resultVerificationOptions),
         isNotApplicable: false,
       };
     }

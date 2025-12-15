@@ -3,7 +3,7 @@ import { hashInput, hashInputDeprecated, hashResult } from "@sokosumi/masumi";
 import {
   getMatchedHash,
   InputVerificationOptions,
-  isJobVerified,
+  isHashVerified,
   ResultVerificationOptions,
   toJobInputData,
   tryParseJson,
@@ -347,7 +347,7 @@ describe("getMatchedHash", () => {
           input: JSON.stringify({ field1: "value1" }),
           inputHash: null,
         });
-        expect(isJobVerified("input", inputMock)).toBe(false);
+        expect(isHashVerified("input", inputMock)).toBe(false);
       });
 
       it("should return false when input is null", () => {
@@ -355,7 +355,7 @@ describe("getMatchedHash", () => {
           input: null,
           inputHash: "somehash",
         });
-        expect(isJobVerified("input", inputMock)).toBe(false);
+        expect(isHashVerified("input", inputMock)).toBe(false);
       });
 
       it("should return false when input JSON is malformed", () => {
@@ -363,7 +363,7 @@ describe("getMatchedHash", () => {
           input: "{malformed json",
           inputHash: "somehash",
         });
-        expect(isJobVerified("input", inputMock)).toBe(false);
+        expect(isHashVerified("input", inputMock)).toBe(false);
       });
 
       it("should return true when input hash matches current format", () => {
@@ -375,7 +375,7 @@ describe("getMatchedHash", () => {
           input: inputString,
           inputHash: inputHash,
         });
-        expect(isJobVerified("input", inputMock)).toBe(true);
+        expect(isHashVerified("input", inputMock)).toBe(true);
       });
 
       it("should return true when input hash matches deprecated format", () => {
@@ -387,7 +387,7 @@ describe("getMatchedHash", () => {
           input: inputString,
           inputHash: deprecatedHash,
         });
-        expect(isJobVerified("input", inputMock)).toBe(true);
+        expect(isHashVerified("input", inputMock)).toBe(true);
       });
 
       it("should return false when input hash does not match", () => {
@@ -395,7 +395,7 @@ describe("getMatchedHash", () => {
           input: JSON.stringify({ field1: "value1" }),
           inputHash: "non-matching-hash",
         });
-        expect(isJobVerified("input", inputMock)).toBe(false);
+        expect(isHashVerified("input", inputMock)).toBe(false);
       });
     });
 
@@ -405,7 +405,7 @@ describe("getMatchedHash", () => {
           result: "success",
           resultHash: null,
         });
-        expect(isJobVerified("result", resultMock)).toBe(false);
+        expect(isHashVerified("result", resultMock)).toBe(false);
       });
 
       it("should return false when result is null", () => {
@@ -413,7 +413,7 @@ describe("getMatchedHash", () => {
           result: null,
           resultHash: "somehash",
         });
-        expect(isJobVerified("result", resultMock)).toBe(false);
+        expect(isHashVerified("result", resultMock)).toBe(false);
       });
 
       it("should return true when output hash matches", () => {
@@ -424,7 +424,7 @@ describe("getMatchedHash", () => {
           result: resultString,
           resultHash: resultHash,
         });
-        expect(isJobVerified("result", resultMock)).toBe(true);
+        expect(isHashVerified("result", resultMock)).toBe(true);
       });
 
       it("should return false when output hash does not match", () => {
@@ -433,7 +433,7 @@ describe("getMatchedHash", () => {
           result: resultString,
           resultHash: "non-matching-hash",
         });
-        expect(isJobVerified("result", resultMock)).toBe(false);
+        expect(isHashVerified("result", resultMock)).toBe(false);
       });
     });
   });

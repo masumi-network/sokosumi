@@ -60,25 +60,25 @@ export interface ResultVerificationOptions {
 }
 
 /**
- * Verifies whether a job's stored input or output hash matches the hash
- * computed from the provided purchaser identifier and parsed job data.
+ * Verifies whether a given hash matches the computed hash for the provided input or result data.
  *
- * Behavior:
- * - For "input": tries current hash format, then falls back to deprecated format
- *   for backward compatibility. Returns true if either matches.
- * - For "output": uses only the current output hash format.
- * - Returns false if required fields are missing or JSON cannot be parsed.
+ * For input verification:
+ * - Checks if the provided input hash matches either the current or deprecated input hash format.
  *
- * @param direction - Which side of the job to verify: "input" or "output"
- * @param job - Job record including `input`, `output`, `inputHash`, `resultHash`
- * @param identifier - Purchaser-provided identifier used in hash computation
- * @returns true if the computed hash matches the stored hash; otherwise false
+ * For result verification:
+ * - Checks if the provided result hash matches the computed result hash.
+ *
+ * @param mode - Determines the verification type: "input" for input hash verification, "result" for result hash verification.
+ * @param options - An object containing either input or result data and the associated hash and identifier.
+ *   - For "input", expects {@link InputVerificationOptions}
+ *   - For "result", expects {@link ResultVerificationOptions}
+ * @returns {boolean} True if the provided hash matches the computed hash, false otherwise.
  */
-export function isJobVerified(
-  direction: "input" | "result",
+export function isHashVerified(
+  mode: "input" | "result",
   options: InputVerificationOptions | ResultVerificationOptions,
 ): boolean {
-  if (direction === "input") {
+  if (mode === "input") {
     const inputOptions = options as InputVerificationOptions;
     return verifyHashMatch(
       "input",
@@ -88,7 +88,7 @@ export function isJobVerified(
     );
   }
 
-  if (direction === "result") {
+  if (mode === "result") {
     const resultOptions = options as ResultVerificationOptions;
     return verifyHashMatch(
       "result",
@@ -102,18 +102,13 @@ export function isJobVerified(
 }
 
 function verifyHashMatch(
-  direction: "input" | "result",
+  mode: "input" | "result",
   hash: string | null,
   data: string | null,
   identifierFromPurchaser: string,
 ) {
   if (!hash || !data) return false;
-  const matched = getMatchedHash(
-    direction,
-    identifierFromPurchaser,
-    data,
-    hash,
-  );
+  const matched = getMatchedHash(mode, identifierFromPurchaser, data, hash);
   return matched !== null;
 }
 
