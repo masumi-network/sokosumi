@@ -30,7 +30,7 @@ const _hashInput = (
 /**
  * Calculates a hash for job input data combined with a purchaser identifier.
  *
- * @deprecated Use getInputHash instead.
+ * @deprecated Use hashInput instead.
  * @param input - The job input data as a JSON string
  * @param identifierFromPurchaser - Unique identifier from the purchaser
  * @returns SHA-256 hash of the combined data, or null if parsing fails
