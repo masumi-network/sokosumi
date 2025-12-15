@@ -11,7 +11,7 @@ const createHash = (input: string) => {
   return crypto.createHash("sha256").update(input, "utf-8").digest("hex");
 };
 
-const calculateInputHash = (
+const _hashInput = (
   input: string,
   identifierFromPurchaser: string,
   delimiter: string = ";",
@@ -35,11 +35,11 @@ const calculateInputHash = (
  * @param identifierFromPurchaser - Unique identifier from the purchaser
  * @returns SHA-256 hash of the combined data, or null if parsing fails
  */
-export const getInputHashDeprecated = (
+export const hashInputDeprecated = (
   input: string,
   identifierFromPurchaser: string,
 ) => {
-  return calculateInputHash(input, identifierFromPurchaser, "");
+  return _hashInput(input, identifierFromPurchaser, "");
 };
 
 /**
@@ -49,11 +49,8 @@ export const getInputHashDeprecated = (
  * @param identifierFromPurchaser - Unique identifier from the purchaser
  * @returns SHA-256 hash of the combined data, or null if parsing fails
  */
-export const getInputHash = (
-  input: string,
-  identifierFromPurchaser: string,
-) => {
-  return calculateInputHash(input, identifierFromPurchaser, ";");
+export const hashInput = (input: string, identifierFromPurchaser: string) => {
+  return _hashInput(input, identifierFromPurchaser, ";");
 };
 
 /**
@@ -63,10 +60,7 @@ export const getInputHash = (
  * @param identifierFromPurchaser - Unique identifier from the purchaser
  * @returns SHA-256 hash of the combined data, or null if stringification fails
  */
-export const getResultHash = (
-  result: string,
-  identifierFromPurchaser: string,
-) => {
+export const hashResult = (result: string, identifierFromPurchaser: string) => {
   // JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
   // Slicing to remove the quotes
   try {
