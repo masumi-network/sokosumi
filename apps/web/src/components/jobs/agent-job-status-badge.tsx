@@ -18,6 +18,15 @@ export function AgentJobStatusBadge({
   const t = useTranslations("Components.Jobs.AgentStatusBadge");
 
   switch (status) {
+    case AgentJobStatus.INITIATED:
+      return (
+        <Badge
+          variant="default"
+          className={cn("bg-sky-100 text-sky-800", className)}
+        >
+          {t("initiated")}
+        </Badge>
+      );
     case AgentJobStatus.AWAITING_PAYMENT:
       return (
         <Badge

@@ -264,6 +264,7 @@
         "unknown": "Unknown"
       },
       "AgentStatusBadge": {
+        "initiated": "Initiated",
         "awaitingPayment": "Awaiting Payment",
         "awaitingInput": "Awaiting Input",
         "running": "Running",
