@@ -1,5 +1,6 @@
+import { InputTimeSchemaType, InputType } from "@sokosumi/masumi/schemas";
+
 import { Input } from "@/components/ui/input";
-import { JobInputTimeSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,7 +8,7 @@ export function TimeInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<ValidJobInputTypes.TIME, JobInputTimeSchemaType>) {
+}: JobInputComponentProps<InputType.TIME, InputTimeSchemaType>) {
   const { data } = jobInputSchema;
 
   return (

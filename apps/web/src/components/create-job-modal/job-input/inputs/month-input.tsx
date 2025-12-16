@@ -1,5 +1,6 @@
+import { InputMonthSchemaType, InputType } from "@sokosumi/masumi/schemas";
+
 import { Input } from "@/components/ui/input";
-import { JobInputMonthSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,7 +8,7 @@ export function MonthInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<ValidJobInputTypes.MONTH, JobInputMonthSchemaType>) {
+}: JobInputComponentProps<InputType.MONTH, InputMonthSchemaType>) {
   const { data } = jobInputSchema;
 
   return (

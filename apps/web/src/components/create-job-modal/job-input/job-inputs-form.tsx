@@ -1,12 +1,12 @@
 "use client";
 
 import { AgentWithCreditsPrice } from "@sokosumi/database";
+import { InputDataSchemaType } from "@sokosumi/masumi/schemas";
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import useAgentInputSchema from "@/hooks/use-agent-input-schema";
 import { getAgentDemoValues, getAgentLegal } from "@/lib/helpers/agent";
-import { JobInputDataSchemaType } from "@/lib/job-input";
 import { AgentDemoValues } from "@/lib/types/agent";
 
 import JobInputsFormClient from "./job-inputs-form.client";
@@ -19,7 +19,7 @@ interface JobInputsFormProps {
 }
 
 interface JobInputsFormInnerProps extends Omit<JobInputsFormProps, "isDemo"> {
-  inputDataSchema: JobInputDataSchemaType;
+  inputDataSchema: InputDataSchemaType;
   demoValues: AgentDemoValues | null;
 }
 

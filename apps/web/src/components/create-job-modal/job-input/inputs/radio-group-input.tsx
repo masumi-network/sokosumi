@@ -1,18 +1,13 @@
+import { InputRadioGroupSchemaType, InputType } from "@sokosumi/masumi/schemas";
+
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  JobInputRadioGroupSchemaType,
-  ValidJobInputTypes,
-} from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
 export function RadioGroupInput({
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.RADIO_GROUP,
-  JobInputRadioGroupSchemaType
->) {
+}: JobInputComponentProps<InputType.RADIO_GROUP, InputRadioGroupSchemaType>) {
   const {
     data: { values },
   } = jobInputSchema;

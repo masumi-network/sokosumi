@@ -1,3 +1,5 @@
+import { InputOptionSchemaType, InputType } from "@sokosumi/masumi/schemas";
+
 import { isSingleOption } from "@/components/create-job-modal/job-input/util";
 import MultipleSelect from "@/components/multiple-select";
 import {
@@ -9,17 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { JobInputOptionSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
 export function OptionInput({
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.OPTION,
-  JobInputOptionSchemaType
->) {
+}: JobInputComponentProps<InputType.OPTION, InputOptionSchemaType>) {
   const isSingle = isSingleOption(jobInputSchema);
   const {
     name,

@@ -1,18 +1,16 @@
-import MultipleSelect from "@/components/multiple-select";
 import {
-  JobInputMultiselectSchemaType,
-  ValidJobInputTypes,
-} from "@/lib/job-input";
+  InputMultiselectSchemaType,
+  InputType,
+} from "@sokosumi/masumi/schemas";
+
+import MultipleSelect from "@/components/multiple-select";
 
 import { JobInputComponentProps } from "./types";
 
 export function MultiselectInput({
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.MULTISELECT,
-  JobInputMultiselectSchemaType
->) {
+}: JobInputComponentProps<InputType.MULTISELECT, InputMultiselectSchemaType>) {
   const {
     name,
     data: { values },
