@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   provideInputDataSchema,
   provideInputGroupsSchema,
-} from "./input.schema.js";
+} from "../input/input.schema.js";
 
 export const provideInputRequestSchema = z
   .object({
