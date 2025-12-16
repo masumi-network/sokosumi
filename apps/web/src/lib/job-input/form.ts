@@ -1,11 +1,11 @@
+import { InputSchemaType, InputType } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
-import { JobInputSchemaType } from "./job-input";
-import { JobInputData, JobInputFormIntlPath, ValidJobInputTypes } from "./type";
+import { JobInputData, JobInputFormIntlPath } from "./type";
 
 export const jobInputsFormSchema = (
-  jobInputSchemas: JobInputSchemaType[],
+  jobInputSchemas: InputSchemaType[],
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   return z.object(
@@ -34,7 +34,7 @@ export function filterOutNullValues(
   ) as JobInputData;
 }
 
-export const defaultValues = (jobInputSchemas: JobInputSchemaType[]) => {
+export const defaultValues = (jobInputSchemas: InputSchemaType[]) => {
   return Object.fromEntries(
     jobInputSchemas.map((jobInputSchema) => {
       return [jobInputSchema.id, getDefaultValue(jobInputSchema)];
@@ -42,18 +42,18 @@ export const defaultValues = (jobInputSchemas: JobInputSchemaType[]) => {
   );
 };
 
-const getDefaultValue = (jobInputSchema: JobInputSchemaType) => {
+const getDefaultValue = (jobInputSchema: InputSchemaType) => {
   const { type } = jobInputSchema;
   switch (type) {
-    case ValidJobInputTypes.BOOLEAN:
+    case InputType.BOOLEAN:
       return false;
-    case ValidJobInputTypes.COLOR:
+    case InputType.COLOR:
       return jobInputSchema.data?.default ?? "#000000";
-    case ValidJobInputTypes.RANGE:
+    case InputType.RANGE:
       return jobInputSchema.data?.default ?? null;
-    case ValidJobInputTypes.HIDDEN:
+    case InputType.HIDDEN:
       return jobInputSchema.data?.value ?? "";
-    case ValidJobInputTypes.CHECKBOX:
+    case InputType.CHECKBOX:
       return jobInputSchema.data?.default ?? false;
     default:
       return null;
