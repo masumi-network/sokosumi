@@ -1,3 +1,4 @@
+import { inputSchema } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
 import { jobInputSchema, jobInputsSchema } from "@/lib/job-input";
@@ -8,7 +9,7 @@ export const startJobInputSchema = z.object({
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
-  inputSchema: z.array(jobInputSchema()),
+  inputSchema: z.array(inputSchema),
   inputData: z.record(
     z.string(),
     z.union([
