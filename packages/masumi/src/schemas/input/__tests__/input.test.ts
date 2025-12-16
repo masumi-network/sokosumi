@@ -1,4 +1,9 @@
 import {
+  InputFormat,
+  InputType,
+  InputValidation,
+} from "../../../types/input-types.js";
+import {
   InputCheckboxSchemaType,
   InputColorSchemaType,
   inputDataSchema,
@@ -16,7 +21,6 @@ import {
   InputUrlSchemaType,
   InputWeekSchemaType,
 } from "../input.schema.js";
-import { InputFormat, InputType, InputValidation } from "../types.js";
 
 describe("inputDataSchema", () => {
   describe("String input type", () => {

@@ -1,6 +1,9 @@
 import * as z from "zod";
 
-import { InputType, requiredInputFileValidations } from "./types.js";
+import {
+  InputType,
+  requiredInputFileValidations,
+} from "../../types/input-types.js";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,

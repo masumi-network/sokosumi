@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { InputFormat, InputValidation } from "./types.js";
+import { InputFormat, InputValidation } from "../../types/input-types.js";
 
 const formatNonEmptyValidationValueSchema = z.enum([InputFormat.NON_EMPTY]);
 
