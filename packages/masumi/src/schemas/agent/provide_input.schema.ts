@@ -5,7 +5,7 @@ import { submitInputsSchema } from "../input/input.schema.js";
 export const provideInputRequestSchema = z.object({
   job_id: z.string(),
   status_id: z.string(),
-  submitInputsSchema,
+  inputs: submitInputsSchema,
 });
 
 export type ProvideInputRequestSchemaType = z.infer<
