@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { InputType, requiredJobInputFileValidationTypes } from "./types.js";
+import { InputType, requiredInputFileValidations } from "./types.js";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,
@@ -448,9 +448,9 @@ export const jobInputFileSchema = z.object({
         .or(maxSizeValidationSchema),
     )
     .refine((validations) => {
-      for (const validationType of requiredJobInputFileValidationTypes) {
+      for (const validation of requiredInputFileValidations) {
         if (
-          validations.find((v) => v.validation === validationType) === undefined
+          validations.find((v) => v.validation === validation) === undefined
         ) {
           return false;
         }

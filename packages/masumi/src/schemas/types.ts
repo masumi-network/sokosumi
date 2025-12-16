@@ -42,15 +42,15 @@ export enum InputFormat {
   TEL_PATTERN = "tel_pattern",
 }
 
-export const requiredJobInputFileValidationTypes = [
+export const requiredInputFileValidations = [
   InputValidation.MIN,
   InputValidation.MAX,
   InputValidation.MAX_SIZE,
   InputValidation.ACCEPT,
 ] as const;
 
-export type RequiredJobInputFileValidationTypes =
-  (typeof requiredJobInputFileValidationTypes)[number];
+export type RequiredInputFileValidations =
+  (typeof requiredInputFileValidations)[number];
 
 export type JobInputData = Record<
   string,
