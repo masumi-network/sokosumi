@@ -24,7 +24,7 @@ export enum ValidJobInputTypes {
   OPTION = "option",
   MULTISELECT = "multiselect",
 }
-export enum ValidJobInputValidationTypes {
+export enum InputValidation {
   MIN = "min",
   MAX = "max",
   FORMAT = "format",
@@ -43,17 +43,17 @@ export enum ValidJobInputFormatValues {
 }
 
 export const requiredJobInputFileValidationTypes = [
-  ValidJobInputValidationTypes.MIN,
-  ValidJobInputValidationTypes.MAX,
-  ValidJobInputValidationTypes.MAX_SIZE,
-  ValidJobInputValidationTypes.ACCEPT,
+  InputValidation.MIN,
+  InputValidation.MAX,
+  InputValidation.MAX_SIZE,
+  InputValidation.ACCEPT,
 ] as const;
 
 export type RequiredJobInputFileValidationTypes =
   (typeof requiredJobInputFileValidationTypes)[number];
 
 export type JobInputType = ValidJobInputTypes;
-export type JobInputValidationType = ValidJobInputValidationTypes;
+export type JobInputValidationType = InputValidation;
 export type JobInputFormatValue = ValidJobInputFormatValues;
 
 export type JobInputData = Record<
