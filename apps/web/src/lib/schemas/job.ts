@@ -1,7 +1,7 @@
-import { inputSchema } from "@sokosumi/masumi/schemas";
+import { inputSchema, inputsSchema } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
-import { jobInputSchema, jobInputsSchema } from "@/lib/job-input";
+import { jobInputSchema } from "@/lib/job-input";
 import { JobScheduleType } from "@/lib/types/job";
 
 export const startJobInputSchema = z.object({
@@ -133,7 +133,7 @@ export const jobStatusResponseSchema = z
   .object({
     id: z.string().nullish(),
     status: z.enum(JOB_STATUS_VALUES),
-    input_schema: jobInputsSchema().nullish(),
+    input_schema: inputsSchema.nullish(),
     result: z.string().nullish(),
   })
   .superRefine((data, ctx) => {
