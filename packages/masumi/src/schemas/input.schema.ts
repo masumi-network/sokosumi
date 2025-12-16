@@ -555,3 +555,33 @@ export const inputsSchema = z
   );
 
 export type InputsSchemaType = z.infer<typeof inputsSchema>;
+
+export const provideInputDataSchema = z.object({
+  input_data: z.record(
+    z.string(),
+    z.union([
+      z.number(),
+      z.string(),
+      z.array(z.string()),
+      z.boolean(),
+      z.array(z.number()),
+      z.instanceof(File),
+      z.array(z.instanceof(File)),
+      z.undefined(),
+    ]),
+  ),
+});
+
+export type ProvideInputDataSchemaType = z.infer<typeof provideInputDataSchema>;
+
+export const provideInputGroupsSchema = z.object({
+  input_groups: z.object({
+    id: z.string().min(1),
+    title: z.string().nullish(),
+    provideInputDataSchema,
+  }),
+});
+
+export type ProvideInputGroupsSchemaType = z.infer<
+  typeof provideInputGroupsSchema
+>;

@@ -52,7 +52,7 @@ export const requiredInputFileValidations = [
 export type RequiredInputFileValidations =
   (typeof requiredInputFileValidations)[number];
 
-export type JobInputData = Record<
+export type ProvideInputData = Record<
   string,
   string | string[] | number | boolean | number[] | File | File[] | undefined
 >;
