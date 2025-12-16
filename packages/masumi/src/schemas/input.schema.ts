@@ -14,7 +14,7 @@ import {
   optionalValidationSchema,
 } from "./validation.schema.js";
 
-export const jobInputNoneSchema = z.object({
+export const inputNoneSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.NONE]),
   name: z.string().min(1),
@@ -25,9 +25,9 @@ export const jobInputNoneSchema = z.object({
     .nullish(),
 });
 
-export type JobInputNoneSchemaType = z.infer<typeof jobInputNoneSchema>;
+export type InputNoneSchemaType = z.infer<typeof inputNoneSchema>;
 
-export const jobInputStringSchema = z.object({
+export const inputStringSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.STRING]),
   name: z.string().min(1),
@@ -49,9 +49,9 @@ export const jobInputStringSchema = z.object({
     .nullish(),
 });
 
-export type JobInputStringSchemaType = z.infer<typeof jobInputStringSchema>;
+export type InputStringSchemaType = z.infer<typeof inputStringSchema>;
 
-export const jobInputTextSchema = z.object({
+export const inputTextSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TEXT]),
   name: z.string().min(1),
@@ -73,9 +73,9 @@ export const jobInputTextSchema = z.object({
     .nullish(),
 });
 
-export type JobInputTextSchemaType = z.infer<typeof jobInputTextSchema>;
+export type InputTextSchemaType = z.infer<typeof inputTextSchema>;
 
-export const jobInputTextareaSchema = z.object({
+export const inputTextareaSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TEXTAREA]),
   name: z.string().min(1),
@@ -95,9 +95,9 @@ export const jobInputTextareaSchema = z.object({
     .nullish(),
 });
 
-export type JobInputTextareaSchemaType = z.infer<typeof jobInputTextareaSchema>;
+export type InputTextareaSchemaType = z.infer<typeof inputTextareaSchema>;
 
-export const jobInputNumberSchema = z.object({
+export const inputNumberSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.NUMBER]),
   name: z.string().min(1),
@@ -117,9 +117,9 @@ export const jobInputNumberSchema = z.object({
     .nullish(),
 });
 
-export type JobInputNumberSchemaType = z.infer<typeof jobInputNumberSchema>;
+export type InputNumberSchemaType = z.infer<typeof inputNumberSchema>;
 
-export const jobInputBooleanSchema = z.object({
+export const inputBooleanSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.BOOLEAN]),
   name: z.string().min(1),
@@ -132,9 +132,9 @@ export const jobInputBooleanSchema = z.object({
   validations: z.array(optionalValidationSchema).nullish(),
 });
 
-export type JobInputBooleanSchemaType = z.infer<typeof jobInputBooleanSchema>;
+export type InputBooleanSchemaType = z.infer<typeof inputBooleanSchema>;
 
-export const jobInputEmailSchema = z.object({
+export const inputEmailSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.EMAIL]),
   name: z.string().min(1),
@@ -155,9 +155,9 @@ export const jobInputEmailSchema = z.object({
     .nullish(),
 });
 
-export type JobInputEmailSchemaType = z.infer<typeof jobInputEmailSchema>;
+export type InputEmailSchemaType = z.infer<typeof inputEmailSchema>;
 
-export const jobInputPasswordSchema = z.object({
+export const inputPasswordSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.PASSWORD]),
   name: z.string().min(1),
@@ -177,9 +177,9 @@ export const jobInputPasswordSchema = z.object({
     .nullish(),
 });
 
-export type JobInputPasswordSchemaType = z.infer<typeof jobInputPasswordSchema>;
+export type InputPasswordSchemaType = z.infer<typeof inputPasswordSchema>;
 
-export const jobInputTelSchema = z.object({
+export const inputTelSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TEL]),
   name: z.string().min(1),
@@ -199,9 +199,9 @@ export const jobInputTelSchema = z.object({
     .nullish(),
 });
 
-export type JobInputTelSchemaType = z.infer<typeof jobInputTelSchema>;
+export type InputTelSchemaType = z.infer<typeof inputTelSchema>;
 
-export const jobInputUrlSchema = z.object({
+export const inputUrlSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.URL]),
   name: z.string().min(1),
@@ -222,9 +222,9 @@ export const jobInputUrlSchema = z.object({
     .nullish(),
 });
 
-export type JobInputUrlSchemaType = z.infer<typeof jobInputUrlSchema>;
+export type InputUrlSchemaType = z.infer<typeof inputUrlSchema>;
 
-export const jobInputDateSchema = z.object({
+export const inputDateSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.DATE]),
   name: z.string().min(1),
@@ -241,9 +241,9 @@ export const jobInputDateSchema = z.object({
     .nullish(),
 });
 
-export type JobInputDateSchemaType = z.infer<typeof jobInputDateSchema>;
+export type InputDateSchemaType = z.infer<typeof inputDateSchema>;
 
-export const jobInputDatetimeSchema = z.object({
+export const inputDatetimeSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.DATETIME]),
   name: z.string().min(1),
@@ -260,9 +260,9 @@ export const jobInputDatetimeSchema = z.object({
     .nullish(),
 });
 
-export type JobInputDatetimeSchemaType = z.infer<typeof jobInputDatetimeSchema>;
+export type InputDatetimeSchemaType = z.infer<typeof inputDatetimeSchema>;
 
-export const jobInputTimeSchema = z.object({
+export const inputTimeSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.TIME]),
   name: z.string().min(1),
@@ -279,9 +279,9 @@ export const jobInputTimeSchema = z.object({
     .nullish(),
 });
 
-export type JobInputTimeSchemaType = z.infer<typeof jobInputTimeSchema>;
+export type InputTimeSchemaType = z.infer<typeof inputTimeSchema>;
 
-export const jobInputMonthSchema = z.object({
+export const inputMonthSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.MONTH]),
   name: z.string().min(1),
@@ -298,9 +298,9 @@ export const jobInputMonthSchema = z.object({
     .nullish(),
 });
 
-export type JobInputMonthSchemaType = z.infer<typeof jobInputMonthSchema>;
+export type InputMonthSchemaType = z.infer<typeof inputMonthSchema>;
 
-export const jobInputWeekSchema = z.object({
+export const inputWeekSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.WEEK]),
   name: z.string().min(1),
@@ -317,9 +317,9 @@ export const jobInputWeekSchema = z.object({
     .nullish(),
 });
 
-export type JobInputWeekSchemaType = z.infer<typeof jobInputWeekSchema>;
+export type InputWeekSchemaType = z.infer<typeof inputWeekSchema>;
 
-export const jobInputColorSchema = z.object({
+export const inputColorSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.COLOR]),
   name: z.string().min(1),
@@ -332,9 +332,9 @@ export const jobInputColorSchema = z.object({
   validations: z.array(optionalValidationSchema).nullish(),
 });
 
-export type JobInputColorSchemaType = z.infer<typeof jobInputColorSchema>;
+export type InputColorSchemaType = z.infer<typeof inputColorSchema>;
 
-export const jobInputRangeSchema = z.object({
+export const inputRangeSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.RANGE]),
   name: z.string().min(1),
@@ -352,9 +352,9 @@ export const jobInputRangeSchema = z.object({
     .nullish(),
 });
 
-export type JobInputRangeSchemaType = z.infer<typeof jobInputRangeSchema>;
+export type InputRangeSchemaType = z.infer<typeof inputRangeSchema>;
 
-export const jobInputFileSchema = z.object({
+export const inputFileSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.FILE]),
   name: z.string().min(1),
@@ -381,9 +381,9 @@ export const jobInputFileSchema = z.object({
     }),
 });
 
-export type JobInputFileSchemaType = z.infer<typeof jobInputFileSchema>;
+export type InputFileSchemaType = z.infer<typeof inputFileSchema>;
 
-export const jobInputHiddenSchema = z.object({
+export const inputHiddenSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.HIDDEN]),
   name: z.string().min(1),
@@ -396,9 +396,9 @@ export const jobInputHiddenSchema = z.object({
   validations: z.array(optionalValidationSchema).nullish(),
 });
 
-export type JobInputHiddenSchemaType = z.infer<typeof jobInputHiddenSchema>;
+export type InputHiddenSchemaType = z.infer<typeof inputHiddenSchema>;
 
-export const jobInputSearchSchema = z.object({
+export const inputSearchSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.SEARCH]),
   name: z.string().min(1),
@@ -418,9 +418,9 @@ export const jobInputSearchSchema = z.object({
     .nullish(),
 });
 
-export type JobInputSearchSchemaType = z.infer<typeof jobInputSearchSchema>;
+export type InputSearchSchemaType = z.infer<typeof inputSearchSchema>;
 
-export const jobInputCheckboxSchema = z.object({
+export const inputCheckboxSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.CHECKBOX]),
   name: z.string().min(1),
@@ -432,9 +432,9 @@ export const jobInputCheckboxSchema = z.object({
   validations: z.array(optionalValidationSchema).nullish(),
 });
 
-export type JobInputCheckboxSchemaType = z.infer<typeof jobInputCheckboxSchema>;
+export type InputCheckboxSchemaType = z.infer<typeof inputCheckboxSchema>;
 
-export const jobInputRadioGroupSchema = z.object({
+export const inputRadioGroupSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.RADIO_GROUP]),
   name: z.string().min(1),
@@ -452,11 +452,9 @@ export const jobInputRadioGroupSchema = z.object({
     .nullish(),
 });
 
-export type JobInputRadioGroupSchemaType = z.infer<
-  typeof jobInputRadioGroupSchema
->;
+export type InputRadioGroupSchemaType = z.infer<typeof inputRadioGroupSchema>;
 
-export const jobInputOptionSchema = z.object({
+export const inputOptionSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.OPTION]),
   name: z.string().min(1),
@@ -475,9 +473,9 @@ export const jobInputOptionSchema = z.object({
     .nullish(),
 });
 
-export type JobInputOptionSchemaType = z.infer<typeof jobInputOptionSchema>;
+export type InputOptionSchemaType = z.infer<typeof inputOptionSchema>;
 
-export const jobInputMultiselectSchema = z.object({
+export const inputMultiselectSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.MULTISELECT]),
   name: z.string().min(1),
@@ -493,34 +491,32 @@ export const jobInputMultiselectSchema = z.object({
     .nullish(),
 });
 
-export type JobInputMultiselectSchemaType = z.infer<
-  typeof jobInputMultiselectSchema
->;
+export type InputMultiselectSchemaType = z.infer<typeof inputMultiselectSchema>;
 
-export const inputSchema = jobInputNoneSchema
-  .or(jobInputStringSchema)
-  .or(jobInputTextSchema)
-  .or(jobInputTextareaSchema)
-  .or(jobInputNumberSchema)
-  .or(jobInputBooleanSchema)
-  .or(jobInputEmailSchema)
-  .or(jobInputPasswordSchema)
-  .or(jobInputTelSchema)
-  .or(jobInputUrlSchema)
-  .or(jobInputDateSchema)
-  .or(jobInputDatetimeSchema)
-  .or(jobInputTimeSchema)
-  .or(jobInputMonthSchema)
-  .or(jobInputWeekSchema)
-  .or(jobInputColorSchema)
-  .or(jobInputRangeSchema)
-  .or(jobInputFileSchema)
-  .or(jobInputHiddenSchema)
-  .or(jobInputSearchSchema)
-  .or(jobInputCheckboxSchema)
-  .or(jobInputRadioGroupSchema)
-  .or(jobInputOptionSchema)
-  .or(jobInputMultiselectSchema);
+export const inputSchema = inputNoneSchema
+  .or(inputStringSchema)
+  .or(inputTextSchema)
+  .or(inputTextareaSchema)
+  .or(inputNumberSchema)
+  .or(inputBooleanSchema)
+  .or(inputEmailSchema)
+  .or(inputPasswordSchema)
+  .or(inputTelSchema)
+  .or(inputUrlSchema)
+  .or(inputDateSchema)
+  .or(inputDatetimeSchema)
+  .or(inputTimeSchema)
+  .or(inputMonthSchema)
+  .or(inputWeekSchema)
+  .or(inputColorSchema)
+  .or(inputRangeSchema)
+  .or(inputFileSchema)
+  .or(inputHiddenSchema)
+  .or(inputSearchSchema)
+  .or(inputCheckboxSchema)
+  .or(inputRadioGroupSchema)
+  .or(inputOptionSchema)
+  .or(inputMultiselectSchema);
 
 export type InputSchemaType = z.infer<typeof inputSchema>;
 
