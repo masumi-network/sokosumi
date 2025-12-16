@@ -40,7 +40,8 @@
     "test:ci": "jest --ci"
   },
   "dependencies": {
-    "json-canonicalize": "2.0.0"
+    "json-canonicalize": "2.0.0",
+    "zod": "4.1.13"
   },
   "devDependencies": {
     "@types/jest": "30.0.0",
