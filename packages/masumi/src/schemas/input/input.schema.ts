@@ -585,3 +585,18 @@ export const submitInputGroupsSchema = z.object({
 export type SubmitInputGroupsSchemaType = z.infer<
   typeof submitInputGroupsSchema
 >;
+
+export const submitInputsSchema = z
+  .union([submitInputDataSchema, submitInputGroupsSchema])
+  .refine(
+    (data) => {
+      const hasInputData = "input_data" in data;
+      const hasInputGroups = "input_groups" in data;
+      return hasInputData !== hasInputGroups; // Exactly one must be present
+    },
+    {
+      message: "Must provide exactly one of 'input_data' or 'input_groups'",
+    },
+  );
+
+export type SubmitInputsSchemaType = z.infer<typeof submitInputsSchema>;

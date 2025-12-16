@@ -1,27 +1,12 @@
 import { z } from "zod";
 
-import {
-  submitInputDataSchema,
-  submitInputGroupsSchema,
-} from "../input/input.schema.js";
+import { submitInputsSchema } from "../input/input.schema.js";
 
-export const provideInputRequestSchema = z
-  .object({
-    job_id: z.string(),
-    status_id: z.string(),
-    input_data: submitInputDataSchema.nullish(),
-    input_groups: submitInputGroupsSchema.nullish(),
-  })
-  .refine(
-    (data) => {
-      const hasInputData = "input_data" in data;
-      const hasInputGroups = "input_groups" in data;
-      return hasInputData !== hasInputGroups; // Exactly one must be present
-    },
-    {
-      message: "Must provide exactly one of 'input_data' or 'input_groups'",
-    },
-  );
+export const provideInputRequestSchema = z.object({
+  job_id: z.string(),
+  status_id: z.string(),
+  submitInputsSchema,
+});
 
 export type ProvideInputRequestSchemaType = z.infer<
   typeof provideInputRequestSchema
