@@ -18,34 +18,6 @@ import {
   optionalValidationSchema,
 } from "./validation";
 
-export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
-  jobInputNoneSchema(t)
-    .or(jobInputStringSchema(t))
-    .or(jobInputTextSchema(t))
-    .or(jobInputTextareaSchema(t))
-    .or(jobInputNumberSchema(t))
-    .or(jobInputBooleanSchema(t))
-    .or(jobInputEmailSchema(t))
-    .or(jobInputPasswordSchema(t))
-    .or(jobInputTelSchema(t))
-    .or(jobInputUrlSchema(t))
-    .or(jobInputDateSchema(t))
-    .or(jobInputDatetimeSchema(t))
-    .or(jobInputTimeSchema(t))
-    .or(jobInputMonthSchema(t))
-    .or(jobInputWeekSchema(t))
-    .or(jobInputColorSchema(t))
-    .or(jobInputRangeSchema(t))
-    .or(jobInputFileSchema(t))
-    .or(jobInputHiddenSchema(t))
-    .or(jobInputSearchSchema(t))
-    .or(jobInputCheckboxSchema(t))
-    .or(jobInputRadioGroupSchema(t))
-    .or(jobInputOptionSchema(t))
-    .or(jobInputMultiselectSchema(t));
-
-export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
-
 export const jobInputNoneSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
