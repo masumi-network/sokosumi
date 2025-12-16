@@ -52,10 +52,6 @@ export const requiredJobInputFileValidationTypes = [
 export type RequiredJobInputFileValidationTypes =
   (typeof requiredJobInputFileValidationTypes)[number];
 
-export type JobInputType = InputType;
-export type JobInputValidationType = InputValidation;
-export type JobInputFormatValue = InputFormat;
-
 export type JobInputData = Record<
   string,
   string | string[] | number | boolean | number[] | File | File[] | undefined
