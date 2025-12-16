@@ -14,84 +14,6 @@ import {
   optionalValidationSchema,
 } from "./validation.schema.js";
 
-/*
- * @deprecated This was a placeholder and is superseded by jobInputSchema.
- *
- */
-export const jobInputDataSchema = () =>
-  z.object({
-    input_data: z.array(jobInputSchema()),
-  });
-
-/*
- * @deprecated This was a placeholder and is superseded by JobInputSchemaType.
- */
-export type JobInputDataSchemaType = z.infer<
-  ReturnType<typeof jobInputDataSchema>
->;
-
-export const jobInputGroupSchema = () =>
-  z.object({
-    id: z.string().min(1),
-    title: z.string().min(1),
-    input_data: z.array(jobInputSchema()),
-  });
-
-export type JobInputGroupSchemaType = z.infer<
-  ReturnType<typeof jobInputGroupSchema>
->;
-
-export const jobInputsSchema = () => {
-  const inputDataSchema = z.object({
-    input_data: z.array(jobInputSchema()),
-  });
-
-  const inputGroupsSchema = z.object({
-    input_groups: z.array(jobInputGroupSchema()),
-  });
-
-  return z.union([inputDataSchema, inputGroupsSchema]).refine(
-    (data) => {
-      const hasInputData = "input_data" in data;
-      const hasInputGroups = "input_groups" in data;
-      return hasInputData !== hasInputGroups; // Exactly one must be present
-    },
-    {
-      message: "Must provide exactly one of 'input_data' or 'input_groups'",
-    },
-  );
-};
-
-export type JobInputsSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
-
-export const jobInputSchema = () =>
-  jobInputNoneSchema
-    .or(jobInputStringSchema)
-    .or(jobInputTextSchema)
-    .or(jobInputTextareaSchema)
-    .or(jobInputNumberSchema)
-    .or(jobInputBooleanSchema)
-    .or(jobInputEmailSchema)
-    .or(jobInputPasswordSchema)
-    .or(jobInputTelSchema)
-    .or(jobInputUrlSchema)
-    .or(jobInputDateSchema)
-    .or(jobInputDatetimeSchema)
-    .or(jobInputTimeSchema)
-    .or(jobInputMonthSchema)
-    .or(jobInputWeekSchema)
-    .or(jobInputColorSchema)
-    .or(jobInputRangeSchema)
-    .or(jobInputFileSchema)
-    .or(jobInputHiddenSchema)
-    .or(jobInputSearchSchema)
-    .or(jobInputCheckboxSchema)
-    .or(jobInputRadioGroupSchema)
-    .or(jobInputOptionSchema)
-    .or(jobInputMultiselectSchema);
-
-export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
-
 export const jobInputNoneSchema = z.object({
   id: z.string().min(1),
   type: z.enum([InputType.NONE]),
@@ -574,3 +496,66 @@ export const jobInputMultiselectSchema = z.object({
 export type JobInputMultiselectSchemaType = z.infer<
   typeof jobInputMultiselectSchema
 >;
+
+export const inputSchema = jobInputNoneSchema
+  .or(jobInputStringSchema)
+  .or(jobInputTextSchema)
+  .or(jobInputTextareaSchema)
+  .or(jobInputNumberSchema)
+  .or(jobInputBooleanSchema)
+  .or(jobInputEmailSchema)
+  .or(jobInputPasswordSchema)
+  .or(jobInputTelSchema)
+  .or(jobInputUrlSchema)
+  .or(jobInputDateSchema)
+  .or(jobInputDatetimeSchema)
+  .or(jobInputTimeSchema)
+  .or(jobInputMonthSchema)
+  .or(jobInputWeekSchema)
+  .or(jobInputColorSchema)
+  .or(jobInputRangeSchema)
+  .or(jobInputFileSchema)
+  .or(jobInputHiddenSchema)
+  .or(jobInputSearchSchema)
+  .or(jobInputCheckboxSchema)
+  .or(jobInputRadioGroupSchema)
+  .or(jobInputOptionSchema)
+  .or(jobInputMultiselectSchema);
+
+export type InputSchemaType = z.infer<typeof inputSchema>;
+
+export const inputDataSchema = z.object({
+  input_data: z.array(inputSchema),
+});
+
+export type InputDataSchemaType = z.infer<typeof inputDataSchema>;
+
+export const inputGroupSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  input_data: z.array(inputSchema),
+});
+
+export type InputGroupSchemaType = z.infer<typeof inputGroupSchema>;
+
+export const inputsSchema = z
+  .union([
+    z.object({
+      input_data: z.array(inputSchema),
+    }),
+    z.object({
+      input_groups: z.array(inputGroupSchema),
+    }),
+  ])
+  .refine(
+    (data) => {
+      const hasInputData = "input_data" in data;
+      const hasInputGroups = "input_groups" in data;
+      return hasInputData !== hasInputGroups; // Exactly one must be present
+    },
+    {
+      message: "Must provide exactly one of 'input_data' or 'input_groups'",
+    },
+  );
+
+export type InputsSchemaType = z.infer<typeof inputsSchema>;

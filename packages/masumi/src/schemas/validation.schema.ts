@@ -80,4 +80,5 @@ export const validationSchema = optionalValidationSchema
   .or(formatTelPatternValidationSchema)
   .or(maxSizeValidationSchema)
   .or(stepValidationSchema);
+
 export type ValidationSchemaType = z.infer<typeof validationSchema>;
