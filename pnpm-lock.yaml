@@ -443,8 +443,8 @@ importers:
         specifier: 30.2.0
         version: 30.2.0(@types/node@24.10.3)
       next-openapi-gen:
-        specifier: 0.8.9
-        version: 0.8.9
+        specifier: 0.9.0
+        version: 0.9.0
       postcss:
         specifier: 8.5.6
         version: 8.5.6
@@ -6582,8 +6582,8 @@ packages:
       typescript:
         optional: true
 
-  next-openapi-gen@0.8.9:
-    resolution: {integrity: sha512-nD+uLwKBjkJF3w0Js7M7txP7gW47D6+61Itii/N9EIggE/Pe8R+8YKBSDcfgBg9vvIdMAlHAuTUm4v0PfQyhOw==}
+  next-openapi-gen@0.9.0:
+    resolution: {integrity: sha512-dCPCOGIRSMAP/WB15XUybPs5VseaiZx/Bc6wCoNf6orZmtlrQpt4tGopT2lTqnyprcj8tiC28I8UMAJ40PATiw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -15222,7 +15222,7 @@ snapshots:
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  next-openapi-gen@0.8.9:
+  next-openapi-gen@0.9.0:
     dependencies:
       '@babel/parser': 7.28.5
       '@babel/traverse': 7.28.5
