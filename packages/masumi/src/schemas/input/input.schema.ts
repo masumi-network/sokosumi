@@ -564,13 +564,10 @@ export const submitInputDataSchema = z.object({
     z.string(),
     z.union([
       z.number(),
+      z.array(z.number()),
       z.string(),
       z.array(z.string()),
       z.boolean(),
-      z.array(z.number()),
-      z.instanceof(File),
-      z.array(z.instanceof(File)),
-      z.undefined(),
     ]),
   ),
 });
@@ -578,11 +575,14 @@ export const submitInputDataSchema = z.object({
 export type SubmitInputDataSchemaType = z.infer<typeof submitInputDataSchema>;
 
 export const submitInputGroupsSchema = z.object({
-  input_groups: z.object({
-    id: z.string().min(1),
-    title: z.string().nullish(),
-    submitInputDataSchema,
-  }),
+  input_groups: z.array(
+    z
+      .object({
+        id: z.string().min(1),
+        title: z.string().nullish(),
+      })
+      .and(submitInputDataSchema),
+  ),
 });
 
 export type SubmitInputGroupsSchemaType = z.infer<
