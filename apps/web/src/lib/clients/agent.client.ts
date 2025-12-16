@@ -2,23 +2,21 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import { Agent } from "@sokosumi/database";
-
-import { getEnvSecrets } from "@/config/env.secrets";
 import {
-  JobInputData,
-  jobInputDataSchema,
-  JobInputDataSchemaType,
-} from "@/lib/job-input";
-import {
+  inputDataSchema,
+  InputDataSchemaType,
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
-  provideJobInputResponseSchema,
-  ProvideJobInputResponseSchemaType,
+  provideInputResponseSchema,
+  ProvideInputResponseSchemaType,
   startFreeJobResponseSchema,
   StartFreeJobResponseSchemaType,
   startPaidJobResponseSchema,
   StartPaidJobResponseSchemaType,
-} from "@/lib/schemas";
+} from "@sokosumi/masumi/schemas";
+
+import { getEnvSecrets } from "@/config/env.secrets";
+import { JobInputData } from "@/lib/job-input";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { safeAddPathComponent } from "@/lib/utils/url";
 
@@ -159,7 +157,7 @@ export const agentClient = (() => {
       statusId: string,
       jobId: string,
       inputData: JobInputData,
-    ): Promise<Result<ProvideJobInputResponseSchemaType, string>> {
+    ): Promise<Result<ProvideInputResponseSchemaType, string>> {
       try {
         const provideInputUrl = getAgentUrlWithPathComponent(
           agent,
@@ -184,8 +182,7 @@ export const agentClient = (() => {
           );
         }
         const responseJson = await provideInputResponse.json();
-        const parsedResult =
-          provideJobInputResponseSchema.safeParse(responseJson);
+        const parsedResult = provideInputResponseSchema.safeParse(responseJson);
         if (!parsedResult.success) {
           return Err(
             `Failed to parse provide input response: ${JSON.stringify(
@@ -202,7 +199,7 @@ export const agentClient = (() => {
 
     async fetchAgentInputSchema(
       agent: Agent,
-    ): Promise<Result<JobInputDataSchemaType, string>> {
+    ): Promise<Result<InputDataSchemaType, string>> {
       const agentContext = {
         agentId: agent.id,
         agentName: agent.name,
@@ -285,7 +282,7 @@ export const agentClient = (() => {
           return Err("Failed to parse JSON response");
         }
 
-        const parsedResult = jobInputDataSchema().safeParse(responseData);
+        const parsedResult = inputDataSchema.safeParse(responseData);
 
         if (!parsedResult.success) {
           // Log schema validation errors
