@@ -1,2 +1,2 @@
-// Placeholder for future client exports
-// Example: export { agentClient } from "./agent.client.js";
+export type { AgentClientConfig } from "./agent.client.js";
+export { createAgentClient } from "./agent.client.js";

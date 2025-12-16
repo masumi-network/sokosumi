@@ -1,5 +1,5 @@
 // Main package exports
+export * from "./clients/index.js";
 export * from "./hash/index.js";
-
-// Future exports can be added here:
-// export * from "./clients/index.js";
+export * from "./types/index.js";
+export * from "./utils/index.js";
