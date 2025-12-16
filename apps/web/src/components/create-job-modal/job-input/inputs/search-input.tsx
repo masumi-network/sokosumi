@@ -1,4 +1,5 @@
-import { InputSearchSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputSearchSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 

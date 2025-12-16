@@ -1,4 +1,5 @@
-import { InputOptionSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputOptionSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { isSingleOption } from "@/components/create-job-modal/job-input/util";
 import MultipleSelect from "@/components/multiple-select";

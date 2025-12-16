@@ -1,4 +1,5 @@
-import { InputBooleanSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputBooleanSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Switch } from "@/components/ui/switch";
 

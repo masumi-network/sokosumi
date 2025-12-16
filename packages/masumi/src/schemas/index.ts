@@ -8,5 +8,3 @@ export * from "./agent/status.schema.js";
 // Input schemas
 export * from "./input/input.schema.js";
 export * from "./input/validation.schema.js";
-// Re-export input types for backward compatibility
-export * from "../types/input-types.js";

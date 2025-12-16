@@ -6,7 +6,6 @@ import {
   InputDatetimeSchemaType,
   InputEmailSchemaType,
   InputFileSchemaType,
-  InputFormat,
   InputMonthSchemaType,
   InputMultiselectSchemaType,
   InputNumberSchemaType,
@@ -21,11 +20,14 @@ import {
   InputTextareaSchemaType,
   InputTextSchemaType,
   InputTimeSchemaType,
-  InputType,
   InputUrlSchemaType,
-  InputValidation,
   InputWeekSchemaType,
 } from "@sokosumi/masumi/schemas";
+import {
+  InputFormat,
+  InputType,
+  InputValidation,
+} from "@sokosumi/masumi/types";
 import * as z from "zod";
 
 import { parseISOWeek, parseMonth } from "@/lib/utils";

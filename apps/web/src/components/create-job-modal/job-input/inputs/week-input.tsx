@@ -1,4 +1,5 @@
-import { InputType, InputWeekSchemaType } from "@sokosumi/masumi/schemas";
+import { InputWeekSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 

@@ -1,4 +1,5 @@
-import { InputSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import * as z from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";

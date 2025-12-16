@@ -1,4 +1,5 @@
-import { InputDatetimeSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputDatetimeSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { format } from "date-fns";
 import { useMemo } from "react";
 

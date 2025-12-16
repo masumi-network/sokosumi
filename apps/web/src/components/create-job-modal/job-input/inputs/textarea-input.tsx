@@ -1,4 +1,5 @@
-import { InputTextareaSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputTextareaSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Textarea } from "@/components/ui/textarea";
 

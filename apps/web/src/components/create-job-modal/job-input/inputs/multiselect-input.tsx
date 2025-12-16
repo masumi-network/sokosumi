@@ -1,7 +1,5 @@
-import {
-  InputMultiselectSchemaType,
-  InputType,
-} from "@sokosumi/masumi/schemas";
+import { InputMultiselectSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import MultipleSelect from "@/components/multiple-select";
 

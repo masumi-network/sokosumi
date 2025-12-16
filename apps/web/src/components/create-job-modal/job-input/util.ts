@@ -2,10 +2,9 @@ import {
   InputFileSchemaType,
   InputOptionSchemaType,
   InputSchemaType,
-  InputType,
-  InputValidation,
   ValidationSchemaType,
 } from "@sokosumi/masumi/schemas";
+import { InputType, InputValidation } from "@sokosumi/masumi/types";
 
 export const isOptional = (jobInputSchema: InputSchemaType): boolean => {
   const { type } = jobInputSchema;

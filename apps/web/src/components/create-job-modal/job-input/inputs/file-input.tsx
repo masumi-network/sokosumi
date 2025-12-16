@@ -1,4 +1,5 @@
-import { InputFileSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputFileSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";

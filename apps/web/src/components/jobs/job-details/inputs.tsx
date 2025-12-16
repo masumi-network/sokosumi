@@ -3,10 +3,8 @@
 import type { Blob } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
-import {
-  inputSchema as jobInputSchema,
-  InputType,
-} from "@sokosumi/masumi/schemas";
+import { inputSchema as jobInputSchema } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import * as z from "zod";

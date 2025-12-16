@@ -1,4 +1,5 @@
-import { InputHiddenSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputHiddenSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { JobInputComponentProps } from "./types";
 

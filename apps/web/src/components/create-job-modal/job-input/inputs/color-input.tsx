@@ -1,4 +1,5 @@
-import { InputColorSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputColorSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { ColorPicker } from "@/components/ui/color-picker";
 

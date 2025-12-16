@@ -1,4 +1,5 @@
-import { InputRadioGroupSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputRadioGroupSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 

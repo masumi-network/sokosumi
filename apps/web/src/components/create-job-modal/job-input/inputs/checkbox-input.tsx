@@ -1,4 +1,5 @@
-import { InputCheckboxSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputCheckboxSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Checkbox } from "@/components/ui/checkbox";
 

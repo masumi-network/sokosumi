@@ -1,4 +1,5 @@
-import { InputRangeSchemaType, InputType } from "@sokosumi/masumi/schemas";
+import { InputRangeSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
