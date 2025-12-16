@@ -25,7 +25,7 @@ export const jobStatusResponseSchema = z
     requireFieldWhenStatus("completed", "result")(data, ctx);
   });
 
-export type AgentJobStatusResponseSchemaType = z.infer<
+export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
 >;
 
