@@ -556,7 +556,7 @@ export const inputsSchema = z
 
 export type InputsSchemaType = z.infer<typeof inputsSchema>;
 
-export const provideInputDataSchema = z.object({
+export const submitInputDataSchema = z.object({
   input_data: z.record(
     z.string(),
     z.union([
@@ -572,16 +572,16 @@ export const provideInputDataSchema = z.object({
   ),
 });
 
-export type ProvideInputDataSchemaType = z.infer<typeof provideInputDataSchema>;
+export type SubmitInputDataSchemaType = z.infer<typeof submitInputDataSchema>;
 
-export const provideInputGroupsSchema = z.object({
+export const submitInputGroupsSchema = z.object({
   input_groups: z.object({
     id: z.string().min(1),
     title: z.string().nullish(),
-    provideInputDataSchema,
+    submitInputDataSchema,
   }),
 });
 
-export type ProvideInputGroupsSchemaType = z.infer<
-  typeof provideInputGroupsSchema
+export type SubmitInputGroupsSchemaType = z.infer<
+  typeof submitInputGroupsSchema
 >;

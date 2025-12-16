@@ -1,16 +1,16 @@
 import { z } from "zod";
 
 import {
-  provideInputDataSchema,
-  provideInputGroupsSchema,
+  submitInputDataSchema,
+  submitInputGroupsSchema,
 } from "../input/input.schema.js";
 
 export const provideInputRequestSchema = z
   .object({
     job_id: z.string(),
     status_id: z.string(),
-    provideInputDataSchema,
-    provideInputGroupsSchema,
+    input_data: submitInputDataSchema.nullish(),
+    input_groups: submitInputGroupsSchema.nullish(),
   })
   .refine(
     (data) => {
