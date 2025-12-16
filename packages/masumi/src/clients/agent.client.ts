@@ -247,13 +247,6 @@ export function createAgentClient(config: AgentClientConfig) {
     async fetchAgentInputSchema(
       agent: Agent,
     ): Promise<Result<InputDataSchemaType, string>> {
-      const agentContext = {
-        agentId: agent.id,
-        agentName: agent.name,
-        blockchainIdentifier: agent.blockchainIdentifier,
-        apiBaseUrl: agent.apiBaseUrl,
-      };
-
       try {
         const inputSchemaUrl = getAgentUrlWithPathComponent(
           agent,
