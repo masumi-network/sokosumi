@@ -1,7 +1,6 @@
 import { inputSchema, inputsSchema } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
-import { jobInputSchema } from "@/lib/job-input";
 import { JobScheduleType } from "@/lib/types/job";
 
 export const startJobInputSchema = z.object({
@@ -162,7 +161,7 @@ export const createJobScheduleInputSchema = z.object({
   cron: z.string().nullish(),
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
-  inputSchema: z.array(jobInputSchema()),
+  inputSchema: z.array(inputSchema),
   inputData: z.record(
     z.string(),
     z.union([
