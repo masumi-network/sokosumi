@@ -1,4 +1,4 @@
-export enum ValidJobInputTypes {
+export enum InputType {
   NONE = "none",
   STRING = "string",
   TEXT = "text",
@@ -52,7 +52,7 @@ export const requiredJobInputFileValidationTypes = [
 export type RequiredJobInputFileValidationTypes =
   (typeof requiredJobInputFileValidationTypes)[number];
 
-export type JobInputType = ValidJobInputTypes;
+export type JobInputType = InputType;
 export type JobInputValidationType = InputValidation;
 export type JobInputFormatValue = ValidJobInputFormatValues;
 
