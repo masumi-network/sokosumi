@@ -5,28 +5,28 @@ import {
   provideInputGroupsSchema,
 } from "../input/input.schema.js";
 
-// Preprocess helper for backwards compatibility: normalize job_id to id
-// Id is required in the Masumi Docs, but some agents return job_id instead.
-function preprocessJobId(val: unknown): unknown {
-  if (typeof val === "object" && val !== null) {
-    const obj = val as Record<string, unknown>;
-    return {
-      ...obj,
-      id: obj.id ?? obj.job_id,
-    };
-  }
-  return val;
-}
-
 export const startJobRequestSchema = z.object({
   identifierFromPurchaser: z.string(),
   provideInputDataSchema,
   provideInputGroupsSchema,
 });
 
-// Base schema for FREE jobs with preprocessing
+export type StartJobRequestSchemaType = z.infer<typeof startJobRequestSchema>;
+
+function preprocessStartJobResponse(val: unknown): unknown {
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, unknown>;
+    const { job_id, ...rest } = obj;
+    return {
+      ...rest,
+      id: obj.id ?? job_id,
+    };
+  }
+  return val;
+}
+
 export const startFreeJobResponseSchema = z.preprocess(
-  preprocessJobId,
+  preprocessStartJobResponse,
   z.object({
     id: z.string().min(1),
   }),
@@ -36,9 +36,8 @@ export type StartFreeJobResponseSchemaType = z.infer<
   typeof startFreeJobResponseSchema
 >;
 
-// Schema for PAID jobs with preprocessing (cannot extend preprocessed schema)
 export const startPaidJobResponseSchema = z.preprocess(
-  preprocessJobId,
+  preprocessStartJobResponse,
   z.object({
     id: z.string().min(1),
     input_hash: z.string().min(1),
