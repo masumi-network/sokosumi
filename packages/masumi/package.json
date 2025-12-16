@@ -23,6 +23,11 @@
       "types": "./dist/clients/index.d.ts",
       "import": "./dist/clients/index.js",
       "default": "./dist/clients/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas/index.d.ts",
+      "import": "./dist/schemas/index.js",
+      "default": "./dist/schemas/index.js"
     }
   },
   "files": [
