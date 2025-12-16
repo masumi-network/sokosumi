@@ -568,6 +568,9 @@ export const submitInputDataSchema = z.object({
       z.string(),
       z.array(z.string()),
       z.boolean(),
+      z.undefined(),
+      z.instanceof(File),
+      z.array(z.instanceof(File)),
     ]),
   ),
 });
