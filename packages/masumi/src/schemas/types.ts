@@ -34,7 +34,7 @@ export enum InputValidation {
   STEP = "step",
 }
 
-export enum ValidJobInputFormatValues {
+export enum InputFormat {
   URL = "url",
   EMAIL = "email",
   INTEGER = "integer",
@@ -54,7 +54,7 @@ export type RequiredJobInputFileValidationTypes =
 
 export type JobInputType = InputType;
 export type JobInputValidationType = InputValidation;
-export type JobInputFormatValue = ValidJobInputFormatValues;
+export type JobInputFormatValue = InputFormat;
 
 export type JobInputData = Record<
   string,

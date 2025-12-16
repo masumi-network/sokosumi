@@ -1,24 +1,16 @@
 import * as z from "zod";
 
-import { InputValidation, ValidJobInputFormatValues } from "./types.js";
+import { InputFormat, InputValidation } from "./types.js";
 
-const formatNonEmptyValidationValueSchema = z.enum([
-  ValidJobInputFormatValues.NON_EMPTY,
-]);
+const formatNonEmptyValidationValueSchema = z.enum([InputFormat.NON_EMPTY]);
 
-const formatUrlValidationValueSchema = z.enum([ValidJobInputFormatValues.URL]);
+const formatUrlValidationValueSchema = z.enum([InputFormat.URL]);
 
-const formatEmailValidationValueSchema = z.enum([
-  ValidJobInputFormatValues.EMAIL,
-]);
+const formatEmailValidationValueSchema = z.enum([InputFormat.EMAIL]);
 
-const formatIntegerValidationValueSchema = z.enum([
-  ValidJobInputFormatValues.INTEGER,
-]);
+const formatIntegerValidationValueSchema = z.enum([InputFormat.INTEGER]);
 
-const formatTelPatternValidationValueSchema = z.enum([
-  ValidJobInputFormatValues.TEL_PATTERN,
-]);
+const formatTelPatternValidationValueSchema = z.enum([InputFormat.TEL_PATTERN]);
 
 const optionalValidationValueSchema = z.enum(["true", "false"] as const);
 
