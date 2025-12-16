@@ -3,6 +3,10 @@
 import type { Blob } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
+import {
+  inputSchema as jobInputSchema,
+  InputType,
+} from "@sokosumi/masumi/schemas";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import * as z from "zod";
@@ -10,7 +14,6 @@ import * as z from "zod";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
 import { Separator } from "@/components/ui/separator";
-import { jobInputSchema, ValidJobInputTypes } from "@/lib/job-input";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 import { HashGroupRow } from "./hash-group-row";
@@ -51,12 +54,8 @@ function findBlobByUrl(url: string, blobs?: Blob[]): Blob | undefined {
   return blobs.find((b) => b.fileUrl === url);
 }
 
-function renderInputValue(
-  value: unknown,
-  type: ValidJobInputTypes,
-  blobs?: Blob[],
-) {
-  if (type === ValidJobInputTypes.FILE) {
+function renderInputValue(value: unknown, type: InputType, blobs?: Blob[]) {
+  if (type === InputType.FILE) {
     if (isUrlString(value)) {
       const blob = findBlobByUrl(value, blobs);
       return (
@@ -106,25 +105,19 @@ function JobDetailsInputsInner({
     return hashInput(rawInput, identifierFromPurchaser);
   }, [identifierFromPurchaser, rawInput]);
 
-  let inputsMap: Record<string, { name: string; type: ValidJobInputTypes }> =
-    {};
+  let inputsMap: Record<string, { name: string; type: InputType }> = {};
   if (Array.isArray(inputSchema)) {
     inputsMap = z
-      .array(jobInputSchema())
+      .array(jobInputSchema)
       .parse(inputSchema)
       .reduce(
         (acc, item) => {
           acc[item.id] = { name: item.name, type: item.type };
           return acc;
         },
-        {} as Record<string, { name: string; type: ValidJobInputTypes }>,
+        {} as Record<string, { name: string; type: InputType }>,
       );
   }
-
-  // const showHashSection =
-  //   Boolean(jobType) &&
-  //   Boolean(identifierFromPurchaser) &&
-  //   (inputHash || calculatedInputHash);
 
   return (
     <div className="flex flex-col gap-2">
@@ -132,7 +125,7 @@ function JobDetailsInputsInner({
         <div>
           {Object.entries(input).map(([key, value]) => {
             const label = inputsMap[key]?.name ?? key;
-            const type = inputsMap[key]?.type ?? ValidJobInputTypes.NONE;
+            const type = inputsMap[key]?.type ?? InputType.NONE;
             return (
               <div
                 className="grid grid-cols-1 items-start gap-4 pb-4 text-base md:grid-cols-3"

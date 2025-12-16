@@ -5,6 +5,7 @@ import {
   JobStatusWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
+import { inputSchema, InputSchemaType } from "@sokosumi/masumi/schemas";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -21,8 +22,6 @@ import { provideJobInput } from "@/lib/actions/job/action";
 import {
   defaultValues,
   filterOutNullValues,
-  jobInputSchema,
-  JobInputSchemaType,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
@@ -40,15 +39,15 @@ export default function JobDetailsProvideInput({
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
 
   // Parse input schema from job - validate each entry individually
-  const inputSchemas = useMemo<JobInputSchemaType[]>(() => {
+  const inputSchemas = useMemo<InputSchemaType[]>(() => {
     try {
       if (status.inputSchema) {
         const parsed = JSON.parse(status.inputSchema);
         if (Array.isArray(parsed)) {
           // Validate each entry individually to allow partial success
-          const validatedSchemas: JobInputSchemaType[] = [];
+          const validatedSchemas: InputSchemaType[] = [];
           for (const entry of parsed) {
-            const schemaResult = jobInputSchema().safeParse(entry);
+            const schemaResult = inputSchema.safeParse(entry);
             if (schemaResult.success) {
               validatedSchemas.push(schemaResult.data);
             } else {
@@ -93,7 +92,7 @@ export default function JobDetailsProvideInput({
 interface ProvideInputFormProps {
   jobId: string;
   statusId?: string | null;
-  inputSchemas: JobInputSchemaType[];
+  inputSchemas: InputSchemaType[];
 }
 function ProvideInputForm({
   jobId,
