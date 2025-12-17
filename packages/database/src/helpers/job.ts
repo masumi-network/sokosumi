@@ -117,6 +117,9 @@ function getFundsLockedJobStatus(
   now: Date,
 ): SokosumiJobStatus {
   switch (latestJobStatus.status) {
+    case AgentJobStatus.INITIATED:
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return SokosumiJobStatus.PAYMENT_PENDING;
     case AgentJobStatus.AWAITING_INPUT:
       if (latestJobStatus.input === null) {
         return SokosumiJobStatus.INPUT_REQUIRED;
