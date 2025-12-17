@@ -1,3 +1,5 @@
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { UseFormReturn } from "react-hook-form";
 
 import {
@@ -8,18 +10,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  JobInputSchemaType,
-  JobInputsFormSchemaType,
-  ValidJobInputTypes,
-} from "@/lib/job-input";
+import { JobInputsFormSchemaType } from "@/lib/job-input";
 
 import { InputField } from "./inputs/input-field";
 import { isOptional } from "./util";
 
 interface JobInputProps {
   form: UseFormReturn<JobInputsFormSchemaType>;
-  jobInputSchema: JobInputSchemaType;
+  jobInputSchema: InputSchemaType;
   disabled?: boolean;
 }
 
@@ -36,7 +34,7 @@ export default function JobInput({
       disabled={disabled}
       render={({ field }) => (
         <FormItem>
-          {jobInputSchema.type !== ValidJobInputTypes.HIDDEN && (
+          {jobInputSchema.type !== InputType.HIDDEN && (
             <FormLabel htmlFor={id}>{`${name} ${
               isOptional(jobInputSchema) ? "" : "*"
             }`}</FormLabel>
@@ -49,10 +47,9 @@ export default function JobInput({
               form={form}
             />
           </FormControl>
-          {jobInputSchema.type !== ValidJobInputTypes.HIDDEN &&
-            data?.description && (
-              <FormDescription>{data.description}</FormDescription>
-            )}
+          {jobInputSchema.type !== InputType.HIDDEN && data?.description && (
+            <FormDescription>{data.description}</FormDescription>
+          )}
           <FormMessage />
         </FormItem>
       )}

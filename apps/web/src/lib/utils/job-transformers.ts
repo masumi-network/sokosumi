@@ -2,8 +2,6 @@ import {
   AgentJobStatus,
   Blob,
   BlobOrigin,
-  JobWithStatus,
-  Link,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
@@ -209,46 +207,21 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
 }
 
 /**
- * Retrieves all input blobs from all inputs of a job.
+ * Retrieves all input blobs.
  *
- * @param job - The job to extract input blobs from.
+ * @param blobs - The array of blobs to filter.
  * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
  */
-export function getInputBlobs(job: JobWithStatus): Blob[] {
-  const inputBlobs = job.inputBlobs;
-
-  return job.statuses
-    .filter((status) => status.input)
-    .flatMap((input) =>
-      input.blobs.filter((blob) => blob.origin === BlobOrigin.INPUT),
-    )
-    .concat(inputBlobs);
+export function getInputBlobs(blobs: Blob[]): Blob[] {
+  return blobs.filter((blob) => blob.origin === BlobOrigin.INPUT);
 }
 
 /**
  * Retrieves all output blobs from all statuses of a job.
  *
- * @param job - The job to extract output blobs from.
+ * @param blobs - The array of blobs to filter.
  * @returns An array of Blob objects with origin OUTPUT, or an empty array if none exist.
  */
-export function getOutputBlobs(job: JobWithStatus): Blob[] {
-  return job.statuses.flatMap((status) =>
-    status.blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT),
-  );
-}
-
-/**
- * Retrieves links from the latest completed status of a job.
- *
- * @param job - The job to extract result links from.
- * @returns An array of Link objects, or an empty array if no completed status exists.
- */
-export function getResultLinks(job: JobWithStatus): Link[] {
-  const latestCompletedStatus = job.statuses.find(
-    (status) => status.status === AgentJobStatus.COMPLETED,
-  );
-  if (!latestCompletedStatus) {
-    return [];
-  }
-  return latestCompletedStatus.links ?? [];
+export function getOutputBlobs(blobs: Blob[]): Blob[] {
+  return blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT);
 }

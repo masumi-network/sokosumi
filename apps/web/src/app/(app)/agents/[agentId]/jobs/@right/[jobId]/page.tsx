@@ -1,4 +1,4 @@
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import {
   agentRepository,
   jobRepository,
@@ -18,7 +18,7 @@ interface JobDetailsPageParams {
 }
 
 async function checkJobAccess(
-  job: JobWithStatus,
+  job: JobWithSokosumiStatus,
   session: Session,
 ): Promise<boolean> {
   // Check if user owns the job AND it belongs to current scope

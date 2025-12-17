@@ -1,94 +1,94 @@
+import {
+  InputBooleanSchemaType,
+  InputCheckboxSchemaType,
+  InputColorSchemaType,
+  InputDateSchemaType,
+  InputDatetimeSchemaType,
+  InputEmailSchemaType,
+  InputFileSchemaType,
+  InputMonthSchemaType,
+  InputMultiselectSchemaType,
+  InputNumberSchemaType,
+  InputOptionSchemaType,
+  InputPasswordSchemaType,
+  InputRadioGroupSchemaType,
+  InputRangeSchemaType,
+  InputSchemaType,
+  InputSearchSchemaType,
+  InputStringSchemaType,
+  InputTelSchemaType,
+  InputTextareaSchemaType,
+  InputTextSchemaType,
+  InputTimeSchemaType,
+  InputUrlSchemaType,
+  InputWeekSchemaType,
+} from "@sokosumi/masumi/schemas";
+import {
+  InputFormat,
+  InputType,
+  InputValidation,
+} from "@sokosumi/masumi/types";
 import * as z from "zod";
 
 import { parseISOWeek, parseMonth } from "@/lib/utils";
 
-import {
-  JobInputBooleanSchemaType,
-  JobInputCheckboxSchemaType,
-  JobInputColorSchemaType,
-  JobInputDateSchemaType,
-  JobInputDatetimeSchemaType,
-  JobInputEmailSchemaType,
-  JobInputFileSchemaType,
-  JobInputMonthSchemaType,
-  JobInputMultiselectSchemaType,
-  JobInputNumberSchemaType,
-  JobInputOptionSchemaType,
-  JobInputPasswordSchemaType,
-  JobInputRadioGroupSchemaType,
-  JobInputRangeSchemaType,
-  JobInputSchemaType,
-  JobInputSearchSchemaType,
-  JobInputStringSchemaType,
-  JobInputTelSchemaType,
-  JobInputTextareaSchemaType,
-  JobInputTextSchemaType,
-  JobInputTimeSchemaType,
-  JobInputUrlSchemaType,
-  JobInputWeekSchemaType,
-} from "./job-input";
-import {
-  JobInputFormIntlPath,
-  ValidJobInputFormatValues,
-  ValidJobInputTypes,
-  ValidJobInputValidationTypes,
-} from "./type";
+import { JobInputFormIntlPath } from "./type";
 
 export const makeZodSchemaFromJobInputSchema = (
-  jobInputSchema: JobInputSchemaType,
+  jobInputSchema: InputSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   switch (jobInputSchema.type) {
-    case ValidJobInputTypes.NONE:
+    case InputType.NONE:
       return z.never().nullable();
-    case ValidJobInputTypes.STRING:
+    case InputType.STRING:
       return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
-    case ValidJobInputTypes.TEXT:
+    case InputType.TEXT:
       return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case ValidJobInputTypes.TEXTAREA:
+    case InputType.TEXTAREA:
       return makeZodSchemaFromJobInputTextareaSchema(jobInputSchema, t);
-    case ValidJobInputTypes.NUMBER:
+    case InputType.NUMBER:
       return makeZodSchemaFromJobInputNumberSchema(jobInputSchema, t);
-    case ValidJobInputTypes.BOOLEAN:
+    case InputType.BOOLEAN:
       return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
-    case ValidJobInputTypes.EMAIL:
+    case InputType.EMAIL:
       return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case ValidJobInputTypes.PASSWORD:
+    case InputType.PASSWORD:
       return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case ValidJobInputTypes.TEL:
+    case InputType.TEL:
       return makeZodSchemaFromJobInputTelSchema(jobInputSchema, t);
-    case ValidJobInputTypes.URL:
+    case InputType.URL:
       return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case ValidJobInputTypes.DATE:
+    case InputType.DATE:
       return makeZodSchemaFromJobInputDateSchema(jobInputSchema, t);
-    case ValidJobInputTypes.DATETIME:
+    case InputType.DATETIME:
       return makeZodSchemaFromJobInputDatetimeSchema(jobInputSchema, t);
-    case ValidJobInputTypes.TIME:
+    case InputType.TIME:
       return makeZodSchemaFromJobInputTimeSchema(jobInputSchema, t);
-    case ValidJobInputTypes.MONTH:
+    case InputType.MONTH:
       return makeZodSchemaFromJobInputMonthSchema(jobInputSchema, t);
-    case ValidJobInputTypes.WEEK:
+    case InputType.WEEK:
       return makeZodSchemaFromJobInputWeekSchema(jobInputSchema, t);
-    case ValidJobInputTypes.COLOR:
+    case InputType.COLOR:
       return makeZodSchemaFromJobInputColorSchema(jobInputSchema, t);
-    case ValidJobInputTypes.RANGE:
+    case InputType.RANGE:
       return makeZodSchemaFromJobInputRangeSchema(jobInputSchema, t);
-    case ValidJobInputTypes.FILE:
+    case InputType.FILE:
       return makeZodSchemaFromJobInputFileSchema(jobInputSchema, t);
-    case ValidJobInputTypes.HIDDEN:
+    case InputType.HIDDEN:
       return z.string().optional();
-    case ValidJobInputTypes.SEARCH:
+    case InputType.SEARCH:
       return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case ValidJobInputTypes.CHECKBOX:
+    case InputType.CHECKBOX:
       return makeZodSchemaFromJobInputCheckboxSchema(jobInputSchema, t);
-    case ValidJobInputTypes.RADIO_GROUP:
-    case ValidJobInputTypes.OPTION:
-    case ValidJobInputTypes.MULTISELECT:
+    case InputType.RADIO_GROUP:
+    case InputType.OPTION:
+    case InputType.MULTISELECT:
       return makeZodSchemaFromJobInputOptionSchema(jobInputSchema, t);
   }
 };
 const makeZodSchemaFromJobInputColorSchema = (
-  jobInputColorSchema: JobInputColorSchemaType,
+  jobInputColorSchema: InputColorSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputColorSchema;
@@ -102,7 +102,7 @@ const makeZodSchemaFromJobInputColorSchema = (
 
   let canBeOptional = false;
   validations?.forEach(({ validation, value }) => {
-    if (validation === ValidJobInputValidationTypes.OPTIONAL)
+    if (validation === InputValidation.OPTIONAL)
       canBeOptional = value === "true";
   });
 
@@ -110,7 +110,7 @@ const makeZodSchemaFromJobInputColorSchema = (
 };
 
 const makeZodSchemaFromJobInputTextareaSchema = (
-  jobInputTextareaSchema: JobInputTextareaSchemaType,
+  jobInputTextareaSchema: InputTextareaSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputTextareaSchema;
@@ -123,24 +123,24 @@ const makeZodSchemaFromJobInputTextareaSchema = (
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         return acc.min(Number(value), {
           error: t?.("String.min", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         return acc.max(Number(value), {
           error: t?.("String.max", { name, value }),
         });
-      case ValidJobInputValidationTypes.FORMAT:
+      case InputValidation.FORMAT:
         switch (value) {
-          case ValidJobInputFormatValues.NON_EMPTY:
+          case InputFormat.NON_EMPTY:
             return acc.min(1, {
               error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
         }
-      case ValidJobInputValidationTypes.OPTIONAL:
+      case InputValidation.OPTIONAL:
         canBeOptional = value === "true";
         return acc;
     }
@@ -151,11 +151,11 @@ const makeZodSchemaFromJobInputTextareaSchema = (
 
 const makeZodSchemaFromJobInputTextSchema = (
   jobInputTextSchema:
-    | JobInputTextSchemaType
-    | JobInputPasswordSchemaType
-    | JobInputEmailSchemaType
-    | JobInputUrlSchemaType
-    | JobInputSearchSchemaType,
+    | InputTextSchemaType
+    | InputPasswordSchemaType
+    | InputEmailSchemaType
+    | InputUrlSchemaType
+    | InputSearchSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputTextSchema;
@@ -168,32 +168,32 @@ const makeZodSchemaFromJobInputTextSchema = (
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         return acc.min(Number(value), {
           error: t?.("String.min", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         return acc.max(Number(value), {
           error: t?.("String.max", { name, value }),
         });
-      case ValidJobInputValidationTypes.FORMAT:
+      case InputValidation.FORMAT:
         switch (value) {
-          case ValidJobInputFormatValues.URL:
+          case InputFormat.URL:
             return acc.url({
               error: t?.("String.format", { name, value }),
             });
-          case ValidJobInputFormatValues.EMAIL:
+          case InputFormat.EMAIL:
             return acc.email({
               error: t?.("String.format", { name, value }),
             });
-          case ValidJobInputFormatValues.NON_EMPTY:
+          case InputFormat.NON_EMPTY:
             return acc.min(1, {
               error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
         }
-      case ValidJobInputValidationTypes.OPTIONAL:
+      case InputValidation.OPTIONAL:
         canBeOptional = value === "true";
         return acc;
     }
@@ -203,7 +203,7 @@ const makeZodSchemaFromJobInputTextSchema = (
 };
 
 const makeZodSchemaFromJobInputStringSchema = (
-  jobInputStringSchema: JobInputStringSchemaType,
+  jobInputStringSchema: InputStringSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputStringSchema;
@@ -216,32 +216,32 @@ const makeZodSchemaFromJobInputStringSchema = (
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         return acc.min(Number(value), {
           error: t?.("String.min", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         return acc.max(Number(value), {
           error: t?.("String.max", { name, value }),
         });
-      case ValidJobInputValidationTypes.FORMAT:
+      case InputValidation.FORMAT:
         switch (value) {
-          case ValidJobInputFormatValues.URL:
+          case InputFormat.URL:
             return acc.url({
               error: t?.("String.format", { name, value }),
             });
-          case ValidJobInputFormatValues.EMAIL:
+          case InputFormat.EMAIL:
             return acc.email({
               error: t?.("String.format", { name, value }),
             });
-          case ValidJobInputFormatValues.NON_EMPTY:
+          case InputFormat.NON_EMPTY:
             return acc.min(1, {
               error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
         }
-      case ValidJobInputValidationTypes.OPTIONAL:
+      case InputValidation.OPTIONAL:
         canBeOptional = value === "true";
         return acc;
     }
@@ -251,7 +251,7 @@ const makeZodSchemaFromJobInputStringSchema = (
 };
 
 const makeZodSchemaFromJobInputTelSchema = (
-  jobInputTelSchema: JobInputTelSchemaType,
+  jobInputTelSchema: InputTelSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputTelSchema;
@@ -267,18 +267,18 @@ const makeZodSchemaFromJobInputTelSchema = (
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         min = Number(value);
         return acc;
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         max = Number(value);
         return acc;
-      case ValidJobInputValidationTypes.FORMAT:
+      case InputValidation.FORMAT:
         // Only one allowed value for tel format for now
         return acc.regex(telRegex, {
           error: t?.("String.format", { name, value: "tel" }),
         });
-      case ValidJobInputValidationTypes.OPTIONAL:
+      case InputValidation.OPTIONAL:
         canBeOptional = value === "true";
         return acc;
     }
@@ -298,7 +298,7 @@ const makeZodSchemaFromJobInputTelSchema = (
 };
 
 const makeZodSchemaFromJobInputNumberSchema = (
-  jobInputNumberSchema: JobInputNumberSchemaType,
+  jobInputNumberSchema: InputNumberSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputNumberSchema;
@@ -311,24 +311,24 @@ const makeZodSchemaFromJobInputNumberSchema = (
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         return acc.min(Number(value), {
           error: t?.("Number.min", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         return acc.max(Number(value), {
           error: t?.("Number.max", { name, value }),
         });
-      case ValidJobInputValidationTypes.FORMAT:
+      case InputValidation.FORMAT:
         switch (value) {
-          case ValidJobInputFormatValues.INTEGER:
+          case InputFormat.INTEGER:
             return acc.int({
               error: t?.("Number.format", { name, value }),
             });
           default:
             return acc;
         }
-      case ValidJobInputValidationTypes.OPTIONAL:
+      case InputValidation.OPTIONAL:
         canBeOptional = value === "true";
         return acc;
     }
@@ -342,7 +342,7 @@ const makeZodSchemaFromJobInputNumberSchema = (
 // for UI, we will set default to `false`
 // so undefined is not the case
 const makeZodSchemaFromJobInputBooleanSchema = (
-  jobInputSchema: JobInputBooleanSchemaType,
+  jobInputSchema: InputBooleanSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name } = jobInputSchema;
@@ -353,7 +353,7 @@ const makeZodSchemaFromJobInputBooleanSchema = (
 
 // Single checkbox behaves like boolean, but allows default in data
 const makeZodSchemaFromJobInputCheckboxSchema = (
-  jobInputSchema: JobInputCheckboxSchemaType,
+  jobInputSchema: InputCheckboxSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name } = jobInputSchema;
@@ -364,9 +364,9 @@ const makeZodSchemaFromJobInputCheckboxSchema = (
 
 const makeZodSchemaFromJobInputOptionSchema = (
   jobInputOptionSchema:
-    | JobInputOptionSchemaType
-    | JobInputMultiselectSchemaType
-    | JobInputRadioGroupSchemaType,
+    | InputOptionSchemaType
+    | InputMultiselectSchemaType
+    | InputRadioGroupSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const {
@@ -393,15 +393,15 @@ const makeZodSchemaFromJobInputOptionSchema = (
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         return acc.min(Number(value), {
           error: t?.("Option.min", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         return acc.max(Number(value), {
           error: t?.("Option.max", { name, value }),
         });
-      case ValidJobInputValidationTypes.OPTIONAL:
+      case InputValidation.OPTIONAL:
         canBeOptional = value === "true";
         return acc;
     }
@@ -411,7 +411,7 @@ const makeZodSchemaFromJobInputOptionSchema = (
 };
 
 const makeZodSchemaFromJobInputFileSchema = (
-  jobInputFileSchema: JobInputFileSchemaType,
+  jobInputFileSchema: InputFileSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputFileSchema;
@@ -422,18 +422,18 @@ const makeZodSchemaFromJobInputFileSchema = (
   const schema = validations?.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         return acc.min(Number(value), {
           error: t?.("Number.min", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         return acc.max(Number(value), {
           error: t?.("Number.max", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX_SIZE:
+      case InputValidation.MAX_SIZE:
         maxSize = Number(value);
         return acc;
-      case ValidJobInputValidationTypes.ACCEPT:
+      case InputValidation.ACCEPT:
         return acc;
     }
   }, defaultSchema);
@@ -451,7 +451,7 @@ const makeZodSchemaFromJobInputFileSchema = (
 
 // New builders
 const makeZodSchemaFromJobInputDateSchema = (
-  jobInputSchema: JobInputDateSchemaType,
+  jobInputSchema: InputDateSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputSchema;
@@ -461,11 +461,11 @@ const makeZodSchemaFromJobInputDateSchema = (
 
   if (validations) {
     validations.forEach(({ validation, value }) => {
-      if (validation === ValidJobInputValidationTypes.OPTIONAL)
+      if (validation === InputValidation.OPTIONAL)
         canBeOptional = value === "true";
-      if (validation === ValidJobInputValidationTypes.MIN)
+      if (validation === InputValidation.MIN)
         minDate = typeof value === "number" ? new Date(value) : new Date(value);
-      if (validation === ValidJobInputValidationTypes.MAX)
+      if (validation === InputValidation.MAX)
         maxDate = typeof value === "number" ? new Date(value) : new Date(value);
     });
   }
@@ -483,7 +483,7 @@ const makeZodSchemaFromJobInputDateSchema = (
 };
 
 const makeZodSchemaFromJobInputDatetimeSchema = (
-  jobInputSchema: JobInputDatetimeSchemaType,
+  jobInputSchema: InputDatetimeSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputSchema;
@@ -493,11 +493,11 @@ const makeZodSchemaFromJobInputDatetimeSchema = (
 
   if (validations) {
     validations.forEach(({ validation, value }) => {
-      if (validation === ValidJobInputValidationTypes.OPTIONAL)
+      if (validation === InputValidation.OPTIONAL)
         canBeOptional = value === "true";
-      if (validation === ValidJobInputValidationTypes.MIN)
+      if (validation === InputValidation.MIN)
         minDate = typeof value === "number" ? new Date(value) : new Date(value);
-      if (validation === ValidJobInputValidationTypes.MAX)
+      if (validation === InputValidation.MAX)
         maxDate = typeof value === "number" ? new Date(value) : new Date(value);
     });
   }
@@ -515,7 +515,7 @@ const makeZodSchemaFromJobInputDatetimeSchema = (
 };
 
 const makeZodSchemaFromJobInputMonthSchema = (
-  jobInputSchema: JobInputMonthSchemaType,
+  jobInputSchema: InputMonthSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputSchema;
@@ -524,10 +524,10 @@ const makeZodSchemaFromJobInputMonthSchema = (
   let max: string | undefined;
 
   validations?.forEach(({ validation, value }) => {
-    if (validation === ValidJobInputValidationTypes.OPTIONAL)
+    if (validation === InputValidation.OPTIONAL)
       canBeOptional = value === "true";
-    if (validation === ValidJobInputValidationTypes.MIN) min = String(value);
-    if (validation === ValidJobInputValidationTypes.MAX) max = String(value);
+    if (validation === InputValidation.MIN) min = String(value);
+    if (validation === InputValidation.MAX) max = String(value);
   });
 
   let schema = z
@@ -562,7 +562,7 @@ const makeZodSchemaFromJobInputMonthSchema = (
 };
 
 const makeZodSchemaFromJobInputWeekSchema = (
-  jobInputSchema: JobInputWeekSchemaType,
+  jobInputSchema: InputWeekSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputSchema;
@@ -571,10 +571,10 @@ const makeZodSchemaFromJobInputWeekSchema = (
   let max: string | undefined;
 
   validations?.forEach(({ validation, value }) => {
-    if (validation === ValidJobInputValidationTypes.OPTIONAL)
+    if (validation === InputValidation.OPTIONAL)
       canBeOptional = value === "true";
-    if (validation === ValidJobInputValidationTypes.MIN) min = String(value);
-    if (validation === ValidJobInputValidationTypes.MAX) max = String(value);
+    if (validation === InputValidation.MIN) min = String(value);
+    if (validation === InputValidation.MAX) max = String(value);
   });
 
   // HTML week input format: YYYY-Www (ISO week)
@@ -610,7 +610,7 @@ const makeZodSchemaFromJobInputWeekSchema = (
 };
 
 const makeZodSchemaFromJobInputTimeSchema = (
-  jobInputSchema: JobInputTimeSchemaType,
+  jobInputSchema: InputTimeSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputSchema;
@@ -639,14 +639,14 @@ const makeZodSchemaFromJobInputTimeSchema = (
 
   if (validations) {
     validations.forEach(({ validation, value }) => {
-      if (validation === ValidJobInputValidationTypes.OPTIONAL)
+      if (validation === InputValidation.OPTIONAL)
         canBeOptional = value === "true";
-      if (validation === ValidJobInputValidationTypes.MIN) {
+      if (validation === InputValidation.MIN) {
         const v = value.toString();
         minMinutes = toMinutes(v);
         minHours = /^\d+$/.test(v) ? toHHmm(Number(v)) : v;
       }
-      if (validation === ValidJobInputValidationTypes.MAX) {
+      if (validation === InputValidation.MAX) {
         const v = value.toString();
         maxMinutes = toMinutes(v);
         maxHours = /^\d+$/.test(v) ? toHHmm(Number(v)) : v;
@@ -673,7 +673,7 @@ const makeZodSchemaFromJobInputTimeSchema = (
 };
 
 const makeZodSchemaFromJobInputRangeSchema = (
-  jobInputSchema: JobInputRangeSchemaType,
+  jobInputSchema: InputRangeSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputSchema;
@@ -689,15 +689,15 @@ const makeZodSchemaFromJobInputRangeSchema = (
   const schema = (validations ?? []).reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
-      case ValidJobInputValidationTypes.MIN:
+      case InputValidation.MIN:
         return acc.min(Number(value), {
           error: t?.("Number.min", { name, value }),
         });
-      case ValidJobInputValidationTypes.MAX:
+      case InputValidation.MAX:
         return acc.max(Number(value), {
           error: t?.("Number.max", { name, value }),
         });
-      case ValidJobInputValidationTypes.OPTIONAL:
+      case InputValidation.OPTIONAL:
         canBeOptional = value === "true";
         return acc;
       default:
@@ -711,7 +711,7 @@ const makeZodSchemaFromJobInputRangeSchema = (
           (v) => {
             const min = Number(
               (validations ?? []).find(
-                (v) => v.validation === ValidJobInputValidationTypes.MIN,
+                (v) => v.validation === InputValidation.MIN,
               )?.value ?? 0,
             );
             const num = Number(v);

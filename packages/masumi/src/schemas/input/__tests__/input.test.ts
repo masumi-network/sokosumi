@@ -1,37 +1,32 @@
-/* eslint-disable simple-import-sort/imports */
 import {
-  JobInputCheckboxSchemaType,
-  JobInputColorSchemaType,
-  JobInputDateSchemaType,
-  JobInputDatetimeSchemaType,
-  JobInputEmailSchemaType,
-  JobInputHiddenSchemaType,
-  JobInputMonthSchemaType,
-  JobInputMultiselectSchemaType,
-  JobInputPasswordSchemaType,
-  JobInputRadioGroupSchemaType,
-  JobInputRangeSchemaType,
-  JobInputSearchSchemaType,
-  JobInputTimeSchemaType,
-  JobInputUrlSchemaType,
-  JobInputWeekSchemaType,
-  jobInputDataSchema,
-} from "@/lib/job-input/job-input";
+  InputFormat,
+  InputType,
+  InputValidation,
+} from "../../../types/input-types.js";
 import {
-  ValidJobInputFormatValues,
-  ValidJobInputTypes,
-  ValidJobInputValidationTypes,
-} from "@/lib/job-input/type";
+  InputCheckboxSchemaType,
+  InputColorSchemaType,
+  inputDataSchema,
+  InputDateSchemaType,
+  InputDatetimeSchemaType,
+  InputEmailSchemaType,
+  InputHiddenSchemaType,
+  InputMonthSchemaType,
+  InputMultiselectSchemaType,
+  InputPasswordSchemaType,
+  InputRadioGroupSchemaType,
+  InputRangeSchemaType,
+  InputSearchSchemaType,
+  InputTimeSchemaType,
+  InputUrlSchemaType,
+  InputWeekSchemaType,
+} from "../input.schema.js";
 
-describe("jobInputSchema", () => {
-  // Since we're only testing the schema validation logic,
-  // we can use undefined for all translation messages
-  const mockT = undefined;
-
+describe("inputDataSchema", () => {
   describe("String input type", () => {
     const validStringInput = {
       id: "test-id",
-      type: ValidJobInputTypes.STRING,
+      type: InputType.STRING,
       name: "Test String Input",
       data: {
         placeholder: "Enter text",
@@ -40,14 +35,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid string input", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validStringInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should fail with empty id", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -59,7 +54,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with empty name", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -71,7 +66,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -83,7 +78,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should not fail with empty validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validStringInput,
@@ -95,16 +90,19 @@ describe("jobInputSchema", () => {
     });
 
     it("should not fail with valid validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validStringInput,
             validations: [
-              { validation: "min", value: "10" },
-              { validation: "max", value: "100" },
-              { validation: "format", value: "nonempty" },
-              { validation: "format", value: "url" },
-              { validation: "format", value: "email" },
+              { validation: InputValidation.MIN, value: "10" },
+              { validation: InputValidation.MAX, value: "100" },
+              {
+                validation: InputValidation.FORMAT,
+                value: InputFormat.NON_EMPTY,
+              },
+              { validation: InputValidation.FORMAT, value: InputFormat.URL },
+              { validation: InputValidation.FORMAT, value: InputFormat.EMAIL },
             ],
           },
         ],
@@ -113,11 +111,16 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validStringInput,
-            validations: [{ validation: "format", value: "integer" }],
+            validations: [
+              {
+                validation: InputValidation.FORMAT,
+                value: InputFormat.INTEGER,
+              },
+            ],
           },
         ],
       });
@@ -128,7 +131,7 @@ describe("jobInputSchema", () => {
   describe("Number input type", () => {
     const validNumberInput = {
       id: "number-id",
-      type: ValidJobInputTypes.NUMBER,
+      type: InputType.NUMBER,
       name: "Test Number Input",
       data: {
         placeholder: "Enter number",
@@ -137,14 +140,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid number input", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validNumberInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validNumberInput,
@@ -156,14 +159,17 @@ describe("jobInputSchema", () => {
     });
 
     it("should accept number input with validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validNumberInput,
             validations: [
-              { validation: "min", value: "0" },
-              { validation: "max", value: "100" },
-              { validation: "format", value: "integer" },
+              { validation: InputValidation.MIN, value: "0" },
+              { validation: InputValidation.MAX, value: "100" },
+              {
+                validation: InputValidation.FORMAT,
+                value: InputFormat.INTEGER,
+              },
             ],
           },
         ],
@@ -172,11 +178,13 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validNumberInput,
-            validations: [{ validation: "format", value: "url" }],
+            validations: [
+              { validation: InputValidation.FORMAT, value: InputFormat.URL },
+            ],
           },
         ],
       });
@@ -187,7 +195,7 @@ describe("jobInputSchema", () => {
   describe("Boolean input type", () => {
     const validBooleanInput = {
       id: "boolean-id",
-      type: ValidJobInputTypes.BOOLEAN,
+      type: InputType.BOOLEAN,
       name: "Test Boolean Input",
       data: {
         description: "Test boolean description",
@@ -195,14 +203,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid boolean input", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validBooleanInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validBooleanInput,
@@ -214,11 +222,13 @@ describe("jobInputSchema", () => {
     });
 
     it("should accept boolean input with optional validation", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validBooleanInput,
-            validations: [{ validation: "optional", value: "true" }],
+            validations: [
+              { validation: InputValidation.OPTIONAL, value: "true" },
+            ],
           },
         ],
       });
@@ -226,11 +236,13 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validBooleanInput,
-            validations: [{ validation: "format", value: "url" }],
+            validations: [
+              { validation: InputValidation.FORMAT, value: InputFormat.URL },
+            ],
           },
         ],
       });
@@ -241,7 +253,7 @@ describe("jobInputSchema", () => {
   describe("Option input type", () => {
     const validOptionInput = {
       id: "option-id",
-      type: ValidJobInputTypes.OPTION,
+      type: InputType.OPTION,
       name: "Test Option Input",
       data: {
         values: ["option1", "option2", "option3"],
@@ -250,14 +262,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid option input", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validOptionInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should fail with undefined data", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -269,7 +281,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with empty values array", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -284,7 +296,7 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with empty value in values array", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validOptionInput,
@@ -299,14 +311,14 @@ describe("jobInputSchema", () => {
     });
 
     it("should succeed with valid validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validOptionInput,
             validations: [
-              { validation: "min", value: "2" },
-              { validation: "max", value: "4" },
-              { validation: "optional", value: "true" },
+              { validation: InputValidation.MIN, value: "2" },
+              { validation: InputValidation.MAX, value: "4" },
+              { validation: InputValidation.OPTIONAL, value: "true" },
             ],
           },
         ],
@@ -315,34 +327,46 @@ describe("jobInputSchema", () => {
     });
 
     it("should fail with invalid validations", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validOptionInput,
-            validations: [{ validation: "format", value: "url" }],
+            validations: [
+              { validation: InputValidation.FORMAT, value: InputFormat.URL },
+            ],
           },
         ],
       });
       expect(result.success).toBe(false);
     });
+
     it("should fail with invalid optional", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
-        ...validOptionInput,
-        validations: [
-          { validation: "min", value: "2" },
-          { validation: "max", value: "4" },
-          { validation: "optional", value: "" },
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validOptionInput,
+            validations: [
+              { validation: InputValidation.MIN, value: "2" },
+              { validation: InputValidation.MAX, value: "4" },
+              { validation: InputValidation.OPTIONAL, value: "" },
+            ],
+          },
         ],
       });
       expect(result.success).toBe(false);
     });
-    it("should fail with invalid optional", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
-        ...validOptionInput,
-        validations: [
-          { validation: "min", value: "2" },
-          { validation: "max", value: "4" },
-          { validation: "optional" },
+
+    it("should fail with invalid optional missing value", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validOptionInput,
+            validations: [
+              { validation: InputValidation.MIN, value: "2" },
+              { validation: InputValidation.MAX, value: "4" },
+              { validation: InputValidation.OPTIONAL },
+            ],
+          },
         ],
       });
       expect(result.success).toBe(false);
@@ -352,7 +376,7 @@ describe("jobInputSchema", () => {
   describe("None input type", () => {
     const validNoneInput = {
       id: "none-id",
-      type: ValidJobInputTypes.NONE,
+      type: InputType.NONE,
       name: "Test None Input",
       data: {
         description: "Test none description",
@@ -360,14 +384,14 @@ describe("jobInputSchema", () => {
     };
 
     it("should validate a valid none input", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validNoneInput],
       });
       expect(result.success).toBe(true);
     });
 
     it("should not fail with undefined data", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [
           {
             ...validNoneInput,
@@ -379,22 +403,19 @@ describe("jobInputSchema", () => {
     });
   });
 
-  // New: Date/Datetime/Time/Range/MultiSelect/CheckboxGroup/RadioGroup
   describe("Date input type", () => {
-    const validDate: JobInputDateSchemaType = {
+    const validDate: InputDateSchemaType = {
       id: "date-id",
-      type: ValidJobInputTypes.DATE,
+      type: InputType.DATE,
       name: "Date",
       data: {
         placeholder: "Pick a date",
       },
-      validations: [
-        { validation: ValidJobInputValidationTypes.MIN, value: "0" },
-      ],
+      validations: [{ validation: InputValidation.MIN, value: "0" }],
     };
 
     it("should validate date with min timestamp", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validDate],
       });
       expect(result.success).toBe(true);
@@ -402,18 +423,18 @@ describe("jobInputSchema", () => {
   });
 
   describe("Datetime input type", () => {
-    const validDatetime: JobInputDatetimeSchemaType = {
+    const validDatetime: InputDatetimeSchemaType = {
       id: "dt-id",
-      type: ValidJobInputTypes.DATETIME,
+      type: InputType.DATETIME,
       name: "Datetime",
       validations: [
-        { validation: ValidJobInputValidationTypes.MIN, value: "0" },
-        { validation: ValidJobInputValidationTypes.OPTIONAL, value: "true" },
+        { validation: InputValidation.MIN, value: "0" },
+        { validation: InputValidation.OPTIONAL, value: "true" },
       ],
     };
 
     it("should validate datetime with optional", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validDatetime],
       });
       expect(result.success).toBe(true);
@@ -421,18 +442,18 @@ describe("jobInputSchema", () => {
   });
 
   describe("Time input type", () => {
-    const validTime: JobInputTimeSchemaType = {
+    const validTime: InputTimeSchemaType = {
       id: "time-id",
-      type: ValidJobInputTypes.TIME,
+      type: InputType.TIME,
       name: "Time",
       validations: [
-        { validation: ValidJobInputValidationTypes.MIN, value: "0" },
-        { validation: ValidJobInputValidationTypes.MAX, value: "1439" },
+        { validation: InputValidation.MIN, value: "0" },
+        { validation: InputValidation.MAX, value: "1439" },
       ],
     };
 
     it("should validate basic time schema definition", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validTime],
       });
       expect(result.success).toBe(true);
@@ -440,19 +461,19 @@ describe("jobInputSchema", () => {
   });
 
   describe("Range input type", () => {
-    const validRange: JobInputRangeSchemaType = {
+    const validRange: InputRangeSchemaType = {
       id: "range-id",
-      type: ValidJobInputTypes.RANGE,
+      type: InputType.RANGE,
       name: "Range",
       data: { step: 2, default: 4, description: "0-10" },
       validations: [
-        { validation: ValidJobInputValidationTypes.MIN, value: "0" },
-        { validation: ValidJobInputValidationTypes.MAX, value: "10" },
+        { validation: InputValidation.MIN, value: "0" },
+        { validation: InputValidation.MAX, value: "10" },
       ],
     };
 
     it("should validate range schema with step", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [validRange],
       });
       expect(result.success).toBe(true);
@@ -460,67 +481,68 @@ describe("jobInputSchema", () => {
   });
 
   describe("Multiselect input type", () => {
-    const ms: JobInputMultiselectSchemaType = {
+    const ms: InputMultiselectSchemaType = {
       id: "ms-id",
-      type: ValidJobInputTypes.MULTISELECT,
+      type: InputType.MULTISELECT,
       name: "MS",
       data: { values: ["a", "b"] },
       validations: [
-        { validation: ValidJobInputValidationTypes.MIN, value: "1" },
-        { validation: ValidJobInputValidationTypes.MAX, value: "2" },
+        { validation: InputValidation.MIN, value: "1" },
+        { validation: InputValidation.MAX, value: "2" },
       ],
     };
+
     it("should validate multiselect schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({ input_data: [ms] });
+      const result = inputDataSchema.safeParse({ input_data: [ms] });
       expect(result.success).toBe(true);
     });
   });
 
   describe("Checkbox input type", () => {
-    const cb: JobInputCheckboxSchemaType = {
+    const cb: InputCheckboxSchemaType = {
       id: "cb-id",
-      type: ValidJobInputTypes.CHECKBOX,
+      type: InputType.CHECKBOX,
       name: "Terms and Conditions",
       data: { description: "I agree to the terms", default: false },
-      validations: [
-        { validation: ValidJobInputValidationTypes.OPTIONAL, value: "true" },
-      ],
+      validations: [{ validation: InputValidation.OPTIONAL, value: "true" }],
     };
+
     it("should validate checkbox schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({ input_data: [cb] });
+      const result = inputDataSchema.safeParse({ input_data: [cb] });
       expect(result.success).toBe(true);
     });
   });
 
   describe("Radio group input type", () => {
-    const rg: JobInputRadioGroupSchemaType = {
+    const rg: InputRadioGroupSchemaType = {
       id: "rg-id",
-      type: ValidJobInputTypes.RADIO_GROUP,
+      type: InputType.RADIO_GROUP,
       name: "RG",
       data: { values: ["a", "b"] },
     };
+
     it("should validate radio group schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({ input_data: [rg] });
+      const result = inputDataSchema.safeParse({ input_data: [rg] });
       expect(result.success).toBe(true);
     });
   });
 
   describe("Password input type", () => {
-    const passwordInput: JobInputPasswordSchemaType = {
+    const passwordInput: InputPasswordSchemaType = {
       id: "pwd-id",
-      type: ValidJobInputTypes.PASSWORD,
+      type: InputType.PASSWORD,
       name: "Password",
       data: {
         description: "Minimum 8 characters",
       },
       validations: [
-        { validation: ValidJobInputValidationTypes.MIN, value: "8" },
-        { validation: ValidJobInputValidationTypes.MAX, value: "128" },
+        { validation: InputValidation.MIN, value: "8" },
+        { validation: InputValidation.MAX, value: "128" },
       ],
     };
 
     it("should validate password input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [passwordInput],
       });
       expect(result.success).toBe(true);
@@ -528,21 +550,21 @@ describe("jobInputSchema", () => {
   });
 
   describe("Email input type", () => {
-    const emailInput: JobInputEmailSchemaType = {
+    const emailInput: InputEmailSchemaType = {
       id: "email-id",
-      type: ValidJobInputTypes.EMAIL,
+      type: InputType.EMAIL,
       name: "Email",
       data: { description: "Enter your email" },
       validations: [
         {
-          validation: ValidJobInputValidationTypes.FORMAT,
-          value: ValidJobInputFormatValues.EMAIL,
+          validation: InputValidation.FORMAT,
+          value: InputFormat.EMAIL,
         },
       ],
     };
 
     it("should validate email input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [emailInput],
       });
       expect(result.success).toBe(true);
@@ -550,21 +572,21 @@ describe("jobInputSchema", () => {
   });
 
   describe("URL input type", () => {
-    const urlInput: JobInputUrlSchemaType = {
+    const urlInput: InputUrlSchemaType = {
       id: "url-id",
-      type: ValidJobInputTypes.URL,
+      type: InputType.URL,
       name: "Website",
       data: { description: "Enter a valid URL" },
       validations: [
         {
-          validation: ValidJobInputValidationTypes.FORMAT,
-          value: ValidJobInputFormatValues.URL,
+          validation: InputValidation.FORMAT,
+          value: InputFormat.URL,
         },
       ],
     };
 
     it("should validate url input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [urlInput],
       });
       expect(result.success).toBe(true);
@@ -572,18 +594,16 @@ describe("jobInputSchema", () => {
   });
 
   describe("Color input type", () => {
-    const colorInput: JobInputColorSchemaType = {
+    const colorInput: InputColorSchemaType = {
       id: "color-id",
-      type: ValidJobInputTypes.COLOR,
+      type: InputType.COLOR,
       name: "Theme Color",
       data: { default: "#1a73e8", description: "Choose your preferred color" },
-      validations: [
-        { validation: ValidJobInputValidationTypes.OPTIONAL, value: "true" },
-      ],
+      validations: [{ validation: InputValidation.OPTIONAL, value: "true" }],
     };
 
     it("should validate color input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [colorInput],
       });
       expect(result.success).toBe(true);
@@ -591,18 +611,16 @@ describe("jobInputSchema", () => {
   });
 
   describe("Month input type", () => {
-    const monthInput: JobInputMonthSchemaType = {
+    const monthInput: InputMonthSchemaType = {
       id: "month-id",
-      type: ValidJobInputTypes.MONTH,
+      type: InputType.MONTH,
       name: "Month",
       data: { placeholder: "YYYY-MM" },
-      validations: [
-        { validation: ValidJobInputValidationTypes.OPTIONAL, value: "true" },
-      ],
+      validations: [{ validation: InputValidation.OPTIONAL, value: "true" }],
     };
 
     it("should validate month input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [monthInput],
       });
       expect(result.success).toBe(true);
@@ -610,15 +628,15 @@ describe("jobInputSchema", () => {
   });
 
   describe("Week input type", () => {
-    const weekInput: JobInputWeekSchemaType = {
+    const weekInput: InputWeekSchemaType = {
       id: "week-id",
-      type: ValidJobInputTypes.WEEK,
+      type: InputType.WEEK,
       name: "Week",
       data: { placeholder: "YYYY-Www" },
     };
 
     it("should validate week input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [weekInput],
       });
       expect(result.success).toBe(true);
@@ -626,20 +644,20 @@ describe("jobInputSchema", () => {
   });
 
   describe("Search input type", () => {
-    const searchInput: JobInputSearchSchemaType = {
+    const searchInput: InputSearchSchemaType = {
       id: "search-id",
-      type: ValidJobInputTypes.SEARCH,
+      type: InputType.SEARCH,
       name: "Search",
       validations: [
         {
-          validation: ValidJobInputValidationTypes.FORMAT,
-          value: ValidJobInputFormatValues.NON_EMPTY,
+          validation: InputValidation.FORMAT,
+          value: InputFormat.NON_EMPTY,
         },
       ],
     };
 
     it("should validate search input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [searchInput],
       });
       expect(result.success).toBe(true);
@@ -647,15 +665,15 @@ describe("jobInputSchema", () => {
   });
 
   describe("Hidden input type", () => {
-    const hiddenInput: JobInputHiddenSchemaType = {
+    const hiddenInput: InputHiddenSchemaType = {
       id: "hidden-id",
-      type: ValidJobInputTypes.HIDDEN,
+      type: InputType.HIDDEN,
       name: "Hidden",
       data: { value: "static" },
     };
 
     it("should validate hidden input schema", () => {
-      const result = jobInputDataSchema(mockT).safeParse({
+      const result = inputDataSchema.safeParse({
         input_data: [hiddenInput],
       });
       expect(result.success).toBe(true);

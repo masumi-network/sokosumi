@@ -1,5 +1,5 @@
 "use client";
-import { JobShare, JobWithStatus } from "@sokosumi/database";
+import { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
 import { Check, Copy, Globe, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 interface JobShareModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
   activeOrganizationId?: string | null;
 }
 

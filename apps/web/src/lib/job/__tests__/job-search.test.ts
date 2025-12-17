@@ -5,18 +5,17 @@ import {
   NextJobAction,
   AgentJobStatus,
   SokosumiJobStatus,
+  JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { jobMatchesQuery } from "@/lib/job/job-search";
 
 describe("Job search functionality", () => {
-  const mockJob: JobWithStatus = {
+  const mockJob: JobWithSokosumiStatus = {
     id: "job-1",
     name: "Test Job",
     agentId: "agent-1",
     createdAt: new Date(),
     updatedAt: new Date(),
-    input: JSON.stringify({ query: "hello world" }),
-    result: JSON.stringify({ result: "Hello World Response" }),
     links: [
       {
         title: "Example",
@@ -47,7 +46,7 @@ describe("Job search functionality", () => {
       errorNote: null,
       errorNoteKey: null,
     },
-    events: [
+    statuses: [
       {
         id: "event-1",
         createdAt: new Date(),
@@ -79,7 +78,7 @@ describe("Job search functionality", () => {
     userId: "user-1",
     blobs: [],
     share: null,
-  } as unknown as JobWithStatus;
+  } as unknown as JobWithSokosumiStatus;
 
   it("should return true when no query is provided", () => {
     expect(jobMatchesQuery(mockJob, "")).toBe(true);
@@ -116,8 +115,21 @@ describe("Job search functionality", () => {
   it("should handle malformed JSON gracefully", () => {
     const jobWithBadJson = {
       ...mockJob,
-      input: "invalid json",
-      output: "also invalid",
+      statuses: [
+        {
+          id: "event-bad",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          status: AgentJobStatus.AWAITING_PAYMENT,
+          input: "invalid json",
+          result: "also invalid",
+          inputHash: null,
+          inputSchema: null,
+          jobId: "job-1",
+          externalId: "external-bad",
+          signature: null,
+        },
+      ],
     };
 
     expect(jobMatchesQuery(jobWithBadJson, "Test")).toBe(true); // Should still match name

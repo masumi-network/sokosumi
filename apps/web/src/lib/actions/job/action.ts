@@ -1,7 +1,12 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { JobShare, PaidJobWithStatus } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobShare,
+  JobStatusWithRelations,
+  PaidJobWithStatus,
+} from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   jobRepository,
@@ -35,8 +40,7 @@ import {
 
 import {
   handleInputDataFileUploads,
-  saveUploadedFilesForInput,
-  saveUploadedFilesForJob,
+  saveUploadedFilesForJobStatus,
   type UploadedFileWithMeta,
 } from "./utils";
 
@@ -154,15 +158,18 @@ export const startJob = withAuthContext<
 
       const job = await jobService.startJob(parsed);
 
-      // Save files uploaded if any
-      const jobStatus = job.statuses[0] ?? null;
-
-      if (!jobStatus) {
-        throw new Error("Input event not found");
-      }
-
       if (uploadedFiles.length > 0) {
-        await saveUploadedFilesForJob(userId, job.id, uploadedFiles);
+        const initiatedStatus = job.statuses.find(
+          (event: JobStatusWithRelations) =>
+            event.status === AgentJobStatus.INITIATED,
+        );
+        if (initiatedStatus) {
+          await saveUploadedFilesForJobStatus(
+            userId,
+            initiatedStatus.id,
+            uploadedFiles,
+          );
+        }
       }
 
       // Add success breadcrumb
@@ -313,7 +320,7 @@ export const provideJobInput = withAuthContext<
       });
 
       // Call service to provide job input
-      const { job, input: jobInput } = await jobService.provideJobInput({
+      const job = await jobService.provideJobInput({
         jobId,
         statusId,
         userId,
@@ -322,7 +329,7 @@ export const provideJobInput = withAuthContext<
 
       // Save uploaded files
       if (uploadedFiles.length > 0) {
-        await saveUploadedFilesForInput(userId, jobInput.id, uploadedFiles);
+        await saveUploadedFilesForJobStatus(userId, statusId, uploadedFiles);
       }
 
       // Add success breadcrumb
@@ -340,7 +347,6 @@ export const provideJobInput = withAuthContext<
       revalidatePath(`/agents/${job.agentId}/jobs/${job.id}`, "layout");
       return Ok({ jobId: job.id });
     } catch (error) {
-      console.error("Failed to provide job input", error);
       scope.setTag("error_type", "job_input_submission_error");
       scope.setContext("error", {
         message: error instanceof Error ? error.message : String(error),

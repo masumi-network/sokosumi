@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { ChannelProvider } from "ably/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -16,7 +16,7 @@ import { getJobColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
 
 interface JobsTableProps {
-  jobs: JobWithStatus[];
+  jobs: JobWithSokosumiStatus[];
   userId: string;
 }
 
@@ -30,25 +30,26 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const [routerLoading, setRouterLoading] = useState(false);
 
   // Managed by JobsSearch
-  const [filteredJobs, setFilteredJobs] = useState<JobWithStatus[]>(jobs);
+  const [filteredJobs, setFilteredJobs] =
+    useState<JobWithSokosumiStatus[]>(jobs);
   const [queryParam] = useQueryState("query", { defaultValue: "" });
 
-  const handleRowClick = async (row: JobWithStatus) => {
+  const handleRowClick = async (row: JobWithSokosumiStatus) => {
     setRouterLoading(true);
     const qs = searchParams?.toString();
-    const base = `/agents/${row.agentId}/jobs/${row.id}`;
+    const base = `/agents/${row.agent.id}/jobs/${row.id}`;
     const href = qs ? `${base}?${qs}` : base;
     router.push(href);
     setRouterLoading(false);
   };
 
-  const getRowClassName = (row: JobWithStatus) =>
+  const getRowClassName = (row: JobWithSokosumiStatus) =>
     cn({
       "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
         params.jobId === row.id,
       "text-foreground active:bg-muted hover:bg-muted": params.jobId !== row.id,
     });
-  const getOnRowClick = (row: JobWithStatus) => async () => {
+  const getOnRowClick = (row: JobWithSokosumiStatus) => async () => {
     if (routerLoading) return;
     await handleRowClick(row);
   };

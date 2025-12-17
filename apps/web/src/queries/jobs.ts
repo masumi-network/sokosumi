@@ -1,4 +1,4 @@
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { queryOptions } from "@tanstack/react-query";
 import superJson from "superjson";
 
@@ -40,7 +40,7 @@ export const getJobQueryOptions = (jobId: string, session: Session | null) =>
       const parsedResponse = apiSuccessResponseSchema.parse(
         await response.json(),
       );
-      const job = superJson.parse<JobWithStatus>(parsedResponse.data);
+      const job = superJson.parse<JobWithSokosumiStatus>(parsedResponse.data);
       return job;
     },
   });

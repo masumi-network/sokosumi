@@ -1,49 +1,46 @@
 import {
-  JobInputFileSchemaType,
-  JobInputOptionSchemaType,
-  JobInputSchemaType,
+  InputFileSchemaType,
+  InputOptionSchemaType,
+  InputSchemaType,
   ValidationSchemaType,
-  ValidJobInputTypes,
-  ValidJobInputValidationTypes,
-} from "@/lib/job-input";
+} from "@sokosumi/masumi/schemas";
+import { InputType, InputValidation } from "@sokosumi/masumi/types";
 
-export const isOptional = (jobInputSchema: JobInputSchemaType): boolean => {
+export const isOptional = (jobInputSchema: InputSchemaType): boolean => {
   const { type } = jobInputSchema;
-  if (type === ValidJobInputTypes.NONE) return true;
+  if (type === InputType.NONE) return true;
 
   const validations = jobInputSchema.validations;
   if (!validations) return false;
 
   return validations.some(
     ({ validation, value }) =>
-      validation === ValidJobInputValidationTypes.OPTIONAL && value === "true",
+      validation === InputValidation.OPTIONAL && value === "true",
   );
 };
 
 export const isSingleOption = (
-  jobInputOptionSchema: JobInputOptionSchemaType,
+  jobInputOptionSchema: InputOptionSchemaType,
 ): boolean => {
   const { validations } = jobInputOptionSchema;
   if (!validations) return false;
 
   return validations.some(
     ({ validation, value }) =>
-      validation === ValidJobInputValidationTypes.MAX && Number(value) <= 1,
+      validation === InputValidation.MAX && Number(value) <= 1,
   );
 };
 
-export const transformJobInputSchemaValidations = <
-  T extends JobInputSchemaType,
->(
+export const transformJobInputSchemaValidations = <T extends InputSchemaType>(
   jobInputSchema: T extends {
     validations?: ValidationSchemaType[] | null | undefined;
   }
     ? T
     : never,
-): Partial<Record<ValidJobInputValidationTypes, string | number>> => {
+): Partial<Record<InputValidation, string | number>> => {
   const { validations } = jobInputSchema as {
     validations?: {
-      validation: ValidJobInputValidationTypes;
+      validation: InputValidation;
       value: string | number;
     }[];
   };
@@ -52,15 +49,15 @@ export const transformJobInputSchemaValidations = <
       acc[cur.validation] = cur.value;
       return acc;
     },
-    {} as Partial<Record<ValidJobInputValidationTypes, string | number>>,
+    {} as Partial<Record<InputValidation, string | number>>,
   );
 };
 
 export const transformJobInputFileSchema = (
-  jobInputSchema: JobInputFileSchemaType,
-): Record<ValidJobInputValidationTypes, string | number> => {
+  jobInputSchema: InputFileSchemaType,
+): Record<InputValidation, string | number> => {
   const v = transformJobInputSchemaValidations(jobInputSchema) as Record<
-    ValidJobInputValidationTypes,
+    InputValidation,
     string | number
   >;
   return v;

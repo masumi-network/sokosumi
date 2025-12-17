@@ -1,14 +1,12 @@
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
-import {
-  JobInputSchemaType,
-  JobInputsFormSchemaType,
-  ValidJobInputTypes,
-} from "@/lib/job-input";
+import { JobInputsFormSchemaType } from "@/lib/job-input";
 
 export interface JobInputComponentProps<
-  T extends ValidJobInputTypes,
-  S extends JobInputSchemaType,
+  T extends InputType,
+  S extends InputSchemaType,
 > {
   id: string;
   jobInputSchema: S["type"] extends T ? S : never;

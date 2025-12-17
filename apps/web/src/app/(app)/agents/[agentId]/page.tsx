@@ -64,7 +64,7 @@ export default async function AgentDetailPage({
       averageExecutionDuration={averageExecutionDuration}
     >
       <AgentMobileHeader agent={agentWithCreditsPrice} />
-      <div className="mx-auto flex justify-center py-8 md:px-4">
+      <div className="mx-auto flex justify-center py-8 md:px-2 md:py-2">
         <AgentDetailViewTracker agent={agentWithCreditsPrice} />
         <AgentDetail
           agent={agentWithCreditsPrice}

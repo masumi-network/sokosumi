@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Share } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import JobShareModal from "./job-share-modal";
 
 interface JobShareButtonProps {
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
   className?: string;
   activeOrganizationId?: string | null;
 }

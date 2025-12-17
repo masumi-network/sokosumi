@@ -7,13 +7,11 @@ import {
   ExampleOutput,
   PricingType,
 } from "@sokosumi/database";
+import { InputDataSchemaType } from "@sokosumi/masumi/schemas";
 
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { ipfsUrlResolver } from "@/lib/ipfs";
-import {
-  type JobInputDataSchemaType,
-  jobInputsFormSchema,
-} from "@/lib/job-input";
+import { jobInputsFormSchema } from "@/lib/job-input";
 import {
   jobStatusResponseSchema,
   type PricingAmountsSchemaType,
@@ -178,7 +176,7 @@ export function getAgentPricingAmounts(
 
 export function getAgentDemoValues(
   agent: Agent,
-  inputDataSchema: JobInputDataSchemaType,
+  inputDataSchema: InputDataSchemaType,
 ): AgentDemoValues | null {
   const demoData = getAgentDemoData(agent);
   if (!demoData) {

@@ -53,15 +53,19 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
   tunnelRoute: true, // Generates a random route for each build (recommended)
 
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
+  webpack: {
+    treeshake: {
+      // Automatically tree-shake Sentry logger statements to reduce bundle size
+      removeDebugLogging: true,
+    },
 
-  // Automatically instrument Next.js middleware with error and performance monitoring.
-  // disable it on `dev mode` to reduce large middleware bundle size
-  autoInstrumentMiddleware: process.env.NODE_ENV === "production",
+    // Enable React component annotation for better error messages
+    reactComponentAnnotation: {
+      enabled: true,
+    },
 
-  // Enable React component annotation for better error messages
-  reactComponentAnnotation: {
-    enabled: true,
+    // Automatically instrument Next.js middleware with error and performance monitoring.
+    // disable it on `dev mode` to reduce large middleware bundle size
+    autoInstrumentMiddleware: process.env.NODE_ENV === "production",
   },
 });

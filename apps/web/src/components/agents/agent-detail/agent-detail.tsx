@@ -62,7 +62,7 @@ export function AgentDetail({
   const legal = getAgentLegal(agent);
 
   return (
-    <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
+    <div className={cn("flex w-full flex-col gap-1.5", className)}>
       <CardSection className={cardClassName}>
         <AgentDetailHeader
           agent={agent}
@@ -117,7 +117,7 @@ export function AgentDetailSkeleton({
   className?: string | undefined;
 }) {
   return (
-    <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
+    <div className={cn("flex w-full flex-col gap-1.5", className)}>
       <CardSection>
         <AgentDetailHeaderSkeleton />
       </CardSection>

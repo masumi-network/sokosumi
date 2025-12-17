@@ -129,7 +129,7 @@ export const paymentClient = (() => {
             unlockTime: startJobResponse.unlockTime.toString(),
             metadata: JSON.stringify({
               inputData: inputData,
-              jobId: startJobResponse.job_id,
+              jobId: startJobResponse.id,
             }),
           },
         });

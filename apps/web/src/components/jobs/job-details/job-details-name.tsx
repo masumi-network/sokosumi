@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Globe, Loader2, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -115,7 +115,7 @@ function JobNameContent({
     <AccordionTrigger className="w-full items-center px-0 py-0">
       <div className="flex w-full cursor-default items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <p className="flex-1 truncate">{name ?? t("noName")}</p>
+          <p className="flex-1 truncate text-base">{name ?? t("noName")}</p>
           <Tooltip>
             <TooltipTrigger
               asChild
@@ -183,7 +183,7 @@ export default function JobDetailsName({
   readOnly,
   activeOrganizationId,
 }: {
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
   readOnly: boolean;
   activeOrganizationId?: string | null;
 }) {

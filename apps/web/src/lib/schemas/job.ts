@@ -1,6 +1,6 @@
+import { inputSchema, inputsSchema } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
-import { jobInputSchema, jobInputsSchema } from "@/lib/job-input";
 import { JobScheduleType } from "@/lib/types/job";
 
 export const startJobInputSchema = z.object({
@@ -8,7 +8,7 @@ export const startJobInputSchema = z.object({
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
-  inputSchema: z.array(jobInputSchema()),
+  inputSchema: z.array(inputSchema),
   inputData: z.record(
     z.string(),
     z.union([
@@ -42,30 +42,47 @@ export type JobDetailsNameFormSchemaType = z.infer<
   ReturnType<typeof jobDetailsNameFormSchema>
 >;
 
-// Base response for FREE jobs
-export const startFreeJobResponseSchema = z.object({
-  id: z.string().nullish(),
-  status: z.enum(["success", "error"]),
-  job_id: z.string().min(1),
-});
+// Preprocess helper for backwards compatibility: normalize job_id to id
+// Id is required in the Masumi Docs, but some agents return job_id instead.
+function preprocessJobId(val: unknown): unknown {
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, unknown>;
+    return {
+      ...obj,
+      id: obj.id ?? obj.job_id,
+    };
+  }
+  return val;
+}
+
+// Base schema for FREE jobs with preprocessing
+export const startFreeJobResponseSchema = z.preprocess(
+  preprocessJobId,
+  z.object({
+    id: z.string().min(1),
+  }),
+);
 
 export type StartFreeJobResponseSchemaType = z.infer<
   typeof startFreeJobResponseSchema
 >;
 
-// Response for PAID jobs
-export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
-  id: z.string().nullish(),
-  input_hash: z.string().min(1),
-  identifierFromPurchaser: z.string().min(1),
-  blockchainIdentifier: z.string().min(1),
-  payByTime: z.coerce.number().int(),
-  submitResultTime: z.coerce.number().int(),
-  unlockTime: z.coerce.number().int(),
-  externalDisputeUnlockTime: z.coerce.number().int(),
-  agentIdentifier: z.string().min(1),
-  sellerVKey: z.string().min(1),
-});
+// Schema for PAID jobs with preprocessing (cannot extend preprocessed schema)
+export const startPaidJobResponseSchema = z.preprocess(
+  preprocessJobId,
+  z.object({
+    id: z.string().min(1),
+    input_hash: z.string().min(1),
+    identifierFromPurchaser: z.string().min(1),
+    blockchainIdentifier: z.string().min(1),
+    payByTime: z.coerce.number().int(),
+    submitResultTime: z.coerce.number().int(),
+    unlockTime: z.coerce.number().int(),
+    externalDisputeUnlockTime: z.coerce.number().int(),
+    agentIdentifier: z.string().min(1),
+    sellerVKey: z.string().min(1),
+  }),
+);
 
 export type StartPaidJobResponseSchemaType = z.infer<
   typeof startPaidJobResponseSchema
@@ -114,9 +131,8 @@ export type JobStatusValue = (typeof JOB_STATUS_VALUES)[number];
 export const jobStatusResponseSchema = z
   .object({
     id: z.string().nullish(),
-    job_id: z.string(),
     status: z.enum(JOB_STATUS_VALUES),
-    input_schema: jobInputsSchema().nullish(),
+    input_schema: inputsSchema.nullish(),
     result: z.string().nullish(),
   })
   .superRefine((data, ctx) => {
@@ -129,7 +145,6 @@ export type JobStatusResponseSchemaType = z.infer<
 >;
 
 export const provideJobInputResponseSchema = z.object({
-  status: z.enum(["success", "error"]),
   input_hash: z.string(),
   signature: z.string(),
 });
@@ -146,7 +161,7 @@ export const createJobScheduleInputSchema = z.object({
   cron: z.string().nullish(),
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
-  inputSchema: z.array(jobInputSchema()),
+  inputSchema: z.array(inputSchema),
   inputData: z.record(
     z.string(),
     z.union([

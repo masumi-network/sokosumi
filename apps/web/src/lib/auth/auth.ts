@@ -73,12 +73,6 @@ export const auth = betterAuth({
     },
     user: {
       create: {
-        before: async (user, _ctx) => {
-          if (!user.termsAccepted) {
-            return false;
-          }
-          return true;
-        },
         after: async (user, _ctx) => {
           await stripeService.createStripeCustomerForUser(user.id);
 

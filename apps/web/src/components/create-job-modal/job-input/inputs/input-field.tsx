@@ -1,10 +1,8 @@
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
-import {
-  JobInputSchemaType,
-  JobInputsFormSchemaType,
-  ValidJobInputTypes,
-} from "@/lib/job-input";
+import { JobInputsFormSchemaType } from "@/lib/job-input";
 
 import {
   BooleanInput,
@@ -34,7 +32,7 @@ import {
 
 interface InputFieldProps {
   id: string;
-  jobInputSchema: JobInputSchemaType;
+  jobInputSchema: InputSchemaType;
   field: ControllerRenderProps<JobInputsFormSchemaType>;
   form: UseFormReturn<JobInputsFormSchemaType>;
 }
@@ -48,7 +46,7 @@ export function InputField({
   const { type } = jobInputSchema;
 
   switch (type) {
-    case ValidJobInputTypes.TEXT:
+    case InputType.TEXT:
       return (
         <TextInput
           id={id}
@@ -57,7 +55,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.STRING:
+    case InputType.STRING:
       return (
         <StringInput
           id={id}
@@ -66,7 +64,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.TEL:
+    case InputType.TEL:
       return (
         <TelInput
           id={id}
@@ -75,7 +73,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.EMAIL:
+    case InputType.EMAIL:
       return (
         <EmailInput
           id={id}
@@ -84,7 +82,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.URL:
+    case InputType.URL:
       return (
         <UrlInput
           id={id}
@@ -93,7 +91,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.SEARCH:
+    case InputType.SEARCH:
       return (
         <SearchInput
           id={id}
@@ -102,7 +100,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.PASSWORD:
+    case InputType.PASSWORD:
       return (
         <PasswordInput
           id={id}
@@ -111,7 +109,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.TEXTAREA:
+    case InputType.TEXTAREA:
       return (
         <TextareaInput
           id={id}
@@ -120,7 +118,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.COLOR:
+    case InputType.COLOR:
       return (
         <ColorInput
           id={id}
@@ -129,7 +127,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.NUMBER:
+    case InputType.NUMBER:
       return (
         <NumberInput
           id={id}
@@ -138,7 +136,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.BOOLEAN:
+    case InputType.BOOLEAN:
       return (
         <BooleanInput
           id={id}
@@ -147,7 +145,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.CHECKBOX:
+    case InputType.CHECKBOX:
       return (
         <CheckboxInput
           id={id}
@@ -156,7 +154,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.OPTION:
+    case InputType.OPTION:
       return (
         <OptionInput
           id={id}
@@ -165,7 +163,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.MULTISELECT:
+    case InputType.MULTISELECT:
       return (
         <MultiselectInput
           id={id}
@@ -174,7 +172,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.RADIO_GROUP:
+    case InputType.RADIO_GROUP:
       return (
         <RadioGroupInput
           id={id}
@@ -183,7 +181,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.FILE:
+    case InputType.FILE:
       return (
         <FileInput
           id={id}
@@ -192,7 +190,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.DATE:
+    case InputType.DATE:
       return (
         <DateInput
           id={id}
@@ -201,7 +199,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.DATETIME:
+    case InputType.DATETIME:
       return (
         <DatetimeInput
           id={id}
@@ -210,7 +208,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.TIME:
+    case InputType.TIME:
       return (
         <TimeInput
           id={id}
@@ -219,7 +217,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.MONTH:
+    case InputType.MONTH:
       return (
         <MonthInput
           id={id}
@@ -228,7 +226,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.WEEK:
+    case InputType.WEEK:
       return (
         <WeekInput
           id={id}
@@ -237,7 +235,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.RANGE:
+    case InputType.RANGE:
       return (
         <RangeInput
           id={id}
@@ -246,7 +244,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.HIDDEN:
+    case InputType.HIDDEN:
       return (
         <HiddenInput
           id={id}
@@ -255,7 +253,7 @@ export function InputField({
           form={form}
         />
       );
-    case ValidJobInputTypes.NONE:
+    case InputType.NONE:
       return null;
     default:
       return null;

@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { InputDataSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics";
 import {
   CalendarClock,
@@ -36,7 +37,6 @@ import { getAgentName } from "@/lib/helpers/agent";
 import {
   defaultValues,
   filterOutNullValues,
-  JobInputDataSchemaType,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
@@ -50,7 +50,7 @@ import JobInput from "./job-input";
 interface JobInputsFormClientProps {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
-  inputDataSchema: JobInputDataSchemaType;
+  inputDataSchema: InputDataSchemaType;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   className?: string | undefined;

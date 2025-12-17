@@ -1,5 +1,7 @@
+import { InputStringSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
+
 import { Input } from "@/components/ui/input";
-import { JobInputStringSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,10 +9,7 @@ export function StringInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.STRING,
-  JobInputStringSchemaType
->) {
+}: JobInputComponentProps<InputType.STRING, InputStringSchemaType>) {
   const { data } = jobInputSchema;
 
   return (

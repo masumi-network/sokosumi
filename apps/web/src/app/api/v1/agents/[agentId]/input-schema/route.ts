@@ -1,9 +1,9 @@
 import { agentRepository } from "@sokosumi/database/repositories";
+import { inputDataSchema } from "@sokosumi/masumi/schemas";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
 import { agentClient } from "@/lib/clients/agent.client";
-import { jobInputDataSchema } from "@/lib/job-input";
 
 interface RouteParams {
   params: Promise<{
@@ -41,7 +41,7 @@ export async function GET(
       throw new Error(inputSchemaResult.error);
     }
 
-    const inputSchema = jobInputDataSchema().parse(inputSchemaResult.data);
+    const inputSchema = inputDataSchema.parse(inputSchemaResult.data);
     return createApiSuccessResponse(inputSchema);
   } catch (error) {
     return handleApiError(error, "retrieve agent input schema", {

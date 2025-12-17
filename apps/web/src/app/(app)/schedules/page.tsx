@@ -112,8 +112,8 @@ export default async function SchedulesPage() {
                             isActive: s.isActive,
                             lastRunAt: latestJobCreatedAt,
                             nextRunAt: s.nextRunAt ?? null,
-                            input: s.input ?? null,
-                            inputSchema: s.inputSchema ?? null,
+                            input: s.input,
+                            inputSchema: s.inputSchema,
                             pauseReason: s.pauseReason ?? null,
                           }}
                           title={title}

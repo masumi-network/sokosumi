@@ -247,6 +247,7 @@
     "Jobs": {
       "StatusBadge": {
         "demo": "Demo",
+        "started": "Started",
         "completed": "Completed",
         "failed": "Failed",
         "paymentPending": "Hiring",
@@ -260,6 +261,15 @@
         "refundRequested": "Refund Requested",
         "refundResolved": "Refunded",
         "resultPending": "Result Missing",
+        "unknown": "Unknown"
+      },
+      "AgentStatusBadge": {
+        "initiated": "Initiated",
+        "awaitingPayment": "Awaiting Payment",
+        "awaitingInput": "Input Required",
+        "running": "Working",
+        "completed": "Completed",
+        "failed": "Failed",
         "unknown": "Unknown"
       },
       "SharedBadge": {
@@ -353,7 +363,8 @@
           "none": "No input"
         },
         "Output": {
-          "title": "Result",
+          "result": "Result",
+          "status": "Status",
           "failedToParseResult": "Failed to parse result",
           "none": "No result available",
           "download": "Download",
@@ -406,6 +417,13 @@
             }
           }
         },
+        "AwaitingInput": {
+          "title": "Awaiting Input",
+          "submit": "Submit",
+          "submitSuccess": "Input submitted successfully",
+          "submitError": "Failed to submit input",
+          "noInputsRequired": "No additional inputs required"
+        },
         "Sources": {
           "title": "Links & Files",
           "files": "Files",
@@ -414,6 +432,9 @@
         "BlobStatusBadge": {
           "pending": "Pending",
           "failed": "Failed"
+        },
+        "CollapsedEvents": {
+          "seeMore": "See more ({count})"
         }
       },
       "JobsTable": {

@@ -32,7 +32,7 @@ export function JobSharedBadge({
           <div className={cn("flex items-center gap-1", className)}>
             <Avatar className="h-6 w-6">
               <AvatarImage src={creatorImage ?? undefined} />
-              <AvatarFallback className="text-xs">
+              <AvatarFallback className="text-foreground text-xs">
                 {creatorName?.charAt(0)?.toUpperCase() || "?"}
               </AvatarFallback>
             </Avatar>

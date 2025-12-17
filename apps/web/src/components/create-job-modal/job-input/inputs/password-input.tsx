@@ -1,13 +1,11 @@
 "use client";
 
+import { InputPasswordSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { Eye, EyeOff } from "lucide-react";
 import * as React from "react";
 
 import { Input } from "@/components/ui/input";
-import {
-  JobInputPasswordSchemaType,
-  ValidJobInputTypes,
-} from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -15,10 +13,7 @@ export function PasswordInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.PASSWORD,
-  JobInputPasswordSchemaType
->) {
+}: JobInputComponentProps<InputType.PASSWORD, InputPasswordSchemaType>) {
   const [isVisible, setIsVisible] = React.useState(false);
   const handleToggleVisibility = () => setIsVisible((v) => !v);
 

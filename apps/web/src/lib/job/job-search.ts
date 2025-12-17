@@ -3,24 +3,27 @@ export interface SearchableJobLink {
   url: string | null | undefined;
 }
 
+interface SearchableJobEvent {
+  input: string | null;
+  result: string | null;
+}
+
 export interface SearchableJob {
   id: string;
   name: string | null;
-  input: string | null;
-  result: string | null;
+  statuses: SearchableJobEvent[];
 }
 
 export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
   if (!query) return true;
   const term = query.toLowerCase();
 
-  const searchableFields = [
-    job.name,
-    job.id,
-    job.result,
+  // Collect input/result from all events
+  const eventFields = job.statuses.flatMap((status) => [
+    status.result,
     (() => {
       try {
-        const input = JSON.parse(job.input ?? "{}");
+        const input = JSON.parse(status.input ?? "{}");
         return Object.values(input)
           .filter((value) => typeof value === "string")
           .join(" ");
@@ -28,7 +31,9 @@ export function jobMatchesQuery(job: SearchableJob, query: string): boolean {
         return "";
       }
     })(),
-  ]
+  ]);
+
+  const searchableFields = [job.name, job.id, ...eventFields]
     .filter(
       (value): value is string => typeof value === "string" && value.length > 0,
     )

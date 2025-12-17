@@ -1,30 +1,47 @@
 "use client";
+
 import type { Blob } from "@sokosumi/database";
+import { JobType } from "@sokosumi/database";
+import { hashInput } from "@sokosumi/masumi";
+import { inputSchema as jobInputSchema } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 import * as z from "zod";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
-import { jobInputSchema, ValidJobInputTypes } from "@/lib/job-input";
+import { Separator } from "@/components/ui/separator";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
+import { HashGroupRow } from "./hash-group-row";
+
 interface JobDetailsInputsProps {
-  rawInput: string | null;
-  rawInputSchema: string | null;
+  input: string | null;
+  inputSchema: string | null;
   blobs?: Blob[];
+  inputHash?: string | null;
+  identifierFromPurchaser?: string | null;
+  jobType?: JobType;
 }
 
 export default function JobDetailsInputs({
-  rawInput,
-  rawInputSchema,
+  input,
+  inputSchema,
   blobs,
+  inputHash,
+  identifierFromPurchaser,
+  jobType,
 }: JobDetailsInputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsInputsError />}>
       <JobDetailsInputsInner
-        rawInput={rawInput}
-        rawInputSchema={rawInputSchema}
+        input={input}
+        inputSchema={inputSchema}
         blobs={blobs}
+        inputHash={inputHash}
+        identifierFromPurchaser={identifierFromPurchaser}
+        jobType={jobType}
       />
     </DefaultErrorBoundary>
   );
@@ -35,12 +52,8 @@ function findBlobByUrl(url: string, blobs?: Blob[]): Blob | undefined {
   return blobs.find((b) => b.fileUrl === url);
 }
 
-function renderInputValue(
-  value: unknown,
-  type: ValidJobInputTypes,
-  blobs?: Blob[],
-) {
-  if (type === ValidJobInputTypes.FILE) {
+function renderInputValue(value: unknown, type: InputType, blobs?: Blob[]) {
+  if (type === InputType.FILE) {
     if (isUrlString(value)) {
       const blob = findBlobByUrl(value, blobs);
       return (
@@ -72,26 +85,35 @@ function renderInputValue(
 }
 
 function JobDetailsInputsInner({
-  rawInput,
-  rawInputSchema,
-  blobs,
+  input: rawInput,
+  inputSchema: rawInputSchema,
+  blobs = [],
+  inputHash = null,
+  identifierFromPurchaser = null,
+  jobType,
 }: JobDetailsInputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Input");
+  const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
+
   const input = rawInput ? JSON.parse(rawInput) : {};
   const inputSchema = rawInputSchema ? JSON.parse(rawInputSchema) : {};
 
-  let inputsMap: Record<string, { name: string; type: ValidJobInputTypes }> =
-    {};
+  const calculatedInputHash = useMemo(() => {
+    if (!identifierFromPurchaser || !rawInput) return null;
+    return hashInput(rawInput, identifierFromPurchaser);
+  }, [identifierFromPurchaser, rawInput]);
+
+  let inputsMap: Record<string, { name: string; type: InputType }> = {};
   if (Array.isArray(inputSchema)) {
     inputsMap = z
-      .array(jobInputSchema())
+      .array(jobInputSchema)
       .parse(inputSchema)
       .reduce(
         (acc, item) => {
           acc[item.id] = { name: item.name, type: item.type };
           return acc;
         },
-        {} as Record<string, { name: string; type: ValidJobInputTypes }>,
+        {} as Record<string, { name: string; type: InputType }>,
       );
   }
 
@@ -101,7 +123,7 @@ function JobDetailsInputsInner({
         <div>
           {Object.entries(input).map(([key, value]) => {
             const label = inputsMap[key]?.name ?? key;
-            const type = inputsMap[key]?.type ?? ValidJobInputTypes.NONE;
+            const type = inputsMap[key]?.type ?? InputType.NONE;
             return (
               <div
                 className="grid grid-cols-1 items-start gap-4 pb-4 text-base md:grid-cols-3"
@@ -119,6 +141,23 @@ function JobDetailsInputsInner({
         </div>
       ) : (
         <p className="text-base">{t("none")}</p>
+      )}
+      {identifierFromPurchaser && jobType && (
+        <>
+          <Separator className="my-2" />
+          <HashGroupRow
+            label={tMeta("inputHash")}
+            direction="input"
+            jobType={jobType}
+            identifierFromPurchaser={identifierFromPurchaser}
+            input={rawInput}
+            externalHash={inputHash}
+            hash={calculatedInputHash}
+            tLabelExternal={tMeta("onChain")}
+            tLabelHash={tMeta("calculated")}
+            tMissing={tMeta("missing")}
+          />
+        </>
       )}
     </div>
   );

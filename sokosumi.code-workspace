@@ -16,6 +16,10 @@
       "name": "Package: Database",
       "path": "packages/database",
     },
+    {
+      "name": "Package: Masumi",
+      "path": "packages/masumi",
+    },
   ],
   "settings": {
     "editor.formatOnSave": true,

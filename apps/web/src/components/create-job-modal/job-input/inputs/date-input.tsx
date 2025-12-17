@@ -1,3 +1,5 @@
+import { InputDateSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
@@ -8,7 +10,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { JobInputDateSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
@@ -16,7 +17,7 @@ import { JobInputComponentProps } from "./types";
 export function DateInput({
   field,
   jobInputSchema,
-}: JobInputComponentProps<ValidJobInputTypes.DATE, JobInputDateSchemaType>) {
+}: JobInputComponentProps<InputType.DATE, InputDateSchemaType>) {
   const selectedDate = field.value instanceof Date ? field.value : undefined;
 
   const { minDate, maxDate } = useMemo(() => {
@@ -37,7 +38,7 @@ export function DateInput({
         <Button variant="outline" className="w-full justify-start">
           {selectedDate
             ? selectedDate.toLocaleDateString()
-            : ((jobInputSchema as JobInputDateSchemaType).data?.placeholder ??
+            : ((jobInputSchema as InputDateSchemaType).data?.placeholder ??
               "Pick a date")}
         </Button>
       </PopoverTrigger>

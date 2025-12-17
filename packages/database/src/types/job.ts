@@ -11,19 +11,14 @@ import type {
 export const jobInclude = {
   statuses: {
     orderBy: {
-      createdAt: "desc",
+      createdAt: "asc",
     },
     include: {
       blobs: true,
-      input: {
-        include: {
-          blobs: true,
-        },
-      },
+      input: true,
       links: true,
     },
   },
-  inputBlobs: true,
   purchase: true,
   agent: true,
   user: true,
@@ -41,6 +36,14 @@ export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
 
+export type JobStatusWithRelations = Prisma.JobStatusGetPayload<{
+  include: {
+    input: true;
+    blobs: true;
+    links: true;
+  };
+}>;
+
 type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
 export type InputRequest = {
@@ -55,15 +58,15 @@ export type InputRequest = {
 type BaseJobWithStatus = JobWithRelations & {
   status: SokosumiJobStatus;
   jobStatusSettled: boolean;
-  input: string | null;
-  inputHash: string | null;
-  inputSchema: string | null;
-  inputRequests: InputRequest[] | null;
   completedAt: Date | null;
-  result: string | null;
-  resultHash: string | null;
+  input: string | null;
+  inputSchema: string | null;
+  inputHash: string | null;
+  statuses: JobStatusWithRelations[];
   credits: number;
   cents: bigint;
+  resultHash: string | null;
+  result: string | null;
 };
 
 type BaseFreeJob = {
@@ -129,6 +132,7 @@ export enum JobErrorNoteKeys {
 }
 
 export enum SokosumiJobStatus {
+  STARTED = "started",
   COMPLETED = "completed",
   PROCESSING = "processing",
   INPUT_REQUIRED = "input_required",
@@ -157,7 +161,7 @@ export const finalizedAgentJobStatuses: AgentJobStatus[] = [
   AgentJobStatus.FAILED,
 ];
 
-export type JobWithStatus =
+export type JobWithSokosumiStatus =
   | FreeJobWithStatus
   | PaidJobWithStatus
   | DemoJobWithStatus;

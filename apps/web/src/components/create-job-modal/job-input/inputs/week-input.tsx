@@ -1,5 +1,7 @@
+import { InputWeekSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
+
 import { Input } from "@/components/ui/input";
-import { JobInputWeekSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,7 +9,7 @@ export function WeekInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<ValidJobInputTypes.WEEK, JobInputWeekSchemaType>) {
+}: JobInputComponentProps<InputType.WEEK, InputWeekSchemaType>) {
   const { data } = jobInputSchema;
 
   return (

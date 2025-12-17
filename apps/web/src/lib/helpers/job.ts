@@ -1,5 +1,4 @@
-import { JobType, type JobWithStatus } from "@sokosumi/database";
-import { computeJobStatus } from "@sokosumi/database/helpers";
+import { JobType, type JobWithSokosumiStatus } from "@sokosumi/database";
 
 import { type JobStatusData } from "@/lib/ably";
 
@@ -9,7 +8,7 @@ import { type JobStatusData } from "@/lib/ably";
  * @param job - The job to get the status data for.
  * @returns The job status data.
  */
-export function getJobStatusData(job: JobWithStatus): JobStatusData {
+export function getJobStatusData(job: JobWithSokosumiStatus): JobStatusData {
   let jobStatusSettled: boolean;
   switch (job.jobType) {
     case JobType.PAID:
@@ -30,17 +29,17 @@ export function getJobStatusData(job: JobWithStatus): JobStatusData {
 
   return {
     jobId: job.id,
-    jobStatus: computeJobStatus(job),
+    jobStatus: job.status,
     jobStatusSettled,
   };
 }
 
-export function isSharedPublicly(job: JobWithStatus): boolean {
+export function isSharedPublicly(job: JobWithSokosumiStatus): boolean {
   return job.share !== null && job.share.token !== null;
 }
 
 export function isSharedWithOrganization(
-  job: JobWithStatus,
+  job: JobWithSokosumiStatus,
   organizationId?: string | null,
 ): boolean {
   if (!organizationId) {

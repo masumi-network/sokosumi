@@ -59,8 +59,8 @@ interface ScheduleRecord {
   isActive: boolean;
   lastRunAt: Date | null;
   nextRunAt: Date | null;
-  input?: string | null;
-  inputSchema?: string | null;
+  input: string;
+  inputSchema: string;
   pauseReason?: string | null;
 }
 
@@ -265,8 +265,8 @@ export function ScheduleItem({ schedule, title }: Props) {
             <AccordionTrigger>{t("Schedules.inputPreview")}</AccordionTrigger>
             <AccordionContent>
               <JobDetailsInputs
-                rawInput={schedule.input ?? null}
-                rawInputSchema={schedule.inputSchema ?? null}
+                input={schedule.input}
+                inputSchema={schedule.inputSchema}
               />
             </AccordionContent>
           </AccordionItem>

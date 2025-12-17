@@ -58,6 +58,7 @@ export function JobStatusBadge({
           {t("paymentFailed")}
         </Badge>
       );
+    case SokosumiJobStatus.STARTED:
     case SokosumiJobStatus.PAYMENT_PENDING:
       return (
         <Badge

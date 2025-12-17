@@ -67,7 +67,7 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "24.10.3",
+    "@types/node": "24.10.4",
     "@types/pg": "8.16.0",
     "dotenv": "17.2.3",
     "prisma": "7.1.0",

@@ -1,3 +1,5 @@
+import { InputDatetimeSchemaType } from "@sokosumi/masumi/schemas";
+import { InputType } from "@sokosumi/masumi/types";
 import { format } from "date-fns";
 import { useMemo } from "react";
 
@@ -10,10 +12,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  JobInputDatetimeSchemaType,
-  ValidJobInputTypes,
-} from "@/lib/job-input";
 import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
@@ -22,10 +20,7 @@ export function DatetimeInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.DATETIME,
-  JobInputDatetimeSchemaType
->) {
+}: JobInputComponentProps<InputType.DATETIME, InputDatetimeSchemaType>) {
   const valueDate = field.value instanceof Date ? field.value : undefined;
   const timeString = valueDate ? format(valueDate, "HH:mm") : "";
 
@@ -69,7 +64,7 @@ export function DatetimeInput({
           <Button variant="outline" className="w-full justify-start">
             {valueDate
               ? valueDate.toLocaleDateString()
-              : ((jobInputSchema as JobInputDatetimeSchemaType).data
+              : ((jobInputSchema as InputDatetimeSchemaType).data
                   ?.placeholder ?? "Pick date & time")}
           </Button>
         </PopoverTrigger>

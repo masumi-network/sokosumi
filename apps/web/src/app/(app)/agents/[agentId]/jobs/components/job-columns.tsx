@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { isDemoJob } from "@sokosumi/database/helpers";
 import { useQueryClient } from "@tanstack/react-query";
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
@@ -15,7 +15,7 @@ import useAgentJobStatusData from "@/hooks/use-agent-job-status";
 import { getJobStatusData } from "@/lib/helpers/job";
 import { getJobQueryKey } from "@/queries";
 
-const columnHelper = createColumnHelper<JobWithStatus>();
+const columnHelper = createColumnHelper<JobWithSokosumiStatus>();
 
 export function getJobColumns(
   userId: string,
@@ -44,7 +44,7 @@ export function getJobColumns(
       ),
       sortingFn: "datetime",
       enableHiding: false,
-    }) as ColumnDef<JobWithStatus>,
+    }) as ColumnDef<JobWithSokosumiStatus>,
 
     statusColumn: columnHelper.accessor("status", {
       id: "status",
@@ -90,7 +90,7 @@ export function getJobColumns(
       },
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithStatus>,
+    }) as ColumnDef<JobWithSokosumiStatus>,
 
     nameColumn: columnHelper.accessor("name", {
       id: "name",
@@ -107,7 +107,7 @@ export function getJobColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithStatus>,
+    }) as ColumnDef<JobWithSokosumiStatus>,
   };
 }
 
@@ -188,7 +188,7 @@ function RealTimeJobStatusBadge({
   className,
 }: {
   userId: string;
-  job: JobWithStatus;
+  job: JobWithSokosumiStatus;
   className?: string;
 }) {
   const queryClient = useQueryClient();
