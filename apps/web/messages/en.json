@@ -364,7 +364,7 @@
         },
         "Output": {
           "result": "Result",
-          "message": "Message",
+          "status": "Status",
           "failedToParseResult": "Failed to parse result",
           "none": "No result available",
           "download": "Download",

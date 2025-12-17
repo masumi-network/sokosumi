@@ -235,7 +235,7 @@ function JobDetailsContent({
       {status.result ? (
         <AccordionItemWrapper
           value="output"
-          title={isCompleted ? t("Output.result") : t("Output.message")}
+          title={isCompleted ? t("Output.result") : t("Output.status")}
           verificationBadge={
             isCompleted ? (
               <JobResultVerificationBadge
