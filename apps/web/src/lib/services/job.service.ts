@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import {
   AgentJobStatus,
   AgentWithRelations,
+  JobEvent,
   JobShare,
   JobType,
   JobWithSokosumiStatus,
@@ -1221,7 +1222,10 @@ export const jobService = (() => {
    */
   const provideJobInput = async (
     input: ProvideJobInputSchemaType & { userId: string },
-  ): Promise<JobWithSokosumiStatus> => {
+  ): Promise<{
+    job: JobWithSokosumiStatus;
+    jobEvent: JobEvent;
+  }> => {
     const { jobId, statusId, userId, inputData } = input;
 
     Sentry.addBreadcrumb({
@@ -1335,7 +1339,7 @@ export const jobService = (() => {
       },
     });
 
-    return updatedJob;
+    return { job: updatedJob, jobEvent };
   };
 
   return {

@@ -40,7 +40,7 @@ import {
 
 import {
   handleInputDataFileUploads,
-  saveUploadedFilesForJobStatus,
+  saveUploadedFilesForEventId,
   type UploadedFileWithMeta,
 } from "./utils";
 
@@ -164,7 +164,7 @@ export const startJob = withAuthContext<
             event.status === AgentJobStatus.INITIATED,
         );
         if (initiatedEvent) {
-          await saveUploadedFilesForJobStatus(
+          await saveUploadedFilesForEventId(
             userId,
             initiatedEvent.id,
             uploadedFiles,
@@ -320,7 +320,7 @@ export const provideJobInput = withAuthContext<
       });
 
       // Call service to provide job input
-      const job = await jobService.provideJobInput({
+      const { job, jobEvent } = await jobService.provideJobInput({
         jobId,
         statusId,
         userId,
@@ -329,7 +329,7 @@ export const provideJobInput = withAuthContext<
 
       // Save uploaded files
       if (uploadedFiles.length > 0) {
-        await saveUploadedFilesForJobStatus(userId, statusId, uploadedFiles);
+        await saveUploadedFilesForEventId(userId, jobEvent.id, uploadedFiles);
       }
 
       // Add success breadcrumb
