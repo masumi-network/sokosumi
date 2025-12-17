@@ -3,8 +3,8 @@
 import * as Sentry from "@sentry/nextjs";
 import {
   AgentJobStatus,
+  JobEventWithRelations,
   JobShare,
-  JobStatusWithRelations,
   PaidJobWithStatus,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
@@ -159,14 +159,14 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       if (uploadedFiles.length > 0) {
-        const initiatedStatus = job.statuses.find(
-          (event: JobStatusWithRelations) =>
+        const initiatedEvent = job.events.find(
+          (event: JobEventWithRelations) =>
             event.status === AgentJobStatus.INITIATED,
         );
-        if (initiatedStatus) {
+        if (initiatedEvent) {
           await saveUploadedFilesForJobStatus(
             userId,
-            initiatedStatus.id,
+            initiatedEvent.id,
             uploadedFiles,
           );
         }
