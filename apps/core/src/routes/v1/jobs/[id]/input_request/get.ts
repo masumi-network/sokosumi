@@ -79,7 +79,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!jobStatus.inputSchema) {
         throw unprocessableEntity("Agent did not provide an input schema");
       }
-
       return jobStatus;
     });
 

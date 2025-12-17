@@ -92,16 +92,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: jobId } = c.req.valid("param");
     const { statusId, inputData } = c.req.valid("json");
 
-    // Validate input data is not empty
     if (Object.keys(inputData).length === 0) {
       throw badRequest("Input data cannot be empty");
     }
 
     const jobStatus = await prisma.$transaction(async (tx) => {
-      // Verify job access
       await requireJobAccess(authContext, jobId, tx);
-
-      // Get the job status that is awaiting input
       const jobStatus = await tx.jobStatus.findFirst({
         where: {
           id: statusId,
@@ -130,12 +126,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Job status not found or is not awaiting input");
       }
 
-      // Check if input has already been provided
       if (jobStatus.input !== null) {
         throw conflict("Input has already been provided for this status");
       }
 
-      // Validate that inputSchema exists
       if (!jobStatus.inputSchema) {
         throw unprocessableEntity("Agent did not provide an input schema");
       }
@@ -160,7 +154,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity(provideInputResult.error);
     }
 
-    // Create the job input
     const jobInput = await prisma.jobInput.create({
       data: {
         status: { connect: { id: jobStatus.id } },
