@@ -211,7 +211,7 @@ export const jobRepository = {
             },
           },
         }),
-        statuses: {
+        events: {
           create: {
             status: AgentJobStatus.INITIATED,
             result: null,
@@ -237,7 +237,7 @@ export const jobRepository = {
     const updatedJob = await tx.job.update({
       where: { id: job.id },
       data: {
-        statuses: {
+        events: {
           create: {
             status: AgentJobStatus.COMPLETED,
             result: data.result,
@@ -273,7 +273,7 @@ export const jobRepository = {
           },
         },
       }),
-      statuses: {
+      events: {
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
@@ -607,7 +607,7 @@ function jobsNotFinishedWhereQuery(
       // Filter out free jobs that are completed or failed on agentJobStatus
       {
         jobType: JobType.FREE,
-        statuses: {
+        events: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,
@@ -632,7 +632,7 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
     AND: [
       {
-        statuses: {
+        events: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,

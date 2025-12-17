@@ -5,19 +5,19 @@ import { flattenLinkJobId, linkInclude, LinkWithJobId } from "../types/link.js";
 export const linkRepository = {
   async upsertLink(
     userId: string,
-    jobStatusId: string,
+    jobEventId: string,
     url: string,
     title?: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<LinkWithJobId> {
     const link = await tx.link.upsert({
-      where: { jobStatusId_url: { jobStatusId, url }, userId },
+      where: { jobEventId_url: { jobEventId, url }, userId },
       update: {
         title,
       },
       create: {
         user: { connect: { id: userId } },
-        jobStatus: { connect: { id: jobStatusId } },
+        jobEvent: { connect: { id: jobEventId } },
         url,
         title,
       },
@@ -27,11 +27,11 @@ export const linkRepository = {
   },
 
   async getLinksByJobStatusId(
-    jobStatusId: string,
+    jobEventId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
-      where: { jobStatusId },
+      where: { jobEventId },
       include: linkInclude,
     });
     return links.map(flattenLinkJobId);
@@ -54,7 +54,7 @@ export const linkRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
-      where: { userId, jobStatus: { jobId } },
+      where: { userId, jobEvent: { jobId } },
       include: linkInclude,
     });
     return links.map(flattenLinkJobId);
@@ -65,7 +65,7 @@ export const linkRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
-      where: { jobStatus: { jobId } },
+      where: { jobEvent: { jobId } },
       include: linkInclude,
     });
     return links.map(flattenLinkJobId);

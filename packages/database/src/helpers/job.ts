@@ -10,7 +10,7 @@ import type { Job } from "../generated/prisma/client.js";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
-  type JobStatusWithRelations,
+  type JobEventWithRelations,
   type JobWithRelations,
   JobWithSokosumiStatus,
   PaidJobWithStatus,
@@ -29,10 +29,10 @@ const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
  * @param job - An object containing an `events` array.
  * @returns The latest event, or `undefined` if the events array is empty.
  */
-export function getLatestJobStatus(job: {
-  statuses: JobStatusWithRelations[];
-}): JobStatusWithRelations | undefined {
-  return job.statuses.at(-1);
+export function getLatestJobEvent(job: {
+  events: JobEventWithRelations[];
+}): JobEventWithRelations | undefined {
+  return job.events.at(-1);
 }
 
 function checkPaymentStatus(
@@ -113,12 +113,12 @@ function checkNextAction(job: JobWithRelations): SokosumiJobStatus | null {
  */
 function getFundsLockedJobStatus(
   job: Job,
-  latestJobStatus: JobStatusWithRelations,
+  latestJobEvent: JobEventWithRelations,
   now: Date,
 ): SokosumiJobStatus {
-  switch (latestJobStatus.status) {
+  switch (latestJobEvent.status) {
     case AgentJobStatus.AWAITING_INPUT:
-      if (latestJobStatus.input === null) {
+      if (latestJobEvent.input === null) {
         return SokosumiJobStatus.INPUT_REQUIRED;
       } else {
         return SokosumiJobStatus.PROCESSING;
@@ -185,17 +185,17 @@ export function computeJobStatus(job: JobWithRelations): SokosumiJobStatus {
 }
 
 function computeFreeJobStatus(job: JobWithRelations): SokosumiJobStatus {
-  const latestJobStatus = getLatestJobStatus(job);
-  if (!latestJobStatus) {
+  const latestJobEvent = getLatestJobEvent(job);
+  if (!latestJobEvent) {
     return SokosumiJobStatus.STARTED;
   }
-  switch (latestJobStatus.status) {
+  switch (latestJobEvent.status) {
     case AgentJobStatus.INITIATED:
       return SokosumiJobStatus.PROCESSING;
     case AgentJobStatus.AWAITING_PAYMENT:
       return SokosumiJobStatus.FAILED;
     case AgentJobStatus.AWAITING_INPUT:
-      if (latestJobStatus.input === null) {
+      if (latestJobEvent.input === null) {
         return SokosumiJobStatus.INPUT_REQUIRED;
       } else {
         return SokosumiJobStatus.PROCESSING;
@@ -235,8 +235,8 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
     return nextActionStatus;
   }
 
-  const latestJobStatus = getLatestJobStatus(job);
-  if (!latestJobStatus) {
+  const latestJobEvent = getLatestJobEvent(job);
+  if (!latestJobEvent) {
     return SokosumiJobStatus.STARTED;
   }
   // 5. If the job has a purchase, it means the job is started
@@ -251,16 +251,16 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
       }
       return SokosumiJobStatus.PAYMENT_PENDING;
     case OnChainJobStatus.FUNDS_LOCKED:
-      return getFundsLockedJobStatus(job, latestJobStatus, now);
+      return getFundsLockedJobStatus(job, latestJobEvent, now);
     case OnChainJobStatus.RESULT_SUBMITTED:
-      switch (latestJobStatus.status) {
+      switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return SokosumiJobStatus.COMPLETED;
         default:
           return SokosumiJobStatus.RESULT_PENDING;
       }
     case OnChainJobStatus.FUNDS_WITHDRAWN:
-      switch (latestJobStatus.status) {
+      switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return SokosumiJobStatus.COMPLETED;
         default:
@@ -280,12 +280,11 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
 }
 
 export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
-  const completedStatus = job.statuses.find(
-    (event: JobStatusWithRelations) =>
-      event.status === AgentJobStatus.COMPLETED,
+  const completedEvent = job.events.find(
+    (event: JobEventWithRelations) => event.status === AgentJobStatus.COMPLETED,
   );
-  const completedAt = completedStatus?.createdAt ?? null;
-  const result = completedStatus?.result ?? null;
+  const completedAt = completedEvent?.createdAt ?? null;
+  const result = completedEvent?.result ?? null;
 
   const jobStatusSettled =
     job.jobType === JobType.PAID
@@ -296,13 +295,12 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
 
   const computedStatus = computeJobStatus(job);
 
-  const initiatedStatus = job.statuses.find(
-    (event: JobStatusWithRelations) =>
-      event.status === AgentJobStatus.INITIATED,
+  const initiatedEvent = job.events.find(
+    (event: JobEventWithRelations) => event.status === AgentJobStatus.INITIATED,
   );
-  const input = initiatedStatus?.input?.input ?? null;
-  const inputSchema = initiatedStatus?.inputSchema ?? null;
-  const inputHash = initiatedStatus?.input?.inputHash ?? null;
+  const input = initiatedEvent?.input?.input ?? null;
+  const inputSchema = initiatedEvent?.inputSchema ?? null;
+  const inputHash = initiatedEvent?.input?.inputHash ?? null;
 
   const baseJobWithStatus = {
     ...job,

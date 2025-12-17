@@ -9,7 +9,7 @@ import type {
 } from "../generated/prisma/client.js";
 
 export const jobInclude = {
-  statuses: {
+  events: {
     orderBy: {
       createdAt: "asc",
     },
@@ -36,7 +36,7 @@ export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
 
-export type JobStatusWithRelations = Prisma.JobStatusGetPayload<{
+export type JobEventWithRelations = Prisma.JobEventGetPayload<{
   include: {
     input: true;
     blobs: true;
@@ -53,7 +53,7 @@ type BaseJobWithStatus = JobWithRelations & {
   input: string | null;
   inputSchema: string | null;
   inputHash: string | null;
-  statuses: JobStatusWithRelations[];
+  events: JobEventWithRelations[];
   credits: number;
   cents: bigint;
   resultHash: string | null;
