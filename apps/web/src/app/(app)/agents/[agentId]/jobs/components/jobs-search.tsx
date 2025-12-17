@@ -17,9 +17,9 @@ function toSearchableJob(job: JobWithSokosumiStatus): SearchableJob {
   return {
     id: job.id,
     name: job.name,
-    statuses: job.statuses.map((status) => ({
-      input: status.input?.input ?? null,
-      result: status.result ?? null,
+    events: job.events.map((event) => ({
+      input: event.input?.input ?? null,
+      result: event.result ?? null,
     })),
   };
 }
