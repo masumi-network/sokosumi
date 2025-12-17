@@ -19,7 +19,7 @@ export const blobRepository = {
       data: {
         origin: BlobOrigin.INPUT,
         user: { connect: { id: userId } },
-        jobEvent: { connect: { id: eventId } },
+        event: { connect: { id: eventId } },
         status: BlobStatus.READY,
         fileUrl,
         fileName,
@@ -35,14 +35,14 @@ export const blobRepository = {
    */
   async upsertOutputBlob(
     userId: string,
-    jobEventId: string,
+    eventId: string,
     sourceUrl: string,
     fileName?: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     const blob = await tx.blob.upsert({
       where: {
-        jobEventId_sourceUrl: { jobEventId, sourceUrl },
+        eventId_sourceUrl: { eventId, sourceUrl },
         userId,
       },
       update: {
@@ -50,7 +50,7 @@ export const blobRepository = {
       },
       create: {
         user: { connect: { id: userId } },
-        jobEvent: { connect: { id: jobEventId } },
+        event: { connect: { id: eventId } },
         origin: BlobOrigin.OUTPUT,
         status: BlobStatus.PENDING,
         sourceUrl,
@@ -94,7 +94,7 @@ export const blobRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
-      where: { jobEventId: eventId },
+      where: { eventId },
     });
     return blobs;
   },
@@ -104,7 +104,7 @@ export const blobRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
-      where: { jobEvent: { input: { id: jobInputId } } },
+      where: { event: { input: { id: jobInputId } } },
     });
     return blobs;
   },
@@ -118,7 +118,7 @@ export const blobRepository = {
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: {
-        jobEvent: { job: { id: jobId } },
+        event: { job: { id: jobId } },
       },
     });
     return blobs;
@@ -135,7 +135,7 @@ export const blobRepository = {
     const blobs = await tx.blob.findMany({
       where: {
         userId,
-        jobEvent: { job: { id: jobId } },
+        event: { job: { id: jobId } },
       },
     });
     return blobs;
