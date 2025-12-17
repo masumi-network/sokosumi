@@ -75,10 +75,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireJobAccess(authContext, id, tx);
       const files = await tx.blob.findMany({
         where: {
-          jobStatus: { job: { id } },
+          event: { jobId: id },
         },
         include: {
-          jobStatus: {
+          event: {
             select: {
               job: { select: { id: true } },
             },
@@ -87,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       return files.map((file) => ({
         ...file,
-        jobId: file.jobStatus?.job.id,
+        jobId: file.event?.job.id,
       }));
     });
 
