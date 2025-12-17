@@ -16,7 +16,7 @@ const params = z.object({
 });
 
 const inputRequestSchema = z.object({
-  id: z.string().openapi({ example: "input_request_123" }),
+  statusId: z.string().openapi({ example: "status_123" }),
   message: z
     .string()
     .nullish()
@@ -67,6 +67,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           status: AgentJobStatus.AWAITING_INPUT,
           input: { is: null },
         },
+        orderBy: {
+          createdAt: "asc",
+        },
         take: 1,
       });
       if (!jobStatus) {
@@ -81,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     const inputRequest = {
-      id: jobStatus.id,
+      statusId: jobStatus.id,
       message: jobStatus.result,
       inputSchema: jobStatus.inputSchema,
     };
