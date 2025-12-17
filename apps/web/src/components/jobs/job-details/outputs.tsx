@@ -73,7 +73,7 @@ function JobDetailsOutputsInner({
   }, [result, job.identifierFromPurchaser]);
 
   const onChainResultHash = job.purchase?.resultHash ?? null;
-  const showHashSection = status.status === AgentJobStatus.COMPLETED;
+  const isCompleted = status.status === AgentJobStatus.COMPLETED;
 
   return (
     <JobDetailsOutputsLayout>
@@ -82,26 +82,26 @@ function JobDetailsOutputsInner({
           <Markdown highlightTerm={(searchParams?.get("query") ?? "").trim()}>
             {result}
           </Markdown>
-          <div className="flex justify-between gap-2">
-            <div className="flex gap-4">
-              <MaximizeMarkdown markdown={result} />
-              <div className="flex gap-1">
-                <DownloadButton markdown={result} />
-                <CopyMarkdown markdown={result} />
-                {!readOnly && (
-                  <JobShareButton
-                    job={job}
-                    activeOrganizationId={activeOrganizationId}
-                  />
+          {isCompleted && (
+            <>
+              <div className="flex justify-between gap-2">
+                <div className="flex gap-4">
+                  <MaximizeMarkdown markdown={result} />
+                  <div className="flex gap-1">
+                    <DownloadButton markdown={result} />
+                    <CopyMarkdown markdown={result} />
+                    {!readOnly && (
+                      <JobShareButton
+                        job={job}
+                        activeOrganizationId={activeOrganizationId}
+                      />
+                    )}
+                  </div>
+                </div>
+                {!readOnly && isPaidJob(job) && isCompleted && (
+                  <RequestRefundButton initialJob={job} />
                 )}
               </div>
-            </div>
-            {!readOnly && isPaidJob(job) && showHashSection && (
-              <RequestRefundButton initialJob={job} />
-            )}
-          </div>
-          {showHashSection && (
-            <>
               <Separator className="my-2" />
               <HashGroupRow
                 label={tMeta("resultHash")}
