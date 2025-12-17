@@ -22,7 +22,7 @@ export interface AgentClientConfig {
   /**
    * List of hostnames that are not allowed for agent API calls.
    */
-  blacklistedHostnames: string[];
+  blacklistedHostnames?: string[];
   /**
    * Optional error tracking function.
    * Called when errors occur during agent API operations.
@@ -43,7 +43,7 @@ export interface AgentClientConfig {
 /**
  * Creates an agent client with the provided configuration.
  */
-export function createAgentClient(config: AgentClientConfig) {
+export function createAgentClient(config?: AgentClientConfig) {
   function getAgentUrlWithPathComponent(
     agent: Agent,
     pathComponent: string,
@@ -52,10 +52,13 @@ export function createAgentClient(config: AgentClientConfig) {
     return safeAddPathComponent(baseUrl, pathComponent);
   }
 
-  function getAgentApiBaseUrl(agent: Agent, config: AgentClientConfig): URL {
+  function getAgentApiBaseUrl(agent: Agent, config?: AgentClientConfig): URL {
     // Validate the API base URL
     const apiBaseUrl = new URL(agent.apiBaseUrl);
-    if (config.blacklistedHostnames.includes(apiBaseUrl.hostname)) {
+    if (
+      config?.blacklistedHostnames &&
+      config?.blacklistedHostnames.includes(apiBaseUrl.hostname)
+    ) {
       throw new Error("Agent API base URL is not allowed");
     }
     if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
@@ -84,7 +87,7 @@ export function createAgentClient(config: AgentClientConfig) {
     message: string,
     context?: Record<string, unknown>,
   ): void {
-    config.onError?.({
+    config?.onError?.({
       type,
       operation,
       agentId: agent.id,
@@ -211,17 +214,24 @@ export function createAgentClient(config: AgentClientConfig) {
           "provide_input",
         );
 
+        const body = JSON.stringify({
+          job_id: jobId,
+          status_id: statusId,
+          input_data: inputData,
+        });
+
+        console.log("body", body);
+
         const provideInputResponse = await fetch(provideInputUrl, {
           method: "POST",
           headers: {
+            Accept: "application/json",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            job_id: jobId,
-            status_id: statusId,
-            input_data: inputData,
-          }),
+          body,
         });
+
+        console.log("provideInputResponse", provideInputResponse);
 
         if (!provideInputResponse.ok) {
           return Err(

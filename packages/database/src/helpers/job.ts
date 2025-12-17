@@ -289,7 +289,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
   );
   const completedAt = completedStatus?.createdAt ?? null;
   const result = completedStatus?.result ?? null;
-
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
