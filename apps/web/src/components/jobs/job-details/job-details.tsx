@@ -2,7 +2,7 @@
 
 import {
   AgentJobStatus,
-  JobStatusWithRelations,
+  JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { useQuery } from "@tanstack/react-query";
@@ -51,12 +51,12 @@ export default function JobDetails({
     initialData: initialJob,
   });
 
-  const shouldCollapse = job.statuses.length > 2 && !showAllEvents;
-  const collapsedCount = job.statuses.length - 2;
+  const shouldCollapse = job.events.length > 2 && !showAllEvents;
+  const collapsedCount = job.events.length - 2;
 
-  const visibleStatuses = shouldCollapse
-    ? [job.statuses[0], job.statuses[job.statuses.length - 1]]
-    : job.statuses;
+  const visibleEvents = shouldCollapse
+    ? [job.events[0], job.events[job.events.length - 1]]
+    : job.events;
 
   return (
     <div
@@ -76,14 +76,14 @@ export default function JobDetails({
           </AccordionItem>
         </Accordion>
 
-        {visibleStatuses.map((status: JobStatusWithRelations, index) => (
-          <div key={`${job.id}-event-${status.id}`}>
+        {visibleEvents.map((event: JobEventWithRelations, index) => (
+          <div key={`${job.id}-event-${event.id}`}>
             <JobDetailsContent
               job={job}
-              status={status}
+              event={event}
               readOnly={readOnly}
               activeOrganizationId={activeOrganizationId}
-              isLast={index === visibleStatuses.length - 1}
+              isLast={index === visibleEvents.length - 1}
             />
             {shouldCollapse && index === 0 && (
               <CollapsedEventsButton
@@ -147,21 +147,21 @@ function CollapsedEventsButton({
 
 function JobDetailsProvideInputSection({
   job,
-  status,
+  event,
 }: {
   job: JobWithSokosumiStatus;
-  status: JobStatusWithRelations;
+  event: JobEventWithRelations;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails");
   return (
     <div
       className="mt-1.5 flex flex-col gap-2"
-      key={`${job.id}-${status.status}-details-awaiting-input`}
+      key={`${job.id}-${event.status}-details-awaiting-input`}
     >
       <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
         <div className="flex flex-1 flex-col gap-4">
           <h3 className="font-semibold">{t("AwaitingInput.title")}</h3>
-          <JobDetailsProvideInput job={job} status={status} />
+          <JobDetailsProvideInput job={job} event={event} />
         </div>
       </div>
     </div>
@@ -170,30 +170,30 @@ function JobDetailsProvideInputSection({
 
 function JobDetailsContent({
   job,
-  status,
+  event,
   readOnly,
   activeOrganizationId,
   isLast,
 }: {
   job: JobWithSokosumiStatus;
-  status: JobStatusWithRelations;
+  event: JobEventWithRelations;
   readOnly: boolean;
   activeOrganizationId?: string | null;
   isLast: boolean;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails");
-  const outputBlobs = getOutputBlobs(status.blobs ?? []);
-  const resultLinks = status.links ?? [];
+  const outputBlobs = getOutputBlobs(event.blobs ?? []);
+  const resultLinks = event.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
 
-  const isCompleted = status.status === AgentJobStatus.COMPLETED;
+  const isCompleted = event.status === AgentJobStatus.COMPLETED;
   const baseAccordion = isCompleted ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
     : baseAccordion;
 
   const isAwaitingInput =
-    status.status === AgentJobStatus.AWAITING_INPUT && status.input == null;
+    event.status === AgentJobStatus.AWAITING_INPUT && event.input == null;
 
   return (
     <Accordion
@@ -203,12 +203,12 @@ function JobDetailsContent({
     >
       <div className="flex flex-col gap-2 p-3 pt-4">
         <StatusDivider
-          jobId={status.jobId}
-          status={status.status}
-          updatedAt={status.createdAt}
+          jobId={event.jobId}
+          status={event.status}
+          updatedAt={event.createdAt}
         />
       </div>
-      {status.result ? (
+      {event.result ? (
         <AccordionItemWrapper
           value="output"
           title={isCompleted ? t("Output.result") : t("Output.status")}
@@ -219,7 +219,7 @@ function JobDetailsContent({
                 jobType={job.jobType}
                 onChainStatus={job.purchase?.onChainStatus}
                 identifierFromPurchaser={job.identifierFromPurchaser}
-                result={status.result}
+                result={event.result}
                 resultHash={job.purchase?.resultHash}
               />
             ) : null
@@ -227,7 +227,7 @@ function JobDetailsContent({
         >
           <JobDetailsOutputs
             job={job}
-            status={status}
+            event={event}
             readOnly={readOnly}
             activeOrganizationId={activeOrganizationId}
           />
@@ -235,10 +235,10 @@ function JobDetailsContent({
       ) : null}
       {hasSources ? (
         <AccordionItemWrapper value="sources" title={t("Sources.title")}>
-          <JotOutputSources status={status} />
+          <JotOutputSources event={event} />
         </AccordionItemWrapper>
       ) : null}
-      {status.input ? (
+      {event.input ? (
         <AccordionItemWrapper
           value="input"
           title={t("Input.title")}
@@ -247,23 +247,23 @@ function JobDetailsContent({
               direction="input"
               jobType={job.jobType}
               identifierFromPurchaser={job.identifierFromPurchaser}
-              input={status.input.input}
-              inputHash={status.input.inputHash}
+              input={event.input.input}
+              inputHash={event.input.inputHash}
             />
           }
         >
           <JobDetailsInputs
-            input={status.input.input}
-            inputSchema={status.inputSchema}
-            blobs={getInputBlobs(status.blobs)}
-            inputHash={status.input.inputHash}
+            input={event.input.input}
+            inputSchema={event.inputSchema}
+            blobs={getInputBlobs(event.blobs)}
+            inputHash={event.input.inputHash}
             identifierFromPurchaser={job.identifierFromPurchaser}
             jobType={job.jobType}
           />
         </AccordionItemWrapper>
       ) : null}
       {isAwaitingInput ? (
-        <JobDetailsProvideInputSection job={job} status={status} />
+        <JobDetailsProvideInputSection job={job} event={event} />
       ) : null}
     </Accordion>
   );
