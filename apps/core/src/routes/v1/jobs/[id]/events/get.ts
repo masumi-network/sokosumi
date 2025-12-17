@@ -27,14 +27,13 @@ const route = createRoute({
     200: jsonSuccessResponse(jobEventsSchema, "Retrieve events for a job", {
       data: [
         {
-          id: "status_123",
+          id: "event_123",
           createdAt: "2025-01-15T10:30:00.000Z",
           updatedAt: "2025-01-15T10:30:00.000Z",
           status: "INITIATED",
           inputSchema: "input_schema",
           input: {
             id: "input_123",
-            statusId: "status_123",
             input: '{"prompt":"How many planets are in the solar system?"}',
             inputHash: "input_hash",
             signature: null,
@@ -44,7 +43,7 @@ const route = createRoute({
           links: [],
         },
         {
-          id: "status_456",
+          id: "event_456",
           createdAt: "2025-01-15T10:35:00.000Z",
           updatedAt: "2025-01-15T10:35:00.000Z",
           status: "COMPLETED",
@@ -81,12 +80,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const events = job.statuses.map((status) => ({
         ...status,
-        ...(status.input && {
-          input: {
-            ...status.input,
-            eventId: status.id,
-          },
-        }),
         blobs: status.blobs.map((blob) => ({
           ...blob,
           name: blob.fileName ?? null,

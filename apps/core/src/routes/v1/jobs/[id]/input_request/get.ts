@@ -16,7 +16,7 @@ const params = z.object({
 });
 
 const inputRequestSchema = z.object({
-  statusId: z.string().openapi({ example: "status_123" }),
+  eventId: z.string().openapi({ example: "event_123" }),
   message: z
     .string()
     .nullish()
@@ -83,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     const inputRequest = {
-      statusId: jobStatus.id,
+      eventId: jobStatus.id,
       message: jobStatus.result,
       inputSchema: jobStatus.inputSchema,
     };

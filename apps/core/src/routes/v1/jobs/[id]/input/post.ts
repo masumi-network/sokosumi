@@ -23,9 +23,9 @@ const params = z.object({
 });
 
 const requestBodySchema = z.object({
-  statusId: z.string().openapi({
-    example: "status_123",
-    description: "The external ID of the job status that is awaiting input",
+  eventId: z.string().openapi({
+    example: "event_123",
+    description: "The ID of the job event that is awaiting input",
   }),
   inputData: z
     .record(
@@ -66,7 +66,6 @@ const route = createRoute({
     201: jsonSuccessResponse(jobInputSchema, "Input provided successfully", {
       data: {
         id: "cmi4gmksz000104l8wps8p7fp",
-        statusId: "status_123",
         input: '{"prompt":"How many planets are in the solar system?"}',
         inputHash: "input_hash",
         signature: "signature",
@@ -90,7 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: jobId } = c.req.valid("param");
-    const { statusId, inputData } = c.req.valid("json");
+    const { eventId, inputData } = c.req.valid("json");
 
     if (Object.keys(inputData).length === 0) {
       throw badRequest("Input data cannot be empty");
@@ -100,7 +99,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireJobAccess(authContext, jobId, tx);
       const jobStatus = await tx.jobStatus.findFirst({
         where: {
-          id: statusId,
+          id: eventId,
           jobId,
           status: AgentJobStatus.AWAITING_INPUT,
         },
@@ -165,7 +164,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const result = {
       id: jobInput.id,
-      statusId: jobStatus.id,
       input: jobInput.input,
       inputHash: jobInput.inputHash,
       signature: jobInput.signature,

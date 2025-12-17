@@ -10,7 +10,6 @@ import { linkSchema } from "./link.schema.js";
 export const jobInputSchema = z
   .object({
     id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
-    eventId: z.string().openapi({ example: "event_123" }),
     input: z.string().openapi({
       example: '{"prompt":"How many planets are in the solar system?"}',
     }),
