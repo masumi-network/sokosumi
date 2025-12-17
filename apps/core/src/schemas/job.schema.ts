@@ -10,18 +10,18 @@ import { linkSchema } from "./link.schema.js";
 export const jobInputSchema = z
   .object({
     id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
-    statusId: z.string().openapi({ example: "status_123" }),
+    eventId: z.string().openapi({ example: "event_123" }),
     input: z.string().openapi({
       example: '{"prompt":"How many planets are in the solar system?"}',
     }),
     inputHash: z.string().nullish().openapi({ example: "input_hash" }),
     signature: z.string().nullish().openapi({ example: "signature" }),
   })
-  .openapi("JobInput");
+  .openapi("Job Input");
 
-export const jobStatusSchema = z
+export const jobEventSchema = z
   .object({
-    id: z.string().openapi({ example: "status_123" }),
+    id: z.string().openapi({ example: "event_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     status: z.enum(AgentJobStatus).openapi({ example: AgentJobStatus.RUNNING }),
@@ -31,9 +31,9 @@ export const jobStatusSchema = z
     blobs: z.array(fileSchema).openapi({ example: [] }),
     links: z.array(linkSchema).openapi({ example: [] }),
   })
-  .openapi("JobStatus");
+  .openapi("Job Event");
 
-export const jobStatusesSchema = z.array(jobStatusSchema);
+export const jobEventsSchema = z.array(jobEventSchema);
 
 export const jobSchema = z
   .object({

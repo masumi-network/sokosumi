@@ -7,7 +7,7 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { jobStatusesSchema } from "@/schemas/job.schema.js";
+import { jobEventsSchema } from "@/schemas/job.schema.js";
 
 const params = z.object({
   id: z.string().openapi({
@@ -18,13 +18,13 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/statuses",
+  path: "/{id}/events",
   tags: ["Jobs"],
   request: {
     params,
   },
   responses: {
-    200: jsonSuccessResponse(jobStatusesSchema, "Retrieve statuses for a job", {
+    200: jsonSuccessResponse(jobEventsSchema, "Retrieve events for a job", {
       data: [
         {
           id: "status_123",
@@ -72,15 +72,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    const statuses = await prisma.$transaction(async (tx) => {
+    const events = await prisma.$transaction(async (tx) => {
       await requireJobAccess(authContext, id, tx);
       const job = await jobRepository.getJobById(id, tx);
       if (!job) {
         throw notFound("Job not found");
       }
 
-      const transformedStatuses = job.statuses.map((status) => ({
+      const events = job.statuses.map((status) => ({
         ...status,
+        ...(status.input && {
+          input: {
+            ...status.input,
+            eventId: status.id,
+          },
+        }),
         blobs: status.blobs.map((blob) => ({
           ...blob,
           name: blob.fileName ?? null,
@@ -93,9 +99,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           jobId: id,
         })),
       }));
-      return transformedStatuses;
+      return events;
     });
 
-    return ok(c, jobStatusesSchema.parse(statuses));
+    return ok(c, jobEventsSchema.parse(events));
   });
 }
