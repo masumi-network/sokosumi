@@ -24,7 +24,6 @@ export const jobStatusSchema = z
     id: z.string().openapi({ example: "status_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    externalId: z.string().nullish().openapi({ example: "external_id_123" }),
     status: z.enum(AgentJobStatus).openapi({ example: AgentJobStatus.RUNNING }),
     inputSchema: z.string().nullish().openapi({ example: "input_schema" }),
     input: jobInputSchema.nullish(),

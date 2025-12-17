@@ -30,7 +30,6 @@ const route = createRoute({
           id: "status_123",
           createdAt: "2025-01-15T10:30:00.000Z",
           updatedAt: "2025-01-15T10:30:00.000Z",
-          externalId: "external_id_123",
           status: "INITIATED",
           inputSchema: "input_schema",
           input: {
@@ -48,7 +47,6 @@ const route = createRoute({
           id: "status_456",
           createdAt: "2025-01-15T10:35:00.000Z",
           updatedAt: "2025-01-15T10:35:00.000Z",
-          externalId: null,
           status: "COMPLETED",
           inputSchema: null,
           input: null,

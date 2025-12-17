@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import {
@@ -96,18 +97,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Input data cannot be empty");
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const jobStatus = await prisma.$transaction(async (tx) => {
       // Verify job access
       await requireJobAccess(authContext, jobId, tx);
 
       // Get the job status that is awaiting input
       const jobStatus = await tx.jobStatus.findFirst({
         where: {
+          id: statusId,
           jobId,
-          externalId: statusId,
           status: AgentJobStatus.AWAITING_INPUT,
         },
         include: {
+          job: {
+            include: {
+              agent: {
+                select: {
+                  id: true,
+                  blockchainIdentifier: true,
+                  name: true,
+                  apiBaseUrl: true,
+                  overrideApiBaseUrl: true,
+                },
+              },
+            },
+          },
           input: true,
         },
       });
@@ -126,46 +140,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unprocessableEntity("Agent did not provide an input schema");
       }
 
-      // Convert input data to JSON string
-      const inputJson = JSON.stringify(inputData);
-
-      // TODO: Call agent API to provide input
-      // This would typically involve:
-      // 1. Calling the agent's API endpoint to provide input
-      // 2. Getting back input_hash and signature
-      // 3. Then creating the JobInput record
-      //
-      // For now, we'll create the input without the hash/signature
-      // You'll need to integrate with your agent client here
-      //
-      // Example:
-      // const agentResponse = await agentClient.provideJobInput(
-      //   job.agent,
-      //   statusId,
-      //   job.agentJobId,
-      //   inputData,
-      // );
-      // if (!agentResponse.ok) {
-      //   throw unprocessableEntity(agentResponse.error);
-      // }
-
-      // Create the job input
-      const jobInput = await tx.jobInput.create({
-        data: {
-          statusId: jobStatus.id,
-          input: inputJson,
-          // inputHash: agentResponse.data.input_hash,
-          // signature: agentResponse.data.signature,
-        },
-      });
-
-      return {
-        id: jobInput.id,
-        input: jobInput.input,
-        inputHash: jobInput.inputHash,
-        signature: jobInput.signature,
-      };
+      return jobStatus;
     });
+
+    if (!jobStatus.externalId) {
+      throw unprocessableEntity(
+        "Agent did not provide an external ID for the status",
+      );
+    }
+
+    const provideInputResult = await createAgentClient().provideJobInput(
+      jobStatus.job.agent,
+      jobStatus.externalId,
+      jobStatus.job.agentJobId,
+      inputData,
+    );
+
+    if (!provideInputResult.ok) {
+      throw unprocessableEntity(provideInputResult.error);
+    }
+
+    // Create the job input
+    const jobInput = await prisma.jobInput.create({
+      data: {
+        status: { connect: { id: jobStatus.id } },
+        input: JSON.stringify(inputData),
+        inputHash: provideInputResult.data.input_hash,
+        signature: provideInputResult.data.signature,
+      },
+    });
+
+    const result = {
+      id: jobInput.id,
+      statusId: jobStatus.id,
+      input: jobInput.input,
+      inputHash: jobInput.inputHash,
+      signature: jobInput.signature,
+    };
 
     return created(c, jobInputSchema.parse(result));
   });
