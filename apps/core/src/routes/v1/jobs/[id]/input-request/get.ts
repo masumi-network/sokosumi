@@ -26,7 +26,7 @@ const inputRequestSchema = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/input_request",
+  path: "/{id}/input-request",
   tags: ["Jobs"],
   request: {
     params,
