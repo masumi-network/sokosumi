@@ -98,7 +98,7 @@ function JobDetailsOutputsInner({
                     )}
                   </div>
                 </div>
-                {!readOnly && isPaidJob(job) && isCompleted && (
+                {!readOnly && isPaidJob(job) && (
                   <RequestRefundButton initialJob={job} />
                 )}
               </div>
