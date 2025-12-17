@@ -4,6 +4,7 @@ import mountGetJobById from "./[id]/get.js";
 import mountProvideJobInput from "./[id]/input/post.js";
 import mountGetInputRequestByJobId from "./[id]/input_request/get.js";
 import mountGetLinksByJobId from "./[id]/links/get.js";
+import mountGetStatesByJobId from "./[id]/states/get.js";
 import mountGetJobs from "./get.js";
 
 const app = new OpenAPIHonoWithAuth();
@@ -14,5 +15,6 @@ mountGetFilesByJobId(app);
 mountGetLinksByJobId(app);
 mountGetInputRequestByJobId(app);
 mountProvideJobInput(app);
+mountGetStatesByJobId(app);
 
 export default app;
