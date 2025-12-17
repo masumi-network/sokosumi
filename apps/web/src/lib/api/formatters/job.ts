@@ -3,7 +3,7 @@ import "server-only";
 import { AgentJobStatus, JobWithSokosumiStatus } from "@sokosumi/database";
 import {
   convertCentsToCredits,
-  getLatestJobStatus,
+  getLatestJobEvent,
 } from "@sokosumi/database/helpers";
 
 import { JobResponse, jobResponseSchema } from "@/lib/api/schemas";
@@ -16,7 +16,7 @@ import { formatJobShareResponse } from "./job-share";
  * Returns the completed event's result, or null if not found.
  */
 function getJobResult(job: JobWithSokosumiStatus): string | null {
-  const completedEvent = job.statuses.find(
+  const completedEvent = job.events.find(
     (event) => event.status === AgentJobStatus.COMPLETED,
   );
   return completedEvent?.result ?? null;
@@ -36,7 +36,7 @@ export function formatJobResponse(job: JobWithSokosumiStatus): JobResponse {
     userId: job.userId,
     organizationId: job.organizationId,
     agentJobId: job.agentJobId,
-    agentJobStatus: getLatestJobStatus(job)?.status,
+    agentJobStatus: getLatestJobEvent(job)?.status,
     onChainStatus: job.purchase?.onChainStatus ?? null,
     input: job.input ?? "{}",
     result: getJobResult(job),

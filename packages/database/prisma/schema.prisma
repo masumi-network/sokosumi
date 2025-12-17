@@ -531,7 +531,7 @@ model Job {
   // Public Share
   share JobShare?
 
-  statuses JobStatus[]
+  events JobEvent[]
 
   purchase JobPurchase?
 
@@ -572,7 +572,7 @@ model JobPurchase {
   @@map("jobPurchase")
 }
 
-model JobStatus {
+model JobEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -593,7 +593,7 @@ model JobStatus {
 
   @@index([externalId])
   @@index([jobId])
-  @@map("jobStatus")
+  @@map("jobEvent")
 }
 
 model JobInput {
@@ -601,8 +601,8 @@ model JobInput {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  statusId String    @unique
-  status   JobStatus @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  eventId String   @unique
+  event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   input     String
   inputHash String?
@@ -712,12 +712,12 @@ model Blob {
   userId String
   user   User   @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
 
-  jobStatusId String?
-  jobStatus   JobStatus? @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
+  eventId String?
+  event   JobEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@unique([jobStatusId, sourceUrl]) // For deduplication checks
+  @@unique([eventId, sourceUrl]) // For deduplication checks
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
-  @@index([jobStatusId, origin]) // For fetching blobs by job status with origin filter
+  @@index([eventId, origin]) // For fetching blobs by job event with origin filter
   @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
@@ -733,11 +733,11 @@ model Link {
   userId String
   user   User   @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
 
-  jobStatusId String
-  jobStatus   JobStatus @relation(fields: [jobStatusId], references: [id], onDelete: Cascade)
+  eventId String
+  event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@unique([jobStatusId, url]) // For deduplication checks
-  @@index([jobStatusId]) // For fetching all links for a job status
+  @@unique([eventId, url]) // For deduplication checks
+  @@index([eventId]) // For fetching all links for a job event
   @@map("link")
 }
 

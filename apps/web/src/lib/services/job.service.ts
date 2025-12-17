@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import {
   AgentJobStatus,
   AgentWithRelations,
+  JobEvent,
   JobShare,
   JobType,
   JobWithSokosumiStatus,
@@ -17,16 +18,16 @@ import {
 import prisma from "@sokosumi/database/client";
 import {
   computeJobStatus,
-  getLatestJobStatus,
+  getLatestJobEvent,
   isPaidJob,
 } from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
+  jobEventRepository,
   jobInputRepository,
   jobPurchaseRepository,
   jobRepository,
   jobShareRepository,
-  jobStatusRepository,
 } from "@sokosumi/database/repositories";
 import { track } from "@vercel/analytics/server";
 import { getTranslations } from "next-intl/server";
@@ -205,7 +206,7 @@ export const jobService = (() => {
   function extractJobFailureNotificationData(
     job: JobWithSokosumiStatus,
   ): JobFailureNotificationEmailProps {
-    const latestStatus = getLatestJobStatus(job);
+    const latestStatus = getLatestJobEvent(job);
     return {
       network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       agentId: job.agentId,
@@ -456,9 +457,9 @@ export const jobService = (() => {
     // Enqueue any sources from demo output
     try {
       // Find the COMPLETED event with a result for the demo job
-      const eventWithResult = job.statuses.find(
-        (status) =>
-          status.status === AgentJobStatus.COMPLETED && status.result !== null,
+      const eventWithResult = job.events.find(
+        (event) =>
+          event.status === AgentJobStatus.COMPLETED && event.result !== null,
       );
       if (eventWithResult?.result) {
         await sourceImportService.enqueueFromMarkdown(
@@ -1042,17 +1043,17 @@ export const jobService = (() => {
           const agentJobStatus = jobStatusToAgentJobStatus(
             agentJobStatusResult.data.status,
           );
-          const latestJobStatus =
-            await jobStatusRepository.getLatestJobStatusByJobId(job.id, tx);
+          const latestJobEvent =
+            await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
 
-          if (latestJobStatus) {
+          if (latestJobEvent) {
             // If the latest job status is the same as the agent job status result, return the current job status
-            if (latestJobStatus.externalId === agentJobStatusResult.data.id) {
+            if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
               return computeJobStatus(job);
             } else {
               // If the agent job status result has no external ID, check if the latest job status status is the same as the agent job status
               if (!agentJobStatusResult.data.id) {
-                if (latestJobStatus.status === agentJobStatus) {
+                if (latestJobEvent.status === agentJobStatus) {
                   return computeJobStatus(job);
                 }
               }
@@ -1071,17 +1072,16 @@ export const jobService = (() => {
             inputSchemaValue = undefined;
           }
 
-          const newJobStatus =
-            await jobStatusRepository.createJobStatusForJobId(
-              job.id,
-              {
-                externalId: agentJobStatusResult.data.id,
-                status: agentJobStatus,
-                inputSchema: inputSchemaValue,
-                result: agentJobStatusResult.data.result,
-              },
-              tx,
-            );
+          const newJobStatus = await jobEventRepository.createJobEventForJobId(
+            job.id,
+            {
+              externalId: agentJobStatusResult.data.id,
+              status: agentJobStatus,
+              inputSchema: inputSchemaValue,
+              result: agentJobStatusResult.data.result,
+            },
+            tx,
+          );
           job = await jobRepository.getJobById(job.id, tx);
           if (!job) {
             throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
@@ -1222,7 +1222,10 @@ export const jobService = (() => {
    */
   const provideJobInput = async (
     input: ProvideJobInputSchemaType & { userId: string },
-  ): Promise<JobWithSokosumiStatus> => {
+  ): Promise<{
+    job: JobWithSokosumiStatus;
+    jobEvent: JobEvent;
+  }> => {
     const { jobId, statusId, userId, inputData } = input;
 
     Sentry.addBreadcrumb({
@@ -1242,12 +1245,12 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
     // Get the JobStatus by externalId (statusId) that is awaiting input
-    const jobStatus =
-      await jobStatusRepository.getAwaitingInputJobStatusByJobIdAndExternalId(
+    const jobEvent =
+      await jobEventRepository.getAwaitingInputJobEventByJobIdAndExternalId(
         jobId,
         statusId,
       );
-    if (!jobStatus) {
+    if (!jobEvent) {
       throw new JobError(
         JobErrorCode.JOB_NOT_FOUND,
         "Job status not found or is not awaiting input",
@@ -1265,7 +1268,7 @@ export const jobService = (() => {
       data: {
         jobId: job.id,
         statusId,
-        jobStatusId: jobStatus.id,
+        jobEventId: jobEvent.id,
         agentId: job.agentId,
         agentJobId: job.agentJobId,
       },
@@ -1284,7 +1287,7 @@ export const jobService = (() => {
       Sentry.setContext("agent_provide_input", {
         jobId: job.id,
         statusId,
-        jobStatusId: jobStatus.id,
+        jobEventId: jobEvent.id,
         agentId: job.agentId,
         agentJobId: job.agentJobId,
         error: provideInputResult.error,
@@ -1303,8 +1306,8 @@ export const jobService = (() => {
     const responseData = provideInputResult.data;
 
     const updatedJob = await prisma.$transaction(async (tx) => {
-      await jobInputRepository.createJobInputForJobStatusId(
-        jobStatus.id,
+      await jobInputRepository.createJobInputForEventId(
+        jobEvent.id,
         {
           input: inputJson,
           inputHash: responseData.input_hash,
@@ -1332,11 +1335,11 @@ export const jobService = (() => {
       data: {
         jobId: updatedJob.id,
         statusId,
-        jobStatusId: jobStatus.id,
+        jobEventId: jobEvent.id,
       },
     });
 
-    return updatedJob;
+    return { job: updatedJob, jobEvent };
   };
 
   return {

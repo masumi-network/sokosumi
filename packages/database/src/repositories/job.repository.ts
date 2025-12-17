@@ -108,10 +108,10 @@ export const jobRepository = {
     SELECT 
       COALESCE(AVG(EXTRACT(EPOCH FROM (js."createdAt" - j."createdAt"))), 0) as avg_duration_seconds
     FROM "Job" j
-    INNER JOIN "jobStatus" js ON js."jobId" = j.id
+    INNER JOIN "jobEvent" js ON js."jobId" = j.id
     WHERE j."agentId" = ${agentId}
     AND j."jobType" != 'DEMO'
-    AND js.status = 'COMPLETED'::"AgentJobStatus"
+    AND js."status" = 'COMPLETED'::"AgentJobStatus"
     AND j."createdAt" >= NOW() - INTERVAL '90 days'
   `;
     const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
@@ -211,7 +211,7 @@ export const jobRepository = {
             },
           },
         }),
-        statuses: {
+        events: {
           create: {
             status: AgentJobStatus.INITIATED,
             result: null,
@@ -237,7 +237,7 @@ export const jobRepository = {
     const updatedJob = await tx.job.update({
       where: { id: job.id },
       data: {
-        statuses: {
+        events: {
           create: {
             status: AgentJobStatus.COMPLETED,
             result: data.result,
@@ -273,7 +273,7 @@ export const jobRepository = {
           },
         },
       }),
-      statuses: {
+      events: {
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
@@ -607,7 +607,7 @@ function jobsNotFinishedWhereQuery(
       // Filter out free jobs that are completed or failed on agentJobStatus
       {
         jobType: JobType.FREE,
-        statuses: {
+        events: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,
@@ -632,7 +632,7 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
     AND: [
       {
-        statuses: {
+        events: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,

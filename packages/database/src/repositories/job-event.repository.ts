@@ -1,8 +1,8 @@
 import prisma from "../client.js";
 import { AgentJobStatus } from "../generated/prisma/browser.js";
-import type { JobStatus, Prisma } from "../generated/prisma/client.js";
+import type { JobEvent, Prisma } from "../generated/prisma/client.js";
 
-interface CreateJobStatusData {
+interface CreateJobEventData {
   externalId?: string | null;
   status: AgentJobStatus;
   inputSchema?: string | null;
@@ -11,19 +11,19 @@ interface CreateJobStatusData {
 }
 
 /**
- * Repository for managing JobStatus entities and related queries.
- * Provides methods for creating, retrieving, updating, and deleting JobStatus records.
+ * Repository for managing JobEvent entities and related queries.
+ * Provides methods for creating, retrieving, updating, and deleting JobEvent records.
  */
-export const jobStatusRepository = {
+export const jobEventRepository = {
   /**
-   * Creates a new JobStatus record
+   * Creates a new JobEvent record
    */
-  async createJobStatusForJobId(
+  async createJobEventForJobId(
     jobId: string,
-    data: CreateJobStatusData,
+    data: CreateJobEventData,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobStatus> {
-    return await tx.jobStatus.create({
+  ): Promise<JobEvent> {
+    return await tx.jobEvent.create({
       data: {
         job: { connect: { id: jobId } },
         externalId: data.externalId,
@@ -36,51 +36,51 @@ export const jobStatusRepository = {
   },
 
   /**
-   * Retrieves a JobStatus by its ID
+   * Retrieves a JobEvent by its ID
    */
-  async getJobStatusById(
+  async getJobEventById(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobStatus | null> {
-    return await tx.jobStatus.findUnique({
+  ): Promise<JobEvent | null> {
+    return await tx.jobEvent.findUnique({
       where: { id },
     });
   },
 
   /**
-   * Retrieves all JobStatuses for a specific job, ordered by creation date (newest first)
+   * Retrieves all JobEvents for a specific job, ordered by creation date (newest first)
    */
-  async getJobStatusesByJobId(
+  async getJobEventsByJobId(
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobStatus[]> {
-    return await tx.jobStatus.findMany({
+  ): Promise<JobEvent[]> {
+    return await tx.jobEvent.findMany({
       where: { jobId },
       orderBy: { createdAt: "desc" },
     });
   },
 
   /**
-   * Retrieves the latest JobStatus for a specific job
+   * Retrieves the latest JobEvent for a specific job
    */
-  async getLatestJobStatusByJobId(
+  async getLatestJobEventByJobId(
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobStatus | null> {
-    return await tx.jobStatus.findFirst({
+  ): Promise<JobEvent | null> {
+    return await tx.jobEvent.findFirst({
       where: { jobId },
       orderBy: { createdAt: "desc" },
     });
   },
 
   /**
-   * Retrieves a JobStatus for a specific job that is awaiting input
+   * Retrieves a JobEvent for a specific job that is awaiting input
    */
-  async getAwaitingInputJobStatusByJobId(
+  async getAwaitingInputJobEventByJobId(
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobStatus | null> {
-    return await tx.jobStatus.findFirst({
+  ): Promise<JobEvent | null> {
+    return await tx.jobEvent.findFirst({
       where: {
         jobId,
         status: AgentJobStatus.AWAITING_INPUT,
@@ -88,12 +88,12 @@ export const jobStatusRepository = {
     });
   },
 
-  async getAwaitingInputJobStatusByJobIdAndExternalId(
+  async getAwaitingInputJobEventByJobIdAndExternalId(
     jobId: string,
     externalId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobStatus | null> {
-    return await tx.jobStatus.findFirst({
+  ): Promise<JobEvent | null> {
+    return await tx.jobEvent.findFirst({
       where: { externalId, jobId, status: AgentJobStatus.AWAITING_INPUT },
     });
   },

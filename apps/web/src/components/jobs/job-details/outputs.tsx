@@ -2,7 +2,7 @@
 
 import {
   AgentJobStatus,
-  JobStatusWithRelations,
+  JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { isPaidJob } from "@sokosumi/database/helpers";
@@ -24,7 +24,7 @@ import RequestRefundButton from "./refund-request";
 
 interface JobDetailsOutputsProps {
   job: JobWithSokosumiStatus;
-  status: JobStatusWithRelations;
+  event: JobEventWithRelations;
   readOnly?: boolean;
   activeOrganizationId?: string | null;
 }
@@ -39,7 +39,7 @@ function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
 
 export default function JobDetailsOutputs({
   job,
-  status,
+  event,
   readOnly = false,
   activeOrganizationId,
 }: JobDetailsOutputsProps) {
@@ -47,7 +47,7 @@ export default function JobDetailsOutputs({
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
       <JobDetailsOutputsInner
         job={job}
-        status={status}
+        event={event}
         readOnly={readOnly}
         activeOrganizationId={activeOrganizationId}
       />
@@ -57,7 +57,7 @@ export default function JobDetailsOutputs({
 
 function JobDetailsOutputsInner({
   job,
-  status,
+  event,
   readOnly,
   activeOrganizationId,
 }: JobDetailsOutputsProps) {
@@ -65,7 +65,7 @@ function JobDetailsOutputsInner({
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
   const searchParams = useSearchParams();
 
-  const result = status.result;
+  const result = event.result;
 
   const calculatedResultHash = useMemo(() => {
     if (!job.identifierFromPurchaser || !result) return null;
@@ -73,7 +73,7 @@ function JobDetailsOutputsInner({
   }, [result, job.identifierFromPurchaser]);
 
   const onChainResultHash = job.purchase?.resultHash ?? null;
-  const isCompleted = status.status === AgentJobStatus.COMPLETED;
+  const isCompleted = event.status === AgentJobStatus.COMPLETED;
 
   return (
     <JobDetailsOutputsLayout>
@@ -122,7 +122,7 @@ function JobDetailsOutputsInner({
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {status.status === AgentJobStatus.FAILED &&
+          {event.status === AgentJobStatus.FAILED &&
             !readOnly &&
             isPaidJob(job) && (
               <div className="flex justify-end">

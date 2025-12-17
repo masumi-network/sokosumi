@@ -1,5 +1,4 @@
 import {
-  JobWithStatus,
   OnChainTransactionStatus,
   OnChainJobStatus,
   NextJobAction,
@@ -46,7 +45,7 @@ describe("Job search functionality", () => {
       errorNote: null,
       errorNoteKey: null,
     },
-    statuses: [
+    events: [
       {
         id: "event-1",
         createdAt: new Date(),

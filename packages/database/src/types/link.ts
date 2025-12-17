@@ -1,7 +1,7 @@
 import type { Prisma } from "../generated/prisma/client.js";
 
 export const linkInclude = {
-  jobStatus: {
+  event: {
     select: {
       jobId: true,
     },
@@ -12,14 +12,14 @@ export type LinkWithJobIdRaw = Prisma.LinkGetPayload<{
   include: typeof linkInclude;
 }>;
 
-export type LinkWithJobId = Omit<LinkWithJobIdRaw, "jobStatus"> & {
+export type LinkWithJobId = Omit<LinkWithJobIdRaw, "event"> & {
   jobId: string;
 };
 
 export function flattenLinkJobId(link: LinkWithJobIdRaw): LinkWithJobId {
-  const { jobStatus, ...rest } = link;
+  const { event, ...rest } = link;
   return {
     ...rest,
-    jobId: jobStatus.jobId,
+    jobId: event.jobId,
   };
 }

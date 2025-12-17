@@ -12,14 +12,14 @@ interface CreateJobInputData {
  * Provides methods for creating, retrieving, updating, and deleting JobInput records.
  */
 export const jobInputRepository = {
-  async createJobInputForJobStatusId(
-    jobStatusId: string,
+  async createJobInputForEventId(
+    eventId: string,
     data: CreateJobInputData,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobInput> {
     return await tx.jobInput.create({
       data: {
-        status: { connect: { id: jobStatusId } },
+        event: { connect: { id: eventId } },
         input: data.input,
         inputHash: data.inputHash,
         signature: data.signature,
@@ -49,7 +49,7 @@ export const jobInputRepository = {
     return await tx.jobInput.findUnique({
       where: { id },
       include: {
-        status: {
+        event: {
           include: {
             job: true,
           },
@@ -67,7 +67,7 @@ export const jobInputRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobInput | null> {
     return await tx.jobInput.findFirst({
-      where: { status: { jobId } },
+      where: { event: { jobId } },
     });
   },
 
@@ -80,9 +80,9 @@ export const jobInputRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobInput | null> {
     return await tx.jobInput.findFirst({
-      where: { status: { jobId } },
+      where: { event: { jobId } },
       include: {
-        status: {
+        event: {
           include: {
             job: true,
           },

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  JobStatusWithRelations,
+  JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
 import { inputSchema, InputSchemaType } from "@sokosumi/masumi/schemas";
@@ -29,20 +29,20 @@ import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 interface JobDetailsProvideInputProps {
   job: JobWithSokosumiStatus;
-  status: JobStatusWithRelations;
+  event: JobEventWithRelations;
 }
 
 export default function JobDetailsProvideInput({
   job,
-  status,
+  event,
 }: JobDetailsProvideInputProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
 
   // Parse input schema from job - validate each entry individually
   const inputSchemas = useMemo<InputSchemaType[]>(() => {
     try {
-      if (status.inputSchema) {
-        const parsed = JSON.parse(status.inputSchema);
+      if (event.inputSchema) {
+        const parsed = JSON.parse(event.inputSchema);
         if (Array.isArray(parsed)) {
           // Validate each entry individually to allow partial success
           const validatedSchemas: InputSchemaType[] = [];
@@ -61,7 +61,7 @@ export default function JobDetailsProvideInput({
       console.error("Failed to parse input schema", _error);
     }
     return [];
-  }, [status.inputSchema]);
+  }, [event.inputSchema]);
 
   // Create a stable key to force form remount when schemas change
   // This ensures useForm is re-initialized with correct resolver and defaultValues
@@ -83,7 +83,7 @@ export default function JobDetailsProvideInput({
     <ProvideInputForm
       key={formKey}
       jobId={job.id}
-      statusId={status.externalId}
+      statusId={event.externalId}
       inputSchemas={inputSchemas}
     />
   );
