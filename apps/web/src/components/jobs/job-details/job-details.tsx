@@ -208,30 +208,6 @@ function JobDetailsContent({
           updatedAt={status.createdAt}
         />
       </div>
-      {status.input ? (
-        <AccordionItemWrapper
-          value="input"
-          title={t("Input.title")}
-          verificationBadge={
-            <JobInputVerificationBadge
-              direction="input"
-              jobType={job.jobType}
-              identifierFromPurchaser={job.identifierFromPurchaser}
-              input={status.input.input}
-              inputHash={status.input.inputHash}
-            />
-          }
-        >
-          <JobDetailsInputs
-            input={status.input.input}
-            inputSchema={status.inputSchema}
-            blobs={getInputBlobs(status.blobs)}
-            inputHash={status.input.inputHash}
-            identifierFromPurchaser={job.identifierFromPurchaser}
-            jobType={job.jobType}
-          />
-        </AccordionItemWrapper>
-      ) : null}
       {status.result ? (
         <AccordionItemWrapper
           value="output"
@@ -260,6 +236,30 @@ function JobDetailsContent({
       {hasSources ? (
         <AccordionItemWrapper value="sources" title={t("Sources.title")}>
           <JotOutputSources status={status} />
+        </AccordionItemWrapper>
+      ) : null}
+      {status.input ? (
+        <AccordionItemWrapper
+          value="input"
+          title={t("Input.title")}
+          verificationBadge={
+            <JobInputVerificationBadge
+              direction="input"
+              jobType={job.jobType}
+              identifierFromPurchaser={job.identifierFromPurchaser}
+              input={status.input.input}
+              inputHash={status.input.inputHash}
+            />
+          }
+        >
+          <JobDetailsInputs
+            input={status.input.input}
+            inputSchema={status.inputSchema}
+            blobs={getInputBlobs(status.blobs)}
+            inputHash={status.input.inputHash}
+            identifierFromPurchaser={job.identifierFromPurchaser}
+            jobType={job.jobType}
+          />
         </AccordionItemWrapper>
       ) : null}
       {isAwaitingInput ? (
