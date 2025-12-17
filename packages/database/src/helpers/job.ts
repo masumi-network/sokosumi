@@ -11,7 +11,6 @@ import {
   DemoJobWithStatus,
   FreeJobWithStatus,
   type JobStatusWithRelations,
-  InputRequest,
   type JobWithRelations,
   JobWithSokosumiStatus,
   PaidJobWithStatus,
@@ -280,31 +279,6 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
   }
 }
 
-function mapInputRequests(
-  statuses: JobWithRelations["statuses"],
-): InputRequest[] {
-  const inputRequests = statuses
-    .filter(
-      (
-        status,
-      ): status is JobWithRelations["statuses"][number] & {
-        input: NonNullable<JobWithRelations["statuses"][number]["input"]>;
-      } => status.input !== null,
-    )
-    .map((status) => {
-      const input = status.input;
-      return {
-        id: status.id,
-        message: status.result,
-        inputSchema: status.inputSchema!,
-        input: input.input,
-        inputHash: input.inputHash,
-        signature: input.signature,
-      };
-    });
-  return inputRequests;
-}
-
 export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
   const completedStatus = job.statuses.find(
     (event: JobStatusWithRelations) =>
@@ -312,7 +286,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
   );
   const completedAt = completedStatus?.createdAt ?? null;
   const result = completedStatus?.result ?? null;
-  const inputRequests = mapInputRequests(job.statuses);
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
@@ -344,7 +317,6 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
     ),
     result,
     resultHash: job.purchase?.resultHash ?? null,
-    inputRequests: inputRequests ?? null,
   };
 
   switch (job.jobType) {

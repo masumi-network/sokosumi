@@ -46,15 +46,6 @@ export type JobStatusWithRelations = Prisma.JobStatusGetPayload<{
 
 type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 
-export type InputRequest = {
-  id: string;
-  message: string | null;
-  inputSchema: string;
-  input: string;
-  inputHash: string | null;
-  signature: string | null;
-};
-
 type BaseJobWithStatus = JobWithRelations & {
   status: SokosumiJobStatus;
   jobStatusSettled: boolean;
