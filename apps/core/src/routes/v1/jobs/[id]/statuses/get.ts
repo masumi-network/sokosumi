@@ -18,13 +18,13 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/stages",
+  path: "/{id}/statuses",
   tags: ["Jobs"],
   request: {
     params,
   },
   responses: {
-    200: jsonSuccessResponse(jobStatusesSchema, "Retrieve stages for a job", {
+    200: jsonSuccessResponse(jobStatusesSchema, "Retrieve statuses for a job", {
       data: [
         {
           id: "status_123",

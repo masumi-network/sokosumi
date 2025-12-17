@@ -31,7 +31,7 @@ export const jobStatusSchema = z
     blobs: z.array(fileSchema).openapi({ example: [] }),
     links: z.array(linkSchema).openapi({ example: [] }),
   })
-  .openapi("JobStage");
+  .openapi("JobStatus");
 
 export const jobStatusesSchema = z.array(jobStatusSchema);
 
