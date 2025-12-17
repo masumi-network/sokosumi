@@ -50,6 +50,9 @@ importers:
       '@sokosumi/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@sokosumi/masumi':
+        specifier: workspace:*
+        version: link:../../packages/masumi
       '@vercel/blob':
         specifier: 2.0.0
         version: 2.0.0
