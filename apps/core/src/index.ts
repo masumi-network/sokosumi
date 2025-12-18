@@ -25,7 +25,7 @@ await initI18next();
 // Build favicon URL - use Vercel URL in production, relative path locally
 const faviconUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}/favicon.ico`
-  : "/favicon.ico";
+  : undefined;
 
 // Main app is exported at the end to combine OpenAPI and auth routes
 const mainApp = new Hono();
