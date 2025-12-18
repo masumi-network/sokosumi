@@ -1,10 +1,10 @@
 import * as z from "zod";
 
-import { submitInputDataSchema } from "../input/input.schema.js";
+import { provideInputDataSchema } from "./provide_input.schema.js";
 
 export const startJobRequestSchema = z.object({
   identifierFromPurchaser: z.string(),
-  input_data: submitInputDataSchema,
+  input_data: provideInputDataSchema,
 });
 
 export type StartJobRequestSchemaType = z.infer<typeof startJobRequestSchema>;

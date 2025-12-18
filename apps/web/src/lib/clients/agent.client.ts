@@ -6,10 +6,10 @@ import { createAgentClient, type Result } from "@sokosumi/masumi";
 import type {
   InputSchemaResponseSchemaType,
   JobStatusResponseSchemaType,
+  ProvideInputDataSchemaType,
   ProvideInputResponseSchemaType,
   StartFreeJobResponseSchemaType,
   StartPaidJobResponseSchemaType,
-  SubmitInputDataSchemaType,
 } from "@sokosumi/masumi/schemas";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -66,8 +66,8 @@ const masumiAgentClient = createAgentClient({
 
 // Type adapter: JobInputData (web app) -> InputData (masumi)
 // They have the same structure, so we can use type assertion
-function adaptInputData(data: JobInputData): SubmitInputDataSchemaType {
-  return data as SubmitInputDataSchemaType;
+function adaptInputData(data: JobInputData): ProvideInputDataSchemaType {
+  return data as ProvideInputDataSchemaType;
 }
 
 // Wrapper that adapts types and provides the same interface as before

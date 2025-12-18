@@ -577,19 +577,3 @@ export const inputGroupsSchema = z
   );
 
 export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
-
-export const submitInputDataSchema = z.record(
-  z.string(),
-  z.union([
-    z.number(),
-    z.array(z.number()),
-    z.string(),
-    z.array(z.string()),
-    z.boolean(),
-    z.undefined(),
-    z.instanceof(File),
-    z.array(z.instanceof(File)),
-  ]),
-);
-
-export type SubmitInputDataSchemaType = z.infer<typeof submitInputDataSchema>;
