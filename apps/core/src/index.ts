@@ -3,6 +3,7 @@ import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
+import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
@@ -54,6 +55,22 @@ app.get(
     theme: "saturn",
   }),
 );
+
+// Markdown documentation
+const content = apiV1.getOpenAPI31Document({
+  openapi: "3.1.0",
+  info: {
+    title: "Sokosumi API",
+    version: "1.0.0",
+    description: "Sokosumi API documentation",
+  },
+});
+
+const markdown = await createMarkdownFromOpenApi(JSON.stringify(content));
+
+app.get("/llms.txt", async (c) => {
+  return c.text(markdown);
+});
 
 // Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
 mainApp.route("/", app);
