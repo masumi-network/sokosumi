@@ -13,7 +13,6 @@ import type {
 } from "@sokosumi/masumi/schemas";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { JobInputData } from "@/lib/job-input";
 
 // Create the agent client with Sentry integration and web app configuration
 const masumiAgentClient = createAgentClient({
@@ -64,34 +63,25 @@ const masumiAgentClient = createAgentClient({
   },
 });
 
-// Type adapter: JobInputData (web app) -> InputData (masumi)
-// They have the same structure, so we can use type assertion
-function adaptInputData(data: JobInputData): InputSchemaType {
-  return data as InputSchemaType;
-}
-
 // Wrapper that adapts types and provides the same interface as before
 export const agentClient = {
   async startPaidAgentJob(
     agent: Agent,
     identifierFromPurchaser: string,
-    inputData: JobInputData,
+    inputData: InputSchemaType,
   ): Promise<Result<StartPaidJobResponseSchemaType, string>> {
     return masumiAgentClient.startPaidAgentJob(
       agent,
       identifierFromPurchaser,
-      adaptInputData(inputData),
+      inputData,
     );
   },
 
   async startFreeAgentJob(
     agent: Agent,
-    inputData: JobInputData,
+    inputData: InputSchemaType,
   ): Promise<Result<StartFreeJobResponseSchemaType, string>> {
-    return masumiAgentClient.startFreeAgentJob(
-      agent,
-      adaptInputData(inputData),
-    );
+    return masumiAgentClient.startFreeAgentJob(agent, inputData);
   },
 
   async fetchAgentJobStatus(
@@ -105,14 +95,9 @@ export const agentClient = {
     agent: Agent,
     statusId: string,
     jobId: string,
-    inputData: JobInputData,
+    inputData: InputSchemaType,
   ): Promise<Result<ProvideInputResponseSchemaType, string>> {
-    return masumiAgentClient.provideJobInput(
-      agent,
-      statusId,
-      jobId,
-      adaptInputData(inputData),
-    );
+    return masumiAgentClient.provideJobInput(agent, statusId, jobId, inputData);
   },
 
   async fetchAgentInputSchema(

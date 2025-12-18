@@ -1,5 +1,7 @@
 import "server-only";
 
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
+
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { GetPurchaseResponses } from "@/lib/clients/generated/payment";
@@ -10,7 +12,6 @@ import {
   postPurchaseResolveBlockchainIdentifier,
 } from "@/lib/clients/generated/payment";
 import { createClient } from "@/lib/clients/generated/payment/client";
-import { JobInputData } from "@/lib/job-input";
 import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -109,7 +110,7 @@ export const paymentClient = (() => {
     async createPurchase(
       agentBlockchainIdentifier: string,
       startJobResponse: StartJobResponseSchemaType,
-      inputData: JobInputData,
+      inputData: InputSchemaType,
       identifierFromPurchaser: string,
     ): Promise<Result<Purchase, string>> {
       try {

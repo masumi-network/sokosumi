@@ -29,6 +29,7 @@ import {
   jobRepository,
   jobShareRepository,
 } from "@sokosumi/database/repositories";
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
@@ -49,7 +50,6 @@ import { reactJobInputRequiredEmail } from "@/lib/email/job-input-required";
 import { postmarkClient } from "@/lib/email/postmark";
 import { getAgentName } from "@/lib/helpers/agent";
 import { getJobStatusData } from "@/lib/helpers/job";
-import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
   ProvideJobInputSchemaType,
@@ -407,7 +407,7 @@ export const jobService = (() => {
    */
   async function generateJobNameForAgent(
     agent: { name: string; description: string | null },
-    inputData: JobInputData,
+    inputData: InputSchemaType,
   ): Promise<string | null> {
     try {
       Sentry.addBreadcrumb({

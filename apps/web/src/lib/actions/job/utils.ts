@@ -1,9 +1,9 @@
 import "server-only";
 
 import { blobRepository } from "@sokosumi/database/repositories";
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
 
 import { uploadFile } from "@/lib/blob";
-import { JobInputData } from "@/lib/job-input";
 
 export interface UploadedFileWithMeta {
   url: string;
@@ -20,7 +20,7 @@ export interface UploadedFileWithMeta {
  */
 export async function handleInputDataFileUploads(
   userId: string,
-  inputData: JobInputData,
+  inputData: InputSchemaType,
 ): Promise<UploadedFileWithMeta[]> {
   const results: UploadedFileWithMeta[] = [];
   for (const [key, value] of Object.entries(inputData)) {

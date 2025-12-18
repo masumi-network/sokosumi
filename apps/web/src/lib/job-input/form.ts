@@ -1,9 +1,12 @@
-import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import {
+  InputFieldSchemaType,
+  InputSchemaType,
+} from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import * as z from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
-import { JobInputData, JobInputFormIntlPath } from "./type";
+import { JobInputFormIntlPath } from "./type";
 
 export const jobInputsFormSchema = (
   jobInputSchemas: InputFieldSchemaType[],
@@ -27,12 +30,12 @@ export type JobInputsFormSchemaType = z.infer<
 
 export function filterOutNullValues(
   values: JobInputsFormSchemaType,
-): JobInputData {
+): InputSchemaType {
   return Object.fromEntries(
     Object.entries(values).filter(
       ([_, value]) => value !== null && value !== undefined,
     ),
-  ) as JobInputData;
+  ) as InputSchemaType;
 }
 
 export const defaultValues = (jobInputSchemas: InputFieldSchemaType[]) => {
