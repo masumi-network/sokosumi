@@ -523,9 +523,20 @@ export const inputSchema = inputNoneSchema
 
 export type InputSchemaType = z.infer<typeof inputSchema>;
 
-export const inputDataSchema = z.object({
-  input_data: z.array(inputSchema),
-});
+export const inputDataSchema = z
+  .object({
+    input_data: z.array(inputSchema),
+  })
+  .refine(
+    (data) => {
+      const ids = data.input_data.map((input) => input.id);
+      return new Set(ids).size === ids.length;
+    },
+    {
+      message: "Input IDs must be unique across all inputs",
+      path: ["input_data"],
+    },
+  );
 
 export type InputDataSchemaType = z.infer<typeof inputDataSchema>;
 
