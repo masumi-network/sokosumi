@@ -16,7 +16,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 });
 
 app.doc("/openapi.json", {
-  openapi: "3.0.3",
+  openapi: "3.1.0",
   info: {
     version: "1.0.0",
     title: "Sokosumi API",
