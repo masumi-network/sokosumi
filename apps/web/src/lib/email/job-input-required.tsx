@@ -15,7 +15,7 @@ import {
 } from "@react-email/components";
 import { getTranslations } from "next-intl/server";
 
-export interface JobInputRequiredEmailProps {
+interface JobInputRequiredEmailProps {
   recipientName: string;
   agentName: string;
   jobName?: string | null;
