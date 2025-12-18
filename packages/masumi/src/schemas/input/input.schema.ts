@@ -578,6 +578,21 @@ export const inputGroupsSchema = z
 
 export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
 
+export const inputSchemaSchema = z
+  .union([inputDataSchema, z.object({ input_groups: inputGroupsSchema })])
+  .refine(
+    (data) => {
+      const hasInputData = "input_data" in data;
+      const hasInputGroups = "input_groups" in data;
+      return hasInputData !== hasInputGroups; // Exactly one must be present
+    },
+    {
+      message: "Must provide exactly one of 'input_data' or 'input_groups'",
+    },
+  );
+
+export type InputSchemaSchemaType = z.infer<typeof inputSchemaSchema>;
+
 // Schema for input data when providing input to an agent
 export const inputSchema = z.record(
   z.string(),
