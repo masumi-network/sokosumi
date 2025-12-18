@@ -540,23 +540,23 @@ export const inputDataSchema = z
 
 export type InputDataSchemaType = z.infer<typeof inputDataSchema>;
 
-export const inputGroupSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  input_data: z.array(inputSchema),
-});
+export const inputGroupSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+  })
+  .and(inputDataSchema);
 
 export type InputGroupSchemaType = z.infer<typeof inputGroupSchema>;
 
+export const inputGroupsSchema = z.object({
+  input_groups: z.array(inputGroupSchema),
+});
+
+export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
+
 export const inputsSchema = z
-  .union([
-    z.object({
-      input_data: z.array(inputSchema),
-    }),
-    z.object({
-      input_groups: z.array(inputGroupSchema),
-    }),
-  ])
+  .union([inputDataSchema, inputGroupsSchema])
   .refine(
     (data) => {
       const hasInputData = "input_data" in data;
