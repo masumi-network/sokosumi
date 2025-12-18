@@ -1662,6 +1662,17 @@
         "input": "Input:",
         "output": "Output:",
         "footer": "This is an automated notification from Sōkosumi."
+      },
+      "JobInputRequired": {
+        "subject": "Sokosumi - {agentName} needs your input",
+        "preview": "Your job for {agentName} requires input to continue.",
+        "title": "Action Required",
+        "greeting": "Hi {name}",
+        "body": "Your job {jobName} for {agentName} is waiting for your input to continue.",
+        "button": "Provide input",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "You're receiving this email because job notifications are enabled for your account.",
+        "fallbackJobName": "Your job"
       }
     },
     "JobInput": {

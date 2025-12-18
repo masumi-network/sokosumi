@@ -44,6 +44,7 @@ import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
 } from "@/lib/email/job-failure-notification";
+import { reactJobInputRequiredEmail } from "@/lib/email/job-input-required";
 import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
 import { getAgentName } from "@/lib/helpers/agent";
@@ -193,6 +194,52 @@ export const jobService = (() => {
         extra: {
           jobId: job.id,
           jobStatus,
+          userId: job.userId,
+        },
+      });
+    }
+  }
+
+  async function dispatchInputRequiredNotification(job: JobWithSokosumiStatus) {
+    if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
+      return;
+    }
+
+    try {
+      const t = await getTranslations({
+        locale: "en",
+        namespace: "Library.Email.JobInputRequired",
+      });
+
+      const agentName = getAgentName(job.agent);
+      const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
+
+      const htmlBody = await reactJobInputRequiredEmail({
+        recipientName: job.user.name,
+        agentName,
+        jobName: job.name,
+        jobLink,
+      });
+
+      postmarkClient.sendEmail({
+        From: POSTMARK_FROM_EMAIL,
+        To: job.user.email,
+        Tag: "job-input-required",
+        Subject: t("subject", { agentName }),
+        HtmlBody: htmlBody,
+        MessageStream: "outbound",
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "error",
+            domain: "job_input_required_notification",
+            category: "service_layer",
+          },
+        },
+        extra: {
+          jobId: job.id,
           userId: job.userId,
         },
       });
@@ -1126,6 +1173,11 @@ export const jobService = (() => {
 
       if (finalJobStatuses.has(newJobStatus)) {
         await dispatchFinalStatusNotification(job, newJobStatus);
+      }
+
+      // Send input required notification when user action is needed
+      if (newJobStatus === SokosumiJobStatus.INPUT_REQUIRED) {
+        await dispatchInputRequiredNotification(job);
       }
 
       // Send failure notification for FAILED or PAYMENT_FAILED statuses
