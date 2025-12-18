@@ -13,7 +13,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup && cp -r src/static dist/",
+    "build": "tsup",
     "start": "node dist/index.js"
   },
   "dependencies": {
