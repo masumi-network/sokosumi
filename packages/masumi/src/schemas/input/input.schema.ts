@@ -577,3 +577,20 @@ export const inputGroupsSchema = z
   );
 
 export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
+
+// Schema for input data when providing input to an agent
+export const provideInputDataSchema = z.record(
+  z.string(),
+  z.union([
+    z.number(),
+    z.array(z.number()),
+    z.string(),
+    z.array(z.string()),
+    z.boolean(),
+    z.undefined(),
+    z.instanceof(File),
+    z.array(z.instanceof(File)),
+  ]),
+);
+
+export type ProvideInputDataSchemaType = z.infer<typeof provideInputDataSchema>;

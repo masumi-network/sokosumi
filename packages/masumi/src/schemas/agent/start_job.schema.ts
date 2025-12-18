@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { provideInputDataSchema } from "./provide_input.schema.js";
+import { provideInputDataSchema } from "../input/input.schema.js";
 
 export const startJobRequestSchema = z.object({
   identifierFromPurchaser: z.string(),
