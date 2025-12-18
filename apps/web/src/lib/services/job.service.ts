@@ -68,19 +68,6 @@ import { userService } from "./user.service";
 const { POSTMARK_FROM_EMAIL } = getEnvSecrets();
 const { NEXT_PUBLIC_SOKOSUMI_URL } = getEnvPublicConfig();
 
-const finalJobStatuses = new Set<SokosumiJobStatus>([
-  SokosumiJobStatus.COMPLETED,
-  SokosumiJobStatus.FAILED,
-  SokosumiJobStatus.PAYMENT_FAILED,
-  SokosumiJobStatus.REFUND_RESOLVED,
-  SokosumiJobStatus.DISPUTE_RESOLVED,
-]);
-
-const failedJobStatuses = new Set<SokosumiJobStatus>([
-  SokosumiJobStatus.FAILED,
-  SokosumiJobStatus.PAYMENT_FAILED,
-]);
-
 export const jobService = (() => {
   /**
    * Helper function to determine if agent status should be synchronized for a job.
@@ -1171,18 +1158,20 @@ export const jobService = (() => {
         `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
       );
 
-      if (finalJobStatuses.has(newJobStatus)) {
-        await dispatchFinalStatusNotification(job, newJobStatus);
-      }
-
-      // Send input required notification when user action is needed
-      if (newJobStatus === SokosumiJobStatus.INPUT_REQUIRED) {
-        await dispatchInputRequiredNotification(job);
-      }
-
-      // Send failure notification for FAILED or PAYMENT_FAILED statuses
-      if (failedJobStatuses.has(newJobStatus)) {
-        await dispatchJobFailureNotification(job);
+      switch (newJobStatus) {
+        case SokosumiJobStatus.COMPLETED:
+        case SokosumiJobStatus.FAILED:
+        case SokosumiJobStatus.REFUND_RESOLVED:
+        case SokosumiJobStatus.DISPUTE_RESOLVED:
+          await dispatchFinalStatusNotification(job, newJobStatus);
+          break;
+        case SokosumiJobStatus.INPUT_REQUIRED:
+          await dispatchInputRequiredNotification(job);
+          break;
+        case SokosumiJobStatus.FAILED:
+        case SokosumiJobStatus.PAYMENT_FAILED:
+          await dispatchJobFailureNotification(job);
+          break;
       }
 
       try {
