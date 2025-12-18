@@ -44,8 +44,8 @@ import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
 } from "@/lib/email/job-failure-notification";
+import { reactJobFinalStatusEmail } from "@/lib/email/job-final-status";
 import { reactJobInputRequiredEmail } from "@/lib/email/job-input-required";
-import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
 import { getAgentName } from "@/lib/helpers/agent";
 import { getJobStatusData } from "@/lib/helpers/job";
@@ -159,14 +159,14 @@ export const jobService = (() => {
     try {
       const t = await getTranslations({
         locale: "en",
-        namespace: "Library.Email.JobStatus",
+        namespace: "Library.Email.JobFinalStatus",
       });
 
       const agentName = getAgentName(job.agent);
       const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
       const statusLabel = t(`status.${jobStatus}`);
 
-      const htmlBody = await reactJobStatusEmail({
+      const htmlBody = await reactJobFinalStatusEmail({
         recipientName: job.user.name,
         agentName,
         jobName: job.name,

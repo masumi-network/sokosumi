@@ -1625,7 +1625,7 @@
       }
     },
     "Email": {
-      "JobStatus": {
+      "JobFinalStatus": {
         "subject": "Sokosumi - {agentName} job {status}",
         "preview": "Your job for {agentName} is now {status}.",
         "title": "Job {status}",
