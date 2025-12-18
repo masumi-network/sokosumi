@@ -9,9 +9,9 @@ import {
   StartFreeJobResponseSchemaType,
   startPaidJobResponseSchema,
   StartPaidJobResponseSchemaType,
+  SubmitInputDataSchemaType,
 } from "../schemas/index.js";
 import type { Agent } from "../types/agent.js";
-import type { InputData } from "../types/input.js";
 import { Err, Ok, type Result } from "../utils/result.js";
 import { safeAddPathComponent } from "../utils/url.js";
 
@@ -105,7 +105,7 @@ export function createAgentClient(config?: AgentClientConfig) {
     async startPaidAgentJob(
       agent: Agent,
       identifierFromPurchaser: string,
-      inputData: InputData,
+      inputData: SubmitInputDataSchemaType,
     ): Promise<Result<StartPaidJobResponseSchemaType, string>> {
       try {
         const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
@@ -142,7 +142,7 @@ export function createAgentClient(config?: AgentClientConfig) {
 
     async startFreeAgentJob(
       agent: Agent,
-      inputData: InputData,
+      inputData: SubmitInputDataSchemaType,
     ): Promise<Result<StartFreeJobResponseSchemaType, string>> {
       try {
         const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
@@ -206,7 +206,7 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       statusId: string,
       jobId: string,
-      inputData: InputData,
+      inputData: SubmitInputDataSchemaType,
     ): Promise<Result<ProvideInputResponseSchemaType, string>> {
       try {
         const provideInputUrl = getAgentUrlWithPathComponent(
@@ -220,8 +220,6 @@ export function createAgentClient(config?: AgentClientConfig) {
           input_data: inputData,
         });
 
-        console.log("body", body);
-
         const provideInputResponse = await fetch(provideInputUrl, {
           method: "POST",
           headers: {
@@ -230,8 +228,6 @@ export function createAgentClient(config?: AgentClientConfig) {
           },
           body,
         });
-
-        console.log("provideInputResponse", provideInputResponse);
 
         if (!provideInputResponse.ok) {
           return Err(

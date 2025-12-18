@@ -593,18 +593,18 @@ export const inputsSchema = z
 
 export type InputsSchemaType = z.infer<typeof inputsSchema>;
 
-export const submitInputDataSchema = z.object({
-  input_data: z.record(
+export const submitInputDataSchema = z.record(
+  z.string(),
+  z.union([
+    z.number(),
+    z.array(z.number()),
     z.string(),
-    z.union([
-      z.number(),
-      z.array(z.number()),
-      z.string(),
-      z.array(z.string()),
-      z.boolean(),
-      z.undefined(),
-      z.instanceof(File),
-      z.array(z.instanceof(File)),
-    ]),
-  ),
-});
+    z.array(z.string()),
+    z.boolean(),
+    z.undefined(),
+    z.instanceof(File),
+    z.array(z.instanceof(File)),
+  ]),
+);
+
+export type SubmitInputDataSchemaType = z.infer<typeof submitInputDataSchema>;

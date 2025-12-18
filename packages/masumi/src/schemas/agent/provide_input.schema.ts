@@ -2,12 +2,11 @@ import { z } from "zod";
 
 import { submitInputDataSchema } from "../input/input.schema.js";
 
-export const provideInputRequestSchema = z
-  .object({
-    job_id: z.string(),
-    status_id: z.string(),
-  })
-  .and(submitInputDataSchema);
+export const provideInputRequestSchema = z.object({
+  job_id: z.string(),
+  status_id: z.string(),
+  input_data: submitInputDataSchema,
+});
 
 export type ProvideInputRequestSchemaType = z.infer<
   typeof provideInputRequestSchema
