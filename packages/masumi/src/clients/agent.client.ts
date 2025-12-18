@@ -1,9 +1,9 @@
 import {
   inputSchemaResponseSchema,
   InputSchemaResponseSchemaType,
+  InputSchemaType,
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
-  ProvideInputDataSchemaType,
   provideInputResponseSchema,
   ProvideInputResponseSchemaType,
   startFreeJobResponseSchema,
@@ -105,7 +105,7 @@ export function createAgentClient(config?: AgentClientConfig) {
     async startPaidAgentJob(
       agent: Agent,
       identifierFromPurchaser: string,
-      inputData: ProvideInputDataSchemaType,
+      inputData: InputSchemaType,
     ): Promise<Result<StartPaidJobResponseSchemaType, string>> {
       try {
         const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
@@ -142,7 +142,7 @@ export function createAgentClient(config?: AgentClientConfig) {
 
     async startFreeAgentJob(
       agent: Agent,
-      inputData: ProvideInputDataSchemaType,
+      inputData: InputSchemaType,
     ): Promise<Result<StartFreeJobResponseSchemaType, string>> {
       try {
         const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
@@ -207,7 +207,7 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       statusId: string,
       jobId: string,
-      inputData: ProvideInputDataSchemaType,
+      inputData: InputSchemaType,
     ): Promise<Result<ProvideInputResponseSchemaType, string>> {
       try {
         const provideInputUrl = getAgentUrlWithPathComponent(

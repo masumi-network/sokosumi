@@ -579,7 +579,7 @@ export const inputGroupsSchema = z
 export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
 
 // Schema for input data when providing input to an agent
-export const provideInputDataSchema = z.record(
+export const inputSchema = z.record(
   z.string(),
   z.union([
     z.number(),
@@ -593,4 +593,4 @@ export const provideInputDataSchema = z.record(
   ]),
 );
 
-export type ProvideInputDataSchemaType = z.infer<typeof provideInputDataSchema>;
+export type InputSchemaType = z.infer<typeof inputSchema>;
