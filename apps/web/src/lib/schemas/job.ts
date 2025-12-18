@@ -1,5 +1,5 @@
 import {
-  inputSchema,
+  inputFieldSchema,
   inputSchemaResponseSchema,
 } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
@@ -11,7 +11,7 @@ export const startJobInputSchema = z.object({
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
-  inputSchema: z.array(inputSchema),
+  inputSchema: z.array(inputFieldSchema),
   inputData: z.record(
     z.string(),
     z.union([
@@ -164,7 +164,7 @@ export const createJobScheduleInputSchema = z.object({
   cron: z.string().nullish(),
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
-  inputSchema: z.array(inputSchema),
+  inputSchema: z.array(inputFieldSchema),
   inputData: z.record(
     z.string(),
     z.union([

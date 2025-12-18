@@ -496,7 +496,7 @@ export const inputMultiselectSchema = z.object({
 
 export type InputMultiselectSchemaType = z.infer<typeof inputMultiselectSchema>;
 
-export const inputSchema = inputNoneSchema
+export const inputFieldSchema = inputNoneSchema
   .or(inputStringSchema)
   .or(inputTextSchema)
   .or(inputTextareaSchema)
@@ -521,9 +521,9 @@ export const inputSchema = inputNoneSchema
   .or(inputOptionSchema)
   .or(inputMultiselectSchema);
 
-export type InputSchemaType = z.infer<typeof inputSchema>;
+export type InputFieldSchemaType = z.infer<typeof inputFieldSchema>;
 
-export const inputsSchema = z.array(inputSchema).refine(
+export const inputFieldsSchema = z.array(inputFieldSchema).refine(
   (data) => {
     const ids = data.map((input) => input.id);
     return new Set(ids).size === ids.length;
@@ -534,10 +534,10 @@ export const inputsSchema = z.array(inputSchema).refine(
   },
 );
 
-export type InputsSchemaType = z.infer<typeof inputsSchema>;
+export type InputFieldsSchemaType = z.infer<typeof inputFieldsSchema>;
 
 export const inputDataSchema = z.object({
-  input_data: inputsSchema,
+  input_data: inputFieldsSchema,
 });
 
 export type InputDataSchemaType = z.infer<typeof inputDataSchema>;

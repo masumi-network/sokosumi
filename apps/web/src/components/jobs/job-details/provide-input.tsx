@@ -5,7 +5,10 @@ import {
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import { inputSchema, InputSchemaType } from "@sokosumi/masumi/schemas";
+import {
+  inputFieldSchema,
+  InputFieldSchemaType,
+} from "@sokosumi/masumi/schemas";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -39,15 +42,15 @@ export default function JobDetailsProvideInput({
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
 
   // Parse input schema from job - validate each entry individually
-  const inputSchemas = useMemo<InputSchemaType[]>(() => {
+  const inputSchemas = useMemo<InputFieldSchemaType[]>(() => {
     try {
       if (event.inputSchema) {
         const parsed = JSON.parse(event.inputSchema);
         if (Array.isArray(parsed)) {
           // Validate each entry individually to allow partial success
-          const validatedSchemas: InputSchemaType[] = [];
+          const validatedSchemas: InputFieldSchemaType[] = [];
           for (const entry of parsed) {
-            const schemaResult = inputSchema.safeParse(entry);
+            const schemaResult = inputFieldSchema.safeParse(entry);
             if (schemaResult.success) {
               validatedSchemas.push(schemaResult.data);
             } else {
@@ -92,7 +95,7 @@ export default function JobDetailsProvideInput({
 interface ProvideInputFormProps {
   jobId: string;
   statusId?: string | null;
-  inputSchemas: InputSchemaType[];
+  inputSchemas: InputFieldSchemaType[];
 }
 function ProvideInputForm({
   jobId,

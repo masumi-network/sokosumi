@@ -1,12 +1,12 @@
 import {
+  InputFieldSchemaType,
   InputFileSchemaType,
   InputOptionSchemaType,
-  InputSchemaType,
   ValidationSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
 
-export const isOptional = (jobInputSchema: InputSchemaType): boolean => {
+export const isOptional = (jobInputSchema: InputFieldSchemaType): boolean => {
   const { type } = jobInputSchema;
   if (type === InputType.NONE) return true;
 
@@ -31,7 +31,9 @@ export const isSingleOption = (
   );
 };
 
-export const transformJobInputSchemaValidations = <T extends InputSchemaType>(
+export const transformJobInputSchemaValidations = <
+  T extends InputFieldSchemaType,
+>(
   jobInputSchema: T extends {
     validations?: ValidationSchemaType[] | null | undefined;
   }

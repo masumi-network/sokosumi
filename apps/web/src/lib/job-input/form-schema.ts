@@ -5,6 +5,7 @@ import {
   InputDateSchemaType,
   InputDatetimeSchemaType,
   InputEmailSchemaType,
+  InputFieldSchemaType,
   InputFileSchemaType,
   InputMonthSchemaType,
   InputMultiselectSchemaType,
@@ -13,7 +14,6 @@ import {
   InputPasswordSchemaType,
   InputRadioGroupSchemaType,
   InputRangeSchemaType,
-  InputSchemaType,
   InputSearchSchemaType,
   InputStringSchemaType,
   InputTelSchemaType,
@@ -35,7 +35,7 @@ import { parseISOWeek, parseMonth } from "@/lib/utils";
 import { JobInputFormIntlPath } from "./type";
 
 export const makeZodSchemaFromJobInputSchema = (
-  jobInputSchema: InputSchemaType,
+  jobInputSchema: InputFieldSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   switch (jobInputSchema.type) {

@@ -1,4 +1,4 @@
-import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
@@ -32,7 +32,7 @@ import {
 
 interface InputFieldProps {
   id: string;
-  jobInputSchema: InputSchemaType;
+  jobInputSchema: InputFieldSchemaType;
   field: ControllerRenderProps<JobInputsFormSchemaType>;
   form: UseFormReturn<JobInputsFormSchemaType>;
 }

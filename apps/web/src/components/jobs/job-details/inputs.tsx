@@ -3,7 +3,7 @@
 import type { Blob } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
-import { inputSchema as jobInputSchema } from "@sokosumi/masumi/schemas";
+import { inputFieldSchema } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -106,7 +106,7 @@ function JobDetailsInputsInner({
   let inputsMap: Record<string, { name: string; type: InputType }> = {};
   if (Array.isArray(inputSchema)) {
     inputsMap = z
-      .array(jobInputSchema)
+      .array(inputFieldSchema)
       .parse(inputSchema)
       .reduce(
         (acc, item) => {
