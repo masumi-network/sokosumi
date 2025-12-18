@@ -50,7 +50,7 @@ const requestBodySchema = z.object({
 
 const route = createRoute({
   method: "post",
-  path: "/{id}/input",
+  path: "/{id}/inputs",
   tags: ["Jobs"],
   request: {
     params,
