@@ -46,7 +46,7 @@ app.get(
   "/",
   Scalar({
     pageTitle: "Sokosumi API Documentation",
-    favicon: "./favicon.ico",
+    favicon: "favicon.ico",
     sources: [
       { url: "/v1/openapi.json", title: "v1" },
       { url: "/auth/open-api/generate-schema", title: "Better Auth" },
