@@ -1,12 +1,12 @@
 import * as z from "zod";
 
-import { submitInputsSchema } from "../input/input.schema.js";
+import { submitInputDataSchema } from "../input/input.schema.js";
 
 export const startJobRequestSchema = z
   .object({
     identifierFromPurchaser: z.string(),
   })
-  .and(submitInputsSchema);
+  .and(submitInputDataSchema);
 
 export type StartJobRequestSchemaType = z.infer<typeof startJobRequestSchema>;
 
