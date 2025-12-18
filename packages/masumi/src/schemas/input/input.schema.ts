@@ -550,7 +550,15 @@ export const inputGroupSchema = z
 export type InputGroupSchemaType = z.infer<typeof inputGroupSchema>;
 
 export const inputGroupsSchema = z.object({
-  input_groups: z.array(inputGroupSchema),
+  input_groups: z.array(inputGroupSchema).refine(
+    (groups) => {
+      const ids = groups.map((group) => group.id);
+      return new Set(ids).size === ids.length;
+    },
+    {
+      message: "Input group IDs must be unique across all input groups",
+    },
+  ),
 });
 
 export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
