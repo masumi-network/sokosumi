@@ -30,7 +30,10 @@ const app = new OpenAPIHono<{
   Variables: RequestIdVariables;
 }>();
 
-app.use("/favicon.ico", serveStatic({ path: "static/favicon.ico" }));
+app.use(
+  "/favicon.ico",
+  serveStatic({ root: import.meta.dirname, path: "static/favicon.ico" }),
+);
 
 app.use(logger());
 app.use(requestId());
@@ -49,7 +52,7 @@ app.get(
   "/",
   Scalar({
     pageTitle: "Sokosumi API Documentation",
-    favicon: "./favicon.ico",
+    favicon: "/favicon.ico",
     sources: [
       { url: "/v1/openapi.json", title: "v1" },
       { url: "/auth/open-api/generate-schema", title: "Better Auth" },
