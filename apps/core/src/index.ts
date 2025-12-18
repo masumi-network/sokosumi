@@ -49,6 +49,8 @@ app.get(
       { url: "/v1/openapi.json", title: "v1" },
       { url: "/auth/open-api/generate-schema", title: "Better Auth" },
     ],
+    persistAuth: true,
+    hideClientButton: true,
     defaultOpenAllTags: true,
     layout: "modern",
     theme: "saturn",
