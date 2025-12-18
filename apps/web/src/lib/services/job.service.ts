@@ -44,7 +44,8 @@ import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
 } from "@/lib/email/job-failure-notification";
-import { reactJobStatusEmail } from "@/lib/email/job-status";
+import { reactJobFinalStatusEmail } from "@/lib/email/job-final-status";
+import { reactJobInputRequiredEmail } from "@/lib/email/job-input-required";
 import { postmarkClient } from "@/lib/email/postmark";
 import { getAgentName } from "@/lib/helpers/agent";
 import { getJobStatusData } from "@/lib/helpers/job";
@@ -66,19 +67,6 @@ import { userService } from "./user.service";
 
 const { POSTMARK_FROM_EMAIL } = getEnvSecrets();
 const { NEXT_PUBLIC_SOKOSUMI_URL } = getEnvPublicConfig();
-
-const finalJobStatuses = new Set<SokosumiJobStatus>([
-  SokosumiJobStatus.COMPLETED,
-  SokosumiJobStatus.FAILED,
-  SokosumiJobStatus.PAYMENT_FAILED,
-  SokosumiJobStatus.REFUND_RESOLVED,
-  SokosumiJobStatus.DISPUTE_RESOLVED,
-]);
-
-const failedJobStatuses = new Set<SokosumiJobStatus>([
-  SokosumiJobStatus.FAILED,
-  SokosumiJobStatus.PAYMENT_FAILED,
-]);
 
 export const jobService = (() => {
   /**
@@ -158,14 +146,14 @@ export const jobService = (() => {
     try {
       const t = await getTranslations({
         locale: "en",
-        namespace: "Library.Email.JobStatus",
+        namespace: "Library.Email.JobFinalStatus",
       });
 
       const agentName = getAgentName(job.agent);
       const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
       const statusLabel = t(`status.${jobStatus}`);
 
-      const htmlBody = await reactJobStatusEmail({
+      const htmlBody = await reactJobFinalStatusEmail({
         recipientName: job.user.name,
         agentName,
         jobName: job.name,
@@ -193,6 +181,52 @@ export const jobService = (() => {
         extra: {
           jobId: job.id,
           jobStatus,
+          userId: job.userId,
+        },
+      });
+    }
+  }
+
+  async function dispatchInputRequiredNotification(job: JobWithSokosumiStatus) {
+    if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
+      return;
+    }
+
+    try {
+      const t = await getTranslations({
+        locale: "en",
+        namespace: "Library.Email.JobInputRequired",
+      });
+
+      const agentName = getAgentName(job.agent);
+      const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
+
+      const htmlBody = await reactJobInputRequiredEmail({
+        recipientName: job.user.name,
+        agentName,
+        jobName: job.name,
+        jobLink,
+      });
+
+      postmarkClient.sendEmail({
+        From: POSTMARK_FROM_EMAIL,
+        To: job.user.email,
+        Tag: "job-input-required",
+        Subject: t("subject", { agentName }),
+        HtmlBody: htmlBody,
+        MessageStream: "outbound",
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "error",
+            domain: "job_input_required_notification",
+            category: "service_layer",
+          },
+        },
+        extra: {
+          jobId: job.id,
           userId: job.userId,
         },
       });
@@ -1124,13 +1158,19 @@ export const jobService = (() => {
         `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
       );
 
-      if (finalJobStatuses.has(newJobStatus)) {
-        await dispatchFinalStatusNotification(job, newJobStatus);
-      }
-
-      // Send failure notification for FAILED or PAYMENT_FAILED statuses
-      if (failedJobStatuses.has(newJobStatus)) {
-        await dispatchJobFailureNotification(job);
+      switch (newJobStatus) {
+        case SokosumiJobStatus.COMPLETED:
+        case SokosumiJobStatus.REFUND_RESOLVED:
+        case SokosumiJobStatus.DISPUTE_RESOLVED:
+          await dispatchFinalStatusNotification(job, newJobStatus);
+          break;
+        case SokosumiJobStatus.INPUT_REQUIRED:
+          await dispatchInputRequiredNotification(job);
+          break;
+        case SokosumiJobStatus.FAILED:
+        case SokosumiJobStatus.PAYMENT_FAILED:
+          await dispatchJobFailureNotification(job);
+          break;
       }
 
       try {

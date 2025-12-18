@@ -1249,11 +1249,11 @@
       "Notifications": {
         "title": "Email notifications",
         "description": "Choose which job updates we send to your inbox",
-        "jobStatusEmailsTitle": "Job finished emails",
-        "jobStatusEmailsDescription": "Get an email when a job completes, fails, or refunds.",
-        "jobStatusEmailsAriaLabel": "Toggle job finished email notifications",
-        "jobStatusEmailsEnabledSuccess": "Job finished emails enabled",
-        "jobStatusEmailsDisabledSuccess": "Job finished emails disabled",
+        "jobStatusEmailsTitle": "Job notification emails",
+        "jobStatusEmailsDescription": "Receive an email when a job changes to a significant status, such as completed, failed, or requires input.",
+        "jobStatusEmailsAriaLabel": "Toggle job notification emails",
+        "jobStatusEmailsEnabledSuccess": "Job notification emails enabled",
+        "jobStatusEmailsDisabledSuccess": "Job notification emails disabled",
         "marketingEmailsTitle": "Marketing emails",
         "marketingEmailsDescription": "Get an email when we have new features, updates, and promotions.",
         "marketingEmailsAriaLabel": "Toggle marketing email notifications",
@@ -1625,7 +1625,7 @@
       }
     },
     "Email": {
-      "JobStatus": {
+      "JobFinalStatus": {
         "subject": "Sokosumi - {agentName} job {status}",
         "preview": "Your job for {agentName} is now {status}.",
         "title": "Job {status}",
@@ -1662,6 +1662,17 @@
         "input": "Input:",
         "output": "Output:",
         "footer": "This is an automated notification from Sōkosumi."
+      },
+      "JobInputRequired": {
+        "subject": "Sokosumi - {agentName} needs your input",
+        "preview": "Your job for {agentName} requires input to continue.",
+        "title": "Action Required",
+        "greeting": "Hi {name}",
+        "body": "Your job {jobName} for {agentName} is waiting for your input to continue.",
+        "button": "Provide input",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "You're receiving this email because job notifications are enabled for your account.",
+        "fallbackJobName": "Your job"
       }
     },
     "JobInput": {

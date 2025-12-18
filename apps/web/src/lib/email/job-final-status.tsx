@@ -16,7 +16,7 @@ import {
 import { SokosumiJobStatus } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
 
-interface JobStatusEmailProps {
+interface JobFinalStatusEmailProps {
   recipientName: string;
   agentName: string;
   jobName?: string | null;
@@ -24,16 +24,16 @@ interface JobStatusEmailProps {
   jobLink: string;
 }
 
-export const JobStatusEmail = async ({
+export const JobFinalStatusEmail = async ({
   recipientName,
   agentName,
   jobName,
   jobStatus,
   jobLink,
-}: JobStatusEmailProps) => {
+}: JobFinalStatusEmailProps) => {
   const t = await getTranslations({
     locale: "en",
-    namespace: "Library.Email.JobStatus",
+    namespace: "Library.Email.JobFinalStatus",
   });
 
   const statusLabel = t(`status.${jobStatus}`);
@@ -86,6 +86,8 @@ export const JobStatusEmail = async ({
   );
 };
 
-export async function reactJobStatusEmail(props: JobStatusEmailProps) {
-  return await render(<JobStatusEmail {...props} />);
+export async function reactJobFinalStatusEmail(
+  props: JobFinalStatusEmailProps,
+) {
+  return await render(<JobFinalStatusEmail {...props} />);
 }
