@@ -126,7 +126,7 @@
     "@happy-dom/jest-environment": "20.0.11",
     "@hey-api/openapi-ts": "0.89.0",
     "@noble/hashes": "2.0.1",
-    "@swc/core": "1.15.5",
+    "@swc/core": "1.15.6",
     "@swc/helpers": "0.5.17",
     "@tailwindcss/postcss": "4.1.18",
     "@tailwindcss/typography": "0.5.19",
