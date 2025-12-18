@@ -1,6 +1,6 @@
 import {
-  inputDataSchema,
-  InputDataSchemaType,
+  inputSchemaResponseSchema,
+  InputSchemaResponseSchemaType,
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
   provideInputResponseSchema,
@@ -192,6 +192,7 @@ export function createAgentClient(config?: AgentClientConfig) {
         const parsedResult = jobStatusResponseSchema.safeParse(
           await jobStatusResponse.json(),
         );
+
         if (!parsedResult.success) {
           return Err("Failed to parse job status response");
         }
@@ -252,7 +253,7 @@ export function createAgentClient(config?: AgentClientConfig) {
 
     async fetchAgentInputSchema(
       agent: Agent,
-    ): Promise<Result<InputDataSchemaType, string>> {
+    ): Promise<Result<InputSchemaResponseSchemaType, string>> {
       try {
         const inputSchemaUrl = getAgentUrlWithPathComponent(
           agent,
@@ -305,7 +306,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           return Err("Failed to parse JSON response");
         }
 
-        const parsedResult = inputDataSchema.safeParse(responseData);
+        const parsedResult = inputSchemaResponseSchema.safeParse(responseData);
 
         if (!parsedResult.success) {
           // Log schema validation errors

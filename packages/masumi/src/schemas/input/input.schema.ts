@@ -523,20 +523,22 @@ export const inputSchema = inputNoneSchema
 
 export type InputSchemaType = z.infer<typeof inputSchema>;
 
-export const inputDataSchema = z
-  .object({
-    input_data: z.array(inputSchema),
-  })
-  .refine(
-    (data) => {
-      const ids = data.input_data.map((input) => input.id);
-      return new Set(ids).size === ids.length;
-    },
-    {
-      message: "Input IDs must be unique across all inputs",
-      path: ["input_data"],
-    },
-  );
+export const inputsSchema = z.array(inputSchema).refine(
+  (data) => {
+    const ids = data.map((input) => input.id);
+    return new Set(ids).size === ids.length;
+  },
+  {
+    message: "Input IDs must be unique across all inputs",
+    path: ["inputs"],
+  },
+);
+
+export type InputsSchemaType = z.infer<typeof inputsSchema>;
+
+export const inputDataSchema = z.object({
+  input_data: inputsSchema,
+});
 
 export type InputDataSchemaType = z.infer<typeof inputDataSchema>;
 
@@ -550,12 +552,10 @@ export const inputGroupSchema = z
 export type InputGroupSchemaType = z.infer<typeof inputGroupSchema>;
 
 export const inputGroupsSchema = z
-  .object({
-    input_groups: z.array(inputGroupSchema),
-  })
+  .array(inputGroupSchema)
   .refine(
     (data) => {
-      const ids = data.input_groups.map((group) => group.id);
+      const ids = data.map((group) => group.id);
       return new Set(ids).size === ids.length;
     },
     {
@@ -565,7 +565,7 @@ export const inputGroupsSchema = z
   )
   .refine(
     (data) => {
-      const allInputIds = data.input_groups.flatMap((group) =>
+      const allInputIds = data.flatMap((group) =>
         group.input_data.map((input) => input.id),
       );
       return new Set(allInputIds).size === allInputIds.length;
@@ -577,21 +577,6 @@ export const inputGroupsSchema = z
   );
 
 export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
-
-export const inputsSchema = z
-  .union([inputDataSchema, inputGroupsSchema])
-  .refine(
-    (data) => {
-      const hasInputData = "input_data" in data;
-      const hasInputGroups = "input_groups" in data;
-      return hasInputData !== hasInputGroups; // Exactly one must be present
-    },
-    {
-      message: "Must provide exactly one of 'input_data' or 'input_groups'",
-    },
-  );
-
-export type InputsSchemaType = z.infer<typeof inputsSchema>;
 
 export const submitInputDataSchema = z.record(
   z.string(),

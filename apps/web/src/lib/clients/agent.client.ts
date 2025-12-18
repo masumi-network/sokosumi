@@ -2,13 +2,14 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import { Agent } from "@sokosumi/database";
-import { createAgentClient, InputData, type Result } from "@sokosumi/masumi";
+import { createAgentClient, type Result } from "@sokosumi/masumi";
 import type {
-  InputDataSchemaType,
+  InputSchemaResponseSchemaType,
   JobStatusResponseSchemaType,
   ProvideInputResponseSchemaType,
   StartFreeJobResponseSchemaType,
   StartPaidJobResponseSchemaType,
+  SubmitInputDataSchemaType,
 } from "@sokosumi/masumi/schemas";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -65,8 +66,8 @@ const masumiAgentClient = createAgentClient({
 
 // Type adapter: JobInputData (web app) -> InputData (masumi)
 // They have the same structure, so we can use type assertion
-function adaptInputData(data: JobInputData): InputData {
-  return data as InputData;
+function adaptInputData(data: JobInputData): SubmitInputDataSchemaType {
+  return data as SubmitInputDataSchemaType;
 }
 
 // Wrapper that adapts types and provides the same interface as before
@@ -116,7 +117,7 @@ export const agentClient = {
 
   async fetchAgentInputSchema(
     agent: Agent,
-  ): Promise<Result<InputDataSchemaType, string>> {
+  ): Promise<Result<InputSchemaResponseSchemaType, string>> {
     return masumiAgentClient.fetchAgentInputSchema(agent);
   },
 };
