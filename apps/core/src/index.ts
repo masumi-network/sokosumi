@@ -68,6 +68,14 @@ const content = apiV1.getOpenAPI31Document({
 
 const markdown = await createMarkdownFromOpenApi(JSON.stringify(content));
 
+/**
+ * Register a route to serve the Markdown for LLMs
+ *
+ * Q: Why /llms.txt?
+ * A: It's a proposal to standardise on using an /llms.txt file.
+ *
+ * @see https://llmstxt.org/
+ */
 app.get("/llms.txt", async (c) => {
   return c.text(markdown);
 });
