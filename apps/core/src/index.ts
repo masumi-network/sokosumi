@@ -22,6 +22,11 @@ validateEnv();
 initSentry();
 await initI18next();
 
+// Build favicon URL - use Vercel URL in production, relative path locally
+const faviconUrl = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}/favicon.ico`
+  : "/favicon.ico";
+
 // Main app is exported at the end to combine OpenAPI and auth routes
 const mainApp = new Hono();
 
@@ -46,7 +51,7 @@ app.get(
   "/",
   Scalar({
     pageTitle: "Sokosumi API Documentation",
-    favicon: "/favicon.ico",
+    favicon: faviconUrl,
     sources: [
       { url: "/v1/openapi.json", title: "v1" },
       { url: "/auth/open-api/generate-schema", title: "Better Auth" },
