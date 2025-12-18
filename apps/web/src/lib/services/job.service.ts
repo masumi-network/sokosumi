@@ -1160,7 +1160,6 @@ export const jobService = (() => {
 
       switch (newJobStatus) {
         case SokosumiJobStatus.COMPLETED:
-        case SokosumiJobStatus.FAILED:
         case SokosumiJobStatus.REFUND_RESOLVED:
         case SokosumiJobStatus.DISPUTE_RESOLVED:
           await dispatchFinalStatusNotification(job, newJobStatus);
