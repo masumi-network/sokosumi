@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { Hono } from "hono";
@@ -28,6 +29,8 @@ const app = new OpenAPIHono<{
   Variables: RequestIdVariables;
 }>();
 
+app.use("/favicon.ico", serveStatic({ path: "static/favicon.ico" }));
+
 app.use(logger());
 app.use(requestId());
 app.use(sentryMiddleware());
@@ -45,6 +48,7 @@ app.get(
   "/",
   Scalar({
     pageTitle: "Sokosumi API Documentation",
+    favicon: "./favicon.ico",
     sources: [
       { url: "/v1/openapi.json", title: "v1" },
       { url: "/auth/open-api/generate-schema", title: "Better Auth" },
