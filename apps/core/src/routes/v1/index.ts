@@ -1,5 +1,4 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { cors } from "hono/cors";
 
 import { getEnv } from "@/config/env.js";
@@ -60,21 +59,5 @@ app.use(
 app.route("/agents", agentsRouter);
 app.route("/users", usersRouter);
 app.route("/jobs", jobsRouter);
-
-// Get the OpenAPI document
-const content = app.getOpenAPI31Document({
-  openapi: "3.1.0",
-  info: {
-    title: "Sokosumi API",
-    version: "1.0.0",
-    description: "Sokosumi API documentation",
-  },
-});
-
-const markdown = await createMarkdownFromOpenApi(JSON.stringify(content));
-
-app.get("/llms.txt", async (c) => {
-  return c.text(markdown);
-});
 
 export default app;
