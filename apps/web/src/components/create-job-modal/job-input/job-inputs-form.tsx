@@ -1,7 +1,7 @@
 "use client";
 
 import { AgentWithCreditsPrice } from "@sokosumi/database";
-import { InputDataSchemaType } from "@sokosumi/masumi/schemas";
+import { InputEnvelope } from "@sokosumi/masumi/schemas";
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,7 +19,7 @@ interface JobInputsFormProps {
 }
 
 interface JobInputsFormInnerProps extends Omit<JobInputsFormProps, "isDemo"> {
-  inputDataSchema: InputDataSchemaType;
+  inputEnvelope: InputEnvelope;
   demoValues: AgentDemoValues | null;
 }
 
@@ -29,24 +29,20 @@ export default function JobInputsForm({
   isDemo,
   className,
 }: JobInputsFormProps) {
-  const {
-    data: inputDataSchema,
-    loading,
-    error,
-  } = useAgentInputSchema(agent.id);
+  const { data: inputEnvelope, loading, error } = useAgentInputSchema(agent.id);
 
   if (loading) {
     return <JobInputsFormSkeleton />;
   }
 
-  if (error || !inputDataSchema) {
+  if (error || !inputEnvelope) {
     return <JobInputsFormError />;
   }
 
   // check demo data is valid
   let demoValues: AgentDemoValues | null = null;
   if (isDemo) {
-    demoValues = getAgentDemoValues(agent, inputDataSchema);
+    demoValues = getAgentDemoValues(agent, inputEnvelope);
     if (!demoValues) {
       return <JobInputsFormDemoError />;
     }
@@ -57,7 +53,7 @@ export default function JobInputsForm({
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       demoValues={demoValues}
-      inputDataSchema={inputDataSchema}
+      inputEnvelope={inputEnvelope}
       className={className}
     />
   );
@@ -67,14 +63,14 @@ function JobInputsFormInner({
   agent,
   averageExecutionDuration,
   demoValues,
-  inputDataSchema,
+  inputEnvelope,
   className,
 }: JobInputsFormInnerProps) {
   return (
     <JobInputsFormClient
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
-      inputDataSchema={inputDataSchema}
+      inputEnvelope={inputEnvelope}
       demoValues={demoValues}
       legal={getAgentLegal(agent)}
       className={className}

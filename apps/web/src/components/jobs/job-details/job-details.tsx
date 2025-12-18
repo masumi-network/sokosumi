@@ -155,11 +155,11 @@ function JobDetailsProvideInputSection({
   const t = useTranslations("Components.Jobs.JobDetails");
   return (
     <div
-      className="mt-1.5 flex flex-col gap-2"
+      className="mt-1.5 flex min-w-0 flex-col gap-2"
       key={`${job.id}-${event.status}-details-awaiting-input`}
     >
-      <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
-        <div className="flex flex-1 flex-col gap-4">
+      <div className="bg-muted/50 flex min-w-0 items-center justify-between gap-2 rounded-xl border p-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
           <h3 className="font-semibold">{t("AwaitingInput.title")}</h3>
           <JobDetailsProvideInput job={job} event={event} />
         </div>

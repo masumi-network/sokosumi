@@ -3,25 +3,28 @@ import * as z from "zod";
 
 import { JobScheduleType } from "@/lib/types/job";
 
+// Reusable input data value schema
+const inputDataValueSchema = z.union([
+  z.number(),
+  z.string(),
+  z.array(z.string()),
+  z.boolean(),
+  z.array(z.number()),
+  z.instanceof(File),
+  z.array(z.instanceof(File)),
+  z.undefined(),
+]);
+
+// Flat input data: Record<fieldId, value>
+const flatInputDataSchema = z.record(z.string(), inputDataValueSchema);
+
 export const startJobInputSchema = z.object({
   userId: z.string(),
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
-  inputSchema: z.array(inputSchema),
-  inputData: z.record(
-    z.string(),
-    z.union([
-      z.number(),
-      z.string(),
-      z.array(z.string()),
-      z.boolean(),
-      z.array(z.number()),
-      z.instanceof(File),
-      z.array(z.instanceof(File)),
-      z.undefined(),
-    ]),
-  ),
+  inputSchema: z.array(inputSchema), // Flat array of input schema items
+  inputData: flatInputDataSchema, // We always store flat data internally
   jobScheduleId: z.string().nullish(),
 });
 
@@ -161,20 +164,8 @@ export const createJobScheduleInputSchema = z.object({
   cron: z.string().nullish(),
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
-  inputSchema: z.array(inputSchema),
-  inputData: z.record(
-    z.string(),
-    z.union([
-      z.number(),
-      z.string(),
-      z.array(z.string()),
-      z.boolean(),
-      z.array(z.number()),
-      z.instanceof(File),
-      z.array(z.instanceof(File)),
-      z.undefined(),
-    ]),
-  ),
+  inputSchema: z.array(inputSchema), // Flat array of input schema items
+  inputData: flatInputDataSchema, // We always store flat data internally
   maxAcceptedCents: z.bigint(),
   endOnUtc: z.string().nullish(),
   endAfterOccurrences: z.number().int().positive().nullish(),
@@ -190,19 +181,7 @@ export type CreateJobScheduleInputSchemaType = z.infer<
 export const provideJobInputSchema = z.object({
   jobId: z.string(),
   statusId: z.string(),
-  inputData: z.record(
-    z.string(),
-    z.union([
-      z.number(),
-      z.string(),
-      z.array(z.string()),
-      z.boolean(),
-      z.array(z.number()),
-      z.instanceof(File),
-      z.array(z.instanceof(File)),
-      z.undefined(),
-    ]),
-  ),
+  inputData: flatInputDataSchema, // We always store flat data internally
 });
 
 export type ProvideJobInputSchemaType = z.infer<typeof provideJobInputSchema>;

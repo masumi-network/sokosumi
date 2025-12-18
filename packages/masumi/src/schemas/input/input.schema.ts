@@ -606,3 +606,13 @@ export const submitInputsSchema = z
   );
 
 export type SubmitInputsSchemaType = z.infer<typeof submitInputsSchema>;
+
+export interface InputDataEnvelope {
+  input_data: InputSchemaType[];
+}
+
+export interface InputGroupsEnvelope {
+  input_groups: InputGroupSchemaType[];
+}
+
+export type InputEnvelope = InputDataEnvelope | InputGroupsEnvelope;

@@ -1716,6 +1716,8 @@
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Hire",
         "schedule": "Schedule",
+        "back": "Back",
+        "next": "Next",
         "ctrl": "Ctrl",
         "acceptByClickingSubmit": "By clicking on \"Hire\" you're accepting the ",
         "termsOfService": "Terms of Service",

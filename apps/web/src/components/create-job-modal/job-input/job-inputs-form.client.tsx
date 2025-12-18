@@ -3,9 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
-import { InputDataSchemaType } from "@sokosumi/masumi/schemas";
+import { InputEnvelope, InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics";
 import {
+  ArrowLeft,
+  ArrowRight,
   CalendarClock,
   Clock,
   Command,
@@ -15,14 +17,16 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import React from "react";
+import React, { useMemo } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { useGroupedInputWizard } from "@/hooks/use-grouped-input-wizard";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
@@ -34,6 +38,7 @@ import { createSchedule } from "@/lib/actions/job-schedule";
 import { useSession } from "@/lib/auth/auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
+import { flattenInputs } from "@/lib/helpers/input-schema";
 import {
   defaultValues,
   filterOutNullValues,
@@ -50,7 +55,7 @@ import JobInput from "./job-input";
 interface JobInputsFormClientProps {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
-  inputDataSchema: InputDataSchemaType;
+  inputEnvelope: InputEnvelope;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   className?: string | undefined;
@@ -59,23 +64,35 @@ interface JobInputsFormClientProps {
 export default function JobInputsFormClient({
   agent,
   averageExecutionDuration,
-  inputDataSchema,
+  inputEnvelope,
   demoValues,
   legal,
   className,
 }: JobInputsFormClientProps) {
   const { id: agentId, creditsPrice } = agent;
-  const { input_data } = inputDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
   const formatter = useFormatter();
   const session = useSession();
 
+  // Flatten inputs for form initialization (before wizard hook)
+  const flatInputsForForm = useMemo(
+    () => flattenInputs(inputEnvelope),
+    [inputEnvelope],
+  );
+
+  // Initialize form first so we can pass it to the wizard hook
   const form = useForm<JobInputsFormSchemaType>({
-    resolver: zodResolver(jobInputsFormSchema(input_data, t)),
-    defaultValues: demoValues ? demoValues.input : defaultValues(input_data),
+    resolver: zodResolver(jobInputsFormSchema(flatInputsForForm, t)),
+    defaultValues: demoValues
+      ? demoValues.input
+      : defaultValues(flatInputsForForm),
     mode: "onChange",
   });
+
+  // Use the wizard hook for grouped input navigation
+  const wizard = useGroupedInputWizard({ inputEnvelope, form });
+
   const router = useRouter();
 
   const { os, isMobile } = getOSFromUserAgent();
@@ -107,7 +124,7 @@ export default function JobInputsFormClient({
       result = await startDemoJob({
         input: {
           agentId: agentId,
-          inputSchema: input_data,
+          inputSchema: wizard.flatInputs,
           inputData: filterOutNullValues(demoValues.input),
         },
         jobStatusResponse: demoValues.output,
@@ -128,7 +145,7 @@ export default function JobInputsFormClient({
       result = await createSchedule({
         input: {
           agentId: agentId,
-          inputSchema: input_data,
+          inputSchema: wizard.flatInputs,
           inputData: transformedInputData,
           maxAcceptedCents: creditsPrice.cents,
         },
@@ -139,7 +156,7 @@ export default function JobInputsFormClient({
         input: {
           agentId: agentId,
           maxAcceptedCents: creditsPrice.cents,
-          inputSchema: input_data,
+          inputSchema: wizard.flatInputs,
           inputData: transformedInputData,
         },
       });
@@ -243,46 +260,60 @@ export default function JobInputsFormClient({
     }
   }, [nextRunAt, scheduleSelection, formatter]);
 
-  return (
-    <Form {...form}>
-      <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
-        <fieldset
-          disabled={loading || isSubmitting}
-          className={cn("flex flex-1 flex-col gap-6", className)}
-        >
-          {input_data.map((jobInputSchema) => (
-            <JobInput
-              key={jobInputSchema.id}
-              form={form}
-              jobInputSchema={jobInputSchema}
-              disabled={isDemo}
-            />
-          ))}
-          {isScheduled && nextRunLabel && (
-            <div className="text-muted-foreground inline-flex items-center gap-1 text-sm">
-              <Clock className="size-4" />
-              {nextRunLabel}
-            </div>
-          )}
-          <div className="flex items-end justify-between gap-2">
-            <Button
-              type="reset"
-              variant="secondary"
-              onClick={handleClear}
-              disabled={isDemo}
-            >
-              {t("clear")}
-            </Button>
-            <div className="flex flex-col items-end gap-2">
-              <AcceptTermsOfService legal={legal} />
-              <div className="flex items-center gap-2">
-                <div className="text-muted-foreground text-sm">
-                  {t("price", {
-                    price: isDemo
-                      ? 0
-                      : convertCentsToCredits(creditsPrice.cents),
-                  })}
-                </div>
+  // Render inputs for the current group (or all inputs if flat)
+  const renderInputs = (inputs: InputSchemaType[]) => {
+    return inputs.map((jobInputSchema) => (
+      <JobInput
+        key={jobInputSchema.id}
+        form={form}
+        jobInputSchema={jobInputSchema}
+        disabled={isDemo}
+      />
+    ));
+  };
+
+  // Render the form footer with action buttons
+  const renderFormFooter = (showSubmit: boolean) => (
+    <>
+      {isScheduled && nextRunLabel && (
+        <div className="text-muted-foreground inline-flex items-center gap-1 text-sm">
+          <Clock className="size-4" />
+          {nextRunLabel}
+        </div>
+      )}
+      <div className="flex items-end justify-between gap-2">
+        {wizard.isGrouped && !wizard.isFirstGroup ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={wizard.handleBack}
+            disabled={wizard.isValidating}
+          >
+            <ArrowLeft className="size-4" />
+            {t("back")}
+          </Button>
+        ) : (
+          <Button
+            type="reset"
+            variant="secondary"
+            onClick={handleClear}
+            disabled={isDemo}
+          >
+            {t("clear")}
+          </Button>
+        )}
+        <div className="flex flex-col items-end gap-2">
+          {showSubmit && <AcceptTermsOfService legal={legal} />}
+          <div className="flex items-center gap-2">
+            {showSubmit && (
+              <div className="text-muted-foreground text-sm">
+                {t("price", {
+                  price: isDemo ? 0 : convertCentsToCredits(creditsPrice.cents),
+                })}
+              </div>
+            )}
+            {showSubmit ? (
+              <>
                 <Button
                   type="submit"
                   disabled={loading || isSubmitting || !isValid}
@@ -311,9 +342,55 @@ export default function JobInputsFormClient({
                 >
                   <CalendarClock />
                 </Button>
-              </div>
-            </div>
+              </>
+            ) : (
+              <Button
+                type="button"
+                onClick={wizard.handleNext}
+                disabled={wizard.isValidating || !wizard.isCurrentGroupValid}
+              >
+                {wizard.isValidating ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : null}
+                {t("next")}
+                <ArrowRight className="size-4" />
+              </Button>
+            )}
           </div>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <Form {...form}>
+      <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
+        <fieldset
+          disabled={loading || isSubmitting}
+          className={cn("flex flex-1 flex-col gap-6", className)}
+        >
+          {wizard.isGrouped && wizard.groups ? (
+            // Render wizard tabs for grouped inputs
+            <GroupedInputTabs
+              groups={wizard.groups}
+              activeGroupIndex={wizard.activeGroupIndex}
+              maxUnlockedGroupIndex={wizard.maxUnlockedGroupIndex}
+              onTabChange={wizard.handleTabChange}
+              isValidating={wizard.isValidating}
+              renderGroup={(group, index, isLast) => (
+                <>
+                  {renderInputs(group.input_data)}
+                  {renderFormFooter(isLast)}
+                </>
+              )}
+            />
+          ) : (
+            // Render flat inputs (existing behavior)
+            <>
+              {renderInputs(wizard.flatInputs)}
+              {renderFormFooter(true)}
+            </>
+          )}
         </fieldset>
       </form>
       <JobScheduleModal

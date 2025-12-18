@@ -5,26 +5,35 @@ import {
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import { inputSchema, InputSchemaType } from "@sokosumi/masumi/schemas";
-import { Command, CornerDownLeft, Loader2 } from "lucide-react";
+import type { InputEnvelope, InputSchemaType } from "@sokosumi/masumi/schemas";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Command,
+  CornerDownLeft,
+  Loader2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
 import JobInput from "@/components/create-job-modal/job-input/job-input";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { useGroupedInputWizard } from "@/hooks/use-grouped-input-wizard";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import { CommonErrorCode } from "@/lib/actions";
 import { provideJobInput } from "@/lib/actions/job/action";
+import { flattenInputs, parseInputSchema } from "@/lib/helpers/input-schema";
 import {
   defaultValues,
   filterOutNullValues,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
-} from "@/lib/job-input";
+} from "@/lib/job-input/form";
 import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 interface JobDetailsProvideInputProps {
@@ -38,39 +47,22 @@ export default function JobDetailsProvideInput({
 }: JobDetailsProvideInputProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
 
-  // Parse input schema from job - validate each entry individually
-  const inputSchemas = useMemo<InputSchemaType[]>(() => {
-    try {
-      if (event.inputSchema) {
-        const parsed = JSON.parse(event.inputSchema);
-        if (Array.isArray(parsed)) {
-          // Validate each entry individually to allow partial success
-          const validatedSchemas: InputSchemaType[] = [];
-          for (const entry of parsed) {
-            const schemaResult = inputSchema.safeParse(entry);
-            if (schemaResult.success) {
-              validatedSchemas.push(schemaResult.data);
-            } else {
-              console.warn("Failed to validate input schema entry:", entry);
-            }
-          }
-          return validatedSchemas;
-        }
-      }
-    } catch (_error) {
-      console.error("Failed to parse input schema", _error);
-    }
-    return [];
+  const parseResult = useMemo(() => {
+    return parseInputSchema(event.inputSchema);
   }, [event.inputSchema]);
 
-  // Create a stable key to force form remount when schemas change
-  // This ensures useForm is re-initialized with correct resolver and defaultValues
-  const formKey = useMemo(
-    () => inputSchemas.map((s) => s.id).join(","),
-    [inputSchemas],
-  );
+  // Check if we have any inputs (works for both grouped and flat)
+  const flatInputs = useMemo(() => {
+    if (!parseResult) return [];
+    return flattenInputs(parseResult);
+  }, [parseResult]);
 
-  if (inputSchemas.length === 0) {
+  // Create a stable key to force form remount when schemas change
+  const formKey = useMemo(() => {
+    return flatInputs.map((s) => s.id).join(",");
+  }, [flatInputs]);
+
+  if (!parseResult || flatInputs.length === 0) {
     return (
       <div className="text-muted-foreground py-4 text-center">
         {t("noInputsRequired")}
@@ -84,7 +76,7 @@ export default function JobDetailsProvideInput({
       key={formKey}
       jobId={job.id}
       statusId={event.externalId}
-      inputSchemas={inputSchemas}
+      inputEnvelope={parseResult}
     />
   );
 }
@@ -92,12 +84,13 @@ export default function JobDetailsProvideInput({
 interface ProvideInputFormProps {
   jobId: string;
   statusId?: string | null;
-  inputSchemas: InputSchemaType[];
+  inputEnvelope: InputEnvelope;
 }
+
 function ProvideInputForm({
   jobId,
   statusId,
-  inputSchemas,
+  inputEnvelope,
 }: ProvideInputFormProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
   const tForm = useTranslations("Library.JobInput.Form");
@@ -113,11 +106,20 @@ function ProvideInputForm({
     setOsInfo(getOSFromUserAgent());
   }, []);
 
+  // Flatten the schema to get all input fields (needed for form setup)
+  const inputSchemas = useMemo(
+    () => flattenInputs(inputEnvelope),
+    [inputEnvelope],
+  );
+
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(inputSchemas, tForm)),
     defaultValues: defaultValues(inputSchemas),
     mode: "onChange",
   });
+
+  // Use the wizard hook for grouped input navigation
+  const wizard = useGroupedInputWizard({ inputEnvelope, form });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -169,41 +171,100 @@ function ProvideInputForm({
   const { formRef, handleSubmit: enterPreventedHandleSubmit } =
     usePreventEnterSubmit(form, onSubmit, true);
 
+  // Render inputs for a set of schemas
+  const renderInputs = (inputs: InputSchemaType[]) => {
+    return inputs.map((jobInputSchema) => (
+      <JobInput
+        key={jobInputSchema.id}
+        form={form}
+        jobInputSchema={jobInputSchema}
+        disabled={isSubmitting || formIsSubmitting}
+      />
+    ));
+  };
+
+  // Render the form footer with action buttons
+  const renderFormFooter = (showSubmit: boolean) => (
+    <div className="flex items-end justify-between gap-2">
+      {wizard.isGrouped && !wizard.isFirstGroup ? (
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={wizard.handleBack}
+          disabled={wizard.isValidating}
+        >
+          <ArrowLeft className="size-4" />
+          {tForm("back")}
+        </Button>
+      ) : (
+        <div /> /* Spacer to maintain layout */
+      )}
+      <div className="flex items-center gap-2">
+        {showSubmit ? (
+          <Button
+            type="submit"
+            disabled={isSubmitting || formIsSubmitting || !isValid}
+            className="items-center justify-between gap-1"
+          >
+            <div className="flex items-center gap-1">
+              {(isSubmitting || formIsSubmitting) && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              {t("submit")}
+            </div>
+            {!isMobile && (
+              <div className="flex items-center gap-1">
+                {os === "MacOS" ? <Command /> : tForm("ctrl")}
+                <CornerDownLeft />
+              </div>
+            )}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={wizard.handleNext}
+            disabled={wizard.isValidating || !wizard.isCurrentGroupValid}
+          >
+            {wizard.isValidating ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            {tForm("next")}
+            <ArrowRight className="size-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <Form {...form}>
       <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
         <fieldset
           disabled={isSubmitting || formIsSubmitting}
-          className="flex flex-1 flex-col gap-6"
+          className="flex min-w-0 flex-1 flex-col gap-6"
         >
-          {inputSchemas.map((jobInputSchema) => (
-            <JobInput
-              key={jobInputSchema.id}
-              form={form}
-              jobInputSchema={jobInputSchema}
-              disabled={isSubmitting || formIsSubmitting}
-            />
-          ))}
-          <div className="flex items-end justify-end gap-2">
-            <Button
-              type="submit"
-              disabled={isSubmitting || formIsSubmitting || !isValid}
-              className="items-center justify-between gap-1"
-            >
-              <div className="flex items-center gap-1">
-                {(isSubmitting || formIsSubmitting) && (
-                  <Loader2 className="size-4 animate-spin" />
-                )}
-                {t("submit")}
-              </div>
-              {!isMobile && (
-                <div className="flex items-center gap-1">
-                  {os === "MacOS" ? <Command /> : tForm("ctrl")}
-                  <CornerDownLeft />
-                </div>
+          {wizard.isGrouped && wizard.groups ? (
+            // Render wizard tabs for grouped inputs
+            <GroupedInputTabs
+              groups={wizard.groups}
+              activeGroupIndex={wizard.activeGroupIndex}
+              maxUnlockedGroupIndex={wizard.maxUnlockedGroupIndex}
+              onTabChange={wizard.handleTabChange}
+              isValidating={wizard.isValidating}
+              renderGroup={(group, index, isLast) => (
+                <>
+                  {renderInputs(group.input_data)}
+                  {renderFormFooter(isLast)}
+                </>
               )}
-            </Button>
-          </div>
+            />
+          ) : (
+            // Render flat inputs (existing behavior)
+            <>
+              {renderInputs(wizard.flatInputs)}
+              {renderFormFooter(true)}
+            </>
+          )}
         </fieldset>
       </form>
     </Form>

@@ -1,10 +1,10 @@
 "use client";
 
-import { inputDataSchema, InputDataSchemaType } from "@sokosumi/masumi/schemas";
+import { InputEnvelope, inputsSchema } from "@sokosumi/masumi/schemas";
 import { useEffect, useState } from "react";
 
 export default function useAgentInputSchema(agentId: string) {
-  const [data, setData] = useState<InputDataSchemaType | null>(null);
+  const [data, setData] = useState<InputEnvelope | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -35,7 +35,7 @@ export default function useAgentInputSchema(agentId: string) {
           }
 
           const json = await response.json();
-          const parsedResult = inputDataSchema.safeParse(json.data);
+          const parsedResult = inputsSchema.safeParse(json.data);
           if (!parsedResult.success) {
             setError(new Error("Failed to parse agent input schema"));
           } else {

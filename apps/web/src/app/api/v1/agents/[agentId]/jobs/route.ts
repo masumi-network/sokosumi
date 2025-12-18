@@ -1,6 +1,6 @@
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobRepository } from "@sokosumi/database/repositories";
-import { inputDataSchema } from "@sokosumi/masumi/schemas";
+import { inputsSchema } from "@sokosumi/masumi/schemas";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -18,6 +18,7 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { getAuthContext } from "@/lib/auth/utils";
+import { flattenInputs } from "@/lib/helpers/input-schema";
 import { agentService } from "@/lib/services";
 
 interface RouteParams {
@@ -107,7 +108,8 @@ export async function POST(
     }
 
     const inputSchema = await response.json();
-    const validatedInputSchema = inputDataSchema.parse(inputSchema.data);
+    const validatedInputSchema = inputsSchema.parse(inputSchema.data);
+    const flatInputSchema = flattenInputs(validatedInputSchema);
 
     // Convert credits back to cents for the job service
     const maxAcceptedCents = convertCreditsToCents(
@@ -119,7 +121,7 @@ export async function POST(
       input: {
         agentId,
         maxAcceptedCents,
-        inputSchema: validatedInputSchema.input_data,
+        inputSchema: flatInputSchema,
         inputData: validatedData.inputData,
       },
       authContext,

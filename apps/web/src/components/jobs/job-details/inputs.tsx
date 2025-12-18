@@ -3,15 +3,14 @@
 import type { Blob } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
-import { inputSchema as jobInputSchema } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-import * as z from "zod";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
 import { Separator } from "@/components/ui/separator";
+import { flattenInputs, parseInputSchema } from "@/lib/helpers/input-schema";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 import { HashGroupRow } from "./hash-group-row";
@@ -96,26 +95,26 @@ function JobDetailsInputsInner({
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
 
   const input = rawInput ? JSON.parse(rawInput) : {};
-  const inputSchema = rawInputSchema ? JSON.parse(rawInputSchema) : {};
 
   const calculatedInputHash = useMemo(() => {
     if (!identifierFromPurchaser || !rawInput) return null;
     return hashInput(rawInput, identifierFromPurchaser);
   }, [identifierFromPurchaser, rawInput]);
 
-  let inputsMap: Record<string, { name: string; type: InputType }> = {};
-  if (Array.isArray(inputSchema)) {
-    inputsMap = z
-      .array(jobInputSchema)
-      .parse(inputSchema)
-      .reduce(
+  const inputsMap: Record<string, { name: string; type: InputType }> =
+    useMemo(() => {
+      const result = parseInputSchema(rawInputSchema);
+      if (!result) return {};
+
+      const flatInputs = flattenInputs(result);
+      return flatInputs.reduce(
         (acc, item) => {
           acc[item.id] = { name: item.name, type: item.type };
           return acc;
         },
         {} as Record<string, { name: string; type: InputType }>,
       );
-  }
+    }, [rawInputSchema]);
 
   return (
     <div className="flex flex-col gap-2">

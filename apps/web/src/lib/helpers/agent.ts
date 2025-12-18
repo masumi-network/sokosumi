@@ -7,11 +7,11 @@ import {
   ExampleOutput,
   PricingType,
 } from "@sokosumi/database";
-import { InputDataSchemaType } from "@sokosumi/masumi/schemas";
+import { InputEnvelope } from "@sokosumi/masumi/schemas";
 
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { ipfsUrlResolver } from "@/lib/ipfs";
-import { jobInputsFormSchema } from "@/lib/job-input";
+import { jobInputsFormSchema } from "@/lib/job-input/form";
 import {
   jobStatusResponseSchema,
   type PricingAmountsSchemaType,
@@ -23,6 +23,8 @@ import {
   type AgentLegal,
 } from "@/lib/types/agent";
 import { CategoryStyles } from "@/lib/types/category";
+
+import { flattenInputs } from "./input-schema";
 
 export function getAgentName(agent: Agent): string {
   return agent.overrideName ?? agent.name;
@@ -176,7 +178,7 @@ export function getAgentPricingAmounts(
 
 export function getAgentDemoValues(
   agent: Agent,
-  inputDataSchema: InputDataSchemaType,
+  inputEnvelope: InputEnvelope,
 ): AgentDemoValues | null {
   const demoData = getAgentDemoData(agent);
   if (!demoData) {
@@ -184,9 +186,11 @@ export function getAgentDemoValues(
   }
 
   try {
-    const inputParsedResult = jobInputsFormSchema(
-      inputDataSchema.input_data,
-    ).safeParse(JSON.parse(demoData.demoInput));
+    const flatInputs = flattenInputs(inputEnvelope);
+
+    const inputParsedResult = jobInputsFormSchema(flatInputs).safeParse(
+      JSON.parse(demoData.demoInput),
+    );
     if (!inputParsedResult.success) {
       console.error(
         "Failed to parse agent demo input",
