@@ -56,7 +56,7 @@ export const getAgentAccessContext = async (
   creditCosts: CreditCost[];
 }> => {
   const creditCosts = await tx.creditCost.findMany();
-  if (!creditCosts) {
+  if (!creditCosts || creditCosts.length === 0) {
     throw internalServerError("Failed to get credit information for agents");
   }
   const userMemberships = await tx.member.findMany({
