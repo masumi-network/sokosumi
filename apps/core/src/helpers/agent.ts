@@ -1,4 +1,5 @@
-import { type CreditCost, PricingType } from "@sokosumi/database";
+import { type CreditCost, PricingType, type Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -7,7 +8,69 @@ import {
 
 import { CREDIT } from "@/config/constants";
 import { getAuthorFromAgent } from "@/schemas/author.schema";
-import type { AgentWithPricing } from "@/types/agent";
+import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
+
+/**
+ * Retrieves the current session's organization IDs and all credit costs for agent access checks.
+ *
+ * @param tx - Optional Prisma transaction client for DB operations.
+ * @returns Object with userOrganizationIds and creditCosts.
+ */
+export const getAgentAccessContext = async (
+  userId: string,
+  organizationId: string | null,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<{
+  userOrganizationIds: string[];
+  activeOrganizationId: string | null;
+  creditCosts: CreditCost[];
+}> => {
+  const creditCosts = await tx.creditCost.findMany();
+  const userMemberships = await tx.member.findMany({
+    where: { userId },
+    select: { organizationId: true },
+  });
+  const userOrganizationIds = userMemberships.map((m) => m.organizationId);
+  const activeOrganizationId = organizationId ?? null;
+  return { userOrganizationIds, activeOrganizationId, creditCosts };
+};
+
+/**
+ * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
+ *
+ * Blacklist behavior:
+ * - When viewing in an organization context (activeOrganizationId present), that organization's
+ *   blacklist is enforced, hiding agents they've explicitly blocked.
+ * - When viewing in personal context (activeOrganizationId is null), no blacklists apply.
+ * - Users in multiple organizations see different agents depending on their active context.
+ *
+ * @param agent - Agent with organization and blacklist data.
+ * @param userOrganizationIds - Organization IDs the user is a member of.
+ * @param activeOrganizationId - The currently active organization ID, or null for personal context.
+ * @returns True if the user can access the agent, false otherwise.
+ */
+export const canUserAccessAgent = (
+  agent: AgentWithOrganizations,
+  userOrganizationIds: string[],
+  activeOrganizationId: string | null,
+): boolean => {
+  // Blacklist: only enforce when organization scope is active
+  // Personal context (null) is not affected by organizational blacklist decisions
+  if (activeOrganizationId) {
+    const isBlacklisted = agent.blacklistedOrganizations.some(
+      ({ id }) => id === activeOrganizationId,
+    );
+    if (isBlacklisted) return false;
+  }
+
+  // Visibility: deny if agent is not shown
+  if (!agent.isShown) return false;
+  if (agent.organizations.length === 0) return true;
+  if (userOrganizationIds.length === 0) return false;
+  return agent.organizations.some((agentOrg) =>
+    userOrganizationIds.includes(agentOrg.id),
+  );
+};
 
 /**
  * Transforms an agent with pricing into the response format.

@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 
+import { transformAgentWithCredits } from "@/helpers/agent";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { transformAgentWithCredits } from "@/helpers/pricing";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentSchema } from "@/schemas/agent.schema";
