@@ -49,6 +49,10 @@ export const agentSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "Research Assistant" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/image.png" }),
     credits: z.number().openapi({ example: 100 }),
     summary: z.string().nullable().openapi({
       example: "A research assistant that can help you with your research",

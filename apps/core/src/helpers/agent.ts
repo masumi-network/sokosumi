@@ -1,4 +1,9 @@
-import { type CreditCost, PricingType, type Prisma } from "@sokosumi/database";
+import {
+  type Agent,
+  type CreditCost,
+  PricingType,
+  type Prisma,
+} from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   convertCentsToCredits,
@@ -15,6 +20,15 @@ import {
 import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
 
 import { internalServerError } from "./error";
+import { ipfsUrlResolver } from "./ipfs";
+
+export const getAgentImage = (agent: Agent): string | null => {
+  const image = agent.overrideImage ?? agent.image;
+  if (!image) {
+    return null;
+  }
+  return ipfsUrlResolver(image);
+};
 
 /**
  * Retrieves the current session's organization IDs and all credit costs for agent access checks.
@@ -103,6 +117,7 @@ export const transformAgentWithCredits = (
   return {
     ...agent,
     name: agent.overrideName ?? agent.name,
+    image: getAgentImage(agent),
     description: agent.overrideDescription ?? agent.description,
     author: getAuthorFromAgent(agent),
     legal: getAgentLegalFromAgent(agent),
