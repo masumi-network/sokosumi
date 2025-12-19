@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Agent } from "@sokosumi/database";
 
-export const developerSchema = z
+export const authorSchema = z
   .object({
     name: z.string().nullish().openapi({ example: "John Doe" }),
     image: z
@@ -16,10 +16,10 @@ export const developerSchema = z
       .openapi({ example: "Other contact information" }),
   })
   .optional()
-  .openapi("Developer");
+  .openapi("Author");
 
-export const getDeveloperFromAgent = (agent: Agent) => {
-  const result = developerSchema.parse({
+export const getAuthorFromAgent = (agent: Agent) => {
+  const result = authorSchema.parse({
     name: agent.overrideAuthorName ?? agent.authorName ?? undefined,
     image: agent.overrideAuthorImage ?? agent.authorImage ?? undefined,
     organization:

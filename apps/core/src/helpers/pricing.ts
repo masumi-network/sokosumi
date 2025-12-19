@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/database/helpers";
 
 import { CREDIT } from "@/config/constants";
-import { getDeveloperFromAgent } from "@/schemas/developer.schema";
+import { getAuthorFromAgent } from "@/schemas/author.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
 /**
@@ -31,7 +31,7 @@ export const transformAgentWithCredits = (
     ...agent,
     name: agent.overrideName ?? agent.name,
     description: agent.overrideDescription ?? agent.description,
-    developer: getDeveloperFromAgent(agent),
+    author: getAuthorFromAgent(agent),
     credits,
   };
 };

@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
-import { developerSchema } from "./developer.schema";
+import { authorSchema } from "./author.schema";
 
 export const agentSchema = z
   .object({
@@ -14,7 +14,7 @@ export const agentSchema = z
     description: z.string().openapi({
       example: "A research assistant that can help you with your research",
     }),
-    developer: developerSchema,
+    author: authorSchema,
   })
   .nullish()
   .openapi("Agent");
