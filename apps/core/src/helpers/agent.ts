@@ -284,10 +284,10 @@ export const calculateAverageExecutionTime = async (
  *          the average execution time in seconds (as a number) for that agent, or null if unavailable.
  */
 export const calculateAverageExecutionTimes = async (
-  agentIds: string[],
+  agentIds: Set<string>,
   tx: Prisma.TransactionClient,
 ): Promise<Map<string, number | null>> => {
-  if (agentIds.length === 0) return new Map();
+  if (agentIds.size === 0) return new Map();
 
   // Calculate cutoff date in JavaScript to avoid SQL injection risk
   const cutoffDate = new Date();
@@ -358,15 +358,15 @@ export const calculateAgentRating = async (
 };
 
 export const calculateAgentRatings = async (
-  agentIds: string[],
+  agentIds: Set<string>,
   tx: Prisma.TransactionClient,
 ): Promise<Map<string, RatingMetrics>> => {
-  if (agentIds.length === 0) return new Map();
+  if (agentIds.size === 0) return new Map();
 
   const ratings = await tx.userAgentRating.groupBy({
     by: ["agentId"],
     where: {
-      agentId: { in: agentIds },
+      agentId: { in: Array.from(agentIds) },
     },
     _count: { rating: true },
     _avg: { rating: true },

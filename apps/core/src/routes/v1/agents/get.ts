@@ -66,7 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           return agentWithCredits ? [agentWithCredits] : [];
         });
 
-      const agentIds = agentsWithCredits.map((agent) => agent.id);
+      const agentIds = new Set(agentsWithCredits.map((agent) => agent.id));
 
       const averageExecutionTimes = await calculateAverageExecutionTimes(
         agentIds,
