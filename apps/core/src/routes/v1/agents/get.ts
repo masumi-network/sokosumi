@@ -76,7 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const ratingsMap = await calculateAgentRatings(agentIds, tx);
 
       return agentsWithCredits.map((agent) => {
-        const ratings = ratingsMap.get(agent.id);
+        const ratingMetrics = ratingsMap.get(agent.id);
         return {
           ...agent,
           metrics: {
@@ -85,8 +85,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               averageTime: averageExecutionTimes.get(agent.id) ?? null,
             },
             ratings: {
-              total: ratings?.total ?? 0,
-              average: ratings?.average ?? null,
+              total: ratingMetrics?.total ?? 0,
+              average: ratingMetrics?.average ?? null,
             },
           },
         };
