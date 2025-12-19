@@ -1,4 +1,4 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import {
   AgentStatus,
   type AgentWithPricing,
@@ -15,6 +15,7 @@ import {
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentsSchema } from "@/schemas/agent.schema";
 import { getDeveloperFromAgent } from "@/schemas/developer.schema";
 
@@ -123,7 +124,7 @@ const roundUpCentsWithFee = (cents: bigint, fee: bigint): [bigint, bigint] => {
   return [roundedCentsWithFee, fee + diff];
 };
 
-export default function mount(app: OpenAPIHono) {
+export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const agents = await prisma.$transaction(async (tx) => {
       const agents = await tx.agent.findMany({
