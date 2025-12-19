@@ -30,6 +30,14 @@ export const getAgentImage = (agent: Agent): string | null => {
   return ipfsUrlResolver(image);
 };
 
+export const getAgentAuthorImage = (agent: Agent): string | null => {
+  const image = agent.overrideAuthorImage ?? agent.authorImage;
+  if (!image) {
+    return null;
+  }
+  return ipfsUrlResolver(image);
+};
+
 /**
  * Retrieves the current session's organization IDs and all credit costs for agent access checks.
  *

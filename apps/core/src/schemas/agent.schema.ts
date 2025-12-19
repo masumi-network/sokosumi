@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Agent } from "@sokosumi/database";
 
+import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
 
 export const authorSchema = z
@@ -22,7 +23,7 @@ export const authorSchema = z
 export const getAuthorFromAgent = (agent: Agent) => {
   return authorSchema.parse({
     name: agent.overrideAuthorName ?? agent.authorName,
-    image: agent.overrideAuthorImage ?? agent.authorImage,
+    image: getAgentAuthorImage(agent),
     organization: agent.overrideAuthorOrganization ?? agent.authorOrganization,
     email: agent.overrideAuthorContactEmail ?? agent.authorContactEmail,
     other: agent.overrideAuthorContactOther ?? agent.authorContactOther,
