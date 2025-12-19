@@ -13,6 +13,7 @@ import {
   feeFromCentsBasedOnPercentagePoints,
 } from "@sokosumi/database/helpers";
 
+import { CREDIT } from "@/config/constants";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -28,9 +29,6 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
   },
 });
-
-const FEE_PERCENTAGE_POINTS = 5;
-const MIN_FEE_CREDITS = 1;
 
 export const agentPricingInclude = {
   pricing: {
@@ -87,7 +85,7 @@ export function getAgentCredits(
         const cents = amount.amount * creditCost.centsPerUnit;
         const fee = feeFromCentsBasedOnPercentagePoints(
           cents,
-          FEE_PERCENTAGE_POINTS,
+          CREDIT.FEE_PERCENTAGE_POINTS,
         );
         totalCents += cents;
         totalFee += fee;
@@ -137,7 +135,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       const creditCosts = await tx.creditCost.findMany();
-      const minFeeCents = convertCreditsToCents(MIN_FEE_CREDITS);
+      const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
 
       return agents
         .map((agent) => {

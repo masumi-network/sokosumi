@@ -62,3 +62,7 @@ export const STORAGE = {
   IMAGES_UPLOAD_DIR: "images",
 } as const;
 
+export const CREDIT = {
+  FEE_PERCENTAGE_POINTS: 5,
+  MIN_FEE_CREDITS: 1,
+} as const;
