@@ -7,8 +7,11 @@ import {
 } from "@sokosumi/database/helpers";
 
 import { CREDIT } from "@/config/constants";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { getAuthorFromAgent } from "@/schemas/author.schema";
 import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
+
+import { internalServerError } from "./error";
 
 /**
  * Retrieves the current session's organization IDs and all credit costs for agent access checks.
@@ -17,22 +20,26 @@ import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
  * @returns Object with userOrganizationIds and creditCosts.
  */
 export const getAgentAccessContext = async (
-  userId: string,
-  organizationId: string | null,
+  authContext: AuthenticationContext,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<{
   userOrganizationIds: string[];
-  activeOrganizationId: string | null;
   creditCosts: CreditCost[];
 }> => {
   const creditCosts = await tx.creditCost.findMany();
+  if (!creditCosts) {
+    throw internalServerError("Failed to get credit information for agents");
+  }
   const userMemberships = await tx.member.findMany({
-    where: { userId },
+    where: { userId: authContext.userId },
     select: { organizationId: true },
   });
   const userOrganizationIds = userMemberships.map((m) => m.organizationId);
-  const activeOrganizationId = organizationId ?? null;
-  return { userOrganizationIds, activeOrganizationId, creditCosts };
+
+  return {
+    userOrganizationIds,
+    creditCosts,
+  };
 };
 
 /**

@@ -1,13 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 
-import { transformAgentWithCredits } from "@/helpers/agent";
-import { notFound, unprocessableEntity } from "@/helpers/error";
+import {
+  canUserAccessAgent,
+  getAgentAccessContext,
+  transformAgentWithCredits,
+} from "@/helpers/agent";
+import { notFound, unauthorized, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentSchema } from "@/schemas/agent.schema";
-import { agentPricingInclude } from "@/types/agent";
+import { agentOrganizationsInclude, agentPricingInclude } from "@/types/agent";
 
 const params = z.object({
   id: z.string().openapi({
@@ -32,23 +36,36 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
     const agent = await prisma.$transaction(async (tx) => {
+      const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
+        authContext,
+        tx,
+      );
       const agent = await tx.agent.findUnique({
         where: { id },
-        include: { ...agentPricingInclude },
+        include: { ...agentPricingInclude, ...agentOrganizationsInclude },
       });
       if (!agent) {
         throw notFound("Agent not found");
       }
 
-      const creditCosts = await tx.creditCost.findMany();
+      if (
+        !canUserAccessAgent(
+          agent,
+          userOrganizationIds,
+          authContext.organizationId,
+        )
+      ) {
+        throw unauthorized("You are not authorized to access this agent");
+      }
+
       const transformed = transformAgentWithCredits(agent, creditCosts);
       if (!transformed) {
         throw unprocessableEntity("Agent has invalid or unknown pricing");
       }
-
       return transformed;
     });
     return ok(c, agentSchema.parse(agent));

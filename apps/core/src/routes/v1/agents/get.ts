@@ -1,9 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
-import { AgentStatus } from "@sokosumi/database";
+import { agentOrganizationsInclude, AgentStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 
-import { transformAgentWithCredits } from "@/helpers/agent";
-import { internalServerError } from "@/helpers/error";
+import {
+  canUserAccessAgent,
+  getAgentAccessContext,
+  transformAgentWithCredits,
+} from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -22,9 +25,16 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const { authContext } = c.var;
+
     const agents = await prisma.$transaction(async (tx) => {
+      const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
+        authContext,
+        tx,
+      );
+
       const agents = await tx.agent.findMany({
-        include: { ...agentPricingInclude },
+        include: { ...agentPricingInclude, ...agentOrganizationsInclude },
         orderBy: [...agentOrderBy],
         where: {
           status: AgentStatus.ONLINE,
@@ -32,12 +42,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      const creditCosts = await tx.creditCost.findMany();
-      if (!creditCosts) {
-        throw internalServerError("Failed to get credits for agents");
-      }
-
       return agents
+        .filter((agent) =>
+          canUserAccessAgent(
+            agent,
+            userOrganizationIds,
+            authContext.organizationId,
+          ),
+        )
         .map((agent) => {
           return transformAgentWithCredits(agent, creditCosts);
         })
