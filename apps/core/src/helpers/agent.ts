@@ -187,7 +187,10 @@ const calculateAgentCredits = (
       if (totalFee < minFeeCents) {
         totalFee = minFeeCents;
       }
-      const [totalCentsWithFee, _] = roundUpCentsWithFee(totalCents, totalFee);
+      const { cents: totalCentsWithFee } = roundUpCentsWithFee(
+        totalCents,
+        totalFee,
+      );
       return convertCentsToCredits(totalCentsWithFee);
     }
     case PricingType.FREE: {
@@ -209,13 +212,13 @@ const calculateAgentCredits = (
 const roundUpCentsWithFee = (
   cents: bigint,
   fee: bigint,
-): [cents: bigint, fee: bigint] => {
+): { cents: bigint; fee: bigint } => {
   const centsWithFee = cents + fee;
   const roundedCentsWithFee = convertCreditsToCents(
     Math.ceil(convertCentsToCredits(centsWithFee)),
   );
   const diff = roundedCentsWithFee - centsWithFee;
-  return [roundedCentsWithFee, fee + diff];
+  return { cents: roundedCentsWithFee, fee: fee + diff };
 };
 
 export const getAverageExecutionTime = async (
