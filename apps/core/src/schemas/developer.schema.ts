@@ -15,10 +15,11 @@ export const developerSchema = z
       .nullish()
       .openapi({ example: "Other contact information" }),
   })
+  .optional()
   .openapi("Developer");
 
 export const getDeveloperFromAgent = (agent: Agent) => {
-  return developerSchema.parse({
+  const result = developerSchema.parse({
     name: agent.overrideAuthorName ?? agent.authorName ?? undefined,
     image: agent.overrideAuthorImage ?? agent.authorImage ?? undefined,
     organization:
@@ -28,4 +29,15 @@ export const getDeveloperFromAgent = (agent: Agent) => {
     other:
       agent.overrideAuthorContactOther ?? agent.authorContactOther ?? undefined,
   });
+  if (
+    result &&
+    result.name === undefined &&
+    result.image === undefined &&
+    result?.organization === undefined &&
+    result?.email === undefined &&
+    result?.other === undefined
+  ) {
+    return null;
+  }
+  return result;
 };

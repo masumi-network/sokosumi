@@ -16,6 +16,7 @@ export const agentSchema = z
     }),
     developer: developerSchema,
   })
+  .nullish()
   .openapi("Agent");
 
 export const agentsSchema = z.array(agentSchema);
