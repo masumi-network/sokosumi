@@ -32,8 +32,12 @@ export function getAgentDescription(agent: Agent): string | null {
   return agent.overrideDescription ?? agent.description;
 }
 
-export function getAgentResolvedImage(agent: Agent): string {
-  return ipfsUrlResolver(agent.overrideImage ?? agent.image);
+export function getAgentResolvedImage(agent: Agent): string | null {
+  const image = agent.overrideImage ?? agent.image;
+  if (!image) {
+    return null;
+  }
+  return ipfsUrlResolver(image);
 }
 
 export function getAgentResolvedIcon(agent: Agent): string | null {
