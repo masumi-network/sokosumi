@@ -95,7 +95,7 @@ export function getAgentAuthorOrganization(agent: Agent): string | null {
   return agent.overrideAuthorOrganization ?? agent.authorOrganization;
 }
 
-export function getShortAgentAuthorName(agent: Agent): string {
+export function getShortAgentAuthorName(agent: Agent): string | null {
   // Prioritize organization over name
   const organization = getAgentAuthorOrganization(agent);
   if (organization) {
@@ -104,7 +104,7 @@ export function getShortAgentAuthorName(agent: Agent): string {
   return agent.overrideAuthorName ?? agent.authorName;
 }
 
-export function getFullAgentAuthorName(agent: Agent): string {
+export function getFullAgentAuthorName(agent: Agent): string | null {
   // For detail pages, show both organization and name
   const organization = getAgentAuthorOrganization(agent);
   const name = agent.overrideAuthorName ?? agent.authorName;
