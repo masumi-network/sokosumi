@@ -59,11 +59,11 @@ export const agentSchema = z
     description: z.string().openapi({
       example: "A research assistant that can help you with your research",
     }),
-    executions: z.number().optional().openapi({
+    executions: z.number().openapi({
       example: 100,
       description: "Number of jobs executed by the agent in the last 90 days",
     }),
-    averageExecutionDuration: z.number().nullish().openapi({
+    averageExecutionDuration: z.number().nullable().openapi({
       example: 100,
       description: "Average execution duration of the agent in seconds",
     }),

@@ -71,7 +71,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unauthorized("You are not authorized to access this agent");
       }
 
-      const executions = agent._count.jobs;
       const averageExecutionDuration = await getAverageExecutionDuration(
         id,
         tx,
@@ -79,7 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const transformed = transformAgent(
         agent,
         creditCosts,
-        executions,
         averageExecutionDuration,
       );
       if (!transformed) {

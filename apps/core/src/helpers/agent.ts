@@ -17,7 +17,11 @@ import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
-import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
+import type {
+  AgentWithJobsCount,
+  AgentWithOrganizations,
+  AgentWithPricing,
+} from "@/types/agent";
 
 import { internalServerError } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
@@ -113,9 +117,8 @@ export const canUserAccessAgent = (
  * @returns The transformed agent with credits, or null if credits calculation fails.
  */
 export const transformAgent = (
-  agent: AgentWithPricing & AgentWithOrganizations,
+  agent: AgentWithPricing & AgentWithOrganizations & AgentWithJobsCount,
   creditCosts: CreditCost[],
-  executions?: number,
   averageExecutionDuration?: number | null,
 ) => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
@@ -132,7 +135,7 @@ export const transformAgent = (
     description: agent.overrideDescription ?? agent.description,
     author: getAuthorFromAgent(agent),
     legal: getAgentLegalFromAgent(agent),
-    executions,
+    executions: agent._count.jobs,
     averageExecutionDuration,
     credits,
   };
@@ -231,4 +234,49 @@ export const getAverageExecutionDuration = async (
   `;
   const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
   return averageDurationSeconds ? Number(averageDurationSeconds) : null;
+};
+
+export const getAverageExecutionDurations = async (
+  agentIds: string[],
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, number | null>> => {
+  if (agentIds.length === 0) return new Map();
+
+  const averages = await tx.$queryRaw<
+    Array<{
+      agent_id: string;
+      avg_duration_seconds: number | null;
+    }>
+  >`
+    SELECT 
+      j."agentId" as agent_id,
+      AVG(EXTRACT(EPOCH FROM (js."createdAt" - j."createdAt"))) as avg_duration_seconds
+    FROM "Job" j
+    INNER JOIN "jobEvent" js ON js."jobId" = j.id
+    WHERE j."agentId" = ANY(${agentIds}::text[])
+    AND j."jobType" != 'DEMO'
+    AND js."status" = 'COMPLETED'::"AgentJobStatus"
+    AND j."createdAt" >= NOW() - INTERVAL '90 days'
+    GROUP BY j."agentId"
+  `;
+
+  // Create a map with all agentIds, defaulting to null for those without data
+  const averagesMap = new Map<string, number | null>();
+
+  // Initialize all agentIds with null
+  for (const agentId of agentIds) {
+    averagesMap.set(agentId, null);
+  }
+
+  // Set the actual values for agents that have data
+  for (const average of averages) {
+    averagesMap.set(
+      average.agent_id,
+      average.avg_duration_seconds
+        ? Number(average.avg_duration_seconds)
+        : null,
+    );
+  }
+
+  return averagesMap;
 };

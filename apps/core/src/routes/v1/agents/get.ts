@@ -5,13 +5,18 @@ import prisma from "@sokosumi/database/client";
 import {
   canUserAccessAgent,
   getAgentAccessContext,
+  getAverageExecutionDurations,
   transformAgent,
 } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentsSchema } from "@/schemas/agent.schema";
-import { agentOrderBy, agentPricingInclude } from "@/types/agent";
+import {
+  agentJobsCountInclude,
+  agentOrderBy,
+  agentPricingInclude,
+} from "@/types/agent";
 
 const route = createRoute({
   method: "get",
@@ -37,6 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: {
           ...agentPricingInclude,
           ...agentOrganizationsInclude,
+          ...agentJobsCountInclude,
         },
         orderBy: [...agentOrderBy],
         where: {
@@ -45,7 +51,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      return agents
+      const transformedAgents = agents
         .filter((agent) =>
           canUserAccessAgent(
             agent,
@@ -57,6 +63,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           return transformAgent(agent, creditCosts);
         })
         .filter((agent) => agent !== null);
+
+      const averageExecutionDurations = await getAverageExecutionDurations(
+        transformedAgents.map((agent) => agent.id),
+        tx,
+      );
+
+      return transformedAgents.map((agent) => {
+        return {
+          ...agent,
+          averageExecutionDuration:
+            averageExecutionDurations.get(agent.id) ?? null,
+        };
+      });
     });
     return ok(c, agentsSchema.parse(agents));
   });
