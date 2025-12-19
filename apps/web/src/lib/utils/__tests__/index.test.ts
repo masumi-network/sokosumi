@@ -1,4 +1,4 @@
-import { toJobInputData, tryParseJson } from "@/lib/utils";
+import { toInputSchema, tryParseJson } from "@/lib/utils";
 
 describe("tryParseJson", () => {
   it("should parse valid JSON string", () => {
@@ -64,14 +64,14 @@ describe("tryParseJson", () => {
   });
 });
 
-describe("toJobInputData", () => {
-  it("should convert plain object to JobInputData Map", () => {
+describe("toInputSchema", () => {
+  it("should convert plain object to InputSchemaType Map", () => {
     const plainObject = {
       field1: "value1",
       field2: 123,
       field3: true,
     };
-    const result = toJobInputData(plainObject);
+    const result = toInputSchema(plainObject);
     expect(result).toBeInstanceOf(Map);
     expect(result?.get("field1")).toBe("value1");
     expect(result?.get("field2")).toBe(123);
@@ -79,26 +79,26 @@ describe("toJobInputData", () => {
   });
 
   it("should return null for null input", () => {
-    const result = toJobInputData(null);
+    const result = toInputSchema(null);
     expect(result).toBeNull();
   });
 
   it("should return null for undefined input", () => {
-    const result = toJobInputData(undefined);
+    const result = toInputSchema(undefined);
     expect(result).toBeNull();
   });
 
   it("should return null for non-object input", () => {
-    const result1 = toJobInputData("string");
-    const result2 = toJobInputData(123);
-    const result3 = toJobInputData(true);
+    const result1 = toInputSchema("string");
+    const result2 = toInputSchema(123);
+    const result3 = toInputSchema(true);
     expect(result1).toBeNull();
     expect(result2).toBeNull();
     expect(result3).toBeNull();
   });
 
   it("should handle empty object", () => {
-    const result = toJobInputData({});
+    const result = toInputSchema({});
     expect(result).toBeInstanceOf(Map);
     expect(result?.size).toBe(0);
   });
@@ -114,7 +114,7 @@ describe("toJobInputData", () => {
       },
       field3: [1, 2, 3],
     };
-    const result = toJobInputData(nestedObject);
+    const result = toInputSchema(nestedObject);
     expect(result).toBeInstanceOf(Map);
     expect(result?.get("field1")).toBe("value1");
     expect(result?.get("field2")).toEqual({

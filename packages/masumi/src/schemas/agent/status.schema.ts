@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { inputsSchema } from "../input/input.schema.js";
+import { inputSchemaSchema } from "../input/input.schema.js";
 
 // Agent job status values - single source of truth
 export const JOB_STATUS = [
@@ -17,7 +17,7 @@ export const jobStatusResponseSchema = z
   .object({
     id: z.string().nullish(),
     status: z.enum(JOB_STATUS),
-    input_schema: inputsSchema.nullish(),
+    input_schema: inputSchemaSchema.nullish(),
     result: z.string().nullish(),
   })
   .superRefine((data, ctx) => {

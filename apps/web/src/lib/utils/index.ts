@@ -1,7 +1,6 @@
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-
-import { JobInputData } from "@/lib/job-input";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -11,16 +10,16 @@ export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Converts a plain object to JobInputData (Map), or returns null for invalid input.
+ * Converts a plain object to InputSchemaType (Map), or returns null for invalid input.
  *
- * @param input - Plain object to convert to JobInputData Map
- * @returns JobInputData Map if conversion succeeds, null otherwise
+ * @param input - Plain object to convert to InputSchemaType Map
+ * @returns InputSchemaType Map if conversion succeeds, null otherwise
  */
-export function toJobInputData(input: unknown): JobInputData | null {
+export function toInputSchema(input: unknown): InputSchemaType | null {
   if (!input || typeof input !== "object") return null;
   return new Map(
     Object.entries(input as Record<string, unknown>),
-  ) as unknown as JobInputData;
+  ) as unknown as InputSchemaType;
 }
 
 /**

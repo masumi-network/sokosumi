@@ -1,10 +1,8 @@
 import { z } from "zod";
 
-import { inputsSchema } from "../input/input.schema.js";
+import { inputSchemaSchema } from "../input/input.schema.js";
 
-export const inputSchemaResponseSchema = z.object({
-  inputsSchema,
-});
+export const inputSchemaResponseSchema = inputSchemaSchema;
 
 export type InputSchemaResponseSchemaType = z.infer<
   typeof inputSchemaResponseSchema

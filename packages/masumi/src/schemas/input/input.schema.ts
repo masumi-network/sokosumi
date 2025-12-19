@@ -496,7 +496,7 @@ export const inputMultiselectSchema = z.object({
 
 export type InputMultiselectSchemaType = z.infer<typeof inputMultiselectSchema>;
 
-export const inputSchema = inputNoneSchema
+export const inputFieldSchema = inputNoneSchema
   .or(inputStringSchema)
   .or(inputTextSchema)
   .or(inputTextareaSchema)
@@ -521,31 +521,65 @@ export const inputSchema = inputNoneSchema
   .or(inputOptionSchema)
   .or(inputMultiselectSchema);
 
-export type InputSchemaType = z.infer<typeof inputSchema>;
+export type InputFieldSchemaType = z.infer<typeof inputFieldSchema>;
+
+export const inputFieldsSchema = z.array(inputFieldSchema).refine(
+  (data) => {
+    const ids = data.map((input) => input.id);
+    return new Set(ids).size === ids.length;
+  },
+  {
+    message: "Input IDs must be unique across all inputs",
+    path: ["inputs"],
+  },
+);
+
+export type InputFieldsSchemaType = z.infer<typeof inputFieldsSchema>;
 
 export const inputDataSchema = z.object({
-  input_data: z.array(inputSchema),
+  input_data: inputFieldsSchema,
 });
 
 export type InputDataSchemaType = z.infer<typeof inputDataSchema>;
 
-export const inputGroupSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  input_data: z.array(inputSchema),
-});
+export const inputGroupSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+  })
+  .and(inputDataSchema);
 
 export type InputGroupSchemaType = z.infer<typeof inputGroupSchema>;
 
-export const inputsSchema = z
-  .union([
-    z.object({
-      input_data: z.array(inputSchema),
-    }),
-    z.object({
-      input_groups: z.array(inputGroupSchema),
-    }),
-  ])
+export const inputGroupsSchema = z
+  .array(inputGroupSchema)
+  .refine(
+    (data) => {
+      const ids = data.map((group) => group.id);
+      return new Set(ids).size === ids.length;
+    },
+    {
+      message: "Input group IDs must be unique across all input groups",
+      path: ["input_groups"],
+    },
+  )
+  .refine(
+    (data) => {
+      const allInputIds = data.flatMap((group) =>
+        group.input_data.map((input) => input.id),
+      );
+      return new Set(allInputIds).size === allInputIds.length;
+    },
+    {
+      message: "Input IDs must be unique across all input groups",
+      path: ["input_groups"],
+    },
+  );
+
+export type InputGroupsSchemaType = z.infer<typeof inputGroupsSchema>;
+
+export const inputSchemaSchema = z
+  .union([inputDataSchema, z.object({ input_groups: inputGroupsSchema })])
   .refine(
     (data) => {
       const hasInputData = "input_data" in data;
@@ -557,25 +591,24 @@ export const inputsSchema = z
     },
   );
 
-export type InputsSchemaType = z.infer<typeof inputsSchema>;
+export type InputSchemaSchemaType = z.infer<typeof inputSchemaSchema>;
 
-export const submitInputDataSchema = z.object({
-  input_data: z.record(
+// Schema for input data when providing input to an agent
+export const inputSchema = z.record(
+  z.string(),
+  z.union([
+    z.number(),
+    z.array(z.number()),
     z.string(),
-    z.union([
-      z.number(),
-      z.array(z.number()),
-      z.string(),
-      z.array(z.string()),
-      z.boolean(),
-      z.undefined(),
-      z.instanceof(File),
-      z.array(z.instanceof(File)),
-    ]),
-  ),
-});
+    z.array(z.string()),
+    z.boolean(),
+    z.undefined(),
+    z.instanceof(File),
+    z.array(z.instanceof(File)),
+  ]),
+);
 
-export type SubmitInputDataSchemaType = z.infer<typeof submitInputDataSchema>;
+export type InputSchemaType = z.infer<typeof inputSchema>;
 
 export const submitInputGroupsSchema = z.object({
   input_groups: z.array(
@@ -584,7 +617,7 @@ export const submitInputGroupsSchema = z.object({
         id: z.string().min(1),
         title: z.string().nullish(),
       })
-      .and(submitInputDataSchema),
+      .and(inputSchema),
   ),
 });
 
@@ -593,7 +626,7 @@ export type SubmitInputGroupsSchemaType = z.infer<
 >;
 
 export const submitInputsSchema = z
-  .union([submitInputDataSchema, submitInputGroupsSchema])
+  .union([inputSchema, submitInputGroupsSchema])
   .refine(
     (data) => {
       const hasInputData = "input_data" in data;

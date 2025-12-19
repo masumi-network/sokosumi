@@ -1,9 +1,9 @@
 import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { InputSchemaType } from "@sokosumi/masumi/schemas";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { JobInputData } from "@/lib/job-input/type";
 
 export type AgentInfo = {
   name: string;
@@ -18,7 +18,7 @@ export const anthropicClient = (() => {
   return {
     async generateJobName(
       agent: AgentInfo,
-      inputData: JobInputData,
+      inputData: InputSchemaType,
     ): Promise<string | null> {
       const inputSummary = Object.entries(inputData)
         .map(([key, value]) => `${key} => ${JSON.stringify(value)}`)

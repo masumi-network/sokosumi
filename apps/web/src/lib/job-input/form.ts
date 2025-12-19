@@ -1,12 +1,15 @@
-import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import {
+  InputFieldSchemaType,
+  InputSchemaType,
+} from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import * as z from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
-import { JobInputData, JobInputFormIntlPath } from "./type";
+import { JobInputFormIntlPath } from "./type";
 
 export const jobInputsFormSchema = (
-  jobInputSchemas: InputSchemaType[],
+  jobInputSchemas: InputFieldSchemaType[],
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   return z.object(
@@ -27,15 +30,15 @@ export type JobInputsFormSchemaType = z.infer<
 
 export function filterOutNullValues(
   values: JobInputsFormSchemaType,
-): JobInputData {
+): InputSchemaType {
   return Object.fromEntries(
     Object.entries(values).filter(
       ([_, value]) => value !== null && value !== undefined,
     ),
-  ) as JobInputData;
+  ) as InputSchemaType;
 }
 
-export const defaultValues = (jobInputSchemas: InputSchemaType[]) => {
+export const defaultValues = (jobInputSchemas: InputFieldSchemaType[]) => {
   return Object.fromEntries(
     jobInputSchemas.map((jobInputSchema) => {
       return [jobInputSchema.id, getDefaultValue(jobInputSchema)];
@@ -43,7 +46,7 @@ export const defaultValues = (jobInputSchemas: InputSchemaType[]) => {
   );
 };
 
-const getDefaultValue = (jobInputSchema: InputSchemaType) => {
+const getDefaultValue = (jobInputSchema: InputFieldSchemaType) => {
   const { type } = jobInputSchema;
   switch (type) {
     case InputType.BOOLEAN:
