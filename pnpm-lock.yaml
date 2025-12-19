@@ -39,8 +39,8 @@ importers:
         specifier: 1.1.6
         version: 1.1.6(hono@4.11.1)(zod@4.2.1)
       '@scalar/hono-api-reference':
-        specifier: 0.9.28
-        version: 0.9.28(hono@4.11.1)
+        specifier: 0.9.30
+        version: 0.9.30(hono@4.11.1)
       '@scalar/openapi-to-markdown':
         specifier: 0.3.11
         version: 0.3.11(typescript@5.9.3)
@@ -2907,16 +2907,16 @@ packages:
     resolution: {integrity: sha512-QnFuC5ZfZJ/jzDURFVjKHRHohY+2TW02xjL7MdlUq1rzUuZPWkw09ddM1rnm2tPoMHcpsN3Df/NjhVDxutzdGg==}
     engines: {node: '>=20'}
 
-  '@scalar/core@0.3.26':
-    resolution: {integrity: sha512-CTwhU0zteyhFvlGbiErUC/nt7o4VMraXC4E52x2Cz+s/rgGrmS00pTYtnjO3NVQXXqjScq8BqMTqBZrHQEJhWw==}
+  '@scalar/core@0.3.28':
+    resolution: {integrity: sha512-Ka+g5P3Fe4f9lsJcBxfI+XAgwMYeZRgzIBWw1/HBrDoRmH3rV/N//410MBKEYXUw7pWpS+dZPJANZRvU5jtxhw==}
     engines: {node: '>=20'}
 
   '@scalar/helpers@0.2.4':
     resolution: {integrity: sha512-G7oGybO2QXM+MIxa4OZLXaYsS9mxKygFgOcY4UOXO6xpVoY5+8rahdak9cPk7HNj8RZSt4m/BveoT8g5BtnXxg==}
     engines: {node: '>=20'}
 
-  '@scalar/hono-api-reference@0.9.28':
-    resolution: {integrity: sha512-RVY55Rpcy9/irv0SMSxuSlQ6wDyuP+iTDmTz/d5tGv/qqo8vEOJMdDRNftMUqdtqiZUAE8fXJnuDCTJ80ZztAQ==}
+  '@scalar/hono-api-reference@0.9.30':
+    resolution: {integrity: sha512-a9cPluqfi1bgX2p7PJl/2O4jgPcoAl/ecSAe74TbPYIi27A0O0bkUBscO7WNRJhWJ1GVVxX8NvJTNlDxUNBlpg==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4.10.3
@@ -2963,10 +2963,6 @@ packages:
 
   '@scalar/typebox@0.1.1':
     resolution: {integrity: sha512-Mhhubu4zj1PiXhtgvNbz34zniedtO6PYdD80haMkIjOJwV9aWejxXILr2elHGBMsLfdhH3s9qxux6TL6X8Q6/Q==}
-
-  '@scalar/types@0.5.2':
-    resolution: {integrity: sha512-F5wyb/B/Mu56PpNqhgSfuKwiwVnmhNhzTOo+k5b++HvYhjwAnqnw8BzbDzwXhhn172IPw8kSkupA/vphw61IRA==}
-    engines: {node: '>=20'}
 
   '@scalar/types@0.5.4':
     resolution: {integrity: sha512-5FNQH/zx3tnERzxfpErscPHfRxLCuhncmhFYiaSz196Xi2iG1YI08BtxTV2slfT6of52epJ/MrKerarplKf9eg==}
@@ -11102,15 +11098,15 @@ snapshots:
       - supports-color
       - typescript
 
-  '@scalar/core@0.3.26':
+  '@scalar/core@0.3.28':
     dependencies:
-      '@scalar/types': 0.5.2
+      '@scalar/types': 0.5.4
 
   '@scalar/helpers@0.2.4': {}
 
-  '@scalar/hono-api-reference@0.9.28(hono@4.11.1)':
+  '@scalar/hono-api-reference@0.9.30(hono@4.11.1)':
     dependencies:
-      '@scalar/core': 0.3.26
+      '@scalar/core': 0.3.28
       hono: 4.11.1
 
   '@scalar/icons@0.5.2(typescript@5.9.3)':
@@ -11204,12 +11200,6 @@ snapshots:
       nanoid: 5.1.5
 
   '@scalar/typebox@0.1.1': {}
-
-  '@scalar/types@0.5.2':
-    dependencies:
-      nanoid: 5.1.5
-      type-fest: 5.0.0
-      zod: 4.2.1
 
   '@scalar/types@0.5.4':
     dependencies:
