@@ -1,8 +1,9 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentsSchema } from "@/schemas/agent.schema";
 
 const route = createRoute({
@@ -13,10 +14,9 @@ const route = createRoute({
     200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),
     401: jsonErrorResponse("Unauthorized"),
   },
-  security: [],
 });
 
-export default function mount(app: OpenAPIHono) {
+export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const agents = await agentRepository.getAgentsWithRelations();
 

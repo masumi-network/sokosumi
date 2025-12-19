@@ -1,4 +1,4 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
@@ -6,6 +6,7 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 const params = z.object({
   id: z.string().openapi({
@@ -33,7 +34,7 @@ const route = createRoute({
   security: [],
 });
 
-export default function mount(app: OpenAPIHono) {
+export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
