@@ -11,7 +11,7 @@ import {
   feeFromCentsBasedOnPercentagePoints,
 } from "@sokosumi/database/helpers";
 
-import { CREDIT } from "@/config/constants";
+import { CREDIT, TIME } from "@/config/constants";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   getAgentLegalFromAgent,
@@ -225,9 +225,9 @@ const roundUpCentsWithFee = (
  * Calculates the average execution time (in seconds) for a given agent's jobs.
  *
  * The function looks at all jobs associated with the specified agent ID,
- * excluding jobs of type 'DEMO', created within the last 90 days.
- * For each job, it determines the most recent 'COMPLETED' event and
- * calculates the duration from job creation to completion.
+ * excluding jobs of type 'DEMO', created within the lookback period
+ * (see TIME.AGENT_EXECUTION_METRICS_DAYS). For each job, it determines the
+ * most recent 'COMPLETED' event and calculates the duration from job creation to completion.
  *
  * The function returns the average duration in seconds as a number, or null
  * if no qualifying jobs exist.
@@ -240,7 +240,11 @@ export const calculateAverageExecutionTime = async (
   agentId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number | null> => {
-  const result = await tx.$queryRaw<[{ avg_duration_seconds: number | null }]>`
+  const intervalString = `${TIME.AGENT_EXECUTION_METRICS_DAYS} days`;
+  const result = await tx.$queryRawUnsafe<
+    [{ avg_duration_seconds: number | null }]
+  >(
+    `
     SELECT 
       AVG(EXTRACT(EPOCH FROM (completed_event."createdAt" - j."createdAt"))) as avg_duration_seconds
     FROM "Job" j
@@ -252,10 +256,12 @@ export const calculateAverageExecutionTime = async (
       ORDER BY js."createdAt" DESC
       LIMIT 1
     ) completed_event ON true
-    WHERE j."agentId" = ${agentId}
+    WHERE j."agentId" = $1
     AND j."jobType" != 'DEMO'
-    AND j."createdAt" >= NOW() - INTERVAL '90 days'
-  `;
+    AND j."createdAt" >= NOW() - INTERVAL '${intervalString}'
+    `,
+    agentId,
+  );
   const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
   return averageDurationSeconds ? Number(averageDurationSeconds) : null;
 };
@@ -264,9 +270,9 @@ export const calculateAverageExecutionTime = async (
  * Calculates the average execution times (in seconds) for multiple agents' jobs.
  *
  * This function examines all jobs associated with each specified agent ID
- * (excluding jobs of type 'DEMO') that were created within the last 90 days.
- * For each job, it finds the most recent 'COMPLETED' job event and calculates
- * the duration from the job's creation to its completion.
+ * (excluding jobs of type 'DEMO') that were created within the lookback period
+ * (see TIME.AGENT_EXECUTION_METRICS_DAYS). For each job, it finds the most recent
+ * 'COMPLETED' job event and calculates the duration from the job's creation to its completion.
  *
  * The average duration in seconds is computed per agent.
  *
@@ -283,12 +289,14 @@ export const calculateAverageExecutionTimes = async (
 ): Promise<Map<string, number | null>> => {
   if (agentIds.length === 0) return new Map();
 
-  const averages = await tx.$queryRaw<
+  const intervalString = `${TIME.AGENT_EXECUTION_METRICS_DAYS} days`;
+  const averages = await tx.$queryRawUnsafe<
     Array<{
       agent_id: string;
       avg_duration_seconds: number | null;
     }>
-  >`
+  >(
+    `
     SELECT 
       j."agentId" as agent_id,
       AVG(EXTRACT(EPOCH FROM (completed_event."createdAt" - j."createdAt"))) as avg_duration_seconds
@@ -301,11 +309,13 @@ export const calculateAverageExecutionTimes = async (
       ORDER BY js."createdAt" DESC
       LIMIT 1
     ) completed_event ON true
-    WHERE j."agentId" = ANY(${agentIds}::text[])
+    WHERE j."agentId" = ANY($1::text[])
     AND j."jobType" != 'DEMO'
-    AND j."createdAt" >= NOW() - INTERVAL '90 days'
+    AND j."createdAt" >= NOW() - INTERVAL '${intervalString}'
     GROUP BY j."agentId"
-  `;
+    `,
+    agentIds,
+  );
 
   // Create a map with all agentIds, defaulting to null for those without data
   const averagesMap = new Map<string, number | null>();
