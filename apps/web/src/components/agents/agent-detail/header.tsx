@@ -38,6 +38,7 @@ function AgentDetailHeader({
 }: AgentDetailHeaderProps) {
   const t = useTranslations("Components.Agents.AgentDetail.Header");
   const agentDemoData = getAgentDemoData(agent);
+  const agentImage = getAgentResolvedImage(agent);
 
   return (
     <div className="flex flex-col gap-6">
@@ -52,14 +53,16 @@ function AgentDetailHeader({
       </div>
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="relative aspect-square w-full shrink-0 md:h-48 md:w-48">
-          <Image
-            src={getAgentResolvedImage(agent)}
-            alt={getAgentName(agent)}
-            fill
-            sizes="(max-width: 768px) 50vw, 33vw"
-            className="rounded-lg object-cover"
-            priority
-          />
+          {agentImage && (
+            <Image
+              src={agentImage}
+              alt={getAgentName(agent)}
+              fill
+              sizes="(max-width: 768px) 50vw, 33vw"
+              className="rounded-lg object-cover"
+              priority
+            />
+          )}
           {isAgentNew(agent) && (
             <div className="absolute top-0 left-0 p-3">
               <AgentNewBadge />
