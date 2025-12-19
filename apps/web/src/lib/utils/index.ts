@@ -37,6 +37,22 @@ export function tryParseJson<T>(value: string | null): T | null {
   }
 }
 
+/**
+ * Converts empty strings to null, preserving other values.
+ * Useful for database operations where empty strings should be stored as null.
+ *
+ * @param value - String value to convert
+ * @returns null if value is empty string, otherwise returns the value
+ */
+export function emptyStringToNull<T>(
+  value: T,
+): T extends string ? string | null : T {
+  if (typeof value === "string" && value === "") {
+    return null as T extends string ? string | null : T;
+  }
+  return value as T extends string ? string | null : T;
+}
+
 export * from "./datetime";
 export * from "./duration";
 export * from "./email";

@@ -74,13 +74,15 @@ function InformationAccordionItem({
     >
       <div className="flex flex-wrap gap-6">
         <div className="relative h-16 w-16 md:h-24 md:w-24">
-          <Image
-            src={image}
-            alt={name}
-            fill
-            sizes="(max-width: 768px) 50vw, 33vw"
-            className="rounded-md object-cover"
-          />
+          {image && (
+            <Image
+              src={image}
+              alt={name}
+              fill
+              sizes="(max-width: 768px) 50vw, 33vw"
+              className="rounded-md object-cover"
+            />
+          )}
         </div>
         <div className="flex flex-1 flex-col justify-center gap-0.5">
           <h3 className="text-base font-bold md:text-lg">{name}</h3>
