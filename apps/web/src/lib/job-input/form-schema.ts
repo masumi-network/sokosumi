@@ -34,6 +34,44 @@ import { parseISOWeek, parseMonth } from "@/lib/utils";
 
 import { JobInputFormIntlPath } from "./type";
 
+/**
+ * Minimum length for required string inputs when no explicit min validation is provided
+ */
+const MIN_REQUIRED_STRING_LENGTH = 1;
+
+/**
+ * Validation state tracked while processing string validations
+ */
+interface StringValidationState {
+  canBeOptional: boolean;
+  hasMinValidation: boolean;
+  hasFormatValidation: boolean;
+}
+
+interface FinalStringSchemaConfig {
+  name: string;
+  t?: IntlTranslation<JobInputFormIntlPath>;
+}
+
+function buildFinalStringSchema(
+  schema: z.ZodString,
+  state: StringValidationState,
+  config: FinalStringSchemaConfig,
+): z.ZodTypeAny {
+  const { canBeOptional, hasMinValidation, hasFormatValidation } = state;
+  const { name, t } = config;
+
+  const needsMinLength =
+    !canBeOptional && !hasMinValidation && !hasFormatValidation;
+  const finalSchema = needsMinLength
+    ? schema.min(MIN_REQUIRED_STRING_LENGTH, {
+        error: t?.("String.required", { name }),
+      })
+    : schema;
+
+  return canBeOptional ? finalSchema.nullish() : finalSchema;
+}
+
 export const makeZodSchemaFromJobInputSchema = (
   jobInputSchema: InputFieldSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -117,13 +155,24 @@ const makeZodSchemaFromJobInputTextareaSchema = (
   const defaultSchema = z.string({
     error: t?.("String.required", { name }),
   });
-  if (!validations) return defaultSchema;
 
-  let canBeOptional: boolean = false;
+  if (!validations) {
+    return defaultSchema.min(MIN_REQUIRED_STRING_LENGTH, {
+      error: t?.("String.required", { name }),
+    });
+  }
+
+  const state: StringValidationState = {
+    canBeOptional: false,
+    hasMinValidation: false,
+    hasFormatValidation: false,
+  };
+
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
       case InputValidation.MIN:
+        state.hasMinValidation = true;
         return acc.min(Number(value), {
           error: t?.("String.min", { name, value }),
         });
@@ -134,19 +183,20 @@ const makeZodSchemaFromJobInputTextareaSchema = (
       case InputValidation.FORMAT:
         switch (value) {
           case InputFormat.NON_EMPTY:
-            return acc.min(1, {
+            state.hasMinValidation = true;
+            return acc.min(MIN_REQUIRED_STRING_LENGTH, {
               error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
         }
       case InputValidation.OPTIONAL:
-        canBeOptional = value === "true";
+        state.canBeOptional = value === "true";
         return acc;
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.nullish() : schema;
+  return buildFinalStringSchema(schema, state, { name, t });
 };
 
 const makeZodSchemaFromJobInputTextSchema = (
@@ -162,13 +212,24 @@ const makeZodSchemaFromJobInputTextSchema = (
   const defaultSchema = z.string({
     error: t?.("String.required", { name }),
   });
-  if (!validations) return defaultSchema;
 
-  let canBeOptional: boolean = false;
+  if (!validations) {
+    return defaultSchema.min(MIN_REQUIRED_STRING_LENGTH, {
+      error: t?.("String.required", { name }),
+    });
+  }
+
+  const state: StringValidationState = {
+    canBeOptional: false,
+    hasMinValidation: false,
+    hasFormatValidation: false,
+  };
+
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
       case InputValidation.MIN:
+        state.hasMinValidation = true;
         return acc.min(Number(value), {
           error: t?.("String.min", { name, value }),
         });
@@ -179,27 +240,30 @@ const makeZodSchemaFromJobInputTextSchema = (
       case InputValidation.FORMAT:
         switch (value) {
           case InputFormat.URL:
+            state.hasFormatValidation = true;
             return acc.url({
               error: t?.("String.format", { name, value }),
             });
           case InputFormat.EMAIL:
+            state.hasFormatValidation = true;
             return acc.email({
               error: t?.("String.format", { name, value }),
             });
           case InputFormat.NON_EMPTY:
-            return acc.min(1, {
+            state.hasMinValidation = true;
+            return acc.min(MIN_REQUIRED_STRING_LENGTH, {
               error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
         }
       case InputValidation.OPTIONAL:
-        canBeOptional = value === "true";
+        state.canBeOptional = value === "true";
         return acc;
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.nullish() : schema;
+  return buildFinalStringSchema(schema, state, { name, t });
 };
 
 const makeZodSchemaFromJobInputStringSchema = (
@@ -210,13 +274,24 @@ const makeZodSchemaFromJobInputStringSchema = (
   const defaultSchema = z.string({
     error: t?.("String.required", { name }),
   });
-  if (!validations) return defaultSchema;
 
-  let canBeOptional: boolean = false;
+  if (!validations) {
+    return defaultSchema.min(MIN_REQUIRED_STRING_LENGTH, {
+      error: t?.("String.required", { name }),
+    });
+  }
+
+  const state: StringValidationState = {
+    canBeOptional: false,
+    hasMinValidation: false,
+    hasFormatValidation: false,
+  };
+
   const schema = validations.reduce((acc, cur) => {
     const { validation, value } = cur;
     switch (validation) {
       case InputValidation.MIN:
+        state.hasMinValidation = true;
         return acc.min(Number(value), {
           error: t?.("String.min", { name, value }),
         });
@@ -227,27 +302,30 @@ const makeZodSchemaFromJobInputStringSchema = (
       case InputValidation.FORMAT:
         switch (value) {
           case InputFormat.URL:
+            state.hasFormatValidation = true;
             return acc.url({
               error: t?.("String.format", { name, value }),
             });
           case InputFormat.EMAIL:
+            state.hasFormatValidation = true;
             return acc.email({
               error: t?.("String.format", { name, value }),
             });
           case InputFormat.NON_EMPTY:
-            return acc.min(1, {
+            state.hasMinValidation = true;
+            return acc.min(MIN_REQUIRED_STRING_LENGTH, {
               error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
         }
       case InputValidation.OPTIONAL:
-        canBeOptional = value === "true";
+        state.canBeOptional = value === "true";
         return acc;
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.nullish() : schema;
+  return buildFinalStringSchema(schema, state, { name, t });
 };
 
 const makeZodSchemaFromJobInputTelSchema = (

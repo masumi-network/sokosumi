@@ -18,7 +18,7 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { getAuthContext } from "@/lib/auth/utils";
-import { flattenInputs } from "@/lib/helpers/input-schema";
+import { flattenInputs } from "@/lib/schemas/job";
 import { agentService } from "@/lib/services";
 
 interface RouteParams {

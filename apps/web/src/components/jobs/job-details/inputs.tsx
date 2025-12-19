@@ -10,7 +10,10 @@ import { useMemo } from "react";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
 import { Separator } from "@/components/ui/separator";
-import { flattenInputs, parseInputSchema } from "@/lib/helpers/input-schema";
+import {
+  flattenInputs,
+  normalizeAndValidateInputSchema,
+} from "@/lib/schemas/job";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 import { HashGroupRow } from "./hash-group-row";
@@ -103,17 +106,27 @@ function JobDetailsInputsInner({
 
   const inputsMap: Record<string, { name: string; type: InputType }> =
     useMemo(() => {
-      const result = parseInputSchema(rawInputSchema);
-      if (!result) return {};
+      if (!rawInputSchema) return {};
 
-      const flatInputs = flattenInputs(result);
-      return flatInputs.reduce(
-        (acc, item) => {
-          acc[item.id] = { name: item.name, type: item.type };
-          return acc;
-        },
-        {} as Record<string, { name: string; type: InputType }>,
-      );
+      try {
+        const parsed = JSON.parse(rawInputSchema);
+        const normalized = normalizeAndValidateInputSchema(parsed);
+        if (!normalized) {
+          return {};
+        }
+
+        const flatInputs = flattenInputs(normalized);
+        return flatInputs.reduce(
+          (acc, item) => {
+            acc[item.id] = { name: item.name, type: item.type };
+            return acc;
+          },
+          {} as Record<string, { name: string; type: InputType }>,
+        );
+      } catch (error) {
+        console.error("[inputs] Failed to parse JSON:", error);
+        return {};
+      }
     }, [rawInputSchema]);
 
   return (

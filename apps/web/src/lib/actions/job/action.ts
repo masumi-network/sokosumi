@@ -188,8 +188,6 @@ export const startJob = withAuthContext<
       revalidatePath(`/agents/${input.agentId}/jobs/${job.id}`, "layout");
       return Ok({ jobId: job.id });
     } catch (error) {
-      console.error("Failed to start job", error);
-      // Enhanced error handling with Sentry
       scope.setTag("error_type", "job_start_error");
 
       if (isJobError(error)) {

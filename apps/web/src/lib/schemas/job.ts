@@ -1,12 +1,16 @@
 import {
   inputFieldSchema,
+  InputFieldSchemaType,
+  inputFieldsSchema,
+  inputGroupsSchema,
   inputSchemaResponseSchema,
+  inputSchemaSchema,
+  InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
 import { JobScheduleType } from "@/lib/types/job";
 
-// Reusable input data value schema
 const inputDataValueSchema = z.union([
   z.number(),
   z.string(),
@@ -18,7 +22,6 @@ const inputDataValueSchema = z.union([
   z.undefined(),
 ]);
 
-// Flat input data: Record<fieldId, value>
 const flatInputDataSchema = z.record(z.string(), inputDataValueSchema);
 
 export const startJobInputSchema = z.object({
@@ -26,8 +29,8 @@ export const startJobInputSchema = z.object({
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
-  inputSchema: z.array(inputFieldSchema), // Flat array of input field definitions
-  inputData: flatInputDataSchema, // We always store flat data internally
+  inputSchema: z.array(inputFieldSchema),
+  inputData: flatInputDataSchema,
   jobScheduleId: z.string().nullish(),
 });
 
@@ -167,8 +170,8 @@ export const createJobScheduleInputSchema = z.object({
   cron: z.string().nullish(),
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
-  inputSchema: z.array(inputFieldSchema), // Flat array of input field definitions
-  inputData: flatInputDataSchema, // We always store flat data internally
+  inputSchema: z.array(inputFieldSchema),
+  inputData: flatInputDataSchema,
   maxAcceptedCents: z.bigint(),
   endOnUtc: z.string().nullish(),
   endAfterOccurrences: z.number().int().positive().nullish(),
@@ -184,7 +187,76 @@ export type CreateJobScheduleInputSchemaType = z.infer<
 export const provideJobInputSchema = z.object({
   jobId: z.string(),
   statusId: z.string(),
-  inputData: flatInputDataSchema, // We always store flat data internally
+  inputData: flatInputDataSchema,
 });
 
 export type ProvideJobInputSchemaType = z.infer<typeof provideJobInputSchema>;
+
+const groupedInputSchema = z.object({ input_groups: inputGroupsSchema });
+
+type GroupedInputSchema = z.infer<typeof groupedInputSchema>;
+
+/**
+ * Type guard that checks if an input schema uses the grouped format.
+ * Grouped schemas contain `input_groups` with multiple input sections,
+ * while flat schemas contain a single `input_data` array.
+ */
+export function isGroupedSchema(
+  schema: InputSchemaSchemaType,
+): schema is GroupedInputSchema {
+  return groupedInputSchema.safeParse(schema).success;
+}
+
+/**
+ * Extracts all input fields from a schema, regardless of whether it uses
+ * the grouped or flat format. For grouped schemas, flattens all groups
+ * into a single array of input fields.
+ */
+export function flattenInputs(
+  schema: InputSchemaSchemaType,
+): InputFieldSchemaType[] {
+  if (isGroupedSchema(schema)) {
+    return schema.input_groups.flatMap((group) => group.input_data);
+  }
+  return schema.input_data;
+}
+
+/**
+ * Normalizes and validates an input schema from unknown data.
+ * Handles both the new object format (`{ input_data: [...] }` or `{ input_groups: [...] }`)
+ * and the legacy array format (direct array of input fields).
+ * Returns null if validation fails.
+ */
+export function normalizeAndValidateInputSchema(
+  parsed: unknown,
+): InputSchemaSchemaType | null {
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const result = inputSchemaSchema.safeParse(parsed);
+    if (result.success) {
+      return result.data;
+    }
+    console.error(
+      "[normalizeAndValidateInputSchema] Invalid object schema:",
+      result.error,
+    );
+    return null;
+  }
+
+  if (Array.isArray(parsed)) {
+    const fieldsResult = inputFieldsSchema.safeParse(parsed);
+    if (fieldsResult.success) {
+      return { input_data: fieldsResult.data };
+    }
+    console.error(
+      "[normalizeAndValidateInputSchema] Invalid array schema:",
+      fieldsResult.error,
+    );
+    return null;
+  }
+
+  console.error(
+    "[normalizeAndValidateInputSchema] Unexpected schema format:",
+    typeof parsed,
+  );
+  return null;
+}

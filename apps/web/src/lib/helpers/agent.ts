@@ -17,14 +17,13 @@ import {
   type PricingAmountsSchemaType,
 } from "@/lib/schemas";
 import { categoryStylesSchema } from "@/lib/schemas/category";
+import { flattenInputs } from "@/lib/schemas/job";
 import {
   type AgentDemoData,
   type AgentDemoValues,
   type AgentLegal,
 } from "@/lib/types/agent";
 import { CategoryStyles } from "@/lib/types/category";
-
-import { flattenInputs } from "./input-schema";
 
 export function getAgentName(agent: Agent): string {
   return agent.overrideName ?? agent.name;

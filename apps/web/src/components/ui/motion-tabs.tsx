@@ -208,12 +208,6 @@ function TabsTrigger({
     handleValueChange(value);
   };
 
-  /**
-   * Handle keyboard navigation for tabs
-   * - ArrowRight/ArrowLeft: Move to next/previous tab
-   * - Home: Move to first tab
-   * - End: Move to last tab
-   */
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>) => {
       const tabValues = getTabValues();
@@ -226,7 +220,6 @@ function TabsTrigger({
       switch (e.key) {
         case "ArrowRight":
           e.preventDefault();
-          // Find next enabled tab
           for (let i = currentIndex + 1; i < tabValues.length; i++) {
             const el = getTriggerElement(tabValues[i]);
             if (el && !el.hasAttribute("disabled")) {
@@ -237,7 +230,6 @@ function TabsTrigger({
           break;
         case "ArrowLeft":
           e.preventDefault();
-          // Find previous enabled tab
           for (let i = currentIndex - 1; i >= 0; i--) {
             const el = getTriggerElement(tabValues[i]);
             if (el && !el.hasAttribute("disabled")) {
@@ -248,7 +240,6 @@ function TabsTrigger({
           break;
         case "Home":
           e.preventDefault();
-          // Find first enabled tab
           for (let i = 0; i < tabValues.length; i++) {
             const el = getTriggerElement(tabValues[i]);
             if (el && !el.hasAttribute("disabled")) {
@@ -259,7 +250,6 @@ function TabsTrigger({
           break;
         case "End":
           e.preventDefault();
-          // Find last enabled tab
           for (let i = tabValues.length - 1; i >= 0; i--) {
             const el = getTriggerElement(tabValues[i]);
             if (el && !el.hasAttribute("disabled")) {
