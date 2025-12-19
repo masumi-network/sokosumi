@@ -14,6 +14,7 @@ import { authenticateCronSecret } from "@/lib/auth/utils";
 import { PostRegistryEntryResponse } from "@/lib/clients/generated/registry";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
 import { lockService } from "@/lib/services";
+import { emptyStringToNull } from "@/lib/utils";
 
 const LOCK_KEY = "agents-sync";
 
@@ -177,26 +178,26 @@ async function syncAllEntries() {
             create: {
               blockchainIdentifier: entry.agentIdentifier,
               name: entry.name,
-              description: entry.description,
+              description: emptyStringToNull(entry.description),
               apiBaseUrl: entry.apiBaseUrl,
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,
               uptimeCheckCount: entry.uptimeCheckCount,
-              capabilityName: entry.Capability?.name,
-              capabilityVersion: entry.Capability?.version,
-              authorName: entry.authorName,
-              authorContactEmail: entry.authorContactEmail,
-              authorContactOther: entry.authorContactOther,
-              image: entry.image,
+              capabilityName: emptyStringToNull(entry.Capability?.name),
+              capabilityVersion: emptyStringToNull(entry.Capability?.version),
+              authorName: emptyStringToNull(entry.authorName),
+              authorContactEmail: emptyStringToNull(entry.authorContactEmail),
+              authorContactOther: emptyStringToNull(entry.authorContactOther),
+              image: emptyStringToNull(entry.image),
               tags: {
                 connect: entry.tags?.map((tag) => ({ name: tag })),
               },
-              authorOrganization: entry.authorOrganization,
+              authorOrganization: emptyStringToNull(entry.authorOrganization),
               isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
               status: convertStatus(entry.status),
-              legalOther: entry.otherLegal,
-              legalTerms: entry.termsAndCondition,
-              legalPrivacyPolicy: entry.privacyPolicy,
+              legalOther: emptyStringToNull(entry.otherLegal),
+              legalTerms: emptyStringToNull(entry.termsAndCondition),
+              legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
               paymentType: convertPaymentType(entry.paymentType),
               pricing: {
                 create: {

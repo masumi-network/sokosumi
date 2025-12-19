@@ -1,0 +1,32 @@
+-- Nullify empty strings in nullable Agent fields
+UPDATE "Agent" SET "overrideName" = NULL WHERE "overrideName" = '';
+UPDATE "Agent" SET "description" = NULL WHERE "description" = '';
+UPDATE "Agent" SET "overrideDescription" = NULL WHERE "overrideDescription" = '';
+UPDATE "Agent" SET "overrideApiBaseUrl" = NULL WHERE "overrideApiBaseUrl" = '';
+UPDATE "Agent" SET "capabilityName" = NULL WHERE "capabilityName" = '';
+UPDATE "Agent" SET "overrideCapabilityName" = NULL WHERE "overrideCapabilityName" = '';
+UPDATE "Agent" SET "capabilityVersion" = NULL WHERE "capabilityVersion" = '';
+UPDATE "Agent" SET "overrideCapabilityVersion" = NULL WHERE "overrideCapabilityVersion" = '';
+UPDATE "Agent" SET "authorName" = NULL WHERE "authorName" = '';
+UPDATE "Agent" SET "overrideAuthorName" = NULL WHERE "overrideAuthorName" = '';
+UPDATE "Agent" SET "authorImage" = NULL WHERE "authorImage" = '';
+UPDATE "Agent" SET "overrideAuthorImage" = NULL WHERE "overrideAuthorImage" = '';
+UPDATE "Agent" SET "authorContactEmail" = NULL WHERE "authorContactEmail" = '';
+UPDATE "Agent" SET "overrideAuthorContactEmail" = NULL WHERE "overrideAuthorContactEmail" = '';
+UPDATE "Agent" SET "authorContactOther" = NULL WHERE "authorContactOther" = '';
+UPDATE "Agent" SET "overrideAuthorContactOther" = NULL WHERE "overrideAuthorContactOther" = '';
+UPDATE "Agent" SET "authorOrganization" = NULL WHERE "authorOrganization" = '';
+UPDATE "Agent" SET "overrideAuthorOrganization" = NULL WHERE "overrideAuthorOrganization" = '';
+UPDATE "Agent" SET "legalPrivacyPolicy" = NULL WHERE "legalPrivacyPolicy" = '';
+UPDATE "Agent" SET "overrideLegalPrivacyPolicy" = NULL WHERE "overrideLegalPrivacyPolicy" = '';
+UPDATE "Agent" SET "legalTerms" = NULL WHERE "legalTerms" = '';
+UPDATE "Agent" SET "overrideLegalTerms" = NULL WHERE "overrideLegalTerms" = '';
+UPDATE "Agent" SET "legalOther" = NULL WHERE "legalOther" = '';
+UPDATE "Agent" SET "overrideLegalOther" = NULL WHERE "overrideLegalOther" = '';
+UPDATE "Agent" SET "image" = NULL WHERE "image" = '';
+UPDATE "Agent" SET "overrideImage" = NULL WHERE "overrideImage" = '';
+UPDATE "Agent" SET "icon" = NULL WHERE "icon" = '';
+UPDATE "Agent" SET "demoInput" = NULL WHERE "demoInput" = '';
+UPDATE "Agent" SET "demoOutput" = NULL WHERE "demoOutput" = '';
+UPDATE "Agent" SET "summary" = NULL WHERE "summary" = '';
+
