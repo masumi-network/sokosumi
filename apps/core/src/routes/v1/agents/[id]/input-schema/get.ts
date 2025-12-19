@@ -31,7 +31,6 @@ const route = createRoute({
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
-  security: [],
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
