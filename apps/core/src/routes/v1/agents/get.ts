@@ -5,17 +5,13 @@ import prisma from "@sokosumi/database/client";
 import {
   canUserAccessAgent,
   getAgentAccessContext,
-  transformAgentWithCredits,
+  transformAgent,
 } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentsSchema } from "@/schemas/agent.schema";
-import {
-  agentJobsCountInclude,
-  agentOrderBy,
-  agentPricingInclude,
-} from "@/types/agent";
+import { agentOrderBy, agentPricingInclude } from "@/types/agent";
 
 const route = createRoute({
   method: "get",
@@ -41,7 +37,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: {
           ...agentPricingInclude,
           ...agentOrganizationsInclude,
-          ...agentJobsCountInclude,
         },
         orderBy: [...agentOrderBy],
         where: {
@@ -59,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ),
         )
         .map((agent) => {
-          return transformAgentWithCredits(agent, creditCosts);
+          return transformAgent(agent, creditCosts);
         })
         .filter((agent) => agent !== null);
     });

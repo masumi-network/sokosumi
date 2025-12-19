@@ -17,11 +17,7 @@ import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
-import type {
-  AgentWithJobsCount,
-  AgentWithOrganizations,
-  AgentWithPricing,
-} from "@/types/agent";
+import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
 
 import { internalServerError } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
@@ -109,15 +105,18 @@ export const canUserAccessAgent = (
 };
 
 /**
- * Transforms an agent with pricing into the response format.
+ * Transforms an agent into the response format.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
- * @param minFeeCents - The minimum fee cents.
+ * @param executions - The number of executions.
+ * @param averageExecutionDuration - The average execution duration.
  * @returns The transformed agent with credits, or null if credits calculation fails.
  */
-export const transformAgentWithCredits = (
-  agent: AgentWithPricing & AgentWithOrganizations & AgentWithJobsCount,
+export const transformAgent = (
+  agent: AgentWithPricing & AgentWithOrganizations,
   creditCosts: CreditCost[],
+  executions?: number,
+  averageExecutionDuration?: number | null,
 ) => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
   const credits = calculateAgentCredits(agent, creditCosts, minFeeCents);
@@ -133,7 +132,8 @@ export const transformAgentWithCredits = (
     description: agent.overrideDescription ?? agent.description,
     author: getAuthorFromAgent(agent),
     legal: getAgentLegalFromAgent(agent),
-    executions: agent._count.jobs,
+    executions,
+    averageExecutionDuration,
     credits,
   };
 };
@@ -213,4 +213,22 @@ const roundUpCentsWithFee = (
   );
   const diff = roundedCentsWithFee - centsWithFee;
   return [roundedCentsWithFee, fee + diff];
+};
+
+export const getAverageExecutionDuration = async (
+  agentId: string,
+  tx: Prisma.TransactionClient,
+): Promise<number | null> => {
+  const result = await tx.$queryRaw<[{ avg_duration_seconds: number | null }]>`
+    SELECT 
+      COALESCE(AVG(EXTRACT(EPOCH FROM (js."createdAt" - j."createdAt"))), 0) as avg_duration_seconds
+    FROM "Job" j
+    INNER JOIN "jobEvent" js ON js."jobId" = j.id
+    WHERE j."agentId" = ${agentId}
+    AND j."jobType" != 'DEMO'
+    AND js."status" = 'COMPLETED'::"AgentJobStatus"
+    AND j."createdAt" >= NOW() - INTERVAL '90 days'
+  `;
+  const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
+  return averageDurationSeconds ? Number(averageDurationSeconds) : null;
 };

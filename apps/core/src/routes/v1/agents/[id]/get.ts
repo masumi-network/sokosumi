@@ -4,7 +4,8 @@ import prisma from "@sokosumi/database/client";
 import {
   canUserAccessAgent,
   getAgentAccessContext,
-  transformAgentWithCredits,
+  getAverageExecutionDuration,
+  transformAgent,
 } from "@/helpers/agent";
 import { notFound, unauthorized, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -70,7 +71,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unauthorized("You are not authorized to access this agent");
       }
 
-      const transformed = transformAgentWithCredits(agent, creditCosts);
+      const executions = agent._count.jobs;
+      const averageExecutionDuration = await getAverageExecutionDuration(
+        id,
+        tx,
+      );
+      const transformed = transformAgent(
+        agent,
+        creditCosts,
+        executions,
+        averageExecutionDuration,
+      );
       if (!transformed) {
         throw unprocessableEntity("Agent has invalid or unknown pricing");
       }
