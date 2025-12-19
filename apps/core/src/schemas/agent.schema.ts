@@ -71,7 +71,6 @@ export const agentSchema = z
     author: authorSchema,
     legal: agentLegalSchema,
   })
-  .nullish()
   .openapi("Agent");
 
 export const agentsSchema = z.array(agentSchema);
