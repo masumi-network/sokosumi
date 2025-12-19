@@ -1,15 +1,13 @@
 import { createRoute } from "@hono/zod-openapi";
 import { AgentStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
-import { CREDIT } from "@/config/constants";
+import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { getAgentCredits } from "@/helpers/pricing";
+import { transformAgentWithCredits } from "@/helpers/pricing";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentsSchema } from "@/schemas/agent.schema";
-import { getDeveloperFromAgent } from "@/schemas/developer.schema";
 import { agentOrderBy, agentPricingInclude } from "@/types/agent";
 
 const route = createRoute({
@@ -35,21 +33,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       const creditCosts = await tx.creditCost.findMany();
-      const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
+      if (!creditCosts) {
+        throw internalServerError("Failed to get credits for agents");
+      }
 
       return agents
         .map((agent) => {
-          const credits = getAgentCredits(agent, creditCosts, minFeeCents);
-          if (credits === null) {
-            return null;
-          }
-          return {
-            ...agent,
-            name: agent.overrideName ?? agent.name,
-            description: agent.overrideDescription ?? agent.description,
-            developer: getDeveloperFromAgent(agent),
-            credits,
-          };
+          return transformAgentWithCredits(agent, creditCosts);
         })
         .filter((agent) => agent !== null);
     });

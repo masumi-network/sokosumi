@@ -1,15 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
-import { CREDIT } from "@/config/constants";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { getAgentCredits } from "@/helpers/pricing";
+import { transformAgentWithCredits } from "@/helpers/pricing";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentSchema } from "@/schemas/agent.schema";
-import { getDeveloperFromAgent } from "@/schemas/developer.schema";
 import { agentPricingInclude } from "@/types/agent";
 
 const params = z.object({
@@ -45,21 +42,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!agent) {
         throw notFound("Agent not found");
       }
-      const creditCosts = await tx.creditCost.findMany();
-      const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
-      const credits = getAgentCredits(agent, creditCosts, minFeeCents);
 
-      if (credits === null) {
+      const creditCosts = await tx.creditCost.findMany();
+      const transformed = transformAgentWithCredits(agent, creditCosts);
+      if (!transformed) {
         throw unprocessableEntity("Agent has invalid or unknown pricing");
       }
 
-      return {
-        ...agent,
-        name: agent.overrideName ?? agent.name,
-        description: agent.overrideDescription ?? agent.description,
-        developer: getDeveloperFromAgent(agent),
-        credits,
-      };
+      return transformed;
     });
     return ok(c, agentSchema.parse(agent));
   });

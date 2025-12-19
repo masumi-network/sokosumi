@@ -6,7 +6,35 @@ import {
 } from "@sokosumi/database/helpers";
 
 import { CREDIT } from "@/config/constants";
+import { getDeveloperFromAgent } from "@/schemas/developer.schema";
 import type { AgentWithPricing } from "@/types/agent";
+
+/**
+ * Transforms an agent with pricing into the response format.
+ * @param agent - The agent with pricing.
+ * @param creditCosts - The credit costs.
+ * @param minFeeCents - The minimum fee cents.
+ * @returns The transformed agent with credits, or null if credits calculation fails.
+ */
+export const transformAgentWithCredits = (
+  agent: AgentWithPricing,
+  creditCosts: CreditCost[],
+) => {
+  const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
+  const credits = calculateAgentCredits(agent, creditCosts, minFeeCents);
+
+  if (credits === null) {
+    return null;
+  }
+
+  return {
+    ...agent,
+    name: agent.overrideName ?? agent.name,
+    description: agent.overrideDescription ?? agent.description,
+    developer: getDeveloperFromAgent(agent),
+    credits,
+  };
+};
 
 /**
  * This function calculates the credits for an agent.
@@ -15,7 +43,7 @@ import type { AgentWithPricing } from "@/types/agent";
  * @param minFeeCents - The minimum fee cents.
  * @returns The credits for the agent or null if the agent has invalid or unknown pricing.
  */
-export const getAgentCredits = (
+const calculateAgentCredits = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
   minFeeCents: bigint,
