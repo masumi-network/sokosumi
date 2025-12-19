@@ -224,12 +224,18 @@ export const getAverageExecutionTime = async (
 ): Promise<number | null> => {
   const result = await tx.$queryRaw<[{ avg_duration_seconds: number | null }]>`
     SELECT 
-      COALESCE(AVG(EXTRACT(EPOCH FROM (js."createdAt" - j."createdAt"))), 0) as avg_duration_seconds
+      AVG(EXTRACT(EPOCH FROM (completed_event."createdAt" - j."createdAt"))) as avg_duration_seconds
     FROM "Job" j
-    INNER JOIN "jobEvent" js ON js."jobId" = j.id
+    INNER JOIN LATERAL (
+      SELECT js."createdAt"
+      FROM "jobEvent" js
+      WHERE js."jobId" = j.id
+      AND js."status" = 'COMPLETED'::"AgentJobStatus"
+      ORDER BY js."createdAt" DESC
+      LIMIT 1
+    ) completed_event ON true
     WHERE j."agentId" = ${agentId}
     AND j."jobType" != 'DEMO'
-    AND js."status" = 'COMPLETED'::"AgentJobStatus"
     AND j."createdAt" >= NOW() - INTERVAL '90 days'
   `;
   const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
@@ -250,12 +256,18 @@ export const getAverageExecutionTimes = async (
   >`
     SELECT 
       j."agentId" as agent_id,
-      AVG(EXTRACT(EPOCH FROM (js."createdAt" - j."createdAt"))) as avg_duration_seconds
+      AVG(EXTRACT(EPOCH FROM (completed_event."createdAt" - j."createdAt"))) as avg_duration_seconds
     FROM "Job" j
-    INNER JOIN "jobEvent" js ON js."jobId" = j.id
+    INNER JOIN LATERAL (
+      SELECT js."createdAt"
+      FROM "jobEvent" js
+      WHERE js."jobId" = j.id
+      AND js."status" = 'COMPLETED'::"AgentJobStatus"
+      ORDER BY js."createdAt" DESC
+      LIMIT 1
+    ) completed_event ON true
     WHERE j."agentId" = ANY(${agentIds}::text[])
     AND j."jobType" != 'DEMO'
-    AND js."status" = 'COMPLETED'::"AgentJobStatus"
     AND j."createdAt" >= NOW() - INTERVAL '90 days'
     GROUP BY j."agentId"
   `;
