@@ -4,7 +4,6 @@ import { InputSchemaType } from "@sokosumi/masumi/schemas";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import type { GetPurchaseResponses } from "@/lib/clients/generated/payment";
 import {
   getPurchase,
   postPurchase,
@@ -13,15 +12,15 @@ import {
 } from "@/lib/clients/generated/payment";
 import { createClient } from "@/lib/clients/generated/payment/client";
 import { StartJobResponseSchemaType } from "@/lib/schemas";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Err, Ok } from "@/lib/ts-res";
 
 // Export Purchase type and nested types for reuse in transformers
-export type Purchase = GetPurchaseResponses[200]["data"]["Purchases"][0];
-export type PurchaseOnChainState = Purchase["onChainState"];
-export type PurchaseNextAction = Purchase["NextAction"];
-export type PurchaseCurrentTransaction = Purchase["CurrentTransaction"];
-export type PurchaseRequestedAction = PurchaseNextAction["requestedAction"];
-export type PurchaseErrorType = PurchaseNextAction["errorType"];
+// export type Purchase = GetPurchaseResponses[200]["data"]["Purchases"][0];
+// export type PurchaseOnChainState = Purchase["onChainState"];
+// export type PurchaseNextAction = Purchase["NextAction"];
+// export type PurchaseCurrentTransaction = Purchase["CurrentTransaction"];
+// export type PurchaseRequestedAction = PurchaseNextAction["requestedAction"];
+// export type PurchaseErrorType = PurchaseNextAction["errorType"];
 
 export const paymentClient = (() => {
   const client = () => {
@@ -35,9 +34,7 @@ export const paymentClient = (() => {
   };
 
   return {
-    async getPurchaseByBlockchainIdentifier(
-      jobBlockchainIdentifier: string,
-    ): Promise<Result<Purchase, string>> {
+    async getPurchaseByBlockchainIdentifier(jobBlockchainIdentifier: string) {
       try {
         const response = await postPurchaseResolveBlockchainIdentifier({
           client: client(),
@@ -57,9 +54,7 @@ export const paymentClient = (() => {
       }
     },
 
-    async getPurchaseById(
-      purchaseId: string,
-    ): Promise<Result<Purchase, string>> {
+    async getPurchaseById(purchaseId: string) {
       try {
         const response = await getPurchase({
           client: client(),
@@ -85,9 +80,7 @@ export const paymentClient = (() => {
       }
     },
 
-    async requestRefund(
-      jobBlockchainIdentifier: string,
-    ): Promise<Result<void, string>> {
+    async requestRefund(jobBlockchainIdentifier: string) {
       try {
         const response = await postPurchaseRequestRefund({
           client: client(),
@@ -112,7 +105,7 @@ export const paymentClient = (() => {
       startJobResponse: StartJobResponseSchemaType,
       inputData: InputSchemaType,
       identifierFromPurchaser: string,
-    ): Promise<Result<Purchase, string>> {
+    ) {
       try {
         const response = await postPurchase({
           client: client(),
@@ -140,7 +133,7 @@ export const paymentClient = (() => {
           return Err("Failed to create purchase request");
         }
 
-        return Ok(response.data.data as Purchase);
+        return Ok(response.data.data);
       } catch (err) {
         return Err(String(err));
       }

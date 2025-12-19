@@ -8,13 +8,10 @@ import {
   OnChainTransactionStatus,
 } from "@sokosumi/database";
 
-import type {
-  Purchase,
-  PurchaseErrorType,
-  PurchaseNextAction,
-  PurchaseOnChainState,
-  PurchaseRequestedAction,
-} from "@/lib/clients/masumi-payment.client";
+import {
+  PostPurchaseResolveBlockchainIdentifierResponses,
+  PostPurchaseResponses,
+} from "@/lib/clients/generated/payment";
 import type { JobStatusValue } from "@/lib/schemas";
 
 /**
@@ -161,7 +158,11 @@ export function transactionStatusToOnChainTransactionStatus(
 /**
  * Transform a Purchase from external API to database update data structure.
  */
-export function transformPurchaseToJobUpdate(purchase: Purchase): {
+export function transformPurchaseToJobUpdate(
+  purchase:
+    | PostPurchaseResponses[200]["data"]
+    | PostPurchaseResolveBlockchainIdentifierResponses[200]["data"],
+): {
   externalId: string;
   onChainStatus: OnChainJobStatus | null;
   inputHash: string | null;
@@ -197,7 +198,7 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
 
   const transaction = purchase.CurrentTransaction;
   if (transaction) {
-    data.onChainTransactionHash = transaction.txHash;
+    data.onChainTransactionHash = transaction.txHash ?? undefined;
     data.onChainTransactionStatus = transactionStatusToOnChainTransactionStatus(
       transaction.status,
     );
