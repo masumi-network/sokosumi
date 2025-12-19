@@ -47,14 +47,16 @@ export async function generateMetadata({
       type: "article",
       url: `${siteConfig.url}/share/jobs/${token}`,
       authors: [userName],
-      images: [
-        {
-          url: agentImage,
-          width: 400,
-          height: 250,
-          alt: jobName,
-        },
-      ],
+      images: agentImage
+        ? [
+            {
+              url: agentImage,
+              width: 400,
+              height: 250,
+              alt: jobName,
+            },
+          ]
+        : [],
     },
   };
 }
