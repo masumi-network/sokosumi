@@ -1,11 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import {
-  AgentStatus,
-  type AgentWithPricing,
-  type CreditCost,
-  PricingType,
-  type Prisma,
-} from "@sokosumi/database";
+import { AgentStatus, type CreditCost, PricingType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   convertCentsToCredits,
@@ -19,6 +13,11 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentsSchema } from "@/schemas/agent.schema";
 import { getDeveloperFromAgent } from "@/schemas/developer.schema";
+import {
+  agentOrderBy,
+  agentPricingInclude,
+  type AgentWithPricing,
+} from "@/types/agent";
 
 const route = createRoute({
   method: "get",
@@ -29,31 +28,6 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
   },
 });
-
-export const agentPricingInclude = {
-  pricing: {
-    include: { fixedPricing: { include: { amounts: true } } },
-  },
-} as const;
-
-export const agentJobsCountOrderBy = {
-  jobs: {
-    _count: "desc",
-  },
-} as const;
-
-export const agentCreatedAtOrderBy = {
-  createdAt: "desc",
-} as const;
-
-export const agentOrderBy = [
-  { ...agentJobsCountOrderBy },
-  { ...agentCreatedAtOrderBy },
-] as const;
-
-export type AgentWithPricingType = Prisma.AgentGetPayload<{
-  include: typeof agentPricingInclude;
-}>;
 
 export function getAgentCredits(
   agent: AgentWithPricing,
