@@ -6,8 +6,13 @@ import { dateTimeSchema } from "@/helpers/datetime";
 
 export const executionMetricsSchema = z
   .object({
-    count: z.number().openapi({ example: 100 }),
-    averageTime: z.number().nullable().openapi({ example: 100000 }),
+    count: z
+      .number()
+      .openapi({ example: 100, description: "Number of executions" }),
+    averageTime: z.number().nullable().openapi({
+      example: 100000,
+      description: "Average execution time in seconds",
+    }),
   })
   .openapi({
     description: "Execution metrics",
@@ -17,8 +22,13 @@ export type ExecutionMetrics = z.infer<typeof executionMetricsSchema>;
 
 export const ratingMetricsSchema = z
   .object({
-    total: z.number().openapi({ example: 100 }),
-    average: z.number().nullable().openapi({ example: 4.5 }),
+    total: z
+      .number()
+      .openapi({ example: 100, description: "Total number of ratings" }),
+    average: z
+      .number()
+      .nullable()
+      .openapi({ example: 4.5, description: "Average rating" }),
   })
   .openapi({
     description: "Rating metrics",
