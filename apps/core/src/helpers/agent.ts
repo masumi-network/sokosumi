@@ -112,7 +112,6 @@ export const canUserAccessAgent = (
  * Transforms an agent into the response format.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
- * @param executions - The number of executions.
  * @param averageExecutionTime - The average execution time in seconds.
  * @returns The transformed agent with credits, or null if credits calculation fails.
  */
@@ -135,8 +134,12 @@ export const transformAgent = (
     description: agent.overrideDescription ?? agent.description,
     author: getAuthorFromAgent(agent),
     legal: getAgentLegalFromAgent(agent),
-    executions: agent._count.jobs,
-    averageExecutionTime,
+    metrics: {
+      executions: {
+        count: agent._count.jobs,
+        averageTime: averageExecutionTime ?? null,
+      },
+    },
     credits,
   };
 };

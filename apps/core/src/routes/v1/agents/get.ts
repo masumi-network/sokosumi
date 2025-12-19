@@ -74,7 +74,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Enrich agents with execution time metrics
       return transformedAgents.map((agent) => ({
         ...agent,
-        averageExecutionTime: averageExecutionTimes.get(agent.id) ?? null,
+        metrics: {
+          ...agent.metrics,
+          executions: {
+            ...agent.metrics.executions,
+            averageTime: averageExecutionTimes.get(agent.id) ?? null,
+          },
+        },
       }));
     });
     return ok(c, agentsSchema.parse(agents));

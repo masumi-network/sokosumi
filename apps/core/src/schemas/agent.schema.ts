@@ -60,16 +60,28 @@ export const agentSchema = z
     description: z.string().openapi({
       example: "A research assistant that can help you with your research",
     }),
-    executions: z.number().openapi({
-      example: 100,
-      description: "Number of jobs executed by the agent",
-    }),
-    averageExecutionTime: z
-      .number()
-      .nullable()
+    metrics: z
+      .object({
+        executions: z
+          .object({
+            count: z.number().openapi({
+              example: 100,
+              description: "Number of jobs executed by the agent",
+            }),
+            averageTime: z
+              .number()
+              .nullable()
+              .openapi({
+                example: 100000,
+                description: `Average execution time of the agent in seconds in the last ${TIME.AGENT_EXECUTION_METRICS_DAYS} days`,
+              }),
+          })
+          .openapi({
+            description: "Execution metrics for the agent",
+          }),
+      })
       .openapi({
-        example: 100000,
-        description: `Average execution time of the agent in seconds in the last ${TIME.AGENT_EXECUTION_METRICS_DAYS} days`,
+        description: "Performance and usage metrics for the agent",
       }),
     author: authorSchema,
     legal: agentLegalSchema,
