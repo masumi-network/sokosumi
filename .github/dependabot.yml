@@ -92,6 +92,13 @@ updates:
           - "pg"
           - "pg-pool"
           - "@types/pg"
+      scalar:
+        patterns:
+          - "@scalar/*"
+      hono:
+        patterns:
+          - "@hono/*"
+          - "hono"
       typescript:
         patterns:
           - "typescript"
