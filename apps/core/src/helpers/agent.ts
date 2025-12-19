@@ -236,7 +236,10 @@ export const calculateAverageExecutionTime = async (
   agentId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number | null> => {
-  const intervalString = `${TIME.AGENT_EXECUTION_METRICS_DAYS} days`;
+  // Calculate cutoff date in JavaScript to avoid SQL injection risk
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - TIME.AGENT_EXECUTION_METRICS_DAYS);
+
   const result = await tx.$queryRawUnsafe<
     [{ avg_duration_seconds: number | null }]
   >(
@@ -254,9 +257,10 @@ export const calculateAverageExecutionTime = async (
     ) completed_event ON true
     WHERE j."agentId" = $1
     AND j."jobType" != 'DEMO'
-    AND j."createdAt" >= NOW() - INTERVAL '${intervalString}'
+    AND j."createdAt" >= $2
     `,
     agentId,
+    cutoffDate,
   );
   const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
   return averageDurationSeconds ? Number(averageDurationSeconds) : null;
@@ -285,7 +289,10 @@ export const calculateAverageExecutionTimes = async (
 ): Promise<Map<string, number | null>> => {
   if (agentIds.length === 0) return new Map();
 
-  const intervalString = `${TIME.AGENT_EXECUTION_METRICS_DAYS} days`;
+  // Calculate cutoff date in JavaScript to avoid SQL injection risk
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - TIME.AGENT_EXECUTION_METRICS_DAYS);
+
   const averages = await tx.$queryRawUnsafe<
     Array<{
       agent_id: string;
@@ -307,10 +314,11 @@ export const calculateAverageExecutionTimes = async (
     ) completed_event ON true
     WHERE j."agentId" = ANY($1::text[])
     AND j."jobType" != 'DEMO'
-    AND j."createdAt" >= NOW() - INTERVAL '${intervalString}'
+    AND j."createdAt" >= $2
     GROUP BY j."agentId"
     `,
     agentIds,
+    cutoffDate,
   );
 
   // Create a map with all agentIds, defaulting to null for those without data
