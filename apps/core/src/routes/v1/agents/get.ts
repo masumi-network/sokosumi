@@ -139,7 +139,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const creditCosts = await tx.creditCost.findMany();
       const minFeeCents = convertCreditsToCents(MIN_FEE_CREDITS);
 
-      const agentsWithCredits = agents
+      return agents
         .map((agent) => {
           const credits = getAgentCredits(agent, creditCosts, minFeeCents);
           if (credits === null) {
@@ -154,8 +154,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           };
         })
         .filter((agent) => agent !== null);
-
-      return agentsWithCredits;
     });
     return ok(c, agentsSchema.parse(agents));
   });
