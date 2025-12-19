@@ -13,6 +13,7 @@ const route = createRoute({
     200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),
     401: jsonErrorResponse("Unauthorized"),
   },
+  security: [],
 });
 
 export default function mount(app: OpenAPIHono) {

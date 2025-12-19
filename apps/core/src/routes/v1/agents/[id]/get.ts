@@ -25,6 +25,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },
+  security: [],
 });
 
 export default function mount(app: OpenAPIHono) {
