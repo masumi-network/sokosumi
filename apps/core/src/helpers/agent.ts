@@ -8,7 +8,10 @@ import {
 
 import { CREDIT } from "@/config/constants";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { getAuthorFromAgent } from "@/schemas/author.schema";
+import {
+  getAgentLegalFromAgent,
+  getAuthorFromAgent,
+} from "@/schemas/agent.schema";
 import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
 
 import { internalServerError } from "./error";
@@ -102,6 +105,7 @@ export const transformAgentWithCredits = (
     name: agent.overrideName ?? agent.name,
     description: agent.overrideDescription ?? agent.description,
     author: getAuthorFromAgent(agent),
+    legal: getAgentLegalFromAgent(agent),
     credits,
   };
 };
