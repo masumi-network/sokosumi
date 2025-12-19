@@ -1,9 +1,41 @@
 import { z } from "@hono/zod-openapi";
 import type { Agent } from "@sokosumi/database";
 
-import { TIME } from "@/config/constants";
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
+
+export const executionMetricsSchema = z
+  .object({
+    count: z.number().openapi({ example: 100 }),
+    averageTime: z.number().nullable().openapi({ example: 100000 }),
+  })
+  .openapi({
+    description: "Execution metrics",
+  });
+
+export type ExecutionMetrics = z.infer<typeof executionMetricsSchema>;
+
+export const ratingMetricsSchema = z
+  .object({
+    total: z.number().openapi({ example: 100 }),
+    average: z.number().nullable().openapi({ example: 4.5 }),
+  })
+  .openapi({
+    description: "Rating metrics",
+  });
+
+export type RatingMetrics = z.infer<typeof ratingMetricsSchema>;
+
+export const metricsSchema = z
+  .object({
+    executions: executionMetricsSchema,
+    ratings: ratingMetricsSchema,
+  })
+  .openapi({
+    description: "Execution and rating metrics",
+  });
+
+export type Metrics = z.infer<typeof metricsSchema>;
 
 export const authorSchema = z.object({
   name: z.string().nullable().openapi({ example: "John Doe" }),
@@ -60,29 +92,7 @@ export const agentSchema = z
     description: z.string().openapi({
       example: "A research assistant that can help you with your research",
     }),
-    metrics: z
-      .object({
-        executions: z
-          .object({
-            count: z.number().openapi({
-              example: 100,
-              description: "Number of jobs executed by the agent",
-            }),
-            averageTime: z
-              .number()
-              .nullable()
-              .openapi({
-                example: 100000,
-                description: `Average execution time of the agent in seconds in the last ${TIME.AGENT_EXECUTION_METRICS_DAYS} days`,
-              }),
-          })
-          .openapi({
-            description: "Execution metrics for the agent",
-          }),
-      })
-      .openapi({
-        description: "Performance and usage metrics for the agent",
-      }),
+    metrics: metricsSchema,
     author: authorSchema,
     legal: agentLegalSchema,
   })

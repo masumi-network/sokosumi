@@ -6,7 +6,7 @@ import {
   calculateAverageExecutionTimes,
   canUserAccessAgent,
   getAgentAccessContext,
-  transformAgent,
+  validateAgentCredits,
 } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -52,7 +52,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       // Filter by access control and transform agents, removing any with invalid pricing
-      const transformedAgents = agents
+      const agentsWithCredits = agents
         .filter((agent) =>
           canUserAccessAgent(
             agent,
@@ -61,27 +61,44 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ),
         )
         .flatMap((agent) => {
-          const transformed = transformAgent(agent, creditCosts);
-          return transformed ? [transformed] : [];
+          const agentWithCredits = validateAgentCredits(agent, creditCosts);
+          return agentWithCredits ? [agentWithCredits] : [];
         });
 
-      // Fetch execution times for all successfully transformed agents
+      const agentIds = agentsWithCredits.map((agent) => agent.id);
+
       const averageExecutionTimes = await calculateAverageExecutionTimes(
-        transformedAgents.map((agent) => agent.id),
+        agentIds,
         tx,
       );
 
-      // Enrich agents with execution time metrics
-      return transformedAgents.map((agent) => ({
-        ...agent,
-        metrics: {
-          ...agent.metrics,
-          executions: {
-            ...agent.metrics.executions,
-            averageTime: averageExecutionTimes.get(agent.id) ?? null,
-          },
+      const results = await tx.userAgentRating.groupBy({
+        by: ["agentId"],
+        where: {
+          agentId: { in: agentIds },
         },
-      }));
+        _count: { rating: true },
+        _avg: { rating: true },
+      });
+
+      return agentsWithCredits.map((agent) => {
+        const ratingResult = results.find(
+          (result) => result.agentId === agent.id,
+        );
+        return {
+          ...agent,
+          metrics: {
+            executions: {
+              count: agent._count.jobs,
+              averageTime: averageExecutionTimes.get(agent.id) ?? null,
+            },
+            ratings: {
+              total: ratingResult?._count.rating ?? 0,
+              average: ratingResult?._avg.rating ?? null,
+            },
+          },
+        };
+      });
     });
     return ok(c, agentsSchema.parse(agents));
   });

@@ -2,10 +2,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 
 import {
+  addMetricsToAgent,
   calculateAverageExecutionTime,
   canUserAccessAgent,
   getAgentAccessContext,
-  transformAgent,
+  validateAgentCredits,
 } from "@/helpers/agent";
 import { notFound, unauthorized, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -71,16 +72,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unauthorized("You are not authorized to access this agent");
       }
 
-      const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
-      const transformed = transformAgent(
-        agent,
-        creditCosts,
-        averageExecutionTime,
-      );
-      if (!transformed) {
+      const agentWithCredits = await validateAgentCredits(agent, creditCosts);
+      if (!agentWithCredits) {
         throw unprocessableEntity("Agent has invalid or unknown pricing");
       }
-      return transformed;
+
+      const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
+      const executionMetrics = {
+        count: agent._count.jobs,
+        averageTime: averageExecutionTime ?? null,
+      };
+
+      const ratingStats = await tx.userAgentRating.aggregate({
+        where: { agentId: id },
+        _count: { rating: true },
+        _avg: { rating: true },
+      });
+      const ratingMetrics = {
+        total: ratingStats._count.rating,
+        average: ratingStats._avg.rating ?? 0,
+      };
+
+      return addMetricsToAgent(
+        agentWithCredits,
+        executionMetrics,
+        ratingMetrics,
+      );
     });
     return ok(c, agentSchema.parse(agent));
   });

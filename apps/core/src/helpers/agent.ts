@@ -14,8 +14,10 @@ import {
 import { CREDIT, TIME } from "@/config/constants";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
+  type ExecutionMetrics,
   getAgentLegalFromAgent,
   getAuthorFromAgent,
+  type RatingMetrics,
 } from "@/schemas/agent.schema";
 import type {
   AgentWithJobsCount,
@@ -109,16 +111,14 @@ export const canUserAccessAgent = (
 };
 
 /**
- * Transforms an agent into the response format.
+ * Validates an agent's credits.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
- * @param averageExecutionTime - The average execution time in seconds.
- * @returns The transformed agent with credits, or null if credits calculation fails.
+ * @returns The agent with credits, or null if credits calculation fails.
  */
-export const transformAgent = (
+export const validateAgentCredits = (
   agent: AgentWithPricing & AgentWithOrganizations & AgentWithJobsCount,
   creditCosts: CreditCost[],
-  averageExecutionTime?: number | null,
 ) => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
   const credits = calculateAgentCredits(agent, creditCosts, minFeeCents);
@@ -134,12 +134,6 @@ export const transformAgent = (
     description: agent.overrideDescription ?? agent.description,
     author: getAuthorFromAgent(agent),
     legal: getAgentLegalFromAgent(agent),
-    metrics: {
-      executions: {
-        count: agent._count.jobs,
-        averageTime: averageExecutionTime ?? null,
-      },
-    },
     credits,
   };
 };
@@ -339,4 +333,18 @@ export const calculateAverageExecutionTimes = async (
   }
 
   return averagesMap;
+};
+
+export const addMetricsToAgent = (
+  agent: Agent,
+  executionMetrics: ExecutionMetrics,
+  ratingMetrics: RatingMetrics,
+) => {
+  return {
+    ...agent,
+    metrics: {
+      executions: executionMetrics,
+      ratings: ratingMetrics,
+    },
+  };
 };
