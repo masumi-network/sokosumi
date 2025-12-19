@@ -10,6 +10,7 @@ export const agentSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "Research Assistant" }),
+    credits: z.number().openapi({ example: 100 }),
     description: z.string().openapi({
       example: "A research assistant that can help you with your research",
     }),

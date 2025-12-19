@@ -1,6 +1,17 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { AgentStatus } from "@sokosumi/database";
+import {
+  AgentStatus,
+  type AgentWithPricing,
+  type CreditCost,
+  PricingType,
+  type Prisma,
+} from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  feeFromCentsBasedOnPercentagePoints,
+} from "@sokosumi/database/helpers";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -17,6 +28,15 @@ const route = createRoute({
   },
 });
 
+const FEE_PERCENTAGE_POINTS = 5;
+const MIN_FEE_CREDITS = 1;
+
+export const agentPricingInclude = {
+  pricing: {
+    include: { fixedPricing: { include: { amounts: true } } },
+  },
+} as const;
+
 export const agentJobsCountOrderBy = {
   jobs: {
     _count: "desc",
@@ -32,24 +52,110 @@ export const agentOrderBy = [
   { ...agentCreatedAtOrderBy },
 ] as const;
 
+export type AgentWithPricingType = Prisma.AgentGetPayload<{
+  include: typeof agentPricingInclude;
+}>;
+
+export function getAgentCredits(
+  agent: AgentWithPricing,
+  creditCosts: CreditCost[],
+  minFeeCents: bigint,
+): number | null {
+  switch (agent.pricing.pricingType) {
+    case PricingType.FIXED: {
+      if (
+        !agent.pricing.fixedPricing ||
+        agent.pricing.fixedPricing.amounts.length === 0
+      ) {
+        return null;
+      }
+      const pricing = agent.pricing.fixedPricing.amounts.map((amount) => ({
+        unit: amount.unit,
+        amount: amount.amount,
+      }));
+
+      let totalCents = BigInt(0);
+      let totalFee = BigInt(0);
+      for (const amount of pricing) {
+        const creditCost = creditCosts.find(
+          (creditCost) => creditCost.unit === amount.unit,
+        );
+        if (!creditCost) {
+          return null;
+        }
+        const cents = amount.amount * creditCost.centsPerUnit;
+        const fee = feeFromCentsBasedOnPercentagePoints(
+          cents,
+          FEE_PERCENTAGE_POINTS,
+        );
+        totalCents += cents;
+        totalFee += fee;
+      }
+
+      if (totalFee < minFeeCents) {
+        totalFee = minFeeCents;
+      }
+      const [totalCentsWithFee, _] = roundUpCentsWithFee(totalCents, totalFee);
+      return convertCentsToCredits(totalCentsWithFee);
+    }
+    case PricingType.FREE: {
+      return 0;
+    }
+    case PricingType.UNKNOWN: {
+      return null;
+    }
+  }
+}
+
+/**
+ * This function rounds up the total cents to show credits as integer.
+ * Adds the difference to the total fee.
+ * @param totalCents - The total cents to round up.
+ * @param totalFee - The total fee.
+ * @returns The rounded total cents with fee and the total fee which also includes difference.
+ */
+const roundUpCentsWithFee = (cents: bigint, fee: bigint): [bigint, bigint] => {
+  const centsWithFee = cents + fee;
+  const roundedCentsWithFee = convertCreditsToCents(
+    Math.ceil(convertCentsToCredits(centsWithFee)),
+  );
+  const diff = roundedCentsWithFee - centsWithFee;
+  return [roundedCentsWithFee, fee + diff];
+};
+
 export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
-    const agents = await prisma.agent.findMany({
-      orderBy: [...agentOrderBy],
-      where: {
-        status: AgentStatus.ONLINE,
-        isShown: true,
-      },
-    });
+    const agents = await prisma.$transaction(async (tx) => {
+      const agents = await tx.agent.findMany({
+        include: { ...agentPricingInclude },
+        orderBy: [...agentOrderBy],
+        where: {
+          status: AgentStatus.ONLINE,
+          isShown: true,
+        },
+      });
 
-    const formattedAgents = agents.map((agent) => {
-      return {
-        ...agent,
-        name: agent.overrideName ?? agent.name,
-        description: agent.overrideDescription ?? agent.description,
-        developer: getDeveloperFromAgent(agent),
-      };
+      const creditCosts = await tx.creditCost.findMany();
+      const minFeeCents = convertCreditsToCents(MIN_FEE_CREDITS);
+
+      const agentsWithCredits = agents
+        .map((agent) => {
+          const credits = getAgentCredits(agent, creditCosts, minFeeCents);
+          if (credits === null) {
+            return null;
+          }
+          return {
+            ...agent,
+            name: agent.overrideName ?? agent.name,
+            description: agent.overrideDescription ?? agent.description,
+            developer: getDeveloperFromAgent(agent),
+            credits: credits ?? 0,
+          };
+        })
+        .filter((agent) => agent !== null);
+
+      return agentsWithCredits;
     });
-    return ok(c, agentsSchema.parse(formattedAgents));
+    return ok(c, agentsSchema.parse(agents));
   });
 }

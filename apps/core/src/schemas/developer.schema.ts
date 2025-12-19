@@ -3,7 +3,7 @@ import type { Agent } from "@sokosumi/database";
 
 export const developerSchema = z
   .object({
-    name: z.string().openapi({ example: "John Doe" }),
+    name: z.string().nullish().openapi({ example: "John Doe" }),
     image: z
       .string()
       .nullish()
@@ -19,10 +19,13 @@ export const developerSchema = z
 
 export const getDeveloperFromAgent = (agent: Agent) => {
   return developerSchema.parse({
-    name: agent.overrideAuthorName ?? agent.authorName,
-    image: agent.overrideAuthorImage ?? agent.authorImage,
-    organization: agent.overrideAuthorOrganization ?? agent.authorOrganization,
-    email: agent.overrideAuthorContactEmail ?? agent.authorContactEmail,
-    other: agent.overrideAuthorContactOther ?? agent.authorContactOther,
+    name: agent.overrideAuthorName ?? agent.authorName ?? undefined,
+    image: agent.overrideAuthorImage ?? agent.authorImage ?? undefined,
+    organization:
+      agent.overrideAuthorOrganization ?? agent.authorOrganization ?? undefined,
+    email:
+      agent.overrideAuthorContactEmail ?? agent.authorContactEmail ?? undefined,
+    other:
+      agent.overrideAuthorContactOther ?? agent.authorContactOther ?? undefined,
   });
 };
