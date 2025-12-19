@@ -5,7 +5,7 @@ import prisma from "@sokosumi/database/client";
 import {
   canUserAccessAgent,
   getAgentAccessContext,
-  getAverageExecutionDurations,
+  getAverageExecutionTimes,
   transformAgent,
 } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -64,7 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         })
         .filter((agent) => agent !== null);
 
-      const averageExecutionDurations = await getAverageExecutionDurations(
+      const averageExecutionTimes = await getAverageExecutionTimes(
         transformedAgents.map((agent) => agent.id),
         tx,
       );
@@ -72,8 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return transformedAgents.map((agent) => {
         return {
           ...agent,
-          averageExecutionDuration:
-            averageExecutionDurations.get(agent.id) ?? null,
+          averageExecutionTime: averageExecutionTimes.get(agent.id) ?? null,
         };
       });
     });

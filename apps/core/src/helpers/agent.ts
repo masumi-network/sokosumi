@@ -113,13 +113,13 @@ export const canUserAccessAgent = (
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
  * @param executions - The number of executions.
- * @param averageExecutionDuration - The average execution duration.
+ * @param averageExecutionTime - The average execution time in milliseconds.
  * @returns The transformed agent with credits, or null if credits calculation fails.
  */
 export const transformAgent = (
   agent: AgentWithPricing & AgentWithOrganizations & AgentWithJobsCount,
   creditCosts: CreditCost[],
-  averageExecutionDuration?: number | null,
+  averageExecutionTime?: number | null,
 ) => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
   const credits = calculateAgentCredits(agent, creditCosts, minFeeCents);
@@ -136,7 +136,7 @@ export const transformAgent = (
     author: getAuthorFromAgent(agent),
     legal: getAgentLegalFromAgent(agent),
     executions: agent._count.jobs,
-    averageExecutionDuration,
+    averageExecutionTime,
     credits,
   };
 };
@@ -218,7 +218,7 @@ const roundUpCentsWithFee = (
   return [roundedCentsWithFee, fee + diff];
 };
 
-export const getAverageExecutionDuration = async (
+export const getAverageExecutionTime = async (
   agentId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number | null> => {
@@ -236,7 +236,7 @@ export const getAverageExecutionDuration = async (
   return averageDurationSeconds ? Number(averageDurationSeconds) : null;
 };
 
-export const getAverageExecutionDurations = async (
+export const getAverageExecutionTimes = async (
   agentIds: string[],
   tx: Prisma.TransactionClient,
 ): Promise<Map<string, number | null>> => {

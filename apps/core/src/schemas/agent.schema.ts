@@ -63,9 +63,10 @@ export const agentSchema = z
       example: 100,
       description: "Number of jobs executed by the agent in the last 90 days",
     }),
-    averageExecutionDuration: z.number().nullable().openapi({
-      example: 100,
-      description: "Average execution duration of the agent in seconds",
+    averageExecutionTime: z.number().nullable().openapi({
+      example: 100000,
+      description:
+        "Average execution time of the agent in seconds in the last 90 days",
     }),
     author: authorSchema,
     legal: agentLegalSchema,
