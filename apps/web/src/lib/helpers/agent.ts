@@ -7,7 +7,7 @@ import {
   ExampleOutput,
   PricingType,
 } from "@sokosumi/database";
-import { InputEnvelope } from "@sokosumi/masumi/schemas";
+import { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { ipfsUrlResolver } from "@/lib/ipfs";
@@ -178,7 +178,7 @@ export function getAgentPricingAmounts(
 
 export function getAgentDemoValues(
   agent: Agent,
-  inputEnvelope: InputEnvelope,
+  inputSchema: InputSchemaSchemaType,
 ): AgentDemoValues | null {
   const demoData = getAgentDemoData(agent);
   if (!demoData) {
@@ -186,7 +186,7 @@ export function getAgentDemoValues(
   }
 
   try {
-    const flatInputs = flattenInputs(inputEnvelope);
+    const flatInputs = flattenInputs(inputSchema);
 
     const inputParsedResult = jobInputsFormSchema(flatInputs).safeParse(
       JSON.parse(demoData.demoInput),

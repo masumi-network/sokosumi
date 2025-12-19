@@ -1,7 +1,7 @@
 "use client";
 
 import { AgentWithCreditsPrice } from "@sokosumi/database";
-import { InputEnvelope } from "@sokosumi/masumi/schemas";
+import { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,7 +19,7 @@ interface JobInputsFormProps {
 }
 
 interface JobInputsFormInnerProps extends Omit<JobInputsFormProps, "isDemo"> {
-  inputEnvelope: InputEnvelope;
+  inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
 }
 
@@ -29,20 +29,20 @@ export default function JobInputsForm({
   isDemo,
   className,
 }: JobInputsFormProps) {
-  const { data: inputEnvelope, loading, error } = useAgentInputSchema(agent.id);
+  const { data: inputSchema, loading, error } = useAgentInputSchema(agent.id);
 
   if (loading) {
     return <JobInputsFormSkeleton />;
   }
 
-  if (error || !inputEnvelope) {
+  if (error || !inputSchema) {
     return <JobInputsFormError />;
   }
 
   // check demo data is valid
   let demoValues: AgentDemoValues | null = null;
   if (isDemo) {
-    demoValues = getAgentDemoValues(agent, inputEnvelope);
+    demoValues = getAgentDemoValues(agent, inputSchema);
     if (!demoValues) {
       return <JobInputsFormDemoError />;
     }
@@ -53,7 +53,7 @@ export default function JobInputsForm({
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       demoValues={demoValues}
-      inputEnvelope={inputEnvelope}
+      inputSchema={inputSchema}
       className={className}
     />
   );
@@ -63,14 +63,14 @@ function JobInputsFormInner({
   agent,
   averageExecutionDuration,
   demoValues,
-  inputEnvelope,
+  inputSchema,
   className,
 }: JobInputsFormInnerProps) {
   return (
     <JobInputsFormClient
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
-      inputEnvelope={inputEnvelope}
+      inputSchema={inputSchema}
       demoValues={demoValues}
       legal={getAgentLegal(agent)}
       className={className}

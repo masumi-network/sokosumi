@@ -1,9 +1,8 @@
 "use client";
 
 import type {
-  InputEnvelope,
   InputGroupSchemaType,
-  InputGroupsEnvelope,
+  InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
@@ -16,7 +15,7 @@ import {
 import type { JobInputsFormSchemaType } from "@/lib/job-input";
 
 interface UseGroupedInputWizardOptions {
-  inputEnvelope: InputEnvelope;
+  inputSchema: InputSchemaSchemaType;
   form: UseFormReturn<JobInputsFormSchemaType>;
 }
 
@@ -39,24 +38,17 @@ interface UseGroupedInputWizardReturn {
 }
 
 export function useGroupedInputWizard({
-  inputEnvelope,
+  inputSchema,
   form,
 }: UseGroupedInputWizardOptions): UseGroupedInputWizardReturn {
-  const isGrouped = useMemo(
-    () => isGroupedSchema(inputEnvelope),
-    [inputEnvelope],
-  );
+  const isGrouped = useMemo(() => isGroupedSchema(inputSchema), [inputSchema]);
 
   const groups = useMemo(
-    () =>
-      isGrouped ? (inputEnvelope as InputGroupsEnvelope).input_groups : null,
-    [inputEnvelope, isGrouped],
+    () => (isGroupedSchema(inputSchema) ? inputSchema.input_groups : null),
+    [inputSchema],
   );
 
-  const flatInputs = useMemo(
-    () => flattenInputs(inputEnvelope),
-    [inputEnvelope],
-  );
+  const flatInputs = useMemo(() => flattenInputs(inputSchema), [inputSchema]);
 
   const [activeGroupIndex, setActiveGroupIndex] = useState(0);
   const [maxUnlockedGroupIndex, setMaxUnlockedGroupIndex] = useState(0);
@@ -76,8 +68,8 @@ export function useGroupedInputWizard({
 
   const currentGroupFieldIds = useMemo(() => {
     if (!isGrouped) return [];
-    return getGroupFieldIds(inputEnvelope, activeGroupIndex);
-  }, [inputEnvelope, activeGroupIndex, isGrouped]);
+    return getGroupFieldIds(inputSchema, activeGroupIndex);
+  }, [inputSchema, activeGroupIndex, isGrouped]);
 
   const { errors, dirtyFields, isValid: formIsValid } = form.formState;
 

@@ -1,6 +1,6 @@
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobRepository } from "@sokosumi/database/repositories";
-import { inputsSchema } from "@sokosumi/masumi/schemas";
+import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -107,8 +107,10 @@ export async function POST(
       throw new Error("INVALID_INPUT");
     }
 
-    const inputSchema = await response.json();
-    const validatedInputSchema = inputsSchema.parse(inputSchema.data);
+    const inputSchemaResponse = await response.json();
+    const validatedInputSchema = inputSchemaSchema.parse(
+      inputSchemaResponse.data,
+    );
     const flatInputSchema = flattenInputs(validatedInputSchema);
 
     // Convert credits back to cents for the job service

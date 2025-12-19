@@ -5,7 +5,10 @@ import {
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import type { InputEnvelope, InputSchemaType } from "@sokosumi/masumi/schemas";
+import type {
+  InputFieldSchemaType,
+  InputSchemaSchemaType,
+} from "@sokosumi/masumi/schemas";
 import {
   ArrowLeft,
   ArrowRight,
@@ -76,7 +79,7 @@ export default function JobDetailsProvideInput({
       key={formKey}
       jobId={job.id}
       statusId={event.externalId}
-      inputEnvelope={parseResult}
+      inputSchema={parseResult}
     />
   );
 }
@@ -84,13 +87,13 @@ export default function JobDetailsProvideInput({
 interface ProvideInputFormProps {
   jobId: string;
   statusId?: string | null;
-  inputEnvelope: InputEnvelope;
+  inputSchema: InputSchemaSchemaType;
 }
 
 function ProvideInputForm({
   jobId,
   statusId,
-  inputEnvelope,
+  inputSchema,
 }: ProvideInputFormProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
   const tForm = useTranslations("Library.JobInput.Form");
@@ -107,10 +110,7 @@ function ProvideInputForm({
   }, []);
 
   // Flatten the schema to get all input fields (needed for form setup)
-  const inputSchemas = useMemo(
-    () => flattenInputs(inputEnvelope),
-    [inputEnvelope],
-  );
+  const inputSchemas = useMemo(() => flattenInputs(inputSchema), [inputSchema]);
 
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(inputSchemas, tForm)),
@@ -119,7 +119,7 @@ function ProvideInputForm({
   });
 
   // Use the wizard hook for grouped input navigation
-  const wizard = useGroupedInputWizard({ inputEnvelope, form });
+  const wizard = useGroupedInputWizard({ inputSchema, form });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -172,7 +172,7 @@ function ProvideInputForm({
     usePreventEnterSubmit(form, onSubmit, true);
 
   // Render inputs for a set of schemas
-  const renderInputs = (inputs: InputSchemaType[]) => {
+  const renderInputs = (inputs: InputFieldSchemaType[]) => {
     return inputs.map((jobInputSchema) => (
       <JobInput
         key={jobInputSchema.id}

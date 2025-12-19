@@ -3,7 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
-import { InputEnvelope, InputSchemaType } from "@sokosumi/masumi/schemas";
+import {
+  InputFieldSchemaType,
+  InputSchemaSchemaType,
+} from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics";
 import {
   ArrowLeft,
@@ -55,7 +58,7 @@ import JobInput from "./job-input";
 interface JobInputsFormClientProps {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
-  inputEnvelope: InputEnvelope;
+  inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   className?: string | undefined;
@@ -64,7 +67,7 @@ interface JobInputsFormClientProps {
 export default function JobInputsFormClient({
   agent,
   averageExecutionDuration,
-  inputEnvelope,
+  inputSchema,
   demoValues,
   legal,
   className,
@@ -77,8 +80,8 @@ export default function JobInputsFormClient({
 
   // Flatten inputs for form initialization (before wizard hook)
   const flatInputsForForm = useMemo(
-    () => flattenInputs(inputEnvelope),
-    [inputEnvelope],
+    () => flattenInputs(inputSchema),
+    [inputSchema],
   );
 
   // Initialize form first so we can pass it to the wizard hook
@@ -91,7 +94,7 @@ export default function JobInputsFormClient({
   });
 
   // Use the wizard hook for grouped input navigation
-  const wizard = useGroupedInputWizard({ inputEnvelope, form });
+  const wizard = useGroupedInputWizard({ inputSchema, form });
 
   const router = useRouter();
 
@@ -261,7 +264,7 @@ export default function JobInputsFormClient({
   }, [nextRunAt, scheduleSelection, formatter]);
 
   // Render inputs for the current group (or all inputs if flat)
-  const renderInputs = (inputs: InputSchemaType[]) => {
+  const renderInputs = (inputs: InputFieldSchemaType[]) => {
     return inputs.map((jobInputSchema) => (
       <JobInput
         key={jobInputSchema.id}
