@@ -14,14 +14,6 @@ import { createClient } from "@/lib/clients/generated/payment/client";
 import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok } from "@/lib/ts-res";
 
-// Export Purchase type and nested types for reuse in transformers
-// export type Purchase = GetPurchaseResponses[200]["data"]["Purchases"][0];
-// export type PurchaseOnChainState = Purchase["onChainState"];
-// export type PurchaseNextAction = Purchase["NextAction"];
-// export type PurchaseCurrentTransaction = Purchase["CurrentTransaction"];
-// export type PurchaseRequestedAction = PurchaseNextAction["requestedAction"];
-// export type PurchaseErrorType = PurchaseNextAction["errorType"];
-
 export const paymentClient = (() => {
   const client = () => {
     const paymentClient = createClient({
