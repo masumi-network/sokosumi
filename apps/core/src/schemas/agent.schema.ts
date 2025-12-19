@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Agent } from "@sokosumi/database";
 
+import { TIME } from "@/config/constants";
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -61,13 +62,15 @@ export const agentSchema = z
     }),
     executions: z.number().openapi({
       example: 100,
-      description: "Number of jobs executed by the agent in the last 90 days",
+      description: "Number of jobs executed by the agent",
     }),
-    averageExecutionTime: z.number().nullable().openapi({
-      example: 100000,
-      description:
-        "Average execution time of the agent in seconds in the last 90 days",
-    }),
+    averageExecutionTime: z
+      .number()
+      .nullable()
+      .openapi({
+        example: 100000,
+        description: `Average execution time of the agent in seconds in the last ${TIME.AGENT_EXECUTION_METRICS_DAYS} days`,
+      }),
     author: authorSchema,
     legal: agentLegalSchema,
   })
