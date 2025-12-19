@@ -28,7 +28,11 @@ export const ratingMetricsSchema = z
     average: z
       .number()
       .nullable()
-      .openapi({ example: 4.5, description: "Average rating" }),
+      .openapi({
+        example: 4.5,
+        description:
+          "Average rating (out of 5 stars). Null if there are no ratings.",
+      }),
   })
   .openapi({
     description: "Rating metrics",
