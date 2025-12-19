@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@hono/node-server": "1.19.7",
-    "@hono/zod-openapi": "1.1.5",
+    "@hono/zod-openapi": "1.1.6",
     "@scalar/hono-api-reference": "0.9.28",
     "@scalar/openapi-to-markdown": "0.3.8",
     "@sentry/node": "10.31.0",
