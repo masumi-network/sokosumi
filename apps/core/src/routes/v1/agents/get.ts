@@ -51,6 +51,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
+      // Filter by access control and transform agents, removing any with invalid pricing
       const transformedAgents = agents
         .filter((agent) =>
           canUserAccessAgent(
@@ -59,22 +60,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             authContext.organizationId,
           ),
         )
-        .map((agent) => {
-          return transformAgent(agent, creditCosts);
-        })
-        .filter((agent) => agent !== null);
+        .flatMap((agent) => {
+          const transformed = transformAgent(agent, creditCosts);
+          return transformed ? [transformed] : [];
+        });
 
+      // Fetch execution times for all successfully transformed agents
       const averageExecutionTimes = await getAverageExecutionTimes(
         transformedAgents.map((agent) => agent.id),
         tx,
       );
 
-      return transformedAgents.map((agent) => {
-        return {
-          ...agent,
-          averageExecutionTime: averageExecutionTimes.get(agent.id) ?? null,
-        };
-      });
+      // Enrich agents with execution time metrics
+      return transformedAgents.map((agent) => ({
+        ...agent,
+        averageExecutionTime: averageExecutionTimes.get(agent.id) ?? null,
+      }));
     });
     return ok(c, agentsSchema.parse(agents));
   });
