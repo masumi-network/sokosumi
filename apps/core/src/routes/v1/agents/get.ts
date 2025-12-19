@@ -11,7 +11,11 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentsSchema } from "@/schemas/agent.schema";
-import { agentOrderBy, agentPricingInclude } from "@/types/agent";
+import {
+  agentJobsCountInclude,
+  agentOrderBy,
+  agentPricingInclude,
+} from "@/types/agent";
 
 const route = createRoute({
   method: "get",
@@ -34,7 +38,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
       const agents = await tx.agent.findMany({
-        include: { ...agentPricingInclude, ...agentOrganizationsInclude },
+        include: {
+          ...agentPricingInclude,
+          ...agentOrganizationsInclude,
+          ...agentJobsCountInclude,
+        },
         orderBy: [...agentOrderBy],
         where: {
           status: AgentStatus.ONLINE,

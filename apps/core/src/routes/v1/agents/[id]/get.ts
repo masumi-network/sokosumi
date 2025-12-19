@@ -11,7 +11,11 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { agentSchema } from "@/schemas/agent.schema";
-import { agentOrganizationsInclude, agentPricingInclude } from "@/types/agent";
+import {
+  agentJobsCountInclude,
+  agentOrganizationsInclude,
+  agentPricingInclude,
+} from "@/types/agent";
 
 const params = z.object({
   id: z.string().openapi({
@@ -46,7 +50,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
       const agent = await tx.agent.findUnique({
         where: { id },
-        include: { ...agentPricingInclude, ...agentOrganizationsInclude },
+        include: {
+          ...agentPricingInclude,
+          ...agentOrganizationsInclude,
+          ...agentJobsCountInclude,
+        },
       });
       if (!agent) {
         throw notFound("Agent not found");

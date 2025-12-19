@@ -4,21 +4,19 @@ import type { Agent } from "@sokosumi/database";
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
 
-export const authorSchema = z
-  .object({
-    name: z.string().nullable().openapi({ example: "John Doe" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/image.png" }),
-    organization: z.string().nullable().openapi({ example: "John Doe" }),
-    email: z.email().nullable().openapi({ example: "john.doe@example.com" }),
-    other: z
-      .string()
-      .nullable()
-      .openapi({ example: "Other contact information" }),
-  })
-  .openapi("Agent Author");
+export const authorSchema = z.object({
+  name: z.string().nullable().openapi({ example: "John Doe" }),
+  image: z
+    .string()
+    .nullable()
+    .openapi({ example: "https://example.com/image.png" }),
+  organization: z.string().nullable().openapi({ example: "John Doe" }),
+  email: z.email().nullable().openapi({ example: "john.doe@example.com" }),
+  other: z
+    .string()
+    .nullable()
+    .openapi({ example: "Other contact information" }),
+});
 
 export const getAuthorFromAgent = (agent: Agent) => {
   return authorSchema.parse({
@@ -60,6 +58,10 @@ export const agentSchema = z
     }),
     description: z.string().openapi({
       example: "A research assistant that can help you with your research",
+    }),
+    executions: z.number().openapi({
+      example: 100,
+      description: "Number of jobs executed by the agent",
     }),
     author: authorSchema,
     legal: agentLegalSchema,

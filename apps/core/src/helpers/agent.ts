@@ -17,7 +17,11 @@ import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
-import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
+import type {
+  AgentWithJobsCount,
+  AgentWithOrganizations,
+  AgentWithPricing,
+} from "@/types/agent";
 
 import { internalServerError } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
@@ -112,7 +116,7 @@ export const canUserAccessAgent = (
  * @returns The transformed agent with credits, or null if credits calculation fails.
  */
 export const transformAgentWithCredits = (
-  agent: AgentWithPricing,
+  agent: AgentWithPricing & AgentWithOrganizations & AgentWithJobsCount,
   creditCosts: CreditCost[],
 ) => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
@@ -129,6 +133,7 @@ export const transformAgentWithCredits = (
     description: agent.overrideDescription ?? agent.description,
     author: getAuthorFromAgent(agent),
     legal: getAgentLegalFromAgent(agent),
+    executions: agent._count.jobs,
     credits,
   };
 };

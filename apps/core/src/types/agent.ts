@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import { JobType, type Prisma } from "@sokosumi/database";
 
 export const agentJobsCountOrderBy = {
   jobs: {
@@ -32,4 +32,22 @@ export const agentOrganizationsInclude = {
 
 export type AgentWithOrganizations = Prisma.AgentGetPayload<{
   include: typeof agentOrganizationsInclude;
+}>;
+
+export const agentJobsCountInclude = {
+  _count: {
+    select: {
+      jobs: {
+        where: {
+          jobType: {
+            not: JobType.DEMO,
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export type AgentWithJobsCount = Prisma.AgentGetPayload<{
+  include: typeof agentJobsCountInclude;
 }>;
