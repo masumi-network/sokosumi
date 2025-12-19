@@ -16,6 +16,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
+  type RatingMetrics,
 } from "@/schemas/agent.schema";
 import type {
   AgentWithJobsCount,
@@ -331,4 +332,57 @@ export const calculateAverageExecutionTimes = async (
   }
 
   return averagesMap;
+};
+
+export const calculateAgentRating = async (
+  agentId: string,
+  tx: Prisma.TransactionClient,
+): Promise<RatingMetrics> => {
+  const ratingStats = await tx.userAgentRating.aggregate({
+    where: { agentId },
+    _count: { rating: true },
+    _avg: { rating: true },
+  });
+  return {
+    total: ratingStats._count.rating ?? 0,
+    average: ratingStats._avg.rating ?? null,
+  };
+};
+
+export const calculateAgentRatings = async (
+  agentIds: string[],
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, RatingMetrics>> => {
+  if (agentIds.length === 0) return new Map();
+
+  const ratings = await tx.userAgentRating.groupBy({
+    by: ["agentId"],
+    where: {
+      agentId: { in: agentIds },
+    },
+    _count: { rating: true },
+    _avg: { rating: true },
+  });
+
+  // Convert array to Map for O(1) lookups
+  const ratingsMap = new Map(
+    ratings.map((rating) => [
+      rating.agentId,
+      {
+        total: rating._count.rating,
+        average: rating._avg.rating,
+      },
+    ]),
+  );
+
+  // Initialize all agentIds with default values (for agents with no ratings)
+  for (const agentId of agentIds) {
+    if (!ratingsMap.has(agentId)) {
+      ratingsMap.set(agentId, {
+        total: 0,
+        average: null,
+      });
+    }
+  }
+  return ratingsMap;
 };

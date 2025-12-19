@@ -3,6 +3,7 @@ import { agentOrganizationsInclude, AgentStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 
 import {
+  calculateAgentRatings,
   calculateAverageExecutionTimes,
   canUserAccessAgent,
   getAgentAccessContext,
@@ -72,19 +73,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
 
-      const results = await tx.userAgentRating.groupBy({
-        by: ["agentId"],
-        where: {
-          agentId: { in: agentIds },
-        },
-        _count: { rating: true },
-        _avg: { rating: true },
-      });
+      const ratingsMap = await calculateAgentRatings(agentIds, tx);
 
       return agentsWithCredits.map((agent) => {
-        const ratingResult = results.find(
-          (result) => result.agentId === agent.id,
-        );
+        const ratings = ratingsMap.get(agent.id);
         return {
           ...agent,
           metrics: {
@@ -93,8 +85,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               averageTime: averageExecutionTimes.get(agent.id) ?? null,
             },
             ratings: {
-              total: ratingResult?._count.rating ?? 0,
-              average: ratingResult?._avg.rating ?? null,
+              total: ratings?.total ?? 0,
+              average: ratings?.average ?? null,
             },
           },
         };
