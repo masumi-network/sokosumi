@@ -14,10 +14,8 @@ import {
 import { CREDIT, TIME } from "@/config/constants";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
-  type ExecutionMetrics,
   getAgentLegalFromAgent,
   getAuthorFromAgent,
-  type RatingMetrics,
 } from "@/schemas/agent.schema";
 import type {
   AgentWithJobsCount,
@@ -333,18 +331,4 @@ export const calculateAverageExecutionTimes = async (
   }
 
   return averagesMap;
-};
-
-export const addMetricsToAgent = (
-  agent: Agent,
-  executionMetrics: ExecutionMetrics,
-  ratingMetrics: RatingMetrics,
-) => {
-  return {
-    ...agent,
-    metrics: {
-      executions: executionMetrics,
-      ratings: ratingMetrics,
-    },
-  };
 };

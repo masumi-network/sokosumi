@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 
 import {
-  addMetricsToAgent,
   calculateAverageExecutionTime,
   canUserAccessAgent,
   getAgentAccessContext,
@@ -90,14 +89,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       const ratingMetrics = {
         total: ratingStats._count.rating,
-        average: ratingStats._avg.rating ?? 0,
+        average: ratingStats._avg.rating,
       };
 
-      return addMetricsToAgent(
-        agentWithCredits,
-        executionMetrics,
-        ratingMetrics,
-      );
+      return {
+        ...agentWithCredits,
+        metrics: {
+          executions: executionMetrics,
+          ratings: ratingMetrics,
+        },
+      };
     });
     return ok(c, agentSchema.parse(agent));
   });
