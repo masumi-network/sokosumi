@@ -113,7 +113,7 @@ export const canUserAccessAgent = (
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
  * @param executions - The number of executions.
- * @param averageExecutionTime - The average execution time in milliseconds.
+ * @param averageExecutionTime - The average execution time in seconds.
  * @returns The transformed agent with credits, or null if credits calculation fails.
  */
 export const transformAgent = (
