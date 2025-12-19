@@ -221,7 +221,22 @@ const roundUpCentsWithFee = (
   return { cents: roundedCentsWithFee, fee: fee + diff };
 };
 
-export const getAverageExecutionTime = async (
+/**
+ * Calculates the average execution time (in seconds) for a given agent's jobs.
+ *
+ * The function looks at all jobs associated with the specified agent ID,
+ * excluding jobs of type 'DEMO', created within the last 90 days.
+ * For each job, it determines the most recent 'COMPLETED' event and
+ * calculates the duration from job creation to completion.
+ *
+ * The function returns the average duration in seconds as a number, or null
+ * if no qualifying jobs exist.
+ *
+ * @param agentId - The ID of the agent whose average execution time is to be calculated.
+ * @param tx - The Prisma transaction client used to run the raw SQL query.
+ * @returns A Promise that resolves to the average execution time in seconds (number), or null if unavailable.
+ */
+export const calculateAverageExecutionTime = async (
   agentId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number | null> => {
@@ -245,7 +260,24 @@ export const getAverageExecutionTime = async (
   return averageDurationSeconds ? Number(averageDurationSeconds) : null;
 };
 
-export const getAverageExecutionTimes = async (
+/**
+ * Calculates the average execution times (in seconds) for multiple agents' jobs.
+ *
+ * This function examines all jobs associated with each specified agent ID
+ * (excluding jobs of type 'DEMO') that were created within the last 90 days.
+ * For each job, it finds the most recent 'COMPLETED' job event and calculates
+ * the duration from the job's creation to its completion.
+ *
+ * The average duration in seconds is computed per agent.
+ *
+ * If an agent has no qualifying jobs, the returned map will contain a null value for that agent.
+ *
+ * @param agentIds - An array of agent IDs for which to calculate average execution times.
+ * @param tx - The Prisma transaction client used to execute the raw SQL query.
+ * @returns A Promise resolving to a Map where the key is the agent ID and the value is
+ *          the average execution time in seconds (as a number) for that agent, or null if unavailable.
+ */
+export const calculateAverageExecutionTimes = async (
   agentIds: string[],
   tx: Prisma.TransactionClient,
 ): Promise<Map<string, number | null>> => {

@@ -4,7 +4,7 @@ import prisma from "@sokosumi/database/client";
 import {
   canUserAccessAgent,
   getAgentAccessContext,
-  getAverageExecutionTime,
+  calculateAverageExecutionTime,
   transformAgent,
 } from "@/helpers/agent";
 import { notFound, unauthorized, unprocessableEntity } from "@/helpers/error";
@@ -71,7 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw unauthorized("You are not authorized to access this agent");
       }
 
-      const averageExecutionTime = await getAverageExecutionTime(id, tx);
+      const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
       const transformed = transformAgent(
         agent,
         creditCosts,

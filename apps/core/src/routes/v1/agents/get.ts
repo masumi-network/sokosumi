@@ -3,9 +3,9 @@ import { agentOrganizationsInclude, AgentStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 
 import {
+  calculateAverageExecutionTimes,
   canUserAccessAgent,
   getAgentAccessContext,
-  getAverageExecutionTimes,
   transformAgent,
 } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -66,7 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
       // Fetch execution times for all successfully transformed agents
-      const averageExecutionTimes = await getAverageExecutionTimes(
+      const averageExecutionTimes = await calculateAverageExecutionTimes(
         transformedAgents.map((agent) => agent.id),
         tx,
       );
