@@ -27,6 +27,7 @@ export interface UseInputsReturn {
   goBack: () => void;
   goToGroup: (index: number) => void;
   reset: () => void;
+  resetMaxUnlockedTo: (index: number) => void;
 }
 
 export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
@@ -91,6 +92,12 @@ export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
     setMaxUnlockedGroupIndex(0);
   }, []);
 
+  const resetMaxUnlockedTo = useCallback((index: number) => {
+    if (index >= 0) {
+      setMaxUnlockedGroupIndex(index);
+    }
+  }, []);
+
   return {
     isGrouped,
     groups,
@@ -105,5 +112,6 @@ export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
     goBack,
     goToGroup,
     reset,
+    resetMaxUnlockedTo,
   };
 }

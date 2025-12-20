@@ -200,6 +200,38 @@ function ProvideInputForm({
     [handleFinalSubmit],
   );
 
+  const handleGroupClear = useCallback(
+    (groupIndex: number, formReset: () => void) => {
+      if (!inputs.groups) return;
+      const group = inputs.groups[groupIndex];
+      if (!group) return;
+
+      // Reset the current form
+      formReset();
+
+      // Get field IDs for the current group
+      const groupFieldIds = group.input_data.map((field) => field.id);
+
+      // Remove the current group's values from accumulatedValues
+      setAccumulatedValues((prev) => {
+        const filtered = Object.fromEntries(
+          Object.entries(prev).filter(([key]) => !groupFieldIds.includes(key)),
+        );
+        return filtered;
+      });
+
+      // Reset maxUnlockedGroupIndex to current group index (lock later groups)
+      // If clearing first group, reset everything
+      if (groupIndex === 0) {
+        setAccumulatedValues({});
+        inputs.reset();
+      } else {
+        inputs.resetMaxUnlockedTo(groupIndex);
+      }
+    },
+    [inputs],
+  );
+
   const getGroupDefaultValues = useCallback(
     (groupIndex: number) => {
       if (!inputs.groups) return {};
@@ -223,19 +255,26 @@ function ProvideInputForm({
 
   const renderGroupFooter = useCallback(
     (props: FormFooterProps, isLast: boolean, groupIndex: number) => {
-      const { isSubmitting: formIsSubmitting, isValid } = props;
+      const { isSubmitting: formIsSubmitting, isValid, reset } = props;
       const isFirst = groupIndex === 0;
 
       return (
         <div className="flex items-end justify-between gap-2">
-          {!isFirst ? (
-            <Button type="button" variant="secondary" onClick={inputs.goBack}>
-              <ArrowLeft className="size-4" />
-              {tForm("back")}
+          <div className="flex items-center gap-2">
+            {!isFirst && (
+              <Button type="button" variant="secondary" onClick={inputs.goBack}>
+                <ArrowLeft className="size-4" />
+                {tForm("back")}
+              </Button>
+            )}
+            <Button
+              type="reset"
+              variant="secondary"
+              onClick={() => handleGroupClear(groupIndex, reset)}
+            >
+              {tForm("clear")}
             </Button>
-          ) : (
-            <div />
-          )}
+          </div>
           <div className="flex items-center gap-2">
             {isLast ? (
               <Button
@@ -269,16 +308,18 @@ function ProvideInputForm({
         </div>
       );
     },
-    [isSubmitting, t, tForm, isMobile, os, inputs],
+    [isSubmitting, t, tForm, isMobile, os, inputs, handleGroupClear],
   );
 
   const renderFlatFooter = useCallback(
     (props: FormFooterProps) => {
-      const { isSubmitting: formIsSubmitting, isValid } = props;
+      const { isSubmitting: formIsSubmitting, isValid, reset } = props;
 
       return (
         <div className="flex items-end justify-between gap-2">
-          <div />
+          <Button type="reset" variant="secondary" onClick={reset}>
+            {tForm("clear")}
+          </Button>
           <div className="flex items-center gap-2">
             <Button
               type="submit"

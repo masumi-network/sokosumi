@@ -16,7 +16,13 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
@@ -82,10 +88,12 @@ export default function JobInputsFormClient({
   const [accumulatedValues, setAccumulatedValues] =
     useState<JobInputsFormSchemaType>({});
 
+  const resetInputs = useRef(inputs.reset);
+  resetInputs.current = inputs.reset;
+
   useEffect(() => {
     setAccumulatedValues({});
-    inputs.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    resetInputs.current();
   }, [inputSchema]);
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -271,6 +279,33 @@ export default function JobInputsFormClient({
     [handleFinalSubmit],
   );
 
+  const handleGroupClear = useCallback(
+    (groupIndex: number, formReset: () => void) => {
+      if (!inputs.groups) return;
+      const group = inputs.groups[groupIndex];
+      if (!group) return;
+
+      formReset();
+
+      const groupFieldIds = group.input_data.map((field) => field.id);
+
+      setAccumulatedValues((prev) => {
+        const filtered = Object.fromEntries(
+          Object.entries(prev).filter(([key]) => !groupFieldIds.includes(key)),
+        );
+        return filtered;
+      });
+
+      if (groupIndex === 0) {
+        setAccumulatedValues({});
+        inputs.reset();
+      } else {
+        inputs.resetMaxUnlockedTo(groupIndex);
+      }
+    },
+    [inputs],
+  );
+
   const getGroupDefaultValues = useCallback(
     (groupIndex: number) => {
       if (!inputs.groups) return {};
@@ -312,21 +347,26 @@ export default function JobInputsFormClient({
             </div>
           )}
           <div className="flex items-end justify-between gap-2">
-            {!isFirst ? (
-              <Button type="button" variant="secondary" onClick={inputs.goBack}>
-                <ArrowLeft className="size-4" />
-                {t("back")}
-              </Button>
-            ) : (
+            <div className="flex items-center gap-2">
+              {!isFirst && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={inputs.goBack}
+                >
+                  <ArrowLeft className="size-4" />
+                  {t("back")}
+                </Button>
+              )}
               <Button
                 type="reset"
                 variant="secondary"
-                onClick={reset}
+                onClick={() => handleGroupClear(groupIndex, reset)}
                 disabled={isDemo}
               >
                 {t("clear")}
               </Button>
-            )}
+            </div>
             <div className="flex flex-col items-end gap-2">
               {isLast && <AcceptTermsOfService legal={legal} />}
               <div className="flex items-center gap-2">
@@ -398,6 +438,7 @@ export default function JobInputsFormClient({
       formattedDuration,
       isMobile,
       os,
+      handleGroupClear,
     ],
   );
 
