@@ -285,13 +285,13 @@ model Agent {
   apiBaseUrl         String
   overrideApiBaseUrl String?
 
-  capabilityName         String
+  capabilityName         String?
   overrideCapabilityName String?
 
-  capabilityVersion         String
+  capabilityVersion         String?
   overrideCapabilityVersion String?
 
-  authorName         String
+  authorName         String?
   overrideAuthorName String?
 
   authorImage         String?
@@ -319,7 +319,7 @@ model Agent {
   uptimeCount      Int
   uptimeCheckCount Int
 
-  image         String
+  image         String?
   overrideImage String?
   icon          String?
 

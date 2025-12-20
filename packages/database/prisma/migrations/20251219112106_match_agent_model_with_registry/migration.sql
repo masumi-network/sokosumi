@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Agent" ALTER COLUMN "capabilityName" DROP NOT NULL,
+ALTER COLUMN "capabilityVersion" DROP NOT NULL,
+ALTER COLUMN "authorName" DROP NOT NULL,
+ALTER COLUMN "image" DROP NOT NULL;
