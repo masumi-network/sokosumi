@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "json-canonicalize": "2.0.0",
-    "zod": "4.1.13"
+    "zod": "4.2.1"
   },
   "devDependencies": {
     "@types/jest": "30.0.0",
