@@ -52,7 +52,20 @@ function findBlobByUrl(url: string, blobs?: Blob[]): Blob | undefined {
   return blobs.find((b) => b.fileUrl === url);
 }
 
-function renderInputValue(value: unknown, type: InputType, blobs?: Blob[]) {
+function isOption(type: InputType): boolean {
+  return (
+    type === InputType.OPTION ||
+    type === InputType.RADIO_GROUP ||
+    type === InputType.MULTISELECT
+  );
+}
+
+function renderInputValue(
+  value: unknown,
+  type: InputType,
+  blobs?: Blob[],
+  values?: string[],
+) {
   if (type === InputType.FILE) {
     if (isUrlString(value)) {
       const blob = findBlobByUrl(value, blobs);
@@ -74,6 +87,41 @@ function renderInputValue(value: unknown, type: InputType, blobs?: Blob[]) {
           ))}
         </div>
       );
+    }
+  }
+
+  if (isOption(type) && values && values.length > 0) {
+    const mapIndexToLabel = (index: unknown): string => {
+      if (
+        typeof index === "number" &&
+        Number.isInteger(index) &&
+        index >= 0 &&
+        index < values.length
+      ) {
+        return values[index];
+      }
+      return String(index);
+    };
+
+    if (typeof value === "number") {
+      return <span className="break-all">{mapIndexToLabel(value)}</span>;
+    }
+
+    if (Array.isArray(value)) {
+      const labels = value
+        .filter(
+          (v): v is number =>
+            typeof v === "number" &&
+            Number.isInteger(v) &&
+            v >= 0 &&
+            v < values.length,
+        )
+        .map(mapIndexToLabel);
+      return <span className="break-all">{labels.join(", ")}</span>;
+    }
+
+    if (typeof value === "string") {
+      return <span className="break-all">{value}</span>;
     }
   }
 
@@ -103,17 +151,30 @@ function JobDetailsInputsInner({
     return hashInput(rawInput, identifierFromPurchaser);
   }, [identifierFromPurchaser, rawInput]);
 
-  let inputsMap: Record<string, { name: string; type: InputType }> = {};
+  let inputsMap: Record<
+    string,
+    { name: string; type: InputType; values?: string[] }
+  > = {};
   if (Array.isArray(inputSchema)) {
     inputsMap = z
       .array(inputFieldSchema)
       .parse(inputSchema)
       .reduce(
         (acc, item) => {
-          acc[item.id] = { name: item.name, type: item.type };
+          acc[item.id] = {
+            name: item.name,
+            type: item.type,
+            ...(isOption(item.type) &&
+              "data" in item &&
+              item.data &&
+              "values" in item.data && { values: item.data.values }),
+          };
           return acc;
         },
-        {} as Record<string, { name: string; type: InputType }>,
+        {} as Record<
+          string,
+          { name: string; type: InputType; values?: string[] }
+        >,
       );
   }
 
@@ -122,8 +183,10 @@ function JobDetailsInputsInner({
       {Object.keys(input).length > 0 ? (
         <div>
           {Object.entries(input).map(([key, value]) => {
-            const label = inputsMap[key]?.name ?? key;
-            const type = inputsMap[key]?.type ?? InputType.NONE;
+            const schemaEntry = inputsMap[key];
+            const label = schemaEntry?.name ?? key;
+            const type = schemaEntry?.type ?? InputType.NONE;
+            const values = schemaEntry?.values;
             return (
               <div
                 className="grid grid-cols-1 items-start gap-4 pb-4 text-base md:grid-cols-3"
@@ -133,7 +196,7 @@ function JobDetailsInputsInner({
                   {label}
                 </span>
                 <div className="break-all md:col-span-2">
-                  {renderInputValue(value, type, blobs)}
+                  {renderInputValue(value, type, blobs, values)}
                 </div>
               </div>
             );
