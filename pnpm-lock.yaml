@@ -42,8 +42,8 @@ importers:
         specifier: 0.9.30
         version: 0.9.30(hono@4.11.1)
       '@scalar/openapi-to-markdown':
-        specifier: 0.3.11
-        version: 0.3.11(typescript@5.9.3)
+        specifier: 0.3.12
+        version: 0.3.12(typescript@5.9.3)
       '@sentry/node':
         specifier: 10.32.1
         version: 10.32.1
@@ -3013,8 +3013,8 @@ packages:
     resolution: {integrity: sha512-sr2nV0ngVEw3hUPWISj6t0VRztUIbFqNxZNY8ZwpvYj6YoU99c1cng9+4njxi3d7F7YgbNMPL2PQ2bWQLQEknQ==}
     engines: {node: '>=20'}
 
-  '@scalar/components@0.16.11':
-    resolution: {integrity: sha512-QnFuC5ZfZJ/jzDURFVjKHRHohY+2TW02xjL7MdlUq1rzUuZPWkw09ddM1rnm2tPoMHcpsN3Df/NjhVDxutzdGg==}
+  '@scalar/components@0.16.12':
+    resolution: {integrity: sha512-eU27Bq1dqr9Eh30Km+NHYyixLNt3u8YjcQlRLvuIu2RhFoFKx0RY0SsIJcuCQBCCHI2F/G96/D1bW55y/HKsfg==}
     engines: {node: '>=20'}
 
   '@scalar/core@0.3.28':
@@ -3051,8 +3051,8 @@ packages:
     resolution: {integrity: sha512-0fMsZtTKKEXy9q4TDJnJa3DYXe450FcpZilaIYMJmjjEBVW78op8GnHJjuxvaYIw1gkj2Stz71qzvnoz1VomBg==}
     engines: {node: '>=20'}
 
-  '@scalar/openapi-to-markdown@0.3.11':
-    resolution: {integrity: sha512-JNoXqqlXXx1zQFKsAWzIwRq5MY47VzKpInJDBLUeQ4IAEOVk7vn/xeITYOGZqGp1HfKAKQ3xGp+M1FStwKMtWQ==}
+  '@scalar/openapi-to-markdown@0.3.12':
+    resolution: {integrity: sha512-OVW1Bqn0S1fKD72DzBxQKLrvhfxfkG2Nrw/1kc3VahwdK4p991IqZcvrPFwRlBRJjK9UGQhS3jHqzIazRfniPA==}
     engines: {node: '>=20'}
 
   '@scalar/openapi-types@0.5.3':
@@ -8562,8 +8562,8 @@ packages:
   vscode-uri@3.0.8:
     resolution: {integrity: sha512-AyFQ0EVmsOZOlAnxoFOGOq1SQDWAB7C6aqMGS23svWAllfOaxbuFvcT8D1i8z3Gyn8fraVeZNNmN6e9bxxXkKw==}
 
-  vue-component-type-helpers@3.1.8:
-    resolution: {integrity: sha512-oaowlmEM6BaYY+8o+9D9cuzxpWQWHqHTMKakMxXu0E+UCIOMTljyIPO15jcnaCwJtZu/zWDotK7mOIHvWD9mcw==}
+  vue-component-type-helpers@3.2.1:
+    resolution: {integrity: sha512-gKV7XOkQl4urSuLHNY1tnVQf7wVgtb/mKbRyxSLWGZUY9RK7aDPhBenTjm+i8ZFe0zC2PZeHMPtOZXZfyaFOzQ==}
 
   vue-demi@0.14.10:
     resolution: {integrity: sha512-nMZBOwuzabUO0nLgIcc6rycZEebF6eeUfaiQx9+WSk8e29IbLvPU9feI6tqW4kTo3hvoYAJkMh8n8D0fuISphg==}
@@ -11259,7 +11259,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@scalar/components@0.16.11(typescript@5.9.3)':
+  '@scalar/components@0.16.12(typescript@5.9.3)':
     dependencies:
       '@floating-ui/utils': 0.2.10
       '@floating-ui/vue': 1.1.9(vue@3.5.26(typescript@5.9.3))
@@ -11277,7 +11277,7 @@ snapshots:
       pretty-bytes: 6.1.1
       radix-vue: 1.9.17(vue@3.5.26(typescript@5.9.3))
       vue: 3.5.26(typescript@5.9.3)
-      vue-component-type-helpers: 3.1.8
+      vue-component-type-helpers: 3.2.1
     transitivePeerDependencies:
       - '@vue/composition-api'
       - supports-color
@@ -11344,9 +11344,9 @@ snapshots:
       leven: 4.1.0
       yaml: 2.8.2
 
-  '@scalar/openapi-to-markdown@0.3.11(typescript@5.9.3)':
+  '@scalar/openapi-to-markdown@0.3.12(typescript@5.9.3)':
     dependencies:
-      '@scalar/components': 0.16.11(typescript@5.9.3)
+      '@scalar/components': 0.16.12(typescript@5.9.3)
       '@scalar/helpers': 0.2.4
       '@scalar/oas-utils': 0.6.11(typescript@5.9.3)
       '@scalar/openapi-parser': 0.23.9
@@ -17988,7 +17988,7 @@ snapshots:
 
   vscode-uri@3.0.8: {}
 
-  vue-component-type-helpers@3.1.8: {}
+  vue-component-type-helpers@3.2.1: {}
 
   vue-demi@0.14.10(vue@3.5.26(typescript@5.9.3)):
     dependencies:

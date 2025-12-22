@@ -542,6 +542,8 @@ model Job {
   @@index([userId])
   @@index([jobType])
   @@index([jobScheduleId])
+  @@index([agentId])
+  @@index([agentId, createdAt])
 }
 
 model JobPurchase {
@@ -593,6 +595,8 @@ model JobEvent {
 
   @@index([externalId])
   @@index([jobId])
+  @@index([status])
+  @@index([jobId, status])
   @@map("jobEvent")
 }
 
