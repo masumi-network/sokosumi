@@ -363,7 +363,7 @@ export const inputFileSchema = z.object({
   name: z.string().min(1),
   data: z.object({
     description: z.string().nullish(),
-    outputFormat: z.string().nullish(),
+    outputFormat: z.string(),
   }),
   validations: z
     .array(

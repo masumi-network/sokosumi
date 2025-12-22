@@ -24,6 +24,9 @@ export const TIME = {
 
   /** CORS preflight cache duration (1 day) */
   CORS_MAX_AGE: 24 * 60 * 60,
+
+  /** Agent execution metrics lookback period (90 days) */
+  AGENT_EXECUTION_METRICS_DAYS: 90,
 } as const;
 
 /**
@@ -62,3 +65,10 @@ export const STORAGE = {
   IMAGES_UPLOAD_DIR: "images",
 } as const;
 
+export const CREDIT = {
+  /** Fee percentage points (5%) */
+  FEE_PERCENTAGE_POINTS: 5,
+
+  /** Minimum fee credits (1 credit) */
+  MIN_FEE_CREDITS: 1,
+} as const;
