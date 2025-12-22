@@ -25,14 +25,11 @@ export const ratingMetricsSchema = z
     total: z
       .number()
       .openapi({ example: 100, description: "Total number of ratings" }),
-    average: z
-      .number()
-      .nullable()
-      .openapi({
-        example: 4.5,
-        description:
-          "Average rating (out of 5 stars). Null if there are no ratings.",
-      }),
+    average: z.number().nullable().openapi({
+      example: 4.5,
+      description:
+        "Average rating (out of 5 stars). Null if there are no ratings.",
+    }),
   })
   .openapi({
     description: "Rating metrics",
@@ -58,7 +55,11 @@ export const authorSchema = z.object({
     .nullable()
     .openapi({ example: "https://example.com/image.png" }),
   organization: z.string().nullable().openapi({ example: "John Doe" }),
-  email: z.email().nullable().openapi({ example: "john.doe@example.com" }),
+  email: z
+    .email()
+    .nullable()
+    .catch(null)
+    .openapi({ example: "john.doe@example.com" }),
   other: z
     .string()
     .nullable()
