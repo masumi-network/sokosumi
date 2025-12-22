@@ -9,7 +9,7 @@ const config = {
   tabWidth: 2,
   semi: true,
   singleQuote: false,
+  ignorePatterns: ["pnpm-lock.yaml"],
 };
 
 export default config;
-
