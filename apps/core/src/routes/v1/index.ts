@@ -15,7 +15,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   bearerFormat: "JWT",
 });
 
-app.doc("/openapi.json", {
+app.doc31("/openapi.json", {
   openapi: "3.1.0",
   info: {
     version: "1.0.0",
