@@ -76,6 +76,18 @@ function extractOptionValues(item: InputFieldSchemaType): string[] | undefined {
   return undefined;
 }
 
+function mapIndexToLabel(index: unknown, values: string[]): string {
+  if (
+    typeof index === "number" &&
+    Number.isInteger(index) &&
+    index >= 0 &&
+    index < values.length
+  ) {
+    return values[index];
+  }
+  return String(index);
+}
+
 function renderInputValue(
   value: unknown,
   type: InputType,
@@ -90,7 +102,9 @@ function renderInputValue(
       );
     }
     if (isUrlArray(value)) {
-      if (value.length === 0) return <span>{"-"}</span>;
+      if (value.length === 0) {
+        return <span>{"-"}</span>;
+      }
       return (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {value.map((url) => (
@@ -107,20 +121,10 @@ function renderInputValue(
   }
 
   if (isOption(type) && values && values.length > 0) {
-    const mapIndexToLabel = (index: unknown): string => {
-      if (
-        typeof index === "number" &&
-        Number.isInteger(index) &&
-        index >= 0 &&
-        index < values.length
-      ) {
-        return values[index];
-      }
-      return String(index);
-    };
-
     if (typeof value === "number") {
-      return <span className="break-all">{mapIndexToLabel(value)}</span>;
+      return (
+        <span className="break-all">{mapIndexToLabel(value, values)}</span>
+      );
     }
 
     if (Array.isArray(value)) {
@@ -132,7 +136,7 @@ function renderInputValue(
             v >= 0 &&
             v < values.length,
         )
-        .map(mapIndexToLabel);
+        .map((index) => mapIndexToLabel(index, values));
       return <span className="break-all">{labels.join(", ")}</span>;
     }
 
