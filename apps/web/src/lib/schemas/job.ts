@@ -243,12 +243,21 @@ export function normalizeAndValidateInputSchema(
   }
 
   if (Array.isArray(parsed)) {
+    // First try to validate as array of input groups
+    const groupsResult = inputGroupsSchema.safeParse(parsed);
+    if (groupsResult.success) {
+      return { input_groups: groupsResult.data };
+    }
+
+    // Fall back to validating as array of input fields (backward compatibility)
     const fieldsResult = inputFieldsSchema.safeParse(parsed);
     if (fieldsResult.success) {
       return { input_data: fieldsResult.data };
     }
+
     console.error(
       "[normalizeAndValidateInputSchema] Invalid array schema:",
+      groupsResult.error,
       fieldsResult.error,
     );
     return null;
