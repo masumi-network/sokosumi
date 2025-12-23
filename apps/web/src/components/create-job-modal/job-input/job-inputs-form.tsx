@@ -6,10 +6,12 @@ import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import useAgentInputSchema from "@/hooks/use-agent-input-schema";
+import { useInputs } from "@/hooks/use-inputs";
 import { getAgentDemoValues, getAgentLegal } from "@/lib/helpers/agent";
 import { AgentDemoValues } from "@/lib/types/agent";
 
-import JobInputsFormClient from "./job-inputs-form.client";
+import { JobInputsFlatForm } from "./job-inputs-flat-form";
+import { JobInputsGroupedForm } from "./job-inputs-grouped-form";
 
 interface JobInputsFormProps {
   agent: AgentWithCreditsPrice;
@@ -66,13 +68,39 @@ function JobInputsFormInner({
   inputSchema,
   className,
 }: JobInputsFormInnerProps) {
+  const inputs = useInputs({ inputSchema });
+  const legal = getAgentLegal(agent);
+
+  // Render grouped form if schema has groups
+  if (inputs.isGrouped && inputs.groups) {
+    return (
+      <JobInputsGroupedForm
+        agent={agent}
+        averageExecutionDuration={averageExecutionDuration}
+        groups={inputs.groups}
+        flatInputs={inputs.flatInputs}
+        demoValues={demoValues}
+        legal={legal}
+        className={className}
+        activeGroupIndex={inputs.activeGroupIndex}
+        maxUnlockedGroupIndex={inputs.maxUnlockedGroupIndex}
+        goToNext={inputs.goToNext}
+        goBack={inputs.goBack}
+        goToGroup={inputs.goToGroup}
+        reset={inputs.reset}
+        resetMaxUnlockedTo={inputs.resetMaxUnlockedTo}
+      />
+    );
+  }
+
+  // Render flat form for non-grouped schemas
   return (
-    <JobInputsFormClient
+    <JobInputsFlatForm
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
-      inputSchema={inputSchema}
+      flatInputs={inputs.flatInputs}
       demoValues={demoValues}
-      legal={getAgentLegal(agent)}
+      legal={legal}
       className={className}
     />
   );

@@ -1,5 +1,6 @@
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
+import { ComponentType } from "react";
 import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
 import { JobInputsFormSchemaType } from "@/lib/job-input";
@@ -13,6 +14,7 @@ import {
   EmailInput,
   FileInput,
   HiddenInput,
+  JobInputComponentProps,
   MonthInput,
   MultiselectInput,
   NumberInput,
@@ -30,6 +32,36 @@ import {
   WeekInput,
 } from "./index";
 
+type InputComponent = ComponentType<
+  JobInputComponentProps<InputType, InputFieldSchemaType>
+>;
+
+const INPUT_COMPONENT_REGISTRY: Partial<Record<InputType, InputComponent>> = {
+  [InputType.TEXT]: TextInput as InputComponent,
+  [InputType.STRING]: StringInput as InputComponent,
+  [InputType.TEL]: TelInput as InputComponent,
+  [InputType.EMAIL]: EmailInput as InputComponent,
+  [InputType.URL]: UrlInput as InputComponent,
+  [InputType.SEARCH]: SearchInput as InputComponent,
+  [InputType.PASSWORD]: PasswordInput as InputComponent,
+  [InputType.TEXTAREA]: TextareaInput as InputComponent,
+  [InputType.COLOR]: ColorInput as InputComponent,
+  [InputType.NUMBER]: NumberInput as InputComponent,
+  [InputType.BOOLEAN]: BooleanInput as InputComponent,
+  [InputType.CHECKBOX]: CheckboxInput as InputComponent,
+  [InputType.OPTION]: OptionInput as InputComponent,
+  [InputType.MULTISELECT]: MultiselectInput as InputComponent,
+  [InputType.RADIO_GROUP]: RadioGroupInput as InputComponent,
+  [InputType.FILE]: FileInput as InputComponent,
+  [InputType.DATE]: DateInput as InputComponent,
+  [InputType.DATETIME]: DatetimeInput as InputComponent,
+  [InputType.TIME]: TimeInput as InputComponent,
+  [InputType.MONTH]: MonthInput as InputComponent,
+  [InputType.WEEK]: WeekInput as InputComponent,
+  [InputType.RANGE]: RangeInput as InputComponent,
+  [InputType.HIDDEN]: HiddenInput as InputComponent,
+};
+
 interface InputFieldProps {
   id: string;
   jobInputSchema: InputFieldSchemaType;
@@ -45,217 +77,22 @@ export function InputField({
 }: InputFieldProps) {
   const { type } = jobInputSchema;
 
-  switch (type) {
-    case InputType.TEXT:
-      return (
-        <TextInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.STRING:
-      return (
-        <StringInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.TEL:
-      return (
-        <TelInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.EMAIL:
-      return (
-        <EmailInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.URL:
-      return (
-        <UrlInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.SEARCH:
-      return (
-        <SearchInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.PASSWORD:
-      return (
-        <PasswordInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.TEXTAREA:
-      return (
-        <TextareaInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.COLOR:
-      return (
-        <ColorInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.NUMBER:
-      return (
-        <NumberInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.BOOLEAN:
-      return (
-        <BooleanInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.CHECKBOX:
-      return (
-        <CheckboxInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.OPTION:
-      return (
-        <OptionInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.MULTISELECT:
-      return (
-        <MultiselectInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.RADIO_GROUP:
-      return (
-        <RadioGroupInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.FILE:
-      return (
-        <FileInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.DATE:
-      return (
-        <DateInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.DATETIME:
-      return (
-        <DatetimeInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.TIME:
-      return (
-        <TimeInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.MONTH:
-      return (
-        <MonthInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.WEEK:
-      return (
-        <WeekInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.RANGE:
-      return (
-        <RangeInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.HIDDEN:
-      return (
-        <HiddenInput
-          id={id}
-          field={field}
-          jobInputSchema={jobInputSchema}
-          form={form}
-        />
-      );
-    case InputType.NONE:
-      return null;
-    default:
-      return null;
+  if (type === InputType.NONE) {
+    return null;
   }
+
+  const Component = INPUT_COMPONENT_REGISTRY[type];
+
+  if (!Component) {
+    return null;
+  }
+
+  return (
+    <Component
+      id={id}
+      field={field}
+      jobInputSchema={jobInputSchema}
+      form={form}
+    />
+  );
 }

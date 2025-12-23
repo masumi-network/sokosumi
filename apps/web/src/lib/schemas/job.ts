@@ -196,22 +196,12 @@ const groupedInputSchema = z.object({ input_groups: inputGroupsSchema });
 
 type GroupedInputSchema = z.infer<typeof groupedInputSchema>;
 
-/**
- * Type guard that checks if an input schema uses the grouped format.
- * Grouped schemas contain `input_groups` with multiple input sections,
- * while flat schemas contain a single `input_data` array.
- */
 export function isGroupedSchema(
   schema: InputSchemaSchemaType,
 ): schema is GroupedInputSchema {
   return groupedInputSchema.safeParse(schema).success;
 }
 
-/**
- * Extracts all input fields from a schema, regardless of whether it uses
- * the grouped or flat format. For grouped schemas, flattens all groups
- * into a single array of input fields.
- */
 export function flattenInputs(
   schema: InputSchemaSchemaType,
 ): InputFieldSchemaType[] {
@@ -221,12 +211,6 @@ export function flattenInputs(
   return schema.input_data;
 }
 
-/**
- * Normalizes and validates an input schema from unknown data.
- * Handles both the new object format (`{ input_data: [...] }` or `{ input_groups: [...] }`)
- * and the legacy array format (direct array of input fields).
- * Returns null if validation fails.
- */
 export function normalizeAndValidateInputSchema(
   parsed: unknown,
 ): InputSchemaSchemaType | null {
@@ -235,6 +219,7 @@ export function normalizeAndValidateInputSchema(
     if (result.success) {
       return result.data;
     }
+
     console.error(
       "[normalizeAndValidateInputSchema] Invalid object schema:",
       result.error,
@@ -243,13 +228,11 @@ export function normalizeAndValidateInputSchema(
   }
 
   if (Array.isArray(parsed)) {
-    // First try to validate as array of input groups
     const groupsResult = inputGroupsSchema.safeParse(parsed);
     if (groupsResult.success) {
       return { input_groups: groupsResult.data };
     }
 
-    // Fall back to validating as array of input fields (backward compatibility)
     const fieldsResult = inputFieldsSchema.safeParse(parsed);
     if (fieldsResult.success) {
       return { input_data: fieldsResult.data };

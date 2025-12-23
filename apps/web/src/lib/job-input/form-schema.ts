@@ -1,807 +1,391 @@
 import {
-  InputBooleanSchemaType,
   InputCheckboxSchemaType,
   InputColorSchemaType,
   InputDateSchemaType,
   InputDatetimeSchemaType,
-  InputEmailSchemaType,
   InputFieldSchemaType,
   InputFileSchemaType,
   InputMonthSchemaType,
   InputMultiselectSchemaType,
   InputNumberSchemaType,
   InputOptionSchemaType,
-  InputPasswordSchemaType,
   InputRadioGroupSchemaType,
   InputRangeSchemaType,
-  InputSearchSchemaType,
-  InputStringSchemaType,
   InputTelSchemaType,
   InputTextareaSchemaType,
-  InputTextSchemaType,
   InputTimeSchemaType,
-  InputUrlSchemaType,
   InputWeekSchemaType,
 } from "@sokosumi/masumi/schemas";
-import {
-  InputFormat,
-  InputType,
-  InputValidation,
-} from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 import * as z from "zod";
 
-import { parseISOWeek, parseMonth } from "@/lib/utils";
-
+import {
+  applyColorValidations,
+  applyDateValidations,
+  applyFileValidations,
+  applyMonthValidations,
+  applyNumericValidations,
+  applyOptionValidations,
+  applyRangeValidations,
+  applyStringValidations,
+  applyTelValidations,
+  applyTextareaValidations,
+  applyTimeValidations,
+  applyWeekValidations,
+  isBooleanType,
+  isStringBasedType,
+} from "./form-schema-helpers";
 import { JobInputFormIntlPath } from "./type";
 
 /**
- * Minimum length for required string inputs when no explicit min validation is provided
+ * String-based input types that share common validation logic
  */
-const MIN_REQUIRED_STRING_LENGTH = 1;
+type StringBasedInputSchemaType = {
+  name: string;
+  validations?: Array<{ validation: string; value: string | number }> | null;
+};
 
 /**
- * Validation state tracked while processing string validations
+ * Creates a Zod schema for string-based input types (STRING, TEXT, EMAIL, PASSWORD, URL, SEARCH)
  */
-interface StringValidationState {
-  canBeOptional: boolean;
-  hasMinValidation: boolean;
-  hasFormatValidation: boolean;
-}
-
-interface FinalStringSchemaConfig {
-  name: string;
-  t?: IntlTranslation<JobInputFormIntlPath>;
-}
-
-function buildFinalStringSchema(
-  schema: z.ZodString,
-  state: StringValidationState,
-  config: FinalStringSchemaConfig,
+function makeZodSchemaForStringType(
+  jobInputSchema: StringBasedInputSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
 ): z.ZodTypeAny {
-  const { canBeOptional, hasMinValidation, hasFormatValidation } = state;
-  const { name, t } = config;
+  const { name, validations } = jobInputSchema;
+  const defaultSchema = z.string({
+    error: t?.("String.required", { name }),
+  });
 
-  const needsMinLength =
-    !canBeOptional && !hasMinValidation && !hasFormatValidation;
-  const finalSchema = needsMinLength
-    ? schema.min(MIN_REQUIRED_STRING_LENGTH, {
-        error: t?.("String.required", { name }),
-      })
-    : schema;
-
-  return canBeOptional ? finalSchema.nullish() : finalSchema;
+  return applyStringValidations(
+    defaultSchema,
+    validations as Parameters<typeof applyStringValidations>[1],
+    name,
+    t,
+  );
 }
 
-export const makeZodSchemaFromJobInputSchema = (
-  jobInputSchema: InputFieldSchemaType,
+/**
+ * Creates a Zod schema for textarea input type
+ */
+function makeZodSchemaForTextareaType(
+  jobInputSchema: InputTextareaSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  switch (jobInputSchema.type) {
-    case InputType.NONE:
-      return z.never().nullable();
-    case InputType.STRING:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
-    case InputType.TEXT:
-      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case InputType.TEXTAREA:
-      return makeZodSchemaFromJobInputTextareaSchema(jobInputSchema, t);
-    case InputType.NUMBER:
-      return makeZodSchemaFromJobInputNumberSchema(jobInputSchema, t);
-    case InputType.BOOLEAN:
-      return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
-    case InputType.EMAIL:
-      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case InputType.PASSWORD:
-      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case InputType.TEL:
-      return makeZodSchemaFromJobInputTelSchema(jobInputSchema, t);
-    case InputType.URL:
-      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case InputType.DATE:
-      return makeZodSchemaFromJobInputDateSchema(jobInputSchema, t);
-    case InputType.DATETIME:
-      return makeZodSchemaFromJobInputDatetimeSchema(jobInputSchema, t);
-    case InputType.TIME:
-      return makeZodSchemaFromJobInputTimeSchema(jobInputSchema, t);
-    case InputType.MONTH:
-      return makeZodSchemaFromJobInputMonthSchema(jobInputSchema, t);
-    case InputType.WEEK:
-      return makeZodSchemaFromJobInputWeekSchema(jobInputSchema, t);
-    case InputType.COLOR:
-      return makeZodSchemaFromJobInputColorSchema(jobInputSchema, t);
-    case InputType.RANGE:
-      return makeZodSchemaFromJobInputRangeSchema(jobInputSchema, t);
-    case InputType.FILE:
-      return makeZodSchemaFromJobInputFileSchema(jobInputSchema, t);
-    case InputType.HIDDEN:
-      return z.string().optional();
-    case InputType.SEARCH:
-      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
-    case InputType.CHECKBOX:
-      return makeZodSchemaFromJobInputCheckboxSchema(jobInputSchema, t);
-    case InputType.RADIO_GROUP:
-    case InputType.OPTION:
-    case InputType.MULTISELECT:
-      return makeZodSchemaFromJobInputOptionSchema(jobInputSchema, t);
-  }
-};
-const makeZodSchemaFromJobInputColorSchema = (
-  jobInputColorSchema: InputColorSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputColorSchema;
-  const defaultSchema = z
-    .string({
-      error: t?.("String.required", { name }),
-    })
-    .refine((v) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v), {
-      error: t?.("String.format", { name, value: "color" }),
-    });
-
-  let canBeOptional = false;
-  validations?.forEach(({ validation, value }) => {
-    if (validation === InputValidation.OPTIONAL)
-      canBeOptional = value === "true";
-  });
-
-  return canBeOptional ? defaultSchema.nullish() : defaultSchema;
-};
-
-const makeZodSchemaFromJobInputTextareaSchema = (
-  jobInputTextareaSchema: InputTextareaSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputTextareaSchema;
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
   const defaultSchema = z.string({
     error: t?.("String.required", { name }),
   });
 
-  if (!validations) {
-    return defaultSchema.min(MIN_REQUIRED_STRING_LENGTH, {
-      error: t?.("String.required", { name }),
-    });
-  }
+  return applyTextareaValidations(
+    defaultSchema,
+    validations as Parameters<typeof applyTextareaValidations>[1],
+    name,
+    t,
+  );
+}
 
-  const state: StringValidationState = {
-    canBeOptional: false,
-    hasMinValidation: false,
-    hasFormatValidation: false,
-  };
-
-  const schema = validations.reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        state.hasMinValidation = true;
-        return acc.min(Number(value), {
-          error: t?.("String.min", { name, value }),
-        });
-      case InputValidation.MAX:
-        return acc.max(Number(value), {
-          error: t?.("String.max", { name, value }),
-        });
-      case InputValidation.FORMAT:
-        switch (value) {
-          case InputFormat.NON_EMPTY:
-            state.hasMinValidation = true;
-            return acc.min(MIN_REQUIRED_STRING_LENGTH, {
-              error: t?.("String.format", { name, value }),
-            });
-          default:
-            return acc;
-        }
-      case InputValidation.OPTIONAL:
-        state.canBeOptional = value === "true";
-        return acc;
-    }
-  }, defaultSchema);
-
-  return buildFinalStringSchema(schema, state, { name, t });
-};
-
-const makeZodSchemaFromJobInputTextSchema = (
-  jobInputTextSchema:
-    | InputTextSchemaType
-    | InputPasswordSchemaType
-    | InputEmailSchemaType
-    | InputUrlSchemaType
-    | InputSearchSchemaType,
+/**
+ * Creates a Zod schema for tel input type
+ */
+function makeZodSchemaForTelType(
+  jobInputSchema: InputTelSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputTextSchema;
-  const defaultSchema = z.string({
-    error: t?.("String.required", { name }),
-  });
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
 
-  if (!validations) {
-    return defaultSchema.min(MIN_REQUIRED_STRING_LENGTH, {
-      error: t?.("String.required", { name }),
-    });
-  }
+  return applyTelValidations(
+    validations as Parameters<typeof applyTelValidations>[0],
+    name,
+    t,
+  );
+}
 
-  const state: StringValidationState = {
-    canBeOptional: false,
-    hasMinValidation: false,
-    hasFormatValidation: false,
-  };
-
-  const schema = validations.reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        state.hasMinValidation = true;
-        return acc.min(Number(value), {
-          error: t?.("String.min", { name, value }),
-        });
-      case InputValidation.MAX:
-        return acc.max(Number(value), {
-          error: t?.("String.max", { name, value }),
-        });
-      case InputValidation.FORMAT:
-        switch (value) {
-          case InputFormat.URL:
-            state.hasFormatValidation = true;
-            return acc.url({
-              error: t?.("String.format", { name, value }),
-            });
-          case InputFormat.EMAIL:
-            state.hasFormatValidation = true;
-            return acc.email({
-              error: t?.("String.format", { name, value }),
-            });
-          case InputFormat.NON_EMPTY:
-            state.hasMinValidation = true;
-            return acc.min(MIN_REQUIRED_STRING_LENGTH, {
-              error: t?.("String.format", { name, value }),
-            });
-          default:
-            return acc;
-        }
-      case InputValidation.OPTIONAL:
-        state.canBeOptional = value === "true";
-        return acc;
-    }
-  }, defaultSchema);
-
-  return buildFinalStringSchema(schema, state, { name, t });
-};
-
-const makeZodSchemaFromJobInputStringSchema = (
-  jobInputStringSchema: InputStringSchemaType,
+/**
+ * Creates a Zod schema for number input type
+ */
+function makeZodSchemaForNumberType(
+  jobInputSchema: InputNumberSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputStringSchema;
-  const defaultSchema = z.string({
-    error: t?.("String.required", { name }),
-  });
-
-  if (!validations) {
-    return defaultSchema.min(MIN_REQUIRED_STRING_LENGTH, {
-      error: t?.("String.required", { name }),
-    });
-  }
-
-  const state: StringValidationState = {
-    canBeOptional: false,
-    hasMinValidation: false,
-    hasFormatValidation: false,
-  };
-
-  const schema = validations.reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        state.hasMinValidation = true;
-        return acc.min(Number(value), {
-          error: t?.("String.min", { name, value }),
-        });
-      case InputValidation.MAX:
-        return acc.max(Number(value), {
-          error: t?.("String.max", { name, value }),
-        });
-      case InputValidation.FORMAT:
-        switch (value) {
-          case InputFormat.URL:
-            state.hasFormatValidation = true;
-            return acc.url({
-              error: t?.("String.format", { name, value }),
-            });
-          case InputFormat.EMAIL:
-            state.hasFormatValidation = true;
-            return acc.email({
-              error: t?.("String.format", { name, value }),
-            });
-          case InputFormat.NON_EMPTY:
-            state.hasMinValidation = true;
-            return acc.min(MIN_REQUIRED_STRING_LENGTH, {
-              error: t?.("String.format", { name, value }),
-            });
-          default:
-            return acc;
-        }
-      case InputValidation.OPTIONAL:
-        state.canBeOptional = value === "true";
-        return acc;
-    }
-  }, defaultSchema);
-
-  return buildFinalStringSchema(schema, state, { name, t });
-};
-
-const makeZodSchemaFromJobInputTelSchema = (
-  jobInputTelSchema: InputTelSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputTelSchema;
-  const defaultSchema = z.string({ error: t?.("String.required", { name }) });
-  if (!validations) return defaultSchema;
-
-  let canBeOptional = false;
-  let min: number | undefined;
-  let max: number | undefined;
-
-  const telRegex = /^[+]?\d[\d\s().-]{3,}$/;
-
-  const schema = validations.reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        min = Number(value);
-        return acc;
-      case InputValidation.MAX:
-        max = Number(value);
-        return acc;
-      case InputValidation.FORMAT:
-        // Only one allowed value for tel format for now
-        return acc.regex(telRegex, {
-          error: t?.("String.format", { name, value: "tel" }),
-        });
-      case InputValidation.OPTIONAL:
-        canBeOptional = value === "true";
-        return acc;
-    }
-  }, defaultSchema);
-
-  let withLength = schema;
-  if (typeof min === "number")
-    withLength = withLength.min(min, {
-      error: t?.("String.min", { name, value: String(min) }),
-    });
-  if (typeof max === "number")
-    withLength = withLength.max(max, {
-      error: t?.("String.max", { name, value: String(max) }),
-    });
-
-  return canBeOptional ? withLength.nullish() : withLength;
-};
-
-const makeZodSchemaFromJobInputNumberSchema = (
-  jobInputNumberSchema: InputNumberSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputNumberSchema;
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
   const defaultSchema = z.coerce.number<number>({
     error: t?.("Number.required", { name }),
   });
-  if (!validations) return defaultSchema;
 
-  let canBeOptional: boolean = false;
-  const schema = validations.reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        return acc.min(Number(value), {
-          error: t?.("Number.min", { name, value }),
-        });
-      case InputValidation.MAX:
-        return acc.max(Number(value), {
-          error: t?.("Number.max", { name, value }),
-        });
-      case InputValidation.FORMAT:
-        switch (value) {
-          case InputFormat.INTEGER:
-            return acc.int({
-              error: t?.("Number.format", { name, value }),
-            });
-          default:
-            return acc;
-        }
-      case InputValidation.OPTIONAL:
-        canBeOptional = value === "true";
-        return acc;
-    }
-  }, defaultSchema);
+  return applyNumericValidations(
+    defaultSchema,
+    validations as Parameters<typeof applyNumericValidations>[1],
+    name,
+    t,
+  );
+}
 
-  return canBeOptional ? schema.nullish() : schema;
-};
-
-// For Boolean Schema we can ignore validations
-// because validations are only Required
-// for UI, we will set default to `false`
-// so undefined is not the case
-const makeZodSchemaFromJobInputBooleanSchema = (
-  jobInputSchema: InputBooleanSchemaType,
+/**
+ * Creates a Zod schema for range input type
+ */
+function makeZodSchemaForRangeType(
+  jobInputSchema: InputRangeSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
+): z.ZodTypeAny {
+  const { name, validations, data } = jobInputSchema;
+
+  return applyRangeValidations(
+    validations as Parameters<typeof applyRangeValidations>[0],
+    data?.step,
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for boolean/checkbox input types
+ */
+function makeZodSchemaForBooleanType(
+  jobInputSchema: { name: string },
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodBoolean {
   const { name } = jobInputSchema;
   return z.boolean({
     error: t?.("Boolean.required", { name }),
   });
-};
+}
 
-// Single checkbox behaves like boolean, but allows default in data
-const makeZodSchemaFromJobInputCheckboxSchema = (
-  jobInputSchema: InputCheckboxSchemaType,
+/**
+ * Creates a Zod schema for date input type
+ */
+function makeZodSchemaForDateType(
+  jobInputSchema: InputDateSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name } = jobInputSchema;
-  return z.boolean({
-    error: t?.("Boolean.required", { name }),
-  });
-};
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
 
-const makeZodSchemaFromJobInputOptionSchema = (
-  jobInputOptionSchema:
+  return applyDateValidations(
+    validations as Parameters<typeof applyDateValidations>[0],
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for datetime input type
+ */
+function makeZodSchemaForDatetimeType(
+  jobInputSchema: InputDatetimeSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
+
+  return applyDateValidations(
+    validations as Parameters<typeof applyDateValidations>[0],
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for time input type
+ */
+function makeZodSchemaForTimeType(
+  jobInputSchema: InputTimeSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
+
+  return applyTimeValidations(
+    validations as Parameters<typeof applyTimeValidations>[0],
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for month input type
+ */
+function makeZodSchemaForMonthType(
+  jobInputSchema: InputMonthSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
+
+  return applyMonthValidations(
+    validations as Parameters<typeof applyMonthValidations>[0],
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for week input type
+ */
+function makeZodSchemaForWeekType(
+  jobInputSchema: InputWeekSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
+
+  return applyWeekValidations(
+    validations as Parameters<typeof applyWeekValidations>[0],
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for color input type
+ */
+function makeZodSchemaForColorType(
+  jobInputSchema: InputColorSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
+
+  return applyColorValidations(
+    validations as Parameters<typeof applyColorValidations>[0],
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for file input type
+ */
+function makeZodSchemaForFileType(
+  jobInputSchema: InputFileSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const { name, validations } = jobInputSchema;
+
+  return applyFileValidations(
+    validations as Parameters<typeof applyFileValidations>[0],
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for option-based input types (OPTION, RADIO_GROUP, MULTISELECT)
+ */
+function makeZodSchemaForOptionType(
+  jobInputSchema:
     | InputOptionSchemaType
     | InputMultiselectSchemaType
     | InputRadioGroupSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
+): z.ZodTypeAny {
   const {
     name,
     data: { values },
     validations,
-  } = jobInputOptionSchema;
-  const defaultSchema = z.array(
-    z
-      .int({
-        error: t?.("Option.integer", { name }),
-      })
-      .nonnegative({
-        error: t?.("Option.nonnegative", { name }),
-      })
-      .max(values.length - 1, {
-        error: t?.("Option.invalid", { name, maxValue: values.length - 1 }),
-      }),
-    { error: t?.("Option.required", { name }) },
+  } = jobInputSchema;
+
+  return applyOptionValidations(
+    values.length,
+    validations as Parameters<typeof applyOptionValidations>[1],
+    name,
+    t,
   );
-  if (!validations) return defaultSchema;
+}
 
-  let canBeOptional: boolean = false;
-  const schema = validations.reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        return acc.min(Number(value), {
-          error: t?.("Option.min", { name, value }),
-        });
-      case InputValidation.MAX:
-        return acc.max(Number(value), {
-          error: t?.("Option.max", { name, value }),
-        });
-      case InputValidation.OPTIONAL:
-        canBeOptional = value === "true";
-        return acc;
-    }
-  }, defaultSchema);
-
-  return canBeOptional ? schema.nullish() : schema;
-};
-
-const makeZodSchemaFromJobInputFileSchema = (
-  jobInputFileSchema: InputFileSchemaType,
+/**
+ * Main function to create a Zod schema from a job input schema.
+ * Handles all input types by delegating to specialized schema builders.
+ */
+export const makeZodSchemaFromJobInputSchema = (
+  jobInputSchema: InputFieldSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputFileSchema;
-  let maxSize = 0;
+): z.ZodTypeAny => {
+  const { type } = jobInputSchema;
 
-  const defaultSchema = z.array(z.instanceof(File));
-
-  const schema = validations?.reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        return acc.min(Number(value), {
-          error: t?.("Number.min", { name, value }),
-        });
-      case InputValidation.MAX:
-        return acc.max(Number(value), {
-          error: t?.("Number.max", { name, value }),
-        });
-      case InputValidation.MAX_SIZE:
-        maxSize = Number(value);
-        return acc;
-      case InputValidation.ACCEPT:
-        return acc;
-    }
-  }, defaultSchema);
-
-  return (schema ?? defaultSchema).refine(
-    (files) => {
-      if (!maxSize) return true;
-      return files.every((file) => file.size <= maxSize);
-    },
-    {
-      error: t?.("File.maxSize", { name, value: maxSize ?? "" }),
-    },
-  );
-};
-
-// New builders
-const makeZodSchemaFromJobInputDateSchema = (
-  jobInputSchema: InputDateSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputSchema;
-  let canBeOptional = false;
-  let minDate: Date | undefined;
-  let maxDate: Date | undefined;
-
-  if (validations) {
-    validations.forEach(({ validation, value }) => {
-      if (validation === InputValidation.OPTIONAL)
-        canBeOptional = value === "true";
-      if (validation === InputValidation.MIN)
-        minDate = typeof value === "number" ? new Date(value) : new Date(value);
-      if (validation === InputValidation.MAX)
-        maxDate = typeof value === "number" ? new Date(value) : new Date(value);
-    });
+  // Handle NONE type
+  if (type === InputType.NONE) {
+    return z.never().nullable();
   }
 
-  let schema = z.coerce.date<Date>({ error: t?.("String.required", { name }) });
-  if (minDate)
-    schema = schema.min(minDate, {
-      error: t?.("Date.min", { name, value: minDate.toLocaleDateString() }),
-    });
-  if (maxDate)
-    schema = schema.max(maxDate, {
-      error: t?.("Date.max", { name, value: maxDate.toLocaleDateString() }),
-    });
-  return canBeOptional ? schema.nullish() : schema;
-};
-
-const makeZodSchemaFromJobInputDatetimeSchema = (
-  jobInputSchema: InputDatetimeSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputSchema;
-  let canBeOptional = false;
-  let minDate: Date | undefined;
-  let maxDate: Date | undefined;
-
-  if (validations) {
-    validations.forEach(({ validation, value }) => {
-      if (validation === InputValidation.OPTIONAL)
-        canBeOptional = value === "true";
-      if (validation === InputValidation.MIN)
-        minDate = typeof value === "number" ? new Date(value) : new Date(value);
-      if (validation === InputValidation.MAX)
-        maxDate = typeof value === "number" ? new Date(value) : new Date(value);
-    });
+  // Handle HIDDEN type
+  if (type === InputType.HIDDEN) {
+    return z.string().optional();
   }
 
-  let schema = z.coerce.date<Date>({ error: t?.("String.required", { name }) });
-  if (minDate)
-    schema = schema.min(minDate, {
-      error: t?.("Date.min", { name, value: minDate.toLocaleString() }),
-    });
-  if (maxDate)
-    schema = schema.max(maxDate, {
-      error: t?.("Date.max", { name, value: maxDate.toLocaleString() }),
-    });
-  return canBeOptional ? schema.nullish() : schema;
-};
-
-const makeZodSchemaFromJobInputMonthSchema = (
-  jobInputSchema: InputMonthSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputSchema;
-  let canBeOptional = false;
-  let min: string | undefined;
-  let max: string | undefined;
-
-  validations?.forEach(({ validation, value }) => {
-    if (validation === InputValidation.OPTIONAL)
-      canBeOptional = value === "true";
-    if (validation === InputValidation.MIN) min = String(value);
-    if (validation === InputValidation.MAX) max = String(value);
-  });
-
-  let schema = z
-    .string({ error: t?.("String.required", { name }) })
-    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, {
-      error: t?.("String.format", { name, value: "month" }),
-    })
-    .refine((v) => !!parseMonth(v), {
-      error: t?.("String.format", { name, value: "month" }),
-    });
-
-  const minMonth = parseMonth(min);
-  const maxMonth = parseMonth(max);
-  if (min && minMonth)
-    schema = schema.refine(
-      (v) => {
-        const d = parseMonth(v);
-        return !!d && d.getTime() >= minMonth.getTime();
-      },
-      { error: t?.("Date.min", { name, value: min }) },
+  // Handle boolean types (BOOLEAN, CHECKBOX)
+  if (isBooleanType(type)) {
+    return makeZodSchemaForBooleanType(
+      jobInputSchema as InputCheckboxSchemaType,
+      t,
     );
-  if (max && maxMonth)
-    schema = schema.refine(
-      (v) => {
-        const d = parseMonth(v);
-        return !!d && d.getTime() <= maxMonth.getTime();
-      },
-      { error: t?.("Date.max", { name, value: max }) },
-    );
-
-  return canBeOptional ? schema.nullish() : schema;
-};
-
-const makeZodSchemaFromJobInputWeekSchema = (
-  jobInputSchema: InputWeekSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputSchema;
-  let canBeOptional = false;
-  let min: string | undefined;
-  let max: string | undefined;
-
-  validations?.forEach(({ validation, value }) => {
-    if (validation === InputValidation.OPTIONAL)
-      canBeOptional = value === "true";
-    if (validation === InputValidation.MIN) min = String(value);
-    if (validation === InputValidation.MAX) max = String(value);
-  });
-
-  // HTML week input format: YYYY-Www (ISO week)
-  let schema = z
-    .string({ error: t?.("String.required", { name }) })
-    .regex(/^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/, {
-      error: t?.("String.format", { name, value: "week" }),
-    })
-    .refine((v) => !!parseISOWeek(v), {
-      error: t?.("String.format", { name, value: "week" }),
-    });
-
-  const minWeek = parseISOWeek(min);
-  const maxWeek = parseISOWeek(max);
-  if (min && minWeek)
-    schema = schema.refine(
-      (v) => {
-        const d = parseISOWeek(v);
-        return !!d && d.getTime() >= minWeek.getTime();
-      },
-      { error: t?.("Date.min", { name, value: min }) },
-    );
-  if (max && maxWeek)
-    schema = schema.refine(
-      (v) => {
-        const d = parseISOWeek(v);
-        return !!d && d.getTime() <= maxWeek.getTime();
-      },
-      { error: t?.("Date.max", { name, value: max }) },
-    );
-
-  return canBeOptional ? schema.nullish() : schema;
-};
-
-const makeZodSchemaFromJobInputTimeSchema = (
-  jobInputSchema: InputTimeSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputSchema;
-  let canBeOptional = false;
-  let minMinutes: number | undefined;
-  let maxMinutes: number | undefined;
-  let minHours: string | undefined;
-  let maxHours: string | undefined;
-
-  const toMinutes = (val: string) => {
-    if (/^\d+$/.test(val)) {
-      const minutes = Number(val);
-      return Number.isFinite(minutes) ? minutes : NaN;
-    }
-    const [hh, mm] = val.split(":").map((v) => Number(v));
-    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return NaN;
-    return hh * 60 + mm;
-  };
-
-  const toHHmm = (minutes: number) => {
-    const clamped = Math.max(0, Math.min(23 * 60 + 59, Math.floor(minutes)));
-    const hh = String(Math.floor(clamped / 60)).padStart(2, "0");
-    const mm = String(clamped % 60).padStart(2, "0");
-    return `${hh}:${mm}`;
-  };
-
-  if (validations) {
-    validations.forEach(({ validation, value }) => {
-      if (validation === InputValidation.OPTIONAL)
-        canBeOptional = value === "true";
-      if (validation === InputValidation.MIN) {
-        const v = value.toString();
-        minMinutes = toMinutes(v);
-        minHours = /^\d+$/.test(v) ? toHHmm(Number(v)) : v;
-      }
-      if (validation === InputValidation.MAX) {
-        const v = value.toString();
-        maxMinutes = toMinutes(v);
-        maxHours = /^\d+$/.test(v) ? toHHmm(Number(v)) : v;
-      }
-    });
   }
 
-  let schema = z
-    .string({ error: t?.("String.required", { name }) })
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, {
-      error: t?.("String.format", { name, value: "time" }),
-    });
+  // Handle string-based types (STRING, TEXT, EMAIL, PASSWORD, URL, SEARCH)
+  if (isStringBasedType(type)) {
+    return makeZodSchemaForStringType(jobInputSchema, t);
+  }
 
-  if (typeof minMinutes === "number" && Number.isFinite(minMinutes))
-    schema = schema.refine((v) => toMinutes(v) >= minMinutes!, {
-      error: t?.("Number.min", { name, value: minHours ?? "" }),
-    });
-  if (typeof maxMinutes === "number" && Number.isFinite(maxMinutes))
-    schema = schema.refine((v) => toMinutes(v) <= maxMinutes!, {
-      error: t?.("Number.max", { name, value: maxHours ?? "" }),
-    });
+  // Handle remaining types with specific handlers
+  switch (type) {
+    case InputType.TEXTAREA:
+      return makeZodSchemaForTextareaType(
+        jobInputSchema as InputTextareaSchemaType,
+        t,
+      );
 
-  return canBeOptional ? schema.nullish() : schema;
-};
+    case InputType.TEL:
+      return makeZodSchemaForTelType(jobInputSchema as InputTelSchemaType, t);
 
-const makeZodSchemaFromJobInputRangeSchema = (
-  jobInputSchema: InputRangeSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name, validations } = jobInputSchema;
-  const defaultSchema = z.coerce.number<number>({
-    error: t?.("Number.required", { name }),
-  });
+    case InputType.NUMBER:
+      return makeZodSchemaForNumberType(
+        jobInputSchema as InputNumberSchemaType,
+        t,
+      );
 
-  // Step and default value are in data for Range
-  const step = jobInputSchema.data?.step;
+    case InputType.RANGE:
+      return makeZodSchemaForRangeType(
+        jobInputSchema as InputRangeSchemaType,
+        t,
+      );
 
-  let canBeOptional = false;
+    case InputType.DATE:
+      return makeZodSchemaForDateType(jobInputSchema as InputDateSchemaType, t);
 
-  const schema = (validations ?? []).reduce((acc, cur) => {
-    const { validation, value } = cur;
-    switch (validation) {
-      case InputValidation.MIN:
-        return acc.min(Number(value), {
-          error: t?.("Number.min", { name, value }),
-        });
-      case InputValidation.MAX:
-        return acc.max(Number(value), {
-          error: t?.("Number.max", { name, value }),
-        });
-      case InputValidation.OPTIONAL:
-        canBeOptional = value === "true";
-        return acc;
-      default:
-        return acc;
-    }
-  }, defaultSchema);
+    case InputType.DATETIME:
+      return makeZodSchemaForDatetimeType(
+        jobInputSchema as InputDatetimeSchemaType,
+        t,
+      );
 
-  const withStep =
-    typeof step === "number"
-      ? schema.refine(
-          (v) => {
-            const min = Number(
-              (validations ?? []).find(
-                (v) => v.validation === InputValidation.MIN,
-              )?.value ?? 0,
-            );
-            const num = Number(v);
-            return (
-              Number.isFinite(num) &&
-              Number.isFinite(step!) &&
-              (num - min) % step! === 0
-            );
-          },
-          { error: t?.("Number.format", { name, value: "step" }) },
-        )
-      : schema;
+    case InputType.TIME:
+      return makeZodSchemaForTimeType(jobInputSchema as InputTimeSchemaType, t);
 
-  return canBeOptional ? withStep.nullish() : withStep;
+    case InputType.MONTH:
+      return makeZodSchemaForMonthType(
+        jobInputSchema as InputMonthSchemaType,
+        t,
+      );
+
+    case InputType.WEEK:
+      return makeZodSchemaForWeekType(jobInputSchema as InputWeekSchemaType, t);
+
+    case InputType.COLOR:
+      return makeZodSchemaForColorType(
+        jobInputSchema as InputColorSchemaType,
+        t,
+      );
+
+    case InputType.FILE:
+      return makeZodSchemaForFileType(jobInputSchema as InputFileSchemaType, t);
+
+    case InputType.OPTION:
+    case InputType.RADIO_GROUP:
+    case InputType.MULTISELECT:
+      return makeZodSchemaForOptionType(
+        jobInputSchema as
+          | InputOptionSchemaType
+          | InputRadioGroupSchemaType
+          | InputMultiselectSchemaType,
+        t,
+      );
+
+    default:
+      // Fallback for any unhandled types
+      return z.unknown();
+  }
 };
