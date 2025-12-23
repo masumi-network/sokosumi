@@ -3,7 +3,10 @@
 import type { Blob } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
-import { inputFieldSchema } from "@sokosumi/masumi/schemas";
+import {
+  inputFieldSchema,
+  type InputFieldSchemaType,
+} from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -58,6 +61,19 @@ function isOption(type: InputType): boolean {
     type === InputType.RADIO_GROUP ||
     type === InputType.MULTISELECT
   );
+}
+
+function extractOptionValues(item: InputFieldSchemaType): string[] | undefined {
+  if (
+    item.type === InputType.OPTION ||
+    item.type === InputType.RADIO_GROUP ||
+    item.type === InputType.MULTISELECT
+  ) {
+    if (item.data && "values" in item.data && Array.isArray(item.data.values)) {
+      return item.data.values;
+    }
+  }
+  return undefined;
 }
 
 function renderInputValue(
@@ -161,13 +177,11 @@ function JobDetailsInputsInner({
       .parse(inputSchema)
       .reduce(
         (acc, item) => {
+          const values = extractOptionValues(item);
           acc[item.id] = {
             name: item.name,
             type: item.type,
-            ...(isOption(item.type) &&
-              "data" in item &&
-              item.data &&
-              "values" in item.data && { values: item.data.values }),
+            ...(values && { values }),
           };
           return acc;
         },
