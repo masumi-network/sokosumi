@@ -8,6 +8,7 @@ import prisma from "@sokosumi/database/client";
 import { lockRepository } from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
+import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
@@ -186,7 +187,10 @@ async function syncAllEntries() {
               capabilityName: emptyStringToNull(entry.Capability?.name),
               capabilityVersion: emptyStringToNull(entry.Capability?.version),
               authorName: emptyStringToNull(entry.authorName),
-              authorContactEmail: emptyStringToNull(entry.authorContactEmail),
+              authorContactEmail: z.email().safeParse(entry.authorContactEmail)
+                .success
+                ? entry.authorContactEmail
+                : null,
               authorContactOther: emptyStringToNull(entry.authorContactOther),
               image: emptyStringToNull(entry.image),
               tags: {
