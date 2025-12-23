@@ -69,9 +69,7 @@ function extractOptionValues(item: InputFieldSchemaType): string[] | undefined {
     item.type === InputType.RADIO_GROUP ||
     item.type === InputType.MULTISELECT
   ) {
-    if (item.data && "values" in item.data && Array.isArray(item.data.values)) {
-      return item.data.values;
-    }
+    return item.data.values;
   }
   return undefined;
 }
