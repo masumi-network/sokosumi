@@ -61,7 +61,8 @@ export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
   }, [groups, activeGroupIndex]);
 
   const goToNext = useCallback(() => {
-    if (!isGrouped || isLastGroup) return;
+    if (!isGrouped || isLastGroup || !groups) return;
+    if (activeGroupIndex >= groups.length) return;
 
     setActiveGroupIndex((prev) => {
       const nextIndex = prev + 1;
@@ -70,12 +71,13 @@ export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
       }
       return nextIndex;
     });
-  }, [isGrouped, isLastGroup, maxUnlockedGroupIndex]);
+  }, [isGrouped, isLastGroup, groups, activeGroupIndex, maxUnlockedGroupIndex]);
 
   const goBack = useCallback(() => {
-    if (!isGrouped || isFirstGroup) return;
+    if (!isGrouped || isFirstGroup || !groups) return;
+    if (activeGroupIndex <= 0) return;
     setActiveGroupIndex((prev) => prev - 1);
-  }, [isGrouped, isFirstGroup]);
+  }, [isGrouped, isFirstGroup, groups, activeGroupIndex]);
 
   const goToGroup = useCallback(
     (index: number) => {
