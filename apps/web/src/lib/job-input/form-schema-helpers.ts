@@ -535,7 +535,7 @@ export function applyTelValidations(
   let schema = z.string({ error: t?.("String.required", { name }) });
 
   if (validations) {
-    for (const { validation, value } of validations) {
+    for (const { validation } of validations) {
       if (validation === InputValidation.FORMAT) {
         schema = schema.regex(telRegex, {
           error: t?.("String.format", { name, value: "tel" }),
@@ -648,7 +648,9 @@ export function applyRangeValidations(
         const minVal = parsed.min !== undefined ? Number(parsed.min) : 0;
         const num = Number(v);
         return (
-          Number.isFinite(num) && Number.isFinite(step) && (num - minVal) % step === 0
+          Number.isFinite(num) &&
+          Number.isFinite(step) &&
+          (num - minVal) % step === 0
         );
       },
       { error: t?.("Number.format", { name, value: "step" }) },
@@ -657,4 +659,3 @@ export function applyRangeValidations(
 
   return parsed.canBeOptional ? finalSchema.nullish() : finalSchema;
 }
-
