@@ -203,31 +203,6 @@ function JobDetailsInputsInner({
     }
   }, [rawInputSchema]);
 
-  // let inputsMap: Record<
-  //   string,
-  //   { name: string; type: InputType; values?: string[] }
-  // > = {};
-  // if (Array.isArray(inputSchema)) {
-  //   inputsMap = z
-  //     .array(inputFieldSchema)
-  //     .parse(inputSchema)
-  //     .reduce(
-  //       (acc, item) => {
-  //         const values = extractOptionValues(item);
-  //         acc[item.id] = {
-  //           name: item.name,
-  //           type: item.type,
-  //           ...(values && { values }),
-  //         };
-  //         return acc;
-  //       },
-  //       {} as Record<
-  //         string,
-  //         { name: string; type: InputType; values?: string[] }
-  //       >,
-  //     );
-  // }
-
   return (
     <div className="flex flex-col gap-2">
       {Object.keys(input).length > 0 ? (
