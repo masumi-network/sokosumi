@@ -16,13 +16,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
@@ -88,13 +82,10 @@ export default function JobInputsFormClient({
   const [accumulatedValues, setAccumulatedValues] =
     useState<JobInputsFormSchemaType>({});
 
-  const resetInputs = useRef(inputs.reset);
-  resetInputs.current = inputs.reset;
-
   useEffect(() => {
     setAccumulatedValues({});
-    resetInputs.current();
-  }, [inputSchema]);
+    inputs.reset();
+  }, [inputSchema, inputs]);
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleSelection, setScheduleSelection] =
