@@ -1,10 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
-import { linkRepository } from "@sokosumi/database/repositories";
+import prisma from "@sokosumi/database/client";
+import type { Context } from "hono";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { linksSchema } from "@/schemas/link.schema";
+import { flattenLinkJobId, linkInclude } from "@/types/link";
 
 const route = createRoute({
   method: "get",
@@ -43,11 +45,15 @@ const route = createRoute({
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, async (c) => {
+  app.openapi(route, async (c: Context) => {
     const { authContext } = c.var;
 
-    const links = await linkRepository.getLinksByUserId(authContext.userId);
+    const links = await prisma.link.findMany({
+      where: { userId: authContext.userId },
+      include: linkInclude,
+    });
+    const flattenedLinks = links.map(flattenLinkJobId);
 
-    return ok(c, linksSchema.parse(links));
+    return ok(c, linksSchema.parse(flattenedLinks));
   });
 }
