@@ -127,7 +127,7 @@
     "@hey-api/openapi-ts": "0.89.2",
     "@noble/hashes": "2.0.1",
     "@swc/core": "1.15.7",
-    "@swc/helpers": "0.5.17",
+    "@swc/helpers": "0.5.18",
     "@tailwindcss/postcss": "4.1.18",
     "@tailwindcss/typography": "0.5.19",
     "@testing-library/jest-dom": "6.9.1",
