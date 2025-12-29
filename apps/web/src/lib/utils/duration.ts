@@ -1,13 +1,14 @@
 import humanizeDuration from "humanize-duration";
 
-const ONE_DAY_IN_SECONDS = 24 * 60 * 60;
-const ONE_HOUR_IN_SECONDS = 60 * 60;
-const ONE_MINUTE_IN_SECONDS = 60;
+const ONE_DAY_IN_SECONDS = 24 * 60 * 60 * 1000;
+const ONE_HOUR_IN_SECONDS = 60 * 60 * 1000;
+const ONE_MINUTE_IN_SECONDS = 60 * 1000;
 
 export function formatDuration(
-  ms: number,
+  seconds: number,
   durationIntl?: IntlTranslation<"Library.Duration">,
 ): string {
+  const ms = seconds * 1000;
   const humanizer = humanizeDuration.humanizer({
     language: "intl",
     languages: {
