@@ -50,7 +50,7 @@ interface CommonGroupedFormProps {
 
 interface StandardModeProps extends CommonGroupedFormProps {
   agent: AgentWithCreditsPrice;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   flatInputs: InputFieldSchemaType[];
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
@@ -272,9 +272,11 @@ function JobInputsGroupedFormStandard({
                         )}
                         {isScheduled ? t("schedule") : t("submit")}
                       </div>
-                      {!isDemo && averageExecutionDuration > 0 && (
-                        <span>{`(~${formattedDuration})`}</span>
-                      )}
+                      {!isDemo &&
+                        averageExecutionDuration &&
+                        averageExecutionDuration > 0 && (
+                          <span>{`(~${formattedDuration})`}</span>
+                        )}
                       {!isMobile && (
                         <div className="flex items-center gap-1">
                           {os === "MacOS" ? <Command /> : t("ctrl")}
