@@ -309,7 +309,7 @@ export const agentService = (() => {
      */
     getRandomAvailableAgentData: async (): Promise<{
       agent: AgentWithCreditsPrice;
-      averageExecutionDuration: number;
+      averageExecutionDuration: number | null;
     } | null> => {
       const agents = await agentService.getAvailableAgents();
       if (agents.length === 0) {

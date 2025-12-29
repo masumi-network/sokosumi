@@ -94,28 +94,33 @@ export const jobRepository = {
   },
 
   /**
-   * Retrieves the average execution duration in milliseconds for a specific agent
+   * Retrieves the average execution duration in seconds for a specific agent
    * @param agentId - The unique identifier of the agent
    * @returns Promise containing the average execution duration in seconds
    */
   async getAverageExecutionDurationByAgentId(
     agentId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<number> {
+  ): Promise<number | null> {
     const result = await tx.$queryRaw<
-      [{ avg_duration_seconds: number | null }]
+      [{ avg_duration_seconds: Prisma.Decimal | null }]
     >`
     SELECT 
-      COALESCE(AVG(EXTRACT(EPOCH FROM (js."createdAt" - j."createdAt"))), 0) as avg_duration_seconds
+      COALESCE(AVG(EXTRACT(EPOCH FROM (completed."createdAt" - initiated."createdAt"))), 0) as avg_duration_seconds
     FROM "Job" j
-    INNER JOIN "jobEvent" js ON js."jobId" = j.id
+    INNER JOIN "jobEvent" initiated ON initiated."jobId" = j.id
+      AND initiated."status" = 'INITIATED'::"AgentJobStatus"
+    INNER JOIN "jobEvent" completed ON completed."jobId" = j.id
+      AND completed."status" = 'COMPLETED'::"AgentJobStatus"
     WHERE j."agentId" = ${agentId}
     AND j."jobType" != 'DEMO'
-    AND js."status" = 'COMPLETED'::"AgentJobStatus"
     AND j."createdAt" >= NOW() - INTERVAL '90 days'
   `;
-    const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
-    return averageDurationSeconds * 1000;
+    const averageDurationSeconds = result[0]?.avg_duration_seconds;
+    if (!averageDurationSeconds) {
+      return null;
+    }
+    return averageDurationSeconds.toNumber();
   },
 
   /**

@@ -22,7 +22,7 @@ import { AgentDetailStats, AgentDetailStatsSkeleton } from "./stats";
 interface AgentDetailProps {
   agent: AgentWithCreditsPrice;
   executedJobsCount: number;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   favoriteAgents?: AgentWithRelations[] | undefined;
   ratingStats: AgentRatingStats;
   ratingDistribution?: Record<number, number> | undefined;

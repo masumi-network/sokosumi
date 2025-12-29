@@ -26,7 +26,7 @@ interface CreateJobModalContextType {
   setAgentId: (agentId: string) => void;
   agentWithPrice?: AgentWithCreditsPrice | undefined;
   // average execution duration
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
 }
 
 const initialState: CreateJobModalContextType = {
@@ -45,7 +45,7 @@ const initialState: CreateJobModalContextType = {
   agentId: undefined,
   isDemo: false,
   setAgentId: () => {},
-  averageExecutionDuration: 0,
+  averageExecutionDuration: null,
 };
 
 export const CreateJobModalContext =
@@ -57,7 +57,7 @@ export function CreateJobModalContextProvider({
   children,
 }: {
   agentsWithPrice: AgentWithCreditsPrice[];
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);

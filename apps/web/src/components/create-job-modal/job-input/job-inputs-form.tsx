@@ -15,7 +15,7 @@ import { JobInputsGroupedForm } from "./job-inputs-grouped-form";
 
 interface JobInputsFormProps {
   agent: AgentWithCreditsPrice;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   isDemo: boolean;
   className?: string | undefined;
 }
