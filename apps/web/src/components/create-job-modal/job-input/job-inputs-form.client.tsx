@@ -49,7 +49,7 @@ import JobInput from "./job-input";
 
 interface JobInputsFormClientProps {
   agent: AgentWithCreditsPrice;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   inputDataSchema: InputDataSchemaType;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
@@ -294,9 +294,11 @@ export default function JobInputsFormClient({
                     )}
                     {isScheduled ? t("schedule") : t("submit")}
                   </div>
-                  {!isDemo && averageExecutionDuration > 0 && (
-                    <span>{`(~${formattedDuration})`}</span>
-                  )}
+                  {!isDemo &&
+                    averageExecutionDuration &&
+                    averageExecutionDuration > 0 && (
+                      <span>{`(~${formattedDuration})`}</span>
+                    )}
                   {!isMobile && (
                     <div className="flex items-center gap-1">
                       {os === "MacOS" ? <Command /> : t("ctrl")}
