@@ -1,9 +1,6 @@
 import * as z from "zod";
 
-import {
-  InputType,
-  requiredInputFileValidations,
-} from "../../types/input-types.js";
+import { InputType } from "../../types/input-types.js";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,
@@ -357,32 +354,28 @@ export const inputRangeSchema = z.object({
 
 export type InputRangeSchemaType = z.infer<typeof inputRangeSchema>;
 
-export const inputFileSchema = z.object({
-  id: z.string().min(1),
-  type: z.enum([InputType.FILE]),
-  name: z.string().min(1),
-  data: z.object({
-    description: z.string().nullish(),
-    outputFormat: z.string(),
-  }),
-  validations: z
-    .array(
-      acceptValidationSchema
-        .or(minValidationSchema)
-        .or(maxValidationSchema)
-        .or(maxSizeValidationSchema),
-    )
-    .refine((validations) => {
-      for (const validation of requiredInputFileValidations) {
-        if (
-          validations.find((v) => v.validation === validation) === undefined
-        ) {
-          return false;
-        }
-      }
-      return true;
+export const inputFileSchema = z
+  .object({
+    id: z.string().min(1),
+    type: z.enum([InputType.FILE]),
+    name: z.string().min(1),
+    data: z.object({
+      description: z.string().nullish(),
+      outputFormat: z.string(),
     }),
-});
+    validations: z
+      .array(
+        acceptValidationSchema
+          .or(minValidationSchema)
+          .or(maxValidationSchema)
+          .or(maxSizeValidationSchema),
+      )
+      .nullish(),
+  })
+  .refine((schema) => schema.data.outputFormat === "url", {
+    message: "outputFormat must be 'url'",
+    path: ["data", "outputFormat"],
+  });
 
 export type InputFileSchemaType = z.infer<typeof inputFileSchema>;
 

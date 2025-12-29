@@ -33,7 +33,10 @@ export function FileInput({
   );
 
   const isSubmitting = form.formState.isSubmitting;
-  const maxFiles = Number(transformedValidations.max);
+  const maxFiles = Number(transformedValidations.max ?? 1);
+  const maxSize = transformedValidations.maxSize
+    ? Number(transformedValidations.maxSize)
+    : undefined;
   const currentFiles = (field.value as File[]) ?? [];
 
   return (
@@ -42,8 +45,8 @@ export function FileInput({
       value={currentFiles}
       onValueChange={field.onChange}
       disabled={isSubmitting}
-      accept={transformedValidations.accept.toString()}
-      maxSize={Number(transformedValidations.maxSize)}
+      accept={transformedValidations.accept?.toString()}
+      maxSize={maxSize}
       maxFiles={maxFiles}
       multiple={maxFiles > 1}
       onFileReject={(_, message) => {

@@ -57,10 +57,11 @@ export const transformJobInputSchemaValidations = <
 
 export const transformJobInputFileSchema = (
   jobInputSchema: InputFileSchemaType,
-): Record<InputValidation, string | number> => {
-  const v = transformJobInputSchemaValidations(jobInputSchema) as Record<
-    InputValidation,
-    string | number
-  >;
-  return v;
+): Partial<Record<InputValidation, string | number>> => {
+  const v = transformJobInputSchemaValidations(jobInputSchema);
+  return {
+    [InputValidation.MIN]: 1,
+    [InputValidation.MAX]: 1,
+    ...v,
+  };
 };

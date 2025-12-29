@@ -42,12 +42,3 @@ export enum InputFormat {
   TEL_PATTERN = "tel_pattern",
 }
 
-export const requiredInputFileValidations = [
-  InputValidation.MIN,
-  InputValidation.MAX,
-  InputValidation.MAX_SIZE,
-  InputValidation.ACCEPT,
-] as const;
-
-export type RequiredInputFileValidations =
-  (typeof requiredInputFileValidations)[number];
