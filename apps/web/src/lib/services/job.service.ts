@@ -9,7 +9,6 @@ import {
   JobType,
   JobWithSokosumiStatus,
   NextJobAction,
-  OnChainJobStatus,
   PaidJobWithStatus,
   PricingType,
   Prisma,
@@ -80,10 +79,10 @@ export const jobService = (() => {
     if (job.refundedCreditTransactionId) {
       return null;
     }
-    if (
-      job.purchase?.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-      job.status === SokosumiJobStatus.COMPLETED
-    ) {
+    const agentCompletedEvent = job.events.find(
+      (event) => event.status === AgentJobStatus.COMPLETED,
+    );
+    if (agentCompletedEvent) {
       return null;
     }
     return job.agentJobId;
