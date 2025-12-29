@@ -47,7 +47,7 @@
     "@sokosumi/database": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@sparticuz/chromium-min": "143.0.0",
-    "@tanstack/react-query": "5.90.12",
+    "@tanstack/react-query": "5.90.14",
     "@tanstack/react-table": "8.21.3",
     "@types/unist": "3.0.3",
     "@usersnap/browser": "1.0.2",
