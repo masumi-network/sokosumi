@@ -34,13 +34,13 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: 1.19.7
-        version: 1.19.7(hono@4.11.1)
+        version: 1.19.7(hono@4.11.3)
       '@hono/zod-openapi':
         specifier: 1.2.0
-        version: 1.2.0(hono@4.11.1)(zod@4.2.1)
+        version: 1.2.0(hono@4.11.3)(zod@4.2.1)
       '@scalar/hono-api-reference':
         specifier: 0.9.30
-        version: 0.9.30(hono@4.11.1)
+        version: 0.9.30(hono@4.11.3)
       '@scalar/openapi-to-markdown':
         specifier: 0.3.12
         version: 0.3.12(typescript@5.9.3)
@@ -69,8 +69,8 @@ importers:
         specifier: 17.2.3
         version: 17.2.3
       hono:
-        specifier: 4.11.1
-        version: 4.11.1
+        specifier: 4.11.3
+        version: 4.11.3
       i18next:
         specifier: 25.7.3
         version: 25.7.3(typescript@5.9.3)
@@ -92,7 +92,7 @@ importers:
         version: 24.10.4
       tsup:
         specifier: 8.5.1
-        version: 8.5.1(@swc/core@1.15.7(@swc/helpers@0.5.17))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+        version: 8.5.1(@swc/core@1.15.7(@swc/helpers@0.5.18))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       tsx:
         specifier: 4.21.0
         version: 4.21.0
@@ -152,7 +152,7 @@ importers:
         version: 1.0.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@sentry/nextjs':
         specifier: 10.32.1
-        version: 10.32.1(@opentelemetry/context-async-hooks@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17)))
+        version: 10.32.1(@opentelemetry/context-async-hooks@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18)))
       '@sokosumi/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -163,8 +163,8 @@ importers:
         specifier: 143.0.0
         version: 143.0.0
       '@tanstack/react-query':
-        specifier: 5.90.12
-        version: 5.90.12(react@19.2.3)
+        specifier: 5.90.14
+        version: 5.90.14(react@19.2.3)
       '@tanstack/react-table':
         specifier: 8.21.3
         version: 8.21.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -263,7 +263,7 @@ importers:
         version: 16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next-intl:
         specifier: 4.6.1
-        version: 4.6.1(@swc/helpers@0.5.17)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
+        version: 4.6.1(@swc/helpers@0.5.18)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
       next-themes:
         specifier: 0.4.6
         version: 0.4.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -295,8 +295,8 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(react@19.2.3)
       react-error-boundary:
-        specifier: 6.0.0
-        version: 6.0.0(react@19.2.3)
+        specifier: 6.0.1
+        version: 6.0.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-fast-marquee:
         specifier: 1.6.5
         version: 1.6.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -316,8 +316,8 @@ importers:
         specifier: 2.0.18
         version: 2.0.18(react@19.2.3)
       react-resizable-panels:
-        specifier: 4.0.15
-        version: 4.0.15(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: 4.0.16
+        version: 4.0.16(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-social-login-buttons:
         specifier: 4.1.1
         version: 4.1.1(react@19.2.3)
@@ -399,10 +399,10 @@ importers:
         version: 2.0.1
       '@swc/core':
         specifier: 1.15.7
-        version: 1.15.7(@swc/helpers@0.5.17)
+        version: 1.15.7(@swc/helpers@0.5.18)
       '@swc/helpers':
-        specifier: 0.5.17
-        version: 0.5.17
+        specifier: 0.5.18
+        version: 0.5.18
       '@tailwindcss/postcss':
         specifier: 4.1.18
         version: 4.1.18
@@ -3247,8 +3247,8 @@ packages:
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
 
-  '@swc/helpers@0.5.17':
-    resolution: {integrity: sha512-5IKx/Y13RsYd+sauPb2x+U/xZikHjolzfuDgTAl/Tdf3Q8rslRvC19NKDLgAJQ6wsqADk10ntlv08nPFw/gO/A==}
+  '@swc/helpers@0.5.18':
+    resolution: {integrity: sha512-TXTnIcNJQEKwThMMqBXsZ4VGAza6bvN4pa41Rkqoio6QBKMvo+5lexeTMScGCIxtzgQJzElcvIltani+adC5PQ==}
 
   '@swc/types@0.1.25':
     resolution: {integrity: sha512-iAoY/qRhNH8a/hBvm3zKj9qQ4oc2+3w1unPJa2XvTK3XjeLXtzcCingVPw/9e5mn1+0yPqxcBGp9Jf0pkfMb1g==}
@@ -3350,11 +3350,11 @@ packages:
     peerDependencies:
       tailwindcss: '>=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1'
 
-  '@tanstack/query-core@5.90.12':
-    resolution: {integrity: sha512-T1/8t5DhV/SisWjDnaiU2drl6ySvsHj1bHBCWNXd+/T+Hh1cf6JodyEYMd5sgwm+b/mETT4EV3H+zCVczCU5hg==}
+  '@tanstack/query-core@5.90.14':
+    resolution: {integrity: sha512-/6di2yNI+YxpVrH9Ig74Q+puKnkCE+D0LGyagJEGndJHJc6ahkcc/UqirHKy8zCYE/N9KLggxcQvzYCsUBWgdw==}
 
-  '@tanstack/react-query@5.90.12':
-    resolution: {integrity: sha512-graRZspg7EoEaw0a8faiUASCyJrqjKPdqJ9EwuDRUF9mEYJ1YPczI9H+/agJ0mOJkPCJDk0lsz5QTrLZ/jQ2rg==}
+  '@tanstack/react-query@5.90.14':
+    resolution: {integrity: sha512-JAMuULej09hrZ14W9+mxoRZ44rR2BuZfCd6oKTQVNfynQxCN3muH3jh3W46gqZNw5ZqY0ZVaS43Imb3dMr6tgw==}
     peerDependencies:
       react: ^18 || ^19
 
@@ -5713,8 +5713,8 @@ packages:
     resolution: {integrity: sha512-BIdolzGpDO9MQ4nu3AUuDwHZZ+KViNm+EZ75Ae55eMXMqLVhDFqEMXxtUe9Qh8hjL+pIna/frs2j6Y2yD5Ua/g==}
     engines: {node: '>=16.9.0'}
 
-  hono@4.11.1:
-    resolution: {integrity: sha512-KsFcH0xxHes0J4zaQgWbYwmz3UPOOskdqZmItstUG93+Wk1ePBLkLGwbP9zlmh1BFUiL8Qp+Xfu9P7feJWpGNg==}
+  hono@4.11.3:
+    resolution: {integrity: sha512-PmQi306+M/ct/m5s66Hrg+adPnkD5jiO6IjA7WhWw0gSBSo1EcRegwuI1deZ+wd5pzCGynCcn2DprnE4/yEV4w==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -7451,10 +7451,11 @@ packages:
     peerDependencies:
       react: ^19.2.3
 
-  react-error-boundary@6.0.0:
-    resolution: {integrity: sha512-gdlJjD7NWr0IfkPlaREN2d9uUZUlksrfOx7SX62VRerwXbMY6ftGCIZua1VG1aXFNOimhISsTq+Owp725b9SiA==}
+  react-error-boundary@6.0.1:
+    resolution: {integrity: sha512-zArgQpjJUN1ZLMEKWtifxQweW3yfvwL5j2nh3Pesze1qG6r5oCDMy/TA97bUF01wy4xCeeL4/pd8GHmvEsP3Bg==}
     peerDependencies:
-      react: '>=16.13.1'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
 
   react-fast-marquee@1.6.5:
     resolution: {integrity: sha512-swDnPqrT2XISAih0o74zQVE2wQJFMvkx+9VZXYYNSLb/CUcAzU9pNj637Ar2+hyRw6b4tP6xh4GQZip2ZCpQpg==}
@@ -7519,8 +7520,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@4.0.15:
-    resolution: {integrity: sha512-+ygM/EI2h4Qc/cl2fasQ2qwOgNfpQwXLNTU5PqhhPerliX+wnbf7ejcqran7lz3BqABzjddf0pJ3j3G/+A0v9Q==}
+  react-resizable-panels@4.0.16:
+    resolution: {integrity: sha512-xhU02yogk3lD1f353oNAGm419pov2imCtxegHJN6FclXtGrfLglkl/h4K/RBHBxsGtR79lp12Zmz3Bbi/BoHpA==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -9209,21 +9210,21 @@ snapshots:
     dependencies:
       hono: 4.10.6
 
-  '@hono/node-server@1.19.7(hono@4.11.1)':
+  '@hono/node-server@1.19.7(hono@4.11.3)':
     dependencies:
-      hono: 4.11.1
+      hono: 4.11.3
 
-  '@hono/zod-openapi@1.2.0(hono@4.11.1)(zod@4.2.1)':
+  '@hono/zod-openapi@1.2.0(hono@4.11.3)(zod@4.2.1)':
     dependencies:
       '@asteasolutions/zod-to-openapi': 8.2.0(zod@4.2.1)
-      '@hono/zod-validator': 0.7.6(hono@4.11.1)(zod@4.2.1)
-      hono: 4.11.1
+      '@hono/zod-validator': 0.7.6(hono@4.11.3)(zod@4.2.1)
+      hono: 4.11.3
       openapi3-ts: 4.5.0
       zod: 4.2.1
 
-  '@hono/zod-validator@0.7.6(hono@4.11.1)(zod@4.2.1)':
+  '@hono/zod-validator@0.7.6(hono@4.11.3)(zod@4.2.1)':
     dependencies:
-      hono: 4.11.1
+      hono: 4.11.3
       zod: 4.2.1
 
   '@hookform/resolvers@5.2.2(react-hook-form@7.69.0(react@19.2.3))':
@@ -9353,11 +9354,11 @@ snapshots:
 
   '@internationalized/date@3.10.1':
     dependencies:
-      '@swc/helpers': 0.5.17
+      '@swc/helpers': 0.5.18
 
   '@internationalized/number@3.6.5':
     dependencies:
-      '@swc/helpers': 0.5.17
+      '@swc/helpers': 0.5.18
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -11138,10 +11139,10 @@ snapshots:
 
   '@scalar/helpers@0.2.4': {}
 
-  '@scalar/hono-api-reference@0.9.30(hono@4.11.1)':
+  '@scalar/hono-api-reference@0.9.30(hono@4.11.3)':
     dependencies:
       '@scalar/core': 0.3.28
-      hono: 4.11.1
+      hono: 4.11.3
 
   '@scalar/icons@0.5.2(typescript@5.9.3)':
     dependencies:
@@ -11379,7 +11380,7 @@ snapshots:
 
   '@sentry/core@10.32.1': {}
 
-  '@sentry/nextjs@10.32.1(@opentelemetry/context-async-hooks@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17)))':
+  '@sentry/nextjs@10.32.1(@opentelemetry/context-async-hooks@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18)))':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/semantic-conventions': 1.38.0
@@ -11391,7 +11392,7 @@ snapshots:
       '@sentry/opentelemetry': 10.32.1(@opentelemetry/api@1.9.0)(@opentelemetry/context-async-hooks@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/semantic-conventions@1.38.0)
       '@sentry/react': 10.32.1(react@19.2.3)
       '@sentry/vercel-edge': 10.32.1
-      '@sentry/webpack-plugin': 4.6.1(encoding@0.1.13)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17)))
+      '@sentry/webpack-plugin': 4.6.1(encoding@0.1.13)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18)))
       next: 16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       resolve: 1.22.8
       rollup: 4.54.0
@@ -11491,12 +11492,12 @@ snapshots:
       '@opentelemetry/resources': 2.2.0(@opentelemetry/api@1.9.0)
       '@sentry/core': 10.32.1
 
-  '@sentry/webpack-plugin@4.6.1(encoding@0.1.13)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17)))':
+  '@sentry/webpack-plugin@4.6.1(encoding@0.1.13)(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18)))':
     dependencies:
       '@sentry/bundler-plugin-core': 4.6.1(encoding@0.1.13)
       unplugin: 1.0.1
       uuid: 9.0.1
-      webpack: 5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17))
+      webpack: 5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18))
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -11565,7 +11566,7 @@ snapshots:
   '@swc/core-win32-x64-msvc@1.15.7':
     optional: true
 
-  '@swc/core@1.15.7(@swc/helpers@0.5.17)':
+  '@swc/core@1.15.7(@swc/helpers@0.5.18)':
     dependencies:
       '@swc/counter': 0.1.3
       '@swc/types': 0.1.25
@@ -11580,7 +11581,7 @@ snapshots:
       '@swc/core-win32-arm64-msvc': 1.15.7
       '@swc/core-win32-ia32-msvc': 1.15.7
       '@swc/core-win32-x64-msvc': 1.15.7
-      '@swc/helpers': 0.5.17
+      '@swc/helpers': 0.5.18
 
   '@swc/counter@0.1.3': {}
 
@@ -11588,7 +11589,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@swc/helpers@0.5.17':
+  '@swc/helpers@0.5.18':
     dependencies:
       tslib: 2.8.1
 
@@ -11674,11 +11675,11 @@ snapshots:
       postcss-selector-parser: 6.0.10
       tailwindcss: 4.1.18
 
-  '@tanstack/query-core@5.90.12': {}
+  '@tanstack/query-core@5.90.14': {}
 
-  '@tanstack/react-query@5.90.12(react@19.2.3)':
+  '@tanstack/react-query@5.90.14(react@19.2.3)':
     dependencies:
-      '@tanstack/query-core': 5.90.12
+      '@tanstack/query-core': 5.90.14
       react: 19.2.3
 
   '@tanstack/react-table@8.21.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
@@ -14397,7 +14398,7 @@ snapshots:
 
   hono@4.10.6: {}
 
-  hono@4.11.1: {}
+  hono@4.11.3: {}
 
   html-escaper@2.0.2: {}
 
@@ -15886,11 +15887,11 @@ snapshots:
 
   next-intl-swc-plugin-extractor@4.6.1: {}
 
-  next-intl@4.6.1(@swc/helpers@0.5.17)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(typescript@5.9.3):
+  next-intl@4.6.1(@swc/helpers@0.5.18)(next@16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(typescript@5.9.3):
     dependencies:
       '@formatjs/intl-localematcher': 0.5.10
       '@parcel/watcher': 2.5.1
-      '@swc/core': 1.15.7(@swc/helpers@0.5.17)
+      '@swc/core': 1.15.7(@swc/helpers@0.5.18)
       negotiator: 1.0.0
       next: 16.1.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next-intl-swc-plugin-extractor: 4.6.1
@@ -16551,10 +16552,10 @@ snapshots:
       react: 19.2.3
       scheduler: 0.27.0
 
-  react-error-boundary@6.0.0(react@19.2.3):
+  react-error-boundary@6.0.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
-      '@babel/runtime': 7.28.4
       react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
 
   react-fast-marquee@1.6.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
@@ -16625,7 +16626,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.7
 
-  react-resizable-panels@4.0.15(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  react-resizable-panels@4.0.16(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
@@ -17366,16 +17367,16 @@ snapshots:
       - bare-abort-controller
       - react-native-b4a
 
-  terser-webpack-plugin@5.3.16(@swc/core@1.15.7(@swc/helpers@0.5.17))(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17))):
+  terser-webpack-plugin@5.3.16(@swc/core@1.15.7(@swc/helpers@0.5.18))(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18))):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2
       terser: 5.44.1
-      webpack: 5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17))
+      webpack: 5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18))
     optionalDependencies:
-      '@swc/core': 1.15.7(@swc/helpers@0.5.17)
+      '@swc/core': 1.15.7(@swc/helpers@0.5.18)
 
   terser@5.44.1:
     dependencies:
@@ -17478,7 +17479,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tsup@8.5.1(@swc/core@1.15.7(@swc/helpers@0.5.17))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2):
+  tsup@8.5.1(@swc/core@1.15.7(@swc/helpers@0.5.18))(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.27.2)
       cac: 6.7.14
@@ -17498,7 +17499,7 @@ snapshots:
       tinyglobby: 0.2.15
       tree-kill: 1.2.2
     optionalDependencies:
-      '@swc/core': 1.15.7(@swc/helpers@0.5.17)
+      '@swc/core': 1.15.7(@swc/helpers@0.5.18)
       postcss: 8.5.6
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -17833,7 +17834,7 @@ snapshots:
 
   webpack-virtual-modules@0.5.0: {}
 
-  webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17)):
+  webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18)):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -17857,7 +17858,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.0
-      terser-webpack-plugin: 5.3.16(@swc/core@1.15.7(@swc/helpers@0.5.17))(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.17)))
+      terser-webpack-plugin: 5.3.16(@swc/core@1.15.7(@swc/helpers@0.5.18))(webpack@5.104.1(@swc/core@1.15.7(@swc/helpers@0.5.18)))
       watchpack: 2.5.0
       webpack-sources: 3.3.3
     transitivePeerDependencies:
