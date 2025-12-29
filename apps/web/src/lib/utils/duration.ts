@@ -1,8 +1,8 @@
 import humanizeDuration from "humanize-duration";
 
-const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
-const ONE_HOUR_IN_MS = 60 * 60 * 1000;
-const ONE_MINUTE_IN_MS = 60 * 1000;
+const ONE_DAY_IN_SECONDS = 24 * 60 * 60;
+const ONE_HOUR_IN_SECONDS = 60 * 60;
+const ONE_MINUTE_IN_SECONDS = 60;
 
 export function formatDuration(
   ms: number,
@@ -22,15 +22,15 @@ export function formatDuration(
     },
   });
 
-  if (ms > ONE_DAY_IN_MS) {
+  if (ms > ONE_DAY_IN_SECONDS) {
     return humanizer(ms, { round: true, units: ["d"] });
   }
 
-  if (ms > ONE_HOUR_IN_MS) {
+  if (ms > ONE_HOUR_IN_SECONDS) {
     return humanizer(ms, { round: true, units: ["h"] });
   }
 
-  if (ms > ONE_MINUTE_IN_MS) {
+  if (ms > ONE_MINUTE_IN_SECONDS) {
     return humanizer(ms, { round: true, units: ["m"] });
   }
 
