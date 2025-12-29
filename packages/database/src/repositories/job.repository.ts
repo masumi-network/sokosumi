@@ -94,7 +94,7 @@ export const jobRepository = {
   },
 
   /**
-   * Retrieves the average execution duration in milliseconds for a specific agent
+   * Retrieves the average execution duration in seconds for a specific agent
    * @param agentId - The unique identifier of the agent
    * @returns Promise containing the average execution duration in seconds
    */
@@ -115,7 +115,7 @@ export const jobRepository = {
     AND j."createdAt" >= NOW() - INTERVAL '90 days'
   `;
     const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
-    return averageDurationSeconds * 1000;
+    return averageDurationSeconds;
   },
 
   /**
