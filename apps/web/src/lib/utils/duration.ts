@@ -5,9 +5,12 @@ const ONE_HOUR_IN_SECONDS = 60 * 60 * 1000;
 const ONE_MINUTE_IN_SECONDS = 60 * 1000;
 
 export function formatDuration(
-  seconds: number,
+  seconds: number | null,
   durationIntl?: IntlTranslation<"Library.Duration">,
-): string {
+): string | null {
+  if (seconds === null) {
+    return null;
+  }
   const ms = seconds * 1000;
   const humanizer = humanizeDuration.humanizer({
     language: "intl",

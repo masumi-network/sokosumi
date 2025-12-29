@@ -263,7 +263,7 @@ export const calculateAverageExecutionTime = async (
     cutoffDate,
   );
   const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
-  return averageDurationSeconds ? Number(averageDurationSeconds) : null;
+  return averageDurationSeconds ? averageDurationSeconds.toNumber() : null;
 };
 
 /**
@@ -334,7 +334,7 @@ export const calculateAverageExecutionTimes = async (
     averagesMap.set(
       average.agent_id,
       average.avg_duration_seconds
-        ? Number(average.avg_duration_seconds)
+        ? average.avg_duration_seconds.toNumber()
         : null,
     );
   }

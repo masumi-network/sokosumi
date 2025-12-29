@@ -12,7 +12,7 @@ function AgentDetailStats({
   ratingStats,
 }: {
   executedJobsCount: number;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   ratingStats?: AgentRatingStats;
 }) {
   const t = useTranslations("Components.Agents.AgentDetail.Stats");
@@ -23,7 +23,7 @@ function AgentDetailStats({
 
   const hasRating = ratingStats && ratingStats.totalRatings > 0;
   const gridCols = hasRating
-    ? averageExecutionDuration > 0
+    ? averageExecutionDuration && averageExecutionDuration > 0
       ? "grid-cols-3"
       : "grid-cols-2"
     : "grid-cols-2";
@@ -41,7 +41,7 @@ function AgentDetailStats({
           })}
         </p>
       </div>
-      {averageExecutionDuration > 0 && (
+      {averageExecutionDuration && averageExecutionDuration > 0 && (
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
             <Clock size={16} />
