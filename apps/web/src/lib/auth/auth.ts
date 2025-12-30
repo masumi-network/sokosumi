@@ -344,7 +344,6 @@ async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
 }): Promise<Partial<User>> {
-  console.log("mapProfileToUserInner", profile);
   const profilePicture = profile.picture;
 
   if (!profilePicture) {
@@ -355,14 +354,12 @@ async function mapProfileToUserInner(profile: {
   }
 
   if (z.httpUrl().safeParse(profilePicture).success) {
-    console.log("mapProfileToUserInner: httpUrl", profilePicture);
     return {
       name: profile.name,
       image: profilePicture,
     };
   } else {
     const imageURL = await uploadProfileImage(profilePicture);
-    console.log("mapProfileToUserInner: uploadProfileImage", imageURL);
     return {
       name: profile.name,
       image: imageURL,
