@@ -40,3 +40,7 @@ export enum InputFormat {
   NON_EMPTY = "nonempty",
   TEL_PATTERN = "tel_pattern",
 }
+
+export enum OutputFormat {
+  URL = "url",
+}

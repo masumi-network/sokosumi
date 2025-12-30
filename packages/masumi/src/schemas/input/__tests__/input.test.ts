@@ -2,6 +2,7 @@ import {
   InputFormat,
   InputType,
   InputValidation,
+  OutputFormat,
 } from "../../../types/input-types.js";
 import {
   InputCheckboxSchemaType,
@@ -21,7 +22,6 @@ import {
   InputTimeSchemaType,
   InputUrlSchemaType,
   InputWeekSchemaType,
-  OutputFormat,
 } from "../input.schema.js";
 
 describe("inputDataSchema", () => {

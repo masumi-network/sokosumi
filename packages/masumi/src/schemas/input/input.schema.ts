@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { InputType } from "../../types/input-types.js";
+import { InputType, OutputFormat } from "../../types/input-types.js";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,
@@ -352,10 +352,6 @@ export const inputRangeSchema = z.object({
 });
 
 export type InputRangeSchemaType = z.infer<typeof inputRangeSchema>;
-
-export enum OutputFormat {
-  URL = "url",
-}
 
 export const inputFileSchema = z.object({
   id: z.string().min(1),
