@@ -365,7 +365,8 @@ export const inputFileSchema = z
     }),
     validations: z
       .array(
-        acceptValidationSchema
+        optionalValidationSchema
+          .or(acceptValidationSchema)
           .or(minValidationSchema)
           .or(maxValidationSchema)
           .or(maxSizeValidationSchema),

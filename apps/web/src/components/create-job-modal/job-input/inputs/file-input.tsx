@@ -4,7 +4,7 @@ import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
-import { transformJobInputFileSchema } from "@/components/create-job-modal/job-input/util";
+import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
 import { Button } from "@/components/ui/button";
 import {
   FileUpload,
@@ -28,7 +28,7 @@ export function FileInput({
   const t = useTranslations("Library.JobInput.Form");
 
   const transformedValidations = useMemo(
-    () => transformJobInputFileSchema(jobInputSchema),
+    () => transformJobInputSchemaValidations(jobInputSchema),
     [jobInputSchema],
   );
 

@@ -415,44 +415,38 @@ const makeZodSchemaFromJobInputFileSchema = (
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputFileSchema;
-  let maxSize = 0;
-  let minFiles = 1;
+  let canBeOptional = false;
+  let minFiles: number | undefined;
   let maxFiles = 1;
 
   const defaultSchema = z.array(z.instanceof(File));
 
   validations?.forEach(({ validation, value }) => {
     switch (validation) {
+      case InputValidation.OPTIONAL:
+        canBeOptional = value === "true";
+        break;
       case InputValidation.MIN:
         minFiles = Number(value);
         break;
       case InputValidation.MAX:
         maxFiles = Number(value);
         break;
-      case InputValidation.MAX_SIZE:
-        maxSize = Number(value);
-        break;
     }
   });
 
-  let schema = defaultSchema
-    .min(minFiles, {
-      error: t?.("Number.min", { name, value: minFiles }),
+  // When optional and no explicit MIN, allow empty array (0 files)
+  const effectiveMinFiles = minFiles ?? (canBeOptional ? 0 : 1);
+
+  const schema = defaultSchema
+    .min(effectiveMinFiles, {
+      error: t?.("Number.min", { name, value: effectiveMinFiles }),
     })
     .max(maxFiles, {
       error: t?.("Number.max", { name, value: maxFiles }),
     });
 
-  if (maxSize > 0) {
-    schema = schema.refine(
-      (files) => files.every((file) => file.size <= maxSize),
-      {
-        error: t?.("File.maxSize", { name, value: maxSize }),
-      },
-    ) as typeof schema;
-  }
-
-  return schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 // New builders

@@ -1,6 +1,5 @@
 import {
   InputFieldSchemaType,
-  InputFileSchemaType,
   InputOptionSchemaType,
   ValidationSchemaType,
 } from "@sokosumi/masumi/schemas";
@@ -53,15 +52,4 @@ export const transformJobInputSchemaValidations = <
     },
     {} as Partial<Record<InputValidation, string | number>>,
   );
-};
-
-export const transformJobInputFileSchema = (
-  jobInputSchema: InputFileSchemaType,
-): Partial<Record<InputValidation, string | number>> => {
-  const v = transformJobInputSchemaValidations(jobInputSchema);
-  return {
-    [InputValidation.MIN]: 1,
-    [InputValidation.MAX]: 1,
-    ...v,
-  };
 };
