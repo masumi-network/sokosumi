@@ -749,7 +749,6 @@ describe("inputDataSchema", () => {
             validations: [
               { validation: InputValidation.MIN, value: 1 },
               { validation: InputValidation.MAX, value: 3 },
-              { validation: InputValidation.MAX_SIZE, value: 10485760 },
               { validation: InputValidation.ACCEPT, value: "image/*,.pdf" },
             ],
           },

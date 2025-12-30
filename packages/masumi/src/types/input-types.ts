@@ -29,7 +29,6 @@ export enum InputValidation {
   MAX = "max",
   FORMAT = "format",
   OPTIONAL = "optional",
-  MAX_SIZE = "maxSize",
   ACCEPT = "accept",
   STEP = "step",
 }
@@ -41,4 +40,3 @@ export enum InputFormat {
   NON_EMPTY = "nonempty",
   TEL_PATTERN = "tel_pattern",
 }
-

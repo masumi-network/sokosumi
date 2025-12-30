@@ -8,7 +8,6 @@ import {
   formatNonEmptyValidationSchema,
   formatTelPatternValidationSchema,
   formatUrlValidationSchema,
-  maxSizeValidationSchema,
   maxValidationSchema,
   minValidationSchema,
   optionalValidationSchema,
@@ -368,8 +367,7 @@ export const inputFileSchema = z
         optionalValidationSchema
           .or(acceptValidationSchema)
           .or(minValidationSchema)
-          .or(maxValidationSchema)
-          .or(maxSizeValidationSchema),
+          .or(maxValidationSchema),
       )
       .nullish(),
   })

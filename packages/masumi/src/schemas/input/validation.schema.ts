@@ -59,11 +59,6 @@ export const formatTelPatternValidationSchema = z.object({
   value: formatTelPatternValidationValueSchema,
 });
 
-export const maxSizeValidationSchema = z.object({
-  validation: z.enum([InputValidation.MAX_SIZE]),
-  value: z.coerce.number().int().min(0),
-});
-
 export const stepValidationSchema = z.object({
   validation: z.enum([InputValidation.STEP]),
   value: z.coerce.number().min(0),
@@ -78,7 +73,6 @@ export const validationSchema = optionalValidationSchema
   .or(formatNonEmptyValidationSchema)
   .or(acceptValidationSchema)
   .or(formatTelPatternValidationSchema)
-  .or(maxSizeValidationSchema)
   .or(stepValidationSchema);
 
 export type ValidationSchemaType = z.infer<typeof validationSchema>;
