@@ -716,8 +716,8 @@ model Blob {
   userId String
   user   User   @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
 
-  eventId String?
-  event   JobEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, sourceUrl]) // For deduplication checks
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
