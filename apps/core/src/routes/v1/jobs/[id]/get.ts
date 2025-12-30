@@ -83,10 +83,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return flattenJob(job);
     });
 
-    if (!job) {
-      throw notFound("Job not found");
-    }
-
     return ok(c, jobSchema.parse(job));
   });
 }
