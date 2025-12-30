@@ -353,28 +353,27 @@ export const inputRangeSchema = z.object({
 
 export type InputRangeSchemaType = z.infer<typeof inputRangeSchema>;
 
-export const inputFileSchema = z
-  .object({
-    id: z.string().min(1),
-    type: z.enum([InputType.FILE]),
-    name: z.string().min(1),
-    data: z.object({
-      description: z.string().nullish(),
-      outputFormat: z.string(),
-    }),
-    validations: z
-      .array(
-        optionalValidationSchema
-          .or(acceptValidationSchema)
-          .or(minValidationSchema)
-          .or(maxValidationSchema),
-      )
-      .nullish(),
-  })
-  .refine((schema) => schema.data.outputFormat === "url", {
-    message: "outputFormat must be 'url'",
-    path: ["data", "outputFormat"],
-  });
+export enum OutputFormat {
+  URL = "url",
+}
+
+export const inputFileSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum([InputType.FILE]),
+  name: z.string().min(1),
+  data: z.object({
+    description: z.string().nullish(),
+    outputFormat: z.enum(OutputFormat),
+  }),
+  validations: z
+    .array(
+      optionalValidationSchema
+        .or(acceptValidationSchema)
+        .or(minValidationSchema)
+        .or(maxValidationSchema),
+    )
+    .nullish(),
+});
 
 export type InputFileSchemaType = z.infer<typeof inputFileSchema>;
 
