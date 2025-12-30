@@ -1,8 +1,5 @@
 import * as Sentry from "@sentry/node";
-import {
-  organizationRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
+import prisma from "@sokosumi/database/client";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client.js";
@@ -36,7 +33,10 @@ export const stripeService = (() => {
         );
 
         // Save customer ID to database
-        await userRepository.setUserStripeCustomerId(userId, customer.id);
+        await prisma.user.update({
+          where: { id: userId },
+          data: { stripeCustomerId: customer.id },
+        });
 
         console.log(
           `✅ Created Stripe customer ${customer.id} for user ${userId}`,
@@ -91,10 +91,10 @@ export const stripeService = (() => {
         );
 
         // Save customer ID to database
-        await organizationRepository.setOrganizationStripeCustomerId(
-          organizationId,
-          customer.id,
-        );
+        await prisma.organization.update({
+          where: { id: organizationId },
+          data: { stripeCustomerId: customer.id },
+        });
 
         console.log(
           `✅ Created Stripe customer ${customer.id} for organization ${organizationId}`,
