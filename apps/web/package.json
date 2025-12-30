@@ -42,7 +42,7 @@
     "@m2d/table": "0.1.1",
     "@next/third-parties": "16.1.1",
     "@radix-ui/react-slot": "1.2.4",
-    "@react-email/components": "1.0.2",
+    "@react-email/components": "1.0.3",
     "@sentry/nextjs": "10.32.1",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
