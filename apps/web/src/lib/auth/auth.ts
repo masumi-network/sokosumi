@@ -3,21 +3,19 @@ import "server-only";
 import * as Sentry from "@sentry/nextjs";
 import { User } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { userRepository } from "@sokosumi/database/repositories";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { apiKey, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
-import crypto from "crypto";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
 import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { uploadImage } from "@/lib/blob/utils";
+import { uploadProfileImage } from "@/lib/blob/utils";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
@@ -61,6 +59,12 @@ export const auth = betterAuth({
       clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
       overrideUserInfoOnSignIn: true,
       mapProfileToUser,
+    },
+  },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "microsoft"],
     },
   },
   databaseHooks: {
@@ -336,75 +340,32 @@ async function mapProfileToUser(profile: { name: string; picture: string }) {
   }
 }
 
-// Due to Cookie size limit (4KB) and JWT encryption
-// we can NOT store big profile image (which is stored on cookie)
 async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
 }): Promise<Partial<User>> {
+  console.log("mapProfileToUserInner", profile);
   const profilePicture = profile.picture;
 
   if (!profilePicture) {
     return {
       name: profile.name,
       image: undefined,
-      imageHash: null,
     };
   }
 
-  // 1. Check if it's a valid URL (pass through directly)
   if (z.httpUrl().safeParse(profilePicture).success) {
-    // OAuth provider URLs are short and don't cause cookie issues
-    // Just pass them through without uploading
+    console.log("mapProfileToUserInner: httpUrl", profilePicture);
     return {
       name: profile.name,
       image: profilePicture,
-      imageHash: null,
     };
-  }
-
-  // 2. Check if it's a data URI (base64 encoded image)
-  const dataUriRegex =
-    /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
-  const dataUriMatch = profilePicture.match(dataUriRegex);
-
-  if (dataUriMatch) {
-    const imageHash = crypto
-      .createHash("sha256")
-      .update(profilePicture)
-      .digest("hex");
-
-    // Check if we've already uploaded this exact image
-    const foundImage = await userRepository.findImageByHash(imageHash);
-    if (foundImage) {
-      return {
-        name: profile.name,
-        image: foundImage,
-        imageHash,
-      };
-    }
-
-    // Extract MIME type from data URI (e.g., "image/jpeg")
-    const mimeType = `image/${dataUriMatch[1]}`;
-
-    // Extract the base64 encoded image data
-    const imageData = Buffer.from(
-      profilePicture.replace(dataUriRegex, ""),
-      "base64",
-    );
-
-    // Upload the image to Vercel Blob Storage
-    const uploaded = await uploadImage(imageData, mimeType);
+  } else {
+    const imageURL = await uploadProfileImage(profilePicture);
+    console.log("mapProfileToUserInner: uploadProfileImage", imageURL);
     return {
       name: profile.name,
-      image: uploaded.url,
-      imageHash,
+      image: imageURL,
     };
   }
-
-  return {
-    name: profile.name,
-    image: undefined,
-    imageHash: null,
-  };
 }

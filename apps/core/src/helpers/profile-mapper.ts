@@ -1,16 +1,7 @@
-import crypto from "node:crypto";
-
 import { z } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
+import type { User } from "@sokosumi/database";
 
-import { CRYPTO } from "@/config/constants";
-import { uploadImage } from "@/lib/blob.js";
-
-export type ProfileToUserResult = {
-  name: string;
-  image: string | undefined;
-  imageHash: string | null;
-};
+import { uploadProfileImage } from "@/lib/blob.js";
 
 /**
  * Maps OAuth profile data to user fields
@@ -19,7 +10,7 @@ export type ProfileToUserResult = {
 export async function mapProfileToUser(profile: {
   name: string;
   picture: string;
-}): Promise<ProfileToUserResult> {
+}): Promise<Partial<User>> {
   try {
     return await mapProfileToUserInner(profile);
   } catch (error) {
@@ -30,7 +21,6 @@ export async function mapProfileToUser(profile: {
     return {
       name: profile.name,
       image: undefined,
-      imageHash: null,
     };
   }
 }
@@ -43,89 +33,26 @@ export async function mapProfileToUser(profile: {
 async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
-}): Promise<ProfileToUserResult> {
+}): Promise<Partial<User>> {
   const profilePicture = profile.picture;
 
   if (!profilePicture) {
     return {
       name: profile.name,
       image: undefined,
-      imageHash: null,
     };
   }
 
-  // 1. Check if it's a valid URL (pass through directly)
   if (z.httpUrl().safeParse(profilePicture).success) {
-    // OAuth provider URLs are short and don't cause cookie issues
-    // Just pass them through without uploading
     return {
       name: profile.name,
       image: profilePicture,
-      imageHash: null,
+    };
+  } else {
+    const imageURL = await uploadProfileImage(profilePicture);
+    return {
+      name: profile.name,
+      image: imageURL,
     };
   }
-
-  // 2. Check if it's a data URI (base64 encoded image)
-  const dataUriRegex =
-    /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
-  const dataUriMatch = profilePicture.match(dataUriRegex);
-
-  if (dataUriMatch) {
-    const imageHash = crypto
-      .createHash(CRYPTO.IMAGE_HASH_ALGORITHM)
-      .update(profilePicture)
-      .digest("hex");
-
-    // Check if we've already stored this exact image
-    const userWithImage = await prisma.user.findFirst({
-      where: {
-        imageHash,
-        image: {
-          not: null,
-        },
-      },
-      select: {
-        image: true,
-      },
-    });
-    if (userWithImage && userWithImage.image) {
-      return {
-        name: profile.name,
-        image: userWithImage.image,
-        imageHash,
-      };
-    }
-
-    // Extract MIME type from data URI (e.g., "image/jpeg")
-    const mimeType = `image/${dataUriMatch[1]}`;
-
-    // Extract the base64 encoded image data
-    const imageData = Buffer.from(
-      profilePicture.replace(dataUriRegex, ""),
-      "base64",
-    );
-
-    // Upload the image to Vercel Blob Storage
-    try {
-      const uploaded = await uploadImage(imageData, mimeType);
-
-      return {
-        name: profile.name,
-        image: uploaded.url,
-        imageHash,
-      };
-    } catch {
-      return {
-        name: profile.name,
-        image: undefined,
-        imageHash,
-      };
-    }
-  }
-
-  return {
-    name: profile.name,
-    image: undefined,
-    imageHash: null,
-  };
 }

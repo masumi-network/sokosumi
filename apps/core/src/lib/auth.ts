@@ -233,6 +233,12 @@ export const auth = betterAuth({
       mapProfileToUser,
     },
   },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "microsoft"],
+    },
+  },
   plugins: [
     localization({
       defaultLocale: "default",

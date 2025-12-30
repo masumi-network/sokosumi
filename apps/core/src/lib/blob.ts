@@ -1,39 +1,63 @@
 import crypto from "node:crypto";
 
-import { put, type PutBlobResult } from "@vercel/blob";
+import { put } from "@vercel/blob";
 
-import { STORAGE } from "@/config/constants";
+import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
 
 /**
  * Uploads an image to Vercel Blob storage
- * @param data - Buffer or Blob containing the image data
- * @param contentType - MIME type of the image (e.g., "image/jpeg")
- * @returns Upload result with URL and metadata, or null if blob storage is not configured
+ * Uses hash-based filename for automatic deduplication
+ * If the same hash already exists, it will be overwritten with the same content
+ * @param base64Image - Base64 encoded image data URI
+ * @returns Upload result URL, or null if invalid input or blob storage not configured
  */
-export async function uploadImage(
-  data: Buffer | Blob,
-  contentType?: string,
-): Promise<PutBlobResult> {
+export async function uploadProfileImage(
+  base64Image: string,
+): Promise<string | null> {
   const env = getEnv();
 
-  // Skip upload if Blob storage is not configured
+  const dataUriRegex =
+    /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
+  const dataUriMatch = base64Image.match(dataUriRegex);
+
+  if (!dataUriMatch) {
+    return null;
+  }
+
   if (!env.BLOB_READ_WRITE_TOKEN) {
     console.warn(
       "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping image upload",
     );
-    throw new Error("BLOB_READ_WRITE_TOKEN not configured");
+    return null;
   }
 
+  const imageHash = crypto
+    .createHash(CRYPTO.IMAGE_HASH_ALGORITHM)
+    .update(base64Image)
+    .digest("hex");
+
+  // Extract MIME type from data URI (e.g., "image/jpeg")
+  const mimeType = `image/${dataUriMatch[1]}`;
+
+  // Extract the base64 encoded image data
+  const imageData = Buffer.from(
+    base64Image.replace(dataUriRegex, ""),
+    "base64",
+  );
+
+  // Upload new blob with hash as filename
   const blob = await put(
-    `${STORAGE.IMAGES_UPLOAD_DIR}/${crypto.randomUUID()}`,
-    data,
+    `${STORAGE.IMAGES_UPLOAD_DIR}/${imageHash}`,
+    imageData,
     {
       access: "public",
-      contentType,
+      contentType: mimeType,
       token: env.BLOB_READ_WRITE_TOKEN,
+      allowOverwrite: true,
+      addRandomSuffix: false, // Ensure exact filename match for deduplication
     },
   );
 
-  return blob;
+  return blob.url;
 }
