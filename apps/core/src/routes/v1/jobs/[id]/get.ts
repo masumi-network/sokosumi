@@ -1,8 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { jobRepository } from "@sokosumi/database/repositories";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import {
+  jobWithCreditTransaction,
+  jobWithEvents,
+  jobWithPurchase,
+  SokosumiJobStatus,
+} from "@sokosumi/database/types/job";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
@@ -10,6 +14,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { jobSchema } from "@/schemas/job.schema.js";
+import { flattenJob } from "@/types/job";
 
 const params = z.object({
   id: z.string().openapi({
@@ -64,7 +69,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const job = await prisma.$transaction(async (tx) => {
       await requireJobAccess(authContext, id, tx);
-      return await jobRepository.getJobById(id, tx);
+      const job = await tx.job.findUnique({
+        where: { id },
+        include: {
+          ...jobWithEvents,
+          ...jobWithCreditTransaction,
+          ...jobWithPurchase,
+        },
+      });
+      if (!job) {
+        throw notFound("Job not found");
+      }
+      return flattenJob(job);
     });
 
     if (!job) {
