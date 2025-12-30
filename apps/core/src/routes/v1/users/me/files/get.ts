@@ -1,11 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
 import { BlobOrigin, BlobStatus } from "@sokosumi/database";
-import { blobRepository } from "@sokosumi/database/repositories";
+import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { filesSchema } from "@/schemas/file.schema";
+import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
 
 const route = createRoute({
   method: "get",
@@ -57,7 +58,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
 
-    const files = await blobRepository.getBlobsByUserId(authContext.userId);
+    const blobs = await prisma.blob.findMany({
+      where: { userId: authContext.userId },
+      include: blobWithJobIdInclude,
+    });
+    const files = blobs.map(flattenBlobJobId);
 
     return ok(c, filesSchema.parse(files));
   });

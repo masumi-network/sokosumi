@@ -7,6 +7,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { filesSchema } from "@/schemas/file.schema";
+import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
 
 const params = z.object({
   id: z.string().openapi({
@@ -77,18 +78,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           event: { jobId: id },
         },
-        include: {
-          event: {
-            select: {
-              job: { select: { id: true } },
-            },
-          },
-        },
+        include: blobWithJobIdInclude,
       });
-      return files.map((file) => ({
-        ...file,
-        jobId: file.event?.job.id,
-      }));
+      return files.map(flattenBlobJobId);
     });
 
     return ok(c, filesSchema.parse(files));
