@@ -32,19 +32,19 @@ export async function uploadProfileImage(
     return null;
   }
 
-  const imageHash = crypto
-    .createHash(CRYPTO.IMAGE_HASH_ALGORITHM)
-    .update(base64Image)
-    .digest("hex");
-
-  // Extract MIME type from data URI (e.g., "image/jpeg")
-  const mimeType = `image/${dataUriMatch[1]}`;
-
   // Extract the base64 encoded image data
   const imageData = Buffer.from(
     base64Image.replace(dataUriRegex, ""),
     "base64",
   );
+
+  const imageHash = crypto
+    .createHash(CRYPTO.IMAGE_HASH_ALGORITHM)
+    .update(imageData)
+    .digest("hex");
+
+  // Extract MIME type from data URI (e.g., "image/jpeg")
+  const mimeType = `image/${dataUriMatch[1]}`;
 
   // Upload new blob with hash as filename
   const blob = await put(

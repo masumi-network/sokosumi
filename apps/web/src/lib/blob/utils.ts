@@ -41,16 +41,14 @@ export async function uploadProfileImage(
     return null;
   }
 
-  const imageHash = crypto
-    .createHash("sha256")
-    .update(base64Image)
-    .digest("hex");
-
-  const mimeType = `image/${dataUriMatch[1]}`;
   const imageData = Buffer.from(
     base64Image.replace(dataUriRegex, ""),
     "base64",
   );
+
+  const imageHash = crypto.createHash("sha256").update(imageData).digest("hex");
+
+  const mimeType = `image/${dataUriMatch[1]}`;
 
   const blob = await put(
     `${env.VERCEL_IMAGES_UPLOAD_DIR}/${imageHash}`,
