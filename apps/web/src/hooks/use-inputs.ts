@@ -61,23 +61,30 @@ export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
   }, [groups, activeGroupIndex]);
 
   const goToNext = useCallback(() => {
-    if (!isGrouped || isLastGroup || !groups) return;
-    if (activeGroupIndex >= groups.length) return;
+    if (!isGrouped || !groups || groups.length === 0) return;
 
     setActiveGroupIndex((prev) => {
+      // Guard: prevent going beyond last group
+      if (prev >= groups.length - 1) return prev;
+
       const nextIndex = prev + 1;
-      if (nextIndex > maxUnlockedGroupIndex) {
-        setMaxUnlockedGroupIndex(nextIndex);
-      }
+      // Update max unlocked index if needed (using functional update to avoid stale closure)
+      setMaxUnlockedGroupIndex((maxUnlocked) =>
+        nextIndex > maxUnlocked ? nextIndex : maxUnlocked,
+      );
       return nextIndex;
     });
-  }, [isGrouped, isLastGroup, groups, activeGroupIndex, maxUnlockedGroupIndex]);
+  }, [isGrouped, groups]);
 
   const goBack = useCallback(() => {
-    if (!isGrouped || isFirstGroup || !groups) return;
-    if (activeGroupIndex <= 0) return;
-    setActiveGroupIndex((prev) => prev - 1);
-  }, [isGrouped, isFirstGroup, groups, activeGroupIndex]);
+    if (!isGrouped || !groups) return;
+
+    setActiveGroupIndex((prev) => {
+      // Guard: prevent going below first group
+      if (prev <= 0) return prev;
+      return prev - 1;
+    });
+  }, [isGrouped, groups]);
 
   const goToGroup = useCallback(
     (index: number) => {
