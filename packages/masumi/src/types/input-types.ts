@@ -29,7 +29,6 @@ export enum InputValidation {
   MAX = "max",
   FORMAT = "format",
   OPTIONAL = "optional",
-  MAX_SIZE = "maxSize",
   ACCEPT = "accept",
   STEP = "step",
 }
@@ -42,12 +41,6 @@ export enum InputFormat {
   TEL_PATTERN = "tel_pattern",
 }
 
-export const requiredInputFileValidations = [
-  InputValidation.MIN,
-  InputValidation.MAX,
-  InputValidation.MAX_SIZE,
-  InputValidation.ACCEPT,
-] as const;
-
-export type RequiredInputFileValidations =
-  (typeof requiredInputFileValidations)[number];
+export enum OutputFormat {
+  URL = "url",
+}

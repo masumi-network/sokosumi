@@ -2,6 +2,7 @@ import {
   InputFormat,
   InputType,
   InputValidation,
+  OutputFormat,
 } from "../../../types/input-types.js";
 import {
   InputCheckboxSchemaType,
@@ -10,6 +11,7 @@ import {
   InputDateSchemaType,
   InputDatetimeSchemaType,
   InputEmailSchemaType,
+  InputFileSchemaType,
   InputHiddenSchemaType,
   InputMonthSchemaType,
   InputMultiselectSchemaType,
@@ -677,6 +679,107 @@ describe("inputDataSchema", () => {
         input_data: [hiddenInput],
       });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe("File input type", () => {
+    const validFileInput: InputFileSchemaType = {
+      id: "file-id",
+      type: InputType.FILE,
+      name: "Upload File",
+      data: {
+        description: "Upload your document",
+        outputFormat: OutputFormat.URL,
+      },
+    };
+
+    it("should validate file input with outputFormat=url", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [validFileInput],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should fail with outputFormat other than url", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validFileInput,
+            data: {
+              ...validFileInput.data,
+              outputFormat: "base64",
+            },
+          },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("should validate file input without validations", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validFileInput,
+            validations: undefined,
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should validate file input with optional validations", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validFileInput,
+            validations: [
+              { validation: InputValidation.MIN, value: 1 },
+              { validation: InputValidation.MAX, value: 5 },
+            ],
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should validate file input with all validations", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validFileInput,
+            validations: [
+              { validation: InputValidation.MIN, value: 1 },
+              { validation: InputValidation.MAX, value: 3 },
+              { validation: InputValidation.ACCEPT, value: "image/*,.pdf" },
+            ],
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should fail with empty id", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validFileInput,
+            id: "",
+          },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("should fail with empty name", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...validFileInput,
+            name: "",
+          },
+        ],
+      });
+      expect(result.success).toBe(false);
     });
   });
 });

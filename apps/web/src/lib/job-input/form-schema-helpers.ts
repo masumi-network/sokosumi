@@ -99,9 +99,6 @@ export function parseValidations(
       case InputValidation.FORMAT:
         result.format = String(value);
         break;
-      case InputValidation.MAX_SIZE:
-        result.maxSize = Number(value);
-        break;
       case InputValidation.ACCEPT:
         result.accept = String(value);
         break;
@@ -470,11 +467,13 @@ export function applyFileValidations(
   const parsed = parseValidations(validations);
 
   let schema = z.array(z.instanceof(File));
+  let hasMinValidation = false;
 
   if (validations) {
     for (const { validation, value } of validations) {
       switch (validation) {
         case InputValidation.MIN:
+          hasMinValidation = true;
           schema = schema.min(Number(value), {
             error: t?.("Number.min", { name, value: String(value) }),
           });
@@ -488,16 +487,13 @@ export function applyFileValidations(
     }
   }
 
-  if (parsed.maxSize) {
-    return schema.refine(
-      (files) => files.every((file) => file.size <= parsed.maxSize!),
-      {
-        error: t?.("File.maxSize", { name, value: parsed.maxSize }),
-      },
-    );
-  }
+  // Apply default min(1) for required fields without explicit min
+  const finalSchema =
+    !parsed.canBeOptional && !hasMinValidation
+      ? schema.min(1, { error: t?.("File.required", { name }) })
+      : schema;
 
-  return schema;
+  return parsed.canBeOptional ? finalSchema.nullish() : finalSchema;
 }
 
 /**
