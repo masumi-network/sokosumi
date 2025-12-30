@@ -11,7 +11,9 @@ import {
   DemoJobWithStatus,
   FreeJobWithStatus,
   type JobEventWithRelations,
-  type JobWithRelations,
+  JobWithCreditTransaction,
+  type JobWithEvents,
+  JobWithPurchase,
   JobWithSokosumiStatus,
   PaidJobWithStatus,
   SokosumiJobStatus,
@@ -36,7 +38,7 @@ export function getLatestJobEvent(job: {
 }
 
 function checkPaymentStatus(
-  job: JobWithRelations,
+  job: JobWithPurchase,
   now: Date,
 ): SokosumiJobStatus | null {
   const purchase = job.purchase;
@@ -64,7 +66,7 @@ function checkPaymentStatus(
  * @param job - The job object to evaluate.
  * @returns The corresponding `JobStatus` if the next action maps to a status, otherwise `null`.
  */
-function checkNextAction(job: JobWithRelations): SokosumiJobStatus | null {
+function checkNextAction(job: JobWithPurchase): SokosumiJobStatus | null {
   const purchase = job.purchase;
   if (!purchase) {
     return SokosumiJobStatus.PAYMENT_PENDING;
@@ -176,7 +178,9 @@ function getFundsLockedJobStatus(
  * @param job - The job object containing all relevant status and metadata.
  * @returns The resolved JobStatus for the job.
  */
-export function computeJobStatus(job: JobWithRelations): SokosumiJobStatus {
+export function computeJobStatus(
+  job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase,
+): SokosumiJobStatus {
   switch (job.jobType) {
     case JobType.FREE:
       return computeFreeJobStatus(job);
@@ -187,7 +191,7 @@ export function computeJobStatus(job: JobWithRelations): SokosumiJobStatus {
   }
 }
 
-function computeFreeJobStatus(job: JobWithRelations): SokosumiJobStatus {
+function computeFreeJobStatus(job: JobWithEvents): SokosumiJobStatus {
   const latestJobEvent = getLatestJobEvent(job);
   if (!latestJobEvent) {
     return SokosumiJobStatus.STARTED;
@@ -214,11 +218,13 @@ function computeFreeJobStatus(job: JobWithRelations): SokosumiJobStatus {
   }
 }
 
-function computeDemoJobStatus(_job: JobWithRelations): SokosumiJobStatus {
+function computeDemoJobStatus(_job: Job): SokosumiJobStatus {
   return SokosumiJobStatus.COMPLETED;
 }
 
-function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
+function computePaidJobStatus(
+  job: JobWithPurchase & JobWithCreditTransaction & JobWithEvents,
+): SokosumiJobStatus {
   // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedCreditTransactionId) {
     return SokosumiJobStatus.REFUND_RESOLVED;
@@ -282,13 +288,71 @@ function computePaidJobStatus(job: JobWithRelations): SokosumiJobStatus {
   }
 }
 
-export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
-  const completedEvent = job.events.find(
+export function getCompletedEvent(
+  job: JobWithEvents,
+): JobEventWithRelations | undefined {
+  return job.events.find(
     (event: JobEventWithRelations) => event.status === AgentJobStatus.COMPLETED,
   );
-  const completedAt = completedEvent?.createdAt ?? null;
-  const result = completedEvent?.result ?? null;
+}
 
+export function getCompletedAt(job: JobWithEvents): Date | null {
+  const completedEvent = getCompletedEvent(job);
+  return completedEvent?.createdAt ?? null;
+}
+
+export function getResult(job: JobWithEvents): string | null {
+  const completedEvent = getCompletedEvent(job);
+  return completedEvent?.result ?? null;
+}
+
+export function getInitiatedEvent(
+  job: JobWithEvents,
+): JobEventWithRelations | undefined {
+  return job.events.find(
+    (event: JobEventWithRelations) => event.status === AgentJobStatus.INITIATED,
+  );
+}
+
+export function getInput(job: JobWithEvents): string | null {
+  const initiatedEvent = getInitiatedEvent(job);
+  return initiatedEvent?.input?.input ?? null;
+}
+
+export function getInputSchema(job: JobWithEvents): string | null {
+  const initiatedEvent = getInitiatedEvent(job);
+  return initiatedEvent?.inputSchema ?? null;
+}
+
+export function getInputHash(job: JobWithEvents): string | null {
+  const initiatedEvent = getInitiatedEvent(job);
+  return initiatedEvent?.input?.inputHash ?? null;
+}
+
+export function getCredits(job: JobWithCreditTransaction): number {
+  const creditTransaction = job.creditTransaction;
+  if (!creditTransaction) {
+    return 0;
+  }
+  return Math.abs(convertCentsToCredits(creditTransaction.amount));
+}
+
+function getCents(job: JobWithCreditTransaction): bigint {
+  const creditTransaction = job.creditTransaction;
+  if (!creditTransaction) {
+    return BigInt(0);
+  }
+  return creditTransaction.amount;
+}
+
+export function getResultHash(job: JobWithPurchase): string | null {
+  return job.purchase?.resultHash ?? null;
+}
+
+export function mapJobWithStatus(
+  job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase,
+): JobWithSokosumiStatus {
+  const completedAt = getCompletedAt(job);
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
@@ -296,29 +360,18 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
         : false
       : completedAt != null;
 
-  const computedStatus = computeJobStatus(job);
-
-  const initiatedEvent = job.events.find(
-    (event: JobEventWithRelations) => event.status === AgentJobStatus.INITIATED,
-  );
-  const input = initiatedEvent?.input?.input ?? null;
-  const inputSchema = initiatedEvent?.inputSchema ?? null;
-  const inputHash = initiatedEvent?.input?.inputHash ?? null;
-
   const baseJobWithStatus = {
     ...job,
-    input,
-    inputSchema,
-    inputHash,
-    status: computedStatus,
+    input: getInput(job),
+    inputSchema: getInputSchema(job),
+    inputHash: getInputHash(job),
+    status: computeJobStatus(job),
     jobStatusSettled,
-    completedAt: completedAt ?? null,
-    cents: job.creditTransaction?.amount ?? BigInt(0),
-    credits: Math.abs(
-      convertCentsToCredits(job.creditTransaction?.amount ?? BigInt(0)),
-    ),
-    result,
-    resultHash: job.purchase?.resultHash ?? null,
+    completedAt,
+    cents: getCents(job),
+    credits: getCredits(job),
+    result: getResult(job),
+    resultHash: getResultHash(job),
   };
 
   switch (job.jobType) {
@@ -335,14 +388,14 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithSokosumiStatus {
   }
 }
 
-export function isFreeJob(job: JobWithRelations): job is FreeJobWithStatus {
+export function isFreeJob(job: Job): job is FreeJobWithStatus {
   return job.jobType === JobType.FREE;
 }
 
-export function isPaidJob(job: JobWithRelations): job is PaidJobWithStatus {
+export function isPaidJob(job: Job): job is PaidJobWithStatus {
   return job.jobType === JobType.PAID;
 }
 
-export function isDemoJob(job: JobWithRelations): job is DemoJobWithStatus {
+export function isDemoJob(job: Job): job is DemoJobWithStatus {
   return job.jobType === JobType.DEMO;
 }

@@ -8,7 +8,7 @@ import type {
   Prisma,
 } from "../generated/prisma/client.js";
 
-export const jobInclude = {
+export const jobWithEvents = {
   events: {
     orderBy: {
       createdAt: "asc",
@@ -19,13 +19,77 @@ export const jobInclude = {
       links: true,
     },
   },
+} as const;
+
+export type JobWithEvents = Prisma.JobGetPayload<{
+  include: typeof jobWithEvents;
+}>;
+
+export const jobWithPurchase = {
   purchase: true,
-  agent: true,
-  user: true,
-  organization: true,
+} as const;
+
+export type JobWithPurchase = Prisma.JobGetPayload<{
+  include: typeof jobWithPurchase;
+}>;
+
+export const jobWithCreditTransaction = {
   creditTransaction: true,
+} as const;
+
+export type JobWithCreditTransaction = Prisma.JobGetPayload<{
+  include: typeof jobWithCreditTransaction;
+}>;
+
+export const jobWithRefundedCreditTransaction = {
   refundedCreditTransaction: true,
+} as const;
+
+export type JobWithRefundedCreditTransaction = Prisma.JobGetPayload<{
+  include: typeof jobWithRefundedCreditTransaction;
+}>;
+
+export const jobWithAgent = {
+  agent: true,
+} as const;
+
+export type JobWithAgent = Prisma.JobGetPayload<{
+  include: typeof jobWithAgent;
+}>;
+
+export const jobWithUser = {
+  user: true,
+} as const;
+
+export type JobWithUser = Prisma.JobGetPayload<{
+  include: typeof jobWithUser;
+}>;
+
+export const jobWithOrganization = {
+  organization: true,
+} as const;
+
+export type JobWithOrganization = Prisma.JobGetPayload<{
+  include: typeof jobWithOrganization;
+}>;
+
+export const jobWithShare = {
   share: true,
+} as const;
+
+export type JobWithShare = Prisma.JobGetPayload<{
+  include: typeof jobWithShare;
+}>;
+
+export const jobInclude = {
+  ...jobWithEvents,
+  ...jobWithPurchase,
+  ...jobWithAgent,
+  ...jobWithUser,
+  ...jobWithOrganization,
+  ...jobWithCreditTransaction,
+  ...jobWithRefundedCreditTransaction,
+  ...jobWithShare,
 } as const;
 
 export const jobOrderBy = {
