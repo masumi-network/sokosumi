@@ -3,6 +3,7 @@ import {
   InputFieldSchemaType,
   inputFieldsSchema,
   inputGroupsSchema,
+  inputSchema,
   inputSchemaResponseSchema,
   inputSchemaSchema,
   InputSchemaSchemaType,
@@ -11,26 +12,13 @@ import * as z from "zod";
 
 import { JobScheduleType } from "@/lib/types/job";
 
-const inputDataValueSchema = z.union([
-  z.number(),
-  z.string(),
-  z.array(z.string()),
-  z.boolean(),
-  z.array(z.number()),
-  z.instanceof(File),
-  z.array(z.instanceof(File)),
-  z.undefined(),
-]);
-
-const flatInputDataSchema = z.record(z.string(), inputDataValueSchema);
-
 export const startJobInputSchema = z.object({
   userId: z.string(),
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
   inputSchema: z.array(inputFieldSchema),
-  inputData: flatInputDataSchema,
+  inputData: inputSchema,
   jobScheduleId: z.string().nullish(),
 });
 
@@ -171,7 +159,7 @@ export const createJobScheduleInputSchema = z.object({
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
   inputSchema: z.array(inputFieldSchema),
-  inputData: flatInputDataSchema,
+  inputData: inputSchema,
   maxAcceptedCents: z.bigint(),
   endOnUtc: z.string().nullish(),
   endAfterOccurrences: z.number().int().positive().nullish(),
@@ -187,7 +175,7 @@ export type CreateJobScheduleInputSchemaType = z.infer<
 export const provideJobInputSchema = z.object({
   jobId: z.string(),
   statusId: z.string(),
-  inputData: flatInputDataSchema,
+  inputData: inputSchema,
 });
 
 export type ProvideJobInputSchemaType = z.infer<typeof provideJobInputSchema>;
