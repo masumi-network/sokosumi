@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 import { z } from "@hono/zod-openapi";
-import { userRepository } from "@sokosumi/database/repositories";
+import prisma from "@sokosumi/database/client";
 
 import { CRYPTO } from "@/config/constants";
 import { uploadImage } from "@/lib/blob.js";
@@ -77,11 +77,21 @@ async function mapProfileToUserInner(profile: {
       .digest("hex");
 
     // Check if we've already stored this exact image
-    const foundImage = await userRepository.findImageByHash(imageHash);
-    if (foundImage) {
+    const userWithImage = await prisma.user.findFirst({
+      where: {
+        imageHash,
+        image: {
+          not: null,
+        },
+      },
+      select: {
+        image: true,
+      },
+    });
+    if (userWithImage && userWithImage.image) {
       return {
         name: profile.name,
-        image: foundImage,
+        image: userWithImage.image,
         imageHash,
       };
     }
