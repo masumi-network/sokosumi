@@ -72,19 +72,25 @@ export function JobInputsFormBuilder({
 
   return (
     <Form {...form}>
-      <form ref={formRef} onSubmit={handleSubmit}>
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className="flex flex-1 flex-col"
+      >
         <fieldset
           disabled={isDisabled}
           className={cn("flex flex-1 flex-col gap-6", className)}
         >
-          {inputFields.map((jobInputSchema) => (
-            <JobInput
-              key={jobInputSchema.id}
-              form={form}
-              jobInputSchema={jobInputSchema}
-              disabled={inputsDisabled}
-            />
-          ))}
+          <div className="flex-1 space-y-6">
+            {inputFields.map((jobInputSchema) => (
+              <JobInput
+                key={jobInputSchema.id}
+                form={form}
+                jobInputSchema={jobInputSchema}
+                disabled={inputsDisabled}
+              />
+            ))}
+          </div>
           {renderFooter({
             isSubmitting,
             isValid,

@@ -90,7 +90,7 @@ export function GroupedInputTabs({
       <TabsContents className="-m-3">
         {groups.map((group, index) => (
           <TabsContent key={group.id} value={group.id} className="p-1">
-            <div className="flex flex-col gap-6">
+            <div className="flex h-full flex-col gap-6">
               {renderGroup(group, index, index === totalGroups - 1)}
             </div>
           </TabsContent>

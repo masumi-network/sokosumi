@@ -401,7 +401,7 @@ function TabsContent({
     <motion.div
       role="tabpanel"
       data-slot="tabs-content"
-      className={cn("overflow-hidden", className)}
+      className={cn("h-full overflow-hidden", className)}
       initial={{ filter: "blur(0px)" }}
       animate={{ filter: isActive ? "blur(0px)" : "blur(2px)" }}
       exit={{ filter: "blur(0px)" }}
