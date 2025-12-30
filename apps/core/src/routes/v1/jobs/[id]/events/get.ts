@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
-import { jobRepository } from "@sokosumi/database/repositories";
+import { jobWithEvents } from "@sokosumi/database/types/job";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
@@ -73,7 +73,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const events = await prisma.$transaction(async (tx) => {
       await requireJobAccess(authContext, id, tx);
-      const job = await jobRepository.getJobById(id, tx);
+      const job = await prisma.job.findUnique({
+        where: { id },
+        include: {
+          ...jobWithEvents,
+        },
+      });
       if (!job) {
         throw notFound("Job not found");
       }
