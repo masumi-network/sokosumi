@@ -19,7 +19,6 @@ model User {
   email         String
   emailVerified Boolean
   image         String?
-  imageHash     String? // Hash of image. (when this is too long for Cookie. e.g. base64)
   createdAt     DateTime
   updatedAt     DateTime
   sessions      Session[]
