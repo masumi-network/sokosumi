@@ -2,6 +2,7 @@ import "server-only";
 
 import crypto from "node:crypto";
 
+import * as Sentry from "@sentry/nextjs";
 import { put, PutBlobResult } from "@vercel/blob";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -50,16 +51,24 @@ export async function uploadProfileImage(
 
   const mimeType = `image/${dataUriMatch[1]}`;
 
-  const blob = await put(
-    `${env.VERCEL_IMAGES_UPLOAD_DIR}/${imageHash}`,
-    imageData,
-    {
-      access: "public",
-      contentType: mimeType,
-      allowOverwrite: true,
-      addRandomSuffix: false, // Ensure exact filename match for deduplication
-    },
-  );
-
-  return blob.url;
+  try {
+    const blob = await put(
+      `${env.VERCEL_IMAGES_UPLOAD_DIR}/${imageHash}`,
+      imageData,
+      {
+        access: "public",
+        contentType: mimeType,
+        allowOverwrite: true,
+        addRandomSuffix: false, // Ensure exact filename match for deduplication
+      },
+    );
+    return blob.url;
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadProfileImage",
+      },
+    });
+    return null;
+  }
 }

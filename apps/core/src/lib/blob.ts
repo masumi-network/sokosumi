@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 
+import * as Sentry from "@sentry/node";
 import { put } from "@vercel/blob";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
@@ -47,17 +48,25 @@ export async function uploadProfileImage(
   const mimeType = `image/${dataUriMatch[1]}`;
 
   // Upload new blob with hash as filename
-  const blob = await put(
-    `${STORAGE.IMAGES_UPLOAD_DIR}/${imageHash}`,
-    imageData,
-    {
-      access: "public",
-      contentType: mimeType,
-      token: env.BLOB_READ_WRITE_TOKEN,
-      allowOverwrite: true,
-      addRandomSuffix: false, // Ensure exact filename match for deduplication
-    },
-  );
-
-  return blob.url;
+  try {
+    const blob = await put(
+      `${STORAGE.IMAGES_UPLOAD_DIR}/${imageHash}`,
+      imageData,
+      {
+        access: "public",
+        contentType: mimeType,
+        token: env.BLOB_READ_WRITE_TOKEN,
+        allowOverwrite: true,
+        addRandomSuffix: false, // Ensure exact filename match for deduplication
+      },
+    );
+    return blob.url;
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadProfileImage",
+      },
+    });
+    return null;
+  }
 }
