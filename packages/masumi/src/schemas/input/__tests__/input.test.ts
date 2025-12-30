@@ -21,6 +21,7 @@ import {
   InputTimeSchemaType,
   InputUrlSchemaType,
   InputWeekSchemaType,
+  OutputFormat,
 } from "../input.schema.js";
 
 describe("inputDataSchema", () => {
@@ -688,7 +689,7 @@ describe("inputDataSchema", () => {
       name: "Upload File",
       data: {
         description: "Upload your document",
-        outputFormat: "url",
+        outputFormat: OutputFormat.URL,
       },
     };
 
