@@ -242,10 +242,6 @@ export const auth = betterAuth({
         required: true,
         defaultValue: false,
       },
-      imageHash: {
-        type: "string",
-        required: false,
-      },
     },
   },
   rateLimit: {
