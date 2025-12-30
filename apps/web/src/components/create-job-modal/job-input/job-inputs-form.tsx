@@ -13,7 +13,7 @@ import JobInputsFormClient from "./job-inputs-form.client";
 
 interface JobInputsFormProps {
   agent: AgentWithCreditsPrice;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   isDemo: boolean;
   className?: string | undefined;
 }

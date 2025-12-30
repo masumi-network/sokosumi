@@ -1,6 +1,5 @@
 import {
   InputFieldSchemaType,
-  InputFileSchemaType,
   InputOptionSchemaType,
   ValidationSchemaType,
 } from "@sokosumi/masumi/schemas";
@@ -39,11 +38,11 @@ export const transformJobInputSchemaValidations = <
   }
     ? T
     : never,
-): Partial<Record<InputValidation, string | number>> => {
+): Partial<Record<InputValidation, string | number | boolean>> => {
   const { validations } = jobInputSchema as {
     validations?: {
       validation: InputValidation;
-      value: string | number;
+      value: string | number | boolean;
     }[];
   };
   return (validations ?? []).reduce(
@@ -51,16 +50,6 @@ export const transformJobInputSchemaValidations = <
       acc[cur.validation] = cur.value;
       return acc;
     },
-    {} as Partial<Record<InputValidation, string | number>>,
+    {} as Partial<Record<InputValidation, string | number | boolean>>,
   );
-};
-
-export const transformJobInputFileSchema = (
-  jobInputSchema: InputFileSchemaType,
-): Record<InputValidation, string | number> => {
-  const v = transformJobInputSchemaValidations(jobInputSchema) as Record<
-    InputValidation,
-    string | number
-  >;
-  return v;
 };

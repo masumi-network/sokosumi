@@ -13,7 +13,7 @@ import DefaultErrorBoundary from "@/components/default-error-boundary";
 interface RandomAgentCardProps {
   randomAgentPromise: Promise<{
     agent: AgentWithCreditsPrice;
-    averageExecutionDuration: number;
+    averageExecutionDuration: number | null;
   } | null>;
 }
 
@@ -42,7 +42,7 @@ function RandomAgentCardContent({
   averageExecutionDuration,
 }: {
   agent: AgentWithCreditsPrice;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
 }) {
   return (
     <CreateJobModalContextProvider

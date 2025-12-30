@@ -241,7 +241,7 @@ export const calculateAverageExecutionTime = async (
   cutoffDate.setDate(cutoffDate.getDate() - TIME.AGENT_EXECUTION_METRICS_DAYS);
 
   const result = await tx.$queryRawUnsafe<
-    [{ avg_duration_seconds: number | null }]
+    [{ avg_duration_seconds: typeof Prisma.Decimal | null }]
   >(
     `
     SELECT 
@@ -263,7 +263,7 @@ export const calculateAverageExecutionTime = async (
     cutoffDate,
   );
   const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
-  return averageDurationSeconds ? Number(averageDurationSeconds) : null;
+  return averageDurationSeconds ? averageDurationSeconds.toNumber() : null;
 };
 
 /**
@@ -296,7 +296,7 @@ export const calculateAverageExecutionTimes = async (
   const averages = await tx.$queryRawUnsafe<
     Array<{
       agent_id: string;
-      avg_duration_seconds: number | null;
+      avg_duration_seconds: typeof Prisma.Decimal | null;
     }>
   >(
     `
@@ -334,7 +334,7 @@ export const calculateAverageExecutionTimes = async (
     averagesMap.set(
       average.agent_id,
       average.avg_duration_seconds
-        ? Number(average.avg_duration_seconds)
+        ? average.avg_duration_seconds.toNumber()
         : null,
     );
   }

@@ -4,7 +4,7 @@ import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
-import { transformJobInputFileSchema } from "@/components/create-job-modal/job-input/util";
+import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
 import { Button } from "@/components/ui/button";
 import {
   FileUpload,
@@ -28,12 +28,12 @@ export function FileInput({
   const t = useTranslations("Library.JobInput.Form");
 
   const transformedValidations = useMemo(
-    () => transformJobInputFileSchema(jobInputSchema),
+    () => transformJobInputSchemaValidations(jobInputSchema),
     [jobInputSchema],
   );
 
   const isSubmitting = form.formState.isSubmitting;
-  const maxFiles = Number(transformedValidations.max);
+  const maxFiles = Number(transformedValidations.max ?? 1);
   const currentFiles = (field.value as File[]) ?? [];
 
   return (
@@ -42,8 +42,7 @@ export function FileInput({
       value={currentFiles}
       onValueChange={field.onChange}
       disabled={isSubmitting}
-      accept={transformedValidations.accept.toString()}
-      maxSize={Number(transformedValidations.maxSize)}
+      accept={transformedValidations.accept?.toString()}
       maxFiles={maxFiles}
       multiple={maxFiles > 1}
       onFileReject={(_, message) => {

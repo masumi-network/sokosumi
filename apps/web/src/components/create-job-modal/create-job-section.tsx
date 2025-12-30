@@ -19,7 +19,7 @@ import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
   agent: AgentWithCreditsPrice;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
 }
 
 export default function CreateJobSection({
@@ -101,7 +101,7 @@ function InputAccordionItem({
 }: {
   agent: AgentWithCreditsPrice;
   disabled?: boolean | undefined;
-  averageExecutionDuration: number;
+  averageExecutionDuration: number | null;
   isDemo: boolean;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");

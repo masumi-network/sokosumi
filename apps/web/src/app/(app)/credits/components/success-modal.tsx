@@ -25,7 +25,7 @@ interface CreditsSuccessModalProps {
   checkoutSessionPromise: Promise<CheckoutSessionData>;
   randomAgentPromise: Promise<{
     agent: AgentWithCreditsPrice;
-    averageExecutionDuration: number;
+    averageExecutionDuration: number | null;
   } | null>;
 }
 

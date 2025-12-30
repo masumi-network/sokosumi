@@ -1,9 +1,6 @@
 import * as z from "zod";
 
-import {
-  InputType,
-  requiredInputFileValidations,
-} from "../../types/input-types.js";
+import { InputType, OutputFormat } from "../../types/input-types.js";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,
@@ -11,7 +8,6 @@ import {
   formatNonEmptyValidationSchema,
   formatTelPatternValidationSchema,
   formatUrlValidationSchema,
-  maxSizeValidationSchema,
   maxValidationSchema,
   minValidationSchema,
   optionalValidationSchema,
@@ -363,25 +359,16 @@ export const inputFileSchema = z.object({
   name: z.string().min(1),
   data: z.object({
     description: z.string().nullish(),
-    outputFormat: z.string(),
+    outputFormat: z.enum(OutputFormat),
   }),
   validations: z
     .array(
-      acceptValidationSchema
+      optionalValidationSchema
+        .or(acceptValidationSchema)
         .or(minValidationSchema)
-        .or(maxValidationSchema)
-        .or(maxSizeValidationSchema),
+        .or(maxValidationSchema),
     )
-    .refine((validations) => {
-      for (const validation of requiredInputFileValidations) {
-        if (
-          validations.find((v) => v.validation === validation) === undefined
-        ) {
-          return false;
-        }
-      }
-      return true;
-    }),
+    .nullish(),
 });
 
 export type InputFileSchemaType = z.infer<typeof inputFileSchema>;
