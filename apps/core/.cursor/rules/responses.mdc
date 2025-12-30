@@ -135,7 +135,7 @@ serviceUnavailable("Database connection unavailable");
 ## Example Route Implementation
 
 ```typescript
-import { userRepository } from "@sokosumi/database/repositories";
+import prisma from "@sokosumi/database/client";
 
 import { forbidden, notFound } from "../helpers/error";
 import { ok } from "../helpers/response";
@@ -152,7 +152,9 @@ app.get("/me", async (c) => {
   }
 
   const userAuth = auth as UserAuthContext;
-  const user = await userRepository.getUserById(userAuth.userId);
+  const user = await prisma.user.findUnique({
+    where: { id: userAuth.userId },
+  });
   if (!user) {
     notFound("User not found");
   }

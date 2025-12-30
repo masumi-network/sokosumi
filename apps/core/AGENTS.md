@@ -317,21 +317,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
 ### Accessing Job-Related Resources
 
-Jobs have associated files (blobs) and links that can be accessed through dedicated endpoints:
+Jobs have associated files (blobs) and links that can be accessed through Prisma queries:
 
 ```typescript
+import prisma from "@sokosumi/database/client";
+import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
+import { linkWithJobIdInclude, flattenLinkJobId } from "@/types/link";
+
 // Get files for a job
-const files = await blobRepository.getBlobsByUserIdAndJobId(userId, jobId);
+const blobs = await prisma.blob.findMany({
+  where: { event: { jobId } },
+  include: blobWithJobIdInclude,
+});
+const files = blobs.map(flattenBlobJobId);
 
 // Get links for a job
-const links = await linkRepository.getLinksByUserIdAndJobId(userId, jobId);
+const links = await prisma.link.findMany({
+  where: { event: { jobId } },
+  include: linkWithJobIdInclude,
+});
+const flattenedLinks = links.map(flattenLinkJobId);
 
 // Get all files for current user
-const userFiles = await blobRepository.getBlobsByUserId(userId);
+const userBlobs = await prisma.blob.findMany({
+  where: { userId },
+  include: blobWithJobIdInclude,
+});
+const userFiles = userBlobs.map(flattenBlobJobId);
 
 // Get all links for current user
-const userLinks = await linkRepository.getLinksByUserId(userId);
+const userLinks = await prisma.link.findMany({
+  where: { userId },
+  include: linkWithJobIdInclude,
+});
+const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 ```
+
+**Note**: The core API uses Prisma directly for database queries. Repository pattern has been removed in favor of direct Prisma queries with type-safe includes and flatten helpers.
 
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
 
