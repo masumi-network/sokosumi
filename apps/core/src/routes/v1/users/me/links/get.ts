@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { linksSchema } from "@/schemas/link.schema";
-import { flattenLinkJobId, linkInclude } from "@/types/link";
+import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";
 
 const route = createRoute({
   method: "get",
@@ -48,12 +48,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c: Context) => {
     const { authContext } = c.var;
 
-    const links = await prisma.link.findMany({
-      where: { userId: authContext.userId },
-      include: linkInclude,
+    const links = await prisma.$transaction(async (tx) => {
+      const links = await tx.link.findMany({
+        where: { userId: authContext.userId },
+        include: linkWithJobIdInclude,
+      });
+      return links.map(flattenLinkJobId);
     });
-    const flattenedLinks = links.map(flattenLinkJobId);
 
-    return ok(c, linksSchema.parse(flattenedLinks));
+    return ok(c, linksSchema.parse(links));
   });
 }

@@ -1,12 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
-import { linkRepository } from "@sokosumi/database/repositories";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { linksSchema } from "@/schemas/link.schema";
+import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";
 
 const params = z.object({
   id: z.string().openapi({
@@ -63,7 +63,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const links = await prisma.$transaction(async (tx) => {
       await requireJobAccess(authContext, id, tx);
-      return await linkRepository.getLinksByJobId(id, tx);
+      const links = await tx.link.findMany({
+        where: { event: { jobId: id } },
+        include: linkWithJobIdInclude,
+      });
+      return links.map(flattenLinkJobId);
     });
 
     return ok(c, linksSchema.parse(links));

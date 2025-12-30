@@ -1,6 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 
-export const linkInclude = {
+export const linkWithJobIdInclude = {
   event: {
     select: {
       jobId: true,
@@ -9,7 +9,7 @@ export const linkInclude = {
 } as const;
 
 export type LinkWithJobIdRaw = Prisma.LinkGetPayload<{
-  include: typeof linkInclude;
+  include: typeof linkWithJobIdInclude;
 }>;
 
 export type LinkWithJobId = Omit<LinkWithJobIdRaw, "event"> & {
