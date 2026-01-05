@@ -25,7 +25,6 @@ import { emptyStringToNull } from "@/lib/utils";
 
 const LOCK_KEY = "agents-sync";
 const SYNC_METADATA_KEY = "agents-sync-last-timestamp";
-const EPOCH_DATE = new Date(0);
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
