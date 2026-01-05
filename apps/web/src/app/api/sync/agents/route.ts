@@ -5,19 +5,27 @@ import {
   PricingType,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { lockRepository } from "@sokosumi/database/repositories";
+import {
+  lockRepository,
+  syncMetadataRepository,
+} from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { PostRegistryEntryResponse } from "@/lib/clients/generated/registry";
+import {
+  PostRegistryEntryResponse,
+  RegistryEntry,
+} from "@/lib/clients/generated/registry";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
 import { lockService } from "@/lib/services";
 import { emptyStringToNull } from "@/lib/utils";
 
 const LOCK_KEY = "agents-sync";
+const SYNC_METADATA_KEY = "agents-sync-last-timestamp";
+const EPOCH_DATE = new Date(0);
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
@@ -100,7 +108,9 @@ const convertPaymentType = (
 };
 
 const parseEntryAgentPricing = (
-  pricing: PostRegistryEntryResponse["data"]["entries"][number]["AgentPricing"],
+  pricing:
+    | PostRegistryEntryResponse["data"]["entries"][number]["AgentPricing"]
+    | RegistryEntry["AgentPricing"],
 ): {
   pricingType: PricingType;
   fixedPricingAmounts?: { amount: bigint; unit: string }[];
@@ -139,117 +149,130 @@ const parseEntryAgentPricing = (
 };
 
 async function syncAllEntries() {
-  let lastIdentifier: string | undefined = undefined;
   const runningAgentsUpdates: Promise<void>[] = [];
   const runningTagsUpdates: Promise<void>[] = [];
-  const limit = 20;
 
-  while (true) {
-    const entriesResult = await registryClient.getAgents(lastIdentifier, limit);
-    if (!entriesResult.ok) {
-      console.error("Error in sync operation:", entriesResult.error);
-      return;
-    }
-    const entries = entriesResult.data;
+  // Get last sync timestamp
+  const lastSyncTimestamp =
+    await syncMetadataRepository.getLastSyncTimestamp(SYNC_METADATA_KEY);
 
-    // add all tags to the database
-    const tags = Array.from(
-      new Set(entries.map((entry) => entry.tags ?? []).flat()),
-    );
-    runningTagsUpdates.push(
-      ...tags.map(async (tag) => {
-        await prisma.tag.upsert({
-          where: { name: tag },
-          create: { name: tag },
-          update: {},
-        });
-      }),
-    );
-    await Promise.all(runningTagsUpdates);
+  // Call diff endpoint (no pagination)
+  const entriesResult = await registryClient.getAgentsDiff(
+    lastSyncTimestamp ?? new Date(0),
+    50,
+  );
+  if (!entriesResult.ok) {
+    console.error("Error in diff sync operation:", entriesResult.error);
+    return;
+  }
+  const entries = entriesResult.data;
 
-    // add all updates to the queue and start them in parallel
-    runningAgentsUpdates.push(
-      ...entries.map(async (entry) => {
-        const updateDbEntry = async () => {
-          const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
-            entry.AgentPricing,
-          );
-          await prisma.agent.upsert({
-            where: { blockchainIdentifier: entry.agentIdentifier },
-            create: {
-              blockchainIdentifier: entry.agentIdentifier,
-              name: entry.name,
-              description: emptyStringToNull(entry.description),
-              apiBaseUrl: entry.apiBaseUrl,
-              lastUptimeCheck: entry.lastUptimeCheck,
-              uptimeCount: entry.uptimeCount,
-              uptimeCheckCount: entry.uptimeCheckCount,
-              capabilityName: emptyStringToNull(entry.Capability?.name),
-              capabilityVersion: emptyStringToNull(entry.Capability?.version),
-              authorName: emptyStringToNull(entry.authorName),
-              authorContactEmail: z.email().safeParse(entry.authorContactEmail)
-                .success
-                ? entry.authorContactEmail
-                : null,
-              authorContactOther: emptyStringToNull(entry.authorContactOther),
-              image: emptyStringToNull(entry.image),
-              tags: {
-                connect: entry.tags?.map((tag) => ({ name: tag })),
-              },
-              authorOrganization: emptyStringToNull(entry.authorOrganization),
-              isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
-              status: convertStatus(entry.status),
-              legalOther: emptyStringToNull(entry.otherLegal),
-              legalTerms: emptyStringToNull(entry.termsAndCondition),
-              legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
-              paymentType: convertPaymentType(entry.paymentType),
-              pricing: {
-                create: {
-                  pricingType,
-                  ...(!!fixedPricingAmounts && {
-                    fixedPricing: {
-                      create: {
-                        amounts: {
-                          createMany: {
-                            data: fixedPricingAmounts,
-                          },
+  // If no entries, don't update timestamp
+  if (entries.length === 0) {
+    console.info("No entries to sync");
+    return;
+  }
+
+  // add all tags to the database
+  const tags = Array.from(
+    new Set(entries.map((entry) => entry.tags ?? []).flat()),
+  );
+  runningTagsUpdates.push(
+    ...tags.map(async (tag) => {
+      await prisma.tag.upsert({
+        where: { name: tag },
+        create: { name: tag },
+        update: {},
+      });
+    }),
+  );
+  await Promise.all(runningTagsUpdates);
+
+  // add all updates to the queue and start them in parallel
+  runningAgentsUpdates.push(
+    ...entries.map(async (entry) => {
+      const updateDbEntry = async () => {
+        const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
+          entry.AgentPricing,
+        );
+        await prisma.agent.upsert({
+          where: { blockchainIdentifier: entry.agentIdentifier },
+          create: {
+            blockchainIdentifier: entry.agentIdentifier,
+            name: entry.name,
+            description: emptyStringToNull(entry.description),
+            apiBaseUrl: entry.apiBaseUrl,
+            lastUptimeCheck: entry.lastUptimeCheck,
+            uptimeCount: entry.uptimeCount,
+            uptimeCheckCount: entry.uptimeCheckCount,
+            capabilityName: emptyStringToNull(entry.Capability?.name),
+            capabilityVersion: emptyStringToNull(entry.Capability?.version),
+            authorName: emptyStringToNull(entry.authorName),
+            authorContactEmail: z.email().safeParse(entry.authorContactEmail)
+              .success
+              ? entry.authorContactEmail
+              : null,
+            authorContactOther: emptyStringToNull(entry.authorContactOther),
+            image: emptyStringToNull(entry.image),
+            tags: {
+              connect: entry.tags?.map((tag) => ({ name: tag })),
+            },
+            authorOrganization: emptyStringToNull(entry.authorOrganization),
+            isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
+            status: convertStatus(entry.status),
+            legalOther: emptyStringToNull(entry.otherLegal),
+            legalTerms: emptyStringToNull(entry.termsAndCondition),
+            legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
+            paymentType: convertPaymentType(entry.paymentType),
+            pricing: {
+              create: {
+                pricingType,
+                ...(!!fixedPricingAmounts && {
+                  fixedPricing: {
+                    create: {
+                      amounts: {
+                        createMany: {
+                          data: fixedPricingAmounts,
                         },
                       },
                     },
-                  }),
-                },
-              },
-              exampleOutput: {
-                createMany: {
-                  data: entry.ExampleOutput.map((example) => {
-                    return {
-                      mimeType: example.mimeType,
-                      name: example.name,
-                      url: example.url,
-                    };
-                  }),
-                },
+                  },
+                }),
               },
             },
-            update: {
-              // No update as the metadata will not change
-              lastUptimeCheck: entry.lastUptimeCheck,
-              uptimeCount: entry.uptimeCount,
-              uptimeCheckCount: entry.uptimeCheckCount,
-              status: convertStatus(entry.status),
+            exampleOutput: {
+              createMany: {
+                data: entry.ExampleOutput.map((example) => {
+                  return {
+                    mimeType: example.mimeType,
+                    name: example.name,
+                    url: example.url,
+                  };
+                }),
+              },
             },
-          });
-        };
-        //start them immediately
-        return updateDbEntry();
-      }),
-    );
-    if (entries.length < limit) {
-      break;
-    }
-
-    const lastElement = entries.at(-1);
-    lastIdentifier = lastElement?.id;
-  }
+          },
+          update: {
+            // No update as the metadata will not change
+            lastUptimeCheck: entry.lastUptimeCheck,
+            uptimeCount: entry.uptimeCount,
+            uptimeCheckCount: entry.uptimeCheckCount,
+            status: convertStatus(entry.status),
+          },
+        });
+      };
+      //start them immediately
+      return updateDbEntry();
+    }),
+  );
   await Promise.all(runningAgentsUpdates);
+
+  // Update sync timestamp after successful sync
+  const lastEntry = entries[entries.length - 1];
+  const nextSyncTimestamp = new Date(lastEntry.statusUpdatedAt);
+
+  await syncMetadataRepository.setLastSyncTimestamp(
+    SYNC_METADATA_KEY,
+    nextSyncTimestamp,
+  );
 }

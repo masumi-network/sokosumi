@@ -42,6 +42,7 @@ export * from "./link.repository.js";
 export * from "./lock.repository.js";
 export * from "./member.repository.js";
 export * from "./organization.repository.js";
+export * from "./sync-metadata.repository.js";
 export * from "./tag.repository.js";
 export * from "./user.repository.js";
 export * from "./utmAttribution.repository.js";
