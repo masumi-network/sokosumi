@@ -20,7 +20,7 @@ export default function ExampleDetailThumbnail({
   return (
     <div
       className={cn(
-        "border-quinary bg-accent relative flex h-60 w-60 flex-col items-center justify-center gap-2 rounded-lg border shadow-sm",
+        "border-quinary bg-accent relative flex h-60 w-60 flex-col items-center justify-center gap-2 rounded-lg border",
         className,
       )}
       onClick={onClick}
