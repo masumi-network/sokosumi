@@ -7,6 +7,7 @@ import type { Category } from "@/lib/types/category";
 export interface AgentCategoryGroup {
   categorySlug: string | null;
   categoryName: string;
+  categoryIcon?: string;
   agents: AgentWithCreditsPrice[];
 }
 
@@ -15,7 +16,7 @@ export function groupAgentsByCategory(
   categories: Category[],
 ): AgentCategoryGroup[] {
   const sortedCategories = new Map(
-    categories.map((cat) => [cat.slug, cat.name]),
+    categories.map((cat) => [cat.slug, { name: cat.name, icon: cat.icon }]),
   );
 
   const groupsBySlug = new Map<string, AgentWithCreditsPrice[]>();
@@ -54,9 +55,13 @@ export function groupAgentsByCategory(
   // Return categories in priority order, only including those with agents
   return Array.from(sortedCategories.keys())
     .filter((slug) => groupsBySlug.has(slug))
-    .map((slug) => ({
-      categorySlug: slug,
-      categoryName: sortedCategories.get(slug) ?? slug,
-      agents: groupsBySlug.get(slug)!,
-    }));
+    .map((slug) => {
+      const category = sortedCategories.get(slug);
+      return {
+        categorySlug: slug,
+        categoryName: category?.name ?? slug,
+        categoryIcon: category?.icon,
+        agents: groupsBySlug.get(slug)!,
+      };
+    });
 }

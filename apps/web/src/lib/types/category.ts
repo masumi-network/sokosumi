@@ -4,6 +4,7 @@ export interface Category {
   priority: number;
   description?: string;
   image?: string;
+  icon?: string;
   styles?: CategoryStyles;
 }
 

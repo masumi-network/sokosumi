@@ -24,6 +24,7 @@ function createMockPrismaCategory(
     slug,
     description: null,
     image: null,
+    icon: null,
     styles: null,
     priority,
   };
@@ -512,5 +513,24 @@ describe("groupAgentsByCategory", () => {
     const codingGroup = result.find((g) => g.categorySlug === "coding");
     expect(newGroup).toBeUndefined();
     expect(codingGroup?.agents).toHaveLength(1);
+  });
+
+  it("should propagate category icons to groups", () => {
+    const categories: Category[] = [
+      {
+        slug: "coding",
+        name: "Coding",
+        priority: 10,
+        icon: "https://example.com/icon.svg",
+      },
+    ];
+    const agents = [
+      createMockAgent({
+        categories: [createMockPrismaCategory("coding", "Coding")],
+      }),
+    ];
+    const result = groupAgentsByCategory(agents, categories);
+    expect(result).toHaveLength(1);
+    expect(result[0].categoryIcon).toBe("https://example.com/icon.svg");
   });
 });
