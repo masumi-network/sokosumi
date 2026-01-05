@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen';
+import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostRegistryDiffData, PostRegistryDiffErrors, PostRegistryDiffResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -98,6 +98,21 @@ export const patchRegistrySource = <ThrowOnError extends boolean = false>(option
 export const postRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<PostRegistrySourceData, ThrowOnError>) => (options?.client ?? client).post<PostRegistrySourceResponses, unknown, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/registry-source/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Query registry entries whose status was updated after the provided timestamp. Supports pagination.
+ */
+export const postRegistryDiff = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDiffData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryDiffResponses, PostRegistryDiffErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-diff/',
     ...options,
     headers: {
         'Content-Type': 'application/json',
