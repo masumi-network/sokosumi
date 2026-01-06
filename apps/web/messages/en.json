@@ -1349,6 +1349,21 @@
           "keyIdRequired": "API key ID is required",
           "confirmNameRequired": "Please confirm the API key name"
         }
+      },
+      "AuthorizedClients": {
+        "title": "Authorized Applications",
+        "description": "Applications that have access to your account",
+        "loading": "Loading...",
+        "error": "Error: {error}",
+        "noApplications": "No applications have been authorized.",
+        "scopes": "Scopes: {scopes}",
+        "authorized": "Authorized: {date}",
+        "revokeAccess": "Revoke Access",
+        "revoking": "Revoking...",
+        "confirmRevoke": "Are you sure you want to revoke access for this application?",
+        "revokeSuccess": "Access revoked successfully",
+        "revokeError": "Failed to revoke access",
+        "fetchError": "Failed to fetch authorized clients"
       }
     },
     "Organizations": {
