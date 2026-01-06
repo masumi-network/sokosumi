@@ -261,6 +261,7 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: "/oauth/sign-in",
       consentPage: "/oauth/consent",
+      scopes: ["openid", "profile", "email", "read:organization"],
     }),
     organization({
       organizationCreation: {
