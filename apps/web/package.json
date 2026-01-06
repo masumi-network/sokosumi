@@ -57,7 +57,7 @@
     "ably": "2.16.0",
     "babel-plugin-react-compiler": "1.0.0",
     "better-auth": "1.4.10",
-    "better-auth-localization": "2.2.2",
+    "better-auth-localization": "2.2.3",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
