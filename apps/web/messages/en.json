@@ -1364,6 +1364,34 @@
         "revokeSuccess": "Access revoked successfully",
         "revokeError": "Failed to revoke access",
         "fetchError": "Failed to fetch authorized clients"
+      },
+      "OAuthConsent": {
+        "invalidRequest": {
+          "title": "Invalid OAuth Request",
+          "description": "Missing required parameters: client_id or redirect_uri"
+        },
+        "clientNotFound": {
+          "title": "Client Not Found",
+          "description": "The OAuth client could not be found.",
+          "descriptionWithId": "The OAuth client with ID {clientId} does not exist."
+        },
+        "title": "Authorize Application",
+        "description": "An application wants to access your account",
+        "wantsAccess": "wants to access your Sokosumi account",
+        "requestedPermissions": "Requested Permissions:",
+        "scopes": {
+          "read": "Read access to your account",
+          "write": "Write access to your account",
+          "admin": "Administrative access"
+        },
+        "actions": {
+          "authorize": "Authorize",
+          "authorizing": "Authorizing...",
+          "deny": "Deny",
+          "denying": "Denying...",
+          "authorizeError": "Failed to authorize application",
+          "authorizeErrorGeneric": "An error occurred during authorization"
+        }
       }
     },
     "Organizations": {
