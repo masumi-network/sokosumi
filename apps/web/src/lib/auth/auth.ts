@@ -1,5 +1,6 @@
 import "server-only";
 
+import { oauthProvider } from "@better-auth/oauth-provider";
 import * as Sentry from "@sentry/nextjs";
 import { User } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
@@ -7,7 +8,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { apiKey, organization } from "better-auth/plugins";
+import { apiKey, jwt, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
@@ -255,6 +256,11 @@ export const auth = betterAuth({
         maxRequests: 100, // 100 requests per minute
       },
       enableMetadata: true,
+    }),
+    jwt(),
+    oauthProvider({
+      loginPage: "/oauth/sign-in",
+      consentPage: "/oauth/consent",
     }),
     organization({
       organizationCreation: {
