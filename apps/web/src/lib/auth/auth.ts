@@ -260,7 +260,7 @@ export const auth = betterAuth({
     }),
     jwt({ disableSettingJwtHeader: true }),
     oauthProvider({
-      loginPage: "/oauth/sign-in",
+      loginPage: "/signin",
       consentPage: "/oauth/consent",
       scopes: ["openid", "profile", "email", "read:organization"],
     }),
