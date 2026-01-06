@@ -167,7 +167,7 @@ export const auth = betterAuth({
       }
     }),
   },
-  disabledPaths: ["/sign-up/email", "/sign-in"],
+  disabledPaths: ["/sign-up/email", "/sign-in", "/token"],
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
@@ -258,7 +258,7 @@ export const auth = betterAuth({
       },
       enableMetadata: true,
     }),
-    jwt(),
+    jwt({ disableSettingJwtHeader: true }),
     oauthProvider({
       loginPage: "/oauth/sign-in",
       consentPage: "/oauth/consent",
