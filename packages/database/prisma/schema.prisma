@@ -934,3 +934,14 @@ model OAuthConsent {
 
   @@map("oauthConsent")
 }
+
+model JWKS {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  publicKey  String
+  privateKey String
+  expiresAt  DateTime
+
+  @@map("jwks")
+}
