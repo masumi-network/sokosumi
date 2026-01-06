@@ -32,7 +32,7 @@ export const categoryRepository = {
 
   create: async (
     data: Pick<Category, "name" | "slug" | "priority"> &
-      Partial<Pick<Category, "description" | "image" | "styles">>,
+      Partial<Pick<Category, "description" | "image" | "icon" | "styles">>,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category> => {
     return tx.category.create({
@@ -41,6 +41,7 @@ export const categoryRepository = {
         slug: data.slug,
         description: data.description,
         image: data.image,
+        icon: data.icon,
         styles: data.styles,
         priority: data.priority,
       },

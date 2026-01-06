@@ -364,6 +364,7 @@ model Category {
   slug        String  @unique
   description String?
   image       String?
+  icon        String?
   styles      String?
   priority    Int
 

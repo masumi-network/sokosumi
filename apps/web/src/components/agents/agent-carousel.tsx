@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { ResolverSVGIcon } from "@/components/agents/resolver-svg-icon";
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 interface AgentCarouselProps {
   children: React.ReactNode;
   className?: string;
+  icon?: string;
   itemCount: number;
   itemIds?: string[];
   title?: string;
@@ -22,6 +24,7 @@ interface AgentCarouselProps {
 function AgentCarousel({
   children,
   className,
+  icon,
   itemCount,
   itemIds,
   title,
@@ -138,7 +141,16 @@ function AgentCarousel({
       {/* Desktop Header with Title and Arrows */}
       {title && (
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-light md:text-2xl">{title}</h2>
+          <h2 className="flex items-center gap-2 text-xl font-light md:text-2xl">
+            {icon && (
+              <ResolverSVGIcon
+                svgUrl={icon}
+                alt={`${title} icon`}
+                className="size-5 md:size-6"
+              />
+            )}
+            {title}
+          </h2>
           {itemCount > 1 && api && (canScrollNext || canScrollPrev) && (
             <div className="hidden items-center gap-2 md:flex">
               <Button
