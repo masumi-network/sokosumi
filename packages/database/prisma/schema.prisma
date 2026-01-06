@@ -39,10 +39,10 @@ model User {
   invitations Invitation[]
 
   // OAuth Provider relations
-  oauthClients       OAuthClient[]
-  oauthAccessTokens  OAuthAccessToken[]
-  oauthRefreshTokens OAuthRefreshToken[]
-  oauthConsents      OAuthConsent[]
+  oauthClients       OauthClient[]
+  oauthAccessTokens  OauthAccessToken[]
+  oauthRefreshTokens OauthRefreshToken[]
+  oauthConsents      OauthConsent[]
 
   marketingOptIn Boolean @default(false)
 
@@ -76,8 +76,8 @@ model Session {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  oauthAccessTokens  OAuthAccessToken[]
-  oauthRefreshTokens OAuthRefreshToken[]
+  oauthAccessTokens  OauthAccessToken[]
+  oauthRefreshTokens OauthRefreshToken[]
 
   activeOrganizationId String?
 
@@ -845,7 +845,7 @@ enum ShareAccessType {
   RESTRICTED // Only the recipient can access
 }
 
-model OAuthClient {
+model OauthClient {
   clientId                String    @id
   clientSecret            String?
   disabled                Boolean   @default(false)
@@ -876,21 +876,21 @@ model OAuthClient {
   metadata                Json?
 
   // Relations
-  accessTokens  OAuthAccessToken[]
-  refreshTokens OAuthRefreshToken[]
-  consents      OAuthConsent[]
+  accessTokens  OauthAccessToken[]
+  refreshTokens OauthRefreshToken[]
+  consents      OauthConsent[]
 
   @@map("oauthClient")
 }
 
-model OAuthAccessToken {
+model OauthAccessToken {
   token        String             @id @unique
   clientId     String
-  client       OAuthClient        @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  client       OauthClient        @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   sessionId    String?
   session      Session?           @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   refreshId    String?
-  refreshToken OAuthRefreshToken? @relation(fields: [refreshId], references: [id], onDelete: SetNull)
+  refreshToken OauthRefreshToken? @relation(fields: [refreshId], references: [id], onDelete: SetNull)
   userId       String?
   user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   referenceId  String?
@@ -901,11 +901,11 @@ model OAuthAccessToken {
   @@map("oauthAccessToken")
 }
 
-model OAuthRefreshToken {
+model OauthRefreshToken {
   id          String      @id
   token       String      @unique
   clientId    String
-  client      OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  client      OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   sessionId   String?
   session     Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   userId      String
@@ -916,17 +916,17 @@ model OAuthRefreshToken {
   expiresAt   DateTime
   revoked     DateTime?
 
-  accessTokens OAuthAccessToken[]
+  accessTokens OauthAccessToken[]
 
   @@map("oauthRefreshToken")
 }
 
-model OAuthConsent {
+model OauthConsent {
   id          String      @id
   userId      String?
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   clientId    String
-  client      OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  client      OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   referenceId String?
   scopes      String[]
   createdAt   DateTime
