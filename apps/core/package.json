@@ -27,7 +27,7 @@
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.0.0",
     "better-auth": "1.4.10",
-    "better-auth-localization": "2.2.2",
+    "better-auth-localization": "2.2.3",
     "dotenv": "17.2.3",
     "hono": "4.11.3",
     "i18next": "25.7.3",
