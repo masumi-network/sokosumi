@@ -24,7 +24,7 @@ import { lockService } from "@/lib/services";
 import { emptyStringToNull } from "@/lib/utils";
 
 const LOCK_KEY = "agents-sync";
-const SYNC_METADATA_KEY = "agents-sync-last-timestamp";
+const SYNC_METADATA_KEY = "agents-sync-metadata";
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
