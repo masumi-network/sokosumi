@@ -38,6 +38,12 @@ model User {
   members     Member[]
   invitations Invitation[]
 
+  // OAuth Provider relations
+  oauthClients       OAuthClient[]
+  oauthAccessTokens  OAuthAccessToken[]
+  oauthRefreshTokens OAuthRefreshToken[]
+  oauthConsents      OAuthConsent[]
+
   marketingOptIn Boolean @default(false)
 
   // terms
@@ -69,6 +75,9 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  oauthAccessTokens  OAuthAccessToken[]
+  oauthRefreshTokens OAuthRefreshToken[]
 
   activeOrganizationId String?
 
@@ -834,4 +843,94 @@ enum ScheduleType {
 enum ShareAccessType {
   PUBLIC // Anyone can access
   RESTRICTED // Only the recipient can access
+}
+
+model OAuthClient {
+  clientId                String    @id
+  clientSecret            String?
+  disabled                Boolean   @default(false)
+  skipConsent             Boolean?
+  enableEndSession        Boolean?
+  scopes                  String[]
+  userId                  String?
+  user                    User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt               DateTime?
+  updatedAt               DateTime?
+  name                    String?
+  uri                     String?
+  icon                    String?
+  contacts                String[]
+  tos                     String?
+  policy                  String?
+  softwareId              String?
+  softwareVersion         String?
+  softwareStatement       String?
+  redirectUris            String[]
+  postLogoutRedirectUris  String[]
+  tokenEndpointAuthMethod String?
+  grantTypes              String[]
+  responseTypes           String[]
+  public                  Boolean?
+  type                    String?
+  referenceId             String?
+  metadata                Json?
+
+  // Relations
+  accessTokens  OAuthAccessToken[]
+  refreshTokens OAuthRefreshToken[]
+  consents      OAuthConsent[]
+
+  @@map("oauthClient")
+}
+
+model OAuthAccessToken {
+  token        String             @id @unique
+  clientId     String
+  client       OAuthClient        @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  sessionId    String?
+  session      Session?           @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  refreshId    String?
+  refreshToken OAuthRefreshToken? @relation(fields: [refreshId], references: [id], onDelete: SetNull)
+  userId       String?
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  referenceId  String?
+  scopes       String[]
+  createdAt    DateTime
+  expiresAt    DateTime
+
+  @@map("oauthAccessToken")
+}
+
+model OAuthRefreshToken {
+  id          String      @id
+  token       String      @unique
+  clientId    String
+  client      OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  sessionId   String?
+  session     Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId String?
+  scopes      String[]
+  createdAt   DateTime
+  expiresAt   DateTime
+  revoked     DateTime?
+
+  accessTokens OAuthAccessToken[]
+
+  @@map("oauthRefreshToken")
+}
+
+model OAuthConsent {
+  id          String      @id
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  clientId    String
+  client      OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  referenceId String?
+  scopes      String[]
+  createdAt   DateTime
+  updatedAt   DateTime
+
+  @@map("oauthConsent")
 }
