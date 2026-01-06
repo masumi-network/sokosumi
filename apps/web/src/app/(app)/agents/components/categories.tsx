@@ -204,7 +204,7 @@ export default function Categories({
               onClick={(e) => handleToggleCategory(category.slug, e)}
               className={cn(
                 "shrink-0 text-sm",
-                isSelected && "bg-primary text-primary-foreground",
+                isSelected && "bg-secondary text-secondary-foreground",
               )}
             >
               {category.name}
