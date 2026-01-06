@@ -4,6 +4,136 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type PaymentInformation = {
+    RegistrySource: {
+        type: 'Web3CardanoV1';
+        policyId: string | null;
+        url: string | null;
+    };
+    sellerWallet: {
+        address: string;
+        vkey: string;
+    };
+    Capability: {
+        name: string | null;
+        version: string | null;
+    } | null;
+    AgentPricing: {
+        pricingType: 'Fixed';
+        FixedPricing: {
+            Amounts: Array<{
+                amount: string;
+                unit: string;
+            }>;
+        };
+    } | {
+        pricingType: 'Free';
+    };
+    name: string;
+    description: string | null;
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    id: string;
+    lastUptimeCheck: string;
+    uptimeCount: number;
+    uptimeCheckCount: number;
+    apiBaseUrl: string;
+    authorName: string | null;
+    authorOrganization: string | null;
+    authorContactEmail: string | null;
+    authorContactOther: string | null;
+    image: string | null;
+    privacyPolicy: string | null;
+    termsAndCondition: string | null;
+    otherLegal: string | null;
+    tags: Array<string> | null;
+    paymentType: 'Web3CardanoV1' | 'None';
+    agentIdentifier: string;
+    ExampleOutput: Array<{
+        name: string;
+        mimeType: string;
+        url: string;
+    }>;
+};
+
+export type RegistryEntry = {
+    id: string;
+    name: string;
+    description: string | null;
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    statusUpdatedAt: string;
+    lastUptimeCheck: string;
+    uptimeCount: number;
+    uptimeCheckCount: number;
+    apiBaseUrl: string;
+    authorName: string | null;
+    authorOrganization: string | null;
+    authorContactEmail: string | null;
+    authorContactOther: string | null;
+    image: string | null;
+    privacyPolicy: string | null;
+    termsAndCondition: string | null;
+    otherLegal: string | null;
+    tags: Array<string> | null;
+    agentIdentifier: string;
+    paymentType: 'Web3CardanoV1' | 'None';
+    RegistrySource: {
+        id: string;
+        type: 'Web3CardanoV1';
+        policyId: string | null;
+        url: string | null;
+    };
+    Capability: {
+        name: string | null;
+        version: string | null;
+    } | null;
+    AgentPricing: {
+        pricingType: 'Fixed';
+        FixedPricing: {
+            Amounts: Array<{
+                amount: string;
+                unit: string;
+            }>;
+        };
+    } | {
+        pricingType: 'Free';
+    };
+    ExampleOutput: Array<{
+        name: string;
+        mimeType: string;
+        url: string;
+    }>;
+};
+
+export type RegistrySource = {
+    id: string;
+    type: 'Web3CardanoV1';
+    url: string | null;
+    policyId: string | null;
+    note: string | null;
+    latestPage: number | null;
+    latestIdentifier: string | null;
+    rpcProviderApiKey: string | null;
+    network: 'Preprod' | 'Mainnet';
+};
+
+export type Capability = {
+    capabilities: Array<{
+        id: string;
+        name: string;
+        version: string;
+    }>;
+};
+
+export type ApiKey = {
+    id: string;
+    token: string;
+    permission: 'User' | 'Admin';
+    usageLimited: boolean;
+    maxUsageCredits: number | null;
+    accumulatedUsageCredits: number | null;
+    status: 'Active' | 'Revoked';
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -55,56 +185,7 @@ export type GetPaymentInformationResponses = {
      * Registry entries
      */
     200: {
-        data: {
-            RegistrySource: {
-                type: 'Web3CardanoV1';
-                policyId: string | null;
-                url: string | null;
-            };
-            sellerWallet: {
-                address: string;
-                vkey: string;
-            };
-            Capability: {
-                name: string | null;
-                version: string | null;
-            } | null;
-            AgentPricing: {
-                pricingType: 'Fixed';
-                FixedPricing: {
-                    Amounts: Array<{
-                        amount: string;
-                        unit: string;
-                    }>;
-                };
-            } | {
-                pricingType: 'Free';
-            };
-            name: string;
-            description: string | null;
-            status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
-            id: string;
-            lastUptimeCheck: string;
-            uptimeCount: number;
-            uptimeCheckCount: number;
-            apiBaseUrl: string;
-            authorName: string | null;
-            authorOrganization: string | null;
-            authorContactEmail: string | null;
-            authorContactOther: string | null;
-            image: string | null;
-            privacyPolicy: string | null;
-            termsAndCondition: string | null;
-            otherLegal: string | null;
-            tags: Array<string> | null;
-            paymentType: 'Web3CardanoV1' | 'None';
-            agentIdentifier: string;
-            ExampleOutput: Array<{
-                name: string;
-                mimeType: string;
-                url: string;
-            }>;
-        };
+        data: PaymentInformation;
         status: string;
     };
 };
@@ -127,7 +208,6 @@ export type PostRegistryEntryData = {
                 version?: string;
             };
         };
-        minRegistryDate?: Date;
         minHealthCheckDate?: Date;
     };
     path?: never;
@@ -156,53 +236,7 @@ export type PostRegistryEntryResponses = {
      */
     200: {
         data: {
-            entries: Array<{
-                RegistrySource: {
-                    id: string;
-                    type: 'Web3CardanoV1';
-                    policyId: string | null;
-                    url: string | null;
-                };
-                Capability: {
-                    name: string | null;
-                    version: string | null;
-                } | null;
-                name: string;
-                description: string | null;
-                status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
-                id: string;
-                lastUptimeCheck: string;
-                uptimeCount: number;
-                uptimeCheckCount: number;
-                apiBaseUrl: string;
-                authorName: string | null;
-                authorOrganization: string | null;
-                authorContactEmail: string | null;
-                authorContactOther: string | null;
-                image: string | null;
-                privacyPolicy: string | null;
-                termsAndCondition: string | null;
-                otherLegal: string | null;
-                tags: Array<string> | null;
-                agentIdentifier: string;
-                paymentType: 'Web3CardanoV1' | 'None';
-                AgentPricing: {
-                    pricingType: 'Fixed';
-                    FixedPricing: {
-                        Amounts: Array<{
-                            amount: string;
-                            unit: string;
-                        }>;
-                    };
-                } | {
-                    pricingType: 'Free';
-                };
-                ExampleOutput: Array<{
-                    name: string;
-                    mimeType: string;
-                    url: string;
-                }>;
-            }>;
+            entries: Array<RegistryEntry>;
         };
         status: string;
     };
@@ -224,9 +258,7 @@ export type DeleteRegistrySourceResponses = {
      * Registry source
      */
     200: {
-        data: {
-            id: string;
-        };
+        data: RegistrySource;
         status: string;
     };
 };
@@ -249,17 +281,7 @@ export type GetRegistrySourceResponses = {
      */
     200: {
         data: {
-            sources: Array<{
-                id: string;
-                type: 'Web3CardanoV1';
-                url: string | null;
-                policyId: string | null;
-                note: string | null;
-                latestPage: number | null;
-                latestIdentifier: string | null;
-                rpcProviderApiKey: string | null;
-                network: 'Preprod' | 'Mainnet';
-            }>;
+            sources: Array<RegistrySource>;
         };
         status: string;
     };
@@ -283,9 +305,7 @@ export type PatchRegistrySourceResponses = {
      * Registry source
      */
     200: {
-        data: {
-            id: string;
-        };
+        data: RegistrySource;
         status: string;
     };
 };
@@ -310,14 +330,53 @@ export type PostRegistrySourceResponses = {
      * Registry source
      */
     200: {
-        data: {
-            id: string;
-        };
+        data: RegistrySource;
         status: string;
     };
 };
 
 export type PostRegistrySourceResponse = PostRegistrySourceResponses[keyof PostRegistrySourceResponses];
+
+export type PostRegistryDiffData = {
+    body?: {
+        network: 'Preprod' | 'Mainnet';
+        statusUpdatedAfter: Date;
+        limit?: number;
+        cursorId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/registry-diff/';
+};
+
+export type PostRegistryDiffErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostRegistryDiffResponses = {
+    /**
+     * Registry entries with updated status
+     */
+    200: {
+        data: {
+            entries: Array<RegistryEntry>;
+        };
+        status: string;
+    };
+};
+
+export type PostRegistryDiffResponse = PostRegistryDiffResponses[keyof PostRegistryDiffResponses];
 
 export type GetCapabilityData = {
     body?: never;
@@ -349,13 +408,7 @@ export type GetCapabilityResponses = {
      * Registry entries
      */
     200: {
-        data: {
-            capabilities: Array<{
-                id: string;
-                name: string;
-                version: string;
-            }>;
-        };
+        data: Capability;
         status: string;
     };
 };
@@ -374,14 +427,7 @@ export type GetApiKeyStatusResponses = {
      * API Key Status
      */
     200: {
-        data: {
-            token: string;
-            permission: 'User' | 'Admin';
-            usageLimited: boolean;
-            maxUsageCredits: number | null;
-            accumulatedUsageCredits: number | null;
-            status: 'Active' | 'Revoked';
-        };
+        data: ApiKey;
         status: string;
     };
 };
@@ -417,9 +463,7 @@ export type DeleteApiKeyResponses = {
      * API Key
      */
     200: {
-        data: {
-            token: string;
-        };
+        data: ApiKey;
         status: string;
     };
 };
@@ -457,14 +501,7 @@ export type GetApiKeyResponses = {
      */
     200: {
         data: {
-            apiKeys: Array<{
-                token: string;
-                permission: 'User' | 'Admin';
-                usageLimited: boolean;
-                maxUsageCredits: number | null;
-                accumulatedUsageCredits: number | null;
-                status: 'Active' | 'Revoked';
-            }>;
+            apiKeys: Array<ApiKey>;
         };
         status: string;
     };
@@ -507,14 +544,7 @@ export type PatchApiKeyResponses = {
      * Registry entries
      */
     200: {
-        data: {
-            token: string;
-            permission: 'User' | 'Admin';
-            usageLimited: boolean;
-            maxUsageCredits: number | null;
-            accumulatedUsageCredits: number | null;
-            status: 'Active' | 'Revoked';
-        };
+        data: ApiKey;
         status: string;
     };
 };
@@ -552,15 +582,7 @@ export type PostApiKeyResponses = {
      * API Key
      */
     200: {
-        data: {
-            id: string;
-            token: string;
-            permission: 'User' | 'Admin';
-            usageLimited: boolean;
-            maxUsageCredits: number | null;
-            accumulatedUsageCredits: number | null;
-            status: 'Active' | 'Revoked';
-        };
+        data: ApiKey;
         status: string;
     };
 };

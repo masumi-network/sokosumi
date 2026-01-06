@@ -3,6 +3,8 @@ import "server-only";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
+  postRegistryDiff,
+  PostRegistryDiffResponse,
   postRegistryEntry,
   PostRegistryEntryResponse,
 } from "@/lib/clients/generated/registry";
@@ -44,6 +46,30 @@ export const registryClient = (() => {
         response.response.status !== 200
       ) {
         console.error("Error in sync operation:", response.error);
+        return Err(response.error ? String(response.error) : "Unknown error");
+      }
+      return Ok(response.data.data.entries);
+    },
+
+    async getAgentsDiff(
+      statusUpdatedAfter: Date,
+      limit: number = 20,
+    ): Promise<Result<PostRegistryDiffResponse["data"]["entries"], string>> {
+      const response = await postRegistryDiff({
+        client: client(),
+        body: {
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+          statusUpdatedAfter,
+          limit,
+        },
+      });
+      if (
+        !response.data ||
+        response.error ||
+        !response.data.data ||
+        response.response.status !== 200
+      ) {
+        console.error("Error in diff sync operation:", response.error);
         return Err(response.error ? String(response.error) : "Unknown error");
       }
       return Ok(response.data.data.entries);
