@@ -71,6 +71,7 @@ function FilteredAgentsInner({
           key={group.categorySlug}
           agents={group.agents}
           favoriteAgents={favoriteAgents}
+          icon={group.categoryIcon}
           ratingStatsMap={ratingStatsMap}
           title={group.categoryName}
         />

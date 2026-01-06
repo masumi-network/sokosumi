@@ -17,11 +17,13 @@ export const categoryService = (() => {
         await categoryRepository.getCategoriesForAvailableAgents();
 
       const mappedCategories = categories.map(
-        (category): Category => ({
-          slug: category.slug,
-          name: category.name,
-          priority: category.priority,
-        }),
+        (category): Category =>
+          ({
+            slug: category.slug,
+            name: category.name,
+            priority: category.priority,
+            icon: category.icon,
+          }) as Category,
       );
 
       return [...mappedCategories, SYNTHETIC_DEFAULT_CATEGORY];
