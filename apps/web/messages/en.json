@@ -1392,6 +1392,34 @@
           "authorizeError": "Failed to authorize application",
           "authorizeErrorGeneric": "An error occurred during authorization"
         }
+      },
+      "OAuthClients": {
+        "title": "OAuth Clients",
+        "description": "Manage OAuth clients that can access your account",
+        "createButton": "Create OAuth Client",
+        "createSuccess": "OAuth client created successfully",
+        "createError": "Failed to create OAuth client",
+        "copy": "Copy",
+        "copySuccess": "Copied to clipboard",
+        "CreateDialog": {
+          "title": "Create New OAuth Client",
+          "description": "Create a new OAuth client to allow applications to access your account.",
+          "nameLabel": "Name",
+          "namePlaceholder": "e.g., My Application, Production Server",
+          "redirectUrisLabel": "Redirect URIs",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Enter one redirect URI per line. Each URI must be a valid URL.",
+          "cancelButton": "Cancel",
+          "createButton": "Create OAuth Client"
+        },
+        "CreatedSuccess": {
+          "title": "OAuth Client Created",
+          "description": "Your OAuth client has been created successfully. Save these credentials securely.",
+          "clientIdLabel": "Client ID",
+          "clientSecretLabel": "Client Secret",
+          "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
+          "doneButton": "Done"
+        }
       }
     },
     "Organizations": {

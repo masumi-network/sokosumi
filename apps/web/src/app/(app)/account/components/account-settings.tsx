@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { OAuthAuthorizedClients } from "@/components/oauth/authorized-clients";
+import { OAuthClientsSection } from "@/components/oauth/oauth-clients-section";
 import { type Account } from "@/lib/auth/auth";
 import { AccountProvider } from "@/lib/auth/types";
 
@@ -56,7 +56,7 @@ export function AccountSettings({
         </div>
 
         <div className="border-t pt-8">
-          <OAuthAuthorizedClients />
+          <OAuthClientsSection />
         </div>
 
         <div className="border-t pt-8">
