@@ -118,6 +118,8 @@ export default function OAuthCallbackPage() {
         return;
       }
 
+      console.log("result.data", result.data);
+
       // Map Better Auth response to TokenResponse format
       const tokenData: TokenResponse = {
         access_token: result.data.access_token,

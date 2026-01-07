@@ -8,20 +8,10 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface ConsentActionsProps {
-  clientId: string;
   redirectUri: string;
-  codeChallenge: string;
-  scopes: string[];
-  state?: string;
 }
 
-export function ConsentActions({
-  clientId,
-  redirectUri,
-  codeChallenge,
-  scopes,
-  state,
-}: ConsentActionsProps) {
+export function ConsentActions({ redirectUri }: ConsentActionsProps) {
   const t = useTranslations("App.Account.OAuthConsent.actions");
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isDenying, setIsDenying] = useState(false);
@@ -30,10 +20,8 @@ export function ConsentActions({
     setIsAuthorizing(true);
     try {
       const result = await authClient.oauth2.consent({
-        accept: true, // required
-        // scope: scopes.join(" "),
+        accept: true,
       });
-      console.log("result", result);
 
       if (result.error) {
         toast.error(result.error.message || t("authorizeError"));
@@ -57,13 +45,21 @@ export function ConsentActions({
 
   async function handleDeny() {
     setIsDenying(true);
-    // Redirect back with access_denied error
-    const denyUrl = new URL(redirectUri);
-    denyUrl.searchParams.set("error", "access_denied");
-    if (state) {
-      denyUrl.searchParams.set("state", state);
+    const result = await authClient.oauth2.consent({
+      accept: false,
+    });
+
+    if (result.error) {
+      toast.error(result.error.message || t("denyError"));
+      setIsDenying(false);
+      return;
     }
-    window.location.href = denyUrl.toString();
+
+    if (result.data?.redirect) {
+      window.location.href = result.data.uri;
+    } else {
+      window.location.href = redirectUri;
+    }
   }
 
   return (

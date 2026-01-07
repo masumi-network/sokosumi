@@ -1388,7 +1388,8 @@
           "deny": "Deny",
           "denying": "Denying...",
           "authorizeError": "Failed to authorize application",
-          "authorizeErrorGeneric": "An error occurred during authorization"
+          "authorizeErrorGeneric": "An error occurred during authorization",
+          "denyError": "Failed to deny application"
         }
       },
       "OAuthClients": {

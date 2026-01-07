@@ -135,13 +135,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
             </div>
           )}
 
-          <ConsentActions
-            clientId={client_id}
-            redirectUri={redirect_uri}
-            codeChallenge={code_challenge}
-            scopes={scopes}
-            state={state}
-          />
+          <ConsentActions redirectUri={redirect_uri} />
         </CardContent>
       </Card>
     </div>
