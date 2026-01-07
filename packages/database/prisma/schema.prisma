@@ -896,7 +896,7 @@ model OauthAccessToken {
   expiresAt   DateTime
 
   clientId String
-  client   OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client   OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
 
   sessionId String?
   session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
@@ -916,7 +916,7 @@ model OauthRefreshToken {
 
   token     String      @unique
   clientId  String
-  client    OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   sessionId String?
   session   Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   userId    String
@@ -941,7 +941,7 @@ model OauthConsent {
   userId      String?
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   clientId    String
-  client      OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client      OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   referenceId String?
   scopes      String[]
 
