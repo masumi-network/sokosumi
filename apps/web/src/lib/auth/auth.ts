@@ -262,17 +262,16 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: "/signin",
       consentPage: "/oauth/consent",
-      scopes: [
-        "openid",
-        "profile",
-        "email",
-        "read:organization",
-        "offline_access",
-      ],
+      scopes: ["openid", "profile", "email", "offline_access"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
       codeExpiresIn: 600, // 10 minutes (default: 600)
+      prefix: {
+        opaqueAccessToken: "soko_at_",
+        refreshToken: "soko_rt_",
+        clientSecret: "soko_cs_",
+      },
     }),
     organization({
       organizationCreation: {
