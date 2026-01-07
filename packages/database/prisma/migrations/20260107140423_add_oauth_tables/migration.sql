@@ -84,7 +84,7 @@ CREATE TABLE "jwks" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "publicKey" TEXT NOT NULL,
     "privateKey" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "expiresAt" TIMESTAMP(3),
 
     CONSTRAINT "jwks_pkey" PRIMARY KEY ("id")
 );
