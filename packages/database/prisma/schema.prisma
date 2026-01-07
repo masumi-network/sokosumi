@@ -948,7 +948,7 @@ model OauthConsent {
   @@map("oauthConsent")
 }
 
-model JWKS {
+model Jwks {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
