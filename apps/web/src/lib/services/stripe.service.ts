@@ -340,23 +340,43 @@ export const stripeService = (() => {
           await organizationRepository.getOrganizationWithRelationsById(
             organizationId,
           );
-        if (organization && organization.stripeCustomerId) {
-          orgCoupon = await this.getCoupon(
-            getEnvSecrets().STRIPE_ONBOARD_ORGANIZATION_COUPON,
-          );
 
-          const orgInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
-            organization.stripeCustomerId,
-            orgCoupon.id,
-            {
-              referral_user_id: String(userId),
-              referral_email: String(user?.email ?? ""),
-            },
-            referralCount,
-          );
-          if (!orgInvoice || !orgInvoice?.id) {
-            throw new Error("Failed to apply organization coupon");
+        if (!organization) {
+          throw new Error("Organization not found");
+        }
+
+        let orgStripeCustomerId = organization.stripeCustomerId;
+        if (!orgStripeCustomerId) {
+          const orgCustomer =
+            await this.createStripeCustomerForOrganization(organizationId);
+          if (!orgCustomer) {
+            throw new Error("Failed to create organization Stripe customer");
           }
+          orgStripeCustomerId = orgCustomer.id;
+          await organizationRepository.setOrganizationStripeCustomerId(
+            organizationId,
+            orgStripeCustomerId,
+          );
+        }
+
+        orgCoupon = await this.getCoupon(
+          getEnvSecrets().STRIPE_ONBOARD_ORGANIZATION_COUPON,
+        );
+
+        const orgInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
+          orgStripeCustomerId,
+          orgCoupon.id,
+          {
+            referral_user_id: String(userId),
+            referral_email: String(user?.email ?? ""),
+          },
+          referralCount,
+        );
+        if (!orgInvoice || !orgInvoice?.id) {
+          throw new Error("Failed to apply organization coupon");
+        }
+        if (orgInvoice.status !== "paid") {
+          throw new Error("Organization invoice is not paid");
         }
       }
 
