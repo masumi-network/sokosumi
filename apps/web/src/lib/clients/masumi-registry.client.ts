@@ -53,6 +53,7 @@ export const registryClient = (() => {
 
     async getAgentsDiff(
       statusUpdatedAfter: Date,
+      cursorId: string | null,
       limit: number = 20,
     ): Promise<Result<PostRegistryDiffResponse["data"]["entries"], string>> {
       const response = await postRegistryDiff({
@@ -60,6 +61,7 @@ export const registryClient = (() => {
         body: {
           network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
           statusUpdatedAfter,
+          cursorId: cursorId ?? undefined,
           limit,
         },
       });

@@ -7,24 +7,27 @@ import type { Prisma, SyncMetadata } from "../generated/prisma/client.js";
  */
 export const syncMetadataRepository = {
   /**
-   * Retrieves the last sync timestamp for the specified key.
+   * Retrieves the SyncMetadata object for the specified key.
    *
    * @param key - The unique key identifying the sync metadata entry.
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns The last sync timestamp as a Date if found, or null otherwise.
+   * @returns The last sync timestamp and cursor ID if found, or default values (0 for timestamp, null for cursor ID) otherwise.
    */
-  async getLastSyncTimestamp(
+  async getSyncMetadataByKey(
     key: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Date | null> {
+  ): Promise<{ lastSyncedAt: Date; cursorId: string | null }> {
     const metadata = await tx.syncMetadata.findUnique({
       where: { key },
     });
-    return metadata?.lastSyncedAt ?? null;
+    return {
+      lastSyncedAt: metadata?.lastSyncedAt ?? new Date(0),
+      cursorId: metadata?.cursorId ?? null,
+    };
   },
 
   /**
-   * Sets or updates the last sync timestamp for the specified key.
+   * Sets or updates the SyncMetadata object for the specified key.
    * Creates a new entry if it doesn't exist, or updates the existing one.
    *
    * @param key - The unique key identifying the sync metadata entry.
@@ -32,8 +35,9 @@ export const syncMetadataRepository = {
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
    * @returns The created or updated SyncMetadata object.
    */
-  async setLastSyncTimestamp(
+  async setSyncMetadataByKey(
     key: string,
+    cursorId: string,
     timestamp: Date,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<SyncMetadata> {
@@ -42,9 +46,11 @@ export const syncMetadataRepository = {
       create: {
         key,
         lastSyncedAt: timestamp,
+        cursorId,
       },
       update: {
         lastSyncedAt: timestamp,
+        cursorId,
       },
     });
   },
