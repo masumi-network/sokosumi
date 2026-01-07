@@ -17,6 +17,7 @@ interface ConsentPageProps {
   searchParams: Promise<{
     client_id?: string;
     redirect_uri?: string;
+    code_challenge?: string;
     scope?: string;
     state?: string;
     response_type?: string;
@@ -26,9 +27,9 @@ interface ConsentPageProps {
 export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   const t = await getTranslations("App.Account.OAuthConsent");
   const params = await searchParams;
-  const { client_id, redirect_uri, scope, state } = params;
+  const { client_id, redirect_uri, code_challenge, scope, state } = params;
 
-  if (!client_id || !redirect_uri) {
+  if (!client_id || !redirect_uri || !code_challenge) {
     return (
       <div className="container mx-auto max-w-md py-8">
         <Card>
@@ -103,8 +104,8 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
         <CardContent className="space-y-6">
           <div>
             <p className="mb-1 font-semibold">
-              {(client.name as string | undefined) ||
-                (client.clientId as string)}
+              {(client.client_name as string | undefined) ||
+                (client.client_id as string)}
             </p>
             <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
           </div>
@@ -137,6 +138,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
           <ConsentActions
             clientId={client_id}
             redirectUri={redirect_uri}
+            codeChallenge={code_challenge}
             scopes={scopes}
             state={state}
           />

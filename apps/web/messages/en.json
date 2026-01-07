@@ -1418,6 +1418,53 @@
           "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
           "doneButton": "Done"
         }
+      },
+      "OAuthCallback": {
+        "title": "OAuth Authorization Callback",
+        "description": "Exchange your authorization code for an access token",
+        "authorizationCode": "Authorization Code",
+        "state": "State",
+        "codeVerifierLabel": "Code Verifier",
+        "codeVerifierPlaceholder": "Enter the code verifier used in the authorization request",
+        "codeVerifierHelp": "The code verifier must match the code challenge used in the authorization request.",
+        "noCode": "No authorization code found in the URL. Please complete the authorization flow first.",
+        "actions": {
+          "exchange": "Exchange for Token",
+          "exchanging": "Exchanging...",
+          "copy": "Copy"
+        },
+        "success": {
+          "title": "Token Exchange Successful",
+          "description": "Your authorization code has been successfully exchanged for an access token.",
+          "accessToken": "Access Token",
+          "refreshToken": "Refresh Token",
+          "expiresIn": "Expires In",
+          "seconds": "seconds",
+          "scope": "Scope",
+          "idToken": "ID Token",
+          "warning": "Store these tokens securely. The access token can be used to make authenticated requests to the API.",
+          "tokenExchanged": "Token exchanged successfully",
+          "tokenCopied": "Access token copied to clipboard",
+          "refreshTokenCopied": "Refresh token copied to clipboard"
+        },
+        "error": {
+          "title": "Authorization Error",
+          "description": "An error occurred during the authorization process.",
+          "errorCode": "Error Code",
+          "errorDescription": "Error Description"
+        },
+        "errors": {
+          "authorizationFailed": "Authorization failed",
+          "missingCode": "No authorization code found in the URL",
+          "missingCodeVerifier": "Please enter the code verifier",
+          "missingCredentials": "Client ID and Client Secret are required",
+          "tokenExchangeFailed": "Failed to exchange authorization code for token"
+        },
+        "clientIdLabel": "Client ID",
+        "clientIdPlaceholder": "Enter your OAuth Client ID",
+        "clientSecretLabel": "Client Secret",
+        "clientSecretPlaceholder": "Enter your OAuth Client Secret",
+        "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
       }
     },
     "Organizations": {

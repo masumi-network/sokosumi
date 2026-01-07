@@ -10,6 +10,7 @@ import { authClient } from "@/lib/auth/auth.client";
 interface ConsentActionsProps {
   clientId: string;
   redirectUri: string;
+  codeChallenge: string;
   scopes: string[];
   state?: string;
 }
@@ -17,6 +18,7 @@ interface ConsentActionsProps {
 export function ConsentActions({
   clientId,
   redirectUri,
+  codeChallenge,
   scopes,
   state,
 }: ConsentActionsProps) {
@@ -27,15 +29,11 @@ export function ConsentActions({
   async function handleAuthorize() {
     setIsAuthorizing(true);
     try {
-      const result = await authClient.oauth2.authorize({
-        query: {
-          response_type: "code",
-          client_id: clientId,
-          redirect_uri: redirectUri,
-          scope: scopes.join(" "),
-          state: state,
-        },
+      const result = await authClient.oauth2.consent({
+        accept: true, // required
+        // scope: scopes.join(" "),
       });
+      console.log("result", result);
 
       if (result.error) {
         toast.error(result.error.message || t("authorizeError"));
@@ -45,7 +43,7 @@ export function ConsentActions({
 
       // Redirect to the authorization URL returned by Better Auth
       if (result.data?.redirect) {
-        window.location.href = result.data.url;
+        window.location.href = result.data.uri;
       } else {
         // Fallback: redirect to the client's redirect URI
         window.location.href = redirectUri;
