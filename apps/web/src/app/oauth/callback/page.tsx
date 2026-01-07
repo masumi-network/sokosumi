@@ -32,9 +32,9 @@ export default function OAuthCallbackPage() {
   const t = useTranslations("App.Account.OAuthCallback");
   const searchParams = useSearchParams();
   const [codeVerifier, setCodeVerifier] = useState("");
-  const [clientId, setClientId] = useState("IoecnYiAxHfEOGogPYzZDwdXTYAqYWLR");
+  const [clientId, setClientId] = useState("ciAnZbiFfnnpsVvigLJmpvQydvMpldnB");
   const [clientSecret, setClientSecret] = useState(
-    "xwAtFNeOtVsShVneNanXZDINLMHLiijT",
+    "kPwHJHFdPrQFMgzEAkfYQvKjIbSRPUlV",
   );
   const [isExchanging, setIsExchanging] = useState(false);
   const [tokenResponse, setTokenResponse] = useState<TokenResponse | null>(
