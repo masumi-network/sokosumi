@@ -846,16 +846,19 @@ enum ShareAccessType {
 }
 
 model OauthClient {
-  clientId                String    @id
-  clientSecret            String?
-  disabled                Boolean   @default(false)
-  skipConsent             Boolean?
-  enableEndSession        Boolean?
-  scopes                  String[]
-  userId                  String?
-  user                    User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt               DateTime?
-  updatedAt               DateTime?
+  id        String    @id @default(cuid())
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+
+  clientId         String   @unique
+  clientSecret     String?
+  disabled         Boolean  @default(false)
+  skipConsent      Boolean?
+  enableEndSession Boolean?
+  scopes           String[]
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   name                    String?
   uri                     String?
   icon                    String?
@@ -884,37 +887,46 @@ model OauthClient {
 }
 
 model OauthAccessToken {
-  token        String             @id @unique
-  clientId     String
-  client       OauthClient        @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
-  sessionId    String?
-  session      Session?           @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  token       String   @unique
+  referenceId String?
+  scopes      String[]
+  expiresAt   DateTime
+
+  clientId String
+  client   OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  sessionId String?
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
   refreshId    String?
   refreshToken OauthRefreshToken? @relation(fields: [refreshId], references: [id], onDelete: SetNull)
-  userId       String?
-  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-  referenceId  String?
-  scopes       String[]
-  createdAt    DateTime
-  expiresAt    DateTime
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("oauthAccessToken")
 }
 
 model OauthRefreshToken {
-  id          String      @id
-  token       String      @unique
-  clientId    String
-  client      OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
-  sessionId   String?
-  session     Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  token     String      @unique
+  clientId  String
+  client    OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   referenceId String?
   scopes      String[]
-  createdAt   DateTime
-  expiresAt   DateTime
-  revoked     DateTime?
+
+  expiresAt DateTime
+  revoked   DateTime?
 
   accessTokens OauthAccessToken[]
 
@@ -922,23 +934,25 @@ model OauthRefreshToken {
 }
 
 model OauthConsent {
-  id          String      @id
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   userId      String?
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   clientId    String
-  client      OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  client      OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
   referenceId String?
   scopes      String[]
-  createdAt   DateTime
-  updatedAt   DateTime
 
   @@map("oauthConsent")
 }
 
 model JWKS {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   publicKey  String
   privateKey String
   expiresAt  DateTime
