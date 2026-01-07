@@ -342,6 +342,9 @@ export type PostRegistryDiffData = {
         network: 'Preprod' | 'Mainnet';
         statusUpdatedAfter: Date;
         limit?: number;
+        /**
+         * The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward)
+         */
         cursorId?: string;
     };
     path?: never;
