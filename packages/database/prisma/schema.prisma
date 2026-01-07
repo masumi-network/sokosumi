@@ -889,6 +889,7 @@ model OauthClient {
 model OauthAccessToken {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   token       String   @unique
   referenceId String?
@@ -913,6 +914,7 @@ model OauthAccessToken {
 model OauthRefreshToken {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   token     String      @unique
   clientId  String

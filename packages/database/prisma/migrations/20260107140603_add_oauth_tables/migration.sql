@@ -36,6 +36,7 @@ CREATE TABLE "oauthClient" (
 CREATE TABLE "oauthAccessToken" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "token" TEXT NOT NULL,
     "referenceId" TEXT,
     "scopes" TEXT[],
@@ -52,6 +53,7 @@ CREATE TABLE "oauthAccessToken" (
 CREATE TABLE "oauthRefreshToken" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     "token" TEXT NOT NULL,
     "clientId" TEXT NOT NULL,
     "sessionId" TEXT,
