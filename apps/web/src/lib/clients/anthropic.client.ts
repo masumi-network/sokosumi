@@ -61,20 +61,31 @@ export const anthropicClient = (() => {
     },
 
     async generateAgentSummary(description: string): Promise<string | null> {
-      const systemPrompt = `Generate a descriptive agent summary following these rules:
-        - Length: 90-110 characters (including spaces and punctuation)
-        - Language: Match the input
-        - Format: Single sentence, no agent name
-        - Output: Summary only, no other text
+      const systemPrompt = `You are a summary generator. Output ONLY the summary text—no questions, no explanations, no preamble.
+
+        Task: Write a one-sentence agent summary (11-14 words maximum).
+        
+        Requirements:
+        - Start with an action verb (Analyzes, Generates, Processes, Automates, etc.)
+        - No agent name in output
+        - Match input language
+        - One sentence only
+        
+        Do NOT:
+        - Ask clarifying questions
+        - Add quotes around the output
+        - Include any text besides the summary itself
+        - Output phrases like "Unable to", "I cannot", "I'm sorry", or any refusal messages
       `;
+
       const userPrompt = `Agent Description: ${description}`;
 
       try {
         const message: Anthropic.Message = await anthropic.messages.create(
           {
-            model: "claude-3-5-haiku-latest",
-            max_tokens: 80,
-            temperature: 0.9,
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 60,
+            temperature: 0.3,
             system: systemPrompt,
             messages: [{ role: "user", content: userPrompt }],
           },
