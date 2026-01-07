@@ -152,12 +152,13 @@ async function syncAllEntries() {
   const runningTagsUpdates: Promise<void>[] = [];
 
   // Get last sync timestamp
-  const lastSyncTimestamp =
-    await syncMetadataRepository.getLastSyncTimestamp(SYNC_METADATA_KEY);
+  const { lastSyncedAt, cursorId } =
+    await syncMetadataRepository.getSyncMetadataByKey(SYNC_METADATA_KEY);
 
   // Call diff endpoint (no pagination)
   const entriesResult = await registryClient.getAgentsDiff(
-    lastSyncTimestamp ?? new Date(0),
+    lastSyncedAt,
+    cursorId,
     50,
   );
   if (!entriesResult.ok) {
@@ -268,10 +269,9 @@ async function syncAllEntries() {
 
   // Update sync timestamp after successful sync
   const lastEntry = entries[entries.length - 1];
-  const nextSyncTimestamp = new Date(lastEntry.statusUpdatedAt);
-
-  await syncMetadataRepository.setLastSyncTimestamp(
+  await syncMetadataRepository.setSyncMetadataByKey(
     SYNC_METADATA_KEY,
-    nextSyncTimestamp,
+    lastEntry.id,
+    new Date(lastEntry.statusUpdatedAt),
   );
 }
