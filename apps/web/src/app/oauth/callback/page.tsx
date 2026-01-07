@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { authClient } from "@/lib/auth/auth.client";
 
 interface TokenResponse {
   access_token?: string;
@@ -31,11 +32,11 @@ export default function OAuthCallbackPage() {
   const t = useTranslations("App.Account.OAuthCallback");
   const searchParams = useSearchParams();
   const [codeVerifier, setCodeVerifier] = useState(
-    "9nTUqSNB9uoByKXpPuENPEibkVix41fyIZvcKq7aA",
+    "mA875sdFqWFGNmJCv7mSPQ2N5l8eWI09-9-lsUB8cfo",
   );
-  const [clientId, setClientId] = useState("yzbDWRtQZyeQJLBFTxJMetSdbaxfJTAG");
+  const [clientId, setClientId] = useState("IoecnYiAxHfEOGogPYzZDwdXTYAqYWLR");
   const [clientSecret, setClientSecret] = useState(
-    "vKpSOSQSbGcezIcfGhekIyzxdHeMweHN",
+    "xwAtFNeOtVsShVneNanXZDINLMHLiijT",
   );
   const [isExchanging, setIsExchanging] = useState(false);
   const [tokenResponse, setTokenResponse] = useState<TokenResponse | null>(
@@ -55,7 +56,19 @@ export default function OAuthCallbackPage() {
         errorDescription || oauthError || t("errors.authorizationFailed"),
       );
     }
-  }, [oauthError, errorDescription, t]);
+
+    // Try to retrieve code verifier from sessionStorage using state parameter
+    if (state && code && !codeVerifier) {
+      const storedVerifier = sessionStorage.getItem(
+        `oauth_code_verifier_${state}`,
+      );
+      if (storedVerifier) {
+        setCodeVerifier(storedVerifier);
+        // Clear it after retrieving
+        sessionStorage.removeItem(`oauth_code_verifier_${state}`);
+      }
+    }
+  }, [oauthError, errorDescription, t, state, code, codeVerifier]);
 
   async function handleTokenExchange() {
     if (!code) {
@@ -78,39 +91,47 @@ export default function OAuthCallbackPage() {
     setTokenResponse(null);
 
     try {
-      const baseUrl = window.location.origin;
-      const tokenUrl = `${baseUrl}/oauth2/token`;
-
-      // Create Basic Auth header
-      const credentials = btoa(`${clientId}:${clientSecret}`);
-
-      const response = await fetch(tokenUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${credentials}`,
+      // Use Better Auth client for token exchange
+      const result = await authClient.oauth2.token({
+        grant_type: "authorization_code",
+        code: code,
+        redirect_uri: "http://localhost:3000/foobar",
+        code_verifier: codeVerifier,
+        client_id: clientId.trim(),
+        client_secret: clientSecret.trim(),
+        fetchOptions: {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
         },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code: code,
-          redirect_uri: window.location.origin + window.location.pathname,
-          code_verifier: codeVerifier,
-        }),
       });
 
-      const data: TokenResponse = await response.json();
+      console.log("result", result);
 
-      if (!response.ok) {
-        setError(
-          data.error_description ||
-            data.error ||
-            t("errors.tokenExchangeFailed"),
-        );
+      if (result.error) {
+        setError(result.error.message || t("errors.tokenExchangeFailed"));
         setIsExchanging(false);
         return;
       }
 
-      setTokenResponse(data);
+      if (!result.data) {
+        setError(t("errors.tokenExchangeFailed"));
+        setIsExchanging(false);
+        return;
+      }
+
+      // Map Better Auth response to TokenResponse format
+      const tokenData: TokenResponse = {
+        access_token: result.data.access_token,
+        token_type: result.data.token_type,
+        expires_in: result.data.expires_in,
+        refresh_token: (result.data as { refresh_token?: string })
+          .refresh_token,
+        scope: result.data.scope,
+        id_token: (result.data as { id_token?: string }).id_token,
+      };
+
+      setTokenResponse(tokenData);
       toast.success(t("success.tokenExchanged"));
     } catch (err) {
       console.error("Token exchange error:", err);

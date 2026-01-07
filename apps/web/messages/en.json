@@ -1465,6 +1465,25 @@
         "clientSecretLabel": "Client Secret",
         "clientSecretPlaceholder": "Enter your OAuth Client Secret",
         "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
+      },
+      "OAuthStartAuthorization": {
+        "button": "Generate PKCE (Debug)",
+        "title": "Generate PKCE Values (Debug)",
+        "description": "Generate code verifier and challenge for OAuth 2.1 PKCE flow",
+        "instructions": "Click the button below to generate PKCE values for debugging purposes.",
+        "generateButton": "Generate PKCE Values",
+        "generating": "Generating...",
+        "codeVerifierLabel": "Code Verifier",
+        "codeChallengeLabel": "Code Challenge (S256)",
+        "stateLabel": "State",
+        "length": "Length: {length} characters",
+        "copy": "Copy",
+        "generateNew": "Generate New",
+        "close": "Close",
+        "success": "PKCE values generated successfully",
+        "errors": {
+          "generic": "Failed to generate PKCE values"
+        }
       }
     },
     "Organizations": {

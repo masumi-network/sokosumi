@@ -13,6 +13,7 @@ import {
 
 import { OAuthAuthorizedClients } from "./authorized-clients";
 import { CreateOAuthClient } from "./create-client";
+import { StartAuthorization } from "./start-authorization";
 
 export function OAuthClientsSection() {
   const t = useTranslations("App.Account.OAuthClients");
@@ -31,7 +32,10 @@ export function OAuthClientsSection() {
             <CardTitle>{t("title")}</CardTitle>
             <CardDescription>{t("description")}</CardDescription>
           </div>
-          <CreateOAuthClient onSuccess={handleClientCreated} />
+          <div className="flex gap-2">
+            <StartAuthorization />
+            <CreateOAuthClient onSuccess={handleClientCreated} />
+          </div>
         </div>
       </CardHeader>
       <CardContent>
