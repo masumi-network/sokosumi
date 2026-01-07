@@ -31,9 +31,7 @@ interface TokenResponse {
 export default function OAuthCallbackPage() {
   const t = useTranslations("App.Account.OAuthCallback");
   const searchParams = useSearchParams();
-  const [codeVerifier, setCodeVerifier] = useState(
-    "mA875sdFqWFGNmJCv7mSPQ2N5l8eWI09-9-lsUB8cfo",
-  );
+  const [codeVerifier, setCodeVerifier] = useState("");
   const [clientId, setClientId] = useState("IoecnYiAxHfEOGogPYzZDwdXTYAqYWLR");
   const [clientSecret, setClientSecret] = useState(
     "xwAtFNeOtVsShVneNanXZDINLMHLiijT",
@@ -95,10 +93,10 @@ export default function OAuthCallbackPage() {
       const result = await authClient.oauth2.token({
         grant_type: "authorization_code",
         code: code,
-        redirect_uri: "http://localhost:3000/foobar",
+        redirect_uri: "http://localhost:3000/oauth/callback",
         code_verifier: codeVerifier,
-        client_id: clientId.trim(),
-        client_secret: clientSecret.trim(),
+        client_id: clientId,
+        client_secret: clientSecret,
         fetchOptions: {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
