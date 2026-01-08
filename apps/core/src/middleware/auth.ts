@@ -17,7 +17,7 @@ export type AuthVariables = {
   authContext: AuthenticationContext;
 };
 
-function setAuthContext(
+export function setAuthContext(
   c: Parameters<MiddlewareHandler>[0],
   context: AuthVariables,
 ) {
