@@ -31,17 +31,17 @@ const params = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-  method: "get",
-  path: "/{id}",
-  tags: ["Agents"],
-  request: {
-    params,
-  },
-  responses: {
-    200: jsonSuccessResponse(agentSchema, "Retrieve the agent by ID"),
-    401: jsonErrorResponse("Unauthorized"),
-    404: jsonErrorResponse("Not Found"),
-  },
+    method: "get",
+    path: "/{id}",
+    tags: ["Agents"],
+    request: {
+      params,
+    },
+    responses: {
+      200: jsonSuccessResponse(agentSchema, "Retrieve the agent by ID"),
+      401: jsonErrorResponse("Unauthorized"),
+      404: jsonErrorResponse("Not Found"),
+    },
   }),
 );
 
