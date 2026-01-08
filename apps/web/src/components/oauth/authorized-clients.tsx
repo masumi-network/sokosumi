@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { revokeOAuthClientAccess } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface AuthorizedClientWithDetails extends OAuthConsent<Scope[]> {
@@ -85,11 +86,9 @@ export function OAuthAuthorizedClients() {
 
     setRevoking(clientId);
     try {
-      const result = await authClient.oauth2.deleteConsent({
-        id: consentId,
-      });
+      const result = await revokeOAuthClientAccess(consentId, clientId);
 
-      if (result.error) {
+      if (!result.ok) {
         throw new Error(result.error.message || t("revokeError"));
       }
 
