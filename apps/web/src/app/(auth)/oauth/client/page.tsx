@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -10,13 +11,12 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -62,13 +62,9 @@ const createOAuthClientSchema = z.object({
 
 type CreateOAuthClientFormData = z.infer<typeof createOAuthClientSchema>;
 
-interface CreateOAuthClientProps {
-  onSuccess?: () => void;
-}
-
-export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
+export default function CreateOAuthClientPage() {
   const t = useTranslations("App.Account.OAuthClients");
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdClient, setCreatedClient] = useState<{
     clientId: string;
@@ -94,6 +90,7 @@ export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
       const result = await authClient.oauth2.createClient({
         redirect_uris: redirectUris,
         client_name: values.name,
+        scope: "openid offline_access",
       });
 
       if (result.error) {
@@ -107,7 +104,6 @@ export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
         });
         toast.success(t("createSuccess"));
         form.reset();
-        onSuccess?.();
       }
     } catch (error) {
       const errorMessage =
@@ -118,42 +114,65 @@ export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
     }
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
-      // Reset form and created client when closing
-      setTimeout(() => {
-        form.reset();
-        setCreatedClient(null);
-      }, 300);
-    }
+  const handleCopy = (value: string, label: string) => {
+    navigator.clipboard.writeText(value);
+    toast.success(`${label} copied to clipboard`);
+  };
+
+  const handleDone = () => {
+    router.push("/account");
   };
 
   return (
-    <>
-      <Button onClick={() => setOpen(true)} variant="outline">
-        {t("createButton")}
-      </Button>
+    <div className="container mx-auto max-w-md py-8">
+      <Card>
+        {createdClient ? (
+          <>
+            <CardHeader>
+              <CardTitle>{t("CreatedSuccess.title")}</CardTitle>
+              <CardDescription>
+                {t("CreatedSuccess.description")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">
+                  {t("CreatedSuccess.clientIdLabel")}
+                </label>
+                <div className="mt-1 flex items-center gap-2">
+                  <Input
+                    value={createdClient.clientId}
+                    readOnly
+                    className="font-mono text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      handleCopy(
+                        createdClient.clientId,
+                        t("CreatedSuccess.clientIdLabel"),
+                      )
+                    }
+                  >
+                    {t("copy")}
+                  </Button>
+                </div>
+              </div>
 
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-md">
-          {createdClient ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>{t("CreatedSuccess.title")}</DialogTitle>
-                <DialogDescription>
-                  {t("CreatedSuccess.description")}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
+              {createdClient.clientSecret && (
                 <div>
                   <label className="text-sm font-medium">
-                    {t("CreatedSuccess.clientIdLabel")}
+                    {t("CreatedSuccess.clientSecretLabel")}
                   </label>
-                  <div className="mt-1 flex items-center gap-2">
+                  <p className="text-muted-foreground mb-2 text-xs">
+                    {t("CreatedSuccess.clientSecretWarning")}
+                  </p>
+                  <div className="flex items-center gap-2">
                     <Input
-                      value={createdClient.clientId}
+                      type="password"
+                      value={createdClient.clientSecret}
                       readOnly
                       className="font-mono text-sm"
                     />
@@ -161,64 +180,33 @@ export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(createdClient.clientId);
-                        toast.success(t("copySuccess"));
-                      }}
+                      onClick={() =>
+                        handleCopy(
+                          createdClient.clientSecret!,
+                          t("CreatedSuccess.clientSecretLabel"),
+                        )
+                      }
                     >
                       {t("copy")}
                     </Button>
                   </div>
                 </div>
+              )}
 
-                {createdClient.clientSecret && (
-                  <div>
-                    <label className="text-sm font-medium">
-                      {t("CreatedSuccess.clientSecretLabel")}
-                    </label>
-                    <p className="text-muted-foreground mb-2 text-xs">
-                      {t("CreatedSuccess.clientSecretWarning")}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="password"
-                        value={createdClient.clientSecret}
-                        readOnly
-                        className="font-mono text-sm"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            createdClient.clientSecret!,
-                          );
-                          toast.success(t("copySuccess"));
-                        }}
-                      >
-                        {t("copy")}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <DialogFooter>
-                  <Button onClick={() => handleOpenChange(false)}>
-                    {t("CreatedSuccess.doneButton")}
-                  </Button>
-                </DialogFooter>
+              <div className="flex justify-end pt-4">
+                <Button onClick={handleDone}>
+                  {t("CreatedSuccess.doneButton")}
+                </Button>
               </div>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>{t("CreateDialog.title")}</DialogTitle>
-                <DialogDescription>
-                  {t("CreateDialog.description")}
-                </DialogDescription>
-              </DialogHeader>
-
+            </CardContent>
+          </>
+        ) : (
+          <>
+            <CardHeader>
+              <CardTitle>{t("CreateDialog.title")}</CardTitle>
+              <CardDescription>{t("CreateDialog.description")}</CardDescription>
+            </CardHeader>
+            <CardContent>
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
@@ -266,11 +254,11 @@ export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
                     )}
                   />
 
-                  <DialogFooter>
+                  <div className="flex justify-end gap-2 pt-4">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => handleOpenChange(false)}
+                      onClick={() => router.back()}
                       disabled={isSubmitting}
                     >
                       {t("CreateDialog.cancelButton")}
@@ -281,13 +269,13 @@ export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
                       )}
                       {t("CreateDialog.createButton")}
                     </Button>
-                  </DialogFooter>
+                  </div>
                 </form>
               </Form>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+            </CardContent>
+          </>
+        )}
+      </Card>
+    </div>
   );
 }
