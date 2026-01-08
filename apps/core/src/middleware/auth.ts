@@ -83,9 +83,6 @@ async function verifyOAuthToken(
   const hashedToken = await hashAccessToken(token);
   const oauthToken = await prisma.oauthAccessToken.findUnique({
     where: { token: hashedToken },
-    include: {
-      user: true,
-    },
   });
 
   if (!oauthToken) {
@@ -98,7 +95,7 @@ async function verifyOAuthToken(
   }
 
   // Verify user exists (OAuth tokens should have a userId)
-  if (!oauthToken.userId || !oauthToken.user) {
+  if (!oauthToken.userId) {
     return false;
   }
 
