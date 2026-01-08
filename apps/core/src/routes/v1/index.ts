@@ -17,7 +17,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 });
 
 app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
-  name: "x-organization-slug",
+  name: "X-Organization-Slug",
   in: "header",
   description: "Optional organization slug to set the organization context.",
   required: false,

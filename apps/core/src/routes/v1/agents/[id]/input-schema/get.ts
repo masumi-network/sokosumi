@@ -6,7 +6,10 @@ import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 
 const params = z.object({
   id: z.string().openapi({
@@ -15,7 +18,8 @@ const params = z.object({
   }),
 });
 
-const route = createRoute({
+const route = withGlobalHeaderParameters(
+  createRoute({
   method: "get",
   path: "/{id}/input-schema",
   tags: ["Agents"],
@@ -31,7 +35,8 @@ const route = createRoute({
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
-});
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
