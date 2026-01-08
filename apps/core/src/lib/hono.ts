@@ -4,6 +4,17 @@ import { authMiddleware, type AuthVariables } from "@/middleware/auth";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
 
 /**
+ * Options for OpenAPIHonoWithAuth constructor
+ */
+export interface OpenAPIHonoWithAuthOptions {
+  /**
+   * Whether to include the organization header middleware.
+   * Defaults to true. Set to false to disable organization context handling.
+   */
+  includeOrganizationHeader?: boolean;
+}
+
+/**
  * Type-safe OpenAPIHono class with AuthContext in Variables
  * Use this for OpenAPI routes that require authentication
  *
@@ -18,10 +29,14 @@ import { organizationHeaderMiddleware } from "@/middleware/organization";
 export class OpenAPIHonoWithAuth extends OpenAPIHono<{
   Variables: AuthVariables;
 }> {
-  constructor() {
+  constructor(
+    options: OpenAPIHonoWithAuthOptions = { includeOrganizationHeader: true },
+  ) {
     super();
     this.use(authMiddleware);
-    this.use(organizationHeaderMiddleware);
+    if (options.includeOrganizationHeader) {
+      this.use(organizationHeaderMiddleware);
+    }
   }
 }
 
