@@ -1354,7 +1354,6 @@
         "loading": "Loading...",
         "error": "Error: {error}",
         "noApplications": "No applications have been authorized.",
-        "scopes": "Scopes: {scopes}",
         "authorized": "Authorized: {date}",
         "revokeAccess": "Revoke Access",
         "revoking": "Revoking...",

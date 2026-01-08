@@ -34,8 +34,11 @@ export default async function AuthLayout({
     const headersList = await headers();
     const pathname = headersList.get("x-pathname") || "";
 
-    // Skip redirect for callback routes - let client component handle GTM events first
-    if (!pathname.startsWith("/auth/callback/")) {
+    // Skip redirect for OAuth and auth callback routes
+    const shouldSkipRedirect =
+      pathname.startsWith("/auth/callback/") || pathname.startsWith("/oauth");
+
+    if (!shouldSkipRedirect) {
       redirect("/agents");
     }
   }

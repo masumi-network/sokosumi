@@ -41,14 +41,14 @@ export function OAuthAuthorizedClients() {
           await Promise.all(
             consentsData.map(async (consent) => {
               try {
-                const clientResult = await authClient.oauth2.publicClient({
+                const clientResult = await authClient.oauth2.getClient({
                   query: {
                     client_id: consent.clientId,
                   },
                 });
                 const clientName =
-                  typeof clientResult.data?.name === "string"
-                    ? clientResult.data.name
+                  typeof clientResult.data?.client_name === "string"
+                    ? clientResult.data.client_name
                     : consent.clientId;
                 return {
                   ...consent,
@@ -78,16 +78,16 @@ export function OAuthAuthorizedClients() {
     fetchConsents();
   }, [t]);
 
-  async function handleRevoke(consentId: string, clientId: string) {
+  async function handleRevoke(token: string, clientId: string) {
     if (!confirm(t("confirmRevoke"))) {
       return;
     }
 
     setRevoking(clientId);
     try {
-      // Delete consent by its ID
-      const result = await authClient.oauth2.deleteConsent({
-        id: consentId,
+      const result = await authClient.oauth2.revoke({
+        token,
+        client_id: clientId,
       });
 
       if (result.error) {
@@ -148,9 +148,6 @@ export function OAuthAuthorizedClients() {
                   <p className="font-semibold">
                     {consent.clientName || consent.clientId}
                   </p>
-                  <p className="text-muted-foreground mt-1 text-sm">
-                    {t("scopes", { scopes: consent.scopes.join(", ") })}
-                  </p>
                   <p className="text-muted-foreground mt-1 text-xs">
                     {t("authorized", {
                       date: new Date(consent.createdAt).toLocaleDateString(),
@@ -160,7 +157,7 @@ export function OAuthAuthorizedClients() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleRevoke(consent.id, consent.clientId)}
+                  onClick={() => handleRevoke(consent., consent.clientId)}
                   disabled={revoking === consent.clientId}
                 >
                   {revoking === consent.clientId
