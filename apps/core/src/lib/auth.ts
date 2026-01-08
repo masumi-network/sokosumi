@@ -255,7 +255,7 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: "/signin",
       consentPage: "/oauth/consent",
-      scopes: ["openid", "user", "organization", "offline_access"],
+      scopes: ["openid", "offline_access"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
