@@ -1,5 +1,7 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
+import { base64Url } from "@better-auth/utils/base64";
+import { createHash } from "@better-auth/utils/hash";
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -12,24 +14,18 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
  */
 function generateCodeVerifier(): string {
   const array = randomBytes(32);
-  return array
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+  return base64Url.encode(array, { padding: false });
 }
 
 /**
  * Generates a PKCE code challenge using S256 method (SHA256).
  * Code challenge = Base64url(SHA256(ASCII(code_verifier)))
  */
-function generateCodeChallenge(verifier: string): string {
-  const hash = createHash("sha256").update(verifier).digest();
-  return hash
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const hash = await createHash("SHA-256").digest(
+    new TextEncoder().encode(verifier),
+  );
+  return base64Url.encode(new Uint8Array(hash), { padding: false });
 }
 
 const pkceResponseSchema = z
@@ -83,7 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     // Generate PKCE parameters for OAuth 2.1 authorization code flow with PKCE
     const codeVerifier = generateCodeVerifier();
-    const codeChallenge = generateCodeChallenge(codeVerifier);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
     const state = randomUUID();
 
     return created(c, {
