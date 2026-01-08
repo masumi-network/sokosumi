@@ -22,23 +22,86 @@ function setAuthContext(
   c.set("authContext", context.authContext);
 }
 
+/**
+ * Verifies a Better Auth API key and sets the authentication context if valid.
+ *
+ * @param token - The API key token to verify
+ * @param c - The Hono context
+ * @returns `true` if the API key is valid and context was set, `false` otherwise
+ */
+async function verifyApiKey(
+  token: string,
+  c: Parameters<MiddlewareHandler>[0],
+): Promise<boolean> {
+  const apiKeyResult = await auth.api.verifyApiKey({
+    body: { key: token },
+  });
+
+  if (apiKeyResult.valid && apiKeyResult.key) {
+    setAuthContext(c, {
+      isAuthenticated: true,
+      authContext: {
+        userId: apiKeyResult.key.userId,
+        organizationId: apiKeyResult.key.metadata?.organizationId ?? null,
+      },
+    });
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Verifies an OAuth access token using Better Auth introspection API and sets the authentication context if valid.
+ *
+ * @param token - The OAuth access token to verify
+ * @param c - The Hono context
+ * @returns `true` if the token is valid and context was set, `false` otherwise
+ */
+async function verifyOAuthToken(
+  token: string,
+  c: Parameters<MiddlewareHandler>[0],
+): Promise<boolean> {
+  try {
+    const introspectionResult = await auth.api.oauth2Introspect({
+      body: { token },
+    });
+
+    console.log("introspectionResult", introspectionResult);
+    if (
+      introspectionResult.active &&
+      introspectionResult.userId &&
+      typeof introspectionResult.userId === "string"
+    ) {
+      // OAuth tokens always have null organizationId
+      setAuthContext(c, {
+        isAuthenticated: true,
+        authContext: {
+          userId: introspectionResult.userId,
+          organizationId: null,
+        },
+      });
+      return true;
+    }
+  } catch {
+    // If introspection fails, token is invalid
+    // Return false to indicate verification failed
+  }
+
+  return false;
+}
+
 const bearerMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = bearerAuth({
   verifyToken: async (token, c) => {
-    // Check: Better-Auth API Key
-    const result = await auth.api.verifyApiKey({
-      body: { key: token },
-    });
+    // Check 1: Better-Auth API Key
+    if (await verifyApiKey(token, c)) {
+      return true;
+    }
 
-    if (result.valid && result.key) {
-      setAuthContext(c, {
-        isAuthenticated: true,
-        authContext: {
-          userId: result.key.userId,
-          organizationId: result.key.metadata?.organizationId ?? null,
-        },
-      });
+    // Check 2: OAuth Access Token (using Better Auth introspection API)
+    if (await verifyOAuthToken(token, c)) {
       return true;
     }
 
