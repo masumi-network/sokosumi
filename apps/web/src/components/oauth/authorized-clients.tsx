@@ -78,16 +78,15 @@ export function OAuthAuthorizedClients() {
     fetchConsents();
   }, [t]);
 
-  async function handleRevoke(token: string, clientId: string) {
+  async function handleRevoke(consentId: string, clientId: string) {
     if (!confirm(t("confirmRevoke"))) {
       return;
     }
 
     setRevoking(clientId);
     try {
-      const result = await authClient.oauth2.revoke({
-        token,
-        client_id: clientId,
+      const result = await authClient.oauth2.deleteConsent({
+        id: consentId,
       });
 
       if (result.error) {
@@ -157,7 +156,7 @@ export function OAuthAuthorizedClients() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleRevoke(consent., consent.clientId)}
+                  onClick={() => handleRevoke(consent.id, consent.clientId)}
                   disabled={revoking === consent.clientId}
                 >
                   {revoking === consent.clientId
