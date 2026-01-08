@@ -40,6 +40,15 @@
     "[typescriptreact]": {
       "editor.defaultFormatter": "esbenp.prettier-vscode",
     },
+    "workbench.editor.customLabels.patterns": {
+      "**/src/app/**/page.tsx": "${dirname}/page.tsx",
+      "**/src/app/**/default.tsx": "${dirname}/default.tsx",
+      "**/src/app/**/template.tsx": "${dirname}/template.tsx",
+      "**/src/app/**/error.tsx": "${dirname}/error.tsx",
+      "**/src/app/**/loading.tsx": "${dirname}/loading.tsx",
+      "**/src/app/**/route.ts": "${dirname}/route.ts",
+      "**/src/app/**/layout.tsx": "${dirname}/layout.tsx",
+    },
   },
   "extensions": {
     "recommendations": [
