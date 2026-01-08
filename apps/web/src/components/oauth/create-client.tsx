@@ -95,7 +95,7 @@ export function CreateOAuthClient({ onSuccess }: CreateOAuthClientProps) {
         redirect_uris: redirectUris,
         client_name: values.name,
       });
-      console.log(result);
+
       if (result.error) {
         throw new Error(result.error.message || t("createError"));
       }
