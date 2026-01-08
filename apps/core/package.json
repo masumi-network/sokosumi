@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.10",
+    "@better-auth/utils": "0.3.0",
     "@hono/node-server": "1.19.7",
     "@hono/zod-openapi": "1.2.0",
     "@scalar/hono-api-reference": "0.9.32",

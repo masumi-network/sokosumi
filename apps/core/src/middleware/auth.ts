@@ -1,3 +1,6 @@
+import { base64Url } from "@better-auth/utils/base64";
+import { createHash } from "@better-auth/utils/hash";
+import prisma from "@sokosumi/database/client";
 import type { MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 
@@ -51,6 +54,21 @@ async function verifyApiKey(
   return false;
 }
 
+const hashAccessToken = async (value: string) => {
+  const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
+  return await defaultHasher(tokenWithoutPrefix);
+};
+
+const defaultHasher = async (value: string) => {
+  const hash = await createHash("SHA-256").digest(
+    new TextEncoder().encode(value),
+  );
+  const hashed = base64Url.encode(new Uint8Array(hash), {
+    padding: false,
+  });
+  return hashed;
+};
+
 /**
  * Verifies an OAuth access token using Better Auth introspection API and sets the authentication context if valid.
  *
@@ -62,45 +80,49 @@ async function verifyOAuthToken(
   token: string,
   c: Parameters<MiddlewareHandler>[0],
 ): Promise<boolean> {
-  try {
-    const introspectionResult = await auth.api.oauth2Introspect({
-      body: { token },
-    });
+  const hashedToken = await hashAccessToken(token);
+  const oauthToken = await prisma.oauthAccessToken.findUnique({
+    where: { token: hashedToken },
+    include: {
+      user: true,
+    },
+  });
 
-    console.log("introspectionResult", introspectionResult);
-    if (
-      introspectionResult.active &&
-      introspectionResult.userId &&
-      typeof introspectionResult.userId === "string"
-    ) {
-      // OAuth tokens always have null organizationId
-      setAuthContext(c, {
-        isAuthenticated: true,
-        authContext: {
-          userId: introspectionResult.userId,
-          organizationId: null,
-        },
-      });
-      return true;
-    }
-  } catch {
-    // If introspection fails, token is invalid
-    // Return false to indicate verification failed
+  if (!oauthToken) {
+    return false;
   }
 
-  return false;
+  // Check if token is expired
+  if (oauthToken.expiresAt < new Date()) {
+    return false;
+  }
+
+  // Verify user exists (OAuth tokens should have a userId)
+  if (!oauthToken.userId || !oauthToken.user) {
+    return false;
+  }
+
+  // OAuth tokens always have null organizationId
+  setAuthContext(c, {
+    isAuthenticated: true,
+    authContext: {
+      userId: oauthToken.userId,
+      organizationId: null,
+    },
+  });
+  return true;
 }
 
 const bearerMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = bearerAuth({
   verifyToken: async (token, c) => {
-    // Check 1: Better-Auth API Key
+    // Check 1: API Key
     if (await verifyApiKey(token, c)) {
       return true;
     }
 
-    // Check 2: OAuth Access Token (using Better Auth introspection API)
+    // Check 2: OAuth Access Token
     if (await verifyOAuthToken(token, c)) {
       return true;
     }
