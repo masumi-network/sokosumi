@@ -54,19 +54,7 @@ export default function OAuthCallbackPage() {
         errorDescription || oauthError || t("errors.authorizationFailed"),
       );
     }
-
-    // Try to retrieve code verifier from sessionStorage using state parameter
-    if (state && code && !codeVerifier) {
-      const storedVerifier = sessionStorage.getItem(
-        `oauth_code_verifier_${state}`,
-      );
-      if (storedVerifier) {
-        setCodeVerifier(storedVerifier);
-        // Clear it after retrieving
-        sessionStorage.removeItem(`oauth_code_verifier_${state}`);
-      }
-    }
-  }, [oauthError, errorDescription, t, state, code, codeVerifier]);
+  }, [oauthError, errorDescription, t]);
 
   async function handleTokenExchange() {
     if (!code) {
