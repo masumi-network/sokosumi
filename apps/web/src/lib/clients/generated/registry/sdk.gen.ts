@@ -108,7 +108,7 @@ export const postRegistrySource = <ThrowOnError extends boolean = false>(options
 /**
  * REQUIRES API KEY Authentication (+user)
  *
- * Query registry entries whose status was updated after the provided timestamp. Supports pagination.
+ * Query registry entries whose status was updated after the provided timestamp. Supports pagination. Always use statusUpdatedAt of the last item + its cursorId to paginate forward. This guarantees to include all items at least once, when paginating. Note: if the cursorId is not valid it will include all items with an id greater than the cursorId (in string comparison order). If no cursorId is provided, all items, including those with the same statusUpdatedAt, will be included. In case the statusUpdatedAt is before the provided statusUpdatedAfter, all items after the statusUpdatedAfter will be included, regardless of the cursorId.
  */
 export const postRegistryDiff = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDiffData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryDiffResponses, PostRegistryDiffErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
