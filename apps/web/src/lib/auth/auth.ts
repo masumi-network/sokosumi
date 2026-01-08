@@ -268,9 +268,9 @@ export const auth = betterAuth({
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
-        opaqueAccessToken: "soko_at_",
-        refreshToken: "soko_rt_",
-        clientSecret: "soko_cs_",
+        opaqueAccessToken: "soko_access_token_",
+        refreshToken: "soko_refresh_token_",
+        clientSecret: "soko_client_secret_",
       },
     }),
     organization({
