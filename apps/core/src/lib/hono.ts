@@ -1,4 +1,4 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
+import { OpenAPIHono, type RouteConfig } from "@hono/zod-openapi";
 
 import { authMiddleware, type AuthVariables } from "@/middleware/auth";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
@@ -23,4 +23,19 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<{
     this.use(authMiddleware);
     this.use(organizationHeaderMiddleware);
   }
+}
+
+/**
+ * Helper to attach the global header parameter to routes
+ * @param route - The route definition
+ * @returns The route definition with the global header parameter
+ */
+export function withGlobalHeaderParameters<T extends RouteConfig>(route: T): T {
+  return {
+    ...route,
+    parameters: [
+      ...(route.parameters ?? []),
+      { $ref: "#/components/parameters/OrganizationSlug" },
+    ],
+  } as T;
 }

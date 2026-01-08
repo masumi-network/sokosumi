@@ -13,6 +13,18 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   type: "http",
   scheme: "bearer",
   bearerFormat: "JWT",
+  description: "Authentication required for all endpoints.",
+});
+
+app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
+  name: "x-organization-slug",
+  in: "header",
+  description: "Optional organization slug to set the organization context.",
+  required: false,
+  schema: {
+    type: "string",
+    example: "my-organization-slug",
+  },
 });
 
 app.doc31("/openapi.json", {
@@ -20,6 +32,7 @@ app.doc31("/openapi.json", {
   info: {
     version: "1.0.0",
     title: "Sokosumi API",
+    description: "Sokosumi API documentation.",
   },
   servers: [
     {
@@ -47,7 +60,7 @@ app.use(
   "*",
   cors({
     origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
