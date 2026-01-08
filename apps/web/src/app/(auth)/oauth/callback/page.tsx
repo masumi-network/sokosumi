@@ -104,8 +104,6 @@ export default function OAuthCallbackPage() {
         },
       });
 
-      console.log("result", result);
-
       if (result.error) {
         setError(result.error.message || t("errors.tokenExchangeFailed"));
         setIsExchanging(false);
@@ -117,8 +115,6 @@ export default function OAuthCallbackPage() {
         setIsExchanging(false);
         return;
       }
-
-      console.log("result.data", result.data);
 
       // Map Better Auth response to TokenResponse format
       const tokenData: TokenResponse = {
