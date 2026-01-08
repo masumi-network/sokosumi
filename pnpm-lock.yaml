@@ -81,8 +81,8 @@ importers:
         specifier: 4.0.5
         version: 4.0.5
       stripe:
-        specifier: 20.1.1
-        version: 20.1.1(@types/node@24.10.4)
+        specifier: 20.1.2
+        version: 20.1.2(@types/node@24.10.4)
       uuid:
         specifier: 13.0.0
         version: 13.0.0
@@ -355,8 +355,8 @@ importers:
         specifier: 2.0.7
         version: 2.0.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       stripe:
-        specifier: 20.1.1
-        version: 20.1.1(@types/node@24.10.4)
+        specifier: 20.1.2
+        version: 20.1.2(@types/node@24.10.4)
       superjson:
         specifier: 2.2.6
         version: 2.2.6
@@ -8078,8 +8078,8 @@ packages:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
 
-  stripe@20.1.1:
-    resolution: {integrity: sha512-yD2jgS2QfqQOXxF3ByB/BcRTGChor/OxhK1211AvQPkzkTV7qCg7z/whOdhNCX0AZkNjBpicoViqC5TMvaxM9w==}
+  stripe@20.1.2:
+    resolution: {integrity: sha512-qU+lQRRJnTxmyvglYBPE24/IepncmywsAg0GDTsTdP2pb+3e3RdREHJZjKgqCmv0phPxN/nmgNPnIPPH8w0P4A==}
     engines: {node: '>=16'}
     peerDependencies:
       '@types/node': '>=16'
@@ -17520,7 +17520,7 @@ snapshots:
 
   strip-json-comments@3.1.1: {}
 
-  stripe@20.1.1(@types/node@24.10.4):
+  stripe@20.1.2(@types/node@24.10.4):
     dependencies:
       qs: 6.14.1
     optionalDependencies:
