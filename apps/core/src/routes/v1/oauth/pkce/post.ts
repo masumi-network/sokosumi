@@ -55,7 +55,7 @@ const route = createRoute({
   method: "post",
   path: "/pkce",
   tags: ["OAuth"],
-  summary: "Generate PKCE values for OAuth debugging",
+  summary: "Generate PKCE (Debug)",
   description:
     "Generates PKCE (Proof Key for Code Exchange) values including code verifier, code challenge, and state for OAuth 2.1 authorization flow debugging.",
   responses: {
