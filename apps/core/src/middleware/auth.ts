@@ -70,7 +70,8 @@ const defaultHasher = async (value: string) => {
 };
 
 /**
- * Verifies an OAuth access token using Better Auth introspection API and sets the authentication context if valid.
+ * Verifies an OAuth access token and sets the authentication context if valid.
+ * Checks token existence, expiration, refresh token revocation, and consent validity.
  *
  * @param token - The OAuth access token to verify
  * @param c - The Hono context
@@ -81,21 +82,51 @@ async function verifyOAuthToken(
   c: Parameters<MiddlewareHandler>[0],
 ): Promise<boolean> {
   const hashedToken = await hashAccessToken(token);
-  const oauthToken = await prisma.oauthAccessToken.findUnique({
-    where: { token: hashedToken },
+  const oauthToken = await prisma.$transaction(async (tx) => {
+    const oauthToken = await tx.oauthAccessToken.findUnique({
+      where: { token: hashedToken },
+      include: {
+        refreshToken: true,
+      },
+    });
+
+    if (!oauthToken) {
+      return null;
+    }
+
+    // Check if token is expired
+    if (oauthToken.expiresAt < new Date()) {
+      return null;
+    }
+
+    // Verify user exists (OAuth tokens should have a userId)
+    if (!oauthToken.userId) {
+      return null;
+    }
+
+    // Check if refresh token is revoked (if token has a refreshId)
+    if (oauthToken.refreshId && oauthToken.refreshToken) {
+      if (oauthToken.refreshToken.revoked) {
+        return null;
+      }
+    }
+
+    // Verify that consent still exists (user hasn't revoked access)
+    const consent = await tx.oauthConsent.findFirst({
+      where: {
+        userId: oauthToken.userId,
+        clientId: oauthToken.clientId,
+      },
+    });
+
+    if (!consent) {
+      return null;
+    }
+
+    return oauthToken;
   });
 
-  if (!oauthToken) {
-    return false;
-  }
-
-  // Check if token is expired
-  if (oauthToken.expiresAt < new Date()) {
-    return false;
-  }
-
-  // Verify user exists (OAuth tokens should have a userId)
-  if (!oauthToken.userId) {
+  if (!oauthToken || !oauthToken.userId) {
     return false;
   }
 
