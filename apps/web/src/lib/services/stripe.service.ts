@@ -348,15 +348,11 @@ export const stripeService = (() => {
         let orgStripeCustomerId = organization.stripeCustomerId;
         if (!orgStripeCustomerId) {
           const orgCustomer =
-            await stripeClient.createOrganizationCustomer(organization)
+            await stripeClient.createOrganizationCustomer(organization);
           if (!orgCustomer) {
             throw new Error("Failed to create organization Stripe customer");
           }
           orgStripeCustomerId = orgCustomer.id;
-          await organizationRepository.setOrganizationStripeCustomerId(
-            organizationId,
-            orgStripeCustomerId,
-          );
         }
 
         orgCoupon = await this.getCoupon(
