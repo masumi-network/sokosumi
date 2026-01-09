@@ -130,6 +130,12 @@
   /* Custom Colors */
   --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
+  --color-sky-blue: var(--sky-blue);
+  --color-light-teal: var(--light-teal);
+  --color-neon-grass: var(--neon-grass);
+  --color-young-grass: var(--young-grass);
+  --color-persimmon: var(--persimmon);
+  --color-iris-flower: var(--iris-flower);
 
   @keyframes accordion-down {
     from {
@@ -295,6 +301,14 @@
   --alpha-20: hsla(0, 0%, 100%, 0.8);
   --alpha-10: hsla(0, 0%, 100%, 0.9);
   --alpha-5: hsla(0, 0%, 100%, 0.95);
+
+  /* Custom Colors */
+  --sky-blue: #00a4fa;
+  --light-teal: #0afed3;
+  --neon-grass: #0afa14;
+  --young-grass: #c4fe0a;
+  --persimmon: #ff6400;
+  --iris-flower: #ff51ff;
 }
 
 .dark {
@@ -411,6 +425,14 @@
   --alpha-20: hsla(0, 0%, 4%, 0.8);
   --alpha-10: hsla(0, 0%, 4%, 0.9);
   --alpha-5: hsla(0, 0%, 4%, 0.95);
+
+  /* Custom Colors */
+  --sky-blue: #00a4fa;
+  --light-teal: #0afed3;
+  --neon-grass: #0afa14;
+  --young-grass: #c4fe0a;
+  --persimmon: #ff6400;
+  --iris-flower: #ff51ff;
 }
 
 @layer base {

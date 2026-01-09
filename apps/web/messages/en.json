@@ -240,7 +240,8 @@
       "organizations": "Organizations",
       "api-docs": "API Documentation",
       "mcp": "Model Context Protocol (MCP)",
-      "schedules": "Scheduled Agents"
+      "schedules": "Scheduled Agents",
+      "tasks": "Task Manager"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1048,6 +1049,43 @@
       "confirmDeleteDescription": "This cannot be undone. This will delete the schedule permanently.",
       "pausedReason": "Paused Reason",
       "loading": "Loading schedules..."
+    },
+    "Tasks": {
+      "Page": {
+        "title": "Task Manager",
+        "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
+      },
+      "Tabs": {
+        "tasks": "Tasks",
+        "jobs": "Jobs"
+      },
+      "Columns": {
+        "backlog": "Backlog",
+        "todo": "Todo",
+        "inProgress": "In Progress",
+        "inputRequired": "Input Required",
+        "refundRequested": "Refund Requested"
+      },
+      "Actions": {
+        "addTask": "Add Task"
+      },
+      "Card": {
+        "budget": "Budget",
+        "comments": "Comments",
+        "orchestrator": "Orchestrator",
+        "date": "Date"
+      },
+      "Display": {
+        "button": "Display",
+        "list": "List",
+        "board": "Board"
+      },
+      "List": {
+        "placeholder": "List view coming soon."
+      },
+      "Jobs": {
+        "placeholder": "Job view coming soon."
+      }
     },
     "Error": {
       "title": "Something went wrong",
