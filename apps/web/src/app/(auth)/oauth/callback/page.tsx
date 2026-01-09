@@ -77,11 +77,11 @@ export default function OAuthCallbackPage() {
     setTokenResponse(null);
 
     try {
-      // Use Better Auth client for token exchange
+      const redirectUri = `${window.location.origin}/oauth/callback`;
       const result = await authClient.oauth2.token({
         grant_type: "authorization_code",
         code: code,
-        redirect_uri: "http://localhost:3000/oauth/callback",
+        redirect_uri: redirectUri,
         code_verifier: codeVerifier,
         client_id: clientId,
         client_secret: clientSecret,
