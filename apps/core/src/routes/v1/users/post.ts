@@ -2,7 +2,11 @@ import { createRoute } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 import { APIError } from "better-auth";
 
-import { internalServerError } from "@/helpers/error";
+import {
+  badRequest,
+  internalServerError,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { getUserCredits } from "@/helpers/user";
@@ -82,45 +86,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return created(c, user);
     } catch (error) {
-      console.log("Better Auth Error:", error);
       // Handle Better Auth APIError
       if (error instanceof APIError) {
-        //   const errorCode = error.cause?.code;
-        //   const errorMessage = error.message;
-        //   // Handle specific error codes
-        //   if (
-        //     errorCode === "EMAIL_ALREADY_EXISTS" ||
-        //     errorCode === "USER_ALREADY_EXISTS"
-        //   ) {
-        //     throw conflict("A user with this email already exists");
-        //   }
-        //   if (errorCode === "TERMS_NOT_ACCEPTED") {
-        //     throw badRequest("Terms of service must be accepted");
-        //   }
-        //   if (
-        //     errorCode === "INVALID_EMAIL" ||
-        //     errorCode === "INVALID_PASSWORD" ||
-        //     errorCode === "VALIDATION_ERROR"
-        //   ) {
-        //     throw badRequest(errorMessage);
-        //   }
-        //   // Default to unprocessable entity for other API errors
-        //   throw unprocessableEntity(errorMessage);
-        // }
-        // // Re-throw known HTTP exceptions (from our error helpers)
-        // if (
-        //   error &&
-        //   typeof error === "object" &&
-        //   "status" in error &&
-        //   typeof error.status === "number"
-        // ) {
-        //   throw error;
+        const errorMessage = error.body?.message || error.message;
+
+        // Default to unprocessable entity for other API errors (422)
+        if (error.statusCode === 422) {
+          throw unprocessableEntity(errorMessage);
+        }
+
+        // For other status codes, map appropriately
+        if (error.statusCode === 400) {
+          throw badRequest(errorMessage);
+        }
+
+        // Default to unprocessable entity for other API errors
+        throw unprocessableEntity(errorMessage);
       }
 
-      // Unknown error
-      throw internalServerError(
-        "An unexpected error occurred while creating the user",
-      );
+      throw error;
     }
   });
 }
