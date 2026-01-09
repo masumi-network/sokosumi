@@ -168,22 +168,21 @@ const sessionMiddleware: MiddlewareHandler<{
     headers: c.req.raw.headers,
   });
 
-  if (response?.session && response.user) {
-    const { session, user } = response;
-
-    setAuthContext(c, {
-      isAuthenticated: true,
-      authContext: {
-        userId: user.id,
-        organizationId: session.activeOrganizationId ?? null,
-      },
-    });
-
-    return await next();
+  if (!response?.session || !response.user) {
+    throw unauthorized("Invalid, expired or missing session");
   }
-  throw unauthorized();
-};
 
+  const { session, user } = response;
+  setAuthContext(c, {
+    isAuthenticated: true,
+    authContext: {
+      userId: user.id,
+      organizationId: session.activeOrganizationId ?? null,
+    },
+  });
+
+  return await next();
+};
 export const authMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = async (c, next) => {
