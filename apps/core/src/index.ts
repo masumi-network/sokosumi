@@ -16,6 +16,7 @@ import { initI18next } from "@/lib/i18next";
 import { initSentry } from "@/lib/sentry";
 import { sentryMiddleware } from "@/middleware/sentry";
 import authRouter from "@/routes/auth/index";
+import debugRouter from "@/routes/debug/index";
 import apiV1 from "@/routes/v1/index";
 
 validateEnv();
@@ -46,6 +47,7 @@ app.notFound(() => {
 
 app.route("/auth", authRouter);
 app.route("/v1", apiV1);
+app.route("/debug", debugRouter);
 
 app.get(
   "/",

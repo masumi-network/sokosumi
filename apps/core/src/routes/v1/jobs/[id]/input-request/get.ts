@@ -6,7 +6,10 @@ import { requireJobAccess } from "@/helpers/access-control.js";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 
 const params = z.object({
   id: z.string().openapi({
@@ -24,7 +27,8 @@ const inputRequestSchema = z.object({
   inputSchema: z.string().openapi({ example: "input_schema" }),
 });
 
-const route = createRoute({
+const route = withGlobalHeaderParameters(
+  createRoute({
   method: "get",
   path: "/{id}/input-request",
   tags: ["Jobs"],
@@ -52,7 +56,8 @@ const route = createRoute({
     404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
-});
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

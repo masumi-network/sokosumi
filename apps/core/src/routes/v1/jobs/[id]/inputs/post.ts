@@ -12,7 +12,10 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 import { jobInputSchema } from "@/schemas/job.schema";
 
 const params = z.object({
@@ -48,7 +51,8 @@ const requestBodySchema = z.object({
     }),
 });
 
-const route = createRoute({
+const route = withGlobalHeaderParameters(
+  createRoute({
   method: "post",
   path: "/{id}/inputs",
   tags: ["Jobs"],
@@ -83,7 +87,8 @@ const route = createRoute({
     422: jsonErrorResponse("Unprocessable Entity"),
     500: jsonErrorResponse("Internal Server Error"),
   },
-});
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
