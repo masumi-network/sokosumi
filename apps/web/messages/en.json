@@ -1375,12 +1375,6 @@
         "title": "Authorize Application",
         "description": "An application wants to access your account",
         "wantsAccess": "wants to access your Sokosumi account",
-        "requestedPermissions": "Requested Permissions:",
-        "scopes": {
-          "read": "Read access to your account",
-          "write": "Write access to your account",
-          "admin": "Administrative access"
-        },
         "actions": {
           "authorize": "Authorize",
           "authorizing": "Authorizing...",

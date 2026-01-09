@@ -92,8 +92,6 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     );
   }
 
-  const scopes = scope?.split(" ") || [];
-
   return (
     <div className="container mx-auto max-w-md py-8">
       <Card>
@@ -109,31 +107,6 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
             </p>
             <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
           </div>
-
-          {scopes.length > 0 && (
-            <div>
-              <p className="mb-2 font-semibold">{t("requestedPermissions")}</p>
-              <ul className="list-inside list-disc space-y-1 text-sm">
-                {scopes.map((s) => {
-                  let description: string;
-                  if (s === "read") {
-                    description = t("scopes.read");
-                  } else if (s === "write") {
-                    description = t("scopes.write");
-                  } else if (s === "admin") {
-                    description = t("scopes.admin");
-                  } else {
-                    description = s;
-                  }
-                  return (
-                    <li key={s} className="text-muted-foreground">
-                      {description}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
 
           <ConsentActions redirectUri={redirect_uri} />
         </CardContent>
