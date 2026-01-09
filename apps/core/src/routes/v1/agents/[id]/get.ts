@@ -33,6 +33,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}",
+    description: "Get agent details by ID",
     tags: ["Agents"],
     request: {
       params,

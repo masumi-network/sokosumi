@@ -31,6 +31,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
   method: "get",
   path: "/{id}/input-request",
+  description: "Get pending input request for a job",
   tags: ["Jobs"],
   request: {
     params,

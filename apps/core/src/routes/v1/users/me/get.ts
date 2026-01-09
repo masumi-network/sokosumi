@@ -11,6 +11,7 @@ import { type User, userSchema } from "@/schemas/user.schema";
 const route = createRoute({
   method: "get",
   path: "/",
+  description: "Get current authenticated user",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(userSchema, "Retrieve the current user", {

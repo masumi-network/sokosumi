@@ -55,6 +55,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
   method: "post",
   path: "/{id}/inputs",
+  description: "Provide input for a job awaiting input",
   tags: ["Jobs"],
   request: {
     params,

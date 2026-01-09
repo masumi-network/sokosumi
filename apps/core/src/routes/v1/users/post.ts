@@ -20,6 +20,7 @@ import {
 const route = createRoute({
   method: "post",
   path: "/",
+  description: "Create a new user account",
   tags: ["Users"],
   security: [],
   request: {

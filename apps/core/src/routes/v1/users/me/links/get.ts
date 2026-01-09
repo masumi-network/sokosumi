@@ -11,6 +11,7 @@ import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";
 const route = createRoute({
   method: "get",
   path: "/links",
+  description: "Get all links for the current user",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(linksSchema, "Retrieve links by current user", {
