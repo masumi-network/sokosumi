@@ -18,11 +18,14 @@ import { jobsSchema } from "@/schemas/job.schema.js";
 import { flattenJob } from "@/types/job";
 
 const query = z.object({
-  agentId: z.string().optional().openapi({
-    param: { name: "agentId", in: "query" },
-    description: "Filter jobs by agent ID",
-    example: "cmaeygqwa000e8i0s9s7wif8i",
-  }),
+  agentId: z
+    .string()
+    .optional()
+    .openapi({
+      param: { name: "agentId", in: "query" },
+      description: "Filter jobs by agent ID",
+      example: "cmaeygqwa000e8i0s9s7wif8i",
+    }),
 });
 
 const route = withGlobalHeaderParameters(
