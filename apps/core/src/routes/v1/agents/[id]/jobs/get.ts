@@ -1,13 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-import {
-  jobWithCreditTransaction,
-  jobWithEvents,
-  jobWithPurchase,
-  SokosumiJobStatus,
-} from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
+import { getUserJobs } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -15,7 +10,6 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { jobsSchema } from "@/schemas/job.schema.js";
-import { flattenJob } from "@/types/job";
 
 const params = z.object({
   id: z.string().openapi({
@@ -85,20 +79,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    const jobs = await prisma.job.findMany({
-      where: {
-        userId: authContext.userId,
-        organizationId: authContext.organizationId,
-        agentId: id,
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        ...jobWithEvents,
-        ...jobWithCreditTransaction,
-        ...jobWithPurchase,
-      },
-    });
+    const jobs = await getUserJobs(authContext, { agentId: id });
 
-    return ok(c, jobsSchema.parse(jobs.map(flattenJob)));
+    return ok(c, jobsSchema.parse(jobs));
   });
 }
