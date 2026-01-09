@@ -1,7 +1,7 @@
 import { OpenAPIHono, type RouteConfig } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 
-import { unprocessableEntity } from "@/helpers/error";
+import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { authMiddleware, type AuthVariables } from "@/middleware/auth";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
 
@@ -14,13 +14,7 @@ function defaultValidationHook(result: {
   error?: z.ZodError;
 }) {
   if (!result.success && result.error) {
-    const firstIssue = result.error.issues[0];
-    const errorMessage = firstIssue
-      ? firstIssue.path.length > 0
-        ? `Key: ${firstIssue.path.join(".")} - ${firstIssue.message}`
-        : firstIssue.message
-      : "Validation failed";
-    throw unprocessableEntity(errorMessage);
+    throw unprocessableEntity(formatZodErrorMessage(result.error));
   }
 }
 

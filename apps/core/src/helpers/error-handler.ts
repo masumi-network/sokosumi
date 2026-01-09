@@ -4,7 +4,11 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 
-import { type ErrorResponse, getErrorName } from "./error.js";
+import {
+  type ErrorResponse,
+  formatZodErrorMessage,
+  getErrorName,
+} from "./error.js";
 
 /**
  * Centralized error handler for Hono app
@@ -34,15 +38,9 @@ export function errorHandler(
     });
 
     const status = 422;
-    const firstIssue = error.issues[0];
-    const errorMessage = firstIssue
-      ? firstIssue.path.length > 0
-        ? `Key: ${firstIssue.path.join(".")} - ${firstIssue.message}`
-        : firstIssue.message
-      : "Validation failed";
     const errorResponse: ErrorResponse = {
       error: getErrorName(status),
-      message: errorMessage,
+      message: formatZodErrorMessage(error),
       meta,
     };
 
