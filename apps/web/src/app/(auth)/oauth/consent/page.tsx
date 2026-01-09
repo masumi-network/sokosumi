@@ -54,7 +54,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     if (redirect_uri) signInParams.set("redirect_uri", redirect_uri);
     if (state) signInParams.set("state", state);
     if (scope) signInParams.set("scope", scope);
-    redirect(`/oauth/sign-in?${signInParams.toString()}`);
+    redirect(`/signin?${signInParams.toString()}`);
   }
 
   // Fetch public client info for display on consent page
