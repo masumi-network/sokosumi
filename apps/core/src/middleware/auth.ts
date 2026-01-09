@@ -146,16 +146,18 @@ const bearerMiddleware: MiddlewareHandler<{
 }> = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: API Key
-    if (await verifyApiKey(token, c)) {
+    const apiKeyValid = await verifyApiKey(token, c);
+    if (apiKeyValid) {
       return true;
     }
 
     // Check 2: OAuth Access Token
-    if (await verifyOAuthToken(token, c)) {
+    const oauthTokenValid = await verifyOAuthToken(token, c);
+    if (oauthTokenValid) {
       return true;
     }
 
-    throw unauthorized("Invalid token");
+    throw unauthorized("Invalid or expired token");
   },
 });
 
