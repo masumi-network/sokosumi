@@ -72,3 +72,10 @@ export const createUserRequestSchema = z.object({
 });
 
 export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
+
+export const creditsResponseSchema = z.object({
+  credits: z.number().openapi({
+    description: "Current credit balance",
+    example: 100.0,
+  }),
+});

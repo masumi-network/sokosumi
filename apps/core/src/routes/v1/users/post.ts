@@ -9,7 +9,7 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { getUserCredits } from "@/helpers/user";
+import { getCredits } from "@/helpers/user";
 import { auth } from "@/lib/auth";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -77,7 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const user: User = await prisma.$transaction(async (tx) => {
-        const credits = await getUserCredits(signUpResult.user.id, tx);
+        const credits = await getCredits(signUpResult.user.id, null, tx);
         return userSchema.parse({
           ...signUpResult.user,
           credits,
