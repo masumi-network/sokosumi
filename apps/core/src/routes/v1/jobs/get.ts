@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
@@ -17,12 +17,23 @@ import {
 import { jobsSchema } from "@/schemas/job.schema.js";
 import { flattenJob } from "@/types/job";
 
+const query = z.object({
+  agentId: z.string().optional().openapi({
+    param: { name: "agentId", in: "query" },
+    description: "Filter jobs by agent ID",
+    example: "cmaeygqwa000e8i0s9s7wif8i",
+  }),
+});
+
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
     description: "List all jobs for the current user",
     tags: ["Jobs"],
+    request: {
+      query,
+    },
     responses: {
       200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs", {
         data: [
@@ -71,10 +82,13 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    const { agentId } = c.req.valid("query");
+
     const jobs = await prisma.job.findMany({
       where: {
         userId: authContext.userId,
         organizationId: authContext.organizationId,
+        ...(agentId ? { agentId } : {}),
       },
       orderBy: { createdAt: "desc" },
       include: {
