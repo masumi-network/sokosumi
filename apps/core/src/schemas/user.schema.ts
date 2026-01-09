@@ -8,7 +8,7 @@ export const userSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "John Doe" }),
-    emails: z.email().openapi({ example: "john.doe@example.com" }),
+    email: z.email().openapi({ example: "john.doe@example.com" }),
     emailVerified: z.boolean().openapi({ example: true }),
     image: z
       .string()
