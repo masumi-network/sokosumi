@@ -5,8 +5,8 @@ import { getEnv } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
 import jobsRouter from "./jobs/index.js";
-import usersMeRouter from "./users/me/index.js";
 import usersRouter from "./users/index.js";
+import usersMeRouter from "./users/me/index.js";
 
 const app = new OpenAPIHono();
 
