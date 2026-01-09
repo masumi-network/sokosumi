@@ -13,8 +13,8 @@ const querySchema = z.object({
 });
 
 const responseSchema = z.object({
-  exists: z.boolean().openapi({
-    description: "Whether the user exists",
+  registered: z.boolean().openapi({
+    description: "Whether the user is registered",
     example: true,
   }),
   emailVerified: z.boolean().optional().openapi({
@@ -25,18 +25,20 @@ const responseSchema = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/exists",
+  path: "/registered",
   tags: ["Users"],
   security: [],
+  description: "User registered and email verified status",
   request: {
     query: querySchema,
   },
   responses: {
     200: jsonSuccessResponse(
       responseSchema,
-      "User exists. Returns email verification status",
+      "User registered and email verified status",
       {
         data: {
+          registered: true,
           emailVerified: true,
         },
         meta: {
@@ -62,12 +64,12 @@ export default function mount(app: OpenAPIHono) {
 
     if (!user) {
       return ok(c, {
-        exists: false,
+        registered: false,
       });
     }
 
     return ok(c, {
-      exists: true,
+      registered: true,
       emailVerified: user.emailVerified,
     });
   });

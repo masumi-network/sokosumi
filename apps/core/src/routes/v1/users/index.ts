@@ -1,13 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
-import mountGetUserExists from "./exists/get.js";
 import usersMeRouter from "./me/index.js";
 import mountPostUser from "./post.js";
+import mountGetUserRegistered from "./registered/get.js";
 
 const app = new OpenAPIHono();
 
-mountGetUserExists(app);
 mountPostUser(app);
+mountGetUserRegistered(app);
 app.route("/me", usersMeRouter);
 
 export default app;
