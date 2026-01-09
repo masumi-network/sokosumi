@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 import prisma from "@sokosumi/database/client";
 import { APIError } from "better-auth";
 
@@ -11,7 +11,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { getCredits } from "@/helpers/user";
 import { auth } from "@/lib/auth";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   createUserRequestSchema,
   type User,
@@ -22,6 +21,7 @@ const route = createRoute({
   method: "post",
   path: "/",
   tags: ["Users"],
+  security: [],
   request: {
     body: {
       content: {
@@ -48,14 +48,13 @@ const route = createRoute({
       },
     }),
     400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
     409: jsonErrorResponse("Conflict - Email already exists"),
     422: jsonErrorResponse("Unprocessable Entity"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const body = c.req.valid("json");
 

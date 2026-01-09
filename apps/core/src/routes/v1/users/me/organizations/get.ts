@@ -9,7 +9,7 @@ import { organizationsSchema } from "@/schemas/organization.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/me/organizations",
+  path: "/organizations",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(

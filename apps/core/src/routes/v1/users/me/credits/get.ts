@@ -12,7 +12,7 @@ import { creditsResponseSchema } from "@/schemas/user.schema";
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/me/credits",
+    path: "/credits",
     tags: ["Users"],
     responses: {
       200: jsonSuccessResponse(
