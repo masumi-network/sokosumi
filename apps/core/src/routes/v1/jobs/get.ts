@@ -21,6 +21,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
+    description: "List all jobs for the current user",
     tags: ["Jobs"],
     responses: {
       200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs", {

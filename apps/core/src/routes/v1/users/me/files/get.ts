@@ -11,6 +11,7 @@ import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
 const route = createRoute({
   method: "get",
   path: "/files",
+  description: "Get all files for the current user",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(filesSchema, "Retrieve files by current user", {

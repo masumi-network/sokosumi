@@ -13,6 +13,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/credits",
+    description: "Get current user's or organization's credit balance",
     tags: ["Users"],
     responses: {
       200: jsonSuccessResponse(

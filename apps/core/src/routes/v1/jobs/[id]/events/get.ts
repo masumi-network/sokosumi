@@ -23,6 +23,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
   method: "get",
   path: "/{id}/events",
+  description: "Get events for a job",
   tags: ["Jobs"],
   request: {
     params,
