@@ -1,6 +1,11 @@
 import { z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import type {
+  InputFieldSchemaType,
+  InputSchemaSchemaType,
+} from "@sokosumi/masumi/schemas";
+import { inputGroupsSchema } from "@sokosumi/masumi/schemas";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
@@ -58,3 +63,78 @@ export const jobSchema = z
   .openapi("Job");
 
 export const jobsSchema = z.array(jobSchema);
+
+export const createJobRequestSchema = z
+  .object({
+    maxAcceptedCredits: z.number().positive(),
+    inputData: z.record(
+      z.string(),
+      z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.array(z.string()),
+        z.array(z.number()),
+      ]),
+    ),
+    name: z.string().min(1).max(80).optional(),
+    share: z.boolean().default(false),
+  })
+  .openapi("CreateJobRequest");
+
+// Preprocess function to handle backward compatibility (job_id -> id)
+function preprocessStartJobResponse(val: unknown): unknown {
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, unknown>;
+    const { job_id, ...rest } = obj;
+    return {
+      ...rest,
+      id: obj.id ?? job_id,
+    };
+  }
+  return val;
+}
+
+export const startPaidJobResponseSchema = z.preprocess(
+  preprocessStartJobResponse,
+  z
+    .object({
+      id: z.string().min(1),
+      input_hash: z.string().min(1),
+      identifierFromPurchaser: z.string().min(1),
+      blockchainIdentifier: z.string().min(1),
+      payByTime: z.coerce.number().int(),
+      submitResultTime: z.coerce.number().int(),
+      unlockTime: z.coerce.number().int(),
+      externalDisputeUnlockTime: z.coerce.number().int(),
+      agentIdentifier: z.string().min(1),
+      sellerVKey: z.string().min(1),
+    })
+    .openapi("StartPaidJobResponse"),
+);
+
+export type StartPaidJobResponseSchemaType = z.infer<
+  typeof startPaidJobResponseSchema
+>;
+
+// Helper function to flatten input schema (handles both grouped and flat schemas)
+const groupedInputSchema = z.object({
+  input_groups: inputGroupsSchema,
+});
+
+type GroupedInputSchema = z.infer<typeof groupedInputSchema>;
+
+function isGroupedSchema(
+  schema: InputSchemaSchemaType,
+): schema is GroupedInputSchema {
+  return groupedInputSchema.safeParse(schema).success;
+}
+
+export function flattenInputs(
+  schema: InputSchemaSchemaType,
+): InputFieldSchemaType[] {
+  if (isGroupedSchema(schema)) {
+    return schema.input_groups.flatMap((group) => group.input_data);
+  }
+  return schema.input_data;
+}
