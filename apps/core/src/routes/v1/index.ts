@@ -5,7 +5,6 @@ import { getEnv } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
 import jobsRouter from "./jobs/index.js";
-import oauthRouter from "./oauth/index.js";
 import usersRouter from "./users/index.js";
 
 const app = new OpenAPIHono();
@@ -73,6 +72,5 @@ app.use(
 app.route("/agents", agentsRouter);
 app.route("/users", usersRouter);
 app.route("/jobs", jobsRouter);
-app.route("/oauth", oauthRouter);
 
 export default app;
