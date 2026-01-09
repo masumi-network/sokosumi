@@ -7,9 +7,11 @@ import mountGetMeOnboarding from "./me/onboarding/get.js";
 import mountPostMeOnboarding from "./me/onboarding/post.js";
 import mountGetMePreferences from "./me/preferences/get.js";
 import mountPatchMePreferences from "./me/preferences/patch.js";
+import mountPostUser from "./post.js";
 
 const app = new OpenAPIHonoWithAuth({ includeOrganizationHeader: false });
 
+mountPostUser(app);
 mountGetMe(app);
 mountGetMePreferences(app);
 mountPatchMePreferences(app);
