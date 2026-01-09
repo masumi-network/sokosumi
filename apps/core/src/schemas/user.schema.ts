@@ -42,35 +42,33 @@ export const userOnboardingResponseSchema = z
   })
   .openapi("UserOnboarding");
 
-export const createUserRequestSchema = z
-  .object({
-    name: z.string().min(1).openapi({
-      description: "User's full name",
-      example: "John Doe",
+export const createUserRequestSchema = z.object({
+  name: z.string().min(1).openapi({
+    description: "User's full name",
+    example: "John Doe",
+  }),
+  email: z.email().openapi({
+    description: "User's email address (must be a valid email address)",
+    example: "john.doe@example.com",
+  }),
+  password: z.string().min(8).max(256).openapi({
+    description: "User's password (must be between 8 and 256 characters)",
+    example: "SecurePassword123!",
+  }),
+  termsAccepted: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: "Terms of service must be accepted",
+    })
+    .openapi({
+      description: "Whether the user has accepted the terms of service",
+      example: true,
     }),
-    email: z.email().openapi({
-      description: "User's email address (must be a valid email address)",
-      example: "john.doe@example.com",
-    }),
-    password: z.string().min(8).max(256).openapi({
-      description: "User's password (must be between 8 and 256 characters)",
-      example: "SecurePassword123!",
-    }),
-    termsAccepted: z
-      .boolean()
-      .refine((val) => val === true, {
-        message: "Terms of service must be accepted",
-      })
-      .openapi({
-        description: "Whether the user has accepted the terms of service",
-        example: true,
-      }),
-    marketingOptIn: z.boolean().optional().default(false).openapi({
-      description:
-        "Whether the user wants to receive marketing emails (defaults to false)",
-      example: false,
-    }),
-  })
-  .openapi("CreateUserRequest");
+  marketingOptIn: z.boolean().optional().default(false).openapi({
+    description:
+      "Whether the user wants to receive marketing emails (defaults to false)",
+    example: false,
+  }),
+});
 
 export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
