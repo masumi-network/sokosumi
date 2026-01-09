@@ -10,13 +10,13 @@ import { setAuthContext } from "@/middleware/auth";
  *
  * @param organizationSlug - The organization slug to look up
  * @param userId - The authenticated user's ID
- * @returns The organization ID if valid and user is a member, null if organization doesn't exist
+ * @returns The organization ID if valid and user is a member
  * @throws {forbidden} If user is not a member of the organization
  */
 async function resolveOrganizationFromSlug(
   organizationSlug: string,
   userId: string,
-): Promise<string | null> {
+): Promise<string> {
   // Look up organization by slug
   const organization = await prisma.organization.findUnique({
     where: { slug: organizationSlug },
