@@ -9,7 +9,7 @@ import { userOnboardingResponseSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/me/onboarding",
+  path: "/onboarding",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(

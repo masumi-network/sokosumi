@@ -4,13 +4,13 @@ import prisma from "@sokosumi/database/client";
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapUserToResponse } from "@/helpers/user";
+import { getCredits } from "@/helpers/user";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { type User, userSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/me",
+  path: "/",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(userSchema, "Retrieve the current user", {
@@ -44,7 +44,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!user) {
         throw internalServerError("Failed to retrieve user");
       }
-      return await mapUserToResponse(user, tx);
+      const credits = await getCredits(user.id, null, tx);
+      return userSchema.parse({
+        ...user,
+        credits,
+      });
     });
 
     return ok(c, user);
