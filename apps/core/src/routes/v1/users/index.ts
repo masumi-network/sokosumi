@@ -5,6 +5,7 @@ import mountGetMe from "./me/get.js";
 import mountGetMeLinks from "./me/links/get.js";
 import mountGetMeOnboarding from "./me/onboarding/get.js";
 import mountPostMeOnboarding from "./me/onboarding/post.js";
+import mountGetMeOrganizations from "./me/organizations/get.js";
 import mountGetMePreferences from "./me/preferences/get.js";
 import mountPatchMePreferences from "./me/preferences/patch.js";
 
@@ -17,5 +18,6 @@ mountGetMeOnboarding(app);
 mountPostMeOnboarding(app);
 mountGetMeFiles(app);
 mountGetMeLinks(app);
+mountGetMeOrganizations(app);
 
 export default app;
