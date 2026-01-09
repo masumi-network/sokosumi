@@ -14,14 +14,14 @@ import mountPatchMePreferences from "./preferences/patch.js";
 const app = new OpenAPIHonoWithAuth();
 
 mountGetMe(app);
+mountGetMeOrganizations(app);
+mountGetMeOrganization(app);
+mountGetMeCredits(app);
 mountGetMePreferences(app);
 mountPatchMePreferences(app);
 mountGetMeOnboarding(app);
 mountPostMeOnboarding(app);
 mountGetMeFiles(app);
 mountGetMeLinks(app);
-mountGetMeOrganizations(app);
-mountGetMeOrganization(app);
-mountGetMeCredits(app);
 
 export default app;
