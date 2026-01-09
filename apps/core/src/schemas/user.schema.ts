@@ -20,27 +20,23 @@ export const userSchema = z
 
 export type User = z.infer<typeof userSchema>;
 
-export const userPreferencesResponseSchema = z
-  .object({
-    marketingOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive marketing emails",
-      example: true,
-    }),
-    notificationsOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive job status notifications",
-      example: true,
-    }),
-  })
-  .openapi("UserPreferences");
+export const userPreferencesResponseSchema = z.object({
+  marketingOptIn: z.boolean().openapi({
+    description: "Whether the user wants to receive marketing emails",
+    example: true,
+  }),
+  notificationsOptIn: z.boolean().openapi({
+    description: "Whether the user wants to receive job status notifications",
+    example: true,
+  }),
+});
 
-export const userOnboardingResponseSchema = z
-  .object({
-    completed: z.boolean().openapi({
-      description: "Whether the user has completed onboarding",
-      example: true,
-    }),
-  })
-  .openapi("UserOnboarding");
+export const userOnboardingResponseSchema = z.object({
+  completed: z.boolean().openapi({
+    description: "Whether the user has completed onboarding",
+    example: true,
+  }),
+});
 
 export const createUserRequestSchema = z.object({
   name: z.string().min(1).openapi({

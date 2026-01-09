@@ -10,6 +10,7 @@ import { userPreferencesResponseSchema } from "@/schemas/user.schema";
 const route = createRoute({
   method: "get",
   path: "/preferences",
+  description: "Get current user's preferences",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(

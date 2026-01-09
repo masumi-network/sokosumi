@@ -22,6 +22,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
   method: "get",
   path: "/{id}/links",
+  description: "Get links associated with a job",
   tags: ["Jobs"],
   request: {
     params,

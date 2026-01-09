@@ -26,6 +26,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
+    description: "List all available agents",
     tags: ["Agents"],
     responses: {
       200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),

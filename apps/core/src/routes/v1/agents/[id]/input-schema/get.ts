@@ -22,6 +22,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
   method: "get",
   path: "/{id}/input-schema",
+  description: "Get input schema for an agent",
   tags: ["Agents"],
   request: {
     params,
