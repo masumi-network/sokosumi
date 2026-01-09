@@ -43,7 +43,9 @@ const route = createRoute({
       },
     ),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden - You are not a member of this organization"),
+    403: jsonErrorResponse(
+      "Forbidden - You are not a member of this organization",
+    ),
     404: jsonErrorResponse("Not Found - Organization not found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
@@ -87,11 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       // Get organization credits
-      const credits = await getCredits(
-        authContext.userId,
-        organization.id,
-        tx,
-      );
+      const credits = await getCredits(authContext.userId, organization.id, tx);
 
       return {
         ...organization,
