@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 
+import { OAuthAuthorizedClients } from "@/components/oauth/authorized-clients";
 import { type Account } from "@/lib/auth/auth";
 import { AccountProvider } from "@/lib/auth/types";
 
@@ -52,6 +53,10 @@ export function AccountSettings({
 
         <div className="border-t pt-8">
           <SocialAccounts socialAccounts={socialAccounts} />
+        </div>
+
+        <div className="border-t pt-8">
+          <OAuthAuthorizedClients />
         </div>
 
         <div className="border-t pt-8">

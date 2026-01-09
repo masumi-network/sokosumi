@@ -1,3 +1,6 @@
+import { base64Url } from "@better-auth/utils/base64";
+import { createHash } from "@better-auth/utils/hash";
+import prisma from "@sokosumi/database/client";
 import type { MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 
@@ -14,7 +17,7 @@ export type AuthVariables = {
   authContext: AuthenticationContext;
 };
 
-function setAuthContext(
+export function setAuthContext(
   c: Parameters<MiddlewareHandler>[0],
   context: AuthVariables,
 ) {
@@ -22,27 +25,139 @@ function setAuthContext(
   c.set("authContext", context.authContext);
 }
 
+/**
+ * Verifies a Better Auth API key and sets the authentication context if valid.
+ *
+ * @param token - The API key token to verify
+ * @param c - The Hono context
+ * @returns `true` if the API key is valid and context was set, `false` otherwise
+ */
+async function verifyApiKey(
+  token: string,
+  c: Parameters<MiddlewareHandler>[0],
+): Promise<boolean> {
+  const apiKeyResult = await auth.api.verifyApiKey({
+    body: { key: token },
+  });
+
+  if (apiKeyResult.valid && apiKeyResult.key) {
+    setAuthContext(c, {
+      isAuthenticated: true,
+      authContext: {
+        userId: apiKeyResult.key.userId,
+        organizationId: apiKeyResult.key.metadata?.organizationId ?? null,
+      },
+    });
+    return true;
+  }
+
+  return false;
+}
+
+const hashAccessToken = async (value: string) => {
+  const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
+  return await defaultHasher(tokenWithoutPrefix);
+};
+
+const defaultHasher = async (value: string) => {
+  const hash = await createHash("SHA-256").digest(
+    new TextEncoder().encode(value),
+  );
+  const hashed = base64Url.encode(new Uint8Array(hash), {
+    padding: false,
+  });
+  return hashed;
+};
+
+/**
+ * Verifies an OAuth access token and sets the authentication context if valid.
+ * Checks token existence, expiration, refresh token revocation, and consent validity.
+ *
+ * @param token - The OAuth access token to verify
+ * @param c - The Hono context
+ * @returns `true` if the token is valid and context was set, `false` otherwise
+ */
+async function verifyOAuthToken(
+  token: string,
+  c: Parameters<MiddlewareHandler>[0],
+): Promise<boolean> {
+  const hashedToken = await hashAccessToken(token);
+  const oauthToken = await prisma.$transaction(async (tx) => {
+    const oauthToken = await tx.oauthAccessToken.findUnique({
+      where: { token: hashedToken },
+      include: {
+        refreshToken: true,
+      },
+    });
+
+    if (!oauthToken) {
+      return null;
+    }
+
+    // Check if token is expired
+    if (oauthToken.expiresAt < new Date()) {
+      return null;
+    }
+
+    // Verify user exists (OAuth tokens should have a userId)
+    if (!oauthToken.userId) {
+      return null;
+    }
+
+    // Check if refresh token is revoked (if token has a refreshId)
+    if (oauthToken.refreshId && oauthToken.refreshToken) {
+      if (oauthToken.refreshToken.revoked) {
+        return null;
+      }
+    }
+
+    // Verify that consent still exists (user hasn't revoked access)
+    const consent = await tx.oauthConsent.findFirst({
+      where: {
+        userId: oauthToken.userId,
+        clientId: oauthToken.clientId,
+      },
+    });
+
+    if (!consent) {
+      return null;
+    }
+
+    return oauthToken;
+  });
+
+  if (!oauthToken || !oauthToken.userId) {
+    return false;
+  }
+
+  // OAuth tokens always have null organizationId
+  setAuthContext(c, {
+    isAuthenticated: true,
+    authContext: {
+      userId: oauthToken.userId,
+      organizationId: null,
+    },
+  });
+  return true;
+}
+
 const bearerMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = bearerAuth({
   verifyToken: async (token, c) => {
-    // Check: Better-Auth API Key
-    const result = await auth.api.verifyApiKey({
-      body: { key: token },
-    });
-
-    if (result.valid && result.key) {
-      setAuthContext(c, {
-        isAuthenticated: true,
-        authContext: {
-          userId: result.key.userId,
-          organizationId: result.key.metadata?.organizationId ?? null,
-        },
-      });
+    // Check 1: API Key
+    const apiKeyValid = await verifyApiKey(token, c);
+    if (apiKeyValid) {
       return true;
     }
 
-    throw unauthorized("Invalid token");
+    // Check 2: OAuth Access Token
+    const oauthTokenValid = await verifyOAuthToken(token, c);
+    if (oauthTokenValid) {
+      return true;
+    }
+
+    throw unauthorized("Invalid or expired token");
   },
 });
 
@@ -53,22 +168,21 @@ const sessionMiddleware: MiddlewareHandler<{
     headers: c.req.raw.headers,
   });
 
-  if (response?.session && response.user) {
-    const { session, user } = response;
-
-    setAuthContext(c, {
-      isAuthenticated: true,
-      authContext: {
-        userId: user.id,
-        organizationId: session.activeOrganizationId ?? null,
-      },
-    });
-
-    return await next();
+  if (!response?.session || !response.user) {
+    throw unauthorized("Invalid, expired or missing session");
   }
-  throw unauthorized();
-};
 
+  const { session, user } = response;
+  setAuthContext(c, {
+    isAuthenticated: true,
+    authContext: {
+      userId: user.id,
+      organizationId: session.activeOrganizationId ?? null,
+    },
+  });
+
+  return await next();
+};
 export const authMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = async (c, next) => {

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { oauthProvider } from "@better-auth/oauth-provider";
 import * as Sentry from "@sentry/nextjs";
 import { User } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
@@ -7,7 +8,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { apiKey, organization } from "better-auth/plugins";
+import { apiKey, jwt, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
@@ -43,6 +44,7 @@ export const auth = betterAuth({
       enabled: true,
       maxAge: getEnvSecrets().BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
+    storeSessionInDatabase: true,
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -165,7 +167,7 @@ export const auth = betterAuth({
       }
     }),
   },
-  disabledPaths: ["/sign-up/email", "/sign-in"],
+  disabledPaths: ["/sign-up/email", "/sign-in", "/token"],
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
@@ -255,6 +257,22 @@ export const auth = betterAuth({
         maxRequests: 100, // 100 requests per minute
       },
       enableMetadata: true,
+    }),
+    jwt({ disableSettingJwtHeader: true }),
+    oauthProvider({
+      loginPage: "/signin",
+      consentPage: "/oauth/consent",
+      scopes: ["openid", "offline_access"],
+      clientRegistrationDefaultScopes: ["openid", "offline_access"],
+      accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
+      refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
+      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
+      codeExpiresIn: 600, // 10 minutes (default: 600)
+      prefix: {
+        opaqueAccessToken: "soko_access_token_",
+        refreshToken: "soko_refresh_token_",
+        clientSecret: "soko_client_secret_",
+      },
     }),
     organization({
       organizationCreation: {

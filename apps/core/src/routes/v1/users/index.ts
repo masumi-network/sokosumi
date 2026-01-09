@@ -8,7 +8,7 @@ import mountPostMeOnboarding from "./me/onboarding/post.js";
 import mountGetMePreferences from "./me/preferences/get.js";
 import mountPatchMePreferences from "./me/preferences/patch.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({ includeOrganizationHeader: false });
 
 mountGetMe(app);
 mountGetMePreferences(app);

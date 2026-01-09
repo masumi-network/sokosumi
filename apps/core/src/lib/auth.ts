@@ -1,3 +1,4 @@
+import { oauthProvider } from "@better-auth/oauth-provider";
 import * as Sentry from "@sentry/node";
 import prisma from "@sokosumi/database/client";
 import { APIError, betterAuth } from "better-auth";
@@ -5,6 +6,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import {
   apiKey,
   createAuthMiddleware,
+  jwt,
   openAPI,
   organization,
 } from "better-auth/plugins";
@@ -37,6 +39,7 @@ export const auth = betterAuth({
       enabled: true,
       maxAge: TIME.SESSION_COOKIE_CACHE_MAX_AGE,
     },
+    storeSessionInDatabase: true,
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -247,6 +250,22 @@ export const auth = betterAuth({
         maxRequests: LIMITS.API_KEY_MAX_REQUESTS_PER_MINUTE,
       },
       enableMetadata: true,
+    }),
+    jwt({ disableSettingJwtHeader: true }),
+    oauthProvider({
+      loginPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/signin`,
+      consentPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/oauth/consent`,
+      scopes: ["openid", "offline_access"],
+      clientRegistrationDefaultScopes: ["openid", "offline_access"],
+      accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
+      refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
+      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
+      codeExpiresIn: 600, // 10 minutes (default: 600)
+      prefix: {
+        opaqueAccessToken: "soko_access_token_",
+        refreshToken: "soko_refresh_token_",
+        clientSecret: "soko_client_secret_",
+      },
     }),
     organization({
       organizationCreation: {

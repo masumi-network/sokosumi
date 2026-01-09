@@ -1,7 +1,9 @@
+import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import {
   apiKeyClient,
   inferAdditionalFields,
   inferOrgAdditionalFields,
+  jwtClient,
   organizationClient,
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
@@ -15,6 +17,8 @@ export const authClient = createAuthClient({
     organizationClient({
       schema: inferOrgAdditionalFields<typeof auth>(),
     }),
+    oauthProviderClient(),
+    jwtClient(),
   ],
 });
 
