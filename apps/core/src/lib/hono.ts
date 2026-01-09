@@ -1,7 +1,28 @@
 import { OpenAPIHono, type RouteConfig } from "@hono/zod-openapi";
+import { z } from "@hono/zod-openapi";
 
+import { unprocessableEntity } from "@/helpers/error";
 import { authMiddleware, type AuthVariables } from "@/middleware/auth";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
+
+/**
+ * Global hook for OpenAPI validation errors
+ * Converts ZodErrors to HTTPExceptions that our error handler can process
+ */
+function defaultValidationHook(result: {
+  success: boolean;
+  error?: z.ZodError;
+}) {
+  if (!result.success && result.error) {
+    const firstIssue = result.error.issues[0];
+    const errorMessage = firstIssue
+      ? firstIssue.path.length > 0
+        ? `Key: ${firstIssue.path.join(".")} - ${firstIssue.message}`
+        : firstIssue.message
+      : "Validation failed";
+    throw unprocessableEntity(errorMessage);
+  }
+}
 
 /**
  * Options for OpenAPIHonoWithAuth constructor
@@ -32,7 +53,9 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<{
   constructor(
     options: OpenAPIHonoWithAuthOptions = { includeOrganizationHeader: true },
   ) {
-    super();
+    super({
+      defaultHook: defaultValidationHook,
+    });
     this.use(authMiddleware);
     if (options.includeOrganizationHeader) {
       this.use(organizationHeaderMiddleware);
