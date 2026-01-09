@@ -29,12 +29,11 @@ export function ConsentActions({ redirectUri }: ConsentActionsProps) {
         return;
       }
 
+      const { redirect, uri } = result.data;
+
       // Redirect to the authorization URL returned by Better Auth
-      if (result.data?.redirect) {
-        window.location.href = result.data.uri;
-      } else {
-        // Fallback: redirect to the client's redirect URI
-        window.location.href = redirectUri;
+      if (redirect && uri) {
+        window.location.href = uri;
       }
     } catch (error) {
       console.error("OAuth authorization error:", error);
