@@ -1,0 +1,56 @@
+import { createRoute } from "@hono/zod-openapi";
+import prisma from "@sokosumi/database/client";
+
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { organizationsSchema } from "@/schemas/organization.schema";
+
+const route = createRoute({
+  method: "get",
+  path: "/me/organizations",
+  tags: ["Users"],
+  responses: {
+    200: jsonSuccessResponse(
+      organizationsSchema,
+      "Retrieve organizations for current user",
+      {
+        data: [
+          {
+            id: "org_123",
+            name: "My Organization",
+            slug: "my-org",
+            logo: "https://example.com/logo.png",
+            metadata: null,
+            createdAt: "2025-01-01T00:00:00.000Z",
+            role: "member",
+          },
+        ],
+        meta: {
+          timestamp: "2025-01-01T00:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+      },
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    500: jsonErrorResponse("Internal Server Error"),
+  },
+});
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const { authContext } = c.var;
+
+    const members = await prisma.member.findMany({
+      where: { userId: authContext.userId },
+      include: { organization: true },
+    });
+
+    const organizations = members.map((member) => ({
+      ...member.organization,
+      role: member.role,
+    }));
+
+    return ok(c, organizationsSchema.parse(organizations));
+  });
+}
