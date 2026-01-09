@@ -125,6 +125,26 @@ export const serviceUnavailable = (
 };
 
 /**
+ * Formats a ZodError into a user-friendly error message
+ * Extracts the first validation issue and formats it with the field path if available
+ *
+ * @param error - The ZodError to format
+ * @returns A formatted error message string
+ */
+export function formatZodErrorMessage(error: z.ZodError): string {
+  const firstIssue = error.issues[0];
+  if (!firstIssue) {
+    return "Validation failed";
+  }
+
+  if (firstIssue.path.length > 0) {
+    return `Key: ${firstIssue.path.join(".")} - ${firstIssue.message}`;
+  }
+
+  return firstIssue.message;
+}
+
+/**
  * Helper for onError handler to get error name from status code
  */
 export function getErrorName(status: ContentfulStatusCode): string {

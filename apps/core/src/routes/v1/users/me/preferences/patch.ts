@@ -32,7 +32,7 @@ const requestBodySchema = z
 
 const route = createRoute({
   method: "patch",
-  path: "/me/preferences",
+  path: "/preferences",
   tags: ["Users"],
   request: {
     body: {
