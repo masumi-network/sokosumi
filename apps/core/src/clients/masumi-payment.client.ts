@@ -11,13 +11,17 @@ import {
 } from "./openapi/generated/payment";
 import { createClient } from "./openapi/generated/payment/client";
 
-export const paymentClient = (() => {
+export function createPaymentClient(
+  network: "Preprod" | "Mainnet",
+  apiUrl: string,
+  apiKey: string,
+) {
   const client = () => {
     const paymentClient = createClient({
-      baseUrl: getEnv().PAYMENT_API_URL,
+      baseUrl: apiUrl,
     });
     paymentClient.setConfig({
-      headers: { token: getEnv().PAYMENT_API_KEY },
+      headers: { token: apiKey },
     });
     return paymentClient;
   };
@@ -29,7 +33,7 @@ export const paymentClient = (() => {
           client: client(),
           body: {
             blockchainIdentifier: jobBlockchainIdentifier,
-            network: getEnv().NETWORK,
+            network,
           },
         });
         if (response.error || !response.data) {
@@ -49,7 +53,7 @@ export const paymentClient = (() => {
           client: client(),
           query: {
             cursorId: purchaseId,
-            network: getEnv().NETWORK,
+            network,
             limit: 1,
           },
         });
@@ -75,7 +79,7 @@ export const paymentClient = (() => {
           client: client(),
           body: {
             blockchainIdentifier: jobBlockchainIdentifier,
-            network: getEnv().NETWORK,
+            network,
           },
         });
 
@@ -109,7 +113,7 @@ export const paymentClient = (() => {
             agentIdentifier: agentBlockchainIdentifier,
             inputHash: inputHash,
             blockchainIdentifier: blockchainIdentifier,
-            network: getEnv().NETWORK,
+            network,
             sellerVkey: sellerVkey,
             identifierFromPurchaser,
             payByTime: payByTime.toString(),
@@ -134,4 +138,10 @@ export const paymentClient = (() => {
       }
     },
   };
-})();
+}
+
+export const paymentClient = createPaymentClient(
+  getEnv().NETWORK,
+  getEnv().PAYMENT_API_URL,
+  getEnv().PAYMENT_API_KEY,
+);

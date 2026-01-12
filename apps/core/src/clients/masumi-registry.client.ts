@@ -10,13 +10,17 @@ import {
 } from "./openapi/generated/registry";
 import { createClient } from "./openapi/generated/registry/client";
 
-export const registryClient = (() => {
+export function createRegistryClient(
+  network: "Preprod" | "Mainnet",
+  apiUrl: string,
+  apiKey: string,
+) {
   const client = () => {
     const registryClient = createClient({
-      baseUrl: getEnv().REGISTRY_API_URL,
+      baseUrl: apiUrl,
     });
     registryClient.setConfig({
-      headers: { token: getEnv().REGISTRY_API_KEY },
+      headers: { token: apiKey },
     });
     return registryClient;
   };
@@ -29,7 +33,7 @@ export const registryClient = (() => {
       const response = await postRegistryEntry({
         client: client(),
         body: {
-          network: getEnv().NETWORK,
+          network,
           limit,
           cursorId: lastIdentifier,
           filter: {
@@ -58,7 +62,7 @@ export const registryClient = (() => {
       const response = await postRegistryDiff({
         client: client(),
         body: {
-          network: getEnv().NETWORK,
+          network,
           statusUpdatedAfter,
           cursorId: cursorId ?? undefined,
           limit,
@@ -76,4 +80,10 @@ export const registryClient = (() => {
       return ok(response.data.data.entries);
     },
   };
-})();
+}
+
+export const registryClient = createRegistryClient(
+  getEnv().NETWORK,
+  getEnv().REGISTRY_API_URL,
+  getEnv().REGISTRY_API_KEY,
+);
