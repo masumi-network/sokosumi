@@ -78,7 +78,6 @@ export const createJobRequestSchema = z.object({
     ]),
   ),
   name: z.string().min(1).max(80).optional().openapi({ example: "My Job" }),
-  share: z.boolean().default(false).openapi({ example: false }),
 });
 
 // Preprocess function to handle backward compatibility (job_id -> id)

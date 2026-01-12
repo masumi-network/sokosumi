@@ -29,7 +29,6 @@ import {
 import {
   createFreeJob,
   createJobWithPayment,
-  shareJob,
   validateCreditBalance,
 } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -85,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: agentId } = c.req.valid("param");
-    const { maxAcceptedCredits, inputData, inputSchema, name, share } =
+    const { maxAcceptedCredits, inputData, inputSchema, name } =
       c.req.valid("json");
 
     const flatInputSchema = flattenInputs(inputSchema);
@@ -232,16 +231,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
 
         createPurchaseResult.match(
-          async (purchase) => {
-            try {
-              const purchaseData = transformPurchaseToJobUpdate(purchase);
-              await jobPurchaseRepository.createJobPurchase({
+          (purchase) => {
+            const purchaseData = transformPurchaseToJobUpdate(purchase);
+            jobPurchaseRepository
+              .createJobPurchase({
                 jobId: job.id,
                 ...purchaseData,
+              })
+              .catch((error) => {
+                Sentry.captureException(error);
               });
-            } catch (error) {
-              Sentry.captureException(error);
-            }
           },
           (error) => {
             Sentry.captureException(error);
@@ -252,12 +251,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       default:
         throw unprocessableEntity("Agent pricing type not supported");
     }
-
-    // Share job if requested
-    if (share) {
-      await shareJob(job.id, authContext);
-    }
-
     return created(c, jobSchema.parse(flattenJob(job)));
   });
 }
