@@ -120,72 +120,78 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Start job with agent
     let jobId: string;
-    if (agentWithPrice.pricing.pricingType === PricingType.FREE) {
-      // Free job
-      const startJobResult = await createAgentClient().startFreeAgentJob(
-        {
-          id: agent.id,
-          name: agent.name,
-          blockchainIdentifier: agent.blockchainIdentifier,
-          apiBaseUrl: agent.apiBaseUrl,
-          overrideApiBaseUrl: agent.overrideApiBaseUrl,
-        },
-        inputData,
-      );
-
-      if (!startJobResult.ok) {
-        throw unprocessableEntity(
-          `Free agent job start failed: ${startJobResult.error}`,
-        );
-      }
-
-      jobId = await createFreeJob(
-        {
-          agentId,
-          userId: authContext.userId,
-          organizationId: authContext.organizationId,
+    switch (agentWithPrice.pricing.pricingType) {
+      case PricingType.FREE:
+        // Free job
+        const freeJobResult = await createAgentClient().startFreeAgentJob(
+          {
+            id: agent.id,
+            name: agent.name,
+            blockchainIdentifier: agent.blockchainIdentifier,
+            apiBaseUrl: agent.apiBaseUrl,
+            overrideApiBaseUrl: agent.overrideApiBaseUrl,
+          },
           inputData,
-          inputSchema: flatInputSchema,
-          name: name?.trim() || null,
-        },
-        startJobResult.data.id,
-      );
-    } else {
-      // Paid job
-      const identifierFromPurchaser = uuidv4()
-        .replace(/-/g, "")
-        .substring(0, 20);
-
-      const startJobResult = await createAgentClient().startPaidAgentJob(
-        {
-          id: agentWithPrice.id,
-          name: agentWithPrice.name,
-          blockchainIdentifier: agentWithPrice.blockchainIdentifier,
-          apiBaseUrl: agentWithPrice.apiBaseUrl,
-          overrideApiBaseUrl: agentWithPrice.overrideApiBaseUrl,
-        },
-        identifierFromPurchaser,
-        inputData,
-      );
-
-      if (!startJobResult.ok) {
-        throw unprocessableEntity(
-          `Paid agent job start failed: ${startJobResult.error}`,
         );
-      }
 
-      jobId = await createJobWithPayment(
-        {
-          agentId,
-          userId: authContext.userId,
-          organizationId: authContext.organizationId,
+        if (!freeJobResult.ok) {
+          throw unprocessableEntity(
+            `Free agent job start failed: ${freeJobResult.error}`,
+          );
+        }
+
+        jobId = await createFreeJob(
+          {
+            agentId,
+            userId: authContext.userId,
+            organizationId: authContext.organizationId,
+            inputData,
+            inputSchema: flatInputSchema,
+            name: name?.trim() || null,
+          },
+          freeJobResult.data.id,
+        );
+        break;
+      case PricingType.FIXED:
+        // Paid job
+        const identifierFromPurchaser = uuidv4()
+          .replace(/-/g, "")
+          .substring(0, 20);
+
+        const paidJobResult = await createAgentClient().startPaidAgentJob(
+          {
+            id: agentWithPrice.id,
+            name: agentWithPrice.name,
+            blockchainIdentifier: agentWithPrice.blockchainIdentifier,
+            apiBaseUrl: agentWithPrice.apiBaseUrl,
+            overrideApiBaseUrl: agentWithPrice.overrideApiBaseUrl,
+          },
+          identifierFromPurchaser,
           inputData,
-          inputSchema: flatInputSchema,
-          name: name?.trim() || null,
-        },
-        agentWithPrice,
-        startJobResult.data,
-      );
+        );
+
+        if (!paidJobResult.ok) {
+          throw unprocessableEntity(
+            `Paid agent job start failed: ${paidJobResult.error}`,
+          );
+        }
+
+        jobId = await createJobWithPayment(
+          {
+            agentId,
+            userId: authContext.userId,
+            organizationId: authContext.organizationId,
+            inputData,
+            inputSchema: flatInputSchema,
+            name: name?.trim() || null,
+          },
+          agentWithPrice,
+          paidJobResult.data,
+        );
+        break;
+      case PricingType.UNKNOWN:
+      default:
+        throw unprocessableEntity("Agent pricing type not supported");
     }
 
     // Update job name if provided and different from generated
