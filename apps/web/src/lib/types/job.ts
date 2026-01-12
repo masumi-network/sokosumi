@@ -1,4 +1,4 @@
-import { ScheduleType } from "@sokosumi/database";
+import { ScheduleType, SokosumiJobStatus } from "@sokosumi/database";
 
 export type JobScheduleSelectionType = {
   mode: JobScheduleType;
@@ -29,4 +29,13 @@ export function mapPrismaToUiScheduleType(
   return value === ScheduleType.ONE_TIME
     ? JobScheduleType.ONE_TIME
     : JobScheduleType.CRON;
+}
+
+export interface SyncJobTransactionResult {
+  jobStatus: SokosumiJobStatus;
+  extractionContext?: {
+    userId: string;
+    eventId: string;
+    result: string;
+  };
 }
