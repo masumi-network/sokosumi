@@ -29,7 +29,7 @@ import { flattenJob } from "@/types/job";
 import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
 
 const CREDIT_MIN_FEE_CREDITS = 1;
-const CREDIT_FEE_PERCENTAGE_POINTS = 500; // 5%
+const CREDIT_FEE_PERCENTAGE_POINTS = 5; // 5%
 
 interface AgentWithCreditsPrice {
   id: string;
