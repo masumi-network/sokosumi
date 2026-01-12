@@ -130,15 +130,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Credit cost exceeds maximum accepted credits");
       }
 
-      // Validate credit balance if paid job
-      if (agent.pricing.pricingType === PricingType.FIXED && cost.cents > 0) {
-        await validateCreditBalance(
-          authContext.userId,
-          authContext.organizationId,
-          cost.cents,
-          tx,
-        );
-      }
+      await validateCreditBalance(
+        authContext.userId,
+        authContext.organizationId,
+        cost.cents,
+        tx,
+      );
 
       return { ...agent, cost };
     });
