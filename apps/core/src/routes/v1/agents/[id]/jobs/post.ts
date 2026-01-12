@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { AgentStatus, PricingType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 import {
   type JobWithCreditTransaction,
   type JobWithEvents,
@@ -31,6 +32,7 @@ import {
   validateCreditBalance,
 } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { created } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
@@ -226,18 +228,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           identifierFromPurchaser,
         );
 
-        createPurchaseResult.match(
-          (value) => {
-            console.info(
-              "Purchase created successfully for job-id %s with purchase-id %s",
-              job.id,
-              value.id,
-            );
-          },
-          (error) => {
-            console.error("Failed to create purchase:", error);
-          },
-        );
+        if (createPurchaseResult.isOk()) {
+          const purchase = createPurchaseResult.value;
+          const purchaseData = transformPurchaseToJobUpdate(purchase);
+          await jobPurchaseRepository.createJobPurchase({
+            jobId: job.id,
+            ...purchaseData,
+          });
+          console.info(
+            "Purchase created successfully for job-id %s with purchase-id %s",
+            job.id,
+            purchase.id,
+          );
+        } else {
+          console.error(
+            "Failed to create purchase:",
+            createPurchaseResult.error,
+          );
+        }
         break;
       case PricingType.UNKNOWN:
       default:

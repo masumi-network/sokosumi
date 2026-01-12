@@ -15,6 +15,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "lint:report": "eslint src --report",
     "generate:payment": "openapi-ts -f src/clients/openapi/configs/openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f src/clients/openapi/configs/openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
