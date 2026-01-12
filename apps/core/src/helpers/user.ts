@@ -1,5 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 /**

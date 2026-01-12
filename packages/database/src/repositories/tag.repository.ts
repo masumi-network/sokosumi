@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Prisma, Tag } from "../generated/prisma/client.js";
 
 /**
@@ -13,7 +12,7 @@ export const tagRepository = {
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
    * @returns A promise that resolves to an array of Tag objects.
    */
-  getTags: async (tx: Prisma.TransactionClient = prisma): Promise<Tag[]> => {
+  getTags: async (tx: Prisma.TransactionClient): Promise<Tag[]> => {
     const tags = await tx.tag.findMany({
       where: {
         OR: [{ agents: { some: {} } }, { agentsOverride: { some: {} } }],

@@ -1,7 +1,6 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import prisma from "@sokosumi/database/client";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
   fiatTransactionRepository,
@@ -15,6 +14,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { getAuthContext, verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
+import prisma from "@/lib/db/prisma";
 import {
   CouponCurrencyError,
   CouponNotFoundError,
@@ -30,11 +30,12 @@ export const stripeService = (() => {
       const organization =
         await organizationRepository.getOrganizationWithRelationsById(
           organizationId,
+          prisma,
         );
       if (!organization) throw new Error("Organization not found");
       return organization.stripeCustomerId;
     } else {
-      const user = await userRepository.getUserById(userId);
+      const user = await userRepository.getUserById(userId, prisma);
       if (!user) throw new Error("User not found");
       return user.stripeCustomerId;
     }
@@ -211,7 +212,7 @@ export const stripeService = (() => {
     async createStripeCustomerForUser(
       userId: string,
     ): Promise<Stripe.Customer | null> {
-      const user = await userRepository.getUserById(userId);
+      const user = await userRepository.getUserById(userId, prisma);
       if (!user) {
         return null;
       }
@@ -224,6 +225,7 @@ export const stripeService = (() => {
       const organization =
         await organizationRepository.getOrganizationWithRelationsById(
           organizationId,
+          prisma,
         );
       if (!organization) {
         return null;
@@ -239,6 +241,7 @@ export const stripeService = (() => {
         const organization =
           await organizationRepository.getOrganizationWithRelationsById(
             organizationId,
+            prisma,
           );
 
         if (!organization || !organization.stripeCustomerId) {
@@ -267,7 +270,7 @@ export const stripeService = (() => {
       newEmail: string,
     ): Promise<boolean> {
       try {
-        const user = await userRepository.getUserById(userId);
+        const user = await userRepository.getUserById(userId, prisma);
 
         if (!user || !user.stripeCustomerId) {
           // No Stripe customer to update
@@ -307,7 +310,7 @@ export const stripeService = (() => {
       personalCoupon?: Stripe.Coupon;
       orgCoupon?: Stripe.Coupon;
     }> {
-      const user = await userRepository.getUserById(userId);
+      const user = await userRepository.getUserById(userId, prisma);
       if (!user || !user.stripeCustomerId) {
         throw new Error("User or Stripe customer not found");
       }
@@ -339,6 +342,7 @@ export const stripeService = (() => {
         const organization =
           await organizationRepository.getOrganizationWithRelationsById(
             organizationId,
+            prisma,
           );
 
         if (!organization) {
@@ -388,7 +392,7 @@ export const stripeService = (() => {
     ): Promise<{ couponApplied: boolean; invoiceId: string | null }> {
       const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
       try {
-        const user = await userRepository.getUserById(userId);
+        const user = await userRepository.getUserById(userId, prisma);
         if (!user) {
           throw new Error("User not found");
         }

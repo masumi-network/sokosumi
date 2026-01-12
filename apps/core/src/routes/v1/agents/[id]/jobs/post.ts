@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { AgentStatus, PricingType } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 import {

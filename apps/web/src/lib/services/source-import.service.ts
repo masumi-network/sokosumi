@@ -2,7 +2,6 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import { Blob, BlobOrigin, BlobStatus } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   blobRepository,
   linkRepository,
@@ -11,6 +10,7 @@ import pLimit from "p-limit";
 
 import { uploadFile } from "@/lib/blob";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
+import prisma from "@/lib/db/prisma";
 import { isHttpUrl } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {
@@ -67,10 +67,12 @@ export const sourceImportService = (() => {
         if (!isHttpUrl(url)) continue;
         try {
           await linkRepository.upsertLink(
-            userId,
-            jobStatusId,
-            url,
-            undefined,
+            {
+              userId,
+              eventId: jobStatusId,
+              url,
+              title: undefined,
+            },
             tx,
           );
         } catch (error) {
@@ -131,7 +133,7 @@ export const sourceImportService = (() => {
         fileName: suggestedName,
       });
     } catch {
-      await blobRepository.markBlobFailed(blob.id);
+      await blobRepository.markBlobFailed(blob.id, prisma);
     }
   }
 
@@ -158,7 +160,7 @@ export const sourceImportService = (() => {
    */
   async function importPendingResultBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
-    const pendingBlobs = await blobRepository.getPendingOutputBlobs();
+    const pendingBlobs = await blobRepository.getPendingOutputBlobs({}, prisma);
     const limit = pLimit(5);
     for (const blob of pendingBlobs) {
       pendingPromises.push(limit(() => importResultBlob(blob)));

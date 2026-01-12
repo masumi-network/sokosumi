@@ -1,6 +1,6 @@
 import { base64Url } from "@better-auth/utils/base64";
 import { createHash } from "@better-auth/utils/hash";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import type { MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 

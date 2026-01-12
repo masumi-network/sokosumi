@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Organization, Prisma } from "../generated/prisma/client.js";
 import {
   organizationInclude,
@@ -26,7 +25,7 @@ export const organizationRepository = {
     slug: string,
     name: string,
     metadata: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Organization> {
     return await tx.organization.create({
       data: { slug, name, metadata },
@@ -43,7 +42,7 @@ export const organizationRepository = {
    */
   async getUniqueOrganizationWithRelations(
     where: Prisma.OrganizationWhereUniqueInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<OrganizationWithRelations | null> {
     return await tx.organization.findUnique({
       where,
@@ -60,7 +59,7 @@ export const organizationRepository = {
    */
   async getOrganizationWithRelationsById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<OrganizationWithRelations | null> {
     return await this.getUniqueOrganizationWithRelations({ id }, tx);
   },
@@ -74,7 +73,7 @@ export const organizationRepository = {
    */
   async getOrganizationWithRelationsBySlug(
     slug: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<OrganizationWithRelations | null> {
     return await this.getUniqueOrganizationWithRelations({ slug }, tx);
   },
@@ -90,7 +89,7 @@ export const organizationRepository = {
   async updateOrganizationById(
     organizationId: string,
     data: Prisma.OrganizationUpdateInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.organization.update({
       where: { id: organizationId },
@@ -100,7 +99,7 @@ export const organizationRepository = {
   },
 
   async listOrganizationsWithLimitedInfo(
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<OrganizationWithLimitedInfo[]> {
     return await tx.organization.findMany({
       select: organizationLimitedInfoInclude,
@@ -118,7 +117,7 @@ export const organizationRepository = {
   async setOrganizationStripeCustomerId(
     organizationId: string,
     stripeCustomerId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Organization> {
     return await tx.organization.update({
       where: { id: organizationId },
@@ -137,7 +136,7 @@ export const organizationRepository = {
   async updateOrganizationInvoiceEmail(
     organizationId: string,
     invoiceEmail: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Organization> {
     return await tx.organization.update({
       where: { id: organizationId },
@@ -154,7 +153,7 @@ export const organizationRepository = {
    */
   async getOrganizationByStripeCustomerId(
     stripeCustomerId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Organization | null> {
     return await tx.organization.findUnique({
       where: { stripeCustomerId },
@@ -168,7 +167,7 @@ export const organizationRepository = {
    * @returns A promise that resolves to an array of Organization objects without Stripe customer IDs.
    */
   async getOrganizationsWithoutStripeCustomerId(
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Organization[]> {
     return await tx.organization.findMany({
       where: {
