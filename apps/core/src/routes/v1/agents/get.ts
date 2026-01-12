@@ -1,13 +1,17 @@
 import { createRoute } from "@hono/zod-openapi";
 import { agentOrganizationsInclude, AgentStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
   calculateAgentRatings,
   calculateAverageExecutionTimes,
   canUserAccessAgent,
   getAgentAccessContext,
-  validateAgentCredits,
+  getAgentCost,
+  getAgentDescription,
+  getAgentImage,
+  getAgentName,
 } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -15,7 +19,11 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { agentsSchema } from "@/schemas/agent.schema";
+import {
+  agentsSchema,
+  getAgentLegalFromAgent,
+  getAuthorFromAgent,
+} from "@/schemas/agent.schema";
 import {
   agentJobsCountInclude,
   agentOrderBy,
@@ -68,8 +76,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ),
         )
         .flatMap((agent) => {
-          const agentWithCredits = validateAgentCredits(agent, creditCosts);
-          return agentWithCredits ? [agentWithCredits] : [];
+          try {
+            const cost = getAgentCost(agent, creditCosts);
+            return [
+              {
+                ...agent,
+                credits: convertCentsToCredits(cost.cents),
+              },
+            ];
+          } catch {
+            return [];
+          }
+        })
+        .map((agent) => {
+          return {
+            ...agent,
+            name: getAgentName(agent),
+            description: getAgentDescription(agent),
+            image: getAgentImage(agent),
+            author: getAuthorFromAgent(agent),
+            legal: getAgentLegalFromAgent(agent),
+          };
         });
 
       const agentIds = agentsWithCredits.map((agent) => agent.id);
