@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { AgentStatus, PricingType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
@@ -228,24 +229,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           identifierFromPurchaser,
         );
 
-        if (createPurchaseResult.isOk()) {
-          const purchase = createPurchaseResult.value;
-          const purchaseData = transformPurchaseToJobUpdate(purchase);
-          await jobPurchaseRepository.createJobPurchase({
-            jobId: job.id,
-            ...purchaseData,
-          });
-          console.info(
-            "Purchase created successfully for job-id %s with purchase-id %s",
-            job.id,
-            purchase.id,
-          );
-        } else {
-          console.error(
-            "Failed to create purchase:",
-            createPurchaseResult.error,
-          );
-        }
+        createPurchaseResult.match(
+          async (purchase) => {
+            try {
+              const purchaseData = transformPurchaseToJobUpdate(purchase);
+              await jobPurchaseRepository.createJobPurchase({
+                jobId: job.id,
+                ...purchaseData,
+              });
+            } catch (error) {
+              Sentry.captureException(error);
+            }
+          },
+          (error) => {
+            Sentry.captureException(error);
+          },
+        );
         break;
       case PricingType.UNKNOWN:
       default:
