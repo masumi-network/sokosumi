@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { PricingType } from "@sokosumi/database";
+import { AgentStatus, PricingType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
@@ -11,12 +11,22 @@ import { createAgentClient } from "@sokosumi/masumi";
 import { v4 as uuidv4 } from "uuid";
 
 import { anthropicClient } from "@/clients/anthropic.client";
-import { unprocessableEntity } from "@/helpers/error";
+import {
+  canUserAccessAgent,
+  getAgentAccessContext,
+  getAgentCost,
+} from "@/helpers/agent";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  unauthorized,
+  unprocessableEntity,
+} from "@/helpers/error";
 import {
   createFreeJob,
   createJobWithPayment,
   shareJob,
-  validateAgentAndPricing,
   validateCreditBalance,
 } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -30,6 +40,7 @@ import {
   flattenInputs,
   jobSchema,
 } from "@/schemas/job.schema";
+import { agentOrganizationsInclude, agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 const params = z.object({
@@ -78,26 +89,58 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Validate agent and get pricing in transaction
     const agent = await prisma.$transaction(async (tx) => {
-      const agent = await validateAgentAndPricing(
-        agentId,
-        maxAcceptedCents,
+      const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
+        authContext,
         tx,
       );
 
-      // Validate credit balance if paid job
+      const agent = await tx.agent.findUnique({
+        where: { id: agentId },
+        include: {
+          ...agentPricingInclude,
+          ...agentOrganizationsInclude,
+        },
+      });
+
+      if (!agent) {
+        throw notFound("Agent not found");
+      }
+
+      if (agent.status !== AgentStatus.ONLINE) {
+        throw forbidden("Agent is not online");
+      }
+
+      if (!agent.isShown) {
+        throw forbidden("Agent is not available");
+      }
+
       if (
-        agent.pricing.pricingType === PricingType.FIXED &&
-        agent.creditsPrice.cents > 0
+        !canUserAccessAgent(
+          agent,
+          userOrganizationIds,
+          authContext.organizationId,
+        )
       ) {
+        throw unauthorized("You are not authorized to access this agent");
+      }
+
+      const cost = getAgentCost(agent, creditCosts);
+
+      if (cost.cents > maxAcceptedCents) {
+        throw badRequest("Credit cost exceeds maximum accepted credits");
+      }
+
+      // Validate credit balance if paid job
+      if (agent.pricing.pricingType === PricingType.FIXED && cost.cents > 0) {
         await validateCreditBalance(
           authContext.userId,
           authContext.organizationId,
-          agent.creditsPrice.cents,
+          cost.cents,
           tx,
         );
       }
 
-      return agent;
+      return { ...agent, cost };
     });
 
     // Generate job name if not provided
@@ -172,7 +215,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             inputSchema: flatInputSchema,
             name: jobName,
           },
-          agent,
+          agent.cost,
           paidJobResult.data,
         );
         break;

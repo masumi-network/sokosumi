@@ -1,14 +1,5 @@
-import {
-  AgentJobStatus,
-  JobType,
-  PricingType,
-  type Prisma,
-} from "@sokosumi/database";
+import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import {
-  convertCreditsToCents,
-  feeFromCentsBasedOnPercentagePoints,
-} from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
   jobShareRepository,
@@ -26,130 +17,10 @@ import { v4 as uuidv4 } from "uuid";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
-import { agentOrganizationsInclude, agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
-import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
-
-const CREDIT_MIN_FEE_CREDITS = 1;
-const CREDIT_FEE_PERCENTAGE_POINTS = 5; // 5%
-
-interface AgentWithCreditsPrice {
-  id: string;
-  name: string;
-  description: string | null;
-  blockchainIdentifier: string;
-  apiBaseUrl: string;
-  overrideApiBaseUrl: string | null;
-  pricing: {
-    pricingType: PricingType;
-    fixedPricing: {
-      amounts: Array<{
-        unit: string;
-        amount: bigint;
-      }>;
-    } | null;
-  };
-  creditsPrice: {
-    cents: bigint;
-    includedFee: bigint;
-  };
-}
-
-/**
- * Validates agent exists, is available, and gets pricing
- */
-export async function validateAgentAndPricing(
-  agentId: string,
-  maxAcceptedCents: bigint,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithCreditsPrice> {
-  const agent = await tx.agent.findUnique({
-    where: { id: agentId },
-    include: {
-      ...agentPricingInclude,
-      ...agentOrganizationsInclude,
-    },
-  });
-
-  if (!agent) {
-    throw notFound("Agent not found");
-  }
-
-  if (!agent.isShown) {
-    throw forbidden("Agent is not available");
-  }
-
-  // Get credit costs for pricing calculation
-  const creditCosts = await tx.creditCost.findMany();
-  if (!creditCosts || creditCosts.length === 0) {
-    throw unprocessableEntity("Failed to get credit information for agents");
-  }
-
-  // Calculate credits price
-  let creditsPrice: { cents: bigint; includedFee: bigint };
-  if (agent.pricing.pricingType === PricingType.FREE) {
-    creditsPrice = { cents: BigInt(0), includedFee: BigInt(0) };
-  } else if (agent.pricing.pricingType === PricingType.FIXED) {
-    const fixedPricing = agent.pricing.fixedPricing;
-    if (!fixedPricing || fixedPricing.amounts.length === 0) {
-      throw unprocessableEntity("Agent has invalid or unknown pricing");
-    }
-
-    let totalCents = BigInt(0);
-    let totalFee = BigInt(0);
-    const minFeeCents = convertCreditsToCents(CREDIT_MIN_FEE_CREDITS);
-
-    for (const amount of fixedPricing.amounts) {
-      const creditCost = creditCosts.find((cost) => cost.unit === amount.unit);
-      if (!creditCost) {
-        throw unprocessableEntity(
-          `Credit cost not found for unit ${amount.unit}`,
-        );
-      }
-      const cents = amount.amount * creditCost.centsPerUnit;
-      const fee = feeFromCentsBasedOnPercentagePoints(
-        cents,
-        CREDIT_FEE_PERCENTAGE_POINTS,
-      );
-      totalCents += cents;
-      totalFee += fee;
-    }
-
-    if (totalFee < minFeeCents) {
-      totalFee = minFeeCents;
-    }
-
-    // Round up to nearest integer credit (same logic as web app)
-    const centsWithFee = totalCents + totalFee;
-    const roundedCentsWithFee = convertCreditsToCents(
-      Math.ceil(Number(centsWithFee) / Number(convertCreditsToCents(1))),
-    );
-    const diff = roundedCentsWithFee - centsWithFee;
-    creditsPrice = {
-      cents: roundedCentsWithFee,
-      includedFee: totalFee + diff,
-    };
-  } else {
-    throw unprocessableEntity("Agent has invalid or unknown pricing");
-  }
-
-  // Validate cost not too high
-  if (creditsPrice.cents > maxAcceptedCents) {
-    throw badRequest("Credit cost exceeds maximum accepted credits");
-  }
-
-  return {
-    id: agent.id,
-    name: agent.overrideName ?? agent.name,
-    description: agent.description,
-    blockchainIdentifier: agent.blockchainIdentifier,
-    apiBaseUrl: agent.apiBaseUrl,
-    overrideApiBaseUrl: agent.overrideApiBaseUrl,
-    pricing: agent.pricing,
-    creditsPrice,
-  };
-}
+import type { AgentCost } from "./agent";
+import { badRequest, forbidden, notFound } from "./error";
 
 /**
  * Validates that user or organization has sufficient credit balance
@@ -194,7 +65,7 @@ export async function createJobWithPayment(
     inputSchema: InputFieldSchemaType[];
     name: string | null;
   },
-  agent: AgentWithCreditsPrice,
+  cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithEvents & JobWithCreditTransaction & JobWithPurchase> {
@@ -224,8 +95,8 @@ export async function createJobWithPayment(
       },
       creditTransaction: {
         create: {
-          amount: -agent.creditsPrice.cents,
-          includedFee: agent.creditsPrice.includedFee,
+          amount: -cost.cents,
+          includedFee: cost.includedFee,
           user: { connect: { id: input.userId } },
           ...(input.organizationId && {
             organization: { connect: { id: input.organizationId } },

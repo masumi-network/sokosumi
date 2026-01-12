@@ -13,18 +13,10 @@ import {
 
 import { CREDIT, TIME } from "@/config/constants";
 import type { AuthenticationContext } from "@/middleware/auth";
-import {
-  getAgentLegalFromAgent,
-  getAuthorFromAgent,
-  type RatingMetrics,
-} from "@/schemas/agent.schema";
-import type {
-  AgentWithJobsCount,
-  AgentWithOrganizations,
-  AgentWithPricing,
-} from "@/types/agent";
+import { type RatingMetrics } from "@/schemas/agent.schema";
+import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
 
-import { internalServerError } from "./error";
+import { internalServerError, unprocessableEntity } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
 
 export const getAgentImage = (agent: Agent): string | null => {
@@ -33,6 +25,14 @@ export const getAgentImage = (agent: Agent): string | null => {
     return null;
   }
   return ipfsUrlResolver(image);
+};
+
+export const getAgentName = (agent: Agent): string => {
+  return agent.overrideName ?? agent.name;
+};
+
+export const getAgentDescription = (agent: Agent): string | null => {
+  return agent.overrideDescription ?? agent.description;
 };
 
 export const getAgentAuthorImage = (agent: Agent): string | null => {
@@ -109,53 +109,44 @@ export const canUserAccessAgent = (
   );
 };
 
+export interface AgentCost {
+  cents: bigint;
+  includedFee: bigint;
+}
+
 /**
- * Validates an agent's credits.
+ * Gets an agent's cost.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
- * @returns The agent with credits, or null if credits calculation fails.
+ * @returns The cost for the agent.
  */
-export const validateAgentCredits = (
-  agent: AgentWithPricing & AgentWithOrganizations & AgentWithJobsCount,
+export const getAgentCost = (
+  agent: AgentWithPricing & AgentWithOrganizations,
   creditCosts: CreditCost[],
-) => {
+): AgentCost => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
-  const credits = calculateAgentCredits(agent, creditCosts, minFeeCents);
-
-  if (credits === null) {
-    return null;
-  }
-
-  return {
-    ...agent,
-    name: agent.overrideName ?? agent.name,
-    image: getAgentImage(agent),
-    description: agent.overrideDescription ?? agent.description,
-    author: getAuthorFromAgent(agent),
-    legal: getAgentLegalFromAgent(agent),
-    credits,
-  };
+  return calculateAgentCost(agent, creditCosts, minFeeCents);
 };
 
 /**
- * This function calculates the credits for an agent.
+ * This function calculates the cost for an agent.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
  * @param minFeeCents - The minimum fee cents.
- * @returns The credits for the agent or null if the agent has invalid or unknown pricing.
+ * @returns The cost for the agent.
  */
-const calculateAgentCredits = (
+const calculateAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
   minFeeCents: bigint,
-): number | null => {
+): AgentCost => {
   switch (agent.pricing.pricingType) {
     case PricingType.FIXED: {
       if (
         !agent.pricing.fixedPricing ||
         agent.pricing.fixedPricing.amounts.length === 0
       ) {
-        return null;
+        throw unprocessableEntity("Agent has invalid or unknown pricing");
       }
       const pricing = agent.pricing.fixedPricing.amounts.map((amount) => ({
         unit: amount.unit,
@@ -169,7 +160,9 @@ const calculateAgentCredits = (
           (creditCost) => creditCost.unit === amount.unit,
         );
         if (!creditCost) {
-          return null;
+          throw unprocessableEntity(
+            `Credit cost not found for unit ${amount.unit}`,
+          );
         }
         const cents = amount.amount * creditCost.centsPerUnit;
         const fee = feeFromCentsBasedOnPercentagePoints(
@@ -187,13 +180,13 @@ const calculateAgentCredits = (
         totalCents,
         totalFee,
       );
-      return convertCentsToCredits(totalCentsWithFee);
+      return { cents: totalCentsWithFee, includedFee: totalFee };
     }
     case PricingType.FREE: {
-      return 0;
+      return { cents: BigInt(0), includedFee: BigInt(0) };
     }
     case PricingType.UNKNOWN: {
-      return null;
+      throw unprocessableEntity("Agent has invalid or unknown pricing");
     }
   }
 };
