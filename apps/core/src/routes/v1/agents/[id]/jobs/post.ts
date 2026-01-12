@@ -8,7 +8,6 @@ import {
   jobWithPurchase,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
-import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { v4 as uuidv4 } from "uuid";
 
 import { notFound, unprocessableEntity } from "@/helpers/error";
@@ -71,8 +70,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: agentId } = c.req.valid("param");
-    const { maxAcceptedCredits, inputData, name, share } = c.req.valid("json");
+    const { maxAcceptedCredits, inputData, inputSchema, name, share } =
+      c.req.valid("json");
 
+    const flatInputSchema = flattenInputs(inputSchema);
     // Convert credits to cents
     const maxAcceptedCents = convertCreditsToCents(maxAcceptedCredits);
 
@@ -91,17 +92,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!agent) {
       throw notFound("Agent not found");
     }
-
-    const inputSchemaResult =
-      await createAgentClient().fetchAgentInputSchema(agent);
-    if (!inputSchemaResult.ok) {
-      throw unprocessableEntity(inputSchemaResult.error);
-    }
-
-    const validatedInputSchema = inputSchemaSchema.parse(
-      inputSchemaResult.data,
-    );
-    const flatInputSchema = flattenInputs(validatedInputSchema);
 
     // Validate agent and get pricing in transaction
     const agentWithPrice = await prisma.$transaction(async (tx) => {
