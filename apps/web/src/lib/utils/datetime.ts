@@ -10,6 +10,13 @@ const formatRelativeLocale: Record<FormatRelativeToken, string> = {
   other: "PP",
 };
 
+export function formatShortDate(date: string | Date): string {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(date));
+}
+
 export function getDateGroupKey(dateInput: Date | number): string | null {
   return formatRelative(new Date(dateInput), new Date(), {
     locale: {
