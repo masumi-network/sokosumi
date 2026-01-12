@@ -39,6 +39,7 @@ export const openrouterClient = (() => {
           system: systemPrompt,
           prompt: userPrompt,
           temperature: 0.9,
+          maxOutputTokens: 80,
         });
 
         return text || null;
