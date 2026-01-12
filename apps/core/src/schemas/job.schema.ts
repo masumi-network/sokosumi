@@ -65,7 +65,7 @@ export const jobSchema = z
 export const jobsSchema = z.array(jobSchema);
 
 export const createJobRequestSchema = z.object({
-  maxAcceptedCredits: z.number().positive().optional(),
+  maxAcceptedCredits: z.number().positive().optional().openapi({ example: 10 }),
   inputSchema: inputSchemaSchema,
   inputData: z.record(
     z.string(),
@@ -77,8 +77,8 @@ export const createJobRequestSchema = z.object({
       z.array(z.number()),
     ]),
   ),
-  name: z.string().min(1).max(80).optional(),
-  share: z.boolean().default(false),
+  name: z.string().min(1).max(80).optional().openapi({ example: "My Job" }),
+  share: z.boolean().default(false).openapi({ example: false }),
 });
 
 // Preprocess function to handle backward compatibility (job_id -> id)
