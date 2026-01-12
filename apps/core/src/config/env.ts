@@ -50,8 +50,8 @@ const envSchema = z.object({
   REGISTRY_API_URL: z.url(),
   REGISTRY_API_KEY: z.string().min(1),
 
-  // Anthropic
-  ANTHROPIC_API_KEY: z.string().min(1).startsWith("sk-").optional(),
+  // OpenRouter
+  OPENROUTER_API_KEY: z.string().min(1).optional(),
 
   // Analytics Webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
