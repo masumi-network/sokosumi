@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
+import prisma from "@/lib/db/prisma";
 import { agentService, userService } from "@/lib/services";
 
 import JobDetailRedirect from "./components/job-detail-redirect";
@@ -20,7 +21,10 @@ export default async function RightSectionPage({
 
   const { agentId } = await params;
 
-  const agent = await agentRepository.getAgentWithRelationsById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(
+    agentId,
+    prisma,
+  );
   if (!agent) {
     notFound();
   }

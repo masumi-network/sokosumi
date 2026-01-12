@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { AgentStatus, PricingType } from "@sokosumi/database";
-import prisma from "@/lib/db/prisma";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 import {
@@ -34,6 +33,7 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { created } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -231,10 +231,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           (purchase) => {
             const purchaseData = transformPurchaseToJobUpdate(purchase);
             jobPurchaseRepository
-              .createJobPurchase({
-                jobId: job.id,
-                ...purchaseData,
-              })
+              .createJobPurchase(
+                {
+                  jobId: job.id,
+                  ...purchaseData,
+                },
+                prisma,
+              )
               .catch((error) => {
                 Sentry.captureException(error);
               });

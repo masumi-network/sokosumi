@@ -5,6 +5,7 @@ import { utmAttributionRepository } from "@sokosumi/database/repositories";
 import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 
+import prisma from "@/lib/db/prisma";
 import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
 
 /**
@@ -55,6 +56,7 @@ export const utmService = (() => {
           return await utmAttributionRepository.createUTMAttribution(
             userId,
             utmData,
+            prisma,
           );
         }
 

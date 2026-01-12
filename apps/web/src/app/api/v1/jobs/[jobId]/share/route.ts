@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { formatJobShareResponse } from "@/lib/api/formatters/job-share";
 import { getAuthContext } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 
 interface RouteParams {
   params: Promise<{
@@ -101,7 +102,7 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    const share = await jobShareRepository.getShareByJobId(jobId);
+    const share = await jobShareRepository.getShareByJobId(jobId, prisma);
     if (!share) {
       throw new Error("JOB_SHARE_NOT_FOUND");
     }

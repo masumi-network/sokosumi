@@ -7,6 +7,7 @@ import {
   handleApiError,
   validateApiKey,
 } from "@/lib/api";
+import prisma from "@/lib/db/prisma";
 
 interface RouteParams {
   params: Promise<{
@@ -45,6 +46,7 @@ export async function GET(
       jobId,
       userId,
       activeOrganizationId,
+      prisma,
     );
 
     if (!job) {
