@@ -1,17 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { type Job, PricingType } from "@sokosumi/database";
+import { PricingType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
-  jobWithCreditTransaction,
-  jobWithEvents,
-  jobWithPurchase,
+  type JobWithCreditTransaction,
+  type JobWithEvents,
+  type JobWithPurchase,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
 import { v4 as uuidv4 } from "uuid";
 
 import { anthropicClient } from "@/clients/anthropic.client";
-import { notFound, unprocessableEntity } from "@/helpers/error";
+import { unprocessableEntity } from "@/helpers/error";
 import {
   createFreeJob,
   createJobWithPayment,
@@ -74,10 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.req.valid("json");
 
     const flatInputSchema = flattenInputs(inputSchema);
-    // Convert credits to cents
     const maxAcceptedCents = convertCreditsToCents(maxAcceptedCredits);
-
-    // Generate name if not provided
 
     // Validate agent and get pricing in transaction
     const agent = await prisma.$transaction(async (tx) => {
@@ -117,18 +114,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Start job with agent
-    let job: Job;
+    let job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase;
     switch (agent.pricing.pricingType) {
       case PricingType.FREE:
-        // Free job
         const freeJobResult = await createAgentClient().startFreeAgentJob(
-          {
-            id: agent.id,
-            name: agent.name,
-            blockchainIdentifier: agent.blockchainIdentifier,
-            apiBaseUrl: agent.apiBaseUrl,
-            overrideApiBaseUrl: agent.overrideApiBaseUrl,
-          },
+          agent,
           inputData,
         );
 
@@ -151,7 +141,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
         break;
       case PricingType.FIXED:
-        // Paid job
         const identifierFromPurchaser = uuidv4()
           .replace(/-/g, "")
           .substring(0, 20);
@@ -199,21 +188,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    // Fetch complete job with all relations
-    const createdJob = await prisma.job.findUnique({
-      where: { id: job.id },
-      include: {
-        ...jobWithEvents,
-        ...jobWithCreditTransaction,
-        ...jobWithPurchase,
-      },
-    });
-
-    if (!createdJob) {
-      throw notFound("Job not found after creation");
-    }
-
-    const flattenedJob = flattenJob(createdJob);
-    return created(c, jobSchema.parse(flattenedJob));
+    return created(c, jobSchema.parse(flattenJob(job)));
   });
 }

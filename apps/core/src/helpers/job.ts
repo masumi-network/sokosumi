@@ -1,6 +1,5 @@
 import {
   AgentJobStatus,
-  type Job,
   JobType,
   PricingType,
   type Prisma,
@@ -15,8 +14,11 @@ import {
   jobShareRepository,
 } from "@sokosumi/database/repositories";
 import {
+  type JobWithCreditTransaction,
   jobWithCreditTransaction,
+  type JobWithEvents,
   jobWithEvents,
+  type JobWithPurchase,
   jobWithPurchase,
 } from "@sokosumi/database/types/job";
 import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
@@ -195,7 +197,7 @@ export async function createJobWithPayment(
   agent: AgentWithCreditsPrice,
   agentJobResponse: StartPaidJobResponseSchemaType,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Job> {
+): Promise<JobWithEvents & JobWithCreditTransaction & JobWithPurchase> {
   const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
 
   return await tx.job.create({
@@ -241,6 +243,11 @@ export async function createJobWithPayment(
       sellerVkey: agentJobResponse.sellerVKey, // Note: schema uses sellerVKey, but Prisma field is sellerVkey
       identifierFromPurchaser,
     },
+    include: {
+      ...jobWithEvents,
+      ...jobWithCreditTransaction,
+      ...jobWithPurchase,
+    },
   });
 }
 
@@ -258,7 +265,7 @@ export async function createFreeJob(
   },
   agentJobId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Job> {
+): Promise<JobWithEvents & JobWithCreditTransaction & JobWithPurchase> {
   return await tx.job.create({
     data: {
       agentJobId,
@@ -289,6 +296,11 @@ export async function createFreeJob(
       blockchainIdentifier: null,
       sellerVkey: null,
       identifierFromPurchaser: null,
+    },
+    include: {
+      ...jobWithEvents,
+      ...jobWithCreditTransaction,
+      ...jobWithPurchase,
     },
   });
 }
