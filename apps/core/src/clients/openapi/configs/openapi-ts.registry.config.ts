@@ -2,7 +2,7 @@ import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
   input: "https://masumi-registry-sokosumi-3cxkj.ondigitalocean.app/api-docs",
-  output: "./src/clients/openapi/generated/payment",
+  output: "./src/clients/openapi/generated/registry",
   name: "MasumiRegistryClient",
   baseUrl: "https://masumi-registry-sokosumi-3cxkj.ondigitalocean.app/api/v1",
   plugins: [

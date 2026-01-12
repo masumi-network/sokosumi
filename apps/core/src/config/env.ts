@@ -5,6 +5,8 @@ import { z } from "@hono/zod-openapi";
  * This ensures the app isn't built with invalid env vars.
  */
 const envSchema = z.object({
+  NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
+
   // Environment
   NODE_ENV: z
     .enum(["development", "staging", "production"])
@@ -39,6 +41,14 @@ const envSchema = z.object({
 
   // Stripe
   STRIPE_SECRET_KEY: z.string().min(1),
+
+  // Payment
+  PAYMENT_API_URL: z.url(),
+  PAYMENT_API_KEY: z.string().min(1),
+
+  // Registry
+  REGISTRY_API_URL: z.url(),
+  REGISTRY_API_KEY: z.string().min(1),
 
   // Anthropic
   ANTHROPIC_API_KEY: z.string().min(1).startsWith("sk-").optional(),
