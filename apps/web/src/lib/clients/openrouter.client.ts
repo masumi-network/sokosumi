@@ -1,7 +1,8 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
+import { generateText } from "ai";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
@@ -10,9 +11,9 @@ export type AgentInfo = {
   description?: string | null;
 };
 
-export const anthropicClient = (() => {
-  const anthropic = new Anthropic({
-    apiKey: getEnvSecrets().ANTHROPIC_API_KEY,
+export const openrouterClient = (() => {
+  const openrouter = createOpenRouter({
+    apiKey: getEnvSecrets().OPENROUTER_API_KEY,
   });
 
   return {
@@ -33,29 +34,16 @@ export const anthropicClient = (() => {
       const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
 
       try {
-        const message: Anthropic.Message = await anthropic.messages.create(
-          {
-            model: "claude-3-5-haiku-latest",
-            max_tokens: 80,
-            temperature: 0.9,
-            system: systemPrompt,
-            messages: [{ role: "user", content: userPrompt }],
-          },
-          {
-            maxRetries: 1,
-            timeout: 4000,
-          },
-        );
-        const textBlocks = message.content
-          .filter((c) => c.type === "text")
-          .map((c) => c.text);
+        const { text } = await generateText({
+          model: openrouter("anthropic/claude-haiku-4.5"),
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.9,
+        });
 
-        if (textBlocks.length > 0) {
-          return textBlocks[0];
-        }
-        return null;
+        return text || null;
       } catch (error) {
-        console.error("Anthropic job name generation failed:", error);
+        console.error("OpenRouter job name generation failed:", error);
         return null;
       }
     },
@@ -81,29 +69,16 @@ export const anthropicClient = (() => {
       const userPrompt = `Agent Description: ${description}`;
 
       try {
-        const message: Anthropic.Message = await anthropic.messages.create(
-          {
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 60,
-            temperature: 0.3,
-            system: systemPrompt,
-            messages: [{ role: "user", content: userPrompt }],
-          },
-          {
-            maxRetries: 1,
-            timeout: 4000,
-          },
-        );
-        const textBlocks = message.content
-          .filter((c) => c.type === "text")
-          .map((c) => c.text);
+        const { text } = await generateText({
+          model: openrouter("anthropic/claude-haiku-4.5"),
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.3,
+        });
 
-        if (textBlocks.length > 0) {
-          return textBlocks[0];
-        }
-        return null;
+        return text || null;
       } catch (error) {
-        console.error("Anthropic agent summary generation failed:", error);
+        console.error("OpenRouter agent summary generation failed:", error);
         return null;
       }
     },

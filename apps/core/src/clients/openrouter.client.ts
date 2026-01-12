@@ -41,7 +41,7 @@ export const openrouterClient = (() => {
 
       try {
         const { text } = await generateText({
-          model: openrouter("anthropic/claude-4-5-haiku-latest"),
+          model: openrouter("anthropic/claude-haiku-4.5"),
           system: systemPrompt,
           prompt: userPrompt,
           temperature: 0.9,
