@@ -96,6 +96,9 @@ importers:
         specifier: 13.0.0
         version: 13.0.0
     devDependencies:
+      '@hey-api/openapi-ts':
+        specifier: 0.90.3
+        version: 0.90.3(typescript@5.9.3)
       '@types/node':
         specifier: 24.10.4
         version: 24.10.4
