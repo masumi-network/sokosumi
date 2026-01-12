@@ -1,5 +1,8 @@
-import type { InputSchemaType } from "@sokosumi/masumi/schemas";
-import { err, ok } from "neverthrow";
+import type {
+  InputSchemaType,
+  StartPaidJobResponseSchemaType,
+} from "@sokosumi/masumi/schemas";
+import { err, ok, Result } from "neverthrow";
 
 import { getEnv } from "@/config/env";
 
@@ -8,6 +11,7 @@ import {
   postPurchase,
   postPurchaseRequestRefund,
   postPurchaseResolveBlockchainIdentifier,
+  type PostPurchaseResponses,
 } from "./openapi/generated/payment";
 import { createClient } from "./openapi/generated/payment/client";
 
@@ -94,35 +98,29 @@ export function createPaymentClient(
     },
 
     async createPurchase(
-      jobId: string,
       agentBlockchainIdentifier: string,
-      inputHash: string,
-      blockchainIdentifier: string,
-      sellerVkey: string,
-      payByTime: Date,
-      externalDisputeUnlockTime: Date,
-      submitResultTime: Date,
-      unlockTime: Date,
+      startJobResponse: StartPaidJobResponseSchemaType,
       inputData: InputSchemaType,
       identifierFromPurchaser: string,
-    ) {
+    ): Promise<Result<PostPurchaseResponses["200"]["data"], string>> {
       try {
         const response = await postPurchase({
           client: client(),
           body: {
             agentIdentifier: agentBlockchainIdentifier,
-            inputHash: inputHash,
-            blockchainIdentifier: blockchainIdentifier,
+            inputHash: startJobResponse.input_hash,
+            blockchainIdentifier: startJobResponse.blockchainIdentifier,
             network,
-            sellerVkey: sellerVkey,
+            sellerVkey: startJobResponse.sellerVKey,
             identifierFromPurchaser,
-            payByTime: payByTime.toString(),
-            externalDisputeUnlockTime: externalDisputeUnlockTime.toString(),
-            submitResultTime: submitResultTime.toString(),
-            unlockTime: unlockTime.toString(),
+            payByTime: startJobResponse.payByTime.toString(),
+            externalDisputeUnlockTime:
+              startJobResponse.externalDisputeUnlockTime.toString(),
+            submitResultTime: startJobResponse.submitResultTime.toString(),
+            unlockTime: startJobResponse.unlockTime.toString(),
             metadata: JSON.stringify({
               inputData: inputData,
-              jobId: jobId,
+              jobId: startJobResponse.id,
             }),
           },
         });
@@ -134,7 +132,7 @@ export function createPaymentClient(
 
         return ok(response.data.data);
       } catch (error) {
-        return err(error);
+        return err(String(error) || "Failed to create purchase request");
       }
     },
   };

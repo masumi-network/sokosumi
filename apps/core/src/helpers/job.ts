@@ -13,7 +13,6 @@ import {
   jobWithPurchase,
 } from "@sokosumi/database/types/job";
 import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
-import { v4 as uuidv4 } from "uuid";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
@@ -67,10 +66,9 @@ export async function createJobWithPayment(
   },
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
+  identifierFromPurchaser: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithEvents & JobWithCreditTransaction & JobWithPurchase> {
-  const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
-
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -111,7 +109,7 @@ export async function createJobWithPayment(
       submitResultTime: new Date(agentJobResponse.submitResultTime),
       unlockTime: new Date(agentJobResponse.unlockTime),
       blockchainIdentifier: agentJobResponse.blockchainIdentifier,
-      sellerVkey: agentJobResponse.sellerVKey, // Note: schema uses sellerVKey, but Prisma field is sellerVkey
+      sellerVkey: agentJobResponse.sellerVKey,
       identifierFromPurchaser,
     },
     include: {

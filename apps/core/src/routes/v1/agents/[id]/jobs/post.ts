@@ -11,6 +11,7 @@ import { createAgentClient } from "@sokosumi/masumi";
 import { v4 as uuidv4 } from "uuid";
 
 import { anthropicClient } from "@/clients/anthropic.client";
+import { paymentClient } from "@/clients/masumi-payment.client";
 import {
   canUserAccessAgent,
   getAgentAccessContext,
@@ -214,6 +215,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
           agent.cost,
           paidJobResult.data,
+          identifierFromPurchaser,
+        );
+
+        // Create purchase with payment API
+        const createPurchaseResult = await paymentClient.createPurchase(
+          agent.blockchainIdentifier,
+          paidJobResult.data,
+          inputData,
+          identifierFromPurchaser,
+        );
+
+        createPurchaseResult.match(
+          (value) => {
+            console.info(
+              "Purchase created successfully for job-id %s with purchase-id %s",
+              job.id,
+              value.id,
+            );
+          },
+          (error) => {
+            console.error("Failed to create purchase:", error);
+          },
         );
         break;
       case PricingType.UNKNOWN:
