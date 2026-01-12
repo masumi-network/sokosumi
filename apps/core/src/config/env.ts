@@ -40,6 +40,9 @@ const envSchema = z.object({
   // Stripe
   STRIPE_SECRET_KEY: z.string().min(1),
 
+  // Anthropic
+  ANTHROPIC_API_KEY: z.string().min(1).startsWith("sk-").optional(),
+
   // Analytics Webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
   WEBHOOK_USER_UPDATED: z.url().optional(),

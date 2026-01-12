@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  type Job,
   JobType,
   PricingType,
   type Prisma,
@@ -34,6 +35,7 @@ const CREDIT_FEE_PERCENTAGE_POINTS = 5; // 5%
 interface AgentWithCreditsPrice {
   id: string;
   name: string;
+  description: string | null;
   blockchainIdentifier: string;
   apiBaseUrl: string;
   overrideApiBaseUrl: string | null;
@@ -57,7 +59,6 @@ interface AgentWithCreditsPrice {
  */
 export async function validateAgentAndPricing(
   agentId: string,
-  authContext: AuthenticationContext,
   maxAcceptedCents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithCreditsPrice> {
@@ -139,6 +140,7 @@ export async function validateAgentAndPricing(
   return {
     id: agent.id,
     name: agent.overrideName ?? agent.name,
+    description: agent.description,
     blockchainIdentifier: agent.blockchainIdentifier,
     apiBaseUrl: agent.apiBaseUrl,
     overrideApiBaseUrl: agent.overrideApiBaseUrl,
@@ -193,10 +195,10 @@ export async function createJobWithPayment(
   agent: AgentWithCreditsPrice,
   agentJobResponse: StartPaidJobResponseSchemaType,
   tx: Prisma.TransactionClient = prisma,
-): Promise<string> {
+): Promise<Job> {
   const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
 
-  const job = await tx.job.create({
+  return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
       jobType: JobType.PAID,
@@ -240,8 +242,6 @@ export async function createJobWithPayment(
       identifierFromPurchaser,
     },
   });
-
-  return job.id;
 }
 
 /**
@@ -258,8 +258,8 @@ export async function createFreeJob(
   },
   agentJobId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<string> {
-  const job = await tx.job.create({
+): Promise<Job> {
+  return await tx.job.create({
     data: {
       agentJobId,
       jobType: JobType.FREE,
@@ -291,8 +291,6 @@ export async function createFreeJob(
       identifierFromPurchaser: null,
     },
   });
-
-  return job.id;
 }
 
 /**

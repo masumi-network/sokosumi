@@ -17,6 +17,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.71.2",
     "@better-auth/oauth-provider": "1.4.10",
     "@better-auth/utils": "0.3.0",
     "@hono/node-server": "1.19.8",
