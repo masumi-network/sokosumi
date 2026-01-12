@@ -255,9 +255,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Share job if requested
     if (share) {
-      await prisma.$transaction(async (tx) => {
-        await shareJob(job.id, authContext, tx);
-      });
+      await shareJob(job.id, authContext);
     }
 
     return created(c, jobSchema.parse(flattenJob(job)));
