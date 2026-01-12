@@ -65,7 +65,7 @@ export const jobSchema = z
 export const jobsSchema = z.array(jobSchema);
 
 export const createJobRequestSchema = z.object({
-  maxAcceptedCredits: z.number().positive().optional().openapi({ example: 10 }),
+  maxCredits: z.number().positive().optional().openapi({ example: 10 }),
   inputSchema: inputSchemaSchema,
   inputData: z.record(
     z.string(),

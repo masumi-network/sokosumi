@@ -84,13 +84,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: agentId } = c.req.valid("param");
-    const { maxAcceptedCredits, inputData, inputSchema, name } =
-      c.req.valid("json");
+    const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
 
     const flatInputSchema = flattenInputs(inputSchema);
-    const maxAcceptedCents = maxAcceptedCredits
-      ? convertCreditsToCents(maxAcceptedCredits)
-      : null;
+    const maxCents = maxCredits ? convertCreditsToCents(maxCredits) : null;
 
     // Validate agent and get pricing in transaction
     const agent = await prisma.$transaction(async (tx) => {
@@ -131,7 +128,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const cost = getAgentCost(agent, creditCosts);
 
-      if (maxAcceptedCents !== null && cost.cents > maxAcceptedCents) {
+      if (maxCents !== null && cost.cents > maxCents) {
         throw badRequest("Credit cost exceeds maximum accepted credits");
       }
 
