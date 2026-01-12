@@ -306,20 +306,6 @@ export async function createFreeJob(
 }
 
 /**
- * Updates job name
- */
-export async function updateJobName(
-  jobId: string,
-  name: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  await tx.job.update({
-    where: { id: jobId },
-    data: { name: name.trim() || null },
-  });
-}
-
-/**
  * Shares job with current context (organization if in org context, publicly if personal)
  */
 export async function shareJob(
