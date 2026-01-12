@@ -12,7 +12,10 @@ import {
   type JobWithPurchase,
   jobWithPurchase,
 } from "@sokosumi/database/types/job";
-import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import type {
+  InputFieldSchemaType,
+  StartFreeJobResponseSchemaType,
+} from "@sokosumi/masumi/schemas";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
@@ -132,12 +135,12 @@ export async function createFreeJob(
     inputSchema: InputFieldSchemaType[];
     name: string | null;
   },
-  agentJobId: string,
+  agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithEvents & JobWithCreditTransaction & JobWithPurchase> {
   return await tx.job.create({
     data: {
-      agentJobId,
+      agentJobId: agentJobResponse.id,
       jobType: JobType.FREE,
       agent: { connect: { id: input.agentId } },
       user: { connect: { id: input.userId } },

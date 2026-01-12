@@ -181,7 +181,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             inputSchema: flatInputSchema,
             name: jobName,
           },
-          freeJobResult.data.id,
+          freeJobResult.data,
         );
         break;
       case PricingType.FIXED:
