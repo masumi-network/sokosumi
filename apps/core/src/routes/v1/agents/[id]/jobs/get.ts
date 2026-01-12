@@ -11,34 +11,30 @@ import {
 } from "@/lib/hono";
 import { jobsSchema } from "@/schemas/job.schema.js";
 
-const query = z.object({
-  agentId: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "agentId", in: "query" },
-      description: "Filter jobs by agent ID",
-      example: "cmaeygqwa000e8i0s9s7wif8i",
-    }),
+const params = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "cmaeygqwa000e8i0s9s7wif8i",
+  }),
 });
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/",
-    description: "List all jobs for the current user",
-    tags: ["Jobs"],
+    path: "/{id}/jobs",
+    description: "List all jobs for a specific agent",
+    tags: ["Agents"],
     request: {
-      query,
+      params,
     },
     responses: {
-      200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs", {
+      200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs for the agent", {
         data: [
           {
             id: "cmi4gmksz000104l8wps8p7fp",
             createdAt: "2025-01-15T10:30:00.000Z",
             updatedAt: "2025-01-15T10:35:00.000Z",
-            agentId: "agent_123",
+            agentId: "cmaeygqwa000e8i0s9s7wif8i",
             userId: "user_123",
             organizationId: "organization_123",
             name: "Research Task",
@@ -53,7 +49,7 @@ const route = withGlobalHeaderParameters(
             id: "cmi4gmksz000104l8wps8p8fp",
             createdAt: "2025-01-15T11:00:00.000Z",
             updatedAt: "2025-01-15T11:05:00.000Z",
-            agentId: "agent_456",
+            agentId: "cmaeygqwa000e8i0s9s7wif8i",
             userId: "user_123",
             organizationId: null,
             name: "Analysis Job",
@@ -71,6 +67,8 @@ const route = withGlobalHeaderParameters(
         },
       }),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -79,9 +77,9 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { agentId } = c.req.valid("query");
+    const { id } = c.req.valid("param");
 
-    const jobs = await getUserJobs(authContext, { agentId });
+    const jobs = await getUserJobs(authContext, { agentId: id });
 
     return ok(c, jobsSchema.parse(jobs));
   });
