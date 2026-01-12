@@ -40,7 +40,7 @@ export const sourceImportService = (() => {
    */
   async function enqueueFromMarkdown(
     userId: string,
-    jobStatusId: string,
+    jobEventId: string,
     markdown: string,
   ): Promise<void> {
     const fileLinks = extractFileLikeLinks(markdown);
@@ -52,10 +52,12 @@ export const sourceImportService = (() => {
         const guessedName = getBasename(url) ?? undefined;
         try {
           await blobRepository.upsertOutputBlob(
-            userId,
-            jobStatusId,
-            url,
-            guessedName,
+            {
+              userId,
+              eventId: jobEventId,
+              sourceUrl: url,
+              fileName: guessedName,
+            },
             tx,
           );
         } catch (error) {
@@ -69,7 +71,7 @@ export const sourceImportService = (() => {
           await linkRepository.upsertLink(
             {
               userId,
-              eventId: jobStatusId,
+              eventId: jobEventId,
               url,
               title: undefined,
             },
@@ -126,12 +128,16 @@ export const sourceImportService = (() => {
         type: contentType ?? "application/octet-stream",
       });
       const uploaded = await uploadFile(blob.userId, file);
-      await blobRepository.markBlobReady(blob.id, {
-        fileUrl: uploaded.url,
-        mime: contentType,
-        size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
-        fileName: suggestedName,
-      });
+      await blobRepository.markBlobReady(
+        blob.id,
+        {
+          fileUrl: uploaded.url,
+          mime: contentType,
+          size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
+          fileName: suggestedName,
+        },
+        prisma,
+      );
     } catch {
       await blobRepository.markBlobFailed(blob.id, prisma);
     }
