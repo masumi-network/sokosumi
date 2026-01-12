@@ -1085,6 +1085,23 @@
       },
       "Jobs": {
         "placeholder": "Job view coming soon."
+      },
+      "Detail": {
+        "back": "Back to tasks",
+        "status": "Status",
+        "assignee": "Assignee",
+        "tags": "Tags",
+        "dueDate": "Due Date",
+        "orchestrator": "Orchestrator",
+        "description": "Description",
+        "activity": "Activity",
+        "commentPlaceholder": "Write a comment...",
+        "attach": "Attach",
+        "submit": "Submit",
+        "actions": {
+          "edit": "Edit",
+          "delete": "Delete"
+        }
       }
     },
     "Error": {

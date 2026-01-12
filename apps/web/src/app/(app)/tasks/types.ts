@@ -25,6 +25,15 @@ export interface TaskTag {
   color: TagColorKey;
 }
 
+export interface TaskActivity {
+  id: string;
+  actorName: string;
+  actorImage?: string;
+  action: string;
+  status?: string;
+  timestamp: string;
+}
+
 export interface TaskCardData {
   id: string;
   title: string;
@@ -36,6 +45,10 @@ export interface TaskCardData {
   commentsCount: number;
   date: string;
   columnId: KanbanColumnId;
+  assignee: string;
+  dueDate: string;
+  description: string;
+  activities: TaskActivity[];
 }
 
 export interface KanbanColumnDefinition {

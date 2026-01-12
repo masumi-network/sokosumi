@@ -16,12 +16,16 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
   },
 ];
 
+const DEFAULT_DESCRIPTION =
+  "We need to enhance the time page to better handle empty weeks, support time-off updates, and make small fixes. The task focuses on improving the time page by fixing issues with empty weeks, integrating time-off functionality, and applying minor refinements.";
+
 export const MOCK_TASKS: TaskCardData[] = [
   {
     id: "task-1",
     title: "10 Marketing Posts for AI Agent Startup Masumi",
     status: AgentJobStatus.INITIATED,
     budget: 20,
+    assignee: "XYZ",
     agents: [
       { name: "Research Agent Web Advanced lookup", status: "done" },
       { name: "Content Agent", status: "pending" },
@@ -34,12 +38,44 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 5,
     date: "2024-08-06",
     columnId: "backlog",
+    dueDate: "2024-10-24",
+    description: DEFAULT_DESCRIPTION,
+    activities: [
+      {
+        id: "task-1-activity-1",
+        actorName: "Orchestrator",
+        action: "moved the Task to",
+        status: "Input Required",
+        timestamp: "2024-08-06T13:00:00Z",
+      },
+      {
+        id: "task-1-activity-2",
+        actorName: "Orchestrator",
+        action: "hired Sub Agent GWI Sparks yesterday",
+        timestamp: "2024-08-06T12:00:00Z",
+      },
+      {
+        id: "task-1-activity-3",
+        actorName: "Orchestrator",
+        action: "moved the Task to",
+        status: "Done",
+        timestamp: "2024-08-06T11:00:00Z",
+      },
+      {
+        id: "task-1-activity-4",
+        actorName: "Orchestrator",
+        action: "moved the Task to",
+        status: "Done",
+        timestamp: "2024-08-06T10:00:00Z",
+      },
+    ],
   },
   {
     id: "task-2",
     title: "Landing Page Copy Refresh",
     status: AgentJobStatus.RUNNING,
     budget: 120,
+    assignee: "Olivia Chen",
     agents: [
       { name: "UX Writer", status: "done" },
       { name: "Design Agent", status: "pending" },
@@ -52,12 +88,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 3,
     date: "2024-08-04",
     columnId: "todo",
+    dueDate: "2024-08-20",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-3",
     title: "Product Hunt Launch Plan",
     status: AgentJobStatus.FAILED,
     budget: 200,
+    assignee: "Ethan Silva",
     agents: [
       { name: "Growth Agent", status: "blocked" },
       { name: "Ads Agent", status: "pending" },
@@ -70,12 +110,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 12,
     date: "2024-08-02",
     columnId: "in-progress",
+    dueDate: "2024-09-01",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-4",
     title: "Customer Onboarding Emails",
     status: AgentJobStatus.AWAITING_INPUT,
     budget: 80,
+    assignee: "Liam Patel",
     agents: [
       { name: "CRM Agent", status: "pending" },
       { name: "Copy Agent", status: "pending" },
@@ -88,12 +132,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 1,
     date: "2024-08-03",
     columnId: "input-required",
+    dueDate: "2024-08-18",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-5",
     title: "Issue Refunds for August Campaign",
     status: AgentJobStatus.AWAITING_PAYMENT,
     budget: null,
+    assignee: "Nora James",
     agents: [
       { name: "Billing Agent", status: "pending" },
       { name: "Support Agent", status: "done" },
@@ -106,12 +154,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 4,
     date: "2024-08-01",
     columnId: "refund-requested",
+    dueDate: "2024-08-10",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-6",
     title: "SEO Briefs for Q4 Blogs",
     status: AgentJobStatus.RUNNING,
     budget: 60,
+    assignee: "Sofia Torres",
     agents: [
       { name: "SEO Agent", status: "pending" },
       { name: "Content Agent", status: "pending" },
@@ -124,12 +176,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 2,
     date: "2024-07-30",
     columnId: "todo",
+    dueDate: "2024-08-25",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-7",
     title: "AI Agent Pricing Page Update",
     status: AgentJobStatus.RUNNING,
     budget: 95,
+    assignee: "Jordan Miles",
     agents: [
       { name: "Design Agent", status: "pending" },
       { name: "Copy Agent", status: "pending" },
@@ -142,12 +198,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 6,
     date: "2024-07-29",
     columnId: "todo",
+    dueDate: "2024-08-22",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-8",
     title: "Integrations Page FAQ Refresh",
     status: AgentJobStatus.INITIATED,
     budget: 40,
+    assignee: "Camila Diaz",
     agents: [
       { name: "Support Agent", status: "pending" },
       { name: "Content Agent", status: "pending" },
@@ -160,12 +220,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 0,
     date: "2024-07-28",
     columnId: "todo",
+    dueDate: "2024-08-19",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-9",
     title: "Onboarding Checklist Automation",
     status: AgentJobStatus.RUNNING,
     budget: 150,
+    assignee: "Priya Nair",
     agents: [
       { name: "CRM Agent", status: "pending" },
       { name: "Workflow Agent", status: "pending" },
@@ -178,12 +242,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 7,
     date: "2024-07-27",
     columnId: "todo",
+    dueDate: "2024-08-30",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-11",
     title: "Campaign Analytics Dashboard",
     status: AgentJobStatus.RUNNING,
     budget: 220,
+    assignee: "Ava Brooks",
     agents: [
       { name: "Data Agent", status: "pending" },
       { name: "Design Agent", status: "pending" },
@@ -196,12 +264,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 9,
     date: "2024-07-25",
     columnId: "in-progress",
+    dueDate: "2024-09-05",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-12",
     title: "Beta User Outreach Plan",
     status: AgentJobStatus.RUNNING,
     budget: 70,
+    assignee: "Noah Foster",
     agents: [
       { name: "Growth Agent", status: "pending" },
       { name: "Support Agent", status: "pending" },
@@ -214,12 +286,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 3,
     date: "2024-07-24",
     columnId: "in-progress",
+    dueDate: "2024-08-28",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-13",
     title: "Competitive Landscape Brief",
     status: AgentJobStatus.INITIATED,
     budget: 50,
+    assignee: "Lucas Park",
     agents: [
       { name: "Research Agent", status: "pending" },
       { name: "Strategy Agent", status: "pending" },
@@ -232,12 +308,16 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 4,
     date: "2024-07-23",
     columnId: "backlog",
+    dueDate: "2024-08-27",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
   {
     id: "task-14",
     title: "Agent Persona Library",
     status: AgentJobStatus.INITIATED,
     budget: 130,
+    assignee: "Maya Green",
     agents: [
       { name: "Design Agent", status: "pending" },
       { name: "Content Agent", status: "pending" },
@@ -250,5 +330,12 @@ export const MOCK_TASKS: TaskCardData[] = [
     commentsCount: 8,
     date: "2024-07-22",
     columnId: "backlog",
+    dueDate: "2024-08-21",
+    description: DEFAULT_DESCRIPTION,
+    activities: [],
   },
 ];
+
+export function getTaskById(taskId: string): TaskCardData | undefined {
+  return MOCK_TASKS.find((task) => task.id === taskId);
+}

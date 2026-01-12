@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { type TaskCardData } from "@/app/tasks/types";
 import { AgentJobStatusBadge } from "@/components/jobs/agent-job-status-badge";
 
@@ -12,7 +13,10 @@ interface TaskListItemProps {
 
 export function TaskListItem({ task, labels }: TaskListItemProps) {
   return (
-    <div className="bg-card/70 hover:bg-foreground/5 flex flex-col gap-2 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:gap-3">
+    <Link
+      href={`/tasks/${task.id}`}
+      className="bg-card/70 hover:bg-foreground/5 flex flex-col gap-2 rounded-lg border px-3 py-3 transition sm:flex-row sm:items-center sm:gap-3"
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex min-w-0 items-center gap-2">
@@ -37,6 +41,6 @@ export function TaskListItem({ task, labels }: TaskListItemProps) {
           variant="list"
         />
       </div>
-    </div>
+    </Link>
   );
 }
