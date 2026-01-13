@@ -4,7 +4,9 @@ import { getUserJobs } from "@/helpers/job";
 import { jsonErrorResponse, jsonPaginatedResponse } from "@/helpers/openapi";
 import {
   calculatePaginationMeta,
- okPaginated,  paginationQuerySchema } from "@/helpers/pagination";
+  okPaginated,
+  paginationQuerySchema,
+} from "@/helpers/pagination";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
