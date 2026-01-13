@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { AgentStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
@@ -66,7 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
       const agent = await tx.agent.findUnique({
-        where: { id },
+        where: { id, status: AgentStatus.ONLINE, isShown: true },
         include: {
           ...agentPricingInclude,
           ...agentOrganizationsInclude,

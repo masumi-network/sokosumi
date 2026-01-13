@@ -54,15 +54,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
       const agents = await tx.agent.findMany({
+        where: {
+          status: AgentStatus.ONLINE,
+          isShown: true,
+        },
+        orderBy: [...agentOrderBy],
         include: {
           ...agentPricingInclude,
           ...agentOrganizationsInclude,
           ...agentJobsCountInclude,
-        },
-        orderBy: [...agentOrderBy],
-        where: {
-          status: AgentStatus.ONLINE,
-          isShown: true,
         },
       });
 
