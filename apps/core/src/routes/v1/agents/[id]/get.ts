@@ -1,18 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { AgentStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
+  buildAgentAccessWhereClause,
   calculateAgentRating,
   calculateAverageExecutionTime,
-  canUserAccessAgent,
   getAgentAccessContext,
   getAgentCost,
   getAgentDescription,
   getAgentImage,
   getAgentName,
 } from "@/helpers/agent";
-import { notFound, unauthorized } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -66,8 +65,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
 
-      const agent = await tx.agent.findUnique({
-        where: { id, status: AgentStatus.ONLINE, isShown: true },
+      const agent = await tx.agent.findFirst({
+        where: {
+          id,
+          ...buildAgentAccessWhereClause(
+            userOrganizationIds,
+            authContext.organizationId,
+          ),
+        },
         include: {
           ...agentPricingInclude,
           ...agentOrganizationsInclude,
@@ -77,16 +82,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!agent) {
         throw notFound("Agent not found");
-      }
-
-      if (
-        !canUserAccessAgent(
-          agent,
-          userOrganizationIds,
-          authContext.organizationId,
-        )
-      ) {
-        throw unauthorized("You are not authorized to access this agent");
       }
 
       const cost = getAgentCost(agent, creditCosts);

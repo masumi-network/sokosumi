@@ -1,5 +1,6 @@
 import {
   type Agent,
+  AgentStatus,
   type CreditCost,
   PricingType,
   type Prisma,
@@ -69,6 +70,59 @@ export const getAgentAccessContext = async (
   return {
     userOrganizationIds,
     creditCosts,
+  };
+};
+
+/**
+ * Builds a Prisma where clause for filtering agents based on user access.
+ *
+ * This function implements the same access control logic as `canUserAccessAgent` but
+ * at the database query level for better performance.
+ *
+ * Access rules:
+ * - Only shows agents with status ONLINE and isShown: true
+ * - Blacklist: Only enforced when activeOrganizationId is present (organization context)
+ *   - Personal context (null) is not affected by organizational blacklist decisions
+ * - Organization access:
+ *   - Public agents (no organizations) are always accessible
+ *   - If user has no organizations, only public agents are shown
+ *   - If user has organizations, shows public agents OR agents with overlapping organizations
+ *
+ * @param userOrganizationIds - Organization IDs the user is a member of
+ * @param activeOrganizationId - The currently active organization ID, or null for personal context
+ * @returns Prisma where clause for agent queries
+ */
+export const buildAgentAccessWhereClause = (
+  userOrganizationIds: string[],
+  activeOrganizationId: string | null,
+): Prisma.AgentWhereInput => {
+  const organizationFilter =
+    userOrganizationIds.length === 0
+      ? [{ organizations: { none: {} } }]
+      : [
+          { organizations: { none: {} } },
+          {
+            organizations: {
+              some: {
+                id: { in: userOrganizationIds },
+              },
+            },
+          },
+        ];
+
+  return {
+    status: AgentStatus.ONLINE,
+    isShown: true,
+    ...(activeOrganizationId && {
+      NOT: {
+        blacklistedOrganizations: {
+          some: {
+            id: activeOrganizationId,
+          },
+        },
+      },
+    }),
+    OR: organizationFilter,
   };
 };
 

@@ -1,8 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
-import { agentOrganizationsInclude, AgentStatus } from "@sokosumi/database";
+import { agentOrganizationsInclude } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
+  buildAgentAccessWhereClause,
   calculateAgentRatings,
   calculateAverageExecutionTimes,
   getAgentAccessContext,
@@ -52,35 +53,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
 
-      const organizationFilter =
-        userOrganizationIds.length === 0
-          ? [{ organizations: { none: {} } }]
-          : [
-              { organizations: { none: {} } },
-              {
-                organizations: {
-                  some: {
-                    id: { in: userOrganizationIds },
-                  },
-                },
-              },
-            ];
-
       const agents = await tx.agent.findMany({
-        where: {
-          status: AgentStatus.ONLINE,
-          isShown: true,
-          ...(authContext.organizationId && {
-            NOT: {
-              blacklistedOrganizations: {
-                some: {
-                  id: authContext.organizationId,
-                },
-              },
-            },
-          }),
-          OR: organizationFilter,
-        },
+        where: buildAgentAccessWhereClause(
+          userOrganizationIds,
+          authContext.organizationId,
+        ),
         orderBy: [...agentOrderBy],
         include: {
           ...agentPricingInclude,
