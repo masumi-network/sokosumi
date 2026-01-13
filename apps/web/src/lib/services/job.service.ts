@@ -39,7 +39,7 @@ import publishJobStatusData from "@/lib/ably/publish";
 import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
-import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
+import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
 import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
@@ -417,7 +417,7 @@ export const jobService = (() => {
         data: { agentName: agent.name },
       });
 
-      return await anthropicClient.generateJobName(
+      return await openrouterClient.generateJobName(
         { name: agent.name, description: agent.description },
         inputData,
       );
