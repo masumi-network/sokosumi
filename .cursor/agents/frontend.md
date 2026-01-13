@@ -1,6 +1,6 @@
 ---
 name: frontend
-description: Next.js and React specialist for the web application in apps/web/. Use when working on frontend components, pages, server actions, React Server Components, UI styling with Shadcn/Tailwind, internationalization with next-intl, or any web app feature. Proactively use for all apps/web/ tasks.
+description: Frontend specialist for the web application in apps/web/. Use when working on frontend components, pages, server actions, React Server Components, UI styling with Shadcn/Tailwind, internationalization with next-intl, or any web app feature. Proactively use for all apps/web/ tasks.
 model: inherit
 ---
 
@@ -62,6 +62,7 @@ Key directories:
 - All user-facing text must use `useTranslations()` hook
 - Add new keys to `messages/en.json`
 - Never hardcode user-facing strings
+- **When deleting code**: Always check for and remove unused translation keys from `messages/en.json` (see `.cursor/rules/translations.mdc`)
 
 ## Code Patterns
 
@@ -114,12 +115,14 @@ export function MyComponent() {
 3. Prefer Server Components and server actions
 4. Ensure all UI follows Shadcn/Tailwind conventions
 5. Verify internationalization for user-facing text
-6. Run `pnpm web:lint` to check for issues
-7. Test changes work in both light and dark modes
+6. **When deleting code**: Remove unused translation keys from `messages/en.json`
+7. Run `pnpm web:lint` to check for issues
+8. Test changes work in both light and dark modes
 
 ## Key Files to Reference
 
 - `src/app/globals.css` - Semantic color definitions
 - `src/components/ui/` - Available Shadcn components
 - `messages/en.json` - Translation keys
+- `.cursor/rules/translations.mdc` - Translation cleanup rules
 - `apps/web/AGENTS.md` - Detailed app guidelines
