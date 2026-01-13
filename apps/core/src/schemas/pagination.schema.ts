@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { LIMITS } from "@/config/constants";
+
 /**
  * Query parameter schema for cursor-based pagination
  * Uses cursor and limit parameters
@@ -19,12 +21,12 @@ export const cursorPaginationQuerySchema = z
       .number()
       .int()
       .min(1)
-      .max(100)
-      .default(20)
+      .max(LIMITS.MAX_PAGINATION_LIMIT)
+      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
       .openapi({
         param: { name: "limit", in: "query" },
-        description: "Number of items to return (max 100)",
-        example: 20,
+        description: `Number of items to return (max ${LIMITS.MAX_PAGINATION_LIMIT})`,
+        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
       }),
   })
   .openapi("CursorPaginationQuery");
@@ -56,3 +58,6 @@ export const cursorPaginationMetaSchema = z
   .openapi("PaginationMetadata");
 
 export type CursorPaginationMeta = z.infer<typeof cursorPaginationMetaSchema>;
+
+/** Alias for backward compatibility */
+export type PaginationMeta = CursorPaginationMeta;
