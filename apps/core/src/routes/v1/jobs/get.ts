@@ -1,26 +1,20 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
-import {
-  jobWithCreditTransaction,
-  jobWithEvents,
-  jobWithPurchase,
-  SokosumiJobStatus,
-} from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
+import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { jobsSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { flattenJob } from "@/types/job";
 
 const query = z
   .object({
@@ -102,37 +96,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const where = {
-      userId: authContext.userId,
-      organizationId: authContext.organizationId,
-      ...(agentId ? { agentId } : {}),
-    };
-
-    const { jobs, count } = await prisma.$transaction(async (tx) => {
-      const jobs = await tx.job.findMany({
-        where,
-        take,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: { id: "asc" },
-        include: {
-          ...jobWithEvents,
-          ...jobWithCreditTransaction,
-          ...jobWithPurchase,
-        },
-      });
-      const count = await tx.job.count({ where });
-      return { jobs, count };
+    const { jobs, count } = await getUserJobs(authContext, {
+      agentId,
+      cursor,
+      take,
+      skip,
     });
 
-    const nextCursor = jobs.length > 0 ? jobs[jobs.length - 1].id : null;
-    const flattenedJobs = jobs.map(flattenJob);
+    const nextCursor =
+      jobs.length > 0 ? (jobs[jobs.length - 1]?.id ?? null) : null;
 
-    return ok(c, jobsSchema.parse(flattenedJobs), {
+    return ok(c, jobsSchema.parse(jobs), {
       cursor: cursor ?? null,
       limit: take,
       total: count,
-      nextCursor: nextCursor ?? null,
+      nextCursor,
     });
   });
 }
