@@ -272,6 +272,7 @@ export async function getUserJobs(
 ): Promise<{
   jobs: ReturnType<typeof flattenJob>[];
   count: number;
+  hasMore: boolean;
 }> {
   const { agentId, cursor, take, skip, tx = prisma } = options;
 
@@ -281,10 +282,11 @@ export async function getUserJobs(
     ...(agentId ? { agentId } : {}),
   };
 
+  const takePlusOne = take + 1;
   const [jobs, count] = await Promise.all([
     tx.job.findMany({
       where,
-      take,
+      take: takePlusOne,
       skip,
       cursor: cursor ? { id: cursor } : undefined,
       orderBy: { id: "asc" },
@@ -296,9 +298,9 @@ export async function getUserJobs(
     }),
     tx.job.count({ where }),
   ]);
-
   return {
-    jobs: jobs.map(flattenJob),
+    jobs: jobs.slice(0, take).map(flattenJob),
     count,
+    hasMore: jobs.length === takePlusOne,
   };
 }

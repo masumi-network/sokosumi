@@ -7,7 +7,10 @@ import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
-import { parseCursorPagination } from "@/helpers/pagination";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
@@ -96,21 +99,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const { jobs, count } = await getUserJobs(authContext, {
+    const { jobs, count, hasMore } = await getUserJobs(authContext, {
       agentId,
       cursor,
       take,
       skip,
     });
 
-    const nextCursor =
-      jobs.length > 0 ? (jobs[jobs.length - 1]?.id ?? null) : null;
+    console.log(jobs.length, count, hasMore, cursor);
+    const paginationMeta = createPaginationMeta(
+      jobs,
+      count,
+      take,
+      hasMore,
+      cursor,
+    );
 
-    return ok(c, jobsSchema.parse(jobs), {
-      cursor: cursor ?? null,
-      limit: take,
-      total: count,
-      nextCursor,
-    });
+    return ok(c, jobsSchema.parse(jobs), paginationMeta);
   });
 }

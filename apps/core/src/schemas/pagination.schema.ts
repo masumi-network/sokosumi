@@ -59,4 +59,3 @@ export const cursorPaginationMetaSchema = z
  * Type exports for pagination metadata
  */
 export type CursorPaginationMeta = z.infer<typeof cursorPaginationMetaSchema>;
-export type PaginationMeta = CursorPaginationMeta;
