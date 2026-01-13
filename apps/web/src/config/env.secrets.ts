@@ -48,8 +48,8 @@ const envSecretsSchema = z.object({
   STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
   STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
 
-  // Anthropic
-  ANTHROPIC_API_KEY: z.string().startsWith("sk-").optional(),
+  // OpenRouter
+  OPENROUTER_API_KEY: z.string().startsWith("sk-or-").optional(),
 
   // Seed
   SEED_DATABASE: z

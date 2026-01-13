@@ -8,7 +8,7 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { anthropicClient } from "@/lib/clients";
+import { openrouterClient } from "@/lib/clients";
 import prisma from "@/lib/db/prisma";
 import { getAgentDescription } from "@/lib/helpers/agent";
 import { lockService } from "@/lib/services";
@@ -80,7 +80,7 @@ async function syncAgentSummaries() {
     }
     try {
       console.info(`Generating summary for agent ${agent.id}`);
-      const summary = await anthropicClient.generateAgentSummary(description);
+      const summary = await openrouterClient.generateAgentSummary(description);
       if (!summary) {
         continue;
       }

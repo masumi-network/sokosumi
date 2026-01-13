@@ -11,8 +11,8 @@ import {
 import { createAgentClient } from "@sokosumi/masumi";
 import { v4 as uuidv4 } from "uuid";
 
-import { anthropicClient } from "@/clients/anthropic.client";
 import { paymentClient } from "@/clients/masumi-payment.client";
+import { openrouterClient } from "@/clients/openrouter.client";
 import {
   canUserAccessAgent,
   getAgentAccessContext,
@@ -145,7 +145,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Generate job name if not provided
     let jobName = name?.trim() || null;
     if (!jobName) {
-      const generatedName = await anthropicClient.generateJobName(
+      const generatedName = await openrouterClient.generateJobName(
         {
           name: agent.name,
           description: agent.description,
