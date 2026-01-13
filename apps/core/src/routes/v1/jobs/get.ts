@@ -12,8 +12,8 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import {
-  createOffsetPaginationMeta,
-  parseOffsetPagination,
+  createCursorPaginationMeta,
+  parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -22,7 +22,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { jobsSchema } from "@/schemas/job.schema.js";
-import { offsetPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { flattenJob } from "@/types/job";
 
 const query = z
@@ -36,7 +36,7 @@ const query = z
         example: "cmaeygqwa000e8i0s9s7wif8i",
       }),
   })
-  .extend(offsetPaginationQuerySchema.shape);
+  .extend(cursorPaginationQuerySchema.shape);
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -85,12 +85,10 @@ const route = withGlobalHeaderParameters(
           timestamp: "2025-01-15T12:00:00.000Z",
           requestId: "550e8400-e29b-41d4-a716-446655440000",
           pagination: {
-            page: 1,
-            pageSize: 20,
-            total: 150,
-            totalPages: 8,
+            cursor: null,
+            limit: 20,
             hasNext: true,
-            hasPrevious: false,
+            nextCursor: "cmi4gmksz000104l8wps8p8fp",
           },
         },
       }),
@@ -105,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
     const { agentId } = queryParams;
-    const { skip, take, page, pageSize } = parseOffsetPagination(queryParams);
+    const { cursor, limit, skip } = parseCursorPagination(queryParams);
 
     const where = {
       userId: authContext.userId,
@@ -113,29 +111,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ...(agentId ? { agentId } : {}),
     };
 
-    const [jobs, total] = await Promise.all([
-      prisma.job.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { createdAt: "desc" },
-        include: {
-          ...jobWithEvents,
-          ...jobWithCreditTransaction,
-          ...jobWithPurchase,
-        },
-      }),
-      prisma.job.count({ where }),
-    ]);
+    const jobs = await prisma.job.findMany({
+      where,
+      take: limit + 1, // Fetch one extra to check hasNext
+      skip: skip ? 1 : undefined,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: { id: "asc" },
+      include: {
+        ...jobWithEvents,
+        ...jobWithCreditTransaction,
+        ...jobWithPurchase,
+      },
+    });
 
     const flattenedJobs = jobs.map(flattenJob);
-    const paginationMeta = createOffsetPaginationMeta(
+    const paginationMeta = createCursorPaginationMeta(
       flattenedJobs,
-      total,
-      page,
-      pageSize,
+      limit,
+      cursor,
+      "id",
     );
 
-    return ok(c, jobsSchema.parse(flattenedJobs), paginationMeta);
+    return ok(
+      c,
+      jobsSchema.parse(flattenedJobs.slice(0, limit)),
+      paginationMeta,
+    );
   });
 }

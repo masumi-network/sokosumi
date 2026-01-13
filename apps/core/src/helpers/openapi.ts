@@ -1,9 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-import {
-  cursorPaginationMetaSchema,
-  offsetPaginationMetaSchema,
-} from "@/schemas/pagination.schema";
+import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 import { dateTimeSchema } from "./datetime.js";
 import { errorResponseSchema } from "./error.js";
@@ -40,51 +37,13 @@ export function jsonSuccessResponse(
 }
 
 /**
- * Creates an OpenAPI response schema for paginated responses with offset pagination
- * @param schema - The data schema (typically an array schema)
- * @param description - Description of the response
- * @param example - Optional example response
- * @returns OpenAPI response definition with pagination metadata
- */
-export function jsonPaginatedSuccessResponse(
-  schema: z.ZodTypeAny,
-  description: string,
-  example?: Record<string, unknown>,
-) {
-  const paginatedSchema = z.object({
-    data: schema,
-    meta: z.object({
-      timestamp: dateTimeSchema,
-      requestId: z.string(),
-      pagination: offsetPaginationMetaSchema,
-    }),
-  });
-
-  const baseContent = jsonContent(paginatedSchema);
-
-  const content = example
-    ? {
-        "application/json": {
-          ...baseContent["application/json"],
-          example,
-        },
-      }
-    : baseContent;
-
-  return {
-    description,
-    content,
-  };
-}
-
-/**
  * Creates an OpenAPI response schema for paginated responses with cursor pagination
  * @param schema - The data schema (typically an array schema)
  * @param description - Description of the response
  * @param example - Optional example response
  * @returns OpenAPI response definition with pagination metadata
  */
-export function jsonCursorPaginatedSuccessResponse(
+export function jsonPaginatedSuccessResponse(
   schema: z.ZodTypeAny,
   description: string,
   example?: Record<string, unknown>,

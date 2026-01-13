@@ -1,17 +1,4 @@
-import type {
-  CursorPaginationMeta,
-  OffsetPaginationMeta,
-} from "@/schemas/pagination.schema";
-
-/**
- * Result of parsing offset pagination query parameters
- */
-export interface OffsetPaginationParams {
-  skip: number;
-  take: number;
-  page: number;
-  pageSize: number;
-}
+import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 
 /**
  * Result of parsing cursor pagination query parameters
@@ -20,27 +7,6 @@ export interface CursorPaginationParams {
   cursor: string | undefined;
   limit: number;
   skip: number | undefined;
-}
-
-/**
- * Parses and validates offset pagination query parameters
- * @param query - Query object containing page and pageSize
- * @returns Parsed pagination parameters with skip and take calculated
- */
-export function parseOffsetPagination(query: {
-  page?: number;
-  pageSize?: number;
-}): OffsetPaginationParams {
-  const page = query.page ?? 1;
-  const pageSize = query.pageSize ?? 20;
-  const skip = (page - 1) * pageSize;
-
-  return {
-    skip,
-    take: pageSize,
-    page,
-    pageSize,
-  };
 }
 
 /**
@@ -61,34 +27,6 @@ export function parseCursorPagination(query: {
     cursor,
     limit,
     skip,
-  };
-}
-
-/**
- * Creates pagination metadata for offset-based pagination
- * @param data - Array of data items returned
- * @param total - Total number of items in the result set
- * @param page - Current page number (1-indexed)
- * @param pageSize - Number of items per page
- * @returns Pagination metadata object
- */
-export function createOffsetPaginationMeta(
-  data: unknown[],
-  total: number,
-  page: number,
-  pageSize: number,
-): OffsetPaginationMeta {
-  const totalPages = Math.ceil(total / pageSize);
-  const hasNext = page < totalPages;
-  const hasPrevious = page > 1;
-
-  return {
-    page,
-    pageSize,
-    total,
-    totalPages,
-    hasNext,
-    hasPrevious,
   };
 }
 
