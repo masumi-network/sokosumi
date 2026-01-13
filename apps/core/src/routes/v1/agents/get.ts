@@ -57,6 +57,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           status: AgentStatus.ONLINE,
           isShown: true,
+          NOT: {
+            blacklistedOrganizations: {
+              some: {
+                id: {
+                  in: userOrganizationIds,
+                },
+              },
+            },
+          },
         },
         orderBy: [...agentOrderBy],
         include: {
