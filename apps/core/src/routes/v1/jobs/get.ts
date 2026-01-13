@@ -11,10 +11,7 @@ import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
-import {
-  createCursorPaginationMeta,
-  parseCursorPagination,
-} from "@/helpers/pagination";
+import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -103,7 +100,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
     const { agentId } = queryParams;
-    const { cursor, limit, skip } = parseCursorPagination(queryParams);
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const where = {
       userId: authContext.userId,
@@ -111,31 +108,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ...(agentId ? { agentId } : {}),
     };
 
-    const jobs = await prisma.job.findMany({
-      where,
-      take: limit + 1, // Fetch one extra to check hasNext
-      skip: skip ? 1 : undefined,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: { id: "asc" },
-      include: {
-        ...jobWithEvents,
-        ...jobWithCreditTransaction,
-        ...jobWithPurchase,
-      },
+    const { jobs, count } = await prisma.$transaction(async (tx) => {
+      const jobs = await tx.job.findMany({
+        where,
+        take,
+        skip,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: { id: "asc" },
+        include: {
+          ...jobWithEvents,
+          ...jobWithCreditTransaction,
+          ...jobWithPurchase,
+        },
+      });
+      const count = await tx.job.count({ where });
+      return { jobs, count };
     });
 
+    const nextCursor = jobs.length > 0 ? jobs[jobs.length - 1].id : null;
     const flattenedJobs = jobs.map(flattenJob);
-    const paginationMeta = createCursorPaginationMeta(
-      flattenedJobs,
-      limit,
-      cursor,
-      "id",
-    );
 
-    return ok(
-      c,
-      jobsSchema.parse(flattenedJobs.slice(0, limit)),
-      paginationMeta,
-    );
+    return ok(c, jobsSchema.parse(flattenedJobs), {
+      cursor: cursor ?? null,
+      limit: take,
+      total: count,
+      nextCursor: nextCursor ?? null,
+    });
   });
 }

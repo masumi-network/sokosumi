@@ -36,8 +36,11 @@ export const cursorPaginationMetaSchema = z
   .object({
     cursor: z.string().nullable().openapi({ example: "abc123" }),
     limit: z.number().int().min(1).openapi({ example: 20 }),
-    hasNext: z.boolean().openapi({ example: true }),
-    nextCursor: z.string().nullable().openapi({ example: "xyz789" }),
+    total: z.number().int().min(0).openapi({ example: 100 }),
+    nextCursor: z
+      .string()
+      .nullable()
+      .openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
   })
   .openapi("CursorPaginationMeta");
 
