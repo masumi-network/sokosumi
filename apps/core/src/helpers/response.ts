@@ -1,7 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
-import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
+import {
+  type CursorPaginationMeta,
+  cursorPaginationMetaSchema,
+} from "@/schemas/pagination.schema";
 
 import { dateTimeSchema } from "./datetime.js";
 
@@ -22,7 +25,7 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
         .string()
         .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
       /** Optional pagination metadata */
-      pagination: z.unknown().optional(),
+      pagination: cursorPaginationMetaSchema.optional(),
     }),
   });
 
