@@ -67,7 +67,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      // Transform agents with credits (pricing validation is handled in query)
       const agentsWithCredits = agents
         .map((agent) => {
           const cost = getAgentCost(agent, creditCosts);
