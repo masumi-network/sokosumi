@@ -65,7 +65,6 @@ export const jobSchema = z
 export const jobsSchema = z.array(jobSchema);
 
 export const createJobRequestSchema = z.object({
-  maxCredits: z.number().positive().optional().openapi({ example: 10 }),
   inputSchema: inputSchemaSchema,
   inputData: z.record(
     z.string(),
@@ -77,7 +76,12 @@ export const createJobRequestSchema = z.object({
       z.array(z.number()),
     ]),
   ),
-  name: z.string().min(1).max(80).optional().openapi({ example: "My Job" }),
+  maxCredits: z.number().positive().optional().openapi({ example: 10 }),
+  name: z.string().min(1).max(80).optional().openapi({
+    example: "My Job",
+    description:
+      "If not provided, an AI-generated name will be created based on the agent details and input data.",
+  }),
 });
 
 // Preprocess function to handle backward compatibility (job_id -> id)
