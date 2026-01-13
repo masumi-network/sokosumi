@@ -1,7 +1,10 @@
 import prisma from "../client.js";
 import type { AgentList, AgentListType } from "../generated/prisma/client.js";
 import { Prisma } from "../generated/prisma/client.js";
-import { agentListInclude, type AgentListWithAgents } from "../types/agentList.js";
+import {
+  agentListInclude,
+  type AgentListWithAgents,
+} from "../types/agentList.js";
 
 /**
  * Type guard to check if an error is a Prisma unique constraint violation.

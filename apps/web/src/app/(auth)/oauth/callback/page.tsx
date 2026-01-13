@@ -33,9 +33,7 @@ export default function OAuthCallbackPage() {
   const searchParams = useSearchParams();
   const [codeVerifier, setCodeVerifier] = useState("");
   const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState(
-    ""
-  );
+  const [clientSecret, setClientSecret] = useState("");
   const [isExchanging, setIsExchanging] = useState(false);
   const [tokenResponse, setTokenResponse] = useState<TokenResponse | null>(
     null,

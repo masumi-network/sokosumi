@@ -7,13 +7,14 @@ alwaysApply: true
 ## Import Organization
 
 - Imports are automatically sorted using `simple-import-sort` plugin
-- Import statements must come first in the file
-- Always include a newline after import statements
+- Import statements must come first in the file (enforced by `import/first`)
+- Always include a newline after import statements (enforced by `import/newline-after-import`)
+- Exports are automatically sorted using `simple-import-sort` plugin
 - Remove all unused imports (enforced by `unused-imports` plugin)
-- No duplicate import statements
+- No duplicate import statements (enforced by `import/no-duplicates`)
 - Use absolute imports with `@/` alias except within the same folder
 
-**Common Fix**: Run `pnpm sokosumi-web:format` to auto-fix import sorting issues.
+**Common Fix**: Run `pnpm lint:fix` to auto-fix import sorting issues.
 
 ## TypeScript Linting
 
@@ -41,12 +42,14 @@ const config = {
 };
 ```
 
+**Common Fix**: Run `pnpm format` to execute the formatter.
+
 ## Common Linter Errors & Fixes
 
 ### Import sorting violations
 
-**Error**: `simple-import-sort/imports`
-**Fix**: Run `pnpm sokosumi-web:format` to auto-sort imports
+**Error**: `simple-import-sort/imports` or `simple-import-sort/exports`
+**Fix**: Run `pnpm lint:fix` to auto-sort imports
 
 ### Unused imports
 
