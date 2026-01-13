@@ -16,6 +16,7 @@
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
     "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
     "web:lint": "pnpm --filter web lint",
     "web:lint:fix": "pnpm --filter web lint:fix",
     "database:lint": "pnpm --filter @sokosumi/database lint",
