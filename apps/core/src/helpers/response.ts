@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
-import type { PaginationMeta } from "@/schemas/pagination.schema";
+import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 
 import { dateTimeSchema } from "./datetime.js";
 
@@ -36,7 +36,7 @@ export type SuccessResponse<T> = z.infer<
 export const ok = <T>(
   c: Context,
   data: T,
-  paginationMeta?: PaginationMeta,
+  paginationMeta?: CursorPaginationMeta,
 ) => {
   return c.json<SuccessResponse<T>, 200>(
     {
@@ -54,7 +54,7 @@ export const ok = <T>(
 export const created = <T>(
   c: Context,
   data: T,
-  paginationMeta?: PaginationMeta,
+  paginationMeta?: CursorPaginationMeta,
 ) => {
   return c.json<SuccessResponse<T>, 201>(
     {
