@@ -1,11 +1,12 @@
 # Sokosumi Agent Guidelines
 
-> **Purpose**: This document provides comprehensive guidelines for AI agents working on the Sokosumi monorepo. For app-specific details, see [`apps/web/AGENTS.md`](./apps/web/AGENTS.md).
+> **Purpose**: This document provides comprehensive guidelines for AI agents working on the Sokosumi monorepo. For app-specific details, see [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), and [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md).
 
 ## Tech Stack & Architecture
 
-**Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace
-**Architecture**: Three-layer pattern with repositories (`src/lib/db/repositories/`) wrapping Prisma/Postgres, services (`src/lib/services/`) coordinating domain flows, and actions (`src/lib/actions/`) exposing typed server mutations
+**Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace, Node.js 24.x
+**Web Architecture**: Three-layer pattern with repositories (`@sokosumi/database`) wrapping Prisma/Postgres, services (`src/lib/services/`) coordinating domain flows, and actions (`src/lib/actions/`) exposing typed server mutations
+**API Architecture**: Hono with OpenAPI validation and standardized response helpers
 **Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives
 **Auth**: Better Auth with organization-aware sessions
 **i18n**: next-intl for internationalization
@@ -15,25 +16,36 @@
 ```
 sokosumi/
 ├── apps/
-│   └── web/                   # Next.js application
-│       ├── src/app/           # App Router routes, server actions, API handlers
-│       ├── src/components/    # Shared UI components
-│       ├── src/hooks/         # Custom React hooks
-│       ├── src/contexts/      # React contexts
-│       ├── src/lib/           # Domain logic (services, actions, utilities)
-│       │   ├── services/      # Business logic coordination
-│       │   ├── actions/       # Server mutations
-│       │   └── utils/         # Helper functions and transformers
-│       ├── __tests__/         # Colocated tests
-│       ├── __mocks__/         # Reusable test doubles
-│       ├── public/            # Static assets
-│       └── messages/          # Translation catalogs
+│   ├── web/                   # Next.js web application
+│   │   ├── src/app/           # App Router routes, server actions, API handlers
+│   │   ├── src/components/    # Shared UI components
+│   │   ├── src/hooks/         # Custom React hooks
+│   │   ├── src/contexts/      # React contexts
+│   │   ├── src/lib/           # Domain logic (services, actions, utilities)
+│   │   │   ├── services/      # Business logic coordination
+│   │   │   ├── actions/       # Server mutations
+│   │   │   └── utils/         # Helper functions and transformers
+│   │   ├── __tests__/         # Colocated tests
+│   │   ├── __mocks__/         # Reusable test doubles
+│   │   ├── public/            # Static assets
+│   │   └── messages/          # Translation catalogs
+│   └── core/                  # Hono API service
+│       ├── src/routes/v1/     # API route handlers (versioned)
+│       ├── src/middleware/    # Request middleware (auth, etc.)
+│       ├── src/helpers/       # Response and error helpers
+│       ├── src/schemas/       # Zod validation schemas
+│       └── src/lib/           # Shared utilities
 ├── packages/
-│   └── database/              # Shared database layer
-│       ├── src/repositories/  # Prisma/Postgres access layer
-│       ├── src/helpers/       # Database domain logic
-│       ├── src/types/         # Database type definitions
-│       └── prisma/            # Database schema and migrations
+│   ├── database/              # Shared database layer (@sokosumi/database)
+│   │   ├── src/repositories/  # Prisma/Postgres access layer
+│   │   ├── src/helpers/       # Database domain logic
+│   │   ├── src/types/         # Database type definitions
+│   │   └── prisma/            # Database schema and migrations
+│   └── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
+│       ├── src/clients/       # Agent API client
+│       ├── src/hash/          # Hash utilities for job verification
+│       ├── src/schemas/       # Agent protocol Zod schemas
+│       └── src/types/         # Agent types
 ├── docs/                      # Documentation (future)
 ├── eslint.config.mjs          # Root ESLint configuration
 └── prettier.config.mjs        # Root Prettier configuration
@@ -82,7 +94,7 @@ sokosumi/
 ### Code Style
 
 - **Indentation**: Two spaces, semicolons enforced by Prettier
-- **Formatting**: Run `pnpm sokosumi-web:format` after substantial edits
+- **Formatting**: Run `pnpm web:format` after substantial edits
 - **Imports**: Relative within features, use aliases (`@/lib/*`) otherwise
 - **Components**: Default to Server Components; add `'use client'` only for browser APIs
 
@@ -94,7 +106,7 @@ The monorepo uses a comprehensive ESLint setup with the following enforced rules
 
 **Import Organization**:
 
-- Auto-sorted imports via `simple-import-sort` plugin (run `pnpm sokosumi-web:format` to fix)
+- Auto-sorted imports via `simple-import-sort` plugin (run `pnpm web:format` to fix)
 - No unused imports (`unused-imports/no-unused-imports`)
 - Import statements must appear first with newline after
 - No duplicate imports from same module
@@ -128,7 +140,7 @@ All code must follow these formatting rules:
 - **Semicolons**: Required
 - **Quotes**: Double quotes (not single)
 - **Trailing Commas**: Required in multi-line structures
-- **Auto-fix**: Run `pnpm sokosumi-web:format`
+- **Auto-fix**: Run `pnpm web:format`
 
 **Example**:
 
@@ -143,7 +155,7 @@ const config = {
 
 | Error                               | Solution                         |
 | ----------------------------------- | -------------------------------- |
-| `simple-import-sort/imports`        | Run `pnpm sokosumi-web:format`   |
+| `simple-import-sort/imports`        | Run `pnpm web:format`            |
 | `unused-imports/no-unused-imports`  | Remove import or use it          |
 | `@typescript-eslint/no-unused-vars` | Use variable or prefix with `_`  |
 | `import/no-duplicates`              | Combine imports from same module |
@@ -152,31 +164,38 @@ const config = {
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 24.x
 - pnpm package manager
 
 ### Setup
 
 1. Run `pnpm install` at repo root
 2. Copy `apps/web/.env.example` to `apps/web/.env`
-3. Bootstrap database: `pnpm prisma:migrate:dev`
-4. Generate Prisma clients: `pnpm prisma:generate`
-5. Generate API clients: `pnpm generate:api` (when specs change)
+3. Copy `apps/core/.env.example` to `apps/core/.env`
+4. Bootstrap database: `pnpm prisma:migrate:dev`
+5. Generate Prisma clients: `pnpm prisma:generate`
 
 ## Commands
 
-| Command                         | Purpose                      |
-| ------------------------------- | ---------------------------- |
-| `pnpm install`                  | Install dependencies         |
-| `pnpm dev`                      | Watch all workspace packages |
-| `pnpm sokosumi-web:dev`         | Run web app dev server       |
-| `pnpm build`                    | Build for production         |
-| `pnpm sokosumi-web:start`       | Smoke test production build  |
-| `pnpm lint`                     | Lint codebase                |
-| `pnpm sokosumi-web:lint:report` | CI-friendly lint report      |
-| `pnpm test`                     | Run tests locally            |
-| `pnpm sokosumi-web:test:ci`     | CI test execution            |
-| `pnpm sokosumi-web:format`      | Format code with Prettier    |
+| Command                | Purpose                         |
+| ---------------------- | ------------------------------- |
+| `pnpm install`         | Install dependencies            |
+| `pnpm dev`             | Watch all workspace packages    |
+| `pnpm web:dev`         | Run web app dev server          |
+| `pnpm core:dev`        | Run core API dev server         |
+| `pnpm build`           | Build for production            |
+| `pnpm web:build`       | Build web app for production    |
+| `pnpm core:build`      | Build core API for production   |
+| `pnpm web:start`       | Smoke test production build     |
+| `pnpm lint`            | Lint entire codebase            |
+| `pnpm web:lint`        | Lint web app                    |
+| `pnpm web:lint:report` | CI-friendly lint report         |
+| `pnpm test`            | Run tests locally               |
+| `pnpm web:test`        | Run web app tests               |
+| `pnpm masumi:test`     | Run masumi package tests        |
+| `pnpm web:test:ci`     | CI test execution               |
+| `pnpm web:format`      | Format web app code             |
+| `pnpm database:format` | Format database package code    |
 
 ## Testing Guidelines
 
