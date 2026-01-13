@@ -34,18 +34,26 @@ export const cursorPaginationQuerySchema = z
  */
 export const cursorPaginationMetaSchema = z
   .object({
-    cursor: z
-      .string()
-      .nullable()
-      .openapi({ example: "cmg4zknxt0000l404yn4li0kp" }),
-    limit: z.number().int().min(1).openapi({ example: 20 }),
-    total: z.number().int().min(0).openapi({ example: 100 }),
-    nextCursor: z
-      .string()
-      .nullable()
-      .openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
+    cursor: z.string().nullable().openapi({
+      example: "cmg4zknxt0000l404yn4li0kp",
+      description: "Cursor for the current page",
+    }),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .openapi({ example: 20, description: "Number of items returned" }),
+    total: z
+      .number()
+      .int()
+      .min(0)
+      .openapi({ example: 100, description: "Total number of items" }),
+    nextCursor: z.string().nullable().openapi({
+      example: "cmi4gmksz000104l8wps8p7fp",
+      description: "Cursor for the next page",
+    }),
   })
-  .openapi("CursorPaginationMeta");
+  .openapi("PaginationMetadata");
 
 /**
  * Type exports for pagination metadata

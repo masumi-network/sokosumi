@@ -84,7 +84,7 @@ const route = withGlobalHeaderParameters(
           pagination: {
             cursor: null,
             limit: 20,
-            hasNext: true,
+            total: 200,
             nextCursor: "cmi4gmksz000104l8wps8p8fp",
           },
         },
