@@ -1,5 +1,5 @@
 import type { Prisma, User } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 

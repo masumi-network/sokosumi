@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import prisma from "@/lib/db/prisma";
 import { organizationService, userService } from "@/lib/services";
 
 import OrganizationInformation from "./components/organization-information";
@@ -29,6 +30,7 @@ export async function generateMetadata({
   const organization =
     await organizationRepository.getOrganizationWithRelationsBySlug(
       normalizedSlug,
+      prisma,
     );
   if (!organization) {
     return notFound();
@@ -53,6 +55,7 @@ export default async function OrganizationPage({
   const organization =
     await organizationRepository.getOrganizationWithRelationsBySlug(
       normalizedSlug,
+      prisma,
     );
   if (!organization) {
     return notFound();

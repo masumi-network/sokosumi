@@ -9,6 +9,7 @@ import { notFound, redirect } from "next/navigation";
 import { JobDetails } from "@/components/jobs";
 import { Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { isSharedWithOrganization } from "@/lib/helpers/job";
 import { getJobQueryKey, getQueryClient } from "@/queries";
 
@@ -53,12 +54,15 @@ export default async function JobDetailsPage({
   }
   const { agentId, jobId } = await params;
 
-  const agent = await agentRepository.getAgentWithRelationsById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(
+    agentId,
+    prisma,
+  );
   if (!agent) {
     notFound();
   }
 
-  const job = await jobRepository.getJobById(jobId);
+  const job = await jobRepository.getJobById(jobId, prisma);
   if (!job) {
     console.warn("job not found in job detail page");
     notFound();

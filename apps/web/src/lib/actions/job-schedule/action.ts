@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes";
 import { handleInputDataFileUploads } from "@/lib/actions/job/utils";
+import prisma from "@/lib/db/prisma";
 import { StartJobInputSchemaType } from "@/lib/schemas/job";
 import { Result } from "@/lib/ts-res";
 import { JobScheduleEndsMode, JobScheduleType } from "@/lib/types/job";
@@ -161,7 +162,7 @@ export const createSchedule = withAuthContext<
     if (endAfterOccurrences !== undefined)
       prismaInput.endAfterOccurrences = endAfterOccurrences;
 
-    const schedule = await jobScheduleRepository.create(prismaInput);
+    const schedule = await jobScheduleRepository.create(prismaInput, prisma);
     return { ok: true, data: { jobId: "", scheduleId: schedule.id } };
   } catch (error) {
     console.error("Failed to create schedule", error);
@@ -183,7 +184,7 @@ export const toggleSchedule = withAuthContext<
   Result<void, { code: string; message: string }>
 >(async ({ scheduleId, isActive, authContext }) => {
   try {
-    const schedule = await jobScheduleRepository.getById(scheduleId);
+    const schedule = await jobScheduleRepository.getById(scheduleId, prisma);
     if (!schedule) {
       return {
         ok: false,
@@ -196,7 +197,7 @@ export const toggleSchedule = withAuthContext<
         error: { code: CommonErrorCode.UNAUTHORIZED, message: "Unauthorized" },
       };
     }
-    await jobScheduleRepository.setActive(scheduleId, isActive);
+    await jobScheduleRepository.setActive({ id: scheduleId, isActive }, prisma);
     revalidatePath("/schedules");
     return { ok: true, data: undefined };
   } catch (error) {
@@ -226,7 +227,7 @@ export const updateSchedule = withAuthContext<
   Result<void, { code: string; message: string }>
 >(async ({ scheduleId, data, authContext }) => {
   try {
-    const existing = await jobScheduleRepository.getById(scheduleId);
+    const existing = await jobScheduleRepository.getById(scheduleId, prisma);
     if (!existing) {
       return {
         ok: false,
@@ -248,27 +249,33 @@ export const updateSchedule = withAuthContext<
       nextRunAt = next ? next.toISOString() : null;
     }
 
-    await jobScheduleRepository.update(scheduleId, {
-      scheduleType:
-        data.scheduleType as Prisma.JobScheduleUpdateInput["scheduleType"],
-      timezone: data.timezone,
-      cron:
-        data.scheduleType === JobScheduleType.CRON ? (data.cron ?? null) : null,
-      oneTimeAtUtc:
-        data.scheduleType === JobScheduleType.ONE_TIME
-          ? data.oneTimeAtUtc
-            ? new Date(data.oneTimeAtUtc)
-            : null
-          : null,
-      endOnUtc: data.endOnUtc ? new Date(data.endOnUtc) : undefined,
-      endAfterOccurrences:
-        data.endAfterOccurrences === undefined
-          ? undefined
-          : data.endAfterOccurrences,
-      nextRunAt: nextRunAt ? new Date(nextRunAt) : null,
-      // when changing schedule, clear pause reason if any
-      pauseReason: null,
-    });
+    await jobScheduleRepository.update(
+      scheduleId,
+      {
+        scheduleType:
+          data.scheduleType as Prisma.JobScheduleUpdateInput["scheduleType"],
+        timezone: data.timezone,
+        cron:
+          data.scheduleType === JobScheduleType.CRON
+            ? (data.cron ?? null)
+            : null,
+        oneTimeAtUtc:
+          data.scheduleType === JobScheduleType.ONE_TIME
+            ? data.oneTimeAtUtc
+              ? new Date(data.oneTimeAtUtc)
+              : null
+            : null,
+        endOnUtc: data.endOnUtc ? new Date(data.endOnUtc) : undefined,
+        endAfterOccurrences:
+          data.endAfterOccurrences === undefined
+            ? undefined
+            : data.endAfterOccurrences,
+        nextRunAt: nextRunAt ? new Date(nextRunAt) : null,
+        // when changing schedule, clear pause reason if any
+        pauseReason: null,
+      },
+      prisma,
+    );
     revalidatePath("/schedules");
     return { ok: true, data: undefined };
   } catch (error) {
@@ -290,7 +297,7 @@ export const deleteSchedule = withAuthContext<
   Result<void, { code: string; message: string }>
 >(async ({ scheduleId, authContext }) => {
   try {
-    const schedule = await jobScheduleRepository.getById(scheduleId);
+    const schedule = await jobScheduleRepository.getById(scheduleId, prisma);
     if (!schedule) {
       return {
         ok: false,
@@ -303,7 +310,7 @@ export const deleteSchedule = withAuthContext<
         error: { code: CommonErrorCode.UNAUTHORIZED, message: "Unauthorized" },
       };
     }
-    await jobScheduleRepository.delete(scheduleId);
+    await jobScheduleRepository.delete(scheduleId, prisma);
     revalidatePath("/schedules");
     return { ok: true, data: undefined };
   } catch (error) {

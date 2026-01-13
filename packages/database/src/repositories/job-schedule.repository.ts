@@ -1,10 +1,9 @@
-import prisma from "../client.js";
 import type { Prisma } from "../generated/prisma/client.js";
 
 export const jobScheduleRepository = {
   async create(
     data: Prisma.JobScheduleCreateInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobSchedule.create({
       data,
@@ -14,20 +13,20 @@ export const jobScheduleRepository = {
   async update(
     id: string,
     data: Prisma.JobScheduleUpdateInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobSchedule.update({ where: { id }, data });
   },
 
-  async delete(id: string, tx: Prisma.TransactionClient = prisma) {
+  async delete(id: string, tx: Prisma.TransactionClient) {
     return await tx.jobSchedule.delete({ where: { id } });
   },
 
-  async getById(id: string, tx: Prisma.TransactionClient = prisma) {
+  async getById(id: string, tx: Prisma.TransactionClient) {
     return await tx.jobSchedule.findUnique({ where: { id } });
   },
 
-  async findDue(tx: Prisma.TransactionClient = prisma) {
+  async findDue(tx: Prisma.TransactionClient) {
     return await tx.jobSchedule.findMany({
       where: {
         isActive: true,
@@ -40,7 +39,7 @@ export const jobScheduleRepository = {
   async getScheduleJobsByContext(
     userId: string,
     organizationId: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobSchedule.findMany({
       where: {
@@ -59,14 +58,14 @@ export const jobScheduleRepository = {
     });
   },
 
-  async countJobs(id: string, tx: Prisma.TransactionClient = prisma) {
+  async countJobs(id: string, tx: Prisma.TransactionClient) {
     return await tx.job.count({ where: { jobScheduleId: id } });
   },
 
   async setNextRun(
     id: string,
     nextRunAt: Date | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobSchedule.update({
       where: { id },
@@ -79,14 +78,16 @@ export const jobScheduleRepository = {
   },
 
   async setActive(
-    id: string,
-    isActive: boolean,
-    pauseReason?: string,
-    tx: Prisma.TransactionClient = prisma,
+    data: {
+      id: string;
+      isActive: boolean;
+      pauseReason?: string;
+    },
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobSchedule.update({
-      where: { id },
-      data: { isActive, pauseReason },
+      where: { id: data.id },
+      data: { isActive: data.isActive, pauseReason: data.pauseReason },
     });
   },
 };

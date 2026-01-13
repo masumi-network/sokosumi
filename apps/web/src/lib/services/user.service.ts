@@ -7,7 +7,6 @@ import {
   MemberWithOrganization,
   OrganizationWithRelations,
 } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   invitationRepository,
   jobRepository,
@@ -20,6 +19,7 @@ import { headers } from "next/headers";
 import { auth, type Session } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { getAuthContext } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 
 /**
  * Service for user-related operations.
@@ -36,7 +36,7 @@ export const userService = (() => {
     if (!context) {
       return null;
     }
-    return userRepository.getUserById(context.userId);
+    return userRepository.getUserById(context.userId, prisma);
   }
 
   /**
@@ -64,6 +64,7 @@ export const userService = (() => {
     const organization =
       await organizationRepository.getOrganizationWithRelationsById(
         activeOrganizationId,
+        prisma,
       );
     return organization;
   }
@@ -86,11 +87,14 @@ export const userService = (() => {
     const activeOrganizationId = context.organizationId;
 
     // Get owned jobs
-    const ownedJobs = await jobRepository.getJobs({
-      agentId,
-      userId,
-      organizationId: activeOrganizationId,
-    });
+    const ownedJobs = await jobRepository.getJobs(
+      {
+        agentId,
+        userId,
+        organizationId: activeOrganizationId,
+      },
+      prisma,
+    );
 
     // Get shared jobs from organization if user is in an organization
     let sharedJobs: JobWithSokosumiStatus[] = [];
@@ -99,6 +103,7 @@ export const userService = (() => {
         userId,
         agentId,
         activeOrganizationId,
+        prisma,
       );
     }
 
@@ -124,6 +129,7 @@ export const userService = (() => {
     }
     return await memberRepository.getMembersWithOrganizationByUserId(
       context.userId,
+      prisma,
     );
   }
 
@@ -146,6 +152,7 @@ export const userService = (() => {
     return await memberRepository.getMemberByUserIdAndOrganizationId(
       context.userId,
       organizationId,
+      prisma,
     );
   }
 
@@ -271,7 +278,9 @@ export const userService = (() => {
     );
 
     const users = await Promise.all(
-      normalizedEmails.map((email) => userRepository.getUserByEmail(email)),
+      normalizedEmails.map((email) =>
+        userRepository.getUserByEmail(email, prisma),
+      ),
     );
 
     return users

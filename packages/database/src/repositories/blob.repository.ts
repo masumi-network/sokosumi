@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { Blob, BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
 
@@ -8,22 +7,24 @@ import { Blob, BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
  */
 export const blobRepository = {
   async createInputBlobForEvent(
-    userId: string,
-    eventId: string,
-    fileUrl: string,
-    fileName?: string,
-    size?: bigint,
-    tx: Prisma.TransactionClient = prisma,
+    data: {
+      userId: string;
+      eventId: string;
+      fileUrl: string;
+      fileName?: string;
+      size?: bigint;
+    },
+    tx: Prisma.TransactionClient,
   ): Promise<Blob> {
     const blob = await tx.blob.create({
       data: {
         origin: BlobOrigin.INPUT,
-        user: { connect: { id: userId } },
-        event: { connect: { id: eventId } },
+        user: { connect: { id: data.userId } },
+        event: { connect: { id: data.eventId } },
         status: BlobStatus.READY,
-        fileUrl,
-        fileName,
-        size,
+        fileUrl: data.fileUrl,
+        fileName: data.fileName,
+        size: data.size,
       },
     });
     return blob;
@@ -34,27 +35,29 @@ export const blobRepository = {
    * Avoids duplicates by sourceUrl per job event.
    */
   async upsertOutputBlob(
-    userId: string,
-    eventId: string,
-    sourceUrl: string,
-    fileName?: string,
-    tx: Prisma.TransactionClient = prisma,
+    data: {
+      userId: string;
+      eventId: string;
+      sourceUrl: string;
+      fileName?: string;
+    },
+    tx: Prisma.TransactionClient,
   ): Promise<Blob> {
     const blob = await tx.blob.upsert({
       where: {
-        eventId_sourceUrl: { eventId, sourceUrl },
-        userId,
+        eventId_sourceUrl: { eventId: data.eventId, sourceUrl: data.sourceUrl },
+        userId: data.userId,
       },
       update: {
-        fileName,
+        fileName: data.fileName,
       },
       create: {
-        user: { connect: { id: userId } },
-        event: { connect: { id: eventId } },
+        user: { connect: { id: data.userId } },
+        event: { connect: { id: data.eventId } },
         origin: BlobOrigin.OUTPUT,
         status: BlobStatus.PENDING,
-        sourceUrl,
-        fileName,
+        sourceUrl: data.sourceUrl,
+        fileName: data.fileName,
       },
     });
     return blob;
@@ -65,7 +68,7 @@ export const blobRepository = {
    */
   async getBlobById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob | null> {
     const blob = await tx.blob.findUnique({
       where: { id },
@@ -78,7 +81,7 @@ export const blobRepository = {
    */
   async getBlobsByUserId(
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { userId },
@@ -91,7 +94,7 @@ export const blobRepository = {
    */
   async getBlobsByEventId(
     eventId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { eventId },
@@ -101,7 +104,7 @@ export const blobRepository = {
 
   async getBlobsByJobInputId(
     jobInputId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { event: { input: { id: jobInputId } } },
@@ -114,7 +117,7 @@ export const blobRepository = {
    */
   async getBlobsByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: {
@@ -130,7 +133,7 @@ export const blobRepository = {
   async getBlobsByUserIdAndJobId(
     userId: string,
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: {
@@ -145,12 +148,14 @@ export const blobRepository = {
    * Get pending output blobs to import.
    */
   async getPendingOutputBlobs(
-    limit?: number,
-    tx: Prisma.TransactionClient = prisma,
+    data: {
+      limit?: number;
+    },
+    tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { status: BlobStatus.PENDING, origin: BlobOrigin.OUTPUT },
-      take: limit,
+      take: data.limit,
       orderBy: { createdAt: "asc" },
     });
     return blobs;
@@ -162,7 +167,7 @@ export const blobRepository = {
   async updateBlobById(
     id: string,
     data: Prisma.BlobUpdateInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob> {
     const blob = await tx.blob.update({
       where: { id },
@@ -179,7 +184,7 @@ export const blobRepository = {
       size?: bigint | null;
       fileName?: string | null;
     },
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob> {
     const blob = await tx.blob.update({
       where: { id },
@@ -198,7 +203,7 @@ export const blobRepository = {
 
   async markBlobFailed(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob> {
     const blob = await tx.blob.update({
       where: { id },
@@ -212,7 +217,7 @@ export const blobRepository = {
    */
   async deleteBlobById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Blob | null> {
     const blob = await tx.blob.delete({ where: { id } });
     return blob;

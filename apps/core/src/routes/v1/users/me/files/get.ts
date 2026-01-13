@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { BlobOrigin, BlobStatus } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";

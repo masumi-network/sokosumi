@@ -13,6 +13,7 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { auth } from "@/lib/auth/auth";
+import prisma from "@/lib/db/prisma";
 
 // Helper function for updating user via Better Auth and fetching result
 async function updateUserAndFetch(
@@ -35,7 +36,7 @@ async function updateUserAndFetch(
   }
 
   // Fetch the complete updated user from repository
-  const user = await userRepository.getUserById(userId);
+  const user = await userRepository.getUserById(userId, prisma);
   if (!user) {
     throw new Error("User not found after update");
   }
@@ -55,7 +56,7 @@ async function updateUserAndFetch(
 export async function GET(request: NextRequest) {
   try {
     const apiKey = await validateApiKey(request.headers);
-    const user = await userRepository.getUserById(apiKey.userId);
+    const user = await userRepository.getUserById(apiKey.userId, prisma);
     if (!user) {
       throw new Error("UNAUTHORIZED");
     }

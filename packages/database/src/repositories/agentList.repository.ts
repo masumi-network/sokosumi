@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { AgentList, AgentListType } from "../generated/prisma/client.js";
 import { Prisma } from "../generated/prisma/client.js";
 import {
@@ -44,7 +43,7 @@ export const agentListRepository = {
   async upsertAgentListForUserId(
     userId: string,
     type: AgentListType,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentListWithAgents> {
     try {
       return await tx.agentList.upsert({
@@ -80,7 +79,7 @@ export const agentListRepository = {
   async getAgentListByUserId(
     userId: string,
     type: AgentListType,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentListWithAgents | null> {
     return await tx.agentList.findUnique({
       where: {
@@ -106,7 +105,7 @@ export const agentListRepository = {
     agentId: string,
     userId: string,
     listType: AgentListType,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentList> {
     return await tx.agentList.update({
       where: { userId_type: { userId, type: listType } },
@@ -129,7 +128,7 @@ export const agentListRepository = {
     agentId: string,
     userId: string,
     listType: AgentListType,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentList> {
     return await tx.agentList.update({
       where: { userId_type: { userId, type: listType } },

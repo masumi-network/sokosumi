@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client.js";

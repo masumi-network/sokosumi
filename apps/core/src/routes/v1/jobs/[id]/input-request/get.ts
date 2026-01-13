@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import { notFound, unprocessableEntity } from "@/helpers/error";

@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client.js";
 import {
   agentInclude,
@@ -26,7 +25,7 @@ export const agentRepository = {
    */
   async getAgentWithRelationsById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentWithRelations | null> {
     return await tx.agent.findUnique({
       where: { id },
@@ -44,7 +43,7 @@ export const agentRepository = {
    */
   async getAgentWithOrganizationsById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentWithOrganizations | null> {
     return await tx.agent.findUnique({
       where: { id },
@@ -62,7 +61,7 @@ export const agentRepository = {
    */
   async getAgentWithPricingById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentWithPricing | null> {
     return await tx.agent.findUnique({
       where: { id },
@@ -82,7 +81,7 @@ export const agentRepository = {
   async getShownAgentWithRelationById(
     agentId: string,
     status: AgentStatus,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentWithRelations | null> {
     return await tx.agent.findUnique({
       where: { id: agentId, isShown: true, status },
@@ -97,7 +96,7 @@ export const agentRepository = {
    * @returns Array of agents with relations
    */
   async getAgentsWithRelations(
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentWithRelations[]> {
     return await tx.agent.findMany({
       include: agentInclude,
@@ -114,7 +113,7 @@ export const agentRepository = {
    */
   async getShownAgentsWithRelationsByStatus(
     status: AgentStatus,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentWithRelations[]> {
     return await tx.agent.findMany({
       include: agentInclude,
@@ -138,7 +137,7 @@ export const agentRepository = {
   async getHiredAgentsWithLatestJobByUserIdAndOrganization(
     userId: string,
     organizationId: string | null | undefined,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<AgentWithJobs[]> {
     const normalizedOrganizationId = organizationId ?? null;
 
@@ -183,7 +182,7 @@ export const agentRepository = {
    */
   async getAvailableAgentsWithoutSummary(
     limit: number | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Agent[]> {
     return await tx.agent.findMany({
       where: {
@@ -210,7 +209,7 @@ export const agentRepository = {
   async updateAgentSummary(
     id: string,
     summary: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Agent> {
     return await tx.agent.update({
       where: { id },

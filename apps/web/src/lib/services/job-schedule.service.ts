@@ -10,6 +10,7 @@ import pLimit from "p-limit";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
+import prisma from "@/lib/db/prisma";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
 import { lockService } from "@/lib/services/lock.service";
@@ -19,7 +20,7 @@ import { computeNextRun } from "@/lib/utils/cron";
 export const jobScheduleService = {
   async executeDueSchedules() {
     const startedAt = Date.now();
-    const due = await jobScheduleRepository.findDue();
+    const due = await jobScheduleRepository.findDue(prisma);
     const limiter = pLimit(3);
 
     let processed = 0;
@@ -29,7 +30,10 @@ export const jobScheduleService = {
       due.map((schedule) =>
         limiter(async () => {
           await processSchedule(schedule);
-          const after = await jobScheduleRepository.getById(schedule.id);
+          const after = await jobScheduleRepository.getById(
+            schedule.id,
+            prisma,
+          );
           processed += 1;
           if (!after?.isActive) paused += 1;
         }),
@@ -64,9 +68,12 @@ async function processSchedule(schedule: JobSchedule) {
     if (isCron) {
       if (!schedule.cron || !schedule.timezone) {
         await jobScheduleRepository.setActive(
-          schedule.id,
-          false,
-          "INVALID_CRON_CONFIG",
+          {
+            id: schedule.id,
+            isActive: false,
+            pauseReason: "INVALID_CRON_CONFIG",
+          },
+          prisma,
         );
         return;
       }
@@ -104,7 +111,7 @@ async function processSchedule(schedule: JobSchedule) {
 
     // Success → compute next run or deactivate if one-time
     if (isOneTime) {
-      await jobScheduleRepository.setNextRun(schedule.id, null);
+      await jobScheduleRepository.setNextRun(schedule.id, null, prisma);
       return;
     }
     if (isCron) {
@@ -119,24 +126,26 @@ async function processSchedule(schedule: JobSchedule) {
       });
       if (!next) {
         await jobScheduleRepository.setActive(
-          schedule.id,
-          false,
-          "INVALID_CRON",
+          { id: schedule.id, isActive: false, pauseReason: "INVALID_CRON" },
+          prisma,
         );
         return;
       }
 
       // After starting a job, count how many jobs have been created for this schedule
-      const jobsCount = await jobScheduleRepository.countJobs(schedule.id);
+      const jobsCount = await jobScheduleRepository.countJobs(
+        schedule.id,
+        prisma,
+      );
       if (endAfterOccurrences && jobsCount >= endAfterOccurrences) {
-        await jobScheduleRepository.setNextRun(schedule.id, null);
+        await jobScheduleRepository.setNextRun(schedule.id, null, prisma);
         return;
       }
       if (endOnUtc && next > endOnUtc) {
-        await jobScheduleRepository.setNextRun(schedule.id, null);
+        await jobScheduleRepository.setNextRun(schedule.id, null, prisma);
         return;
       }
-      await jobScheduleRepository.setNextRun(schedule.id, next);
+      await jobScheduleRepository.setNextRun(schedule.id, next, prisma);
     }
 
     try {
@@ -151,10 +160,13 @@ async function processSchedule(schedule: JobSchedule) {
 
     const message = error instanceof Error ? error.message : String(error);
 
-    await jobScheduleRepository.setActive(schedule.id, false, message);
+    await jobScheduleRepository.setActive(
+      { id: schedule.id, isActive: false, pauseReason: message },
+      prisma,
+    );
   } finally {
     try {
-      await lockRepository.unlockByKey(lock.key);
+      await lockRepository.unlockByKey(lock.key, prisma);
     } catch {}
   }
 }

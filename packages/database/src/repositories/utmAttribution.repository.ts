@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Prisma, UTMAttribution } from "../generated/prisma/client.js";
 import type { UTMData } from "../types/utm.js";
 
@@ -18,7 +17,7 @@ export const utmAttributionRepository = {
   async createUTMAttribution(
     userId: string,
     utmData: UTMData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<UTMAttribution | null> {
     return await tx.uTMAttribution.create({
       data: {

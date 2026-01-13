@@ -1,5 +1,4 @@
 import { FiatTransactionStatus, MemberRole } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -15,6 +14,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
+import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services/stripe.service";
 
 export async function POST(req: Request) {
@@ -355,6 +355,7 @@ const handleCustomerUpdatedEvent = async (
       const organization =
         await organizationRepository.getOrganizationWithRelationsById(
           organizationId,
+          prisma,
         );
 
       if (!organization) {
@@ -372,6 +373,7 @@ const handleCustomerUpdatedEvent = async (
         await organizationRepository.updateOrganizationInvoiceEmail(
           organizationId,
           customerEmail,
+          prisma,
         );
         console.log(
           `✅ Updated organization ${organizationId} invoice email from ${organization.invoiceEmail} to ${customerEmail}`,
@@ -437,8 +439,10 @@ const handleInvoicePaidEvent = async (
     let organizationId: string | null = null;
 
     // First, try to find a user with this stripeCustomerId
-    const user =
-      await userRepository.getUserByStripeCustomerId(stripeCustomerId);
+    const user = await userRepository.getUserByStripeCustomerId(
+      stripeCustomerId,
+      prisma,
+    );
 
     if (user) {
       // This is a user purchase
@@ -448,6 +452,7 @@ const handleInvoicePaidEvent = async (
       const organization =
         await organizationRepository.getOrganizationByStripeCustomerId(
           stripeCustomerId,
+          prisma,
         );
 
       if (organization) {
@@ -455,8 +460,10 @@ const handleInvoicePaidEvent = async (
         organizationId = organization.id;
 
         // Get organization members to find the owner to attribute the transaction
-        const members =
-          await memberRepository.getMembersByOrganizationId(organizationId);
+        const members = await memberRepository.getMembersByOrganizationId(
+          organizationId,
+          prisma,
+        );
         const ownerMember = members.find((m) => m.role === MemberRole.OWNER);
 
         if (!ownerMember) {
@@ -491,6 +498,7 @@ const handleInvoicePaidEvent = async (
     const existingTransaction =
       await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
         invoiceId,
+        prisma,
       );
 
     if (existingTransaction) {
@@ -572,6 +580,7 @@ const handleInvoicePaidEvent = async (
         invoiceId,
         invoice.amount_paid,
         invoice.currency,
+        prisma,
       );
 
     console.log(

@@ -66,11 +66,23 @@ type UserUpdateInput = Prisma.UserUpdateInput;
 ### Using the Prisma Client
 
 ```typescript
-// Import the Prisma client singleton (server-side only)
-import prisma from "@sokosumi/database/client";
+// Create a Prisma client instance using the factory function
+import { createPrismaClient } from "@sokosumi/database/client";
+
+const prisma = createPrismaClient(process.env.DATABASE_URL);
 
 // Direct Prisma access (use sparingly - prefer repositories)
 const user = await prisma.user.findUnique({ where: { id: userId } });
+```
+
+**Note**: In the Sokosumi monorepo, each app (web/core) creates its own Prisma client instance. Import from the app-level client:
+
+```typescript
+// In apps/web
+import prisma from "@/lib/db/prisma";
+
+// In apps/core
+import prisma from "@/lib/db/prisma";
 ```
 
 ### Using Repositories
@@ -81,17 +93,19 @@ import {
   agentRepository,
 } from "@sokosumi/database/repositories";
 
-// Get a user
-const user = await userRepository.getUserById("user-id");
+// Get a user (prisma client is required)
+import prisma from "@/lib/db/prisma";
+const user = await userRepository.getUserById("user-id", prisma);
 
 // Get agents with status filtering
-const agents = await agentRepository.getShownAgentsByStatus("ONLINE");
+const agents = await agentRepository.getShownAgentsByStatus("ONLINE", prisma);
 ```
 
 ### Using Transactions
 
 ```typescript
-import { transaction } from "@sokosumi/database/transaction";
+// In apps/web or apps/core
+import { transaction } from "@/lib/db/transaction";
 import { userRepository, jobRepository } from "@sokosumi/database/repositories";
 
 // Execute multiple operations atomically
@@ -151,15 +165,17 @@ The package provides multiple entry points for different use cases:
 
 ### Client Export (`@sokosumi/database/client`)
 
-- **Purpose**: Prisma client singleton
-- **Includes**: Configured PrismaClient instance
+- **Purpose**: Factory function to create Prisma client instances
+- **Includes**: `createPrismaClient(databaseUrl: string)` function
 - **Use in**: Server-side code only (protected by `server-only`)
+- **Note**: Each app creates its own client instance using the factory
 
 ### Transaction Export (`@sokosumi/database/transaction`)
 
-- **Purpose**: Transaction utilities
-- **Includes**: `transaction.run()` helper, `TransactionClient` type
+- **Purpose**: Transaction utility factory
+- **Includes**: `createTransaction(client)` factory function, `TransactionClient` type
 - **Use in**: Server-side code for atomic operations
+- **Note**: Each app creates its own transaction utility from its Prisma client
 
 ### Repositories Export (`@sokosumi/database/repositories`)
 
@@ -266,6 +282,64 @@ The database package is the foundation of a three-layer architecture:
 
 ## Migration Guide
 
+### Factory Pattern Migration (v0.2.0+)
+
+The database package now uses a factory pattern for creating Prisma clients. This improves testability and explicit dependency injection.
+
+**Before (Singleton Pattern):**
+
+```typescript
+import prisma from "@sokosumi/database/client";
+import { transaction } from "@sokosumi/database/transaction";
+import { userRepository } from "@sokosumi/database/repositories";
+
+// Prisma client was a singleton
+const user = await userRepository.getUserById(id); // default prisma used
+```
+
+**After (Factory Pattern):**
+
+```typescript
+// In each app, create Prisma client instance
+import prisma from "@/lib/db/prisma"; // app-level client
+import { transaction } from "@/lib/db/transaction"; // app-level transaction
+import { userRepository } from "@sokosumi/database/repositories";
+
+// Repository methods now require explicit prisma client
+const user = await userRepository.getUserById(id, prisma);
+```
+
+### Repository Method Changes
+
+All repository methods now require the Prisma client as the last parameter:
+
+**Before:**
+
+```typescript
+await userRepository.getUserById(id); // default prisma used
+```
+
+**After:**
+
+```typescript
+import prisma from "@/lib/db/prisma";
+await userRepository.getUserById(id, prisma);
+```
+
+### Transaction Usage
+
+**Before:**
+
+```typescript
+import { transaction } from "@sokosumi/database/transaction";
+```
+
+**After:**
+
+```typescript
+import { transaction } from "@/lib/db/transaction"; // app-level
+```
+
 ### From Direct Prisma to Repository Pattern
 
 **Before:**
@@ -279,27 +353,10 @@ const user = await prisma.user.findUnique({ where: { id } });
 **After:**
 
 ```typescript
+import prisma from "@/lib/db/prisma";
 import { userRepository } from "@sokosumi/database/repositories";
 
-const user = await userRepository.getUserById(id);
-```
-
-### Updating Imports
-
-**Before:**
-
-```typescript
-import { Agent } from "@/prisma/generated/client";
-import prisma from "@/lib/db/repositories/prisma";
-```
-
-**After:**
-
-```typescript
-import { Agent } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-// Or better yet, use repositories:
-import { agentRepository } from "@sokosumi/database/repositories";
+const user = await userRepository.getUserById(id, prisma);
 ```
 
 ## Best Practices

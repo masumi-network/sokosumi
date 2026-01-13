@@ -12,7 +12,6 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -30,6 +29,7 @@ import {
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getAuthContext } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
 import { pricingAmountsSchema } from "@/lib/schemas";
 
@@ -320,7 +320,10 @@ export const agentService = (() => {
       const agentWithCreditsPrice =
         await agentService.getAgentCreditsPrice(agent);
       const averageExecutionDuration =
-        await jobRepository.getAverageExecutionDurationByAgentId(agent.id);
+        await jobRepository.getAverageExecutionDurationByAgentId(
+          agent.id,
+          prisma,
+        );
       return { agent: agentWithCreditsPrice, averageExecutionDuration };
     },
 
@@ -343,6 +346,7 @@ export const agentService = (() => {
         await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
           context.userId,
           context.organizationId,
+          prisma,
         );
       return hiredAgentsWithJobs.sort((a, b) => {
         const aLatestJob = a.jobs[0];
@@ -483,6 +487,7 @@ export const agentService = (() => {
       return await jobRepository.doesUserHaveFinishedJobWithAgent(
         userId,
         agentId,
+        prisma,
       );
     },
 
@@ -490,7 +495,11 @@ export const agentService = (() => {
      * Get user's existing rating for an agent
      */
     async getUserRatingForAgent(userId: string, agentId: string) {
-      return await agentRatingRepository.getUserRatingForAgent(userId, agentId);
+      return await agentRatingRepository.getUserRatingForAgent(
+        userId,
+        agentId,
+        prisma,
+      );
     },
 
     /**
@@ -505,6 +514,8 @@ export const agentService = (() => {
         agentId,
         limit,
         offset,
+        false,
+        prisma,
       );
     },
 
@@ -512,7 +523,7 @@ export const agentService = (() => {
      * Get aggregate rating statistics for an agent
      */
     async getAgentRatingStats(agentId: string) {
-      return await agentRatingRepository.getAgentRatingStats(agentId);
+      return await agentRatingRepository.getAgentRatingStats(agentId, prisma);
     },
   };
 })();

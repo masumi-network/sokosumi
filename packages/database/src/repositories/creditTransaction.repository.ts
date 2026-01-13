@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { CreditTransaction, Prisma } from "../generated/prisma/client.js";
 
 /**
@@ -20,7 +19,7 @@ export const creditTransactionRepository = {
    */
   async getCentsByUserId(
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<bigint> {
     return await this.getCentsByWhere({ userId, organizationId: null }, tx);
   },
@@ -37,7 +36,7 @@ export const creditTransactionRepository = {
    */
   async getCentsByOrganizationId(
     organizationId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<bigint> {
     return await this.getCentsByWhere({ organizationId }, tx);
   },
@@ -54,7 +53,7 @@ export const creditTransactionRepository = {
    */
   async getCentsByWhere(
     where: Prisma.CreditTransactionWhereInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<bigint> {
     const centsBalance = await tx.creditTransaction.aggregate({
       where,
@@ -77,7 +76,7 @@ export const creditTransactionRepository = {
    */
   async getCreditTransactionByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<CreditTransaction | null> {
     return await tx.creditTransaction.findFirst({
       where: { job: { id: jobId } },
