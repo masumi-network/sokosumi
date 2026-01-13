@@ -289,7 +289,7 @@ export async function getUserJobs(
       take: takePlusOne,
       skip,
       cursor: cursor ? { id: cursor } : undefined,
-      orderBy: { id: "asc" },
+      orderBy: { id: "desc" },
       include: {
         ...jobWithEvents,
         ...jobWithCreditTransaction,
