@@ -1,9 +1,8 @@
-import prisma from "../client.js";
 import type { Category, Prisma } from "../generated/prisma/client.js";
 
 export const categoryRepository = {
   getCategories: async (
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Category[]> => {
     return tx.category.findMany({
       orderBy: [{ priority: "asc" }, { name: "asc" }],
@@ -11,7 +10,7 @@ export const categoryRepository = {
   },
 
   getCategoriesForAvailableAgents: async (
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Category[]> => {
     return tx.category.findMany({
       where: {
@@ -23,7 +22,7 @@ export const categoryRepository = {
 
   getBySlug: async (
     slug: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Category | null> => {
     return tx.category.findUnique({
       where: { slug },
@@ -33,7 +32,7 @@ export const categoryRepository = {
   create: async (
     data: Pick<Category, "name" | "slug" | "priority"> &
       Partial<Pick<Category, "description" | "image" | "icon" | "styles">>,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Category> => {
     return tx.category.create({
       data: {

@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import {
   organizationService,
   stripeService,
@@ -84,7 +85,11 @@ export async function completeOnboarding(
     }
 
     // Mark onboarding as completed
-    await userRepository.updateUserOnboardingCompleted(session.user.id, true);
+    await userRepository.updateUserOnboardingCompleted(
+      session.user.id,
+      true,
+      prisma,
+    );
 
     revalidatePath("/");
     return Ok({ redirectUrl: "/agents" });

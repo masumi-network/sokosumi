@@ -7,7 +7,6 @@ import {
   JobShare,
   PaidJobWithStatus,
 } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   jobRepository,
   jobShareRepository,
@@ -22,6 +21,7 @@ import {
   OrganizationErrorCode,
 } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import prisma from "@/lib/db/prisma";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -94,7 +94,7 @@ export const startJob = withAuthContext<
         organizationId,
       };
 
-      const user = await userRepository.getUserById(userId);
+      const user = await userRepository.getUserById(userId, prisma);
       if (!user) {
         return Err({
           message: "Unauthenticated",
@@ -396,7 +396,7 @@ export const updateJobName = withAuthContext<
   }
   const parsed = parsedResult.data;
 
-  const job = await jobRepository.getJobById(jobId);
+  const job = await jobRepository.getJobById(jobId, prisma);
   if (!job) {
     return Err({
       message: "Job not found",
@@ -416,6 +416,7 @@ export const updateJobName = withAuthContext<
   await jobRepository.updateJobNameById(
     jobId,
     parsed.name === "" ? null : parsed.name,
+    prisma,
   );
   return Ok();
 });
@@ -429,8 +430,10 @@ export const requestRefundJobByBlockchainIdentifier = withAuthContext<
   Result<{ job: PaidJobWithStatus }, ActionError>
 >(async ({ blockchainIdentifier, authContext }) => {
   const { userId } = authContext;
-  const foundJob =
-    await jobRepository.getJobByBlockchainIdentifier(blockchainIdentifier);
+  const foundJob = await jobRepository.getJobByBlockchainIdentifier(
+    blockchainIdentifier,
+    prisma,
+  );
   if (!foundJob) {
     return Err({
       message: "Job not found",

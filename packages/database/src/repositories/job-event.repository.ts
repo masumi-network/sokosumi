@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import { AgentJobStatus } from "../generated/prisma/browser.js";
 import type { JobEvent, Prisma } from "../generated/prisma/client.js";
 
@@ -21,7 +20,7 @@ export const jobEventRepository = {
   async createJobEventForJobId(
     jobId: string,
     data: CreateJobEventData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobEvent> {
     return await tx.jobEvent.create({
       data: {
@@ -40,7 +39,7 @@ export const jobEventRepository = {
    */
   async getJobEventById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobEvent | null> {
     return await tx.jobEvent.findUnique({
       where: { id },
@@ -52,7 +51,7 @@ export const jobEventRepository = {
    */
   async getJobEventsByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobEvent[]> {
     return await tx.jobEvent.findMany({
       where: { jobId },
@@ -65,7 +64,7 @@ export const jobEventRepository = {
    */
   async getLatestJobEventByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobEvent | null> {
     return await tx.jobEvent.findFirst({
       where: { jobId },
@@ -78,7 +77,7 @@ export const jobEventRepository = {
    */
   async getAwaitingInputJobEventByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobEvent | null> {
     return await tx.jobEvent.findFirst({
       where: {
@@ -91,7 +90,7 @@ export const jobEventRepository = {
   async getAwaitingInputJobEventByJobIdAndExternalId(
     jobId: string,
     externalId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobEvent | null> {
     return await tx.jobEvent.findFirst({
       where: { externalId, jobId, status: AgentJobStatus.AWAITING_INPUT },

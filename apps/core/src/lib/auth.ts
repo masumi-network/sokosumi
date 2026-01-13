@@ -1,6 +1,6 @@
 import { oauthProvider } from "@better-auth/oauth-provider";
 import * as Sentry from "@sentry/node";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import { APIError, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import {

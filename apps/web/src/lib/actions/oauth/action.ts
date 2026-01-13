@@ -1,9 +1,8 @@
 "use server";
 
-import prisma from "@sokosumi/database/client";
-
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 /**

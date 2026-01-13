@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Member, Prisma } from "../generated/prisma/client.js";
 import {
   memberOrderBy,
@@ -29,7 +28,7 @@ export const memberRepository = (() => {
     userId: string,
     organizationId: string,
     role: MemberRole,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Member> {
     return await tx.member.create({
       data: {
@@ -57,7 +56,7 @@ export const memberRepository = (() => {
    */
   async function getMembersWithOrganizationByUserId(
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<MemberWithOrganization[]> {
     return await tx.member.findMany({
       where: {
@@ -77,7 +76,7 @@ export const memberRepository = (() => {
    */
   async function getMembersOrganizationIdsByUserId(
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<string[]> {
     const userMemberships = await tx.member.findMany({
       where: { userId },
@@ -97,7 +96,7 @@ export const memberRepository = (() => {
   async function getMemberByUserIdAndOrganizationId(
     userId: string,
     organizationId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Member | null> {
     return await tx.member.findUnique({
       where: {
@@ -119,7 +118,7 @@ export const memberRepository = (() => {
    */
   async function getMembersWithUser(
     where: Prisma.MemberWhereInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<MemberWithUser[]> {
     return await tx.member.findMany({
       where,
@@ -137,7 +136,7 @@ export const memberRepository = (() => {
    */
   async function getMembersByOrganizationId(
     organizationId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Member[]> {
     return await tx.member.findMany({
       where: {
@@ -155,7 +154,7 @@ export const memberRepository = (() => {
    */
   async function getPerRoleCountByOrganizationId(
     organizationId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<{ [key in MemberRole]: number }> {
     const memberCounts = await tx.member.groupBy({
       by: ["role"],

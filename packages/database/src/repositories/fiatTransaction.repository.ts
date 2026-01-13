@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type {
   FiatTransaction,
   FiatTransactionStatus,
@@ -29,7 +28,7 @@ export const fiatTransactionRepository = {
     cents: bigint,
     amount: number,
     currency: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     return await tx.fiatTransaction.create({
       data: {
@@ -53,7 +52,7 @@ export const fiatTransactionRepository = {
    */
   async getFiatTransactionById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction | null> {
     return await tx.fiatTransaction.findUnique({
       where: { id },
@@ -69,7 +68,7 @@ export const fiatTransactionRepository = {
    */
   async getFiatTransactionByServicePaymentId(
     servicePaymentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction | null> {
     return await tx.fiatTransaction.findUnique({
       where: { servicePaymentId },
@@ -87,7 +86,7 @@ export const fiatTransactionRepository = {
   async setFiatTransactionServicePaymentId(
     id: string,
     servicePaymentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     return await tx.fiatTransaction.update({
       where: { id },
@@ -111,7 +110,7 @@ export const fiatTransactionRepository = {
     amount: bigint,
     currency: string,
     status: FiatTransactionStatus,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     // Build credit transaction data based on whether it's for a user or organization
     const creditTransactionData = {
@@ -157,7 +156,7 @@ export const fiatTransactionRepository = {
     invoiceId: string,
     amountPaid: number,
     currency: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     // Create the fiat transaction with SUCCEEDED status and credit transaction in one operation
     return await tx.fiatTransaction.create({

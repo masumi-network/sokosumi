@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";

@@ -4,7 +4,6 @@ import {
   PaymentType,
   PricingType,
 } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   lockRepository,
   syncMetadataRepository,
@@ -20,6 +19,7 @@ import {
   RegistryEntry,
 } from "@/lib/clients/generated/registry";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
+import prisma from "@/lib/db/prisma";
 import { lockService } from "@/lib/services";
 import { emptyStringToNull } from "@/lib/utils";
 
@@ -68,7 +68,7 @@ async function agentSync() {
       console.error("Error in sync operation:", error);
     } finally {
       try {
-        await lockRepository.unlockByKey(lock.key);
+        await lockRepository.unlockByKey(lock.key, prisma);
       } catch (error) {
         console.error("Failed to unlock lock:", error);
       }
@@ -153,7 +153,10 @@ async function syncAllEntries() {
 
   // Get last sync timestamp
   const { lastSyncedAt, cursorId } =
-    await syncMetadataRepository.getSyncMetadataByKey(SYNC_METADATA_KEY);
+    await syncMetadataRepository.getSyncMetadataByKey(
+      SYNC_METADATA_KEY,
+      prisma,
+    );
 
   // Call diff endpoint (no pagination)
   const entriesResult = await registryClient.getAgentsDiff(
@@ -273,5 +276,6 @@ async function syncAllEntries() {
     SYNC_METADATA_KEY,
     lastEntry.id,
     new Date(lastEntry.statusUpdatedAt),
+    prisma,
   );
 }

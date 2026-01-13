@@ -13,6 +13,7 @@ import {
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
 import { getAuthContext } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import {
   getAgentDescription,
   getAgentLegal,
@@ -28,7 +29,10 @@ export async function generateMetadata({
   params,
 }: JobLayoutProps): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await agentRepository.getAgentWithRelationsById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(
+    agentId,
+    prisma,
+  );
   if (!agent) {
     notFound();
   }
@@ -61,7 +65,10 @@ export default async function JobLayout({
 
 async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const { agentId } = await params;
-  const agent = await agentRepository.getAgentWithRelationsById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(
+    agentId,
+    prisma,
+  );
   if (!agent) {
     return notFound();
   }
@@ -81,12 +88,16 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     agentService.getFavoriteAgents(),
     agentService.getAvailableAgentById(agentId),
     agentService.getAgentRatingStats(agentId),
-    jobRepository.getAverageExecutionDurationByAgentId(agentId),
+    jobRepository.getAverageExecutionDurationByAgentId(agentId, prisma),
     authContext?.userId
       ? agentService.canUserRateAgent(authContext.userId, agentId)
       : Promise.resolve(false),
     authContext?.userId
-      ? agentRatingRepository.getUserRatingForAgent(authContext.userId, agentId)
+      ? agentRatingRepository.getUserRatingForAgent(
+          authContext.userId,
+          agentId,
+          prisma,
+        )
       : Promise.resolve(null),
   ]);
 

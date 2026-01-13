@@ -1,5 +1,5 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import { APIError } from "better-auth";
 
 import {

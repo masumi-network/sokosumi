@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Invitation, Prisma } from "../generated/prisma/client.js";
 import {
   invitationInclude,
@@ -20,7 +19,7 @@ export const invitationRepository = {
    */
   async getPendingInvitationById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<InvitationWithRelations | null> {
     return tx.invitation.findUnique({
       where: { id, status: InvitationStatus.PENDING },
@@ -37,7 +36,7 @@ export const invitationRepository = {
    */
   async getValidPendingInvitationsByEmail(
     email: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<InvitationWithRelations[]> {
     return tx.invitation.findMany({
       where: {
@@ -60,7 +59,7 @@ export const invitationRepository = {
    */
   async hasPendingInvitationByEmail(
     email: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<boolean> {
     const count = await tx.invitation.count({
       where: {
@@ -74,7 +73,7 @@ export const invitationRepository = {
 
   async getPendingInvitationsByOrganizationId(
     organizationId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Invitation[]> {
     return tx.invitation.findMany({
       where: { organizationId, status: InvitationStatus.PENDING },

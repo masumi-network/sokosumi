@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
+import prisma from "@/lib/db/prisma";
 import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 
