@@ -106,7 +106,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       skip,
     });
 
-    console.log(jobs.length, count, hasMore, cursor);
     const paginationMeta = createPaginationMeta(
       jobs,
       count,
