@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { AgentStatus, PricingType } from "@sokosumi/database";
+import { PricingType } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 import {
@@ -14,17 +14,11 @@ import { v4 as uuidv4 } from "uuid";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import {
-  canUserAccessAgent,
+  buildAgentAccessWhereClause,
   getAgentAccessContext,
   getAgentCost,
 } from "@/helpers/agent";
-import {
-  badRequest,
-  forbidden,
-  notFound,
-  unauthorized,
-  unprocessableEntity,
-} from "@/helpers/error";
+import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   createFreeJob,
   createJobWithPayment,
@@ -43,7 +37,7 @@ import {
   flattenInputs,
   jobSchema,
 } from "@/schemas/job.schema";
-import { agentOrganizationsInclude, agentPricingInclude } from "@/types/agent";
+import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 const params = z.object({
@@ -72,7 +66,6 @@ const route = withGlobalHeaderParameters(
     responses: {
       201: jsonSuccessResponse(jobSchema, "Job created successfully"),
       400: jsonErrorResponse("Bad Request"),
-      401: jsonErrorResponse("Unauthorized"),
       404: jsonErrorResponse("Agent not found"),
       422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
@@ -96,34 +89,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
 
-      const agent = await tx.agent.findUnique({
-        where: { id: agentId },
+      const agent = await tx.agent.findFirst({
+        where: {
+          id: agentId,
+          ...buildAgentAccessWhereClause(
+            userOrganizationIds,
+            authContext.organizationId,
+            creditCosts,
+          ),
+        },
         include: {
           ...agentPricingInclude,
-          ...agentOrganizationsInclude,
         },
       });
 
       if (!agent) {
         throw notFound("Agent not found");
-      }
-
-      if (agent.status !== AgentStatus.ONLINE) {
-        throw forbidden("Agent is not online");
-      }
-
-      if (!agent.isShown) {
-        throw forbidden("Agent is not available");
-      }
-
-      if (
-        !canUserAccessAgent(
-          agent,
-          userOrganizationIds,
-          authContext.organizationId,
-        )
-      ) {
-        throw unauthorized("You are not authorized to access this agent");
       }
 
       const cost = getAgentCost(agent, creditCosts);
