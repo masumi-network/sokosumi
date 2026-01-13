@@ -7,4 +7,4 @@ issue_sort = "priority"
 vcs = "git"
 
 # Currently not used by the CLI, but we can use it to filter issues by project.
-# project_id = "sokosumi-6357694ddd23"
+project_id = "sokosumi-6357694ddd23"
