@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 import { agentOrganizationsInclude, AgentStatus } from "@sokosumi/database";
-import prisma from "@/lib/db/prisma";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
@@ -13,8 +12,13 @@ import {
   getAgentImage,
   getAgentName,
 } from "@/helpers/agent";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ok } from "@/helpers/response";
+import { jsonErrorResponse, jsonPaginatedResponse } from "@/helpers/openapi";
+import {
+  calculatePaginationMeta,
+  okPaginated,
+  paginationQuerySchema,
+} from "@/helpers/pagination";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -36,8 +40,14 @@ const route = withGlobalHeaderParameters(
     path: "/",
     description: "List all available agents",
     tags: ["Agents"],
+    request: {
+      query: paginationQuerySchema,
+    },
     responses: {
-      200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),
+      200: jsonPaginatedResponse(
+        agentsSchema,
+        "Retrieve all agents with pagination",
+      ),
       401: jsonErrorResponse("Unauthorized"),
     },
   }),
@@ -46,28 +56,34 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    const { page, limit } = c.req.valid("query");
 
-    const agents = await prisma.$transaction(async (tx) => {
+    const { agents, total } = await prisma.$transaction(async (tx) => {
       const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
         authContext,
         tx,
       );
 
-      const agents = await tx.agent.findMany({
-        include: {
-          ...agentPricingInclude,
-          ...agentOrganizationsInclude,
-          ...agentJobsCountInclude,
-        },
-        orderBy: [...agentOrderBy],
-        where: {
-          status: AgentStatus.ONLINE,
-          isShown: true,
-        },
-      });
+      const where = {
+        status: AgentStatus.ONLINE,
+        isShown: true,
+      };
+
+      const [allAgents] = await Promise.all([
+        tx.agent.findMany({
+          include: {
+            ...agentPricingInclude,
+            ...agentOrganizationsInclude,
+            ...agentJobsCountInclude,
+          },
+          orderBy: [...agentOrderBy],
+          where,
+        }),
+        tx.agent.count({ where }),
+      ]);
 
       // Filter by access control and transform agents, removing any with invalid pricing
-      const agentsWithCredits = agents
+      const agentsWithCredits = allAgents
         .filter((agent) =>
           canUserAccessAgent(
             agent,
@@ -99,7 +115,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           };
         });
 
-      const agentIds = agentsWithCredits.map((agent) => agent.id);
+      // Apply pagination after filtering
+      const paginatedAgents = agentsWithCredits.slice(
+        (page - 1) * limit,
+        page * limit,
+      );
+
+      const agentIds = paginatedAgents.map((agent) => agent.id);
 
       const averageExecutionTimes = await calculateAverageExecutionTimes(
         agentIds,
@@ -108,7 +130,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const ratingsMap = await calculateAgentRatings(agentIds, tx);
 
-      return agentsWithCredits.map((agent) => {
+      const agents = paginatedAgents.map((agent) => {
         const ratingMetrics = ratingsMap.get(agent.id);
         return {
           ...agent,
@@ -124,7 +146,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         };
       });
+
+      // Note: total is approximate since we filter after querying
+      // For exact count, we'd need to apply access control in the query
+      return {
+        agents,
+        total: agentsWithCredits.length,
+      };
     });
-    return ok(c, agentsSchema.parse(agents));
+
+    const pagination = calculatePaginationMeta(page, limit, total);
+
+    return okPaginated(c, agentsSchema.parse(agents), pagination);
   });
 }

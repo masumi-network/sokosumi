@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { errorResponseSchema } from "./error.js";
+import { paginatedResponseSchema } from "./pagination.js";
 import { successResponseSchema } from "./response.js";
 
 export function jsonContent(schema: z.ZodTypeAny) {
@@ -17,6 +18,28 @@ export function jsonSuccessResponse(
   example?: Record<string, unknown>,
 ) {
   const baseContent = jsonContent(successResponseSchema(schema));
+
+  const content = example
+    ? {
+        "application/json": {
+          ...baseContent["application/json"],
+          example,
+        },
+      }
+    : baseContent;
+
+  return {
+    description,
+    content,
+  };
+}
+
+export function jsonPaginatedResponse(
+  schema: z.ZodTypeAny,
+  description: string,
+  example?: Record<string, unknown>,
+) {
+  const baseContent = jsonContent(paginatedResponseSchema(schema));
 
   const content = example
     ? {

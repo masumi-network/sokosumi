@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import prisma from "@/lib/db/prisma";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
@@ -15,6 +14,7 @@ import {
 import { notFound, unauthorized } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
