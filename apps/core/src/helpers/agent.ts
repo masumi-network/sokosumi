@@ -204,7 +204,7 @@ export interface AgentCost {
  * @returns The cost for the agent.
  */
 export const getAgentCost = (
-  agent: AgentWithPricing & AgentWithOrganizations,
+  agent: AgentWithPricing,
   creditCosts: CreditCost[],
 ): AgentCost => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);

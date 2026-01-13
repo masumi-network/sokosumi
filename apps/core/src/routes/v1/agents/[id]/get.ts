@@ -24,11 +24,7 @@ import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
-import {
-  agentJobsCountInclude,
-  agentOrganizationsInclude,
-  agentPricingInclude,
-} from "@/types/agent";
+import { agentJobsCountInclude, agentPricingInclude } from "@/types/agent";
 
 const params = z.object({
   id: z.string().openapi({
@@ -76,7 +72,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         include: {
           ...agentPricingInclude,
-          ...agentOrganizationsInclude,
           ...agentJobsCountInclude,
         },
       });
