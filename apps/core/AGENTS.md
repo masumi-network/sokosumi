@@ -19,54 +19,81 @@
 ```
 src/
 ├── routes/              # API route definitions
-│   └── v1/             # API version 1
-│       ├── agents/     # Agent-related endpoints
-│       │   ├── [id]/   # Dynamic route segments
-│       │   │   └── get.ts
-│       │   ├── get.ts  # Route handlers
+│   ├── auth/            # Better Auth routes
+│   ├── debug/           # Debug endpoints
+│   └── v1/              # API version 1
+│       ├── agents/      # Agent-related endpoints
+│       │   ├── [id]/    # Dynamic route segments
+│       │   │   ├── get.ts           # Get agent by ID
+│       │   │   ├── input-schema/    # Agent input schema
+│       │   │   └── jobs/            # Agent jobs
+│       │   ├── get.ts   # List all agents
 │       │   └── index.ts # Route mounting
-│       ├── jobs/       # Job-related endpoints
+│       ├── jobs/        # Job-related endpoints
 │       │   ├── [id]/
-│       │   │   ├── files/
-│       │   │   │   └── get.ts  # Get files for job
-│       │   │   ├── links/
-│       │   │   │   └── get.ts  # Get links for job
-│       │   │   └── get.ts      # Get job by ID
-│       │   ├── get.ts          # List all jobs
+│       │   │   ├── events/      # Job events
+│       │   │   ├── files/       # Job files
+│       │   │   ├── links/       # Job links
+│       │   │   ├── inputs/      # Provide job input
+│       │   │   └── input-request/ # Get pending input request
+│       │   ├── get.ts           # List jobs
 │       │   └── index.ts
-│       ├── users/      # User-related endpoints
-│       │   ├── [id]/
-│       │   │   ├── files/
-│       │   │   │   └── get.ts  # Get files for user
-│       │   │   ├── links/
-│       │   │   │   └── get.ts  # Get links for user
-│       │   │   └── get.ts      # Get user by ID
+│       ├── users/       # User-related endpoints
 │       │   ├── me/
-│       │   │   ├── files/
-│       │   │   │   └── get.ts  # Get current user files
-│       │   │   ├── links/
-│       │   │   │   └── get.ts  # Get current user links
-│       │   │   └── get.ts      # Get current user
-│       │   └── index.ts
-│       └── index.ts    # V1 API mounting
+│       │   │   ├── credits/      # User credits
+│       │   │   ├── files/        # User files
+│       │   │   ├── links/        # User links
+│       │   │   ├── onboarding/   # User onboarding
+│       │   │   ├── organizations/# User organizations
+│       │   │   └── preferences/  # User preferences
+│       │   ├── post.ts          # Create user
+│       │   └── registered/      # Check if registered
+│       └── index.ts     # V1 API mounting
+├── clients/             # External API clients
+│   ├── masumi-payment.client.ts
+│   ├── masumi-registry.client.ts
+│   ├── openrouter.client.ts
+│   ├── postmark.client.ts
+│   ├── stripe.client.ts
+│   └── webhook.client.ts
+├── config/              # Configuration
+│   ├── constants.ts     # App constants
+│   └── env.ts           # Environment config
 ├── middleware/          # Request middleware
-│   └── auth.ts          # Authentication middleware
+│   ├── auth.ts          # Authentication middleware
+│   ├── organization.ts  # Organization middleware
+│   └── sentry.ts        # Sentry error tracking
 ├── helpers/             # Helper functions
 │   ├── response.ts      # Success response helpers
 │   ├── error.ts         # Error response helpers
 │   ├── error-handler.ts # Global error handler
 │   ├── openapi.ts       # OpenAPI helper utilities
-│   ├── credits.ts       # Credit conversion helpers
 │   └── datetime.ts      # Datetime schema utilities
 ├── lib/                 # Shared utilities
 │   ├── auth.ts          # Better Auth client
-│   └── hono.ts          # Type-safe Hono classes
+│   ├── blob.ts          # Blob storage utilities
+│   ├── db/prisma.ts     # Prisma client
+│   ├── email/           # Email templates
+│   ├── hono.ts          # Type-safe Hono classes
+│   ├── i18next.ts       # Internationalization
+│   └── sentry.ts        # Sentry setup
+├── locales/             # Translation files
+│   └── en/              # English translations
 ├── schemas/             # Zod validation schemas
-│   ├── agent.schema.ts  # Agent schemas
-│   ├── job.schema.ts    # Job schemas
-│   ├── file.schema.ts   # File/blob schemas
-│   ├── link.schema.ts   # Link schemas
-│   └── user.schema.ts   # User schemas
+│   ├── agent.schema.ts
+│   ├── job.schema.ts
+│   ├── file.schema.ts
+│   ├── link.schema.ts
+│   ├── organization.schema.ts
+│   └── user.schema.ts
+├── services/            # Business logic services
+│   ├── stripe.service.ts
+│   └── webhook.service.ts
+├── types/               # TypeScript types
+│   ├── agent.ts
+│   ├── blob.ts
+│   ├── job.ts
+│   └── link.ts
 └── index.ts             # Application entry point
 ```
 
@@ -223,9 +250,13 @@ This schema automatically converts Date objects to ISO strings and validates ISO
 
 ## App-Specific Commands
 
-| Command         | Purpose                  |
-| --------------- | ------------------------ |
-| `pnpm core:dev` | Start development server |
+| Command                           | Purpose                  |
+| --------------------------------- | ------------------------ |
+| `pnpm core:dev`                   | Start development server |
+| `pnpm core:build`                 | Build for production     |
+| `pnpm core:start`                 | Run production build     |
+| `pnpm --filter core lint`         | Lint core app            |
+| `pnpm --filter core generate:api` | Regenerate API clients   |
 
 ## Common Patterns
 
@@ -353,7 +384,12 @@ const userLinks = await prisma.link.findMany({
 const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 ```
 
-**Note**: The core API uses Prisma directly for database queries. Repository pattern has been removed in favor of direct Prisma queries with type-safe includes and flatten helpers.
+**Note**: The core API uses the `@sokosumi/database` package for Prisma queries. Repository pattern has been removed in favor of direct Prisma queries with type-safe includes and flatten helpers.
+
+**Shared Packages**:
+
+- `@sokosumi/database` - Database layer with Prisma client and repositories
+- `@sokosumi/masumi` - Masumi protocol utilities (hash, agent client, schemas)
 
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
 

@@ -1,6 +1,6 @@
 # Sokosumi Web App Agent Guidelines
 
-> **Purpose**: This document provides app-specific guidelines for AI agents working on the Sokosumi web application. For comprehensive monorepo guidelines, see [`../../AGENTS.md`](../../AGENTS.md).
+> **Purpose**: This document provides app-specific guidelines for AI agents working on the Sokosumi web application. For comprehensive monorepo guidelines, see the [root AGENTS.md](../../AGENTS.md).
 
 ## App-Specific Architecture
 
@@ -114,13 +114,14 @@ import { getUser } from "../services/user";
 
 ## App-Specific Commands
 
-| Command                   | Purpose                  |
-| ------------------------- | ------------------------ |
-| `pnpm sokosumi-web:dev`   | Start development server |
-| `pnpm sokosumi-web:build` | Build for production     |
-| `pnpm sokosumi-web:start` | Test production build    |
-| `pnpm sokosumi-web:lint`  | Lint web app             |
-| `pnpm sokosumi-web:test`  | Run web app tests        |
+| Command          | Purpose                  |
+| ---------------- | ------------------------ |
+| `pnpm web:dev`   | Start development server |
+| `pnpm web:build` | Build for production     |
+| `pnpm web:start` | Test production build    |
+| `pnpm web:lint`  | Lint web app             |
+| `pnpm web:test`  | Run web app tests        |
+| `pnpm web:format`| Format code with Prettier|
 
 ## App-Specific Testing
 
@@ -145,7 +146,8 @@ import { getUser } from "../services/user";
 
 ### Database Access
 
-- Use repository pattern from `src/lib/db/repositories/`
+- Use repository pattern from `@sokosumi/database/repositories`
+- Create Prisma client instance at `@/lib/db/prisma`
 - Never access Prisma directly from components
 - Use server actions for mutations
 
@@ -157,11 +159,10 @@ import { getUser } from "../services/user";
 
 ## Development Workflow
 
-1. **Start Development**: `pnpm sokosumi-web:dev`
+1. **Start Development**: `pnpm web:dev`
 2. **Database Changes**: Run migrations with `pnpm prisma:migrate:dev`
-3. **API Changes**: Regenerate clients with `pnpm generate:api`
-4. **Testing**: Run `pnpm test` before committing
-5. **Formatting**: Run `pnpm sokosumi-web:format` after changes
+3. **Testing**: Run `pnpm web:test` before committing
+4. **Formatting**: Run `pnpm web:format` after changes
 
 ## Common Patterns
 
@@ -212,7 +213,7 @@ export function MyComponent() {
 
 ## References
 
-- [Root AGENTS.md](../AGENTS.md) - Comprehensive monorepo guidelines
+- [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines
 - [Next.js App Router](https://nextjs.org/docs/app)
 - [Next-intl Documentation](https://next-intl-docs.vercel.app/)
 - [Shadcn UI Components](https://ui.shadcn.com/)
