@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import prisma from "@/lib/db/prisma";
 
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { getCredits } from "@/helpers/user";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { organizationWithRoleSchema } from "@/schemas/organization.schema";
 

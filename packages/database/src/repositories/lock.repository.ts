@@ -66,10 +66,7 @@ export const lockRepository = {
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
    * @returns The updated Lock object.
    */
-  async unlockByKey(
-    key: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Lock> {
+  async unlockByKey(key: string, tx: Prisma.TransactionClient): Promise<Lock> {
     return await tx.lock.update({
       where: {
         key,

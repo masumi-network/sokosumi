@@ -1,6 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
-import prisma from "@/lib/db/prisma";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
+
+import prisma from "@/lib/db/prisma";
 
 /**
  * Gets credits for a user or organization

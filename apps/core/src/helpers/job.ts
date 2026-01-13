@@ -1,5 +1,4 @@
 import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
-import prisma from "@/lib/db/prisma";
 import {
   creditTransactionRepository,
   jobShareRepository,
@@ -17,6 +16,7 @@ import type {
   StartFreeJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
 
+import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";

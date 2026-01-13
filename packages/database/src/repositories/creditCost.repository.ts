@@ -33,9 +33,7 @@ export const creditCostRepository = {
    * @returns Promise resolving to an array of all CreditCost records
    *
    */
-  async getCreditCosts(
-    tx: Prisma.TransactionClient,
-  ): Promise<CreditCost[]> {
+  async getCreditCosts(tx: Prisma.TransactionClient): Promise<CreditCost[]> {
     return await tx.creditCost.findMany();
   },
 };

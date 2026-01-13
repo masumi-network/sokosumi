@@ -4,7 +4,6 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import prisma from "@/lib/db/prisma";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -12,6 +11,7 @@ import {
 } from "@sokosumi/database/helpers";
 
 import { CREDIT, TIME } from "@/config/constants";
+import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { type RatingMetrics } from "@/schemas/agent.schema";
 import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
