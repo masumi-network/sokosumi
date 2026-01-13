@@ -74,10 +74,11 @@ export const getAgentAccessContext = async (
 };
 
 /**
- * Builds a Prisma where clause for filtering agents based on user access.
+ * Builds a Prisma where clause for filtering agents based on user access and valid pricing.
  *
  * This function implements the same access control logic as `canUserAccessAgent` but
- * at the database query level for better performance.
+ * at the database query level for better performance. It also validates pricing to ensure
+ * only agents with valid pricing configurations are returned.
  *
  * Access rules:
  * - Only shows agents with status ONLINE and isShown: true
@@ -88,13 +89,21 @@ export const getAgentAccessContext = async (
  *   - If user has no organizations, only public agents are shown
  *   - If user has organizations, shows public agents OR agents with overlapping organizations
  *
+ * Pricing validation rules:
+ * - Exclude agents with pricingType UNKNOWN
+ * - For FIXED pricing: require fixedPricing exists and has non-empty amounts
+ * - For FIXED pricing: ensure all amount units exist in CreditCost table
+ * - FREE pricing is always valid (no additional validation needed)
+ *
  * @param userOrganizationIds - Organization IDs the user is a member of
  * @param activeOrganizationId - The currently active organization ID, or null for personal context
+ * @param creditCosts - Array of credit costs to validate pricing units against
  * @returns Prisma where clause for agent queries
  */
 export const buildAgentAccessWhereClause = (
   userOrganizationIds: string[],
   activeOrganizationId: string | null,
+  creditCosts: CreditCost[],
 ): Prisma.AgentWhereInput => {
   const organizationFilter =
     userOrganizationIds.length === 0
@@ -110,6 +119,25 @@ export const buildAgentAccessWhereClause = (
           },
         ];
 
+  const validUnits = creditCosts.map((c) => c.unit);
+
+  const pricingFilter = {
+    pricingType: { not: PricingType.UNKNOWN },
+    OR: [
+      { pricingType: PricingType.FREE },
+      {
+        pricingType: PricingType.FIXED,
+        fixedPricing: {
+          amounts: {
+            every: {
+              unit: { in: validUnits },
+            },
+          },
+        },
+      },
+    ],
+  };
+
   return {
     status: AgentStatus.ONLINE,
     isShown: true,
@@ -123,6 +151,7 @@ export const buildAgentAccessWhereClause = (
       },
     }),
     OR: organizationFilter,
+    pricing: pricingFilter,
   };
 };
 

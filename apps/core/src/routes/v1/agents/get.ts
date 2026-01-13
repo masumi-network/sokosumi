@@ -57,6 +57,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: buildAgentAccessWhereClause(
           userOrganizationIds,
           authContext.organizationId,
+          creditCosts,
         ),
         orderBy: [...agentOrderBy],
         include: {
@@ -66,20 +67,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      // Filter by access control and transform agents, removing any with invalid pricing
+      // Transform agents with credits (pricing validation is handled in query)
       const agentsWithCredits = agents
-        .flatMap((agent) => {
-          try {
-            const cost = getAgentCost(agent, creditCosts);
-            return [
-              {
-                ...agent,
-                credits: convertCentsToCredits(cost.cents),
-              },
-            ];
-          } catch {
-            return [];
-          }
+        .map((agent) => {
+          const cost = getAgentCost(agent, creditCosts);
+          return {
+            ...agent,
+            credits: convertCentsToCredits(cost.cents),
+          };
         })
         .map((agent) => {
           return {

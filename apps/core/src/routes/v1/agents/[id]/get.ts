@@ -71,6 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...buildAgentAccessWhereClause(
             userOrganizationIds,
             authContext.organizationId,
+            creditCosts,
           ),
         },
         include: {
