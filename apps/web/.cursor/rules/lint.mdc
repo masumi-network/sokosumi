@@ -11,10 +11,10 @@ alwaysApply: true
 - **Never use `process.env` directly** - this will cause a linter error
 - Always use typed config functions:
   - `getEnvSecrets()` - for sensitive environment variables (API keys, secrets)
-  - `getEnvConfig()` - for public configuration (feature flags, URLs)
+  - `getEnvPublicConfig()` - for public configuration (feature flags, URLs)
 
 **Error**: `no-restricted-properties` on `process.env`
-**Fix**: Replace `process.env.MY_VAR` with `getEnvSecrets().MY_VAR` or `getEnvConfig().MY_VAR`
+**Fix**: Replace `process.env.MY_VAR` with `getEnvSecrets().MY_VAR` or `getEnvPublicConfig().MY_VAR`
 
 ### Import Paths
 
@@ -37,7 +37,7 @@ alwaysApply: true
 **Error**: `@next/next/no-html-link-for-pages`
 **Fix**: Replace `<a href="/path">` with `<Link href="/path">`
 
-### Internationalization (i18next)
+### Internationalization (next-intl)
 
 - All user-facing text must use translation keys via `useTranslations()` hook
 - Never hardcode user-facing strings in components
