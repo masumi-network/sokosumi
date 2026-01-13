@@ -5,7 +5,6 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import {
   calculateAgentRatings,
   calculateAverageExecutionTimes,
-  canUserAccessAgent,
   getAgentAccessContext,
   getAgentCost,
   getAgentDescription,
@@ -53,19 +52,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
 
+      const organizationFilter =
+        userOrganizationIds.length === 0
+          ? [{ organizations: { none: {} } }]
+          : [
+              { organizations: { none: {} } },
+              {
+                organizations: {
+                  some: {
+                    id: { in: userOrganizationIds },
+                  },
+                },
+              },
+            ];
+
       const agents = await tx.agent.findMany({
         where: {
           status: AgentStatus.ONLINE,
           isShown: true,
-          NOT: {
-            blacklistedOrganizations: {
-              some: {
-                id: {
-                  in: userOrganizationIds,
+          ...(authContext.organizationId && {
+            NOT: {
+              blacklistedOrganizations: {
+                some: {
+                  id: authContext.organizationId,
                 },
               },
             },
-          },
+          }),
+          OR: organizationFilter,
         },
         orderBy: [...agentOrderBy],
         include: {
@@ -77,13 +91,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       // Filter by access control and transform agents, removing any with invalid pricing
       const agentsWithCredits = agents
-        .filter((agent) =>
-          canUserAccessAgent(
-            agent,
-            userOrganizationIds,
-            authContext.organizationId,
-          ),
-        )
         .flatMap((agent) => {
           try {
             const cost = getAgentCost(agent, creditCosts);
