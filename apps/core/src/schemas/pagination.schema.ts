@@ -34,7 +34,10 @@ export const cursorPaginationQuerySchema = z
  */
 export const cursorPaginationMetaSchema = z
   .object({
-    cursor: z.string().nullable().openapi({ example: "abc123" }),
+    cursor: z
+      .string()
+      .nullable()
+      .openapi({ example: "cmg4zknxt0000l404yn4li0kp" }),
     limit: z.number().int().min(1).openapi({ example: 20 }),
     total: z.number().int().min(0).openapi({ example: 100 }),
     nextCursor: z
