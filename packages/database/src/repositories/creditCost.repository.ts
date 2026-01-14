@@ -1,4 +1,8 @@
-import type { CreditCost, Prisma } from "../generated/prisma/client.js";
+import type {
+  CreditCost,
+  Network,
+  Prisma,
+} from "../generated/prisma/client.js";
 
 /**
  * Credit Cost Repository Interface
@@ -17,11 +21,13 @@ export const creditCostRepository = {
    */
   async getCreditCostByUnit(
     unit: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<CreditCost | null> {
     return await tx.creditCost.findUnique({
       where: {
         unit,
+        network,
       },
     });
   },
@@ -33,7 +39,14 @@ export const creditCostRepository = {
    * @returns Promise resolving to an array of all CreditCost records
    *
    */
-  async getCreditCosts(tx: Prisma.TransactionClient): Promise<CreditCost[]> {
-    return await tx.creditCost.findMany();
+  async getCreditCosts(
+    network: Network,
+    tx: Prisma.TransactionClient,
+  ): Promise<CreditCost[]> {
+    return await tx.creditCost.findMany({
+      where: {
+        network,
+      },
+    });
   },
 };
