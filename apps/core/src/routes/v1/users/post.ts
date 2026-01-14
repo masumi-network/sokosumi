@@ -1,5 +1,4 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
-import prisma from "@/lib/db/prisma";
 import { APIError } from "better-auth";
 
 import {
@@ -11,6 +10,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { getCredits } from "@/helpers/user";
 import { auth } from "@/lib/auth";
+import prisma from "@/lib/db/prisma";
 import {
   createUserRequestSchema,
   type User,

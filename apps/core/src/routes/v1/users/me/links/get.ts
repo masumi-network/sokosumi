@@ -1,9 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
-import prisma from "@/lib/db/prisma";
 import type { Context } from "hono";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { linksSchema } from "@/schemas/link.schema";
 import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";

@@ -353,10 +353,7 @@ export const jobRepository = {
     }
   },
 
-  async refundJob(
-    jobId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<void> {
+  async refundJob(jobId: string, tx: Prisma.TransactionClient): Promise<void> {
     const job = await tx.job.findUnique({
       where: { id: jobId },
       select: {

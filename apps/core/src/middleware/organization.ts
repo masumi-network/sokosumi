@@ -1,7 +1,7 @@
-import prisma from "@/lib/db/prisma";
 import type { MiddlewareHandler } from "hono";
 
 import { forbidden } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
 import type { AuthVariables } from "@/middleware/auth";
 import { setAuthContext } from "@/middleware/auth";
 

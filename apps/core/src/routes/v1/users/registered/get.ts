@@ -1,8 +1,8 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import prisma from "@/lib/db/prisma";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 
 const querySchema = z.object({
   email: z.email().openapi({

@@ -1,5 +1,4 @@
 import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
-import prisma from "@/lib/db/prisma";
 import {
   creditTransactionRepository,
   jobShareRepository,
@@ -17,6 +16,7 @@ import type {
   StartFreeJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
 
+import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
@@ -235,51 +235,72 @@ export async function shareJob(
 }
 
 /**
- * Retrieves jobs for the authenticated user, optionally filtered by agent ID.
- * Includes all job relations (events, credit transactions, purchases) and flattens the results.
+ * Retrieves paginated jobs for the authenticated user, optionally filtered by agent ID.
+ * Includes all job relations (events, credit transactions, purchases) and returns both jobs and count.
  *
  * @param authContext - The authenticated user context
  * @param options - Query options
  * @param options.agentId - Optional agent ID to filter jobs by
+ * @param options.cursor - Optional cursor for pagination
+ * @param options.take - Number of items to take
+ * @param options.skip - Number of items to skip (used for cursor pagination)
  * @param options.tx - Optional Prisma transaction client for transaction support
- * @returns Array of flattened job objects
+ * @returns Object containing flattened jobs array and total count
  *
  * @example
- * // Get all jobs for the user
- * const jobs = await getUserJobs(authContext);
+ * // Get paginated jobs for the user
+ * const { jobs, count } = await getUserJobs(authContext, { take: 20 });
  *
  * @example
- * // Get jobs for a specific agent
- * const jobs = await getUserJobs(authContext, { agentId: "agent_123" });
- *
- * @example
- * // Within a transaction
- * await prisma.$transaction(async (tx) => {
- *   const jobs = await getUserJobs(authContext, { agentId: "agent_123", tx });
+ * // Get paginated jobs for a specific agent with cursor
+ * const { jobs, count } = await getUserJobs(authContext, {
+ *   agentId: "agent_123",
+ *   cursor: "last_job_id",
+ *   take: 20,
+ *   skip: 1,
  * });
  */
 export async function getUserJobs(
   authContext: AuthenticationContext,
   options: {
     agentId?: string;
+    cursor?: string;
+    take: number;
+    skip?: number;
     tx?: Prisma.TransactionClient;
-  } = {},
-): Promise<ReturnType<typeof flattenJob>[]> {
-  const { agentId, tx = prisma } = options;
+  },
+): Promise<{
+  jobs: ReturnType<typeof flattenJob>[];
+  count: number;
+  hasMore: boolean;
+}> {
+  const { agentId, cursor, take, skip, tx = prisma } = options;
 
-  const jobs = await tx.job.findMany({
-    where: {
-      userId: authContext.userId,
-      organizationId: authContext.organizationId,
-      ...(agentId ? { agentId } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      ...jobWithEvents,
-      ...jobWithCreditTransaction,
-      ...jobWithPurchase,
-    },
-  });
+  const where = {
+    userId: authContext.userId,
+    organizationId: authContext.organizationId,
+    ...(agentId ? { agentId } : {}),
+  };
 
-  return jobs.map(flattenJob);
+  const takePlusOne = take + 1;
+  const [jobs, count] = await Promise.all([
+    tx.job.findMany({
+      where,
+      take: takePlusOne,
+      skip,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        ...jobWithEvents,
+        ...jobWithCreditTransaction,
+        ...jobWithPurchase,
+      },
+    }),
+    tx.job.count({ where }),
+  ]);
+  return {
+    jobs: jobs.slice(0, take).map(flattenJob),
+    count,
+    hasMore: jobs.length === takePlusOne,
+  };
 }

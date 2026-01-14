@@ -1,10 +1,10 @@
 import {
   type Agent,
+  AgentStatus,
   type CreditCost,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import prisma from "@/lib/db/prisma";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -12,9 +12,10 @@ import {
 } from "@sokosumi/database/helpers";
 
 import { CREDIT, TIME } from "@/config/constants";
+import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { type RatingMetrics } from "@/schemas/agent.schema";
-import type { AgentWithOrganizations, AgentWithPricing } from "@/types/agent";
+import type { AgentWithPricing } from "@/types/agent";
 
 import { internalServerError, unprocessableEntity } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
@@ -73,40 +74,81 @@ export const getAgentAccessContext = async (
 };
 
 /**
- * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
+ * Builds a Prisma where clause for filtering agents based on user access and valid pricing.
  *
- * Blacklist behavior:
- * - When viewing in an organization context (activeOrganizationId present), that organization's
- *   blacklist is enforced, hiding agents they've explicitly blocked.
- * - When viewing in personal context (activeOrganizationId is null), no blacklists apply.
- * - Users in multiple organizations see different agents depending on their active context.
+ * Access rules:
+ * - Only shows agents with status ONLINE and isShown: true
+ * - Blacklist: Only enforced when activeOrganizationId is present (organization context)
+ *   - Personal context (null) is not affected by organizational blacklist decisions
+ * - Organization access:
+ *   - Public agents (no organizations) are always accessible
+ *   - If user has no organizations, only public agents are shown
+ *   - If user has organizations, shows public agents OR agents with overlapping organizations
  *
- * @param agent - Agent with organization and blacklist data.
- * @param userOrganizationIds - Organization IDs the user is a member of.
- * @param activeOrganizationId - The currently active organization ID, or null for personal context.
- * @returns True if the user can access the agent, false otherwise.
+ * Pricing validation rules:
+ * - Exclude agents with pricingType UNKNOWN
+ * - For FIXED pricing: require fixedPricing exists and has non-empty amounts
+ * - For FIXED pricing: ensure all amount units exist in CreditCost table
+ * - FREE pricing is always valid (no additional validation needed)
+ *
+ * @param userOrganizationIds - Organization IDs the user is a member of
+ * @param activeOrganizationId - The currently active organization ID, or null for personal context
+ * @param creditCosts - Array of credit costs to validate pricing units against
+ * @returns Prisma where clause for agent queries
  */
-export const canUserAccessAgent = (
-  agent: AgentWithOrganizations,
+export const buildAgentAccessWhereClause = (
   userOrganizationIds: string[],
   activeOrganizationId: string | null,
-): boolean => {
-  // Blacklist: only enforce when organization scope is active
-  // Personal context (null) is not affected by organizational blacklist decisions
-  if (activeOrganizationId) {
-    const isBlacklisted = agent.blacklistedOrganizations.some(
-      ({ id }) => id === activeOrganizationId,
-    );
-    if (isBlacklisted) return false;
-  }
+  creditCosts: CreditCost[],
+): Prisma.AgentWhereInput => {
+  const organizationFilter =
+    userOrganizationIds.length === 0
+      ? [{ organizations: { none: {} } }]
+      : [
+          { organizations: { none: {} } },
+          {
+            organizations: {
+              some: {
+                id: { in: userOrganizationIds },
+              },
+            },
+          },
+        ];
 
-  // Visibility: deny if agent is not shown
-  if (!agent.isShown) return false;
-  if (agent.organizations.length === 0) return true;
-  if (userOrganizationIds.length === 0) return false;
-  return agent.organizations.some((agentOrg) =>
-    userOrganizationIds.includes(agentOrg.id),
-  );
+  const validUnits = creditCosts.map((c) => c.unit);
+
+  const pricingFilter = {
+    pricingType: { not: PricingType.UNKNOWN },
+    OR: [
+      { pricingType: PricingType.FREE },
+      {
+        pricingType: PricingType.FIXED,
+        fixedPricing: {
+          amounts: {
+            every: {
+              unit: { in: validUnits },
+            },
+          },
+        },
+      },
+    ],
+  };
+
+  return {
+    status: AgentStatus.ONLINE,
+    isShown: true,
+    ...(activeOrganizationId && {
+      NOT: {
+        blacklistedOrganizations: {
+          some: {
+            id: activeOrganizationId,
+          },
+        },
+      },
+    }),
+    OR: organizationFilter,
+    pricing: pricingFilter,
+  };
 };
 
 export interface AgentCost {
@@ -121,7 +163,7 @@ export interface AgentCost {
  * @returns The cost for the agent.
  */
 export const getAgentCost = (
-  agent: AgentWithPricing & AgentWithOrganizations,
+  agent: AgentWithPricing,
   creditCosts: CreditCost[],
 ): AgentCost => {
   const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);

@@ -1,9 +1,7 @@
 import type { Category, Prisma } from "../generated/prisma/client.js";
 
 export const categoryRepository = {
-  getCategories: async (
-    tx: Prisma.TransactionClient,
-  ): Promise<Category[]> => {
+  getCategories: async (tx: Prisma.TransactionClient): Promise<Category[]> => {
     return tx.category.findMany({
       orderBy: [{ priority: "asc" }, { name: "asc" }],
     });

@@ -47,6 +47,12 @@ export const LIMITS = {
 
   /** Maximum password length */
   PASSWORD_MAX_LENGTH: 256,
+
+  /** Default pagination limit */
+  DEFAULT_PAGINATION_LIMIT: 20,
+
+  /** Maximum pagination limit */
+  MAX_PAGINATION_LIMIT: 100,
 } as const;
 
 /**
