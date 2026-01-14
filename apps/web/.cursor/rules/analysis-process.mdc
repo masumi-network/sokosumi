@@ -1,6 +1,5 @@
 ---
-description: Analysis Process
-globs: 
+description: "Analysis Process"
 alwaysApply: true
 ---
 Before responding to any request, follow these steps:

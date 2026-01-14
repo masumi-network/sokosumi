@@ -1,6 +1,5 @@
 ---
-description: Performance Optimization
-globs: 
+description: "Performance Optimization"
 alwaysApply: true
 ---
 - Minimize 'use client', 'useEffect', and 'setState'; favor React Server Components (RSC).
