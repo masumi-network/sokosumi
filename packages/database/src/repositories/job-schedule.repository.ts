@@ -1,4 +1,4 @@
-import type { Prisma } from "../generated/prisma/client.js";
+import type { Network, Prisma } from "../generated/prisma/client.js";
 
 export const jobScheduleRepository = {
   async create(
@@ -26,11 +26,12 @@ export const jobScheduleRepository = {
     return await tx.jobSchedule.findUnique({ where: { id } });
   },
 
-  async findDue(tx: Prisma.TransactionClient) {
+  async findDue(network: Network, tx: Prisma.TransactionClient) {
     return await tx.jobSchedule.findMany({
       where: {
         isActive: true,
         nextRunAt: { lte: new Date() },
+        network,
       },
       orderBy: { nextRunAt: "asc" },
     });
@@ -39,12 +40,14 @@ export const jobScheduleRepository = {
   async getScheduleJobsByContext(
     userId: string,
     organizationId: string | null,
+    network: Network,
     tx: Prisma.TransactionClient,
   ) {
     return await tx.jobSchedule.findMany({
       where: {
         userId,
         organizationId: organizationId ?? null,
+        network,
       },
       orderBy: { updatedAt: "desc" },
       include: {

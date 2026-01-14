@@ -3,7 +3,7 @@ import {
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
-import type { Prisma } from "../generated/prisma/client.js";
+import type { Network, Prisma } from "../generated/prisma/client.js";
 import { mapJobWithStatus } from "../helpers/job.js";
 import {
   finalizedAgentJobStatuses,
@@ -29,6 +29,7 @@ interface CreateJobBase {
   agentJobId: string;
   agentId: string;
   userId: string;
+  network: Network;
   organizationId: string | null | undefined;
   inputSchema: unknown[];
   input: string;
@@ -82,10 +83,11 @@ export const jobRepository = {
    */
   async getJobsByUserId(
     userId: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
-      where: { userId },
+      where: { userId, network },
       include: jobInclude,
       orderBy: jobOrderBy,
     });
@@ -150,10 +152,11 @@ export const jobRepository = {
   async getJobsByAgentIdAndUserId(
     agentId: string,
     userId: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
-      where: { agentId, userId },
+      where: { agentId, userId, network },
       include: jobInclude,
       orderBy: jobOrderBy,
     });
@@ -181,10 +184,16 @@ export const jobRepository = {
 
   async getJobByBlockchainIdentifier(
     blockchainIdentifier: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus | null> {
     const job = await tx.job.findUnique({
-      where: { blockchainIdentifier },
+      where: {
+        blockchainIdentifier_network: {
+          blockchainIdentifier,
+          network,
+        },
+      },
       include: jobInclude,
     });
     return job ? mapJobWithStatus(job) : null;
@@ -260,6 +269,7 @@ export const jobRepository = {
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
       jobType: data.jobType,
+      network: data.network,
       agent: {
         connect: {
           id: data.agentId,
@@ -321,6 +331,7 @@ export const jobRepository = {
               create: {
                 amount: -data.creditsPrice.cents,
                 includedFee: data.creditsPrice.includedFee,
+                network: data.network,
                 user: {
                   connect: {
                     id: data.userId,
@@ -340,6 +351,7 @@ export const jobRepository = {
             submitResultTime: data.submitResultTime,
             unlockTime: data.unlockTime,
             blockchainIdentifier: data.blockchainIdentifier,
+            network: data.network,
             sellerVkey: data.sellerVkey,
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
@@ -375,6 +387,7 @@ export const jobRepository = {
 
     // Build refund transaction data based on whether it's for a user or organization
     const refundTransactionData: Prisma.CreditTransactionCreateInput = {
+      network: creditTransaction.network,
       amount: creditTransaction.amount * BigInt(-1),
       includedFee: creditTransaction.includedFee,
       user: {
@@ -500,11 +513,13 @@ export const jobRepository = {
     userId: string,
     agentId: string,
     organizationId: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
       where: {
         userId: { not: userId },
+        network,
         agentId,
         share: {
           organizationId,

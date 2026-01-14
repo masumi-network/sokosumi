@@ -117,6 +117,7 @@ export const fiatTransactionRepository = {
   ): Promise<FiatTransaction> {
     // Build credit transaction data based on whether it's for a user or organization
     const creditTransactionData = {
+      network: fiatTransaction.network,
       amount: fiatTransaction.cents,
       user: { connect: { id: fiatTransaction.userId } },
       ...(fiatTransaction.organizationId && {
@@ -178,6 +179,7 @@ export const fiatTransactionRepository = {
         // Create the credit transaction immediately since status is SUCCEEDED
         creditTransaction: {
           create: {
+            network,
             amount: cents,
             user: { connect: { id: userId } },
             ...(organizationId && {

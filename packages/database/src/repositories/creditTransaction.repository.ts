@@ -1,4 +1,8 @@
-import type { CreditTransaction, Prisma } from "../generated/prisma/client.js";
+import type {
+  CreditTransaction,
+  Network,
+  Prisma,
+} from "../generated/prisma/client.js";
 
 /**
  * Credit Transaction Repository Interface
@@ -19,9 +23,13 @@ export const creditTransactionRepository = {
    */
   async getCentsByUserId(
     userId: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
-    return await this.getCentsByWhere({ userId, organizationId: null }, tx);
+    return await this.getCentsByWhere(
+      { userId, organizationId: null, network },
+      tx,
+    );
   },
 
   /**
@@ -36,9 +44,10 @@ export const creditTransactionRepository = {
    */
   async getCentsByOrganizationId(
     organizationId: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
-    return await this.getCentsByWhere({ organizationId }, tx);
+    return await this.getCentsByWhere({ organizationId, network }, tx);
   },
 
   /**

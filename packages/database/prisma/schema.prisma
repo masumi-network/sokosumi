@@ -478,9 +478,12 @@ model CreditTransaction {
 
   fiatTransaction FiatTransaction?
 
+  network Network
+
   job         Job? @relation("CreditTransactionJob")
   refundedJob Job? @relation("RefundedCreditTransactionJob")
 
+  @@index([network])
   @@index([userId, organizationId])
 }
 
@@ -544,7 +547,9 @@ model Job {
 
   jobType JobType
 
-  blockchainIdentifier      String?   @unique
+  network              Network?
+  blockchainIdentifier String?
+
   identifierFromPurchaser   String?
   payByTime                 DateTime?
   submitResultTime          DateTime?
@@ -570,6 +575,8 @@ model Job {
   jobScheduleId String?
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
 
+  @@unique([blockchainIdentifier, network])
+  @@index([network])
   @@index([userId])
   @@index([jobType])
   @@index([jobScheduleId])
@@ -823,6 +830,7 @@ model JobSchedule {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   agentId        String
   agent          Agent         @relation(fields: [agentId], references: [id])
+  network        Network
 
   // Execution configuration
   scheduleType        ScheduleType
@@ -847,6 +855,7 @@ model JobSchedule {
 
   @@index([isActive, nextRunAt])
   @@index([agentId])
+  @@index([network])
   @@map("jobSchedule")
 }
 

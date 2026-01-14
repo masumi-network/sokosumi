@@ -1,4 +1,9 @@
-import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client.js";
+import type {
+  Agent,
+  AgentStatus,
+  Network,
+  Prisma,
+} from "../generated/prisma/client.js";
 import {
   agentInclude,
   agentOrderBy,
@@ -81,10 +86,11 @@ export const agentRepository = {
   async getShownAgentWithRelationById(
     agentId: string,
     status: AgentStatus,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<AgentWithRelations | null> {
     return await tx.agent.findUnique({
-      where: { id: agentId, isShown: true, status },
+      where: { id: agentId, isShown: true, status, network },
       include: agentInclude,
     });
   },
@@ -96,9 +102,11 @@ export const agentRepository = {
    * @returns Array of agents with relations
    */
   async getAgentsWithRelations(
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<AgentWithRelations[]> {
     return await tx.agent.findMany({
+      where: { network },
       include: agentInclude,
     });
   },
@@ -113,15 +121,13 @@ export const agentRepository = {
    */
   async getShownAgentsWithRelationsByStatus(
     status: AgentStatus,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<AgentWithRelations[]> {
     return await tx.agent.findMany({
+      where: { network, status, isShown: true },
       include: agentInclude,
       orderBy: [...agentOrderBy],
-      where: {
-        status,
-        isShown: true,
-      },
     });
   },
 
@@ -137,6 +143,7 @@ export const agentRepository = {
   async getHiredAgentsWithLatestJobByUserIdAndOrganization(
     userId: string,
     organizationId: string | null | undefined,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<AgentWithJobs[]> {
     const normalizedOrganizationId = organizationId ?? null;
@@ -159,6 +166,7 @@ export const agentRepository = {
 
     return await tx.agent.findMany({
       where: {
+        network,
         jobs: {
           some: jobWhereCondition,
         },
@@ -182,10 +190,12 @@ export const agentRepository = {
    */
   async getAvailableAgentsWithoutSummary(
     limit: number | null,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<Agent[]> {
     return await tx.agent.findMany({
       where: {
+        network,
         status: "ONLINE",
         isShown: true,
         summary: null,
