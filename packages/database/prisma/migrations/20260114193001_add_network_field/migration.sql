@@ -10,10 +10,10 @@
 CREATE TYPE "Network" AS ENUM ('MAINNET', 'PREPROD');
 
 -- AlterTable
-ALTER TABLE "Agent" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'PREPROD';
+ALTER TABLE "Agent" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
 
 -- AlterTable
-ALTER TABLE "CreditCost" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'PREPROD';
+ALTER TABLE "CreditCost" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
 
 -- AlterTable
-ALTER TABLE "FiatTransaction" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'PREPROD';
+ALTER TABLE "FiatTransaction" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
