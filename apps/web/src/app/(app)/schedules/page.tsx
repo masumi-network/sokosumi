@@ -15,6 +15,7 @@ import ScheduleItem from "@/components/schedules/schedule-item.client";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { JobScheduleType, mapPrismaToUiScheduleType } from "@/lib/types/job";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 export default async function SchedulesPage() {
   const session = await getSession();
@@ -25,6 +26,7 @@ export default async function SchedulesPage() {
   const schedules = await jobScheduleRepository.getScheduleJobsByContext(
     session.user.id,
     session.session.activeOrganizationId ?? null,
+    getNetworkFromEnv(),
     prisma,
   );
 
