@@ -12,6 +12,7 @@ import { StartJobInputSchemaType } from "@/lib/schemas/job";
 import { Result } from "@/lib/ts-res";
 import { JobScheduleEndsMode, JobScheduleType } from "@/lib/types/job";
 import { computeNextRun } from "@/lib/utils/cron";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 import {
   AuthenticatedRequest,
   withAuthContext,
@@ -130,6 +131,7 @@ export const createSchedule = withAuthContext<
 
     // Build Prisma input directly
     const prismaInput: Prisma.JobScheduleCreateInput = {
+      network: getNetworkFromEnv(),
       user: {
         connect: {
           id: authContext.userId,
