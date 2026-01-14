@@ -14,6 +14,7 @@ import {
 } from "../types/job.js";
 
 interface CreateDemoJobData {
+  network: Network;
   jobType: typeof JobType.DEMO;
   agentJobId: string;
   agentId: string;
@@ -205,6 +206,7 @@ export const jobRepository = {
   ): Promise<JobWithSokosumiStatus> {
     const job = await tx.job.create({
       data: {
+        network: data.network,
         agentJobId: data.agentJobId,
         jobType: JobType.DEMO,
         agent: {

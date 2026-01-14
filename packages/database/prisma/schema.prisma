@@ -547,7 +547,7 @@ model Job {
 
   jobType JobType
 
-  network              Network?
+  network              Network
   blockchainIdentifier String?
 
   identifierFromPurchaser   String?

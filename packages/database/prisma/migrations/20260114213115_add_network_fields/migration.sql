@@ -36,7 +36,7 @@ ALTER TABLE "CreditTransaction" ADD COLUMN     "network" "Network" NOT NULL DEFA
 ALTER TABLE "FiatTransaction" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
 
 -- AlterTable
-ALTER TABLE "Job" ADD COLUMN     "network" "Network" DEFAULT 'MAINNET';
+ALTER TABLE "Job" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
 
 -- AlterTable
 ALTER TABLE "jobSchedule" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
