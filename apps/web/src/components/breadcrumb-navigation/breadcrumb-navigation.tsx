@@ -5,6 +5,7 @@ import {
 import { Suspense } from "react";
 
 import prisma from "@/lib/db/prisma";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";
@@ -39,7 +40,10 @@ async function BreadcrumbNavigationInner({
   segmentLabels?: Record<string, string>;
 }) {
   const { agents, organizations } = await prisma.$transaction(async (tx) => {
-    const agents = await agentRepository.getAgentsWithRelations(tx);
+    const agents = await agentRepository.getAgentsWithRelations(
+      getNetworkFromEnv(),
+      tx,
+    );
     const organizations =
       await organizationRepository.listOrganizationsWithLimitedInfo(tx);
     return { agents, organizations };
