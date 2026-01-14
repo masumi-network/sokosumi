@@ -33,6 +33,7 @@ import {
 } from "@/lib/schemas";
 import { callAgentHiredWebHook, jobService, userService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 import {
   AuthenticatedRequest,
   withAuthContext,
@@ -432,6 +433,7 @@ export const requestRefundJobByBlockchainIdentifier = withAuthContext<
   const { userId } = authContext;
   const foundJob = await jobRepository.getJobByBlockchainIdentifier(
     blockchainIdentifier,
+    getNetworkFromEnv(),
     prisma,
   );
   if (!foundJob) {
