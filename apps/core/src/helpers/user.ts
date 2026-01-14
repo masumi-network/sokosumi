@@ -1,30 +1,31 @@
-import type { Prisma, User as DatabaseUser } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import type { Prisma } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
-import { type User, userSchema } from "@/schemas/user.schema";
+import prisma from "@/lib/db/prisma";
 
 /**
- * Maps a user to a response object
+ * Gets credits for a user or organization
  *
  * @param userId - The user ID to fetch
+ * @param organizationId - Optional organization ID. If provided, returns organization credits; otherwise returns user credits
  * @param tx - Optional Prisma transaction client for transaction support
- * @returns Response object with user data and credits converted from cents
- * @throws {notFound} If user doesn't exist
+ * @returns The credits as a number
  */
-export async function mapUserToResponse(
-  user: DatabaseUser,
+export async function getCredits(
+  userId: string,
+  organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
-): Promise<User> {
+): Promise<number> {
+  const where = organizationId
+    ? { userId, organizationId }
+    : { userId, organizationId: null };
+
   const { _sum } = await tx.creditTransaction.aggregate({
-    where: { userId: user.id, organizationId: null },
+    where,
     _sum: {
       amount: true,
     },
   });
 
-  return userSchema.parse({
-    ...user,
-    credits: convertCentsToCredits(_sum.amount ?? BigInt(0)),
-  });
+  return convertCentsToCredits(_sum.amount ?? BigInt(0));
 }

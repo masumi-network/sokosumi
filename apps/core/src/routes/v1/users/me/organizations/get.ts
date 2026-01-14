@@ -1,14 +1,16 @@
 import { createRoute } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { getCredits } from "@/helpers/user";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { organizationsSchema } from "@/schemas/organization.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/me/organizations",
+  path: "/organizations",
+  description: "Get all organizations for the current user",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(
@@ -20,10 +22,9 @@ const route = createRoute({
             id: "org_123",
             name: "My Organization",
             slug: "my-org",
-            logo: "https://example.com/logo.png",
-            metadata: null,
             createdAt: "2025-01-01T00:00:00.000Z",
             role: "member",
+            credits: 100.0,
           },
         ],
         meta: {
@@ -41,16 +42,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
 
-    const members = await prisma.member.findMany({
-      where: { userId: authContext.userId },
-      include: { organization: true },
+    const organizations = await prisma.$transaction(async (tx) => {
+      const members = await tx.member.findMany({
+        where: { userId: authContext.userId },
+        include: { organization: true },
+      });
+
+      return await Promise.all(
+        members.map(async (member) => {
+          const credits = await getCredits(
+            authContext.userId,
+            member.organization.id,
+            tx,
+          );
+          return {
+            ...member.organization,
+            role: member.role,
+            credits,
+          };
+        }),
+      );
     });
-
-    const organizations = members.map((member) => ({
-      ...member.organization,
-      role: member.role,
-    }));
-
     return ok(c, organizationsSchema.parse(organizations));
   });
 }

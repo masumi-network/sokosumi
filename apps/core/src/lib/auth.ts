@@ -1,6 +1,5 @@
 import { oauthProvider } from "@better-auth/oauth-provider";
 import * as Sentry from "@sentry/node";
-import prisma from "@sokosumi/database/client";
 import { APIError, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import {
@@ -17,6 +16,7 @@ import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { mapProfileToUser } from "@/helpers/profile-mapper";
+import prisma from "@/lib/db/prisma";
 import {
   renderEmailVerificationTemplate,
   renderOrganizationInvitationTemplate,
@@ -146,18 +146,27 @@ export const auth = betterAuth({
       const language = "en";
       const t = i18next.getFixedT(language, "emails");
 
-      postmarkClient.sendEmail({
-        From: env.POSTMARK_FROM_EMAIL,
-        To: user.email,
-        Tag: "reset-password",
-        Subject: t("resetPassword.subject"),
-        HtmlBody: renderPasswordResetTemplate({
-          name: user.name,
-          resetLink: url,
-          lng: language,
-        }),
-        MessageStream: "authentications",
-      });
+      postmarkClient
+        .sendEmail({
+          From: env.POSTMARK_FROM_EMAIL,
+          To: user.email,
+          Tag: "reset-password",
+          Subject: t("resetPassword.subject"),
+          HtmlBody: renderPasswordResetTemplate({
+            name: user.name,
+            resetLink: url,
+            lng: language,
+          }),
+          MessageStream: "authentications",
+        })
+        .catch((error) => {
+          Sentry.captureException(error, {
+            tags: {
+              user_id: user.id,
+              email: user.email,
+            },
+          });
+        });
     },
   },
   emailVerification: {
@@ -165,18 +174,27 @@ export const auth = betterAuth({
       const language = "en";
       const t = i18next.getFixedT(language, "emails");
 
-      postmarkClient.sendEmail({
-        From: env.POSTMARK_FROM_EMAIL,
-        To: user.email,
-        Tag: "verification-email",
-        Subject: t("verification.subject"),
-        HtmlBody: renderEmailVerificationTemplate({
-          name: user.name,
-          verificationLink: url,
-          lng: language,
-        }),
-        MessageStream: "authentications",
-      });
+      postmarkClient
+        .sendEmail({
+          From: env.POSTMARK_FROM_EMAIL,
+          To: user.email,
+          Tag: "verification-email",
+          Subject: t("verification.subject"),
+          HtmlBody: renderEmailVerificationTemplate({
+            name: user.name,
+            verificationLink: url,
+            lng: language,
+          }),
+          MessageStream: "authentications",
+        })
+        .catch((error) => {
+          Sentry.captureException(error, {
+            tags: {
+              user_id: user.id,
+              email: user.email,
+            },
+          });
+        });
     },
     sendOnSignUp: true,
     sendOnSignIn: true,
@@ -290,19 +308,30 @@ export const auth = betterAuth({
         const language = "en";
         const t = i18next.getFixedT(language, "emails");
 
-        postmarkClient.sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: data.email,
-          Tag: "invitation-email",
-          Subject: t("invitation.subject"),
-          HtmlBody: renderOrganizationInvitationTemplate({
-            organizationName: data.organization.name,
-            invitorUsername: data.inviter.user.name,
-            invitationLink: inviteLink,
-            lng: language,
-          }),
-          MessageStream: "organizations",
-        });
+        postmarkClient
+          .sendEmail({
+            From: env.POSTMARK_FROM_EMAIL,
+            To: data.email,
+            Tag: "invitation-email",
+            Subject: t("invitation.subject"),
+            HtmlBody: renderOrganizationInvitationTemplate({
+              organizationName: data.organization.name,
+              invitorUsername: data.inviter.user.name,
+              invitationLink: inviteLink,
+              lng: language,
+            }),
+            MessageStream: "organizations",
+          })
+          .catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                user_id: data.inviter.user.id,
+                email: data.email,
+                organization_id: data.organization.id,
+                invitation_id: data.id,
+              },
+            });
+          });
       },
       schema: {
         organization: {

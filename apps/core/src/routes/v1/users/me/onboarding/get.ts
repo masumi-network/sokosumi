@@ -1,15 +1,16 @@
 import { createRoute } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { userOnboardingResponseSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/me/onboarding",
+  path: "/onboarding",
+  description: "Get current user's onboarding status",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(

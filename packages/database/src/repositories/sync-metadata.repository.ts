@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Prisma, SyncMetadata } from "../generated/prisma/client.js";
 
 /**
@@ -15,7 +14,7 @@ export const syncMetadataRepository = {
    */
   async getSyncMetadataByKey(
     key: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<{ lastSyncedAt: Date; cursorId: string | null }> {
     const metadata = await tx.syncMetadata.findUnique({
       where: { key },
@@ -39,7 +38,7 @@ export const syncMetadataRepository = {
     key: string,
     cursorId: string,
     timestamp: Date,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<SyncMetadata> {
     return await tx.syncMetadata.upsert({
       where: { key },

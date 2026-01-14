@@ -11,15 +11,13 @@
  * import { Prisma, Agent, User, Job } from '@sokosumi/database'
  * ```
  *
- * ### Import the Prisma client singleton:
+ * ### Create a Prisma client instance:
  * ```typescript
- * import prisma from '@sokosumi/database/client'
+ * import { createPrismaClient } from '@sokosumi/database/client'
+ *
+ * const prisma = createPrismaClient(databaseUrl)
  * ```
  *
- * ### Import transaction utilities:
- * ```typescript
- * import { transaction, type TransactionClient } from '@sokosumi/database/transaction'
- * ```
  *
  * ### Import repositories:
  * ```typescript

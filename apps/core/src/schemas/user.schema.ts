@@ -9,6 +9,7 @@ export const userSchema = z
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "John Doe" }),
     email: z.email().openapi({ example: "john.doe@example.com" }),
+    emailVerified: z.boolean().openapi({ example: true }),
     image: z
       .string()
       .nullish()
@@ -19,24 +20,58 @@ export const userSchema = z
 
 export type User = z.infer<typeof userSchema>;
 
-export const userPreferencesResponseSchema = z
-  .object({
-    marketingOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive marketing emails",
-      example: true,
-    }),
-    notificationsOptIn: z.boolean().openapi({
-      description: "Whether the user wants to receive job status notifications",
-      example: true,
-    }),
-  })
-  .openapi("UserPreferences");
+export const userPreferencesResponseSchema = z.object({
+  marketingOptIn: z.boolean().openapi({
+    description: "Whether the user wants to receive marketing emails",
+    example: true,
+  }),
+  notificationsOptIn: z.boolean().openapi({
+    description: "Whether the user wants to receive job status notifications",
+    example: true,
+  }),
+});
 
-export const userOnboardingResponseSchema = z
-  .object({
-    completed: z.boolean().openapi({
-      description: "Whether the user has completed onboarding",
+export const userOnboardingResponseSchema = z.object({
+  completed: z.boolean().openapi({
+    description: "Whether the user has completed onboarding",
+    example: true,
+  }),
+});
+
+export const createUserRequestSchema = z.object({
+  name: z.string().min(1).openapi({
+    description: "User's full name",
+    example: "John Doe",
+  }),
+  email: z.email().openapi({
+    description: "User's email address (must be a valid email address)",
+    example: "john.doe@example.com",
+  }),
+  password: z.string().min(8).max(256).openapi({
+    description: "User's password (must be between 8 and 256 characters)",
+    example: "SecurePassword123!",
+  }),
+  termsAccepted: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: "Terms of service must be accepted",
+    })
+    .openapi({
+      description: "Whether the user has accepted the terms of service",
       example: true,
     }),
-  })
-  .openapi("UserOnboarding");
+  marketingOptIn: z.boolean().optional().default(false).openapi({
+    description:
+      "Whether the user wants to receive marketing emails (defaults to false)",
+    example: false,
+  }),
+});
+
+export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
+
+export const creditsResponseSchema = z.object({
+  credits: z.number().openapi({
+    description: "Current credit balance",
+    example: 100.0,
+  }),
+});

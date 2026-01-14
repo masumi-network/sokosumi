@@ -1,16 +1,17 @@
 import { createRoute } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
 import type { Context } from "hono";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { linksSchema } from "@/schemas/link.schema";
 import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";
 
 const route = createRoute({
   method: "get",
-  path: "/me/links",
+  path: "/links",
+  description: "Get all links for the current user",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(linksSchema, "Retrieve links by current user", {

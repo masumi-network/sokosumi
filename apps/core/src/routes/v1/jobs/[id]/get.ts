@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   jobWithCreditTransaction,
   jobWithEvents,
@@ -12,6 +11,7 @@ import { requireJobAccess } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -30,6 +30,7 @@ const route = withGlobalHeaderParameters(
   createRoute({
   method: "get",
   path: "/{id}",
+  description: "Get job details by ID",
   tags: ["Jobs"],
   request: {
     params,

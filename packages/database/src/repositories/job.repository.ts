@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import {
   AgentJobStatus,
   JobType,
@@ -67,7 +66,7 @@ type CreateJobData = CreatePaidJobData | CreateFreeJobData;
  */
 export const jobRepository = {
   async getJobsNotFinished(
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
       where: jobsNotFinishedWhereQuery(),
@@ -83,7 +82,7 @@ export const jobRepository = {
    */
   async getJobsByUserId(
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
       where: { userId },
@@ -100,7 +99,7 @@ export const jobRepository = {
    */
   async getAverageExecutionDurationByAgentId(
     agentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<number | null> {
     const result = await tx.$queryRaw<
       [{ avg_duration_seconds: Prisma.Decimal | null }]
@@ -130,7 +129,7 @@ export const jobRepository = {
    */
   async getExecutedJobsCountByAgentId(
     agentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<number> {
     return await tx.job.count({
       where: {
@@ -151,7 +150,7 @@ export const jobRepository = {
   async getJobsByAgentIdAndUserId(
     agentId: string,
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
       where: { agentId, userId },
@@ -168,7 +167,7 @@ export const jobRepository = {
 
   async getJobById(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus | null> {
     const job = await tx.job.findUnique({
       where: { id: jobId },
@@ -182,7 +181,7 @@ export const jobRepository = {
 
   async getJobByBlockchainIdentifier(
     blockchainIdentifier: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus | null> {
     const job = await tx.job.findUnique({
       where: { blockchainIdentifier },
@@ -193,7 +192,7 @@ export const jobRepository = {
 
   async createDemoJob(
     data: CreateDemoJobData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
     const job = await tx.job.create({
       data: {
@@ -256,7 +255,7 @@ export const jobRepository = {
 
   async createJob(
     data: CreateJobData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
@@ -354,10 +353,7 @@ export const jobRepository = {
     }
   },
 
-  async refundJob(
-    jobId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<void> {
+  async refundJob(jobId: string, tx: Prisma.TransactionClient): Promise<void> {
     const job = await tx.job.findUnique({
       where: { id: jobId },
       select: {
@@ -408,7 +404,7 @@ export const jobRepository = {
   async getNotFinishedLatestJobByAgentIdAndUserId(
     agentId: string,
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus | null> {
     const job = await tx.job.findFirst({
       where: {
@@ -433,7 +429,7 @@ export const jobRepository = {
     agentId: string,
     userId: string,
     organizationId: string | null | undefined,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus | null> {
     // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
     const normalizedOrganizationId = organizationId ?? null;
@@ -453,7 +449,7 @@ export const jobRepository = {
   async updateJobNameById(
     jobId: string,
     name: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
     const job = await tx.job.update({
       where: { id: jobId },
@@ -475,7 +471,7 @@ export const jobRepository = {
     jobId: string,
     userId: string,
     organizationId: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus | null> {
     const job = await tx.job.findUnique({
       where: {
@@ -490,7 +486,7 @@ export const jobRepository = {
 
   async getJobs(
     where: Prisma.JobWhereInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
       where,
@@ -504,7 +500,7 @@ export const jobRepository = {
     userId: string,
     agentId: string,
     organizationId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus[]> {
     const jobs = await tx.job.findMany({
       where: {
@@ -529,7 +525,7 @@ export const jobRepository = {
   async doesUserHaveFinishedJobWithAgent(
     userId: string,
     agentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<boolean> {
     const jobCount = await tx.job.count({
       where: {

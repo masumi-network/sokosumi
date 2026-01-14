@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Lock, Prisma } from "../generated/prisma/client.js";
 
 /**
@@ -16,7 +15,7 @@ export const lockRepository = {
    */
   async createLockByKey(
     key: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Lock> {
     return await tx.lock.create({
       data: {
@@ -34,7 +33,7 @@ export const lockRepository = {
    */
   async getLockByKey(
     key: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Lock | null> {
     return await tx.lock.findUnique({ where: { key } });
   },
@@ -51,7 +50,7 @@ export const lockRepository = {
   async lockByKey(
     key: string,
     instanceId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<Lock> {
     return await tx.lock.update({
       where: { key },
@@ -67,10 +66,7 @@ export const lockRepository = {
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
    * @returns The updated Lock object.
    */
-  async unlockByKey(
-    key: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<Lock> {
+  async unlockByKey(key: string, tx: Prisma.TransactionClient): Promise<Lock> {
     return await tx.lock.update({
       where: {
         key,

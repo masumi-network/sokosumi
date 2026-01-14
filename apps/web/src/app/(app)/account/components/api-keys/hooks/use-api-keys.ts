@@ -63,15 +63,8 @@ export function useApiKeys(): UseApiKeysReturn {
   const create = useCallback(
     async (data: CreateApiKeyRequest): Promise<CreateApiKeyResult> => {
       try {
-        // Prepare metadata for organization-scoped API keys
-        const metadata =
-          data.scope === "organization" && data.organizationId
-            ? { organizationId: data.organizationId }
-            : undefined;
-
         const result = await authClient.apiKey.create({
           name: data.name,
-          metadata,
         });
 
         if (result.data) {

@@ -10,6 +10,7 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { lockService, stripeService } from "@/lib/services";
 
 const LOCK_KEY = "stripe-customers-sync";
@@ -56,7 +57,7 @@ async function stripeCustomersSync(): Promise<Response> {
       console.error("Error in sync operation:", error);
     } finally {
       try {
-        await lockRepository.unlockByKey(lock.key);
+        await lockRepository.unlockByKey(lock.key, prisma);
       } catch (error) {
         console.error("Failed to unlock lock:", error);
       }
@@ -71,11 +72,13 @@ async function syncAllStripeCustomers(): Promise<void> {
 
   // Get all users without Stripe customer IDs
   const usersWithoutStripeCustomer =
-    await userRepository.getUsersWithoutStripeCustomerId();
+    await userRepository.getUsersWithoutStripeCustomerId(prisma);
 
   // Get all organizations without Stripe customer IDs
   const organizationsWithoutStripeCustomer =
-    await organizationRepository.getOrganizationsWithoutStripeCustomerId();
+    await organizationRepository.getOrganizationsWithoutStripeCustomerId(
+      prisma,
+    );
 
   console.info(
     "Syncing",

@@ -1,16 +1,17 @@
 import { createRoute } from "@hono/zod-openapi";
 import { BlobOrigin, BlobStatus } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { filesSchema } from "@/schemas/file.schema";
 import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";
 
 const route = createRoute({
   method: "get",
-  path: "/me/files",
+  path: "/files",
+  description: "Get all files for the current user",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(filesSchema, "Retrieve files by current user", {

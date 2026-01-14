@@ -2,6 +2,7 @@ import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 
 import { getSession } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services";
 
 import JobsTable from "./components/jobs-table";
@@ -17,7 +18,10 @@ export default async function JobsPage({ params }: JobsPageProps) {
   }
 
   const { agentId } = await params;
-  const agent = await agentRepository.getAgentWithRelationsById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(
+    agentId,
+    prisma,
+  );
 
   if (!agent) {
     return notFound();

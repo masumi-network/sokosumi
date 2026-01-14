@@ -1,11 +1,11 @@
 import { base64Url } from "@better-auth/utils/base64";
 import { createHash } from "@better-auth/utils/hash";
-import prisma from "@sokosumi/database/client";
 import type { MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 
 import { unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
+import prisma from "@/lib/db/prisma";
 
 export interface AuthenticationContext {
   userId: string;

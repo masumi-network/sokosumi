@@ -8,7 +8,8 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { anthropicClient } from "@/lib/clients";
+import { openrouterClient } from "@/lib/clients";
+import prisma from "@/lib/db/prisma";
 import { getAgentDescription } from "@/lib/helpers/agent";
 import { lockService } from "@/lib/services";
 
@@ -57,7 +58,7 @@ async function agentSummarySync() {
       console.error("Error in sync operation:", error);
     } finally {
       try {
-        await lockRepository.unlockByKey(lock.key);
+        await lockRepository.unlockByKey(lock.key, prisma);
       } catch (error) {
         console.error("Failed to unlock lock:", error);
       }
@@ -70,7 +71,7 @@ async function agentSummarySync() {
 async function syncAgentSummaries() {
   const limit = 20;
   const agentsWithoutSummary =
-    await agentRepository.getAvailableAgentsWithoutSummary(limit);
+    await agentRepository.getAvailableAgentsWithoutSummary(limit, prisma);
 
   for (const agent of agentsWithoutSummary) {
     const description = getAgentDescription(agent);
@@ -79,12 +80,12 @@ async function syncAgentSummaries() {
     }
     try {
       console.info(`Generating summary for agent ${agent.id}`);
-      const summary = await anthropicClient.generateAgentSummary(description);
+      const summary = await openrouterClient.generateAgentSummary(description);
       if (!summary) {
         continue;
       }
       console.info(`Summary generated for agent ${agent.id}: ${summary}`);
-      await agentRepository.updateAgentSummary(agent.id, summary);
+      await agentRepository.updateAgentSummary(agent.id, summary, prisma);
       console.info(`Updated summary for agent ${agent.id}`);
     } catch (error) {
       console.error(`Failed to generate summary for agent ${agent.id}:`, error);

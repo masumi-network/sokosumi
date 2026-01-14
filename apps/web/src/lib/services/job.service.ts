@@ -14,7 +14,6 @@ import {
   Prisma,
   SokosumiJobStatus,
 } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   computeJobStatus,
   getLatestJobEvent,
@@ -39,7 +38,8 @@ import publishJobStatusData from "@/lib/ably/publish";
 import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
-import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
+import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
+import prisma from "@/lib/db/prisma";
 import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
@@ -55,6 +55,7 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
+import { SyncJobTransactionResult } from "@/lib/types/job";
 import {
   jobStatusToAgentJobStatus,
   transformPurchaseToJobUpdate,
@@ -416,7 +417,7 @@ export const jobService = (() => {
         data: { agentName: agent.name },
       });
 
-      return await anthropicClient.generateJobName(
+      return await openrouterClient.generateJobName(
         { name: agent.name, description: agent.description },
         inputData,
       );
@@ -475,17 +476,20 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
-    const job = await jobRepository.createDemoJob({
-      jobType: JobType.DEMO,
-      agentJobId: uuidv4(),
-      agentId,
-      userId,
-      organizationId: activeOrganizationId,
-      input: JSON.stringify(inputData),
-      inputSchema: inputSchema,
-      name: "Demo Job",
-      result: jobStatusResponse.result,
-    });
+    const job = await jobRepository.createDemoJob(
+      {
+        jobType: JobType.DEMO,
+        agentJobId: uuidv4(),
+        agentId,
+        userId,
+        organizationId: activeOrganizationId,
+        input: JSON.stringify(inputData),
+        inputSchema: inputSchema,
+        name: "Demo Job",
+        result: jobStatusResponse.result,
+      },
+      prisma,
+    );
 
     // Enqueue any sources from demo output
     try {
@@ -690,28 +694,31 @@ export const jobService = (() => {
       },
     });
 
-    const job = await jobRepository.createJob({
-      jobType: JobType.PAID,
-      agentJobId: startJobResponse.id,
-      agentId,
-      userId,
-      organizationId,
-      input: JSON.stringify(inputData),
-      inputHash: startJobResponse.input_hash,
-      inputSchema: inputSchema,
-      creditsPrice: agentWithCreditsPrice.creditsPrice,
-      identifierFromPurchaser,
-      externalDisputeUnlockTime: new Date(
-        startJobResponse.externalDisputeUnlockTime,
-      ),
-      payByTime: new Date(startJobResponse.payByTime),
-      submitResultTime: new Date(startJobResponse.submitResultTime),
-      unlockTime: new Date(startJobResponse.unlockTime),
-      blockchainIdentifier: startJobResponse.blockchainIdentifier,
-      sellerVkey: startJobResponse.sellerVKey,
-      name: generatedName,
-      jobScheduleId,
-    });
+    const job = await jobRepository.createJob(
+      {
+        jobType: JobType.PAID,
+        agentJobId: startJobResponse.id,
+        agentId,
+        userId,
+        organizationId,
+        input: JSON.stringify(inputData),
+        inputHash: startJobResponse.input_hash,
+        inputSchema: inputSchema,
+        creditsPrice: agentWithCreditsPrice.creditsPrice,
+        identifierFromPurchaser,
+        externalDisputeUnlockTime: new Date(
+          startJobResponse.externalDisputeUnlockTime,
+        ),
+        payByTime: new Date(startJobResponse.payByTime),
+        submitResultTime: new Date(startJobResponse.submitResultTime),
+        unlockTime: new Date(startJobResponse.unlockTime),
+        blockchainIdentifier: startJobResponse.blockchainIdentifier,
+        sellerVkey: startJobResponse.sellerVKey,
+        name: generatedName,
+        jobScheduleId,
+      },
+      prisma,
+    );
 
     // Add breadcrumb for purchase creation
     Sentry.addBreadcrumb({
@@ -734,10 +741,13 @@ export const jobService = (() => {
     if (createPurchaseResult.ok) {
       const purchase = createPurchaseResult.data;
       const purchaseData = transformPurchaseToJobUpdate(purchase);
-      await jobPurchaseRepository.createJobPurchase({
-        jobId: job.id,
-        ...purchaseData,
-      });
+      await jobPurchaseRepository.createJobPurchase(
+        {
+          jobId: job.id,
+          ...purchaseData,
+        },
+        prisma,
+      );
 
       // Add breadcrumb for successful purchase creation
       Sentry.addBreadcrumb({
@@ -841,18 +851,21 @@ export const jobService = (() => {
       },
     });
 
-    const job = await jobRepository.createJob({
-      jobType: JobType.FREE,
-      agentJobId: startJobResponse.id,
-      agentId,
-      userId,
-      organizationId,
-      input: JSON.stringify(inputData),
-      inputHash: null,
-      inputSchema: inputSchema,
-      name: generatedName,
-      jobScheduleId,
-    });
+    const job = await jobRepository.createJob(
+      {
+        jobType: JobType.FREE,
+        agentJobId: startJobResponse.id,
+        agentId,
+        userId,
+        organizationId,
+        input: JSON.stringify(inputData),
+        inputHash: null,
+        inputSchema: inputSchema,
+        name: generatedName,
+        jobScheduleId,
+      },
+      prisma,
+    );
 
     await publishJobStatusSafely(job);
 
@@ -1035,12 +1048,15 @@ export const jobService = (() => {
         );
       if (purchaseResult.ok) {
         const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
-        await jobPurchaseRepository.createJobPurchase({
-          jobId: job.id,
-          ...purchaseData,
-        });
+        await jobPurchaseRepository.createJobPurchase(
+          {
+            jobId: job.id,
+            ...purchaseData,
+          },
+          prisma,
+        );
       }
-      job = await jobRepository.getJobById(job.id);
+      job = await jobRepository.getJobById(job.id, prisma);
     }
     if (!job) {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
@@ -1057,99 +1073,125 @@ export const jobService = (() => {
         : Promise.resolve(Err("No purchase ID to sync")),
     ]);
 
-    const newJobStatus = await prisma.$transaction(
-      async (tx) => {
-        if (!job) {
-          throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-        }
-        if (onChainPurchaseResult.ok) {
-          const purchaseData = transformPurchaseToJobUpdate(
-            onChainPurchaseResult.data,
-          );
-          await jobPurchaseRepository.updateJobPurchaseByJobId(
-            job.id,
-            purchaseData,
-            tx,
-          );
-        }
-        if (agentJobStatusResult.ok) {
-          const agentJobStatus = jobStatusToAgentJobStatus(
-            agentJobStatusResult.data.status,
-          );
-          const latestJobEvent =
-            await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
-
-          if (latestJobEvent) {
-            // If the latest job status is the same as the agent job status result, return the current job status
-            if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
-              return computeJobStatus(job);
-            } else {
-              // If the agent job status result has no external ID, check if the latest job status status is the same as the agent job status
-              if (!agentJobStatusResult.data.id) {
-                if (latestJobEvent.status === agentJobStatus) {
-                  return computeJobStatus(job);
-                }
-              }
-            }
-          }
-
-          const inputSchemaData = agentJobStatusResult.data.input_schema;
-          let inputSchemaValue: string | undefined;
-          if (inputSchemaData) {
-            if ("input_data" in inputSchemaData) {
-              inputSchemaValue = JSON.stringify(inputSchemaData.input_data);
-            } else {
-              inputSchemaValue = JSON.stringify(inputSchemaData.input_groups);
-            }
-          } else {
-            inputSchemaValue = undefined;
-          }
-
-          const newJobStatus = await jobEventRepository.createJobEventForJobId(
-            job.id,
-            {
-              externalId: agentJobStatusResult.data.id,
-              status: agentJobStatus,
-              inputSchema: inputSchemaValue,
-              result: agentJobStatusResult.data.result,
-            },
-            tx,
-          );
-          job = await jobRepository.getJobById(job.id, tx);
+    const transactionResult =
+      await prisma.$transaction<SyncJobTransactionResult>(
+        async (tx) => {
+          let extractionContext: SyncJobTransactionResult["extractionContext"];
           if (!job) {
             throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
           }
+          if (onChainPurchaseResult.ok) {
+            const purchaseData = transformPurchaseToJobUpdate(
+              onChainPurchaseResult.data,
+            );
+            await jobPurchaseRepository.updateJobPurchaseByJobId(
+              job.id,
+              purchaseData,
+              tx,
+            );
+          }
+          if (agentJobStatusResult.ok) {
+            const agentJobStatus = jobStatusToAgentJobStatus(
+              agentJobStatusResult.data.status,
+            );
+            const latestJobEvent =
+              await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
 
-          // Fire and forget: enqueue extraction if output is present
-          try {
+            if (latestJobEvent) {
+              // If the latest job status is the same as the agent job status result, return the current job status
+              if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
+                return { jobStatus: computeJobStatus(job) };
+              } else {
+                // If the agent job status result has no external ID, check if the latest job status status is the same as the agent job status
+                if (!agentJobStatusResult.data.id) {
+                  if (latestJobEvent.status === agentJobStatus) {
+                    return { jobStatus: computeJobStatus(job) };
+                  }
+                }
+              }
+            }
+
+            const inputSchemaData = agentJobStatusResult.data.input_schema;
+            let inputSchemaValue: string | undefined;
+            if (inputSchemaData) {
+              if ("input_data" in inputSchemaData) {
+                inputSchemaValue = JSON.stringify(inputSchemaData.input_data);
+              } else {
+                inputSchemaValue = JSON.stringify(inputSchemaData.input_groups);
+              }
+            } else {
+              inputSchemaValue = undefined;
+            }
+
+            const newJobStatus =
+              await jobEventRepository.createJobEventForJobId(
+                job.id,
+                {
+                  externalId: agentJobStatusResult.data.id,
+                  status: agentJobStatus,
+                  inputSchema: inputSchemaValue,
+                  result: agentJobStatusResult.data.result,
+                },
+                tx,
+              );
+            job = await jobRepository.getJobById(job.id, tx);
+            if (!job) {
+              throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+            }
+
             const outputResult = agentJobStatusResult.data?.result;
             if (typeof outputResult === "string") {
-              sourceImportService
-                .enqueueFromMarkdown(job.userId, newJobStatus.id, outputResult)
-                .catch(() => {
-                  // Ignore errors
-                });
+              extractionContext = {
+                userId: job.userId,
+                eventId: newJobStatus.id,
+                result: outputResult,
+              };
             }
-          } catch {
-            // Ignore errors
           }
-        }
-        const jobStatus = computeJobStatus(job);
-        switch (jobStatus) {
-          case SokosumiJobStatus.PAYMENT_FAILED:
-          case SokosumiJobStatus.REFUND_RESOLVED:
-            await jobRepository.refundJob(job.id, tx);
-            break;
-          default:
-            break;
-        }
-        return jobStatus;
-      },
-      {
-        maxWait: 5000, // default: 2000
-        timeout: 20000, // default: 5000
-      },
-    );
+          const jobStatus = computeJobStatus(job);
+          switch (jobStatus) {
+            case SokosumiJobStatus.PAYMENT_FAILED:
+            case SokosumiJobStatus.REFUND_RESOLVED:
+              await jobRepository.refundJob(job.id, tx);
+              break;
+            default:
+              break;
+          }
+          return { jobStatus, extractionContext };
+        },
+        {
+          maxWait: 5000, // default: 2000
+          timeout: 20000, // default: 5000
+        },
+      );
+
+    const newJobStatus = transactionResult.jobStatus;
+
+    // Extract enqueue outside transaction to avoid blocking DB operations
+    // and prevent transaction timeouts from affecting source import
+    if (transactionResult.extractionContext) {
+      // Fire and forget: enqueue extraction if output is present
+      const { userId, eventId, result } = transactionResult.extractionContext;
+      sourceImportService
+        .enqueueFromMarkdown(userId, eventId, result)
+        .catch((err) => {
+          console.error("Failed to enqueue source import:", err);
+
+          Sentry.captureException(err, {
+            contexts: {
+              error_classification: {
+                severity: "warning",
+                domain: "source_import_enqueue",
+                category: "service_layer",
+              },
+            },
+            extra: {
+              userId,
+              eventId,
+            },
+          });
+        });
+    }
 
     // if job status changed, publish to job status to channel
     if (newJobStatus !== oldJobStatus) {
@@ -1279,7 +1321,7 @@ export const jobService = (() => {
     });
 
     // Get the job and verify ownership
-    const job = await jobRepository.getJobById(jobId);
+    const job = await jobRepository.getJobById(jobId, prisma);
     if (!job || job.userId !== userId) {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
@@ -1288,6 +1330,7 @@ export const jobService = (() => {
       await jobEventRepository.getAwaitingInputJobEventByJobIdAndExternalId(
         jobId,
         statusId,
+        prisma,
       );
     if (!jobEvent) {
       throw new JobError(

@@ -1,29 +1,48 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-import {
-  jobWithCreditTransaction,
-  jobWithEvents,
-  jobWithPurchase,
-  SokosumiJobStatus,
-} from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { getUserJobs } from "@/helpers/job";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { jobsSchema } from "@/schemas/job.schema.js";
-import { flattenJob } from "@/types/job";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+
+const query = z
+  .object({
+    agentId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "agentId", in: "query" },
+        description: "Filter jobs by agent ID",
+        example: "cmaeygqwa000e8i0s9s7wif8i",
+      }),
+  })
+  .extend(cursorPaginationQuerySchema.shape);
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
+    description: "List all jobs for the current user (paginated)",
     tags: ["Jobs"],
+    request: {
+      query,
+    },
     responses: {
-      200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs", {
+      200: jsonPaginatedSuccessResponse(jobsSchema, "Retrieve all jobs", {
         data: [
           {
             id: "cmi4gmksz000104l8wps8p7fp",
@@ -59,6 +78,12 @@ const route = withGlobalHeaderParameters(
         meta: {
           timestamp: "2025-01-15T12:00:00.000Z",
           requestId: "550e8400-e29b-41d4-a716-446655440000",
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: 200,
+            nextCursor: "cmi4gmksz000104l8wps8p8fp",
+          },
         },
       }),
       401: jsonErrorResponse("Unauthorized"),
@@ -70,19 +95,25 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const jobs = await prisma.job.findMany({
-      where: {
-        userId: authContext.userId,
-        organizationId: authContext.organizationId,
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        ...jobWithEvents,
-        ...jobWithCreditTransaction,
-        ...jobWithPurchase,
-      },
+    const queryParams = c.req.valid("query");
+    const { agentId } = queryParams;
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
+
+    const { jobs, count, hasMore } = await getUserJobs(authContext, {
+      agentId,
+      cursor,
+      take,
+      skip,
     });
 
-    return ok(c, jobsSchema.parse(jobs.map(flattenJob)));
+    const paginationMeta = createPaginationMeta(
+      jobs,
+      count,
+      take,
+      hasMore,
+      cursor,
+    );
+
+    return ok(c, jobsSchema.parse(jobs), paginationMeta);
   });
 }

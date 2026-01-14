@@ -1,25 +1,29 @@
-import prisma from "../client.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { flattenLinkJobId, linkInclude, LinkWithJobId } from "../types/link.js";
 
 export const linkRepository = {
   async upsertLink(
-    userId: string,
-    eventId: string,
-    url: string,
-    title?: string,
-    tx: Prisma.TransactionClient = prisma,
+    data: {
+      userId: string;
+      eventId: string;
+      url: string;
+      title?: string;
+    },
+    tx: Prisma.TransactionClient,
   ): Promise<LinkWithJobId> {
     const link = await tx.link.upsert({
-      where: { eventId_url: { eventId, url }, userId },
+      where: {
+        eventId_url: { eventId: data.eventId, url: data.url },
+        userId: data.userId,
+      },
       update: {
-        title,
+        title: data.title,
       },
       create: {
-        user: { connect: { id: userId } },
-        event: { connect: { id: eventId } },
-        url,
-        title,
+        user: { connect: { id: data.userId } },
+        event: { connect: { id: data.eventId } },
+        url: data.url,
+        title: data.title,
       },
       include: linkInclude,
     });
@@ -28,7 +32,7 @@ export const linkRepository = {
 
   async getLinksByEventId(
     eventId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
       where: { eventId },
@@ -39,7 +43,7 @@ export const linkRepository = {
 
   async getLinksByUserId(
     userId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
       where: { userId },
@@ -51,7 +55,7 @@ export const linkRepository = {
   async getLinksByUserIdAndJobId(
     userId: string,
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
       where: { userId, event: { jobId } },
@@ -62,7 +66,7 @@ export const linkRepository = {
 
   async getLinksByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<LinkWithJobId[]> {
     const links = await tx.link.findMany({
       where: { event: { jobId } },

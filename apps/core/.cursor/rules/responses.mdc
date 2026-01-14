@@ -13,16 +13,13 @@ Always use standardized response helpers from `src/helpers/response.ts` and `src
 Use these helpers for successful operations:
 
 ```typescript
-import { ok, created, empty } from "../helpers/response";
+import { ok, created } from "@/helpers/response";
 
 // 200 OK - Return data
 return ok(c, { user });
 
 // 201 Created - Return newly created resource
 return created(c, { user });
-
-// 204 No Content - No data to return
-return empty(c);
 ```
 
 ### Error Responses
@@ -40,48 +37,48 @@ import {
   tooManyRequests,
   internalServerError,
   serviceUnavailable,
-} from "../helpers/error";
+} from "@/helpers/error";
 
 // 400 Bad Request - Client error in request format/validation
-badRequest("Invalid request parameters");
+throw badRequest("Invalid request parameters");
 
 // 401 Unauthorized - Authentication required or failed
-unauthorized("Authentication required");
+throw unauthorized("Authentication required");
 
 // 403 Forbidden - User doesn't have permission
-forbidden("You can only access your own user data");
+throw forbidden("You can only access your own user data");
 
 // 404 Not Found - Resource doesn't exist
-notFound("User not found");
+throw notFound("User not found");
 
 // 409 Conflict - Request conflicts with current state
-conflict("User already exists");
+throw conflict("User already exists");
 
 // 422 Unprocessable Entity - Validation errors
-unprocessableEntity("Email format is invalid");
+throw unprocessableEntity("Email format is invalid");
 
 // 429 Too Many Requests - Rate limit exceeded
-tooManyRequests("Rate limit exceeded");
+throw tooManyRequests("Rate limit exceeded");
 
 // 500 Internal Server Error - Unexpected server error
-internalServerError("An unexpected error occurred");
+throw internalServerError("An unexpected error occurred");
 
 // 503 Service Unavailable - Service temporarily unavailable
-serviceUnavailable("Database connection unavailable");
+throw serviceUnavailable("Database connection unavailable");
 ```
 
 ## Key Rules
 
 1. **Use error helpers, not c.json()**
    - ❌ `return c.json({ error: "Forbidden" }, 403)`
-   - ✅ `forbidden("You can only access your own user data")`
+   - ✅ `throw forbidden("You can only access your own user data")`
 
 2. **Error helpers throw exceptions** - they use the `never` return type and throw, so no need to return:
 
    ```typescript
    // Correct - no return needed
-   if (auth.type !== "user") {
-     forbidden("Internal tokens cannot access user data");
+   if (!user) {
+     throw notFound("User not found");
    }
    ```
 
@@ -93,12 +90,10 @@ serviceUnavailable("Database connection unavailable");
    - ❌ `return c.json({ data: user })`
    - ✅ `return ok(c, { user })`
 
-5. **Optional error details** - use `ErrorOptions` for additional context:
+5. **Error messages** - Provide clear, descriptive error messages:
    ```typescript
-   badRequest("Validation failed", {
-     code: "VALIDATION_ERROR",
-     details: [{ field: "email", message: "Invalid format" }],
-   });
+   throw badRequest("Validation failed: email format is invalid");
+   throw unprocessableEntity("Email address is already registered");
    ```
 
 ## Response Structure
@@ -111,7 +106,8 @@ serviceUnavailable("Database connection unavailable");
     /* your data */
   },
   "meta": {
-    "timestamp": "2024-01-01T00:00:00.000Z"
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "requestId": "550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
@@ -122,7 +118,6 @@ serviceUnavailable("Database connection unavailable");
 {
   "error": "NotFound",
   "message": "User not found",
-  "code": "USER_NOT_FOUND",
   "meta": {
     "timestamp": "2024-01-01T00:00:00.000Z",
     "requestId": "abc123",
@@ -135,32 +130,40 @@ serviceUnavailable("Database connection unavailable");
 ## Example Route Implementation
 
 ```typescript
-import prisma from "@sokosumi/database/client";
+import { createRoute } from "@hono/zod-openapi";
+import prisma from "@/lib/db/prisma";
 
-import { forbidden, notFound } from "../helpers/error";
-import { ok } from "../helpers/response";
-import { OpenAPIHonoWithAuth } from "../lib/hono";
+import { notFound } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { userSchema } from "@/schemas/user.schema";
 
-const app = new OpenAPIHonoWithAuth();
-
-app.get("/me", async (c) => {
-  const auth = c.get("auth");
-
-  // Check if the user is authenticated
-  if (auth.type !== "user") {
-    forbidden("Internal tokens cannot access user data");
-  }
-
-  const userAuth = auth as UserAuthContext;
-  const user = await prisma.user.findUnique({
-    where: { id: userAuth.userId },
-  });
-  if (!user) {
-    notFound("User not found");
-  }
-
-  return ok(c, { user });
+const route = createRoute({
+  method: "get",
+  path: "/me",
+  description: "Get current authenticated user",
+  tags: ["Users"],
+  responses: {
+    200: jsonSuccessResponse(userSchema, "Retrieve the current user"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
 });
 
-export default app;
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const { authContext } = c.var;
+
+    const user = await prisma.user.findUnique({
+      where: { id: authContext.userId },
+    });
+
+    if (!user) {
+      throw notFound("User not found");
+    }
+
+    return ok(c, userSchema.parse(user));
+  });
+}
 ```

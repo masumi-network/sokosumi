@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { userPreferencesResponseSchema } from "@/schemas/user.schema";
 
@@ -32,7 +32,8 @@ const requestBodySchema = z
 
 const route = createRoute({
   method: "patch",
-  path: "/me/preferences",
+  path: "/preferences",
+  description: "Update current user's preferences",
   tags: ["Users"],
   request: {
     body: {
