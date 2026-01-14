@@ -39,8 +39,8 @@ importers:
         specifier: 0.3.0
         version: 0.3.0
       '@hono/node-server':
-        specifier: 1.19.8
-        version: 1.19.8(hono@4.11.4)
+        specifier: 1.19.9
+        version: 1.19.9(hono@4.11.4)
       '@hono/zod-openapi':
         specifier: 1.2.0
         version: 1.2.0(hono@4.11.4)(zod@4.3.5)
@@ -51,8 +51,8 @@ importers:
         specifier: 0.9.32
         version: 0.9.32(hono@4.11.4)
       '@scalar/openapi-to-markdown':
-        specifier: 0.3.17
-        version: 0.3.17(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
+        specifier: 0.3.18
+        version: 0.3.18(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
       '@sentry/node':
         specifier: 10.33.0
         version: 10.33.0
@@ -134,7 +134,7 @@ importers:
         version: 0.5.1(@hey-api/openapi-ts@0.90.3(typescript@5.9.3))
       '@hookform/resolvers':
         specifier: 5.2.2
-        version: 5.2.2(react-hook-form@7.71.0(react@19.2.3))
+        version: 5.2.2(react-hook-form@7.71.1(react@19.2.3))
       '@icons-pack/react-simple-icons':
         specifier: 13.8.0
         version: 13.8.0(react@19.2.3)
@@ -277,8 +277,8 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(remark-math@6.0.0)(sharp@0.34.5)
       motion:
-        specifier: 12.26.1
-        version: 12.26.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: 12.26.2
+        version: 12.26.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       nanoid:
         specifier: 5.1.6
         version: 5.1.6
@@ -328,8 +328,8 @@ importers:
         specifier: 1.6.0
         version: 1.6.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-hook-form:
-        specifier: 7.71.0
-        version: 7.71.0(react@19.2.3)
+        specifier: 7.71.1
+        version: 7.71.1(react@19.2.3)
       react-icons:
         specifier: 5.5.0
         version: 5.5.0(react@19.2.3)
@@ -340,8 +340,8 @@ importers:
         specifier: 2.0.18
         version: 2.0.18(react@19.2.3)
       react-resizable-panels:
-        specifier: 4.4.0
-        version: 4.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: 4.4.1
+        version: 4.4.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-social-login-buttons:
         specifier: 4.1.1
         version: 4.1.1(react@19.2.3)
@@ -1147,8 +1147,8 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@hono/node-server@1.19.8':
-    resolution: {integrity: sha512-0/g2lIOPzX8f3vzW1ggQgvG5mjtFBDBHFAzI5SFAi2DzSqS9luJwqg9T6O/gKYLi+inS7eNxBeIFkkghIPvrMA==}
+  '@hono/node-server@1.19.9':
+    resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
@@ -2979,8 +2979,8 @@ packages:
     resolution: {integrity: sha512-sr2nV0ngVEw3hUPWISj6t0VRztUIbFqNxZNY8ZwpvYj6YoU99c1cng9+4njxi3d7F7YgbNMPL2PQ2bWQLQEknQ==}
     engines: {node: '>=20'}
 
-  '@scalar/components@0.16.17':
-    resolution: {integrity: sha512-N6EW2/wsZ7VikNvBjxvwWWZewsKk2uSEri4++492wLvF15b136KAxyHzuBFA68Oc9H/HGUCoOB3rT1SAF/aw8A==}
+  '@scalar/components@0.16.18':
+    resolution: {integrity: sha512-FZaBUQ4BO9b/l2yhWFKDuPAj+NspmOMgcVsWVOhFbJ+aQ7XLYs7d3KE2eTUMHFJLlQT/Axg3kCHgh0ZsK9cy8w==}
     engines: {node: '>=20'}
 
   '@scalar/core@0.3.30':
@@ -3005,20 +3005,20 @@ packages:
     resolution: {integrity: sha512-TWdKQ/hcy4erFQDp2MVlFoPesFep2VY96Q69cjLHmx5hxM0ZUBfmNB4lA8Uh3klgx5JmCDfSNIGjPFIpxlosUw==}
     engines: {node: '>=20'}
 
-  '@scalar/oas-utils@0.6.14':
-    resolution: {integrity: sha512-/OStgac9EMdeZ9Th7yb1Y3qPKVLf/c0RklkOfvCV2cJ0rrigXlz11wkBnx6ZUOr5e7Vtc221t0X4hC+GwnBdxA==}
+  '@scalar/oas-utils@0.6.15':
+    resolution: {integrity: sha512-e9z5WgHTnMLdw+WVAsCsLuPZf5sgYygUxa06h5IgH3DCDNu4y42ZV2Up8owv5ZKP5fvorsJSEbOC0CZQ4RgX4w==}
     engines: {node: '>=20'}
 
   '@scalar/object-utils@1.2.20':
     resolution: {integrity: sha512-J4mWmsHPmliEKd+lzsxw2Go4KbpGUvOS5DHBU/aZhhVeBfKy3i/LlnWaq/ixxr1YWtWj7HvAZCYp4zKCQB00Jg==}
     engines: {node: '>=20'}
 
-  '@scalar/openapi-parser@0.23.11':
-    resolution: {integrity: sha512-C3+04WqQRG6mqC2DbV1PRmHutJHNcnaBGVD2mnGDyZyK5iusVjGLhL+yuqVPkOBv6PuEzscGqbJQ0yfvVa5WtA==}
+  '@scalar/openapi-parser@0.23.12':
+    resolution: {integrity: sha512-Znq9J8sXUe20YdbK2myoyeFNXgWTeZlyQUJeQu+wNsXAfWHGT68bF7aZzl99TsPHHVl3WmKDeSrWiuexfJ1u6A==}
     engines: {node: '>=20'}
 
-  '@scalar/openapi-to-markdown@0.3.17':
-    resolution: {integrity: sha512-JOGDjOdJKm0aj7RxBB8XiRFmjlVofnvxruTmfW9sIO+3Ww8OFZN6I9u66txDCIIEfo3WbaiwZJKALx1gVl7fLg==}
+  '@scalar/openapi-to-markdown@0.3.18':
+    resolution: {integrity: sha512-UYdYdexndMJkpPvXLDi72SVGhfmocPYCLms8NitMfzW2HGtYEZJ8LVh9pZyyulaHD6ZpKV6AfNbZQUBEpZAO/A==}
     engines: {node: '>=20'}
 
   '@scalar/openapi-types@0.5.3':
@@ -3052,8 +3052,8 @@ packages:
     resolution: {integrity: sha512-t8QoQO4ZWekiSdJ2O7C+PbXfv7x2fmhv3C7t/iITdNpOyLv4jAhlELGpxQHkWsU0ZwRrLU8e+rV0jJcKWE6vYA==}
     engines: {node: '>=20'}
 
-  '@scalar/workspace-store@0.24.4':
-    resolution: {integrity: sha512-u5gtmsyCF4m1trscs4uxdBX1GVnVbZAyHJ3PHThZRV1kWEAWK4VuKkC9FI5D9yGitLkN4CZaomJlFdOPDX2pXw==}
+  '@scalar/workspace-store@0.24.5':
+    resolution: {integrity: sha512-/Tjdluku4k8vyELo4LtlMQ+j+keVaI5hO7ghXegtGerNW6nqyS+xUv+icSTjQa1TsrVtW4pjUURTymlG6B4XxQ==}
     engines: {node: '>=18'}
 
   '@schummar/icu-type-parser@1.21.5':
@@ -3677,8 +3677,8 @@ packages:
   '@types/node@20.19.27':
     resolution: {integrity: sha512-N2clP5pJhB2YnZJ3PIHFk5RkygRX5WO/5f0WC08tp0wd+sv0rsJk3MqWn3CbNmT2J505a5336jaQj4ph1AdMug==}
 
-  '@types/node@22.19.5':
-    resolution: {integrity: sha512-HfF8+mYcHPcPypui3w3mvzuIErlNOh2OAG+BCeBZCEwyiD5ls2SiCwEyT47OELtf7M3nHxBdu0FsmzdKxkN52Q==}
+  '@types/node@22.19.6':
+    resolution: {integrity: sha512-qm+G8HuG6hOHQigsi7VGuLjUVu6TtBo/F05zvX04Mw2uCg9Dv0Qxy3Qw7j41SidlTcl5D/5yg0SEZqOB+EqZnQ==}
 
   '@types/node@24.10.4':
     resolution: {integrity: sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg==}
@@ -5594,8 +5594,8 @@ packages:
   forwarded-parse@2.1.2:
     resolution: {integrity: sha512-alTFZZQDKMporBH77856pXgzhEzaUVmLCDk+egLgIgHst3Tpndzz8MnKe+GzRJRfvVdn69HhpW7cmXzvtLvJAw==}
 
-  framer-motion@12.26.1:
-    resolution: {integrity: sha512-Uzc8wGldU4FpmGotthjjcj0SZhigcODjqvKT7lzVZHsmYkzQMFfMIv0vHQoXCeoe/Ahxqp4by4A6QbzFA/lblw==}
+  framer-motion@12.26.2:
+    resolution: {integrity: sha512-lflOQEdjquUi9sCg5Y1LrsZDlsjrHw7m0T9Yedvnk7Bnhqfkc89/Uha10J3CFhkL+TCZVCRw9eUGyM/lyYhXQA==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
@@ -6923,14 +6923,14 @@ packages:
   module-details-from-path@1.0.4:
     resolution: {integrity: sha512-EGWKgxALGMgzvxYF1UyGTy0HXX/2vHLkw6+NvDKW2jypWbHpjQuj4UMcqQWXHERJhVGKikolT06G3bcKe4fi7w==}
 
-  motion-dom@12.24.11:
-    resolution: {integrity: sha512-DlWOmsXMJrV8lzZyd+LKjG2CXULUs++bkq8GZ2Sr0R0RRhs30K2wtY+LKiTjhmJU3W61HK+rB0GLz6XmPvTA1A==}
+  motion-dom@12.26.2:
+    resolution: {integrity: sha512-KLMT1BroY8oKNeliA3JMNJ+nbCIsTKg6hJpDb4jtRAJ7nCKnnpg/LTq/NGqG90Limitz3kdAnAVXecdFVGlWTw==}
 
   motion-utils@12.24.10:
     resolution: {integrity: sha512-x5TFgkCIP4pPsRLpKoI86jv/q8t8FQOiM/0E8QKBzfMozWHfkKap2gA1hOki+B5g3IsBNpxbUnfOum1+dgvYww==}
 
-  motion@12.26.1:
-    resolution: {integrity: sha512-IVhzx9HOQTiJ9ykthMOlZPnLwrkXziN5Q/yebsqBYlFJb2rHP8yhmKc8O/YUT9byPJlxOeqkzfNYCrVKZx8vqg==}
+  motion@12.26.2:
+    resolution: {integrity: sha512-2Q6g0zK1gUJKhGT742DAe42LgietcdiJ3L3OcYAHCQaC1UkLnn6aC8S/obe4CxYTLAgid2asS1QdQ/blYfo5dw==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
@@ -7632,8 +7632,8 @@ packages:
       react: ^19.0.0 || ^18.0.0 || ^17.0.0 || ^16.2.0
       react-dom: ^19.0.0 || ^18.0.0 || ^17.0.0 || ^16.2.0
 
-  react-hook-form@7.71.0:
-    resolution: {integrity: sha512-oFDt/iIFMV9ZfV52waONXzg4xuSlbwKUPvXVH2jumL1me5qFhBMc4knZxuXiZ2+j6h546sYe3ZKJcg/900/iHw==}
+  react-hook-form@7.71.1:
+    resolution: {integrity: sha512-9SUJKCGKo8HUSsCO+y0CtqkqI5nNuaDqTxyqPsZPqIwudpj4rCrAz/jZV+jn57bx5gtZKOh3neQu94DXMc+w5w==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -7683,8 +7683,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@4.4.0:
-    resolution: {integrity: sha512-vGH1rIhyDOL4RSWYTx3eatjDohDFIRxJCAXUOaeL9HyamptUnUezqndjMtBo9hQeaq1CIP0NBbc7ZV3lBtlgxA==}
+  react-resizable-panels@4.4.1:
+    resolution: {integrity: sha512-dpM9oI6rGlAq7VYDeafSRA1JmkJv8aNuKySR+tZLQQLfaeqTnQLSM52EcoI/QdowzsjVUCk6jViKS0xHWITVRQ==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -9420,7 +9420,7 @@ snapshots:
     dependencies:
       hono: 4.10.6
 
-  '@hono/node-server@1.19.8(hono@4.11.4)':
+  '@hono/node-server@1.19.9(hono@4.11.4)':
     dependencies:
       hono: 4.11.4
 
@@ -9437,10 +9437,10 @@ snapshots:
       hono: 4.11.4
       zod: 4.3.5
 
-  '@hookform/resolvers@5.2.2(react-hook-form@7.71.0(react@19.2.3))':
+  '@hookform/resolvers@5.2.2(react-hook-form@7.71.1(react@19.2.3))':
     dependencies:
       '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.71.0(react@19.2.3)
+      react-hook-form: 7.71.1(react@19.2.3)
 
   '@humanfs/core@0.19.1': {}
 
@@ -11343,7 +11343,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@scalar/components@0.16.17(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
+  '@scalar/components@0.16.18(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
     dependencies:
       '@floating-ui/utils': 0.2.10
       '@floating-ui/vue': 1.1.9(vue@3.5.26(typescript@5.9.3))
@@ -11351,7 +11351,7 @@ snapshots:
       '@scalar/code-highlight': 0.2.2
       '@scalar/helpers': 0.2.6
       '@scalar/icons': 0.5.2(typescript@5.9.3)
-      '@scalar/oas-utils': 0.6.14(typescript@5.9.3)
+      '@scalar/oas-utils': 0.6.15(typescript@5.9.3)
       '@scalar/themes': 0.13.26
       '@scalar/use-hooks': 0.3.5(typescript@5.9.3)
       '@vueless/storybook-dark-mode': 10.0.6(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
@@ -11382,7 +11382,7 @@ snapshots:
   '@scalar/icons@0.5.2(typescript@5.9.3)':
     dependencies:
       '@phosphor-icons/core': 2.1.1
-      '@types/node': 22.19.5
+      '@types/node': 22.19.6
       chalk: 5.6.2
       vue: 3.5.26(typescript@5.9.3)
     transitivePeerDependencies:
@@ -11393,7 +11393,7 @@ snapshots:
       '@scalar/helpers': 0.2.6
       yaml: 2.8.2
 
-  '@scalar/oas-utils@0.6.14(typescript@5.9.3)':
+  '@scalar/oas-utils@0.6.15(typescript@5.9.3)':
     dependencies:
       '@scalar/helpers': 0.2.6
       '@scalar/json-magic': 0.8.10
@@ -11401,7 +11401,7 @@ snapshots:
       '@scalar/openapi-types': 0.5.3
       '@scalar/themes': 0.13.26
       '@scalar/types': 0.5.6
-      '@scalar/workspace-store': 0.24.4(typescript@5.9.3)
+      '@scalar/workspace-store': 0.24.5(typescript@5.9.3)
       flatted: 3.3.3
       type-fest: 5.0.0
       yaml: 2.8.2
@@ -11417,7 +11417,7 @@ snapshots:
       just-clone: 6.2.0
       ts-deepmerge: 7.0.3
 
-  '@scalar/openapi-parser@0.23.11':
+  '@scalar/openapi-parser@0.23.12':
     dependencies:
       '@scalar/json-magic': 0.8.10
       '@scalar/openapi-types': 0.5.3
@@ -11429,12 +11429,12 @@ snapshots:
       leven: 4.1.0
       yaml: 2.8.2
 
-  '@scalar/openapi-to-markdown@0.3.17(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
+  '@scalar/openapi-to-markdown@0.3.18(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
     dependencies:
-      '@scalar/components': 0.16.17(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
+      '@scalar/components': 0.16.18(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.7.4)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
       '@scalar/helpers': 0.2.6
-      '@scalar/oas-utils': 0.6.14(typescript@5.9.3)
-      '@scalar/openapi-parser': 0.23.11
+      '@scalar/oas-utils': 0.6.15(typescript@5.9.3)
+      '@scalar/openapi-parser': 0.23.12
       '@scalar/openapi-types': 0.5.3
       '@scalar/openapi-upgrader': 0.1.6
       '@scalar/types': 0.5.6
@@ -11497,7 +11497,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@scalar/workspace-store@0.24.4(typescript@5.9.3)':
+  '@scalar/workspace-store@0.24.5(typescript@5.9.3)':
     dependencies:
       '@scalar/code-highlight': 0.2.2
       '@scalar/helpers': 0.2.6
@@ -12206,7 +12206,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@22.19.5':
+  '@types/node@22.19.6':
     dependencies:
       undici-types: 6.21.0
 
@@ -14319,9 +14319,9 @@ snapshots:
 
   forwarded-parse@2.1.2: {}
 
-  framer-motion@12.26.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  framer-motion@12.26.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
-      motion-dom: 12.24.11
+      motion-dom: 12.26.2
       motion-utils: 12.24.10
       tslib: 2.8.1
     optionalDependencies:
@@ -16147,15 +16147,15 @@ snapshots:
 
   module-details-from-path@1.0.4: {}
 
-  motion-dom@12.24.11:
+  motion-dom@12.26.2:
     dependencies:
       motion-utils: 12.24.10
 
   motion-utils@12.24.10: {}
 
-  motion@12.26.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  motion@12.26.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
-      framer-motion: 12.26.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      framer-motion: 12.26.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       tslib: 2.8.1
     optionalDependencies:
       react: 19.2.3
@@ -16899,7 +16899,7 @@ snapshots:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
 
-  react-hook-form@7.71.0(react@19.2.3):
+  react-hook-form@7.71.1(react@19.2.3):
     dependencies:
       react: 19.2.3
 
@@ -16956,7 +16956,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.8
 
-  react-resizable-panels@4.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  react-resizable-panels@4.4.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
