@@ -2,7 +2,6 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import { Blob, BlobOrigin, BlobStatus } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   blobRepository,
   linkRepository,
@@ -11,6 +10,7 @@ import pLimit from "p-limit";
 
 import { uploadFile } from "@/lib/blob";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
+import prisma from "@/lib/db/prisma";
 import { isHttpUrl } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {
@@ -40,7 +40,7 @@ export const sourceImportService = (() => {
    */
   async function enqueueFromMarkdown(
     userId: string,
-    jobStatusId: string,
+    jobEventId: string,
     markdown: string,
   ): Promise<void> {
     const fileLinks = extractFileLikeLinks(markdown);
@@ -52,10 +52,12 @@ export const sourceImportService = (() => {
         const guessedName = getBasename(url) ?? undefined;
         try {
           await blobRepository.upsertOutputBlob(
-            userId,
-            jobStatusId,
-            url,
-            guessedName,
+            {
+              userId,
+              eventId: jobEventId,
+              sourceUrl: url,
+              fileName: guessedName,
+            },
             tx,
           );
         } catch (error) {
@@ -67,10 +69,12 @@ export const sourceImportService = (() => {
         if (!isHttpUrl(url)) continue;
         try {
           await linkRepository.upsertLink(
-            userId,
-            jobStatusId,
-            url,
-            undefined,
+            {
+              userId,
+              eventId: jobEventId,
+              url,
+              title: undefined,
+            },
             tx,
           );
         } catch (error) {
@@ -124,14 +128,18 @@ export const sourceImportService = (() => {
         type: contentType ?? "application/octet-stream",
       });
       const uploaded = await uploadFile(blob.userId, file);
-      await blobRepository.markBlobReady(blob.id, {
-        fileUrl: uploaded.url,
-        mime: contentType,
-        size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
-        fileName: suggestedName,
-      });
+      await blobRepository.markBlobReady(
+        blob.id,
+        {
+          fileUrl: uploaded.url,
+          mime: contentType,
+          size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
+          fileName: suggestedName,
+        },
+        prisma,
+      );
     } catch {
-      await blobRepository.markBlobFailed(blob.id);
+      await blobRepository.markBlobFailed(blob.id, prisma);
     }
   }
 
@@ -158,7 +166,7 @@ export const sourceImportService = (() => {
    */
   async function importPendingResultBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
-    const pendingBlobs = await blobRepository.getPendingOutputBlobs();
+    const pendingBlobs = await blobRepository.getPendingOutputBlobs({}, prisma);
     const limit = pLimit(5);
     for (const blob of pendingBlobs) {
       pendingPromises.push(limit(() => importResultBlob(blob)));

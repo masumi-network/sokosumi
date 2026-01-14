@@ -1,8 +1,8 @@
 import * as Sentry from "@sentry/node";
-import prisma from "@sokosumi/database/client";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client.js";
+import prisma from "@/lib/db/prisma";
 
 /**
  * Service for managing Stripe customer creation and database persistence.

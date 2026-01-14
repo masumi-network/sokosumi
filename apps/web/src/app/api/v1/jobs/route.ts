@@ -8,6 +8,7 @@ import {
   handleApiError,
   validateApiKey,
 } from "@/lib/api";
+import prisma from "@/lib/db/prisma";
 
 /**
  * List jobs
@@ -33,15 +34,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Get organization context from API key
     const activeOrganizationId = apiKey.metadata?.organizationId;
 
-    const jobs = await jobRepository.getJobs({
-      OR: [
-        ...(activeOrganizationId
-          ? [{ share: { organizationId: activeOrganizationId } }]
-          : []),
-        { userId: apiKey.userId },
-      ],
-      ...(agentIdFilter ? { agentId: agentIdFilter } : {}),
-    });
+    const jobs = await jobRepository.getJobs(
+      {
+        OR: [
+          ...(activeOrganizationId
+            ? [{ share: { organizationId: activeOrganizationId } }]
+            : []),
+          { userId: apiKey.userId },
+        ],
+        ...(agentIdFilter ? { agentId: agentIdFilter } : {}),
+      },
+      prisma,
+    );
 
     // Apply filters
     let filteredJobs = jobs;

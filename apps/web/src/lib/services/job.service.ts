@@ -14,7 +14,6 @@ import {
   Prisma,
   SokosumiJobStatus,
 } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   computeJobStatus,
   getLatestJobEvent,
@@ -39,7 +38,8 @@ import publishJobStatusData from "@/lib/ably/publish";
 import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
-import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
+import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
+import prisma from "@/lib/db/prisma";
 import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
@@ -417,7 +417,7 @@ export const jobService = (() => {
         data: { agentName: agent.name },
       });
 
-      return await anthropicClient.generateJobName(
+      return await openrouterClient.generateJobName(
         { name: agent.name, description: agent.description },
         inputData,
       );
@@ -476,17 +476,20 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
-    const job = await jobRepository.createDemoJob({
-      jobType: JobType.DEMO,
-      agentJobId: uuidv4(),
-      agentId,
-      userId,
-      organizationId: activeOrganizationId,
-      input: JSON.stringify(inputData),
-      inputSchema: inputSchema,
-      name: "Demo Job",
-      result: jobStatusResponse.result,
-    });
+    const job = await jobRepository.createDemoJob(
+      {
+        jobType: JobType.DEMO,
+        agentJobId: uuidv4(),
+        agentId,
+        userId,
+        organizationId: activeOrganizationId,
+        input: JSON.stringify(inputData),
+        inputSchema: inputSchema,
+        name: "Demo Job",
+        result: jobStatusResponse.result,
+      },
+      prisma,
+    );
 
     // Enqueue any sources from demo output
     try {
@@ -691,28 +694,31 @@ export const jobService = (() => {
       },
     });
 
-    const job = await jobRepository.createJob({
-      jobType: JobType.PAID,
-      agentJobId: startJobResponse.id,
-      agentId,
-      userId,
-      organizationId,
-      input: JSON.stringify(inputData),
-      inputHash: startJobResponse.input_hash,
-      inputSchema: inputSchema,
-      creditsPrice: agentWithCreditsPrice.creditsPrice,
-      identifierFromPurchaser,
-      externalDisputeUnlockTime: new Date(
-        startJobResponse.externalDisputeUnlockTime,
-      ),
-      payByTime: new Date(startJobResponse.payByTime),
-      submitResultTime: new Date(startJobResponse.submitResultTime),
-      unlockTime: new Date(startJobResponse.unlockTime),
-      blockchainIdentifier: startJobResponse.blockchainIdentifier,
-      sellerVkey: startJobResponse.sellerVKey,
-      name: generatedName,
-      jobScheduleId,
-    });
+    const job = await jobRepository.createJob(
+      {
+        jobType: JobType.PAID,
+        agentJobId: startJobResponse.id,
+        agentId,
+        userId,
+        organizationId,
+        input: JSON.stringify(inputData),
+        inputHash: startJobResponse.input_hash,
+        inputSchema: inputSchema,
+        creditsPrice: agentWithCreditsPrice.creditsPrice,
+        identifierFromPurchaser,
+        externalDisputeUnlockTime: new Date(
+          startJobResponse.externalDisputeUnlockTime,
+        ),
+        payByTime: new Date(startJobResponse.payByTime),
+        submitResultTime: new Date(startJobResponse.submitResultTime),
+        unlockTime: new Date(startJobResponse.unlockTime),
+        blockchainIdentifier: startJobResponse.blockchainIdentifier,
+        sellerVkey: startJobResponse.sellerVKey,
+        name: generatedName,
+        jobScheduleId,
+      },
+      prisma,
+    );
 
     // Add breadcrumb for purchase creation
     Sentry.addBreadcrumb({
@@ -735,10 +741,13 @@ export const jobService = (() => {
     if (createPurchaseResult.ok) {
       const purchase = createPurchaseResult.data;
       const purchaseData = transformPurchaseToJobUpdate(purchase);
-      await jobPurchaseRepository.createJobPurchase({
-        jobId: job.id,
-        ...purchaseData,
-      });
+      await jobPurchaseRepository.createJobPurchase(
+        {
+          jobId: job.id,
+          ...purchaseData,
+        },
+        prisma,
+      );
 
       // Add breadcrumb for successful purchase creation
       Sentry.addBreadcrumb({
@@ -842,18 +851,21 @@ export const jobService = (() => {
       },
     });
 
-    const job = await jobRepository.createJob({
-      jobType: JobType.FREE,
-      agentJobId: startJobResponse.id,
-      agentId,
-      userId,
-      organizationId,
-      input: JSON.stringify(inputData),
-      inputHash: null,
-      inputSchema: inputSchema,
-      name: generatedName,
-      jobScheduleId,
-    });
+    const job = await jobRepository.createJob(
+      {
+        jobType: JobType.FREE,
+        agentJobId: startJobResponse.id,
+        agentId,
+        userId,
+        organizationId,
+        input: JSON.stringify(inputData),
+        inputHash: null,
+        inputSchema: inputSchema,
+        name: generatedName,
+        jobScheduleId,
+      },
+      prisma,
+    );
 
     await publishJobStatusSafely(job);
 
@@ -1036,12 +1048,15 @@ export const jobService = (() => {
         );
       if (purchaseResult.ok) {
         const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
-        await jobPurchaseRepository.createJobPurchase({
-          jobId: job.id,
-          ...purchaseData,
-        });
+        await jobPurchaseRepository.createJobPurchase(
+          {
+            jobId: job.id,
+            ...purchaseData,
+          },
+          prisma,
+        );
       }
-      job = await jobRepository.getJobById(job.id);
+      job = await jobRepository.getJobById(job.id, prisma);
     }
     if (!job) {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
@@ -1306,7 +1321,7 @@ export const jobService = (() => {
     });
 
     // Get the job and verify ownership
-    const job = await jobRepository.getJobById(jobId);
+    const job = await jobRepository.getJobById(jobId, prisma);
     if (!job || job.userId !== userId) {
       throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
@@ -1315,6 +1330,7 @@ export const jobService = (() => {
       await jobEventRepository.getAwaitingInputJobEventByJobIdAndExternalId(
         jobId,
         statusId,
+        prisma,
       );
     if (!jobEvent) {
       throw new JobError(

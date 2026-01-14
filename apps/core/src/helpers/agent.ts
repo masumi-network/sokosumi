@@ -1,10 +1,10 @@
 import {
   type Agent,
+  AgentStatus,
   type CreditCost,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -12,19 +12,12 @@ import {
 } from "@sokosumi/database/helpers";
 
 import { CREDIT, TIME } from "@/config/constants";
+import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
-import {
-  getAgentLegalFromAgent,
-  getAuthorFromAgent,
-  type RatingMetrics,
-} from "@/schemas/agent.schema";
-import type {
-  AgentWithJobsCount,
-  AgentWithOrganizations,
-  AgentWithPricing,
-} from "@/types/agent";
+import { type RatingMetrics } from "@/schemas/agent.schema";
+import type { AgentWithPricing } from "@/types/agent";
 
-import { internalServerError } from "./error";
+import { internalServerError, unprocessableEntity } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
 
 export const getAgentImage = (agent: Agent): string | null => {
@@ -33,6 +26,14 @@ export const getAgentImage = (agent: Agent): string | null => {
     return null;
   }
   return ipfsUrlResolver(image);
+};
+
+export const getAgentName = (agent: Agent): string => {
+  return agent.overrideName ?? agent.name;
+};
+
+export const getAgentDescription = (agent: Agent): string | null => {
+  return agent.overrideDescription ?? agent.description;
 };
 
 export const getAgentAuthorImage = (agent: Agent): string | null => {
@@ -73,89 +74,121 @@ export const getAgentAccessContext = async (
 };
 
 /**
- * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
+ * Builds a Prisma where clause for filtering agents based on user access and valid pricing.
  *
- * Blacklist behavior:
- * - When viewing in an organization context (activeOrganizationId present), that organization's
- *   blacklist is enforced, hiding agents they've explicitly blocked.
- * - When viewing in personal context (activeOrganizationId is null), no blacklists apply.
- * - Users in multiple organizations see different agents depending on their active context.
+ * Access rules:
+ * - Only shows agents with status ONLINE and isShown: true
+ * - Blacklist: Only enforced when activeOrganizationId is present (organization context)
+ *   - Personal context (null) is not affected by organizational blacklist decisions
+ * - Organization access:
+ *   - Public agents (no organizations) are always accessible
+ *   - If user has no organizations, only public agents are shown
+ *   - If user has organizations, shows public agents OR agents with overlapping organizations
  *
- * @param agent - Agent with organization and blacklist data.
- * @param userOrganizationIds - Organization IDs the user is a member of.
- * @param activeOrganizationId - The currently active organization ID, or null for personal context.
- * @returns True if the user can access the agent, false otherwise.
+ * Pricing validation rules:
+ * - Exclude agents with pricingType UNKNOWN
+ * - For FIXED pricing: require fixedPricing exists and has non-empty amounts
+ * - For FIXED pricing: ensure all amount units exist in CreditCost table
+ * - FREE pricing is always valid (no additional validation needed)
+ *
+ * @param userOrganizationIds - Organization IDs the user is a member of
+ * @param activeOrganizationId - The currently active organization ID, or null for personal context
+ * @param creditCosts - Array of credit costs to validate pricing units against
+ * @returns Prisma where clause for agent queries
  */
-export const canUserAccessAgent = (
-  agent: AgentWithOrganizations,
+export const buildAgentAccessWhereClause = (
   userOrganizationIds: string[],
   activeOrganizationId: string | null,
-): boolean => {
-  // Blacklist: only enforce when organization scope is active
-  // Personal context (null) is not affected by organizational blacklist decisions
-  if (activeOrganizationId) {
-    const isBlacklisted = agent.blacklistedOrganizations.some(
-      ({ id }) => id === activeOrganizationId,
-    );
-    if (isBlacklisted) return false;
-  }
-
-  // Visibility: deny if agent is not shown
-  if (!agent.isShown) return false;
-  if (agent.organizations.length === 0) return true;
-  if (userOrganizationIds.length === 0) return false;
-  return agent.organizations.some((agentOrg) =>
-    userOrganizationIds.includes(agentOrg.id),
-  );
-};
-
-/**
- * Validates an agent's credits.
- * @param agent - The agent with pricing.
- * @param creditCosts - The credit costs.
- * @returns The agent with credits, or null if credits calculation fails.
- */
-export const validateAgentCredits = (
-  agent: AgentWithPricing & AgentWithOrganizations & AgentWithJobsCount,
   creditCosts: CreditCost[],
-) => {
-  const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
-  const credits = calculateAgentCredits(agent, creditCosts, minFeeCents);
+): Prisma.AgentWhereInput => {
+  const organizationFilter =
+    userOrganizationIds.length === 0
+      ? [{ organizations: { none: {} } }]
+      : [
+          { organizations: { none: {} } },
+          {
+            organizations: {
+              some: {
+                id: { in: userOrganizationIds },
+              },
+            },
+          },
+        ];
 
-  if (credits === null) {
-    return null;
-  }
+  const validUnits = creditCosts.map((c) => c.unit);
+
+  const pricingFilter = {
+    pricingType: { not: PricingType.UNKNOWN },
+    OR: [
+      { pricingType: PricingType.FREE },
+      {
+        pricingType: PricingType.FIXED,
+        fixedPricing: {
+          amounts: {
+            every: {
+              unit: { in: validUnits },
+            },
+          },
+        },
+      },
+    ],
+  };
 
   return {
-    ...agent,
-    name: agent.overrideName ?? agent.name,
-    image: getAgentImage(agent),
-    description: agent.overrideDescription ?? agent.description,
-    author: getAuthorFromAgent(agent),
-    legal: getAgentLegalFromAgent(agent),
-    credits,
+    status: AgentStatus.ONLINE,
+    isShown: true,
+    ...(activeOrganizationId && {
+      NOT: {
+        blacklistedOrganizations: {
+          some: {
+            id: activeOrganizationId,
+          },
+        },
+      },
+    }),
+    OR: organizationFilter,
+    pricing: pricingFilter,
   };
 };
 
+export interface AgentCost {
+  cents: bigint;
+  includedFee: bigint;
+}
+
 /**
- * This function calculates the credits for an agent.
+ * Gets an agent's cost.
+ * @param agent - The agent with pricing.
+ * @param creditCosts - The credit costs.
+ * @returns The cost for the agent.
+ */
+export const getAgentCost = (
+  agent: AgentWithPricing,
+  creditCosts: CreditCost[],
+): AgentCost => {
+  const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
+  return calculateAgentCost(agent, creditCosts, minFeeCents);
+};
+
+/**
+ * This function calculates the cost for an agent.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
  * @param minFeeCents - The minimum fee cents.
- * @returns The credits for the agent or null if the agent has invalid or unknown pricing.
+ * @returns The cost for the agent.
  */
-const calculateAgentCredits = (
+const calculateAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
   minFeeCents: bigint,
-): number | null => {
+): AgentCost => {
   switch (agent.pricing.pricingType) {
     case PricingType.FIXED: {
       if (
         !agent.pricing.fixedPricing ||
         agent.pricing.fixedPricing.amounts.length === 0
       ) {
-        return null;
+        throw unprocessableEntity("Agent has invalid or unknown pricing");
       }
       const pricing = agent.pricing.fixedPricing.amounts.map((amount) => ({
         unit: amount.unit,
@@ -169,7 +202,9 @@ const calculateAgentCredits = (
           (creditCost) => creditCost.unit === amount.unit,
         );
         if (!creditCost) {
-          return null;
+          throw unprocessableEntity(
+            `Credit cost not found for unit ${amount.unit}`,
+          );
         }
         const cents = amount.amount * creditCost.centsPerUnit;
         const fee = feeFromCentsBasedOnPercentagePoints(
@@ -187,13 +222,13 @@ const calculateAgentCredits = (
         totalCents,
         totalFee,
       );
-      return convertCentsToCredits(totalCentsWithFee);
+      return { cents: totalCentsWithFee, includedFee: totalFee };
     }
     case PricingType.FREE: {
-      return 0;
+      return { cents: BigInt(0), includedFee: BigInt(0) };
     }
     case PricingType.UNKNOWN: {
-      return null;
+      throw unprocessableEntity("Agent has invalid or unknown pricing");
     }
   }
 };

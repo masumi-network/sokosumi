@@ -3,6 +3,7 @@ import "server-only";
 import { categoryRepository } from "@sokosumi/database/repositories";
 
 import { SYNTHETIC_DEFAULT_CATEGORY } from "@/lib/constants/agent-categories";
+import prisma from "@/lib/db/prisma";
 import type { Category } from "@/lib/types/category";
 
 export const categoryService = (() => {
@@ -14,7 +15,7 @@ export const categoryService = (() => {
   async function getValidCategories(): Promise<Category[]> {
     try {
       const categories =
-        await categoryRepository.getCategoriesForAvailableAgents();
+        await categoryRepository.getCategoriesForAvailableAgents(prisma);
 
       const mappedCategories = categories.map(
         (category): Category =>

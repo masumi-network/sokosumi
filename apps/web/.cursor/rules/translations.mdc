@@ -1,0 +1,141 @@
+---
+description: Translation cleanup rules for next-intl
+globs: *.tsx, *.ts, messages/*.json
+alwaysApply: true
+---
+
+# Translation Cleanup Rules
+
+## Overview
+
+When code that uses translations is deleted or modified, you must check for and remove unused translation keys from `messages/en.json`. This prevents orphaned translation keys from accumulating in the codebase.
+
+## Translation Usage Patterns
+
+Translations are accessed via the `useTranslations()` hook:
+
+```typescript
+const t = useTranslations('Components.CookieConsent');
+return <h1>{t('title')}</h1>; // Uses "Components.CookieConsent.title"
+```
+
+Or with nested paths:
+```typescript
+const t = useTranslations('Components');
+return <h1>{t('CookieConsent.title')}</h1>; // Uses "Components.CookieConsent.title"
+```
+
+## Cleanup Process
+
+### When Code is Deleted
+
+1. **Identify deleted translation usage**:
+   - Search for `useTranslations(` calls in deleted code
+   - Identify all `t('key')` or `t('nested.key')` calls
+   - Map these to full translation keys in `messages/en.json`
+
+2. **Check if keys are still used**:
+   - Search the entire codebase for remaining usage of each translation key
+   - Check both the full key path and any parent/child keys
+   - Example: If deleting `Components.CookieConsent.title`, search for:
+     - `"CookieConsent.title"` (with namespace `Components`)
+     - `"Components.CookieConsent.title"` (full path)
+     - Any usage in `useTranslations('Components')` with `t('CookieConsent.title')`
+
+3. **Remove unused keys**:
+   - If a key is no longer used anywhere, remove it from `messages/en.json`
+   - Remove empty parent objects if all children are deleted
+   - Preserve JSON structure and formatting
+
+### Key Search Patterns
+
+When checking if a key is used, search for:
+
+```typescript
+// Pattern 1: useTranslations with namespace
+useTranslations('Components.CookieConsent')
+t('title') // → "Components.CookieConsent.title"
+
+// Pattern 2: useTranslations with parent namespace
+useTranslations('Components')
+t('CookieConsent.title') // → "Components.CookieConsent.title"
+
+// Pattern 3: Direct string references (less common)
+'Components.CookieConsent.title'
+```
+
+### Example Cleanup
+
+**Before deletion:**
+```typescript
+// src/components/cookie-consent.tsx
+const t = useTranslations('Components.CookieConsent');
+return <div>{t('title')}</div>; // Uses "Components.CookieConsent.title"
+```
+
+**After deletion:**
+1. Search codebase for `Components.CookieConsent.title` → No matches found
+2. Search for `CookieConsent.title` with `Components` namespace → No matches
+3. Remove from `messages/en.json`:
+   ```json
+   {
+     "Components": {
+       "CookieConsent": {
+         "title": "We use cookies",  // ← Remove this
+         "description": "...",        // ← Check if still used
+         "accept": "Accept"           // ← Check if still used
+       }
+     }
+   }
+   ```
+
+4. If entire `CookieConsent` object is unused, remove it:
+   ```json
+   {
+     "Components": {
+       // CookieConsent removed entirely
+     }
+   }
+   ```
+
+5. If `Components` becomes empty, consider removing it (unless other components use it)
+
+## Rules
+
+### ✅ DO
+
+- Always check for unused translations when deleting code
+- Search the entire codebase before removing keys
+- Remove empty parent objects after removing all children
+- Preserve JSON formatting and indentation
+- Handle nested keys correctly (check both full path and namespace + key patterns)
+
+### ❌ DON'T
+
+- Remove keys without verifying they're unused
+- Remove parent objects that still have used children
+- Break JSON structure when removing keys
+- Remove keys that are used in other files
+
+## Verification
+
+After removing translation keys:
+
+1. Verify JSON is still valid: `cat messages/en.json | jq .` (should not error)
+2. Check that no broken references exist in code
+3. Ensure the file is properly formatted (run `pnpm web:format`)
+
+## Tools
+
+You can use these commands to help identify unused keys:
+
+```bash
+# Find all translation usages in code
+grep -r "useTranslations" apps/web/src --include="*.tsx" --include="*.ts"
+
+# Check if a specific key exists in JSON
+jq 'has("Components.CookieConsent.title")' messages/en.json
+
+# List all keys in JSON (for reference)
+jq -r 'paths(scalars) as $p | $p | join(".")' messages/en.json
+```

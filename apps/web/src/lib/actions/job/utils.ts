@@ -4,6 +4,7 @@ import { blobRepository } from "@sokosumi/database/repositories";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 
 import { uploadFile } from "@/lib/blob";
+import prisma from "@/lib/db/prisma";
 
 export interface UploadedFileWithMeta {
   url: string;
@@ -70,11 +71,14 @@ export async function saveUploadedFilesForEventId(
 ) {
   for (const file of files) {
     await blobRepository.createInputBlobForEvent(
-      userId,
-      eventId,
-      file.url,
-      file.fileName,
-      BigInt(file.size),
+      {
+        userId,
+        eventId,
+        fileUrl: file.url,
+        fileName: file.fileName,
+        size: BigInt(file.size),
+      },
+      prisma,
     );
   }
 }

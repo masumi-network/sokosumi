@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { JobInput, Prisma } from "../generated/prisma/client.js";
 
 interface CreateJobInputData {
@@ -15,7 +14,7 @@ export const jobInputRepository = {
   async createJobInputForEventId(
     eventId: string,
     data: CreateJobInputData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobInput> {
     return await tx.jobInput.create({
       data: {
@@ -32,7 +31,7 @@ export const jobInputRepository = {
    */
   async getJobInputById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobInput | null> {
     return await tx.jobInput.findUnique({
       where: { id },
@@ -44,7 +43,7 @@ export const jobInputRepository = {
    */
   async getJobInputByIdWithRelations(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobInput | null> {
     return await tx.jobInput.findUnique({
       where: { id },
@@ -64,7 +63,7 @@ export const jobInputRepository = {
    */
   async getJobInputByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobInput | null> {
     return await tx.jobInput.findFirst({
       where: { event: { jobId } },
@@ -77,7 +76,7 @@ export const jobInputRepository = {
    */
   async getJobInputByJobIdWithRelations(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobInput | null> {
     return await tx.jobInput.findFirst({
       where: { event: { jobId } },

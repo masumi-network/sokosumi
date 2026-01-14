@@ -6,6 +6,7 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { jobService, lockService } from "@/lib/services";
 
 const LOCK_KEY = "jobs-sync";
@@ -52,7 +53,7 @@ async function jobSync(): Promise<Response> {
       console.error("Error in sync operation:", error);
     } finally {
       try {
-        await lockRepository.unlockByKey(lock.key);
+        await lockRepository.unlockByKey(lock.key, prisma);
       } catch (error) {
         console.error("Failed to unlock lock:", error);
       }
@@ -65,7 +66,7 @@ async function jobSync(): Promise<Response> {
 async function syncAllJobs(): Promise<void> {
   const runningDbUpdates: Promise<void>[] = [];
 
-  const jobs = await jobRepository.getJobsNotFinished();
+  const jobs = await jobRepository.getJobsNotFinished(prisma);
 
   console.info("Syncing", jobs.length, "jobs");
   // Process 5 jobs at a time

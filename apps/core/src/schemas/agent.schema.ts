@@ -54,7 +54,10 @@ export const authorSchema = z.object({
     .string()
     .nullable()
     .openapi({ example: "https://example.com/image.png" }),
-  organization: z.string().nullable().openapi({ example: "John Doe" }),
+  organization: z
+    .string()
+    .nullable()
+    .openapi({ example: "John Doe's Organization" }),
   email: z
     .preprocess((val) => {
       if (val === null || val === undefined || val === "") return null;

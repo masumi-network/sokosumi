@@ -12,6 +12,7 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import { getAuthContext } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { agentService } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -41,11 +42,11 @@ export default async function AgentDetailPage({
     distribution,
     ratingsWithComments,
   ] = await Promise.all([
-    jobRepository.getExecutedJobsCountByAgentId(agentId),
-    jobRepository.getAverageExecutionDurationByAgentId(agentId),
+    jobRepository.getExecutedJobsCountByAgentId(agentId, prisma),
+    jobRepository.getAverageExecutionDurationByAgentId(agentId, prisma),
     agentService.getAgentRatingStats(agentId),
-    agentRatingRepository.getRatingDistribution(agentId),
-    agentRatingRepository.getRatingsByAgentId(agentId, 10, 0, true),
+    agentRatingRepository.getRatingDistribution(agentId, prisma),
+    agentRatingRepository.getRatingsByAgentId(agentId, 10, 0, true, prisma),
   ]);
 
   // Check if user can rate this agent and get existing rating

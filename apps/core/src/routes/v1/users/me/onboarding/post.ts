@@ -1,8 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { userOnboardingResponseSchema } from "@/schemas/user.schema";
 

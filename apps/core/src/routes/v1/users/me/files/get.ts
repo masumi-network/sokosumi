@@ -1,9 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { BlobOrigin, BlobStatus } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { filesSchema } from "@/schemas/file.schema";
 import { blobWithJobIdInclude, flattenBlobJobId } from "@/types/blob";

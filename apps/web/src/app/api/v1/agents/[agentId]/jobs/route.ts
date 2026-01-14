@@ -18,6 +18,7 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { getAuthContext } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { flattenInputs } from "@/lib/schemas/job";
 import { agentService } from "@/lib/services";
 
@@ -54,15 +55,18 @@ export async function GET(
     // Get organization context from session (works for both regular sessions and API keys)
     const activeOrganizationId = apiKey.metadata?.organizationId;
 
-    const jobs = await jobRepository.getJobs({
-      agentId,
-      OR: [
-        ...(activeOrganizationId
-          ? [{ share: { organizationId: activeOrganizationId } }]
-          : []),
-        { userId: apiKey.userId },
-      ],
-    });
+    const jobs = await jobRepository.getJobs(
+      {
+        agentId,
+        OR: [
+          ...(activeOrganizationId
+            ? [{ share: { organizationId: activeOrganizationId } }]
+            : []),
+          { userId: apiKey.userId },
+        ],
+      },
+      prisma,
+    );
 
     // Format all jobs
     const formattedJobs = jobs.map((job) => formatJobResponse(job));
@@ -146,7 +150,7 @@ export async function POST(
     }
 
     // Get the created job and return it
-    let createdJob = await jobRepository.getJobById(result.data.jobId);
+    let createdJob = await jobRepository.getJobById(result.data.jobId, prisma);
     if (!createdJob) {
       throw new Error("JOB_NOT_FOUND");
     }
@@ -156,9 +160,13 @@ export async function POST(
       await jobRepository.updateJobNameById(
         createdJob.id,
         validatedData.name.trim(),
+        prisma,
       );
       // Refetch the job with updated name
-      const updatedJob = await jobRepository.getJobById(result.data.jobId);
+      const updatedJob = await jobRepository.getJobById(
+        result.data.jobId,
+        prisma,
+      );
       if (updatedJob) {
         createdJob = updatedJob;
       }
@@ -175,7 +183,10 @@ export async function POST(
         console.error("Failed to share job", publicShareResult.error);
       }
       // Refetch the job
-      const sharedJob = await jobRepository.getJobById(result.data.jobId);
+      const sharedJob = await jobRepository.getJobById(
+        result.data.jobId,
+        prisma,
+      );
       if (sharedJob) {
         createdJob = sharedJob;
       }
@@ -191,7 +202,10 @@ export async function POST(
         console.error("Failed to share job", organizationShareResult.error);
       }
       // Refetch the job
-      const sharedJob = await jobRepository.getJobById(result.data.jobId);
+      const sharedJob = await jobRepository.getJobById(
+        result.data.jobId,
+        prisma,
+      );
       if (sharedJob) {
         createdJob = sharedJob;
       }

@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { Prisma, User } from "../generated/prisma/client.js";
 
 /**
@@ -15,7 +14,7 @@ export const userRepository = {
    */
   getUserById: async (
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User | null> => {
     return tx.user.findUnique({ where: { id } });
   },
@@ -29,7 +28,7 @@ export const userRepository = {
    */
   getUserByEmail: async (
     email: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User | null> => {
     return tx.user.findUnique({ where: { email } });
   },
@@ -45,7 +44,7 @@ export const userRepository = {
   setUserStripeCustomerId: async (
     userId: string,
     stripeCustomerId: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User> => {
     return tx.user.update({
       where: { id: userId },
@@ -62,7 +61,7 @@ export const userRepository = {
    */
   getUserByStripeCustomerId: async (
     stripeCustomerId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User | null> => {
     return tx.user.findUnique({
       where: { stripeCustomerId },
@@ -76,7 +75,7 @@ export const userRepository = {
    * @returns A promise that resolves to an array of User objects without Stripe customer IDs.
    */
   getUsersWithoutStripeCustomerId: async (
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User[]> => {
     return tx.user.findMany({
       where: {
@@ -96,7 +95,7 @@ export const userRepository = {
   updateTermsAccepted: async (
     userId: string,
     termsAccepted: boolean,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User> => {
     return tx.user.update({ where: { id: userId }, data: { termsAccepted } });
   },
@@ -112,7 +111,7 @@ export const userRepository = {
   updateMarketingOptIn: async (
     userId: string,
     marketingOptIn: boolean,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User> => {
     return tx.user.update({ where: { id: userId }, data: { marketingOptIn } });
   },
@@ -128,7 +127,7 @@ export const userRepository = {
   updateUserOnboardingCompleted: async (
     userId: string,
     onboardingCompleted: boolean,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<User> => {
     return tx.user.update({
       where: { id: userId },
