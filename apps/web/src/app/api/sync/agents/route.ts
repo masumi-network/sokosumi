@@ -21,7 +21,7 @@ import {
 import { registryClient } from "@/lib/clients/masumi-registry.client";
 import prisma from "@/lib/db/prisma";
 import { lockService } from "@/lib/services";
-import { emptyStringToNull } from "@/lib/utils";
+import { emptyStringToNull, getNetworkFromEnv } from "@/lib/utils";
 
 const LOCK_KEY = "agents-sync";
 const SYNC_METADATA_KEY = "agents-sync-metadata";
@@ -202,6 +202,7 @@ async function syncAllEntries() {
           where: { blockchainIdentifier: entry.agentIdentifier },
           create: {
             blockchainIdentifier: entry.agentIdentifier,
+            network: getNetworkFromEnv(),
             name: entry.name,
             description: emptyStringToNull(entry.description),
             apiBaseUrl: entry.apiBaseUrl,
