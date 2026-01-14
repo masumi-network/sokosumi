@@ -481,7 +481,7 @@ export const jobService = (() => {
 
     const job = await jobRepository.createDemoJob(
       {
-        network: getNetworkFromEnv(),
+        network: agent.network,
         jobType: JobType.DEMO,
         agentJobId: uuidv4(),
         agentId,
@@ -700,7 +700,7 @@ export const jobService = (() => {
 
     const job = await jobRepository.createJob(
       {
-        network: getNetworkFromEnv(),
+        network: agent.network,
         jobType: JobType.PAID,
         agentJobId: startJobResponse.id,
         agentId,
@@ -858,7 +858,7 @@ export const jobService = (() => {
 
     const job = await jobRepository.createJob(
       {
-        network: getNetworkFromEnv(),
+        network: agent.network,
         jobType: JobType.FREE,
         agentJobId: startJobResponse.id,
         agentId,
