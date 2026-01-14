@@ -230,6 +230,7 @@ export const agentService = (() => {
         const onlineAgents =
           await agentRepository.getShownAgentsWithRelationsByStatus(
             AgentStatus.ONLINE,
+            getNetworkFromEnv(),
             tx,
           );
         return onlineAgents.filter((agent) =>
@@ -259,6 +260,7 @@ export const agentService = (() => {
       const agent = await agentRepository.getShownAgentWithRelationById(
         agentId,
         AgentStatus.ONLINE,
+        getNetworkFromEnv(),
         tx,
       );
       if (!agent) return null;
@@ -348,6 +350,7 @@ export const agentService = (() => {
         await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
           context.userId,
           context.organizationId,
+          getNetworkFromEnv(),
           prisma,
         );
       return hiredAgentsWithJobs.sort((a, b) => {
