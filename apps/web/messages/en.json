@@ -1102,6 +1102,19 @@
           "edit": "Edit",
           "delete": "Delete"
         }
+      },
+      "NewTask": {
+        "title": "New Task",
+        "details": "Details",
+        "detailsDescription": "Briefly explain the task that needs to be done",
+        "descriptionPlaceholder": "Enter task details...",
+        "orchestrator": "Orchestrator",
+        "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
+        "tag": "Tag",
+        "uploadFile": "Upload File",
+        "recentlyViewedFiles": "Recently Viewed Files",
+        "saveDraft": "Save Draft",
+        "cancel": "Cancel"
       }
     },
     "Error": {
