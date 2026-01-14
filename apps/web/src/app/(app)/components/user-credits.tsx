@@ -9,6 +9,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { Session } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services/user.service";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 import BuyCreditsButton from "./buy-credits-button";
 import UserAvatar from "./user-avatar";
@@ -38,6 +39,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   if (activeOrganization) {
     const cents = await creditTransactionRepository.getCentsByOrganizationId(
       activeOrganization.id,
+      getNetworkFromEnv(),
       prisma,
     );
     credits = convertCentsToCredits(cents);
@@ -48,6 +50,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   } else {
     const cents = await creditTransactionRepository.getCentsByUserId(
       user.id,
+      getNetworkFromEnv(),
       prisma,
     );
     credits = convertCentsToCredits(cents);
