@@ -481,6 +481,7 @@ export const jobService = (() => {
 
     const job = await jobRepository.createDemoJob(
       {
+        network: getNetworkFromEnv(),
         jobType: JobType.DEMO,
         agentJobId: uuidv4(),
         agentId,
