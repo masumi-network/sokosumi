@@ -56,10 +56,41 @@ async function main() {
     `Updated ${fiatTransactionResult} fiat transactions to network ${networkValue}`,
   );
 
+  // Update CreditTransaction table
+  const creditTransactionResult = await prisma.$executeRaw`
+    UPDATE "CreditTransaction"
+    SET "network" = ${networkValue}::"Network"
+    WHERE "network" IS NULL OR "network" != ${networkValue}::"Network"
+    `;
+  console.log(
+    `Updated ${creditTransactionResult} credit transactions to network ${networkValue}`,
+  );
+
+  // Update JobSchedule table
+  const jobScheduleResult = await prisma.$executeRaw`
+    UPDATE "jobSchedule"
+    SET "network" = ${networkValue}::"Network"
+    WHERE "network" IS NULL OR "network" != ${networkValue}::"Network"
+    `;
+  console.log(
+    `Updated ${jobScheduleResult} job schedules to network ${networkValue}`,
+  );
+
+  // Update Job table (optional, but recommended for consistency)
+  const jobResult = await prisma.$executeRaw`
+    UPDATE "Job"
+    SET "network" = ${networkValue}::"Network"
+    WHERE "network" IS NULL
+    `;
+  console.log(`Updated ${jobResult} jobs to network ${networkValue}`);
+
   const totalUpdated =
     Number(agentResult) +
     Number(creditCostResult) +
-    Number(fiatTransactionResult);
+    Number(fiatTransactionResult) +
+    Number(creditTransactionResult) +
+    Number(jobScheduleResult) +
+    Number(jobResult);
   console.log(`\n✅ Migration complete: Updated ${totalUpdated} total records`);
 }
 
