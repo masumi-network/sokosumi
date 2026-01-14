@@ -114,14 +114,14 @@ import { getUser } from "../services/user";
 
 ## App-Specific Commands
 
-| Command          | Purpose                  |
-| ---------------- | ------------------------ |
-| `pnpm web:dev`   | Start development server |
-| `pnpm web:build` | Build for production     |
-| `pnpm web:start` | Test production build    |
-| `pnpm web:lint`  | Lint web app             |
-| `pnpm web:test`  | Run web app tests        |
-| `pnpm web:format`| Format code with Prettier|
+| Command           | Purpose                   |
+| ----------------- | ------------------------- |
+| `pnpm web:dev`    | Start development server  |
+| `pnpm web:build`  | Build for production      |
+| `pnpm web:start`  | Test production build     |
+| `pnpm web:lint`   | Lint web app              |
+| `pnpm web:test`   | Run web app tests         |
+| `pnpm web:format` | Format code with Prettier |
 
 ## App-Specific Testing
 
@@ -210,6 +210,29 @@ export function MyComponent() {
   return <h1>{t('title')}</h1>;
 }
 ```
+
+## Browser Automation
+
+Use `agent-browser` for web automation. Run `agent-browser --help` for all commands.
+
+Core workflow:
+
+1. `agent-browser open <url>` - Navigate to page
+2. `agent-browser snapshot -i` - Get interactive elements with refs (@e1, @e2)
+3. `agent-browser click @e1` / `fill @e2 "text"` - Interact using refs
+4. Re-snapshot after page changes
+
+## Additional Rules
+
+- [Analysis Process](.cursor/rules/analysis-process.mdc)
+- [Interface](.cursor/rules/interface.mdc)
+- [Key Conventions](.cursor/rules/key-convention.mdc)
+- [Key Principles](.cursor/rules/key-principles.mdc)
+- [Linting](.cursor/rules/lint.mdc)
+- [Naming Convention](.cursor/rules/naming-convention.mdc)
+- [Optimization](.cursor/rules/optimization.mdc)
+- [Translations](.cursor/rules/translations.mdc)
+- [TypeScript](.cursor/rules/typescript.mdc)
 
 ## References
 

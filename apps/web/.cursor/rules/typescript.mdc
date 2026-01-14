@@ -1,6 +1,8 @@
 ---
-description: TypeScript Usage
-globs: *.tsx, *.ts
+description: "TypeScript Usage"
+globs:
+  - "*.tsx"
+  - "*.ts"
 alwaysApply: false
 ---
 - Use TypeScript for all code; prefer interfaces over types.

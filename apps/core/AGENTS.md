@@ -435,10 +435,13 @@ const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 - Files are scoped to users and jobs
 - Always verify user ownership before returning file data
 
+## Additional Rules
+
+- [Responses](.cursor/rules/responses.mdc)
+
 ## References
 
 - [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines
-- [Response Guidelines](.cursor/rules/responses.mdc) - Response helper documentation
 - [Hono Documentation](https://hono.dev/)
 - [Hono Node.js Server](https://hono.dev/getting-started/nodejs)
 - [Better Auth Hono Integration](https://www.better-auth.com/docs/integrations/hono#middleware)

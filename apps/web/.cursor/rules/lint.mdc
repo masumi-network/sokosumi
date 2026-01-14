@@ -1,6 +1,8 @@
 ---
-description: Web App Linting and Formatting
-globs: *.tsx, *.ts
+description: "Web App Linting and Formatting"
+globs:
+  - "*.tsx"
+  - "*.ts"
 alwaysApply: true
 ---
 

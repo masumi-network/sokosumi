@@ -1,6 +1,5 @@
 ---
-description: Linting and Formatting Rules
-globs:
+description: "Linting and Formatting Rules"
 alwaysApply: true
 ---
 
