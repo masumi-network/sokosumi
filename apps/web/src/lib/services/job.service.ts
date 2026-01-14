@@ -60,6 +60,7 @@ import {
   jobStatusToAgentJobStatus,
   transformPurchaseToJobUpdate,
 } from "@/lib/utils/job-transformers";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 import { agentService } from "./agent.service";
 import { sourceImportService } from "./source-import.service";
@@ -125,6 +126,7 @@ export const jobService = (() => {
   ): Promise<void> => {
     const centsBalance = await creditTransactionRepository.getCentsByUserId(
       userId,
+      getNetworkFromEnv(),
       tx,
     );
     if (centsBalance - cents < BigInt(0)) {
@@ -387,6 +389,7 @@ export const jobService = (() => {
     const centsBalance =
       await creditTransactionRepository.getCentsByOrganizationId(
         organizationId,
+        getNetworkFromEnv(),
         tx,
       );
     if (centsBalance - cents < BigInt(0)) {
@@ -696,6 +699,7 @@ export const jobService = (() => {
 
     const job = await jobRepository.createJob(
       {
+        network: getNetworkFromEnv(),
         jobType: JobType.PAID,
         agentJobId: startJobResponse.id,
         agentId,
@@ -853,6 +857,7 @@ export const jobService = (() => {
 
     const job = await jobRepository.createJob(
       {
+        network: getNetworkFromEnv(),
         jobType: JobType.FREE,
         agentJobId: startJobResponse.id,
         agentId,
@@ -1001,6 +1006,7 @@ export const jobService = (() => {
 
       const job = await jobRepository.getJobByBlockchainIdentifier(
         jobBlockchainIdentifier,
+        getNetworkFromEnv(),
         tx,
       );
       if (!job) {
