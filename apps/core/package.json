@@ -25,7 +25,7 @@
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.12",
     "@better-auth/utils": "0.3.0",
-    "@hono/node-server": "1.19.8",
+    "@hono/node-server": "1.19.9",
     "@hono/zod-openapi": "1.2.0",
     "@openrouter/ai-sdk-provider": "1.5.4",
     "@scalar/hono-api-reference": "0.9.32",
