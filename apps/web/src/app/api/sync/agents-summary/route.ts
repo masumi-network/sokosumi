@@ -12,6 +12,7 @@ import { openrouterClient } from "@/lib/clients";
 import prisma from "@/lib/db/prisma";
 import { getAgentDescription } from "@/lib/helpers/agent";
 import { lockService } from "@/lib/services";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 const LOCK_KEY = "agents-summary-sync";
 
@@ -71,7 +72,11 @@ async function agentSummarySync() {
 async function syncAgentSummaries() {
   const limit = 20;
   const agentsWithoutSummary =
-    await agentRepository.getAvailableAgentsWithoutSummary(limit, prisma);
+    await agentRepository.getAvailableAgentsWithoutSummary(
+      limit,
+      getNetworkFromEnv(),
+      prisma,
+    );
 
   for (const agent of agentsWithoutSummary) {
     const description = getAgentDescription(agent);
