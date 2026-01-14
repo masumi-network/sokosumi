@@ -199,7 +199,12 @@ async function syncAllEntries() {
           entry.AgentPricing,
         );
         await prisma.agent.upsert({
-          where: { blockchainIdentifier: entry.agentIdentifier },
+          where: {
+            blockchainIdentifier_network: {
+              blockchainIdentifier: entry.agentIdentifier,
+              network: getNetworkFromEnv(),
+            },
+          },
           create: {
             blockchainIdentifier: entry.agentIdentifier,
             network: getNetworkFromEnv(),
