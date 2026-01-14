@@ -12,7 +12,7 @@ const prisma = createPrismaClient(process.env.DATABASE_URL);
  * - PREPROD
  *
  * @example
- * DATABASE_URL="your_database_url" NETWORK_MIGRATION_VALUE=PREPROD pnpm exec tsx prisma/migrations/20260114203950_add_network_fields/data-migration.js
+ * DATABASE_URL="your_database_url" NETWORK_MIGRATION_VALUE=PREPROD pnpm exec tsx prisma/migrations/20260114213115_add_network_fields/data-migration.js
  */
 async function main() {
   // Get network value from environment or default to MAINNET
