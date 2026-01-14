@@ -1,26 +1,30 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import prisma from "@sokosumi/database/client";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
+  buildAgentAccessWhereClause,
   calculateAgentRating,
   calculateAverageExecutionTime,
-  canUserAccessAgent,
   getAgentAccessContext,
-  validateAgentCredits,
+  getAgentCost,
+  getAgentDescription,
+  getAgentImage,
+  getAgentName,
 } from "@/helpers/agent";
-import { notFound, unauthorized, unprocessableEntity } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { agentSchema } from "@/schemas/agent.schema";
 import {
-  agentJobsCountInclude,
-  agentOrganizationsInclude,
-  agentPricingInclude,
-} from "@/types/agent";
+  agentSchema,
+  getAgentLegalFromAgent,
+  getAuthorFromAgent,
+} from "@/schemas/agent.schema";
+import { agentJobsCountInclude, agentPricingInclude } from "@/types/agent";
 
 const params = z.object({
   id: z.string().openapi({
@@ -56,32 +60,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         authContext,
         tx,
       );
-      const agent = await tx.agent.findUnique({
-        where: { id },
+
+      const agent = await tx.agent.findFirst({
+        where: {
+          id,
+          ...buildAgentAccessWhereClause(
+            userOrganizationIds,
+            authContext.organizationId,
+            creditCosts,
+          ),
+        },
         include: {
           ...agentPricingInclude,
-          ...agentOrganizationsInclude,
           ...agentJobsCountInclude,
         },
       });
+
       if (!agent) {
         throw notFound("Agent not found");
       }
 
-      if (
-        !canUserAccessAgent(
-          agent,
-          userOrganizationIds,
-          authContext.organizationId,
-        )
-      ) {
-        throw unauthorized("You are not authorized to access this agent");
-      }
+      const cost = getAgentCost(agent, creditCosts);
 
-      const agentWithCredits = await validateAgentCredits(agent, creditCosts);
-      if (!agentWithCredits) {
-        throw unprocessableEntity("Agent has invalid or unknown pricing");
-      }
+      const agentWithDetails = {
+        ...agent,
+        credits: convertCentsToCredits(cost.cents),
+        name: getAgentName(agent),
+        image: getAgentImage(agent),
+        description: getAgentDescription(agent),
+        author: getAuthorFromAgent(agent),
+        legal: getAgentLegalFromAgent(agent),
+      };
 
       const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
       const executionMetrics = {
@@ -92,7 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const ratingMetrics = await calculateAgentRating(id, tx);
 
       return {
-        ...agentWithCredits,
+        ...agentWithDetails,
         metrics: {
           executions: executionMetrics,
           ratings: ratingMetrics,

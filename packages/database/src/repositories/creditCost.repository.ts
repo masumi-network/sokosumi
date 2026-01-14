@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type { CreditCost, Prisma } from "../generated/prisma/client.js";
 
 /**
@@ -18,7 +17,7 @@ export const creditCostRepository = {
    */
   async getCreditCostByUnit(
     unit: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<CreditCost | null> {
     return await tx.creditCost.findUnique({
       where: {
@@ -34,9 +33,7 @@ export const creditCostRepository = {
    * @returns Promise resolving to an array of all CreditCost records
    *
    */
-  async getCreditCosts(
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<CreditCost[]> {
+  async getCreditCosts(tx: Prisma.TransactionClient): Promise<CreditCost[]> {
     return await tx.creditCost.findMany();
   },
 };

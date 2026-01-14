@@ -1,4 +1,3 @@
-import prisma from "../client.js";
 import type {
   JobPurchase,
   NextJobAction,
@@ -83,7 +82,7 @@ export const jobPurchaseRepository = {
    */
   async createJobPurchase(
     data: CreateJobPurchaseData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.create({
       data: {
@@ -107,7 +106,7 @@ export const jobPurchaseRepository = {
    */
   async getJobPurchaseById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase | null> {
     return await tx.jobPurchase.findUnique({
       where: { id },
@@ -119,7 +118,7 @@ export const jobPurchaseRepository = {
    */
   async getJobPurchaseByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase | null> {
     return await tx.jobPurchase.findUnique({
       where: { jobId },
@@ -131,7 +130,7 @@ export const jobPurchaseRepository = {
    */
   async getJobPurchaseByExternalId(
     externalId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase | null> {
     return await tx.jobPurchase.findUnique({
       where: { externalId },
@@ -144,7 +143,7 @@ export const jobPurchaseRepository = {
   async updateJobPurchaseById(
     id: string,
     data: UpdateJobPurchaseData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { id },
@@ -158,7 +157,7 @@ export const jobPurchaseRepository = {
   async updateJobPurchaseByJobId(
     jobId: string,
     data: UpdateJobPurchaseData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { jobId },
@@ -172,7 +171,7 @@ export const jobPurchaseRepository = {
   async updateJobPurchaseByExternalId(
     externalId: string,
     data: UpdateJobPurchaseData,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { externalId },
@@ -185,7 +184,7 @@ export const jobPurchaseRepository = {
    */
   async deleteJobPurchaseById(
     id: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.delete({
       where: { id },
@@ -197,7 +196,7 @@ export const jobPurchaseRepository = {
    */
   async deleteJobPurchaseByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.delete({
       where: { jobId },

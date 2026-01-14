@@ -16,6 +16,7 @@ import slugify from "slugify";
 
 import { auth } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 
 /**
  * Service for organization and invitations related operations.
@@ -52,7 +53,10 @@ export const organizationService = (() => {
         invitation: InvitationWithRelations;
       }
   > {
-    const invitation = await invitationRepository.getPendingInvitationById(id);
+    const invitation = await invitationRepository.getPendingInvitationById(
+      id,
+      prisma,
+    );
 
     if (!invitation) {
       return {
@@ -70,6 +74,7 @@ export const organizationService = (() => {
       await memberRepository.getMemberByUserIdAndOrganizationId(
         invitation.inviterId,
         invitation.organizationId,
+        prisma,
       );
 
     if (!inviterMember) {
@@ -108,15 +113,19 @@ export const organizationService = (() => {
       await memberRepository.getMemberByUserIdAndOrganizationId(
         userId,
         organizationId,
+        prisma,
       );
     if (!myMemberInOrganization) {
       console.error("You are not the member of the organization");
       throw new Error("NOT_AUTHORIZED");
     }
 
-    const members = await memberRepository.getMembersWithUser({
-      organizationId,
-    });
+    const members = await memberRepository.getMembersWithUser(
+      {
+        organizationId,
+      },
+      prisma,
+    );
 
     return members;
   }
@@ -127,6 +136,7 @@ export const organizationService = (() => {
     const invitations =
       await invitationRepository.getPendingInvitationsByOrganizationId(
         organizationId,
+        prisma,
       );
     // Group by email and take the first (latest) invitation per email
     const emailMap = new Map<string, Invitation>();

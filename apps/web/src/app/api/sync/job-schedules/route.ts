@@ -5,6 +5,7 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { jobScheduleService, lockService } from "@/lib/services";
 
 const LOCK_KEY = "job-schedules-sync";
@@ -51,7 +52,7 @@ async function jobSchedulesSync(): Promise<Response> {
       console.error("Error in job schedules sync operation:", error);
     } finally {
       try {
-        await lockRepository.unlockByKey(lock.key);
+        await lockRepository.unlockByKey(lock.key, prisma);
       } catch (error) {
         console.error("Failed to unlock lock:", error);
       }

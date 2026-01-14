@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
 import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
@@ -12,6 +11,7 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,

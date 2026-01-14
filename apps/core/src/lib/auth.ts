@@ -1,6 +1,5 @@
 import { oauthProvider } from "@better-auth/oauth-provider";
 import * as Sentry from "@sentry/node";
-import prisma from "@sokosumi/database/client";
 import { APIError, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import {
@@ -17,6 +16,7 @@ import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { mapProfileToUser } from "@/helpers/profile-mapper";
+import prisma from "@/lib/db/prisma";
 import {
   renderEmailVerificationTemplate,
   renderOrganizationInvitationTemplate,

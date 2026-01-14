@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 
-import prisma from "../client.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { jobShareInclude } from "../types/job-share.js";
 
@@ -9,7 +8,7 @@ import { jobShareInclude } from "../types/job-share.js";
  * Provides methods for creating, retrieving, and updating JobShare records.
  */
 export const jobShareRepository = {
-  async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
+  async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient) {
     const share = await tx.jobShare.findUnique({
       where: { jobId },
       select: { id: true },
@@ -17,14 +16,14 @@ export const jobShareRepository = {
     return share !== null;
   },
 
-  async getShareById(id: string, tx: Prisma.TransactionClient = prisma) {
+  async getShareById(id: string, tx: Prisma.TransactionClient) {
     return await tx.jobShare.findUnique({
       where: { id },
       include: jobShareInclude,
     });
   },
 
-  async getShareByToken(token: string, tx: Prisma.TransactionClient = prisma) {
+  async getShareByToken(token: string, tx: Prisma.TransactionClient) {
     return await tx.jobShare.findUnique({
       where: {
         token,
@@ -33,7 +32,7 @@ export const jobShareRepository = {
     });
   },
 
-  async getShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
+  async getShareByJobId(jobId: string, tx: Prisma.TransactionClient) {
     return await tx.jobShare.findUnique({
       where: { jobId },
       include: jobShareInclude,
@@ -43,7 +42,7 @@ export const jobShareRepository = {
   async upsertOrganizationShare(
     jobId: string,
     organizationId: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobShare.upsert({
       where: { jobId },
@@ -66,7 +65,7 @@ export const jobShareRepository = {
     jobId: string,
     sharePublic: boolean,
     allowSearchIndexing: boolean = true,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobShare.upsert({
       where: { jobId },
@@ -83,16 +82,13 @@ export const jobShareRepository = {
     });
   },
 
-  async deleteShareById(id: string, tx: Prisma.TransactionClient = prisma) {
+  async deleteShareById(id: string, tx: Prisma.TransactionClient) {
     return await tx.jobShare.delete({
       where: { id },
     });
   },
 
-  async deleteShareByJobId(
-    jobId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
+  async deleteShareByJobId(jobId: string, tx: Prisma.TransactionClient) {
     return await tx.jobShare.deleteMany({
       where: { jobId },
     });
@@ -101,7 +97,7 @@ export const jobShareRepository = {
   async setShareAllowSearchIndexingById(
     id: string,
     allowSearchIndexing: boolean,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient,
   ) {
     return await tx.jobShare.update({
       where: { id },

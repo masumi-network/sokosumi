@@ -5,6 +5,7 @@ import { agentListRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import { ActionError } from "@/lib/actions";
+import prisma from "@/lib/db/prisma";
 import { Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -27,9 +28,15 @@ export const toggleAgentInAgentList = withAuthContext<
       agentId,
       userId,
       listType,
+      prisma,
     );
   } else {
-    await agentListRepository.addAgentToAgentList(agentId, userId, listType);
+    await agentListRepository.addAgentToAgentList(
+      agentId,
+      userId,
+      listType,
+      prisma,
+    );
   }
 
   // Revalidate the app to update the UI

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
 import { agentClient } from "@/lib/clients/agent.client";
+import prisma from "@/lib/db/prisma";
 
 interface RouteParams {
   params: Promise<{
@@ -31,7 +32,10 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    const agent = await agentRepository.getAgentWithRelationsById(agentId);
+    const agent = await agentRepository.getAgentWithRelationsById(
+      agentId,
+      prisma,
+    );
     if (!agent) {
       throw new Error("AGENT_NOT_FOUND");
     }

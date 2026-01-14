@@ -8,6 +8,7 @@ import {
 import * as z from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
+import prisma from "@/lib/db/prisma";
 import {
   organizationInformationFormSchema,
   OrganizationInformationFormSchemaType,
@@ -76,6 +77,7 @@ export const updateOrganizationInvoiceEmail = withAuthContext<
   const member = await memberRepository.getMemberByUserIdAndOrganizationId(
     userId,
     organizationId,
+    prisma,
   );
 
   if (!member) {
@@ -99,6 +101,7 @@ export const updateOrganizationInvoiceEmail = withAuthContext<
     await organizationRepository.updateOrganizationInvoiceEmail(
       organizationId,
       invoiceEmail,
+      prisma,
     );
 
   // Sync with Stripe if the organization has a Stripe customer

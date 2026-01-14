@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
+import prisma from "@/lib/db/prisma";
 import { agentService, categoryService } from "@/lib/services";
 
 import FilterSection from "./components/filter-section";
@@ -31,8 +32,10 @@ export default async function GalleryPage() {
 
   // Fetch rating stats for all agents
   const agentIds = agentsWithPrice.map((agent) => agent.id);
-  const ratingStatsMap =
-    await agentRatingRepository.getAgentsRatingStats(agentIds);
+  const ratingStatsMap = await agentRatingRepository.getAgentsRatingStats(
+    agentIds,
+    prisma,
+  );
 
   return (
     <div className="w-full">

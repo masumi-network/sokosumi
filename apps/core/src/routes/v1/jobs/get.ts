@@ -3,36 +3,46 @@ import { JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { getUserJobs } from "@/helpers/job";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { jobsSchema } from "@/schemas/job.schema.js";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-const query = z.object({
-  agentId: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "agentId", in: "query" },
-      description: "Filter jobs by agent ID",
-      example: "cmaeygqwa000e8i0s9s7wif8i",
-    }),
-});
+const query = z
+  .object({
+    agentId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "agentId", in: "query" },
+        description: "Filter jobs by agent ID",
+        example: "cmaeygqwa000e8i0s9s7wif8i",
+      }),
+  })
+  .extend(cursorPaginationQuerySchema.shape);
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
-    description: "List all jobs for the current user",
+    description: "List all jobs for the current user (paginated)",
     tags: ["Jobs"],
     request: {
       query,
     },
     responses: {
-      200: jsonSuccessResponse(jobsSchema, "Retrieve all jobs", {
+      200: jsonPaginatedSuccessResponse(jobsSchema, "Retrieve all jobs", {
         data: [
           {
             id: "cmi4gmksz000104l8wps8p7fp",
@@ -68,6 +78,12 @@ const route = withGlobalHeaderParameters(
         meta: {
           timestamp: "2025-01-15T12:00:00.000Z",
           requestId: "550e8400-e29b-41d4-a716-446655440000",
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: 200,
+            nextCursor: "cmi4gmksz000104l8wps8p8fp",
+          },
         },
       }),
       401: jsonErrorResponse("Unauthorized"),
@@ -79,10 +95,25 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { agentId } = c.req.valid("query");
+    const queryParams = c.req.valid("query");
+    const { agentId } = queryParams;
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const jobs = await getUserJobs(authContext, { agentId });
+    const { jobs, count, hasMore } = await getUserJobs(authContext, {
+      agentId,
+      cursor,
+      take,
+      skip,
+    });
 
-    return ok(c, jobsSchema.parse(jobs));
+    const paginationMeta = createPaginationMeta(
+      jobs,
+      count,
+      take,
+      hasMore,
+      cursor,
+    );
+
+    return ok(c, jobsSchema.parse(jobs), paginationMeta);
   });
 }

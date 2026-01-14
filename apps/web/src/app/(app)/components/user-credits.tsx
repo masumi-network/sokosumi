@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { Session } from "@/lib/auth/auth";
+import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services/user.service";
 
 import BuyCreditsButton from "./buy-credits-button";
@@ -17,7 +18,7 @@ interface UserCreditsProps {
 }
 
 export default async function UserCredits({ session }: UserCreditsProps) {
-  const user = await userRepository.getUserById(session.user.id);
+  const user = await userRepository.getUserById(session.user.id, prisma);
 
   const t = await getTranslations("App.Header.Credit");
 
@@ -37,6 +38,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   if (activeOrganization) {
     const cents = await creditTransactionRepository.getCentsByOrganizationId(
       activeOrganization.id,
+      prisma,
     );
     credits = convertCentsToCredits(cents);
     creditLabel = t("organizationBalance", {
@@ -44,7 +46,10 @@ export default async function UserCredits({ session }: UserCreditsProps) {
       organization: activeOrganization.name,
     });
   } else {
-    const cents = await creditTransactionRepository.getCentsByUserId(user.id);
+    const cents = await creditTransactionRepository.getCentsByUserId(
+      user.id,
+      prisma,
+    );
     credits = convertCentsToCredits(cents);
     creditLabel = t("userBalance", { credits: credits });
   }

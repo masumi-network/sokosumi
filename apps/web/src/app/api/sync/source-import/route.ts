@@ -4,6 +4,7 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import prisma from "@/lib/db/prisma";
 import { lockService } from "@/lib/services";
 import { sourceImportService } from "@/lib/services/source-import.service";
 
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
     } finally {
       if (!unlocked) {
         try {
-          await lockRepository.unlockByKey(lock.key);
+          await lockRepository.unlockByKey(lock.key, prisma);
         } catch (error) {
           console.error("Failed to unlock lock:", error);
         }
