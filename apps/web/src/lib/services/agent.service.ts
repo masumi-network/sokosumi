@@ -32,6 +32,7 @@ import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
 import { pricingAmountsSchema } from "@/lib/schemas";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 export const agentService = (() => {
   /**
@@ -141,7 +142,8 @@ export const agentService = (() => {
     activeOrganizationId: string | null;
   }> => {
     const context = await getAuthContext();
-    const creditCosts = await creditCostRepository.getCreditCosts(tx);
+    const network = getNetworkFromEnv();
+    const creditCosts = await creditCostRepository.getCreditCosts(network, tx);
     const userOrganizationIds = context?.userId
       ? await memberRepository.getMembersOrganizationIdsByUserId(
           context.userId,
@@ -404,6 +406,7 @@ export const agentService = (() => {
       for (const amount of amountsParsed) {
         const creditCost = await creditCostRepository.getCreditCostByUnit(
           amount.unit,
+          agent.network,
           tx,
         );
         if (!creditCost) {

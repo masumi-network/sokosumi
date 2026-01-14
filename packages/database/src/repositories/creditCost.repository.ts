@@ -26,8 +26,7 @@ export const creditCostRepository = {
   ): Promise<CreditCost | null> {
     return await tx.creditCost.findUnique({
       where: {
-        unit,
-        network,
+        unit_network: { unit, network },
       },
     });
   },

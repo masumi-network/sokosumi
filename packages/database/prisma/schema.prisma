@@ -368,6 +368,9 @@ model Agent {
 
   // Summary
   summary String?
+
+  @@index([network])
+  @@index([blockchainIdentifier, network])
 }
 
 model Category {
@@ -504,6 +507,7 @@ model FiatTransaction {
   creditTransactionId String?            @unique
 
   @@index([userId, organizationId])
+  @@index([network])
 }
 
 enum FiatTransactionStatus {
@@ -696,9 +700,11 @@ model CreditCost {
   id           String   @id @default(cuid())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  unit         String   @unique
+  unit         String
   centsPerUnit BigInt
   network      Network
+
+  @@unique([unit, network])
 }
 
 model Apikey {
