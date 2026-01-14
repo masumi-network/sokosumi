@@ -16,11 +16,15 @@ import { jobService } from "@/lib/services/job.service";
 import { lockService } from "@/lib/services/lock.service";
 import { JobScheduleType } from "@/lib/types/job";
 import { computeNextRun } from "@/lib/utils/cron";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 export const jobScheduleService = {
   async executeDueSchedules() {
     const startedAt = Date.now();
-    const due = await jobScheduleRepository.findDue(prisma);
+    const due = await jobScheduleRepository.findDue(
+      getNetworkFromEnv(),
+      prisma,
+    );
     const limiter = pLimit(3);
 
     let processed = 0;
