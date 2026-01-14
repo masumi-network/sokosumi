@@ -20,6 +20,7 @@ import { auth, type Session } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
+import { getNetworkFromEnv } from "@/lib/utils/network";
 
 /**
  * Service for user-related operations.
@@ -103,6 +104,7 @@ export const userService = (() => {
         userId,
         agentId,
         activeOrganizationId,
+        getNetworkFromEnv(),
         prisma,
       );
     }
