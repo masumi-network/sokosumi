@@ -569,11 +569,22 @@ function jobsNotFinishedWhereQuery(
             notIn: finalizedOnChainJobStatuses,
           },
         },
+        jobType: JobType.PAID,
       },
       // Filter in jobs that have no on-chain status
       {
         purchase: {
           onChainStatus: null,
+        },
+        jobType: JobType.PAID,
+      },
+      // Filter in free jobs that are not finalized
+      {
+        jobType: JobType.FREE,
+        events: {
+          none: {
+            status: { in: finalizedAgentJobStatuses },
+          },
         },
       },
     ],
@@ -583,6 +594,7 @@ function jobsNotFinishedWhereQuery(
         refundedCreditTransactionId: {
           not: null,
         },
+        jobType: JobType.PAID,
       },
       // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
       {
@@ -593,6 +605,7 @@ function jobsNotFinishedWhereQuery(
           not: null,
           lt: cutoffTime,
         },
+        jobType: JobType.PAID,
       },
       // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
       {
@@ -600,21 +613,11 @@ function jobsNotFinishedWhereQuery(
           onChainStatus: null,
         },
         payByTime: { not: null, lt: cutoffTime },
+        jobType: JobType.PAID,
       },
       // Filter out demo jobs
       {
         jobType: JobType.DEMO,
-      },
-      // Filter out free jobs that are completed or failed on agentJobStatus
-      {
-        jobType: JobType.FREE,
-        events: {
-          some: {
-            status: {
-              in: finalizedAgentJobStatuses,
-            },
-          },
-        },
       },
     ],
   };
