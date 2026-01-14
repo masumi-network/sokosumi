@@ -13,6 +13,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Network {
+  MAINNET
+  PREPROD
+}
+
 model User {
   id            String    @id @default(uuid())
   name          String
@@ -282,7 +287,8 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  blockchainIdentifier String @unique
+  blockchainIdentifier String  @unique
+  network              Network
 
   name         String
   overrideName String?
@@ -486,6 +492,7 @@ model FiatTransaction {
   servicePaymentId String?               @unique
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
+  network          Network
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -691,6 +698,7 @@ model CreditCost {
   updatedAt    DateTime @updatedAt
   unit         String   @unique
   centsPerUnit BigInt
+  network      Network
 }
 
 model Apikey {

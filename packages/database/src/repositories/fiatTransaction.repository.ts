@@ -1,7 +1,8 @@
-import type {
-  FiatTransaction,
-  FiatTransactionStatus,
-  Prisma,
+import {
+  type FiatTransaction,
+  type FiatTransactionStatus,
+  Network,
+  type Prisma,
 } from "../generated/prisma/client.js";
 
 /**
@@ -28,6 +29,7 @@ export const fiatTransactionRepository = {
     cents: bigint,
     amount: number,
     currency: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     return await tx.fiatTransaction.create({
@@ -39,6 +41,7 @@ export const fiatTransactionRepository = {
         cents,
         amount,
         currency,
+        network,
       },
     });
   },
@@ -156,6 +159,7 @@ export const fiatTransactionRepository = {
     invoiceId: string,
     amountPaid: number,
     currency: string,
+    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     // Create the fiat transaction with SUCCEEDED status and credit transaction in one operation
@@ -168,6 +172,7 @@ export const fiatTransactionRepository = {
         cents,
         amount: BigInt(amountPaid),
         currency,
+        network,
         status: "SUCCEEDED",
         servicePaymentId: invoiceId,
         // Create the credit transaction immediately since status is SUCCEEDED
