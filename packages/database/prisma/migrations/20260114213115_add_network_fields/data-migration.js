@@ -4,7 +4,7 @@ const prisma = createPrismaClient(process.env.DATABASE_URL);
 /**
  * Data migration: Set all network values to the defined network.
  *
- * This script updates all existing records in Agent, CreditCost, and FiatTransaction
+ * This script updates all existing records in Agent, CreditCost, FiatTransaction, CreditTransaction, JobSchedule, and Job
  * tables to have the specified network value. By default, sets to MAINNET.
  *
  * To use a different network, set the NETWORK_MIGRATION_VALUE environment variable:
