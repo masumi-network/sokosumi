@@ -46,16 +46,6 @@ async function main() {
     `Updated ${creditCostResult} credit costs to network ${networkValue}`,
   );
 
-  // Update FiatTransaction table
-  const fiatTransactionResult = await prisma.$executeRaw`
-    UPDATE "FiatTransaction"
-    SET "network" = ${networkValue}::"Network"
-    WHERE "network" IS NULL OR "network" != ${networkValue}::"Network"
-  `;
-  console.log(
-    `Updated ${fiatTransactionResult} fiat transactions to network ${networkValue}`,
-  );
-
   // Update CreditTransaction table
   const creditTransactionResult = await prisma.$executeRaw`
     UPDATE "CreditTransaction"
@@ -87,7 +77,6 @@ async function main() {
   const totalUpdated =
     Number(agentResult) +
     Number(creditCostResult) +
-    Number(fiatTransactionResult) +
     Number(creditTransactionResult) +
     Number(jobScheduleResult) +
     Number(jobResult);
