@@ -1,11 +1,10 @@
 import type { Prisma } from "../generated/prisma/client.js";
-import { Blob, BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
+import { Blob, BlobStatus } from "../generated/prisma/client.js";
 
 /**
  * Repository for managing Blob entities and related queries.
  * Provides CRUD methods for Blob table.
- * Note: INPUT blobs have been migrated to the Attachment table.
- * This repository now only handles OUTPUT blobs.
+ * This repository handles result blobs from agent jobs.
  */
 export const blobRepository = {
   /**
@@ -32,7 +31,6 @@ export const blobRepository = {
       create: {
         user: { connect: { id: data.userId } },
         event: { connect: { id: data.eventId } },
-        origin: BlobOrigin.OUTPUT,
         status: BlobStatus.PENDING,
         sourceUrl: data.sourceUrl,
         fileName: data.fileName,
@@ -113,16 +111,16 @@ export const blobRepository = {
   },
 
   /**
-   * Get pending output blobs to import.
+   * Get pending blobs to import.
    */
-  async getPendingOutputBlobs(
+  async getPendingBlobs(
     data: {
       limit?: number;
     },
     tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
-      where: { status: BlobStatus.PENDING, origin: BlobOrigin.OUTPUT },
+      where: { status: BlobStatus.PENDING },
       take: data.limit,
       orderBy: { createdAt: "asc" },
     });

@@ -740,8 +740,7 @@ model Blob {
   fileName  String?
   mime      String?
   size      BigInt?
-  origin    BlobOrigin
-  sourceUrl String?
+  sourceUrl String
   status    BlobStatus
 
   userId String
@@ -751,8 +750,8 @@ model Blob {
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, sourceUrl]) // For deduplication checks
-  @@index([status, origin, createdAt]) // For getPendingResultBlobs query
-  @@index([eventId, origin]) // For fetching blobs by job event with origin filter
+  @@index([status, createdAt]) // For getPendingResultBlobs query
+  @@index([eventId]) // For fetching blobs by job event
   @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
@@ -796,11 +795,6 @@ model Link {
   @@unique([eventId, url]) // For deduplication checks
   @@index([eventId]) // For fetching all links for a job event
   @@map("link")
-}
-
-enum BlobOrigin {
-  INPUT
-  OUTPUT
 }
 
 enum BlobStatus {
