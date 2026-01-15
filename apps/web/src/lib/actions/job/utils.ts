@@ -5,7 +5,6 @@ import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { uploadFile } from "@/lib/blob";
 
 export interface UploadedFile {
-  userId: string;
   url: string;
   name?: string;
   size?: bigint;
@@ -29,7 +28,6 @@ export async function handleInputDataFileUploads(
       const blob = await uploadFile(userId, value);
       inputData[key] = blob.url;
       results.push({
-        userId,
         url: blob.url,
         name: value.name,
         size: BigInt(value.size),
@@ -40,7 +38,6 @@ export async function handleInputDataFileUploads(
         value.map(async (file: File) => {
           const blob = await uploadFile(userId, file);
           return {
-            userId,
             url: blob.url,
             name: file.name,
             size: BigInt(file.size),

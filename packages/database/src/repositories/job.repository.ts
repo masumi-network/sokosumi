@@ -295,7 +295,6 @@ export const jobRepository = {
                     name: attachment.name,
                     mimeType: attachment.mimeType,
                     size: attachment.size,
-                    userId: attachment.userId,
                   })),
                 },
               },

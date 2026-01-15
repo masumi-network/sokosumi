@@ -32,7 +32,6 @@ model User {
   jobSchedules       JobSchedule[]
   blobs              Blob[]              @relation("UserBlob")
   links              Link[]              @relation("UserLink")
-  attachments        Attachment[]        @relation("UserAttachment")
 
   stripeCustomerId String?
 
@@ -766,15 +765,11 @@ model Attachment {
   mimeType String? // Optional - MIME type
   size     BigInt? // Optional - file size in bytes
 
-  userId String
-  user   User   @relation("UserAttachment", fields: [userId], references: [id], onDelete: Cascade)
-
   jobInputId String
   jobInput   JobInput @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
 
   @@unique([jobInputId, url]) // Prevent duplicate URLs per JobInput
   @@index([jobInputId])
-  @@index([userId])
   @@map("attachment")
 }
 

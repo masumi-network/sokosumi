@@ -1,7 +1,6 @@
 import type { Attachment, Prisma } from "../generated/prisma/client.js";
 
 export interface AttachmentData {
-  userId: string;
   url: string;
   name?: string;
   mimeType?: string;
@@ -47,13 +46,22 @@ export const attachmentRepository = {
 
   /**
    * Get all attachments for a user
+   * Queries through the relationship chain: Attachment -> JobInput -> JobEvent -> Job -> User
    */
   async getAttachmentsByUserId(
     userId: string,
     tx: Prisma.TransactionClient,
   ): Promise<Attachment[]> {
     return await tx.attachment.findMany({
-      where: { userId },
+      where: {
+        jobInput: {
+          event: {
+            job: {
+              userId,
+            },
+          },
+        },
+      },
     });
   },
 
