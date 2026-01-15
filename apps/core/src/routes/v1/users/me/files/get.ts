@@ -46,7 +46,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const blobs = await prisma.blob.findMany({
       where: {
-        userId: authContext.userId,
+        event: {
+          job: {
+            userId: authContext.userId,
+          },
+        },
       },
       include: blobWithJobIdInclude,
     });
