@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { BlobOrigin, BlobStatus } from "@sokosumi/database";
+import { BlobStatus } from "@sokosumi/database";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -32,27 +32,12 @@ const route = withGlobalHeaderParameters(
     200: jsonSuccessResponse(filesSchema, "Retrieve files by job ID", {
       data: [
         {
-          id: "blob_123",
-          createdAt: "2025-01-15T10:30:00.000Z",
-          updatedAt: "2025-01-15T10:30:00.000Z",
-          userId: "user_123",
-          jobId: "cmi4gmksz000104l8wps8p7fp",
-          name: "input_document.pdf",
-          origin: BlobOrigin.INPUT,
-          status: BlobStatus.READY,
-          size: 1024000,
-          mimeType: "application/pdf",
-          fileUrl: "https://storage.example.com/files/input_document.pdf",
-          sourceUrl: null,
-        },
-        {
           id: "blob_456",
           createdAt: "2025-01-15T10:35:00.000Z",
           updatedAt: "2025-01-15T10:35:00.000Z",
           userId: "user_123",
           jobId: "cmi4gmksz000104l8wps8p7fp",
           name: "result_report.pdf",
-          origin: BlobOrigin.OUTPUT,
           status: BlobStatus.READY,
           size: 2048000,
           mimeType: "application/pdf",
@@ -83,7 +68,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const files = await tx.blob.findMany({
         where: {
           event: { jobId: id },
-          origin: BlobOrigin.OUTPUT, // Only return OUTPUT blobs, INPUT blobs are now attachments
         },
         include: blobWithJobIdInclude,
       });

@@ -15,7 +15,6 @@ import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
-import { getOutputBlobs } from "@/lib/utils/job-transformers";
 import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
@@ -182,7 +181,7 @@ function JobDetailsContent({
   isLast: boolean;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails");
-  const outputBlobs = getOutputBlobs(event.blobs ?? []);
+  const outputBlobs = event.blobs ?? [];
   const resultLinks = event.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;
 
