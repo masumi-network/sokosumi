@@ -8,9 +8,6 @@ ALTER TABLE "CreditCost" ALTER COLUMN "network" DROP DEFAULT;
 ALTER TABLE "CreditTransaction" ALTER COLUMN "network" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "FiatTransaction" ALTER COLUMN "network" DROP DEFAULT;
-
--- AlterTable
 ALTER TABLE "Job" ALTER COLUMN "network" DROP DEFAULT;
 
 -- AlterTable

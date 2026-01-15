@@ -498,7 +498,6 @@ model FiatTransaction {
   servicePaymentId String?               @unique
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
-  network          Network
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -510,7 +509,6 @@ model FiatTransaction {
   creditTransactionId String?            @unique
 
   @@index([userId, organizationId])
-  @@index([network])
 }
 
 enum FiatTransactionStatus {

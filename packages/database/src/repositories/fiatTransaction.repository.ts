@@ -29,7 +29,6 @@ export const fiatTransactionRepository = {
     cents: bigint,
     amount: number,
     currency: string,
-    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     return await tx.fiatTransaction.create({
@@ -41,7 +40,6 @@ export const fiatTransactionRepository = {
         cents,
         amount,
         currency,
-        network,
       },
     });
   },
@@ -117,7 +115,7 @@ export const fiatTransactionRepository = {
   ): Promise<FiatTransaction> {
     // Build credit transaction data based on whether it's for a user or organization
     const creditTransactionData = {
-      network: fiatTransaction.network,
+      network: Network.MAINNET,
       amount: fiatTransaction.cents,
       user: { connect: { id: fiatTransaction.userId } },
       ...(fiatTransaction.organizationId && {
@@ -160,7 +158,6 @@ export const fiatTransactionRepository = {
     invoiceId: string,
     amountPaid: number,
     currency: string,
-    network: Network,
     tx: Prisma.TransactionClient,
   ): Promise<FiatTransaction> {
     // Create the fiat transaction with SUCCEEDED status and credit transaction in one operation
@@ -173,13 +170,12 @@ export const fiatTransactionRepository = {
         cents,
         amount: BigInt(amountPaid),
         currency,
-        network,
         status: "SUCCEEDED",
         servicePaymentId: invoiceId,
         // Create the credit transaction immediately since status is SUCCEEDED
         creditTransaction: {
           create: {
-            network,
+            network: Network.MAINNET,
             amount: cents,
             user: { connect: { id: userId } },
             ...(organizationId && {

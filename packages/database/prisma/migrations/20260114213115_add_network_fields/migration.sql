@@ -7,7 +7,6 @@
   - Added the required column `network` to the `Agent` table without a default value. This is not possible if the table is not empty.
   - Added the required column `network` to the `CreditCost` table without a default value. This is not possible if the table is not empty.
   - Added the required column `network` to the `CreditTransaction` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `network` to the `FiatTransaction` table without a default value. This is not possible if the table is not empty.
   - Added the required column `network` to the `jobSchedule` table without a default value. This is not possible if the table is not empty.
 
 */
@@ -33,9 +32,6 @@ ALTER TABLE "CreditCost" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MA
 ALTER TABLE "CreditTransaction" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
 
 -- AlterTable
-ALTER TABLE "FiatTransaction" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
-
--- AlterTable
 ALTER TABLE "Job" ADD COLUMN     "network" "Network" NOT NULL DEFAULT 'MAINNET';
 
 -- AlterTable
@@ -52,9 +48,6 @@ CREATE UNIQUE INDEX "CreditCost_unit_network_key" ON "CreditCost"("unit", "netwo
 
 -- CreateIndex
 CREATE INDEX "CreditTransaction_network_idx" ON "CreditTransaction"("network");
-
--- CreateIndex
-CREATE INDEX "FiatTransaction_network_idx" ON "FiatTransaction"("network");
 
 -- CreateIndex
 CREATE INDEX "Job_network_idx" ON "Job"("network");
