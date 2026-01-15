@@ -1,0 +1,77 @@
+import type { Attachment, Prisma } from "../generated/prisma/client.js";
+
+export interface AttachmentData {
+  userId: string;
+  url: string;
+  name?: string;
+  mimeType?: string;
+  size?: bigint;
+}
+
+/**
+ * Repository for managing Attachment entities and related queries.
+ * Provides CRUD methods for Attachment table.
+ */
+export const attachmentRepository = {
+  /**
+   * Get all attachments for a JobInput
+   */
+  async getAttachmentsByJobInputId(
+    jobInputId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Attachment[]> {
+    return await tx.attachment.findMany({
+      where: { jobInputId },
+    });
+  },
+
+  async getAttachmendByJobId(
+    jobId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Attachment[]> {
+    return await tx.attachment.findMany({
+      where: { jobInput: { event: { jobId } } },
+      include: {
+        jobInput: {
+          include: {
+            event: {
+              include: {
+                job: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+
+  /**
+   * Get all attachments for a user
+   */
+  async getAttachmentsByUserId(
+    userId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Attachment[]> {
+    return await tx.attachment.findMany({
+      where: { userId },
+    });
+  },
+
+  /**
+   * Find an attachment by URL within a JobInput
+   */
+  async findAttachmentByUrl(
+    jobInputId: string,
+    url: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Attachment | null> {
+    return await tx.attachment.findUnique({
+      where: {
+        jobInputId_url: {
+          jobInputId,
+          url,
+        },
+      },
+    });
+  },
+};

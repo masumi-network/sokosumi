@@ -4,32 +4,10 @@ import { Blob, BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
 /**
  * Repository for managing Blob entities and related queries.
  * Provides CRUD methods for Blob table.
+ * Note: INPUT blobs have been migrated to the Attachment table.
+ * This repository now only handles OUTPUT blobs.
  */
 export const blobRepository = {
-  async createInputBlobForEvent(
-    data: {
-      userId: string;
-      eventId: string;
-      fileUrl: string;
-      fileName?: string;
-      size?: bigint;
-    },
-    tx: Prisma.TransactionClient,
-  ): Promise<Blob> {
-    const blob = await tx.blob.create({
-      data: {
-        origin: BlobOrigin.INPUT,
-        user: { connect: { id: data.userId } },
-        event: { connect: { id: data.eventId } },
-        status: BlobStatus.READY,
-        fileUrl: data.fileUrl,
-        fileName: data.fileName,
-        size: data.size,
-      },
-    });
-    return blob;
-  },
-
   /**
    * Create a pending result Blob record from a source URL (extracted from markdown)
    * Avoids duplicates by sourceUrl per job event.
@@ -98,16 +76,6 @@ export const blobRepository = {
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { eventId },
-    });
-    return blobs;
-  },
-
-  async getBlobsByJobInputId(
-    jobInputId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Blob[]> {
-    const blobs = await tx.blob.findMany({
-      where: { event: { input: { id: jobInputId } } },
     });
     return blobs;
   },

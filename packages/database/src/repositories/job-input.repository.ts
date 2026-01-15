@@ -1,9 +1,11 @@
 import type { JobInput, Prisma } from "../generated/prisma/client.js";
+import { AttachmentData } from "./attachment.repository.js";
 
 interface CreateJobInputData {
   input: string;
-  inputHash: string;
+  inputHash: string | null;
   signature?: string | null;
+  attachments?: AttachmentData[];
 }
 
 /**
@@ -22,6 +24,18 @@ export const jobInputRepository = {
         input: data.input,
         inputHash: data.inputHash,
         signature: data.signature,
+        attachments: {
+          createMany: {
+            data:
+              data.attachments?.map((attachment) => ({
+                url: attachment.url,
+                name: attachment.name,
+                mimeType: attachment.mimeType,
+                size: attachment.size,
+                userId: attachment.userId,
+              })) ?? [],
+          },
+        },
       },
     });
   },

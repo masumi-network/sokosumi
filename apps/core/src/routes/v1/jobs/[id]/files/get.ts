@@ -83,6 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const files = await tx.blob.findMany({
         where: {
           event: { jobId: id },
+          origin: BlobOrigin.OUTPUT, // Only return OUTPUT blobs, INPUT blobs are now attachments
         },
         include: blobWithJobIdInclude,
       });

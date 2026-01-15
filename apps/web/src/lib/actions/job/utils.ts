@@ -1,15 +1,15 @@
 import "server-only";
 
-import { blobRepository } from "@sokosumi/database/repositories";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 
 import { uploadFile } from "@/lib/blob";
-import prisma from "@/lib/db/prisma";
 
-export interface UploadedFileWithMeta {
+export interface UploadedFile {
+  userId: string;
   url: string;
-  fileName: string;
-  size: number;
+  fileName?: string;
+  size?: bigint;
+  mimeType?: string;
 }
 
 /**
@@ -22,26 +22,30 @@ export interface UploadedFileWithMeta {
 export async function handleInputDataFileUploads(
   userId: string,
   inputData: InputSchemaType,
-): Promise<UploadedFileWithMeta[]> {
-  const results: UploadedFileWithMeta[] = [];
+): Promise<UploadedFile[]> {
+  const results: UploadedFile[] = [];
   for (const [key, value] of Object.entries(inputData)) {
     if (value instanceof File) {
       const blob = await uploadFile(userId, value);
       inputData[key] = blob.url;
       results.push({
+        userId,
         url: blob.url,
         fileName: value.name,
-        size: value.size,
+        size: BigInt(value.size),
+        mimeType: blob.contentType,
       });
     } else if (Array.isArray(value) && value.every((v) => v instanceof File)) {
       const uploaded = await Promise.all(
         value.map(async (file: File) => {
           const blob = await uploadFile(userId, file);
           return {
+            userId,
             url: blob.url,
             fileName: file.name,
-            size: file.size,
-          } satisfies UploadedFileWithMeta;
+            size: BigInt(file.size),
+            mimeType: blob.contentType,
+          } satisfies UploadedFile;
         }),
       );
       results.push(...uploaded);
@@ -55,30 +59,4 @@ export async function handleInputDataFileUploads(
     }
   }
   return results;
-}
-
-/**
- * This function save uploaded files to blob storage
- *
- * @param userId - The user id
- * @param eventId - The event id
- * @param files - The uploaded files with metadata
- */
-export async function saveUploadedFilesForEventId(
-  userId: string,
-  eventId: string,
-  files: UploadedFileWithMeta[],
-) {
-  for (const file of files) {
-    await blobRepository.createInputBlobForEvent(
-      {
-        userId,
-        eventId,
-        fileUrl: file.url,
-        fileName: file.fileName,
-        size: BigInt(file.size),
-      },
-      prisma,
-    );
-  }
 }

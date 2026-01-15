@@ -60,7 +60,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
 
     const blobs = await prisma.blob.findMany({
-      where: { userId: authContext.userId },
+      where: {
+        userId: authContext.userId,
+        origin: BlobOrigin.OUTPUT, // Only return OUTPUT blobs, INPUT blobs are now attachments
+      },
       include: blobWithJobIdInclude,
     });
     const files = blobs.map(flattenBlobJobId);
