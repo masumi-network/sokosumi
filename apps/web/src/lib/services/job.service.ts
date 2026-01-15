@@ -1395,6 +1395,7 @@ export const jobService = (() => {
           input: inputJson,
           inputHash: responseData.input_hash,
           signature: responseData.signature,
+          attachments: uploadedFiles,
         },
         tx,
       );
