@@ -29,6 +29,7 @@ import {
 } from "@sokosumi/database/repositories";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
+import { err } from "neverthrow";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
@@ -732,14 +733,14 @@ export const jobService = (() => {
     });
 
     // Create purchase
-    const createPurchaseResult = await paymentClient.createPurchase(
+    const createPurchaseResult = await paymentClient().createPurchase(
       agentWithCreditsPrice.blockchainIdentifier,
       startJobResponse,
       inputData,
       identifierFromPurchaser,
     );
-    if (createPurchaseResult.ok) {
-      const purchase = createPurchaseResult.data;
+    if (createPurchaseResult.isOk()) {
+      const purchase = createPurchaseResult.value;
       const purchaseData = transformPurchaseToJobUpdate(purchase);
       await jobPurchaseRepository.createJobPurchase(
         {
@@ -970,23 +971,20 @@ export const jobService = (() => {
       },
     });
 
-    const refundResult = await paymentClient.requestRefund(
+    const refundResult = await paymentClient().requestRefund(
       jobBlockchainIdentifier,
     );
-    if (!refundResult.ok) {
+    if (refundResult.isErr()) {
       Sentry.setTag("error_type", "refund_request_failed");
       Sentry.setContext("refund_error", {
         blockchainIdentifier: jobBlockchainIdentifier,
         error: refundResult.error,
       });
 
-      Sentry.captureMessage(
-        `Refund request failed: ${refundResult.error}`,
-        "error",
-      );
+      Sentry.captureException(refundResult.error);
       throw new JobError(
         JobErrorCode.REFUND_REQUEST_FAILED,
-        refundResult.error,
+        "Refund request failed",
       );
     }
 
@@ -1043,11 +1041,11 @@ export const jobService = (() => {
     let job: JobWithSokosumiStatus | null = initialJob;
     if (isPaidJob(job) && job.purchase === null) {
       const purchaseResult =
-        await paymentClient.getPurchaseByBlockchainIdentifier(
+        await paymentClient().getPurchaseByBlockchainIdentifier(
           job.blockchainIdentifier,
         );
-      if (purchaseResult.ok) {
-        const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
+      if (purchaseResult.isOk()) {
+        const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
         await jobPurchaseRepository.createJobPurchase(
           {
             jobId: job.id,
@@ -1069,8 +1067,8 @@ export const jobService = (() => {
         ? await agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
         : Promise.resolve(Err("No agent job ID to sync")),
       purchaseIdToSync
-        ? await paymentClient.getPurchaseById(purchaseIdToSync)
-        : Promise.resolve(Err("No purchase ID to sync")),
+        ? await paymentClient().getPurchaseById(purchaseIdToSync)
+        : Promise.resolve(err("No purchase ID to sync")),
     ]);
 
     const transactionResult =
@@ -1080,9 +1078,9 @@ export const jobService = (() => {
           if (!job) {
             throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
           }
-          if (onChainPurchaseResult.ok) {
+          if (onChainPurchaseResult.isOk()) {
             const purchaseData = transformPurchaseToJobUpdate(
-              onChainPurchaseResult.data,
+              onChainPurchaseResult.value,
             );
             await jobPurchaseRepository.updateJobPurchaseByJobId(
               job.id,

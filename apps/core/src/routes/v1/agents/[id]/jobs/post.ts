@@ -201,7 +201,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
 
         // Create purchase with payment API
-        const createPurchaseResult = await paymentClient.createPurchase(
+        const createPurchaseResult = await paymentClient().createPurchase(
           agent.blockchainIdentifier,
           paidJobResult.data,
           inputData,
