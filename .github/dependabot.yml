@@ -55,11 +55,14 @@ updates:
       vercel:
         patterns:
           - "@vercel/*"
+      happy-dom:
+        patterns:
+          - "happy-dom"
+          - "@happy-dom/*"
       testing:
         patterns:
           - "jest"
           - "@testing-library/*"
-          - "@happy-dom/*"
           - "@types/jest"
       markdown:
         patterns:
