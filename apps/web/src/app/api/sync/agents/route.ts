@@ -159,7 +159,7 @@ async function syncAllEntries() {
     );
 
   // Call diff endpoint (no pagination)
-  const entriesResult = await registryClient().getAgentsDiff(
+  const entriesResult = await registryClient.getAgentsDiff(
     lastSyncedAt,
     cursorId,
     50,

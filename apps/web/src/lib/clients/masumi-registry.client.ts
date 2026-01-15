@@ -6,11 +6,9 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 
 export const registryClient = (() => {
-  const client = () =>
-    createRegistryClient(
-      getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-      getEnvSecrets().REGISTRY_API_URL,
-      getEnvSecrets().REGISTRY_API_KEY,
-    );
-  return client;
+  return createRegistryClient(
+    getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+    getEnvSecrets().REGISTRY_API_URL,
+    getEnvSecrets().REGISTRY_API_KEY,
+  );
 })();

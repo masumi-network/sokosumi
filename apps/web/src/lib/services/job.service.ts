@@ -732,7 +732,7 @@ export const jobService = (() => {
     });
 
     // Create purchase
-    const createPurchaseResult = await paymentClient().createPurchase(
+    const createPurchaseResult = await paymentClient.createPurchase(
       agentWithCreditsPrice.blockchainIdentifier,
       startJobResponse,
       inputData,
@@ -970,7 +970,7 @@ export const jobService = (() => {
       },
     });
 
-    const refundResult = await paymentClient().requestRefund(
+    const refundResult = await paymentClient.requestRefund(
       jobBlockchainIdentifier,
     );
     if (refundResult.isErr()) {
@@ -1037,7 +1037,7 @@ export const jobService = (() => {
     let job: JobWithSokosumiStatus | null = initialJob;
     if (isPaidJob(job) && job.purchase === null) {
       const purchaseResult =
-        await paymentClient().getPurchaseByBlockchainIdentifier(
+        await paymentClient.getPurchaseByBlockchainIdentifier(
           job.blockchainIdentifier,
         );
       if (purchaseResult.isOk()) {
@@ -1063,7 +1063,7 @@ export const jobService = (() => {
         ? await agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
         : Promise.resolve(err("No agent job ID to sync")),
       purchaseIdToSync
-        ? await paymentClient().getPurchaseById(purchaseIdToSync)
+        ? await paymentClient.getPurchaseById(purchaseIdToSync)
         : Promise.resolve(err("No purchase ID to sync")),
     ]);
 

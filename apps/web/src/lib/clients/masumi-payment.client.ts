@@ -6,11 +6,9 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 
 export const paymentClient = (() => {
-  const client = () =>
-    createPaymentClient(
-      getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-      getEnvSecrets().PAYMENT_API_URL,
-      getEnvSecrets().PAYMENT_API_KEY,
-    );
-  return client;
+  return createPaymentClient(
+    getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+    getEnvSecrets().PAYMENT_API_URL,
+    getEnvSecrets().PAYMENT_API_KEY,
+  );
 })();
