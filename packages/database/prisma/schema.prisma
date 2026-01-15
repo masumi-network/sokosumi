@@ -747,7 +747,7 @@ model Blob {
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  task   Task?   @relation("TaskBlobs", fields: [taskId], references: [id], onDelete: SetNull)
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
   taskId String?
 
   @@unique([eventId, sourceUrl]) // For deduplication checks
@@ -1015,7 +1015,7 @@ model Task {
   comments TaskComment[]
   events   TaskEvents[]
 
-  blobs Blob[] @relation("TaskBlobs")
+  blobs Blob[]
 
   @@map("task")
 }
