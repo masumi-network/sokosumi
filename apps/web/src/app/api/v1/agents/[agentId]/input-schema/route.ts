@@ -40,7 +40,7 @@ export async function GET(
       throw new Error("AGENT_NOT_FOUND");
     }
 
-    const inputSchemaResult = await agentClient().fetchAgentInputSchema(agent);
+    const inputSchemaResult = await agentClient.fetchAgentInputSchema(agent);
     if (inputSchemaResult.isErr()) {
       throw new Error(inputSchemaResult.error);
     }

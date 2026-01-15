@@ -640,7 +640,7 @@ export const jobService = (() => {
       },
     });
 
-    const startJobResult = await agentClient().startPaidAgentJob(
+    const startJobResult = await agentClient.startPaidAgentJob(
       agentWithCreditsPrice,
       identifierFromPurchaser,
       inputData,
@@ -818,7 +818,7 @@ export const jobService = (() => {
     });
 
     // Start job with agent using free job client
-    const startJobResult = await agentClient().startFreeAgentJob(
+    const startJobResult = await agentClient.startFreeAgentJob(
       agent,
       inputData,
     );
@@ -1060,7 +1060,7 @@ export const jobService = (() => {
 
     const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
       agentJobIdToSync
-        ? await agentClient().fetchAgentJobStatus(job.agent, agentJobIdToSync)
+        ? await agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
         : Promise.resolve(err("No agent job ID to sync")),
       purchaseIdToSync
         ? await paymentClient().getPurchaseById(purchaseIdToSync)
@@ -1351,7 +1351,7 @@ export const jobService = (() => {
     });
 
     // Call agent API to provide input
-    const provideInputResult = await agentClient().provideJobInput(
+    const provideInputResult = await agentClient.provideJobInput(
       job.agent,
       statusId,
       job.agentJobId,
