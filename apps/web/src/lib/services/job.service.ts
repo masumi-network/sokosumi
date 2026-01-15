@@ -981,10 +981,7 @@ export const jobService = (() => {
       });
 
       Sentry.captureException(refundResult.error);
-      throw new JobError(
-        JobErrorCode.REFUND_REQUEST_FAILED,
-        "Refund request failed",
-      );
+      throw new JobError(JobErrorCode.REFUND_REQUEST_FAILED);
     }
 
     const job = await prisma.$transaction(async (tx) => {
