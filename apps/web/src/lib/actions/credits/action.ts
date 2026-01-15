@@ -1,5 +1,8 @@
 "use server";
 
+import { Network } from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
+
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   ActionError,
@@ -7,6 +10,7 @@ import {
   CreditsErrorCode,
 } from "@/lib/actions/errors";
 import { stripeClient } from "@/lib/clients/stripe.client";
+import prisma from "@/lib/db/prisma";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
@@ -125,6 +129,62 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
         code: error.code,
       });
     }
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});
+
+interface AddPreprodCreditsParameters extends AuthenticatedRequest {
+  organizationId: string | null;
+  credits: number;
+}
+
+export const addPreprodCredits = withAuthContext<
+  AddPreprodCreditsParameters,
+  Result<{ success: true }, ActionError>
+>(async ({ organizationId, credits, authContext }) => {
+  const { userId } = authContext;
+
+  // Validate input
+  if (!credits || credits <= 0) {
+    return Err({
+      message: "Invalid credits",
+      code: CreditsErrorCode.INVALID_CREDITS,
+    });
+  }
+
+  // Verify user is member of the organization
+  if (organizationId) {
+    const member = await userService.getMyMemberInOrganization(organizationId);
+    if (!member) {
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+  }
+
+  try {
+    const cents = convertCreditsToCents(credits);
+
+    // Create credit transaction directly for Preprod network
+    await prisma.creditTransaction.create({
+      data: {
+        network: Network.PREPROD,
+        amount: cents,
+        userId,
+        ...(organizationId && {
+          organizationId,
+        }),
+        note: "Preprod credit top-up",
+        noteKey: "preprod.topup",
+      },
+    });
+
+    return Ok({ success: true });
+  } catch (error) {
+    console.error("Failed to add Preprod credits", error);
     return Err({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });

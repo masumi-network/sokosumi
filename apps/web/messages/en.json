@@ -1122,6 +1122,10 @@
       "creditsCleared": "Credits cleared for coupon entry",
       "couponCleared": "Coupon cleared for credit entry",
       "couponOrCreditsError": "Please enter either credits or a coupon code",
+      "preprodTitle": "Add Preprod Credits",
+      "preprodDescription": "Add credits to your Preprod account for testing",
+      "preprodTopUpButton": "Add Credits",
+      "preprodSuccess": "Credits added successfully",
       "Error": {
         "title": "Something Went Wrong",
         "message": "We encountered an issue processing your request. Please try again later.",
