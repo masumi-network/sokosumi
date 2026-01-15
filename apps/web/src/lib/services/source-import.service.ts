@@ -8,7 +8,7 @@ import {
 } from "@sokosumi/database/repositories";
 import pLimit from "p-limit";
 
-import { uploadFile } from "@/lib/blob";
+import { uploadFileForBlob } from "@/lib/blob/utils";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import prisma from "@/lib/db/prisma";
 import { isHttpUrl } from "@/lib/utils/file";
@@ -53,7 +53,6 @@ export const sourceImportService = (() => {
         try {
           await blobRepository.upsertOutputBlob(
             {
-              userId,
               eventId: jobEventId,
               sourceUrl: url,
               fileName: guessedName,
@@ -101,6 +100,7 @@ export const sourceImportService = (() => {
    * @param blob - The Blob entity to import.
    */
   async function importResultBlob(blob: Blob): Promise<void> {
+    if (!blob) return;
     if (blob.status !== BlobStatus.PENDING) return;
 
     const sourceUrl = blob.sourceUrl;
@@ -125,7 +125,7 @@ export const sourceImportService = (() => {
       const file = new File([arrayBuffer], suggestedName, {
         type: contentType ?? "application/octet-stream",
       });
-      const uploaded = await uploadFile(blob.userId, file);
+      const uploaded = await uploadFileForBlob(blob.id, file);
       await blobRepository.markBlobReady(
         blob.id,
         {

@@ -109,12 +109,11 @@ export const blobRepository = {
     },
     tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
-    const blobs = await tx.blob.findMany({
+    return await tx.blob.findMany({
       where: { status: BlobStatus.PENDING },
       take: data.limit,
       orderBy: { createdAt: "asc" },
     });
-    return blobs;
   },
 
   /**

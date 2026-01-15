@@ -2,7 +2,7 @@ import "server-only";
 
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 
-import { uploadFile } from "@/lib/blob";
+import { uploadFileForUser } from "@/lib/blob/utils";
 
 export interface UploadedFile {
   url: string;
@@ -25,7 +25,7 @@ export async function handleInputDataFileUploads(
   const results: UploadedFile[] = [];
   for (const [key, value] of Object.entries(inputData)) {
     if (value instanceof File) {
-      const blob = await uploadFile(userId, value);
+      const blob = await uploadFileForUser(userId, value);
       inputData[key] = blob.url;
       results.push({
         url: blob.url,
@@ -36,7 +36,7 @@ export async function handleInputDataFileUploads(
     } else if (Array.isArray(value) && value.every((v) => v instanceof File)) {
       const uploaded = await Promise.all(
         value.map(async (file: File) => {
-          const blob = await uploadFile(userId, file);
+          const blob = await uploadFileForUser(userId, file);
           return {
             url: blob.url,
             name: file.name,
