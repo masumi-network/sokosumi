@@ -249,6 +249,7 @@ docs(readme): update setup instructions
 ## Additional Rules
 
 - [Linting](.cursor/rules/lint.mdc)
+- [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 
 ## References
 

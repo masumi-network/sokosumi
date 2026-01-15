@@ -164,11 +164,11 @@ async function syncAllEntries() {
     cursorId,
     50,
   );
-  if (!entriesResult.ok) {
+  if (entriesResult.isErr()) {
     console.error("Error in diff sync operation:", entriesResult.error);
     return;
   }
-  const entries = entriesResult.data;
+  const entries = entriesResult.value;
 
   // If no entries, don't update timestamp
   if (entries.length === 0) {
