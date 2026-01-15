@@ -53,22 +53,4 @@ export const attachmentRepository = {
       },
     });
   },
-
-  /**
-   * Find an attachment by URL within a JobInput
-   */
-  async findAttachmentByUrl(
-    jobInputId: string,
-    url: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Attachment | null> {
-    return await tx.attachment.findUnique({
-      where: {
-        jobInputId_url: {
-          jobInputId,
-          url,
-        },
-      },
-    });
-  },
 };
