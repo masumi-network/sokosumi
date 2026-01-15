@@ -759,11 +759,19 @@ model Attachment {
   mimeType String? // Optional - MIME type
   size     BigInt? // Optional - file size in bytes
 
-  jobInputId String
-  jobInput   JobInput @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
+  // Polymorphic relations - exactly one should be set
+  jobInputId String?
+  jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
 
-  @@unique([jobInputId, url]) // Prevent duplicate URLs per JobInput
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  taskCommentId String?
+  taskComment   TaskComment? @relation(fields: [taskCommentId], references: [id], onDelete: Cascade)
+
   @@index([jobInputId])
+  @@index([taskId])
+  @@index([taskCommentId])
   @@map("attachment")
 }
 
@@ -1008,7 +1016,7 @@ model Task {
 
   name        String
   description String?
-  attachments String[] @default([])
+  attachments Attachment[]
 
   status TaskStatus @default(DRAFT)
 
@@ -1054,7 +1062,7 @@ model TaskComment {
   updatedAt DateTime @updatedAt
 
   content     String
-  attachments String[] @default([])
+  attachments Attachment[]
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
