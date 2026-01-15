@@ -60,6 +60,14 @@ model User {
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
+  // Orchestrators
+  orchestrators Orchestrator[]
+
+  // Tasks
+  tasks        Task[]
+  taskComments TaskComment[]
+  taskEvents   TaskEvents[]
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
@@ -961,4 +969,96 @@ model Jwks {
   expiresAt  DateTime?
 
   @@map("jwks")
+}
+
+model Orchestrator {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slug        String  @unique
+  name        String
+  url         String?
+  email       String?
+  description String?
+  image       String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tasks        Task[]
+  taskComments TaskComment[]
+  taskEvents   TaskEvents[]
+
+  @@map("orchestrator")
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  attachments String[] @default([])
+
+  status TaskStatus @default(DRAFT)
+
+  orchestratorId String?
+  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+
+  comments TaskComment[]
+  events   TaskEvents[]
+
+  @@map("task")
+}
+
+enum TaskStatus {
+  DRAFT
+  READY
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model TaskEvents {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  status TaskStatus
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  orchestratorId String?
+  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("taskEvents")
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  content     String
+  attachments String[] @default([])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  orchestratorId String?
+  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("taskComment")
 }
