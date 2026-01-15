@@ -984,7 +984,7 @@ model Orchestrator {
   url         String?
   email       String?
   description String?
-  logo        String?
+  image       String?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

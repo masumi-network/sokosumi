@@ -14,7 +14,7 @@ CREATE TABLE "orchestrator" (
     "url" TEXT,
     "email" TEXT,
     "description" TEXT,
-    "logo" TEXT,
+    "image" TEXT,
     "userId" TEXT NOT NULL,
 
     CONSTRAINT "orchestrator_pkey" PRIMARY KEY ("id")
@@ -44,7 +44,8 @@ CREATE TABLE "taskEvents" (
     "orchestratorId" TEXT,
     "taskId" TEXT NOT NULL,
 
-    CONSTRAINT "taskEvents_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "taskEvents_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "taskEvents_user_or_orchestrator_check" CHECK (("userId" IS NOT NULL) OR ("orchestratorId" IS NOT NULL))
 );
 
 -- CreateTable
@@ -57,7 +58,8 @@ CREATE TABLE "taskComment" (
     "orchestratorId" TEXT,
     "taskId" TEXT NOT NULL,
 
-    CONSTRAINT "taskComment_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "taskComment_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "taskComment_user_or_orchestrator_check" CHECK (("userId" IS NOT NULL) OR ("orchestratorId" IS NOT NULL))
 );
 
 -- CreateIndex
