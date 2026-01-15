@@ -69,7 +69,6 @@ export const sourceImportService = (() => {
         try {
           await linkRepository.upsertLink(
             {
-              userId,
               eventId: jobEventId,
               url,
               title: undefined,
