@@ -16,7 +16,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services/stripe.service";
-import { getNetworkFromEnv } from "@/lib/utils";
 
 export async function POST(req: Request) {
   let event: Stripe.Event;
@@ -581,7 +580,6 @@ const handleInvoicePaidEvent = async (
         invoiceId,
         invoice.amount_paid,
         invoice.currency,
-        getNetworkFromEnv(),
         prisma,
       );
 

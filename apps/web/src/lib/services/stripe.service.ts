@@ -20,7 +20,6 @@ import {
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
-import { getNetworkFromEnv } from "@/lib/utils";
 
 export const stripeService = (() => {
   async function getStripeCustomerId(
@@ -74,7 +73,6 @@ export const stripeService = (() => {
               convertCreditsToCents(credits),
               amount,
               price.currency,
-              getNetworkFromEnv(),
               tx,
             );
 
