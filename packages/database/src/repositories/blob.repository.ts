@@ -13,7 +13,6 @@ export const blobRepository = {
    */
   async upsertOutputBlob(
     data: {
-      userId: string;
       eventId: string;
       sourceUrl: string;
       fileName?: string;
@@ -23,13 +22,11 @@ export const blobRepository = {
     const blob = await tx.blob.upsert({
       where: {
         eventId_sourceUrl: { eventId: data.eventId, sourceUrl: data.sourceUrl },
-        userId: data.userId,
       },
       update: {
         fileName: data.fileName,
       },
       create: {
-        user: { connect: { id: data.userId } },
         event: { connect: { id: data.eventId } },
         status: BlobStatus.PENDING,
         sourceUrl: data.sourceUrl,
@@ -55,12 +52,22 @@ export const blobRepository = {
   /**
    * Get all Blob records for a user
    */
+  /**
+   * Get all Blob records for a user
+   * Queries through the relationship chain: Blob -> JobEvent -> Job -> User
+   */
   async getBlobsByUserId(
     userId: string,
     tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
-      where: { userId },
+      where: {
+        event: {
+          job: {
+            userId,
+          },
+        },
+      },
     });
     return blobs;
   },
@@ -87,23 +94,6 @@ export const blobRepository = {
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: {
-        event: { job: { id: jobId } },
-      },
-    });
-    return blobs;
-  },
-
-  /**
-   * Get all Blob records for a job event by job id
-   */
-  async getBlobsByUserIdAndJobId(
-    userId: string,
-    jobId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Blob[]> {
-    const blobs = await tx.blob.findMany({
-      where: {
-        userId,
         event: { job: { id: jobId } },
       },
     });

@@ -30,7 +30,6 @@ model User {
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
   jobSchedules       JobSchedule[]
-  blobs              Blob[]              @relation("UserBlob")
   links              Link[]              @relation("UserLink")
 
   stripeCustomerId String?
@@ -742,16 +741,12 @@ model Blob {
   sourceUrl String
   status    BlobStatus
 
-  userId String
-  user   User   @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
-
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, sourceUrl]) // For deduplication checks
   @@index([status, createdAt]) // For getPendingResultBlobs query
   @@index([eventId]) // For fetching blobs by job event
-  @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
 
