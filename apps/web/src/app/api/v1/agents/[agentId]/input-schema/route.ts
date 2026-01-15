@@ -41,11 +41,11 @@ export async function GET(
     }
 
     const inputSchemaResult = await agentClient.fetchAgentInputSchema(agent);
-    if (!inputSchemaResult.ok) {
+    if (inputSchemaResult.isErr()) {
       throw new Error(inputSchemaResult.error);
     }
 
-    const inputSchema = inputSchemaSchema.parse(inputSchemaResult.data);
+    const inputSchema = inputSchemaSchema.parse(inputSchemaResult.value);
     return createApiSuccessResponse(inputSchema);
   } catch (error) {
     return handleApiError(error, "retrieve agent input schema", {
