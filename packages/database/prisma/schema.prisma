@@ -30,7 +30,6 @@ model User {
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
   jobSchedules       JobSchedule[]
-  links              Link[]              @relation("UserLink")
 
   stripeCustomerId String?
 
@@ -775,9 +774,6 @@ model Link {
 
   url   String
   title String?
-
-  userId String
-  user   User   @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
 
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
