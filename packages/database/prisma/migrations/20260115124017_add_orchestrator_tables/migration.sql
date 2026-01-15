@@ -27,7 +27,7 @@ CREATE TABLE "task" (
     "description" TEXT,
     "status" "TaskStatus" NOT NULL DEFAULT 'DRAFT',
     "orchestratorId" TEXT,
-    "attachments" TEXT[],
+    "attachments" TEXT[] NOT NULL DEFAULT [],
 
     CONSTRAINT "task_pkey" PRIMARY KEY ("id")
 );
@@ -51,7 +51,7 @@ CREATE TABLE "taskComment" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "content" TEXT NOT NULL,
-    "attachments" TEXT[],
+    "attachments" TEXT[] NOT NULL DEFAULT [],
     "userId" TEXT,
     "orchestratorId" TEXT,
     "taskId" TEXT NOT NULL,

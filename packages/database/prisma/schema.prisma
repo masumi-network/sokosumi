@@ -1003,7 +1003,7 @@ model Task {
 
   name        String
   description String?
-  attachments String[] // URLs to the attachments
+  attachments String[] @default([])
 
   status TaskStatus @default(DRAFT)
 
@@ -1049,7 +1049,7 @@ model TaskComment {
   updatedAt DateTime @updatedAt
 
   content     String
-  attachments String[] // URLs to the attachments
+  attachments String[] @default([])
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
