@@ -1,9 +1,6 @@
 -- CreateEnum
 CREATE TYPE "TaskStatus" AS ENUM ('DRAFT', 'READY', 'RUNNING', 'COMPLETED', 'FAILED');
 
--- AlterTable
-ALTER TABLE "blob" ADD COLUMN     "taskId" TEXT;
-
 -- CreateTable
 CREATE TABLE "orchestrator" (
     "id" TEXT NOT NULL,
@@ -30,6 +27,7 @@ CREATE TABLE "task" (
     "description" TEXT,
     "status" "TaskStatus" NOT NULL DEFAULT 'DRAFT',
     "orchestratorId" TEXT,
+    "attachments" TEXT[],
 
     CONSTRAINT "task_pkey" PRIMARY KEY ("id")
 );
@@ -53,6 +51,7 @@ CREATE TABLE "taskComment" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "content" TEXT NOT NULL,
+    "attachments" TEXT[],
     "userId" TEXT,
     "orchestratorId" TEXT,
     "taskId" TEXT NOT NULL,
@@ -62,9 +61,6 @@ CREATE TABLE "taskComment" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "orchestrator_slug_key" ON "orchestrator"("slug");
-
--- AddForeignKey
-ALTER TABLE "blob" ADD CONSTRAINT "blob_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "task"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "orchestrator" ADD CONSTRAINT "orchestrator_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;

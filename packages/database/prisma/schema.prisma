@@ -1003,6 +1003,7 @@ model Task {
 
   name        String
   description String?
+  attachments String[] // URLs to the attachments
 
   status TaskStatus @default(DRAFT)
 
@@ -1011,8 +1012,6 @@ model Task {
 
   comments TaskComment[]
   events   TaskEvents[]
-
-  attachments String[] // URLs to the attachments
 
   @@map("task")
 }
@@ -1049,7 +1048,8 @@ model TaskComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  content String
+  content     String
+  attachments String[] // URLs to the attachments
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
