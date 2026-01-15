@@ -44,8 +44,7 @@ CREATE TABLE "taskEvents" (
     "orchestratorId" TEXT,
     "taskId" TEXT NOT NULL,
 
-    CONSTRAINT "taskEvents_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "taskEvents_user_or_orchestrator_check" CHECK (("userId" IS NOT NULL) OR ("orchestratorId" IS NOT NULL))
+    CONSTRAINT "taskEvents_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -58,8 +57,7 @@ CREATE TABLE "taskComment" (
     "orchestratorId" TEXT,
     "taskId" TEXT NOT NULL,
 
-    CONSTRAINT "taskComment_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "taskComment_user_or_orchestrator_check" CHECK (("userId" IS NOT NULL) OR ("orchestratorId" IS NOT NULL))
+    CONSTRAINT "taskComment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
