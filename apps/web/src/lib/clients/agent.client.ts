@@ -2,7 +2,7 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import { Agent } from "@sokosumi/database";
-import { createAgentClient, type Result } from "@sokosumi/masumi";
+import { createAgentClient } from "@sokosumi/masumi";
 import type {
   InputSchemaResponseSchemaType,
   InputSchemaType,
@@ -11,6 +11,7 @@ import type {
   StartFreeJobResponseSchemaType,
   StartPaidJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
+import { type Result } from "neverthrow";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 

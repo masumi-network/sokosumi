@@ -145,7 +145,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           inputData,
         );
 
-        if (!freeJobResult.ok) {
+        if (freeJobResult.isErr()) {
           throw unprocessableEntity(
             `Free agent job start failed: ${freeJobResult.error}`,
           );
@@ -160,7 +160,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             inputSchema: flatInputSchema,
             name: jobName,
           },
-          freeJobResult.data,
+          freeJobResult.value,
         );
         break;
       case PricingType.FIXED:
@@ -180,7 +180,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           inputData,
         );
 
-        if (!paidJobResult.ok) {
+        if (paidJobResult.isErr()) {
           throw unprocessableEntity(
             `Paid agent job start failed: ${paidJobResult.error}`,
           );
@@ -196,14 +196,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: jobName,
           },
           agent.cost,
-          paidJobResult.data,
+          paidJobResult.value,
           identifierFromPurchaser,
         );
 
         // Create purchase with payment API
         const createPurchaseResult = await paymentClient().createPurchase(
           agent.blockchainIdentifier,
-          paidJobResult.data,
+          paidJobResult.value,
           inputData,
           identifierFromPurchaser,
         );
