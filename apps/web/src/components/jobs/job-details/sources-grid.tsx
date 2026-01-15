@@ -3,7 +3,7 @@ import { FileIcon } from "lucide-react";
 
 import { Favicon } from "@/components/ui/favicon";
 import { FileChip } from "@/components/ui/file-chip";
-import { getBlobFileName, getBlobUrl } from "@/lib/helpers/blob";
+import { getBlobUrl } from "@/lib/helpers/blob";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
 
@@ -60,7 +60,7 @@ function FileItemChip({ blob }: { blob: Blob }) {
           <FileIcon className="text-muted-foreground size-4" />
         </div>
         <span className="text-foreground/80 w-full truncate text-sm">
-          {getBlobFileName(blob) ?? getBlobUrl(blob)}
+          {blob.name ?? getBlobUrl(blob)}
         </span>
         <div className="inline-flex justify-end">
           <BlobStatusBadge status={blob.status} />
@@ -69,10 +69,6 @@ function FileItemChip({ blob }: { blob: Blob }) {
     );
   }
   return (
-    <FileChip
-      url={getBlobUrl(blob)}
-      fileName={getBlobFileName(blob)}
-      sizeClass="size-4"
-    />
+    <FileChip url={getBlobUrl(blob)} fileName={blob.name} sizeClass="size-4" />
   );
 }

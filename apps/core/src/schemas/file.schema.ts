@@ -8,9 +8,9 @@ export const fileSchema = z
     id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    userId: z.string().openapi({ example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj" }),
     jobId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
-    name: z.string().nullish().openapi({ example: "My Job" }),
+    sourceUrl: z.string().openapi({ example: "https://example.com/file.pdf" }),
+    name: z.string().nullish().openapi({ example: "file.pdf" }),
     status: z
       .enum(BlobStatus)
       .openapi({ example: BlobStatus.READY, enum: Object.values(BlobStatus) }),
@@ -19,10 +19,7 @@ export const fileSchema = z
     fileUrl: z
       .string()
       .nullish()
-      .openapi({ example: "https://example.com/file.pdf" }),
-    sourceUrl: z
-      .string()
-      .openapi({ example: "https://example.com/file.pdf" }),
+      .openapi({ example: "https://blob.vercel.app/file.pdf" }),
   })
   .openapi("File");
 

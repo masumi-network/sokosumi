@@ -55,7 +55,7 @@ export const sourceImportService = (() => {
             {
               eventId: jobEventId,
               sourceUrl: url,
-              fileName: guessedName,
+              name: guessedName,
             },
             tx,
           );
@@ -98,8 +98,7 @@ export const sourceImportService = (() => {
    *
    * @param blob - The Blob entity to import.
    */
-  async function importResultBlob(blob: Blob): Promise<void> {
-    if (!blob) return;
+  async function importBlob(blob: Blob): Promise<void> {
     if (blob.status !== BlobStatus.PENDING) return;
 
     const sourceUrl = blob.sourceUrl;
@@ -116,7 +115,7 @@ export const sourceImportService = (() => {
         parseContentDispositionFilename(
           res.headers.get("content-disposition"),
         ) ??
-        blob.fileName ??
+        blob.name ??
         getBasename(sourceUrl) ??
         "file";
 
@@ -129,9 +128,9 @@ export const sourceImportService = (() => {
         blob.id,
         {
           fileUrl: uploaded.url,
-          mime: contentType,
+          mimeType: contentType,
           size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
-          fileName: suggestedName,
+          name: suggestedName,
         },
         prisma,
       );
@@ -166,7 +165,7 @@ export const sourceImportService = (() => {
     const pendingBlobs = await blobRepository.getPendingBlobs({}, prisma);
     const limit = pLimit(5);
     for (const blob of pendingBlobs) {
-      pendingPromises.push(limit(() => importResultBlob(blob)));
+      pendingPromises.push(limit(() => importBlob(blob)));
     }
     try {
       await Promise.allSettled(pendingPromises);

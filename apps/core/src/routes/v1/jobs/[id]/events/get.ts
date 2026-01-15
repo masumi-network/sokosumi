@@ -21,54 +21,54 @@ const params = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-  method: "get",
-  path: "/{id}/events",
-  description: "Get events for a job",
-  tags: ["Jobs"],
-  request: {
-    params,
-  },
-  responses: {
-    200: jsonSuccessResponse(jobEventsSchema, "Retrieve events for a job", {
-      data: [
-        {
-          id: "event_123",
-          createdAt: "2025-01-15T10:30:00.000Z",
-          updatedAt: "2025-01-15T10:30:00.000Z",
-          status: "INITIATED",
-          inputSchema: "input_schema",
-          input: {
-            id: "input_123",
-            input: '{"prompt":"How many planets are in the solar system?"}',
-            inputHash: "input_hash",
-            signature: null,
+    method: "get",
+    path: "/{id}/events",
+    description: "Get events for a job",
+    tags: ["Jobs"],
+    request: {
+      params,
+    },
+    responses: {
+      200: jsonSuccessResponse(jobEventsSchema, "Retrieve events for a job", {
+        data: [
+          {
+            id: "event_123",
+            createdAt: "2025-01-15T10:30:00.000Z",
+            updatedAt: "2025-01-15T10:30:00.000Z",
+            status: "INITIATED",
+            inputSchema: "input_schema",
+            input: {
+              id: "input_123",
+              input: '{"prompt":"How many planets are in the solar system?"}',
+              inputHash: "input_hash",
+              signature: null,
+            },
+            result: null,
+            blobs: [],
+            links: [],
           },
-          result: null,
-          blobs: [],
-          links: [],
+          {
+            id: "event_456",
+            createdAt: "2025-01-15T10:35:00.000Z",
+            updatedAt: "2025-01-15T10:35:00.000Z",
+            status: "COMPLETED",
+            inputSchema: null,
+            input: null,
+            result: "# Answer\n\nThere are 8 planets in the solar system.",
+            blobs: [],
+            links: [],
+          },
+        ],
+        meta: {
+          timestamp: "2025-01-15T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
         },
-        {
-          id: "event_456",
-          createdAt: "2025-01-15T10:35:00.000Z",
-          updatedAt: "2025-01-15T10:35:00.000Z",
-          status: "COMPLETED",
-          inputSchema: null,
-          input: null,
-          result: "# Answer\n\nThere are 8 planets in the solar system.",
-          blobs: [],
-          links: [],
-        },
-      ],
-      meta: {
-        timestamp: "2025-01-15T12:00:00.000Z",
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-      },
-    }),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
+      }),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
   }),
 );
 
@@ -91,10 +91,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const events = job.events.map((event) => ({
         ...event,
-        blobs: event.blobs.map((blob) => ({
+        files: event.blobs.map((blob) => ({
           ...blob,
-          name: blob.fileName ?? null,
-          mimeType: blob.mime ?? null,
           jobId: id,
           size: blob.size ? Number(blob.size) : null,
         })),

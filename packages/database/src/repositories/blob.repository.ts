@@ -15,7 +15,7 @@ export const blobRepository = {
     data: {
       eventId: string;
       sourceUrl: string;
-      fileName?: string;
+      name?: string;
     },
     tx: Prisma.TransactionClient,
   ): Promise<Blob> {
@@ -24,13 +24,13 @@ export const blobRepository = {
         eventId_sourceUrl: { eventId: data.eventId, sourceUrl: data.sourceUrl },
       },
       update: {
-        fileName: data.fileName,
+        name: data.name,
       },
       create: {
         event: { connect: { id: data.eventId } },
         status: BlobStatus.PENDING,
         sourceUrl: data.sourceUrl,
-        fileName: data.fileName,
+        name: data.name,
       },
     });
     return blob;
@@ -135,9 +135,9 @@ export const blobRepository = {
     id: string,
     updates: {
       fileUrl: string;
-      mime?: string | null;
+      mimeType?: string | null;
       size?: bigint | null;
-      fileName?: string | null;
+      name?: string | null;
     },
     tx: Prisma.TransactionClient,
   ): Promise<Blob> {
@@ -145,11 +145,9 @@ export const blobRepository = {
       where: { id },
       data: {
         fileUrl: updates.fileUrl,
-        mime: updates.mime ?? undefined,
-        size: typeof updates.size !== "undefined" ? updates.size : undefined,
-        ...(typeof updates.fileName !== "undefined" && {
-          fileName: updates.fileName,
-        }),
+        mimeType: updates.mimeType,
+        size: updates.size,
+        name: updates.name,
         status: BlobStatus.READY,
       },
     });

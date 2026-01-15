@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireJobAccess } from "@/helpers/access-control.js";
+import { requireJobAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -20,45 +20,43 @@ const params = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-  method: "get",
-  path: "/{id}/links",
-  description: "Get links associated with a job",
-  tags: ["Jobs"],
-  request: {
-    params,
-  },
-  responses: {
-    200: jsonSuccessResponse(linksSchema, "Retrieve links by job ID", {
-      data: [
-        {
-          id: "link_123",
-          createdAt: "2025-01-15T10:30:00.000Z",
-          updatedAt: "2025-01-15T10:30:00.000Z",
-          userId: "user_123",
-          jobId: "cmi4gmksz000104l8wps8p7fp",
-          url: "https://example.com/article1",
-          title: "Example Article 1",
+    method: "get",
+    path: "/{id}/links",
+    description: "Get links associated with a job",
+    tags: ["Jobs"],
+    request: {
+      params,
+    },
+    responses: {
+      200: jsonSuccessResponse(linksSchema, "Retrieve links by job ID", {
+        data: [
+          {
+            id: "link_123",
+            createdAt: "2025-01-15T10:30:00.000Z",
+            updatedAt: "2025-01-15T10:30:00.000Z",
+            jobId: "cmi4gmksz000104l8wps8p7fp",
+            url: "https://example.com/article1",
+            title: "Example Article 1",
+          },
+          {
+            id: "link_456",
+            createdAt: "2025-01-15T10:31:00.000Z",
+            updatedAt: "2025-01-15T10:31:00.000Z",
+            jobId: "cmi4gmksz000104l8wps8p7fp",
+            url: "https://example.com/article2",
+            title: "Example Article 2",
+          },
+        ],
+        meta: {
+          timestamp: "2025-01-15T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
         },
-        {
-          id: "link_456",
-          createdAt: "2025-01-15T10:31:00.000Z",
-          updatedAt: "2025-01-15T10:31:00.000Z",
-          userId: "user_123",
-          jobId: "cmi4gmksz000104l8wps8p7fp",
-          url: "https://example.com/article2",
-          title: "Example Article 2",
-        },
-      ],
-      meta: {
-        timestamp: "2025-01-15T12:00:00.000Z",
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-      },
-    }),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
+      }),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
   }),
 );
 

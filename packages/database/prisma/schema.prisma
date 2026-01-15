@@ -734,8 +734,8 @@ model Blob {
   updatedAt DateTime @updatedAt
 
   fileUrl   String?
-  fileName  String?
-  mime      String?
+  name      String?
+  mimeType  String?
   size      BigInt?
   sourceUrl String
   status    BlobStatus

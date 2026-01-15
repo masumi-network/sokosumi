@@ -24,7 +24,11 @@ export const attachmentRepository = {
     });
   },
 
-  async getAttachmendByJobId(
+  /**
+   * Get all attachments for a Job
+   * Queries through the relationship chain: Attachment -> JobInput -> JobEvent -> Job
+   */
+  async getAttachmentsByJobId(
     jobId: string,
     tx: Prisma.TransactionClient,
   ): Promise<Attachment[]> {
