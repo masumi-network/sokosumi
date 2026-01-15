@@ -135,9 +135,3 @@ export function createPaymentClient(
     },
   };
 }
-
-// export const paymentClient = createPaymentClient(
-//   getEnv().NETWORK,
-//   getEnv().PAYMENT_API_URL,
-//   getEnv().PAYMENT_API_KEY,
-// );
