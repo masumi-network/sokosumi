@@ -7,7 +7,7 @@ import { uploadFile } from "@/lib/blob";
 export interface UploadedFile {
   userId: string;
   url: string;
-  fileName?: string;
+  name?: string;
   size?: bigint;
   mimeType?: string;
 }
@@ -31,7 +31,7 @@ export async function handleInputDataFileUploads(
       results.push({
         userId,
         url: blob.url,
-        fileName: value.name,
+        name: value.name,
         size: BigInt(value.size),
         mimeType: blob.contentType,
       });
@@ -42,7 +42,7 @@ export async function handleInputDataFileUploads(
           return {
             userId,
             url: blob.url,
-            fileName: file.name,
+            name: file.name,
             size: BigInt(file.size),
             mimeType: blob.contentType,
           } satisfies UploadedFile;
