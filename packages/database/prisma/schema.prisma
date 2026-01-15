@@ -747,9 +747,6 @@ model Blob {
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  taskId String?
-
   @@unique([eventId, sourceUrl]) // For deduplication checks
   @@index([status, origin, createdAt]) // For getPendingResultBlobs query
   @@index([eventId, origin]) // For fetching blobs by job event with origin filter
@@ -1015,7 +1012,7 @@ model Task {
   comments TaskComment[]
   events   TaskEvents[]
 
-  blobs Blob[]
+  attachments String[] // URLs to the attachments
 
   @@map("task")
 }
