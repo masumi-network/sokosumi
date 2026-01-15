@@ -23,7 +23,7 @@
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.4.12",
+    "@better-auth/oauth-provider": "1.4.13",
     "@better-auth/utils": "0.3.0",
     "@hono/node-server": "1.19.9",
     "@hono/zod-openapi": "1.2.0",
