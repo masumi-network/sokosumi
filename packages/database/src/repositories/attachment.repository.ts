@@ -30,17 +30,6 @@ export const attachmentRepository = {
   ): Promise<Attachment[]> {
     return await tx.attachment.findMany({
       where: { jobInput: { event: { jobId } } },
-      include: {
-        jobInput: {
-          include: {
-            event: {
-              include: {
-                job: true,
-              },
-            },
-          },
-        },
-      },
     });
   },
 
