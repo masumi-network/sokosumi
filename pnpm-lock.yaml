@@ -51,8 +51,8 @@ importers:
         specifier: 0.9.33
         version: 0.9.33(hono@4.11.4)
       '@scalar/openapi-to-markdown':
-        specifier: 0.3.19
-        version: 0.3.19(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
+        specifier: 0.3.20
+        version: 0.3.20(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
       '@sentry/node':
         specifier: 10.34.0
         version: 10.34.0
@@ -2985,8 +2985,8 @@ packages:
     resolution: {integrity: sha512-sr2nV0ngVEw3hUPWISj6t0VRztUIbFqNxZNY8ZwpvYj6YoU99c1cng9+4njxi3d7F7YgbNMPL2PQ2bWQLQEknQ==}
     engines: {node: '>=20'}
 
-  '@scalar/components@0.16.19':
-    resolution: {integrity: sha512-vaVJRH1m/Rsh6ams0pxsSCR/vw3mM7nvscN6mo8pOnmmZp3b2KYYHFCDwGXNeqHsaEFnGJJyX1J/u7t0qgvqXQ==}
+  '@scalar/components@0.16.20':
+    resolution: {integrity: sha512-j7PyjQ292tTRujf2q0XhRtZgQ57hfKcQso+3SjsHxZdy2ec9r9rnJgmGsZv0NvVhr2OHOexZVG9xUYjPKIepzQ==}
     engines: {node: '>=20'}
 
   '@scalar/core@0.3.31':
@@ -3011,8 +3011,8 @@ packages:
     resolution: {integrity: sha512-aSWd8rd3O73Ak9Ylson2TywvOuTjjOYiXydl9Cn8Ip/r7fi+h0QqAGom5gqo/WewrhySF9v+H/sW/Qmd05T/Kg==}
     engines: {node: '>=20'}
 
-  '@scalar/oas-utils@0.6.16':
-    resolution: {integrity: sha512-9qHGIjoSSVukeQdZlU4W6+1Cr07HJkdUX0TxLo/SRVX8rc4eKpJ5tfKALPiUdRXzj5xTDGGJ3v7TQk/eh4+q9Q==}
+  '@scalar/oas-utils@0.6.17':
+    resolution: {integrity: sha512-NEvzx/dv560BnBxC7/H+Ev+5MKY3J8aft81fQzU02pdk08PJbySHIzAgJjDO2j+H7cO/prpplKI0kZHgX0xK1g==}
     engines: {node: '>=20'}
 
   '@scalar/object-utils@1.2.21':
@@ -3023,8 +3023,8 @@ packages:
     resolution: {integrity: sha512-YsljPOKOgQgZL/kBcEouwz2CUa+2hFfThlUZRWC2DFI2Fnw5Ur8F1IvGgPqCAHr9p2XMH+Z/Pag2jZUfLcxcww==}
     engines: {node: '>=20'}
 
-  '@scalar/openapi-to-markdown@0.3.19':
-    resolution: {integrity: sha512-9aYiIcXb/U3yuZZvuuU93oqzWQsFiDJ8vHgw98xaZLpLmUTkh3GqvCqt3osTY/m4u8Zmx0b43bGTxYjD5bsUOA==}
+  '@scalar/openapi-to-markdown@0.3.20':
+    resolution: {integrity: sha512-+UuRoqGsiNnTrlcFG6BEJjBoJOcefeGqwE5l2/RsOplpgWjTlYf1dNibAkZW5PGOyUxXrWhfxXcWJ03CKKIRVQ==}
     engines: {node: '>=20'}
 
   '@scalar/openapi-types@0.5.3':
@@ -3058,8 +3058,8 @@ packages:
     resolution: {integrity: sha512-t8QoQO4ZWekiSdJ2O7C+PbXfv7x2fmhv3C7t/iITdNpOyLv4jAhlELGpxQHkWsU0ZwRrLU8e+rV0jJcKWE6vYA==}
     engines: {node: '>=20'}
 
-  '@scalar/workspace-store@0.24.6':
-    resolution: {integrity: sha512-Uor4JlfLHA6cy8i4VNy5LXskLNIvyiIRcRNPi6vDxuon9KwBGEcNtJF9h/lJ+tNHOkgwxHxxtUvvGbUGEb8xtw==}
+  '@scalar/workspace-store@0.24.7':
+    resolution: {integrity: sha512-NjGxPY4LedB1WibxMdcibBRQx0fbMq7xD1AD6AIMrtIhO7Loij/mMudm3KIu6YaEzRXQNa3pJVnlhoqSPCubSw==}
     engines: {node: '>=18'}
 
   '@schummar/icu-type-parser@1.21.5':
@@ -3683,8 +3683,8 @@ packages:
   '@types/node@20.19.29':
     resolution: {integrity: sha512-YrT9ArrGaHForBaCNwFjoqJWmn8G1Pr7+BH/vwyLHciA9qT/wSiuOhxGCT50JA5xLvFBd6PIiGkE3afxcPE1nw==}
 
-  '@types/node@22.19.6':
-    resolution: {integrity: sha512-qm+G8HuG6hOHQigsi7VGuLjUVu6TtBo/F05zvX04Mw2uCg9Dv0Qxy3Qw7j41SidlTcl5D/5yg0SEZqOB+EqZnQ==}
+  '@types/node@22.19.7':
+    resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
 
   '@types/node@24.10.4':
     resolution: {integrity: sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg==}
@@ -8285,8 +8285,8 @@ packages:
       uglify-js:
         optional: true
 
-  terser@5.44.1:
-    resolution: {integrity: sha512-t/R3R/n0MSwnnazuPpPNVO60LX0SKL45pyl9YlvxIdkH0Of7D5qM2EVe+yASRIlY5pZ73nclYJfNANGWPwFDZw==}
+  terser@5.46.0:
+    resolution: {integrity: sha512-jTwoImyr/QbOWFFso3YoU3ik0jBBDJ6JTOQiy/J2YxVJdZCc+5u7skhNwiOR3FQIygFqVUPHl7qbbxtjW2K3Qg==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -8693,8 +8693,8 @@ packages:
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
 
-  watchpack@2.5.0:
-    resolution: {integrity: sha512-e6vZvY6xboSwLz2GD36c16+O/2Z6fKvIf4pOXptw2rY9MVwE/TXc6RGqxD3I3x0a28lwBY7DE+76uTPSsBrrCA==}
+  watchpack@2.5.1:
+    resolution: {integrity: sha512-Zn5uXdcFNIA1+1Ei5McRd+iRzfhENPCe7LeABkJtNulSxjma+l7ltNx55BWZkRlwRnpOgHqxnjyaDgJnNXnqzg==}
     engines: {node: '>=10.13.0'}
 
   web-namespaces@2.0.1:
@@ -11346,7 +11346,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@scalar/components@0.16.19(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
+  '@scalar/components@0.16.20(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
     dependencies:
       '@floating-ui/utils': 0.2.10
       '@floating-ui/vue': 1.1.9(vue@3.5.26(typescript@5.9.3))
@@ -11354,7 +11354,7 @@ snapshots:
       '@scalar/code-highlight': 0.2.2
       '@scalar/helpers': 0.2.7
       '@scalar/icons': 0.5.2(typescript@5.9.3)
-      '@scalar/oas-utils': 0.6.16(typescript@5.9.3)
+      '@scalar/oas-utils': 0.6.17(typescript@5.9.3)
       '@scalar/themes': 0.13.26
       '@scalar/use-hooks': 0.3.6(typescript@5.9.3)
       '@vueless/storybook-dark-mode': 10.0.6(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
@@ -11385,7 +11385,7 @@ snapshots:
   '@scalar/icons@0.5.2(typescript@5.9.3)':
     dependencies:
       '@phosphor-icons/core': 2.1.1
-      '@types/node': 22.19.6
+      '@types/node': 22.19.7
       chalk: 5.6.2
       vue: 3.5.26(typescript@5.9.3)
     transitivePeerDependencies:
@@ -11396,7 +11396,7 @@ snapshots:
       '@scalar/helpers': 0.2.7
       yaml: 2.8.2
 
-  '@scalar/oas-utils@0.6.16(typescript@5.9.3)':
+  '@scalar/oas-utils@0.6.17(typescript@5.9.3)':
     dependencies:
       '@scalar/helpers': 0.2.7
       '@scalar/json-magic': 0.9.0
@@ -11404,7 +11404,7 @@ snapshots:
       '@scalar/openapi-types': 0.5.3
       '@scalar/themes': 0.13.26
       '@scalar/types': 0.5.7
-      '@scalar/workspace-store': 0.24.6(typescript@5.9.3)
+      '@scalar/workspace-store': 0.24.7(typescript@5.9.3)
       flatted: 3.3.3
       type-fest: 5.0.0
       yaml: 2.8.2
@@ -11432,11 +11432,11 @@ snapshots:
       leven: 4.1.0
       yaml: 2.8.2
 
-  '@scalar/openapi-to-markdown@0.3.19(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
+  '@scalar/openapi-to-markdown@0.3.20(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
     dependencies:
-      '@scalar/components': 0.16.19(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
+      '@scalar/components': 0.16.20(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
       '@scalar/helpers': 0.2.7
-      '@scalar/oas-utils': 0.6.16(typescript@5.9.3)
+      '@scalar/oas-utils': 0.6.17(typescript@5.9.3)
       '@scalar/openapi-parser': 0.23.13
       '@scalar/openapi-types': 0.5.3
       '@scalar/openapi-upgrader': 0.1.7
@@ -11500,7 +11500,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@scalar/workspace-store@0.24.6(typescript@5.9.3)':
+  '@scalar/workspace-store@0.24.7(typescript@5.9.3)':
     dependencies:
       '@scalar/code-highlight': 0.2.2
       '@scalar/helpers': 0.2.7
@@ -12209,7 +12209,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@22.19.6':
+  '@types/node@22.19.7':
     dependencies:
       undici-types: 6.21.0
 
@@ -14730,7 +14730,7 @@ snapshots:
       entities: 4.5.0
       param-case: 3.0.4
       relateurl: 0.2.7
-      terser: 5.44.1
+      terser: 5.46.0
 
   html-to-text@9.0.5:
     dependencies:
@@ -17734,12 +17734,12 @@ snapshots:
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2
-      terser: 5.44.1
+      terser: 5.46.0
       webpack: 5.104.1(@swc/core@1.15.8(@swc/helpers@0.5.18))
     optionalDependencies:
       '@swc/core': 1.15.8(@swc/helpers@0.5.18)
 
-  terser@5.44.1:
+  terser@5.46.0:
     dependencies:
       '@jridgewell/source-map': 0.3.11
       acorn: 8.15.0
@@ -18182,7 +18182,7 @@ snapshots:
     dependencies:
       makeerror: 1.0.12
 
-  watchpack@2.5.0:
+  watchpack@2.5.1:
     dependencies:
       glob-to-regexp: 0.4.1
       graceful-fs: 4.2.11
@@ -18222,7 +18222,7 @@ snapshots:
       schema-utils: 4.3.3
       tapable: 2.3.0
       terser-webpack-plugin: 5.3.16(@swc/core@1.15.8(@swc/helpers@0.5.18))(webpack@5.104.1(@swc/core@1.15.8(@swc/helpers@0.5.18)))
-      watchpack: 2.5.0
+      watchpack: 2.5.1
       webpack-sources: 3.3.3
     transitivePeerDependencies:
       - '@swc/core'
