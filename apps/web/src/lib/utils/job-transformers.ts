@@ -1,7 +1,5 @@
 import {
   AgentJobStatus,
-  Blob,
-  BlobOrigin,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
@@ -207,22 +205,3 @@ export function transformPurchaseToJobUpdate(
   return data;
 }
 
-/**
- * Retrieves all input blobs.
- *
- * @param blobs - The array of blobs to filter.
- * @returns An array of Blob objects with origin INPUT, or an empty array if none exist.
- */
-export function getInputBlobs(blobs: Blob[]): Blob[] {
-  return blobs.filter((blob) => blob.origin === BlobOrigin.INPUT);
-}
-
-/**
- * Retrieves all output blobs from all statuses of a job.
- *
- * @param blobs - The array of blobs to filter.
- * @returns An array of Blob objects with origin OUTPUT, or an empty array if none exist.
- */
-export function getOutputBlobs(blobs: Blob[]): Blob[] {
-  return blobs.filter((blob) => blob.origin === BlobOrigin.OUTPUT);
-}

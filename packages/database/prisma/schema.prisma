@@ -30,8 +30,6 @@ model User {
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
   jobSchedules       JobSchedule[]
-  blobs              Blob[]              @relation("UserBlob")
-  links              Link[]              @relation("UserLink")
 
   stripeCustomerId String?
 
@@ -640,6 +638,8 @@ model JobInput {
   inputHash String?
   signature String?
 
+  attachments Attachment[]
+
   @@map("jobInput")
 }
 
@@ -734,24 +734,45 @@ model Blob {
   updatedAt DateTime @updatedAt
 
   fileUrl   String?
-  fileName  String?
-  mime      String?
+  name      String?
+  mimeType  String?
   size      BigInt?
-  origin    BlobOrigin
-  sourceUrl String?
+  sourceUrl String
   status    BlobStatus
-
-  userId String
-  user   User   @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
 
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, sourceUrl]) // For deduplication checks
-  @@index([status, origin, createdAt]) // For getPendingResultBlobs query
-  @@index([eventId, origin]) // For fetching blobs by job event with origin filter
-  @@index([userId, status]) // For user-specific blob queries
+  @@index([status, createdAt]) // For getPendingResultBlobs query
+  @@index([eventId]) // For fetching blobs by job event
   @@map("blob")
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  url      String // Required - file URL
+  name     String? // Optional - file name
+  mimeType String? // Optional - MIME type
+  size     BigInt? // Optional - file size in bytes
+
+  // Polymorphic relations - exactly one should be set
+  jobInputId String?
+  jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  taskCommentId String?
+  taskComment   TaskComment? @relation(fields: [taskCommentId], references: [id], onDelete: Cascade)
+
+  @@index([jobInputId])
+  @@index([taskId])
+  @@index([taskCommentId])
+  @@map("attachment")
 }
 
 model Link {
@@ -762,20 +783,12 @@ model Link {
   url   String
   title String?
 
-  userId String
-  user   User   @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
-
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, url]) // For deduplication checks
   @@index([eventId]) // For fetching all links for a job event
   @@map("link")
-}
-
-enum BlobOrigin {
-  INPUT
-  OUTPUT
 }
 
 enum BlobStatus {
@@ -1003,7 +1016,7 @@ model Task {
 
   name        String
   description String?
-  attachments String[] @default([])
+  attachments Attachment[]
 
   status TaskStatus @default(DRAFT)
 
@@ -1049,7 +1062,7 @@ model TaskComment {
   updatedAt DateTime @updatedAt
 
   content     String
-  attachments String[] @default([])
+  attachments Attachment[]
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
