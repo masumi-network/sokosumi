@@ -90,3 +90,65 @@ export async function requireUserAccess(
 
   return user;
 }
+
+export async function requireTaskAccess(
+  authContext: AuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const task = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      userId: authContext.userId,
+    },
+  });
+
+  if (!task) {
+    throw forbidden("You can only access your own tasks");
+  }
+}
+
+export async function requireOrchestratorAccess(
+  authContext: AuthenticationContext,
+  orchestratorId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const orchestrator = await tx.orchestrator.findFirst({
+    where: {
+      id: orchestratorId,
+      userId: authContext.userId,
+    },
+  });
+
+  if (!orchestrator) {
+    throw forbidden("You can only access your own orchestrators");
+  }
+}
+
+export async function requireTaskCommentAccess(
+  authContext: AuthenticationContext,
+  commentId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const comment = await tx.taskComment.findFirst({
+    where: {
+      id: commentId,
+      OR: [
+        { userId: authContext.userId },
+        { task: { userId: authContext.userId } },
+      ],
+    },
+    select: {
+      id: true,
+      taskId: true,
+      userId: true,
+      orchestratorId: true,
+    },
+  });
+
+  if (!comment) {
+    throw forbidden("You can only access your own task comments");
+  }
+
+  return comment;
+}
