@@ -15,7 +15,11 @@ export const jobWithEvents = {
     },
     include: {
       blobs: true,
-      input: true,
+      input: {
+        include: {
+          attachments: true,
+        },
+      },
       links: true,
     },
   },
@@ -102,7 +106,11 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 
 export type JobEventWithRelations = Prisma.JobEventGetPayload<{
   include: {
-    input: true;
+    input: {
+      include: {
+        attachments: true;
+      };
+    };
     blobs: true;
     links: true;
   };

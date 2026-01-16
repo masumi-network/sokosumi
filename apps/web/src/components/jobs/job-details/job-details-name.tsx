@@ -113,9 +113,11 @@ function JobNameContent({
 
   return (
     <AccordionTrigger className="w-full items-center px-0 py-0">
-      <div className="flex w-full cursor-default items-center gap-2">
+      <div className="flex w-full min-w-0 cursor-default items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <p className="flex-1 truncate text-base">{name ?? t("noName")}</p>
+          <p className="min-w-0 flex-1 truncate text-base">
+            {name ?? t("noName")}
+          </p>
           <Tooltip>
             <TooltipTrigger
               asChild
@@ -171,7 +173,7 @@ function JobNameWrapper({
   Component,
 }: JobNameWrapperProps) {
   return (
-    <div className="inline w-full max-w-full items-center justify-between gap-2">
+    <div className="flex w-full max-w-full items-center justify-between gap-2">
       {children}
       {!readOnly && Component}
     </div>

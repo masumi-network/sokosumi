@@ -1,14 +1,14 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import { Blob, BlobOrigin, BlobStatus } from "@sokosumi/database";
+import { Blob, BlobStatus } from "@sokosumi/database";
 import {
   blobRepository,
   linkRepository,
 } from "@sokosumi/database/repositories";
 import pLimit from "p-limit";
 
-import { uploadFile } from "@/lib/blob";
+import { uploadFileForBlob } from "@/lib/blob/utils";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import prisma from "@/lib/db/prisma";
 import { isHttpUrl } from "@/lib/utils/file";
@@ -53,10 +53,9 @@ export const sourceImportService = (() => {
         try {
           await blobRepository.upsertOutputBlob(
             {
-              userId,
               eventId: jobEventId,
               sourceUrl: url,
-              fileName: guessedName,
+              name: guessedName,
             },
             tx,
           );
@@ -70,7 +69,6 @@ export const sourceImportService = (() => {
         try {
           await linkRepository.upsertLink(
             {
-              userId,
               eventId: jobEventId,
               url,
               title: undefined,
@@ -91,7 +89,7 @@ export const sourceImportService = (() => {
    * the blob is marked as failed.
    *
    * Steps:
-   * 1. Validates that the blob is an OUTPUT origin and is in PENDING status.
+   * 1. Validates that the blob is in PENDING status.
    * 2. Fetches the file from the blob's sourceUrl.
    * 3. Determines the file's content type, size, and suggested filename.
    * 4. Uploads the file using the uploadFile utility.
@@ -100,12 +98,10 @@ export const sourceImportService = (() => {
    *
    * @param blob - The Blob entity to import.
    */
-  async function importResultBlob(blob: Blob): Promise<void> {
-    if (blob.origin !== BlobOrigin.OUTPUT) return;
+  async function importBlob(blob: Blob): Promise<void> {
     if (blob.status !== BlobStatus.PENDING) return;
 
-    const sourceUrl: string | null = blob.sourceUrl ?? null;
-    if (!sourceUrl) return;
+    const sourceUrl = blob.sourceUrl;
     try {
       const res = await fetch(sourceUrl, { redirect: "follow" });
       if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
@@ -119,7 +115,7 @@ export const sourceImportService = (() => {
         parseContentDispositionFilename(
           res.headers.get("content-disposition"),
         ) ??
-        blob.fileName ??
+        blob.name ??
         getBasename(sourceUrl) ??
         "file";
 
@@ -127,14 +123,14 @@ export const sourceImportService = (() => {
       const file = new File([arrayBuffer], suggestedName, {
         type: contentType ?? "application/octet-stream",
       });
-      const uploaded = await uploadFile(blob.userId, file);
+      const uploaded = await uploadFileForBlob(blob.id, file);
       await blobRepository.markBlobReady(
         blob.id,
         {
           fileUrl: uploaded.url,
-          mime: contentType,
+          mimeType: contentType,
           size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
-          fileName: suggestedName,
+          name: suggestedName,
         },
         prisma,
       );
@@ -157,7 +153,7 @@ export const sourceImportService = (() => {
   /**
    * Imports all pending result blobs concurrently, up to a maximum of 5 at a time.
    *
-   * This function fetches all blobs with status PENDING and origin OUTPUT,
+   * This function fetches all blobs with status PENDING,
    * then processes each blob by attempting to import its data and update its status.
    * Errors during individual blob imports are handled within the importResultBlob function.
    * The function returns the total number of blobs that were attempted to be imported.
@@ -166,10 +162,10 @@ export const sourceImportService = (() => {
    */
   async function importPendingResultBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
-    const pendingBlobs = await blobRepository.getPendingOutputBlobs({}, prisma);
+    const pendingBlobs = await blobRepository.getPendingBlobs({}, prisma);
     const limit = pLimit(5);
     for (const blob of pendingBlobs) {
-      pendingPromises.push(limit(() => importResultBlob(blob)));
+      pendingPromises.push(limit(() => importBlob(blob)));
     }
     try {
       await Promise.allSettled(pendingPromises);

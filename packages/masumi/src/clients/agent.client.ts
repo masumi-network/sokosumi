@@ -1,3 +1,5 @@
+import { err, ok, type Result } from "neverthrow";
+
 import {
   inputSchemaResponseSchema,
   InputSchemaResponseSchemaType,
@@ -12,7 +14,6 @@ import {
   StartPaidJobResponseSchemaType,
 } from "../schemas/index.js";
 import type { Agent } from "../types/agent.js";
-import { Err, Ok, type Result } from "../utils/result.js";
 import { safeAddPathComponent } from "../utils/url.js";
 
 /**
@@ -121,22 +122,22 @@ export function createAgentClient(config?: AgentClientConfig) {
         });
 
         if (!startJobResponse.ok) {
-          return Err("Failed to start agent job");
+          return err("Failed to start agent job");
         }
         const responseJson = await startJobResponse.json();
 
         const parsedResult = startPaidJobResponseSchema.safeParse(responseJson);
         if (!parsedResult.success) {
-          return Err(
+          return err(
             `Failed to parse start job response: ${JSON.stringify(
               parsedResult.error,
             )}`,
           );
         }
 
-        return Ok(parsedResult.data);
-      } catch (err) {
-        return Err(String(err));
+        return ok(parsedResult.data);
+      } catch (error) {
+        return err(String(error));
       }
     },
 
@@ -156,22 +157,22 @@ export function createAgentClient(config?: AgentClientConfig) {
           }),
         });
         if (!startJobResponse.ok) {
-          return Err("Failed to start free agent job");
+          return err("Failed to start free agent job");
         }
         const responseJson = await startJobResponse.json();
 
         const parsedResult = startFreeJobResponseSchema.safeParse(responseJson);
         if (!parsedResult.success) {
-          return Err(
+          return err(
             `Failed to parse start free job response: ${JSON.stringify(
               parsedResult.error,
             )}`,
           );
         }
 
-        return Ok(parsedResult.data);
-      } catch (err) {
-        return Err(String(err));
+        return ok(parsedResult.data);
+      } catch (error) {
+        return err(String(error));
       }
     },
 
@@ -187,19 +188,19 @@ export function createAgentClient(config?: AgentClientConfig) {
         });
 
         if (!jobStatusResponse.ok) {
-          return Err(jobStatusResponse.statusText);
+          return err(jobStatusResponse.statusText);
         }
         const parsedResult = jobStatusResponseSchema.safeParse(
           await jobStatusResponse.json(),
         );
 
         if (!parsedResult.success) {
-          return Err("Failed to parse job status response");
+          return err("Failed to parse job status response");
         }
 
-        return Ok(parsedResult.data);
-      } catch (err) {
-        return Err(String(err));
+        return ok(parsedResult.data);
+      } catch (error) {
+        return err(String(error));
       }
     },
 
@@ -231,23 +232,23 @@ export function createAgentClient(config?: AgentClientConfig) {
         });
 
         if (!provideInputResponse.ok) {
-          return Err(
+          return err(
             `Failed to provide job input: ${provideInputResponse.status} ${provideInputResponse.statusText}`,
           );
         }
         const responseJson = await provideInputResponse.json();
         const parsedResult = provideInputResponseSchema.safeParse(responseJson);
         if (!parsedResult.success) {
-          return Err(
+          return err(
             `Failed to parse provide input response: ${JSON.stringify(
               parsedResult.error,
             )}`,
           );
         }
 
-        return Ok(parsedResult.data);
-      } catch (err) {
-        return Err(String(err));
+        return ok(parsedResult.data);
+      } catch (error) {
+        return err(String(error));
       }
     },
 
@@ -279,7 +280,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             },
           );
 
-          return Err(errorMessage);
+          return err(errorMessage);
         }
 
         let responseData: unknown;
@@ -303,7 +304,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             },
           );
 
-          return Err("Failed to parse JSON response");
+          return err("Failed to parse JSON response");
         }
 
         const parsedResult = inputSchemaResponseSchema.safeParse(responseData);
@@ -325,16 +326,17 @@ export function createAgentClient(config?: AgentClientConfig) {
             },
           );
 
-          return Err("Failed to parse input schema");
+          return err("Failed to parse input schema");
         }
 
         const inputSchema = parsedResult.data;
-        return Ok(inputSchema);
-      } catch (err) {
+        return ok(inputSchema);
+      } catch (error) {
         // Log network errors and other unexpected errors
-        const errorMessage = err instanceof Error ? err.message : String(err);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const isNetworkError =
-          err instanceof Error &&
+          error instanceof Error &&
           (errorMessage.includes("fetch failed") ||
             errorMessage.includes("ECONNREFUSED") ||
             errorMessage.includes("ETIMEDOUT") ||
@@ -351,7 +353,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           },
         );
 
-        return Err(errorMessage);
+        return err(errorMessage);
       }
     },
   };

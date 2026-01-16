@@ -1,63 +1,36 @@
 import type { Prisma } from "../generated/prisma/client.js";
-import { Blob, BlobOrigin, BlobStatus } from "../generated/prisma/client.js";
+import { Blob, BlobStatus } from "../generated/prisma/client.js";
 
 /**
  * Repository for managing Blob entities and related queries.
  * Provides CRUD methods for Blob table.
+ * This repository handles result blobs from agent jobs.
  */
 export const blobRepository = {
-  async createInputBlobForEvent(
-    data: {
-      userId: string;
-      eventId: string;
-      fileUrl: string;
-      fileName?: string;
-      size?: bigint;
-    },
-    tx: Prisma.TransactionClient,
-  ): Promise<Blob> {
-    const blob = await tx.blob.create({
-      data: {
-        origin: BlobOrigin.INPUT,
-        user: { connect: { id: data.userId } },
-        event: { connect: { id: data.eventId } },
-        status: BlobStatus.READY,
-        fileUrl: data.fileUrl,
-        fileName: data.fileName,
-        size: data.size,
-      },
-    });
-    return blob;
-  },
-
   /**
    * Create a pending result Blob record from a source URL (extracted from markdown)
    * Avoids duplicates by sourceUrl per job event.
    */
   async upsertOutputBlob(
     data: {
-      userId: string;
       eventId: string;
       sourceUrl: string;
-      fileName?: string;
+      name?: string;
     },
     tx: Prisma.TransactionClient,
   ): Promise<Blob> {
     const blob = await tx.blob.upsert({
       where: {
         eventId_sourceUrl: { eventId: data.eventId, sourceUrl: data.sourceUrl },
-        userId: data.userId,
       },
       update: {
-        fileName: data.fileName,
+        name: data.name,
       },
       create: {
-        user: { connect: { id: data.userId } },
         event: { connect: { id: data.eventId } },
-        origin: BlobOrigin.OUTPUT,
         status: BlobStatus.PENDING,
         sourceUrl: data.sourceUrl,
-        fileName: data.fileName,
+        name: data.name,
       },
     });
     return blob;
@@ -79,12 +52,22 @@ export const blobRepository = {
   /**
    * Get all Blob records for a user
    */
+  /**
+   * Get all Blob records for a user
+   * Queries through the relationship chain: Blob -> JobEvent -> Job -> User
+   */
   async getBlobsByUserId(
     userId: string,
     tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
-      where: { userId },
+      where: {
+        event: {
+          job: {
+            userId,
+          },
+        },
+      },
     });
     return blobs;
   },
@@ -98,16 +81,6 @@ export const blobRepository = {
   ): Promise<Blob[]> {
     const blobs = await tx.blob.findMany({
       where: { eventId },
-    });
-    return blobs;
-  },
-
-  async getBlobsByJobInputId(
-    jobInputId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Blob[]> {
-    const blobs = await tx.blob.findMany({
-      where: { event: { input: { id: jobInputId } } },
     });
     return blobs;
   },
@@ -128,37 +101,19 @@ export const blobRepository = {
   },
 
   /**
-   * Get all Blob records for a job event by job id
+   * Get pending blobs to import.
    */
-  async getBlobsByUserIdAndJobId(
-    userId: string,
-    jobId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Blob[]> {
-    const blobs = await tx.blob.findMany({
-      where: {
-        userId,
-        event: { job: { id: jobId } },
-      },
-    });
-    return blobs;
-  },
-
-  /**
-   * Get pending output blobs to import.
-   */
-  async getPendingOutputBlobs(
+  async getPendingBlobs(
     data: {
       limit?: number;
     },
     tx: Prisma.TransactionClient,
   ): Promise<Blob[]> {
-    const blobs = await tx.blob.findMany({
-      where: { status: BlobStatus.PENDING, origin: BlobOrigin.OUTPUT },
+    return await tx.blob.findMany({
+      where: { status: BlobStatus.PENDING },
       take: data.limit,
       orderBy: { createdAt: "asc" },
     });
-    return blobs;
   },
 
   /**
@@ -180,9 +135,9 @@ export const blobRepository = {
     id: string,
     updates: {
       fileUrl: string;
-      mime?: string | null;
+      mimeType?: string | null;
       size?: bigint | null;
-      fileName?: string | null;
+      name?: string | null;
     },
     tx: Prisma.TransactionClient,
   ): Promise<Blob> {
@@ -190,11 +145,9 @@ export const blobRepository = {
       where: { id },
       data: {
         fileUrl: updates.fileUrl,
-        mime: updates.mime ?? undefined,
-        size: typeof updates.size !== "undefined" ? updates.size : undefined,
-        ...(typeof updates.fileName !== "undefined" && {
-          fileName: updates.fileName,
-        }),
+        mimeType: updates.mimeType,
+        size: updates.size,
+        name: updates.name,
         status: BlobStatus.READY,
       },
     });

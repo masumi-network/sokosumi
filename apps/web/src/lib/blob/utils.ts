@@ -7,12 +7,27 @@ import { put, PutBlobResult } from "@vercel/blob";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
-export async function uploadFile(
+export async function uploadFileForUser(
   userId: string,
   inputFile: File,
 ): Promise<PutBlobResult> {
   const blob = await put(
-    `${userId}/${inputFile.name.replace(/ /g, "_")}`,
+    `users/${userId}/${inputFile.name.replace(/ /g, "_")}`,
+    inputFile,
+    {
+      access: "public",
+      addRandomSuffix: true,
+    },
+  );
+  return blob;
+}
+
+export async function uploadFileForBlob(
+  blobId: string,
+  inputFile: File,
+): Promise<PutBlobResult> {
+  const blob = await put(
+    `blobs/${blobId}/${inputFile.name.replace(/ /g, "_")}`,
     inputFile,
     {
       access: "public",

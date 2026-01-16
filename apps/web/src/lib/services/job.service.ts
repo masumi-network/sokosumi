@@ -29,6 +29,7 @@ import {
 } from "@sokosumi/database/repositories";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
+import { err } from "neverthrow";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
@@ -37,6 +38,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { type UploadedFile } from "@/lib/actions/job/utils";
 import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
 import prisma from "@/lib/db/prisma";
@@ -54,7 +56,6 @@ import {
   ProvideJobInputSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { Err } from "@/lib/ts-res";
 import { SyncJobTransactionResult } from "@/lib/types/job";
 import {
   jobStatusToAgentJobStatus,
@@ -522,6 +523,7 @@ export const jobService = (() => {
   async function startPaidJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
+    uploadedFiles: UploadedFile[],
   ): Promise<JobWithSokosumiStatus> {
     const {
       userId,
@@ -649,7 +651,7 @@ export const jobService = (() => {
       identifierFromPurchaser,
       inputData,
     );
-    if (!startJobResult.ok) {
+    if (!startJobResult.isOk()) {
       Sentry.setTag("error_type", "agent_job_start_failed");
       Sentry.setContext("agent_job_start", {
         agentId,
@@ -667,7 +669,7 @@ export const jobService = (() => {
         startJobResult.error,
       );
     }
-    const startJobResponse = startJobResult.data;
+    const startJobResponse = startJobResult.value;
     // Add breadcrumb for successful agent job start
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -721,6 +723,7 @@ export const jobService = (() => {
         sellerVkey: startJobResponse.sellerVKey,
         name: generatedName,
         jobScheduleId,
+        attachments: uploadedFiles,
       },
       prisma,
     );
@@ -743,8 +746,8 @@ export const jobService = (() => {
       inputData,
       identifierFromPurchaser,
     );
-    if (createPurchaseResult.ok) {
-      const purchase = createPurchaseResult.data;
+    if (createPurchaseResult.isOk()) {
+      const purchase = createPurchaseResult.value;
       const purchaseData = transformPurchaseToJobUpdate(purchase);
       await jobPurchaseRepository.createJobPurchase(
         {
@@ -802,6 +805,7 @@ export const jobService = (() => {
   async function startFreeJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
+    uploadedFiles: UploadedFile[],
   ): Promise<JobWithSokosumiStatus> {
     const {
       userId,
@@ -828,7 +832,7 @@ export const jobService = (() => {
       inputData,
     );
 
-    if (!startJobResult.ok) {
+    if (startJobResult.isErr()) {
       Sentry.setTag("error_type", "agent_job_start_failed");
       Sentry.captureMessage(
         `Free agent job start failed: ${startJobResult.error}`,
@@ -840,7 +844,7 @@ export const jobService = (() => {
       );
     }
 
-    const startJobResponse = startJobResult.data;
+    const startJobResponse = startJobResult.value;
 
     // Generate job name
     const generatedName = await generateJobNameForAgent(agent, inputData);
@@ -869,6 +873,7 @@ export const jobService = (() => {
         inputSchema: inputSchema,
         name: generatedName,
         jobScheduleId,
+        attachments: uploadedFiles,
       },
       prisma,
     );
@@ -899,6 +904,7 @@ export const jobService = (() => {
    */
   const startJob = async (
     input: StartJobInputSchemaType,
+    uploadedFiles: UploadedFile[],
   ): Promise<JobWithSokosumiStatus> => {
     const { userId, organizationId, agentId } = input;
 
@@ -928,7 +934,7 @@ export const jobService = (() => {
           message: "Routing to free job flow",
           level: "info",
         });
-        return startFreeJobInternal(input, agent);
+        return startFreeJobInternal(input, agent, uploadedFiles);
 
       case PricingType.FIXED:
         Sentry.addBreadcrumb({
@@ -937,7 +943,7 @@ export const jobService = (() => {
           level: "info",
         });
 
-        return startPaidJobInternal(input, agent);
+        return startPaidJobInternal(input, agent, uploadedFiles);
 
       case PricingType.UNKNOWN:
       default:
@@ -979,21 +985,15 @@ export const jobService = (() => {
     const refundResult = await paymentClient.requestRefund(
       jobBlockchainIdentifier,
     );
-    if (!refundResult.ok) {
+    if (refundResult.isErr()) {
       Sentry.setTag("error_type", "refund_request_failed");
       Sentry.setContext("refund_error", {
         blockchainIdentifier: jobBlockchainIdentifier,
         error: refundResult.error,
       });
 
-      Sentry.captureMessage(
-        `Refund request failed: ${refundResult.error}`,
-        "error",
-      );
-      throw new JobError(
-        JobErrorCode.REFUND_REQUEST_FAILED,
-        refundResult.error,
-      );
+      Sentry.captureException(refundResult.error);
+      throw new JobError(JobErrorCode.REFUND_REQUEST_FAILED);
     }
 
     const job = await prisma.$transaction(async (tx) => {
@@ -1053,8 +1053,8 @@ export const jobService = (() => {
         await paymentClient.getPurchaseByBlockchainIdentifier(
           job.blockchainIdentifier,
         );
-      if (purchaseResult.ok) {
-        const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
+      if (purchaseResult.isOk()) {
+        const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
         await jobPurchaseRepository.createJobPurchase(
           {
             jobId: job.id,
@@ -1074,10 +1074,10 @@ export const jobService = (() => {
     const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
       agentJobIdToSync
         ? await agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
-        : Promise.resolve(Err("No agent job ID to sync")),
+        : Promise.resolve(err("No agent job ID to sync")),
       purchaseIdToSync
         ? await paymentClient.getPurchaseById(purchaseIdToSync)
-        : Promise.resolve(Err("No purchase ID to sync")),
+        : Promise.resolve(err("No purchase ID to sync")),
     ]);
 
     const transactionResult =
@@ -1087,9 +1087,9 @@ export const jobService = (() => {
           if (!job) {
             throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
           }
-          if (onChainPurchaseResult.ok) {
+          if (onChainPurchaseResult.isOk()) {
             const purchaseData = transformPurchaseToJobUpdate(
-              onChainPurchaseResult.data,
+              onChainPurchaseResult.value,
             );
             await jobPurchaseRepository.updateJobPurchaseByJobId(
               job.id,
@@ -1097,20 +1097,20 @@ export const jobService = (() => {
               tx,
             );
           }
-          if (agentJobStatusResult.ok) {
+          if (agentJobStatusResult.isOk()) {
             const agentJobStatus = jobStatusToAgentJobStatus(
-              agentJobStatusResult.data.status,
+              agentJobStatusResult.value.status,
             );
             const latestJobEvent =
               await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
 
             if (latestJobEvent) {
               // If the latest job status is the same as the agent job status result, return the current job status
-              if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
+              if (latestJobEvent.externalId === agentJobStatusResult.value.id) {
                 return { jobStatus: computeJobStatus(job) };
               } else {
                 // If the agent job status result has no external ID, check if the latest job status status is the same as the agent job status
-                if (!agentJobStatusResult.data.id) {
+                if (!agentJobStatusResult.value.id) {
                   if (latestJobEvent.status === agentJobStatus) {
                     return { jobStatus: computeJobStatus(job) };
                   }
@@ -1118,7 +1118,7 @@ export const jobService = (() => {
               }
             }
 
-            const inputSchemaData = agentJobStatusResult.data.input_schema;
+            const inputSchemaData = agentJobStatusResult.value.input_schema;
             let inputSchemaValue: string | undefined;
             if (inputSchemaData) {
               if ("input_data" in inputSchemaData) {
@@ -1134,10 +1134,10 @@ export const jobService = (() => {
               await jobEventRepository.createJobEventForJobId(
                 job.id,
                 {
-                  externalId: agentJobStatusResult.data.id,
+                  externalId: agentJobStatusResult.value.id,
                   status: agentJobStatus,
                   inputSchema: inputSchemaValue,
-                  result: agentJobStatusResult.data.result,
+                  result: agentJobStatusResult.value.result,
                 },
                 tx,
               );
@@ -1146,7 +1146,7 @@ export const jobService = (() => {
               throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
             }
 
-            const outputResult = agentJobStatusResult.data?.result;
+            const outputResult = agentJobStatusResult.value?.result;
             if (typeof outputResult === "string") {
               extractionContext = {
                 userId: job.userId,
@@ -1310,6 +1310,7 @@ export const jobService = (() => {
    */
   const provideJobInput = async (
     input: ProvideJobInputSchemaType & { userId: string },
+    uploadedFiles: UploadedFile[],
   ): Promise<{
     job: JobWithSokosumiStatus;
     jobEvent: JobEvent;
@@ -1371,7 +1372,7 @@ export const jobService = (() => {
       inputData,
     );
 
-    if (!provideInputResult.ok) {
+    if (provideInputResult.isErr()) {
       Sentry.setTag("error_type", "agent_provide_input_failed");
       Sentry.setContext("agent_provide_input", {
         jobId: job.id,
@@ -1392,7 +1393,7 @@ export const jobService = (() => {
       );
     }
 
-    const responseData = provideInputResult.data;
+    const responseData = provideInputResult.value;
 
     const updatedJob = await prisma.$transaction(async (tx) => {
       await jobInputRepository.createJobInputForEventId(
@@ -1401,6 +1402,7 @@ export const jobService = (() => {
           input: inputJson,
           inputHash: responseData.input_hash,
           signature: responseData.signature,
+          attachments: uploadedFiles,
         },
         tx,
       );

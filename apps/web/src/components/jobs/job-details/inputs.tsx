@@ -1,6 +1,6 @@
 "use client";
 
-import type { Blob } from "@sokosumi/database";
+import type { Attachment } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
@@ -22,7 +22,7 @@ import { HashGroupRow } from "./hash-group-row";
 interface JobDetailsInputsProps {
   input: string | null;
   inputSchema: string | null;
-  blobs?: Blob[];
+  attachments?: Attachment[];
   inputHash?: string | null;
   identifierFromPurchaser?: string | null;
   jobType?: JobType;
@@ -31,7 +31,7 @@ interface JobDetailsInputsProps {
 export default function JobDetailsInputs({
   input,
   inputSchema,
-  blobs,
+  attachments,
   inputHash,
   identifierFromPurchaser,
   jobType,
@@ -41,7 +41,7 @@ export default function JobDetailsInputs({
       <JobDetailsInputsInner
         input={input}
         inputSchema={inputSchema}
-        blobs={blobs}
+        attachments={attachments}
         inputHash={inputHash}
         identifierFromPurchaser={identifierFromPurchaser}
         jobType={jobType}
@@ -50,9 +50,12 @@ export default function JobDetailsInputs({
   );
 }
 
-function findBlobByUrl(url: string, blobs?: Blob[]): Blob | undefined {
-  if (!blobs) return undefined;
-  return blobs.find((b) => b.fileUrl === url);
+function findAttachmentByUrl(
+  url: string,
+  attachments?: Attachment[],
+): Attachment | undefined {
+  if (!attachments) return undefined;
+  return attachments.find((a) => a.url === url);
 }
 
 function isOption(type: InputType): boolean {
@@ -89,14 +92,18 @@ function mapIndexToLabel(index: unknown, values: string[]): string {
 function renderInputValue(
   value: unknown,
   type: InputType,
-  blobs?: Blob[],
+  attachments?: Attachment[],
   values?: string[],
 ) {
   if (type === InputType.FILE) {
     if (isUrlString(value)) {
-      const blob = findBlobByUrl(value, blobs);
+      const attachment = findAttachmentByUrl(value, attachments);
       return (
-        <FileChip url={value} fileName={blob?.fileName} size={blob?.size} />
+        <FileChip
+          url={value}
+          fileName={attachment?.name ?? undefined}
+          size={attachment?.size ? Number(attachment.size) : undefined}
+        />
       );
     }
     if (isUrlArray(value)) {
@@ -105,14 +112,17 @@ function renderInputValue(
       }
       return (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {value.map((url) => (
-            <FileChip
-              key={url}
-              url={url}
-              fileName={findBlobByUrl(url, blobs)?.fileName}
-              size={findBlobByUrl(url, blobs)?.size}
-            />
-          ))}
+          {value.map((url) => {
+            const attachment = findAttachmentByUrl(url, attachments);
+            return (
+              <FileChip
+                key={url}
+                url={url}
+                fileName={attachment?.name ?? undefined}
+                size={attachment?.size ? Number(attachment.size) : undefined}
+              />
+            );
+          })}
         </div>
       );
     }
@@ -153,7 +163,7 @@ function renderInputValue(
 function JobDetailsInputsInner({
   input: rawInput,
   inputSchema: rawInputSchema,
-  blobs = [],
+  attachments = [],
   inputHash = null,
   identifierFromPurchaser = null,
   jobType,
@@ -221,7 +231,7 @@ function JobDetailsInputsInner({
                   {label}
                 </span>
                 <div className="break-all md:col-span-2">
-                  {renderInputValue(value, type, blobs, values)}
+                  {renderInputValue(value, type, attachments, values)}
                 </div>
               </div>
             );

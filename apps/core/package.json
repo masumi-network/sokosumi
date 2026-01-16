@@ -17,10 +17,7 @@
     "start": "node dist/index.js",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "lint:report": "eslint src --report",
-    "generate:payment": "openapi-ts -f src/clients/openapi/configs/openapi-ts.payment.config.ts",
-    "generate:registry": "openapi-ts -f src/clients/openapi/configs/openapi-ts.registry.config.ts",
-    "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
+    "lint:report": "eslint src --report"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.13",
@@ -29,7 +26,7 @@
     "@hono/zod-openapi": "1.2.0",
     "@openrouter/ai-sdk-provider": "1.5.4",
     "@scalar/hono-api-reference": "0.9.33",
-    "@scalar/openapi-to-markdown": "0.3.19",
+    "@scalar/openapi-to-markdown": "0.3.20",
     "@sentry/node": "10.34.0",
     "@sentry/profiling-node": "10.34.0",
     "@sokosumi/database": "workspace:*",
@@ -48,7 +45,6 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.90.3",
     "@types/node": "24.10.4",
     "tsup": "8.5.1",
     "tsx": "4.21.0",
