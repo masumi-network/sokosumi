@@ -367,6 +367,7 @@ export const auth = betterAuth({
         },
       },
       onEvent: async (event) => {
+        console.log("Stripe event:", event);
         try {
           switch (event.type) {
             case "checkout.session.completed": {

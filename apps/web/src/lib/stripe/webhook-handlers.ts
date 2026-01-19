@@ -187,7 +187,6 @@ export async function handleInvoicePaidEvent(
         return;
       }
     }
-
     const metadata = invoice.metadata;
     if (metadata?.origin === "checkout_session") {
       // If invoice was created from a checkout session, credits are already processed

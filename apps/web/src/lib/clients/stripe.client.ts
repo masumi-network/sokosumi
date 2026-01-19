@@ -293,13 +293,15 @@ export const stripeClient = (() => {
           "Price amountPerCredit is 0 – cannot create checkout session for free product",
         );
       }
+
+      const quantity = Math.floor((credits / price.amountPerCredit) * 100);
       const session = await stripe.checkout.sessions.create(
         {
           mode: "payment",
           line_items: [
             {
               price: price.id,
-              quantity: Math.floor(credits / price.amountPerCredit),
+              quantity,
             },
           ],
           ...(promotionCode
@@ -329,9 +331,6 @@ export const stripeClient = (() => {
           tax_id_collection: { enabled: true },
           success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
-        },
-        {
-          idempotencyKey: `${stripeCustomerId}-${userId}-${organizationId ?? "user"}-${credits}`,
         },
       );
       return session;
