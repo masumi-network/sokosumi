@@ -91,7 +91,7 @@ export async function handleInvoicePaidEvent(
   const allowedProductId = getEnvSecrets().STRIPE_PRODUCT_ID;
 
   let totalCredits: number = 0;
-  for (const lineItem of invoice.lines?.data) {
+  for (const lineItem of invoice.lines?.data ?? []) {
     if (lineItem.pricing && typeof lineItem.pricing === "object") {
       const productId = lineItem.pricing.price_details?.product;
 
