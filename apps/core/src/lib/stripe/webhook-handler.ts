@@ -186,3 +186,27 @@ export async function handleCustomerUpdatedEvent(
     console.log(`User customer ${customer.id} updated, no action taken`);
   }
 }
+
+export async function handleCustomerCreatedEvent(
+  customer: Stripe.Customer,
+): Promise<void> {
+  const metadata = customer.metadata;
+  switch (metadata?.customerType) {
+    case "user": {
+      const userId = metadata.userId;
+      await userRepository.setUserStripeCustomerId(userId, customer.id, prisma);
+      console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
+      break;
+    }
+    case "organization": {
+      const organizationId = metadata.organizationId;
+      await organizationRepository.setOrganizationStripeCustomerId(organizationId, customer.id, prisma);
+      console.log(`✅ Set organization ${organizationId} stripe customer id to ${customer.id}`);
+      break;
+    }
+    default: {
+      console.log(`Unknown customer type ${metadata?.customerType}`);
+      break;
+    }
+  }
+}

@@ -28,7 +28,7 @@ import { i18next } from "@/lib/i18next";
 import { stripeService } from "@/services/stripe.service";
 import { webhookService } from "@/services/webhook.service";
 
-import { handleCustomerUpdatedEvent, handleInvoicePaidEvent } from "./stripe/webhook-handler";
+import { handleCustomerCreatedEvent, handleCustomerUpdatedEvent, handleInvoicePaidEvent } from "./stripe/webhook-handler";
 
 const env = getEnv();
 const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
@@ -293,12 +293,7 @@ export const auth = betterAuth({
     organization({
       organizationCreation: {
         afterCreate: async ({ organization }) => {
-          await stripeService.createOrganizationCustomerAndSave(
-            organization.id,
-            organization.name,
-            organization.invoiceEmail ?? null,
-            organization.slug,
-          );
+          await stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail);
         },
       },
       invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
@@ -414,6 +409,26 @@ export const auth = betterAuth({
               Sentry.captureException(error, {
                 tags: {
                   stripeEventType: "customer.updated",
+                  customerId: customer.id,
+                },
+                extra: {
+                  eventId: event.id,
+                  customer: customer.id,
+                  email: customer.email,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          case "customer.created": {
+            const customer = event.data.object as Stripe.Customer;
+            try {
+              await handleCustomerCreatedEvent(customer);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.created",
                   customerId: customer.id,
                 },
                 extra: {
