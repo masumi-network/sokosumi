@@ -88,8 +88,6 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user, _ctx) => {
-          // await stripeService.createStripeCustomerForUser(user.id);
-
           // Validate user data before calling webhook
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
@@ -283,13 +281,6 @@ export const auth = betterAuth({
       },
     }),
     organization({
-      organizationCreation: {
-        // afterCreate: async ({ organization }) => {
-        //   await stripeService.createStripeCustomerForOrganization(
-        //     organization.id,
-        //   );
-        // },
-      },
       schema: {
         organization: {
           additionalFields: {
@@ -369,16 +360,51 @@ export const auth = betterAuth({
         switch (event.type) {
           case "invoice.paid": {
             const invoice = event.data.object as Stripe.Invoice;
-            await handleInvoicePaidEvent(invoice);
+            try {
+              await handleInvoicePaidEvent(invoice);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "invoice.paid",
+                  invoiceId: invoice.id,
+                },
+                extra: {
+                  eventId: event.id,
+                  invoice: invoice.id,
+                  customer:
+                    typeof invoice.customer === "string"
+                      ? invoice.customer
+                      : invoice.customer?.id,
+                },
+              });
+              throw error;
+            }
             break;
           }
           case "customer.updated": {
             const customer = event.data.object as Stripe.Customer;
-            await handleCustomerUpdatedEvent(customer);
+            try {
+              await handleCustomerUpdatedEvent(customer);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.updated",
+                  customerId: customer.id,
+                },
+                extra: {
+                  eventId: event.id,
+                  customer: customer.id,
+                  email: customer.email,
+                },
+              });
+              throw error;
+            }
             break;
           }
-          default:
+          default: {
             console.info(`Unhandled Stripe event type: ${event.type}`);
+            break;
+          }
         }
       },
     }),
