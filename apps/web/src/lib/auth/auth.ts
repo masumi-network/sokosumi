@@ -18,6 +18,7 @@ import * as z from "zod";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { uploadProfileImage } from "@/lib/blob/utils";
+import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
@@ -31,6 +32,7 @@ import {
   stripeService,
 } from "@/lib/services";
 import {
+  handleCustomerCreatedEvent,
   handleCustomerUpdatedEvent,
   handleInvoicePaidEvent,
 } from "@/lib/stripe/webhook-handlers";
@@ -281,6 +283,11 @@ export const auth = betterAuth({
       },
     }),
     organization({
+      organizationCreation: {
+        afterCreate: async ({ organization }) => {
+          await stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail);
+        },
+      },
       schema: {
         organization: {
           additionalFields: {
@@ -327,20 +334,19 @@ export const auth = betterAuth({
     }),
     localization({
       defaultLocale: "default",
-      // TODO:
-      // implement dynamic localization
-      // by using `getLocale` function
     }),
     nextCookies(),
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: true,
+      subscription: {
+        enabled: false,
+      },
       getCustomerCreateParams: async (user) => {
         return {
           metadata: {
             userId: user.id,
-            type: "user",
           },
         };
       },
@@ -351,11 +357,11 @@ export const auth = betterAuth({
             metadata: {
               organizationId: organization.id,
               organizationSlug: organization.slug,
-              type: "organization",
             },
           };
         },
       },
+
       onEvent: async (event) => {
         switch (event.type) {
           case "invoice.paid": {
@@ -389,6 +395,26 @@ export const auth = betterAuth({
               Sentry.captureException(error, {
                 tags: {
                   stripeEventType: "customer.updated",
+                  customerId: customer.id,
+                },
+                extra: {
+                  eventId: event.id,
+                  customer: customer.id,
+                  email: customer.email,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          case "customer.created": {
+            const customer = event.data.object as Stripe.Customer;
+            try {
+              await handleCustomerCreatedEvent(customer);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.created",
                   customerId: customer.id,
                 },
                 extra: {
