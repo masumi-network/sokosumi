@@ -1,5 +1,3 @@
-import "server-only";
-
 import { MemberRole } from "@sokosumi/database";
 import {
   convertCentsToCredits,
