@@ -8,7 +8,6 @@ import {
 import {
   memberRepository,
   organizationRepository,
-  transactionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import Stripe from "stripe";
@@ -88,19 +87,6 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  // Check if we already processed this invoice by looking for existing transaction
-  const existingTransaction = await prisma.transaction.findFirst({
-    where: {
-      referenceId: invoiceId,
-      referenceType: "STRIPE_INVOICE",
-    },
-  });
-
-  if (existingTransaction) {
-    console.log(`Invoice ${invoiceId} already processed`);
-    return;
-  }
-
   // Get the allowed product ID and its default price
   const allowedProductId = getEnvSecrets().STRIPE_PRODUCT_ID;
 
@@ -124,17 +110,28 @@ export async function handleInvoicePaidEvent(
   }
 
   const cents = convertCreditsToCents(totalCredits);
+  const referenceId = invoiceId;
+  const referenceType = "STRIPE_INVOICE";
 
-  // Create transaction directly
-  await prisma.$transaction(async (tx) => {
-    await transactionRepository.createTransactionFromPayment(
-      userId,
-      organizationId,
-      cents,
-      invoiceId,
-      "STRIPE_INVOICE",
-      tx,
-    );
+  await prisma.transaction.upsert({
+    where: {
+      referenceId_referenceType: {
+        referenceId,
+        referenceType,
+      },
+    },
+    create: {
+      amount: cents,
+      user: { connect: { id: userId } },
+      ...(organizationId && {
+        organization: { connect: { id: organizationId } },
+      }),
+      referenceId,
+      referenceType,
+    },
+    update: {
+      amount: cents,
+    },
   });
 
   console.log(
