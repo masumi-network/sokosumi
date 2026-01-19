@@ -99,13 +99,35 @@ export type JobInputsFormSchemaType = z.infer<
  * // Result: { name: "John", age: 25 }
  * ```
  */
+function serializeInputValue(
+  value: NonNullable<unknown>,
+): InputSchemaType[string] {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      item instanceof Date ? item.toISOString() : item,
+    ) as InputSchemaType[string];
+  }
+
+  return value as InputSchemaType[string];
+}
+
+function isNonNullableEntry(
+  entry: [string, unknown],
+): entry is [string, NonNullable<unknown>] {
+  return entry[1] !== null && entry[1] !== undefined;
+}
+
 export function filterOutNullValues(
   values: JobInputsFormSchemaType,
 ): InputSchemaType {
   return Object.fromEntries(
-    Object.entries(values).filter(
-      ([_, value]) => value !== null && value !== undefined,
-    ),
+    Object.entries(values)
+      .filter(isNonNullableEntry)
+      .map(([key, value]) => [key, serializeInputValue(value)]),
   ) as InputSchemaType;
 }
 
