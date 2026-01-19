@@ -90,6 +90,18 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user, _ctx) => {
+          stripeClient.createUserCustomer(user.id, user.name, user.email).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "stripe_user_customer_creation",
+              },
+              extra: {
+                userId: user.id,
+                email: user.email,
+                name: user.name,
+              },
+            });
+          });
           // Validate user data before calling webhook
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
@@ -285,7 +297,19 @@ export const auth = betterAuth({
     organization({
       organizationCreation: {
         afterCreate: async ({ organization }) => {
-          await stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail);
+          stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "stripe_organization_customer_creation",
+              },
+              extra: {
+                organizationId: organization.id,
+                name: organization.name,
+                slug: organization.slug,
+                invoiceEmail: organization.invoiceEmail,
+              },
+            });
+          });
         },
       },
       schema: {
@@ -339,29 +363,13 @@ export const auth = betterAuth({
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
-      createCustomerOnSignUp: true,
+      createCustomerOnSignUp: false,
       subscription: {
         enabled: false,
       },
-      getCustomerCreateParams: async (user) => {
-        return {
-          metadata: {
-            userId: user.id,
-          },
-        };
-      },
       organization: {
         enabled: true,
-        getCustomerCreateParams: async (organization) => {
-          return {
-            metadata: {
-              organizationId: organization.id,
-              organizationSlug: organization.slug,
-            },
-          };
-        },
       },
-
       onEvent: async (event) => {
         switch (event.type) {
           case "invoice.paid": {

@@ -1,6 +1,5 @@
 import "server-only";
 
-import { User } from "@sokosumi/database";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -46,15 +45,15 @@ export const stripeClient = (() => {
   }
 
   return {
-    async createUserCustomer(user: User): Promise<Stripe.Customer> {
+    async createUserCustomer(userId: string, name: string, email: string): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create(
         {
-          name: user.name,
-          email: user.email,
-          metadata: { id: user.id, customerType: "user" },
+          name,
+          email,
+          metadata: { userId, customerType: "user" },
         },
         {
-          idempotencyKey: `${user.id}`,
+          idempotencyKey: `user-${userId}`,
         },
       );
       return customer;
@@ -73,13 +72,13 @@ export const stripeClient = (() => {
             email: invoiceEmail,
           }),
           metadata: {
-            id: organizationId,
-            slug,
+            organizationId,
+            organizationSlug: slug,
             customerType: "organization",
           },
         },
         {
-          idempotencyKey: `${organizationId}`,
+          idempotencyKey: `organization-${organizationId}`,
         },
       );
       return customer;

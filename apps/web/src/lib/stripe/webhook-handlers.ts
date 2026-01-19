@@ -151,15 +151,13 @@ export async function handleCustomerCreatedEvent(
   const metadata = customer.metadata;
   switch (metadata?.customerType) {
     case "user": {
-      const userId = metadata.userId;
-      await userRepository.setUserStripeCustomerId(userId, customer.id, prisma);
-      console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
+      await prisma.user.update({ where: { id: metadata.userId }, data: { stripeCustomerId: customer.id } });
+      console.log(`✅ Set user ${metadata.userId} stripe customer id to ${customer.id}`);
       break;
     }
     case "organization": {
-      const organizationId = metadata.organizationId;
-      await organizationRepository.setOrganizationStripeCustomerId(organizationId, customer.id, prisma);
-      console.log(`✅ Set organization ${organizationId} stripe customer id to ${customer.id}`);
+      await prisma.organization.update({ where: { id: metadata.organizationId }, data: { stripeCustomerId: customer.id } });
+      console.log(`✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`);
       break;
     }
     default: {

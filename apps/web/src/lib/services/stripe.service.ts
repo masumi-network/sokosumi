@@ -193,7 +193,7 @@ export const stripeService = (() => {
       if (!user) {
         return null;
       }
-      return await stripeClient.createUserCustomer(user);
+      return await stripeClient.createUserCustomer(user.id, user.name, user.email);
     },
 
     async createStripeCustomerForOrganization(
@@ -207,7 +207,7 @@ export const stripeService = (() => {
       if (!organization) {
         return null;
       }
-      return await stripeClient.createOrganizationCustomer(organization);
+      return await stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail);
     },
 
     async syncOrganizationInvoiceEmailWithStripe(
@@ -329,7 +329,7 @@ export const stripeService = (() => {
         let orgStripeCustomerId = organization.stripeCustomerId;
         if (!orgStripeCustomerId) {
           const orgCustomer =
-            await stripeClient.createOrganizationCustomer(organization);
+            await stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail);
           if (!orgCustomer) {
             throw new Error("Failed to create organization Stripe customer");
           }
