@@ -1,6 +1,7 @@
 import "server-only";
 
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { User } from "@sokosumi/database";
 import { betterAuth } from "better-auth";
@@ -11,6 +12,7 @@ import { apiKey, jwt, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
+import Stripe from "stripe";
 import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -35,6 +37,8 @@ export type Invitation = typeof auth.$Infer.Invitation;
 export type Account = Awaited<
   ReturnType<typeof auth.api.listUserAccounts>
 >[number];
+
+const stripeClient = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY)
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 
@@ -80,7 +84,7 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user, _ctx) => {
-          await stripeService.createStripeCustomerForUser(user.id);
+          // await stripeService.createStripeCustomerForUser(user.id);
 
           // Validate user data before calling webhook
           const { success, data, error } =
@@ -276,11 +280,11 @@ export const auth = betterAuth({
     }),
     organization({
       organizationCreation: {
-        afterCreate: async ({ organization }) => {
-          await stripeService.createStripeCustomerForOrganization(
-            organization.id,
-          );
-        },
+        // afterCreate: async ({ organization }) => {
+        //   await stripeService.createStripeCustomerForOrganization(
+        //     organization.id,
+        //   );
+        // },
       },
       schema: {
         organization: {
@@ -333,6 +337,34 @@ export const auth = betterAuth({
       // by using `getLocale` function
     }),
     nextCookies(),
+    stripe({
+      stripeClient,
+      stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
+      createCustomerOnSignUp: true,
+      getCustomerCreateParams: async (user) => {
+        return {
+          metadata: {
+            userId: user.id,
+            type: "user",
+          },
+        };
+      },
+      organization: { 
+        enabled: true,
+        getCustomerCreateParams: async (organization) => {
+          return {
+            metadata: {
+              organizationId: organization.id,
+              organizationSlug: organization.slug,
+              type: "organization",
+            },
+          };
+        },
+      },
+      onEvent: async (event) => {
+        console.log("Stripe event:", event);
+      },
+    }),
   ],
 });
 
