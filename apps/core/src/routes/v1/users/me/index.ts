@@ -8,7 +8,7 @@ import mountGetMeOrganization from "./organizations/[id]/get.js";
 import mountGetMeOrganizations from "./organizations/get.js";
 import mountGetMePreferences from "./preferences/get.js";
 import mountPatchMePreferences from "./preferences/patch.js";
-import mountGetMeUploads from "./uploads/get.js";
+import mountGetMeAttachments from "./attachments/get.js";
 
 const app = new OpenAPIHonoWithAuth();
 
@@ -20,6 +20,6 @@ mountGetMePreferences(app);
 mountPatchMePreferences(app);
 mountGetMeOnboarding(app);
 mountPostMeOnboarding(app);
-mountGetMeUploads(app);
+mountGetMeAttachments(app);
 
 export default app;
