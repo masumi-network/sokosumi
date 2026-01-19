@@ -8,8 +8,9 @@ import { toast } from "sonner";
 import { CommonErrorCode } from "@/lib/actions";
 import { provideJobInput } from "@/lib/actions/job/action";
 import {
-  filterAndSerializeInputValues,
+  filterOutNullValues,
   JobInputsFormSchemaType,
+  serializeInputValues,
 } from "@/lib/job-input";
 
 export interface UseProvideJobInputOptions {
@@ -39,7 +40,8 @@ export function useProvideJobInput({
       setIsSubmitting(true);
 
       try {
-        const transformedInputData = filterAndSerializeInputValues(allValues);
+        const transformedInputData = filterOutNullValues(allValues);
+        const serializedInputData = serializeInputValues(transformedInputData);
 
         if (!statusId) {
           throw new Error("Status ID is required");
@@ -49,7 +51,7 @@ export function useProvideJobInput({
           input: {
             jobId,
             statusId,
-            inputData: transformedInputData,
+            inputData: serializedInputData,
           },
         });
         setIsSubmitting(false);

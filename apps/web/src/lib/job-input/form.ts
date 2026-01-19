@@ -32,7 +32,7 @@ import { JobInputFormIntlPath } from "./type";
  * ```
  * InputFieldSchemaType[] → jobInputsFormSchema() → JobInputsFormSchemaType
  *                                                         ↓
- *                                         filterAndSerializeInputValues()
+ *                                         filterOutNullValues()
  *                                                         ↓
  *                                                  InputSchemaType
  * ```
@@ -71,11 +71,37 @@ export const jobInputsFormSchema = (
  * - Used with react-hook-form for form state management
  *
  * @see InputSchemaType for the API-compatible type
- * @see filterAndSerializeInputValues for converting to InputSchemaType
+ * @see filterOutNullValues for converting to InputSchemaType
  */
 export type JobInputsFormSchemaType = z.infer<
   ReturnType<typeof jobInputsFormSchema>
 >;
+
+/**
+ * Serializes InputSchemaType to a format compatible with the API.
+ *
+ * @param values - InputSchemaType
+ * @returns InputSchemaType
+ */
+export function serializeInputValues(
+  values: InputSchemaType,
+): InputSchemaType {
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => {
+      if (value instanceof Date) {
+        return [key, value.toISOString()];
+      }
+
+      if (Array.isArray(value)) {
+        return [key, value.map((item) =>
+          item instanceof Date ? item.toISOString() : item,
+        ) as InputSchemaType[string]];
+      }
+
+      return [key, value];
+    }),
+  ) as InputSchemaType;
+}
 
 /**
  * Converts form state to API-compatible format by removing null/undefined values.
@@ -95,39 +121,17 @@ export type JobInputsFormSchemaType = z.infer<
  *   age: 25
  * };
  *
- * const apiData = filterAndSerializeInputValues(formData);
+ * const apiData = filterOutNullValues(formData);
  * // Result: { name: "John", age: 25 }
  * ```
  */
-function serializeInputValue(
-  value: NonNullable<unknown>,
-): InputSchemaType[string] {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      item instanceof Date ? item.toISOString() : item,
-    ) as InputSchemaType[string];
-  }
-
-  return value as InputSchemaType[string];
-}
-
-function isNonNullableEntry(
-  entry: [string, unknown],
-): entry is [string, NonNullable<unknown>] {
-  return entry[1] !== null && entry[1] !== undefined;
-}
-
-export function filterAndSerializeInputValues(
+export function filterOutNullValues(
   values: JobInputsFormSchemaType,
 ): InputSchemaType {
   return Object.fromEntries(
-    Object.entries(values)
-      .filter(isNonNullableEntry)
-      .map(([key, value]) => [key, serializeInputValue(value)]),
+    Object.entries(values).filter(
+      ([_, value]) => value !== null && value !== undefined,
+    ),
   ) as InputSchemaType;
 }
 

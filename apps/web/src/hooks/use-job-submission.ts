@@ -20,8 +20,9 @@ import { useSession } from "@/lib/auth/auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
 import {
-  filterAndSerializeInputValues,
+  filterOutNullValues,
   JobInputsFormSchemaType,
+  serializeInputValues,
 } from "@/lib/job-input";
 import { AgentDemoValues } from "@/lib/types/agent";
 import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
@@ -60,14 +61,15 @@ export function useJobSubmission({
         | { ok: true; data: { jobId: string; scheduleId?: string } }
         | { ok: false; error: { code: string } };
 
-      const transformedInputData = filterAndSerializeInputValues(allValues);
+      const transformedInputData = filterOutNullValues(allValues);
+      const serializedInputData = serializeInputValues(transformedInputData);
 
       if (demoValues) {
         result = await startDemoJob({
           input: {
             agentId: agentId,
             inputSchema: flatInputs,
-            inputData: filterAndSerializeInputValues(demoValues.input),
+            inputData: serializeInputValues(filterOutNullValues(demoValues.input)),
           },
           jobStatusResponse: demoValues.output,
         });
@@ -88,7 +90,7 @@ export function useJobSubmission({
           input: {
             agentId: agentId,
             inputSchema: flatInputs,
-            inputData: transformedInputData,
+            inputData: serializedInputData,
             maxAcceptedCents: creditsPrice.cents,
           },
           scheduleSelection: scheduleSelection,
