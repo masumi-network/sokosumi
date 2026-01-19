@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
-export const uploadSchema = z
+export const attachmentSchema = z
   .object({
     id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
     createdAt: dateTimeSchema,
@@ -35,6 +35,6 @@ export const uploadSchema = z
       description: "Publicly accessible URL of the file",
     }),
   })
-  .openapi("Upload");
+  .openapi("Attachment");
 
-export const uploadsSchema = z.array(uploadSchema);
+export const attachmentsSchema = z.array(attachmentSchema);

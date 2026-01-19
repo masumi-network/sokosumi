@@ -5,17 +5,17 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { uploadsSchema } from "@/schemas/upload.schema";
+import { attachmentsSchema } from "@/schemas/attachment.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/uploads",
-  description: "Get all uploads the current user has made",
+  path: "/attachments",
+  description: "Get all attachments the current user has made",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(
-      uploadsSchema,
-      "Retrieve uploads by current user",
+      attachmentsSchema,
+      "Retrieve attachments by current user",
       {
         data: [
           {
@@ -56,7 +56,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     });
 
-    const uploads = attachments.flatMap((attachment) => {
+    const attachmentsList = attachments.flatMap((attachment) => {
       let referenceType: "Input" | "Task" | "Comment";
       let referenceId: string;
 
@@ -86,6 +86,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     });
 
-    return ok(c, uploadsSchema.parse(uploads));
+    return ok(c, attachmentsSchema.parse(attachmentsList));
   });
 }
