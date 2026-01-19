@@ -1,21 +1,20 @@
-import { FiatTransactionStatus, MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/database";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
 } from "@sokosumi/database/helpers";
 import {
-  fiatTransactionRepository,
+  creditTransactionRepository,
   memberRepository,
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
-import { stripeService } from "@/lib/services/stripe.service";
 
 export async function POST(req: Request) {
   let event: Stripe.Event;
@@ -35,9 +34,7 @@ export async function POST(req: Request) {
 
   const permittedEvents: string[] = [
     "checkout.session.completed",
-    "checkout.session.expired",
     "invoice.paid",
-    "customer.created",
     "customer.updated",
   ];
 
@@ -49,14 +46,6 @@ export async function POST(req: Request) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
           return await handleCheckoutSessionCompletedEvent(session);
-        }
-        case "checkout.session.expired": {
-          const session = event.data.object as Stripe.Checkout.Session;
-          return await handleCheckoutSessionExpiredEvent(session);
-        }
-        case "customer.created": {
-          const customer = event.data.object as Stripe.Customer;
-          return await handleCustomerCreatedEvent(customer);
         }
         case "customer.updated": {
           const customer = event.data.object as Stripe.Customer;
@@ -88,230 +77,124 @@ export async function POST(req: Request) {
   }
 }
 
-const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
-  const paymentStatus = session.payment_status;
-  if (paymentStatus !== "paid") {
-    return NextResponse.json(
-      { message: `Payment status is not paid for session: ${session.id}` },
-      { status: 200 },
-    );
-  }
-};
-
 const handleCheckoutSessionCompletedEvent = async (
   session: Stripe.Checkout.Session,
-) => {
-  checkPaymentStatus(session);
-  return await updateFiatTransactionStatus(session, "SUCCEEDED");
-};
-
-const handleCheckoutSessionExpiredEvent = async (
-  session: Stripe.Checkout.Session,
-) => {
-  return await updateFiatTransactionStatus(session, "FAILED");
-};
-
-const updateFiatTransactionStatus = async (
-  session: Stripe.Checkout.Session,
-  status: "SUCCEEDED" | "FAILED",
 ): Promise<NextResponse> => {
-  const amountTotal = session.amount_total;
-  if (amountTotal === null) {
-    return NextResponse.json(
-      { message: `Session amount total is null for session ${session.id}` },
-      { status: 500 },
-    );
-  }
-  const currency = session.currency;
-  if (currency === null) {
-    return NextResponse.json(
-      { message: `Session currency is null for session ${session.id}` },
-      { status: 500 },
-    );
-  }
-  return await prisma.$transaction(async (tx) => {
-    try {
-      const fiatTransaction =
-        await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
-          session.id,
-          tx,
-        );
-      if (!fiatTransaction) {
-        return NextResponse.json(
-          { message: `Fiat transaction for session ${session.id} not found` },
-          { status: status === "FAILED" ? 200 : 500 },
-        );
-      }
+  try {
+    // Validate payment status
+    if (session.payment_status !== "paid") {
+      return NextResponse.json(
+        { message: `Payment status is not paid for session: ${session.id}` },
+        { status: 200 },
+      );
+    }
 
-      if (session.client_reference_id !== fiatTransaction.id) {
-        return NextResponse.json(
-          {
-            message: `Session client reference id ${session.client_reference_id} does not match fiat transaction id ${fiatTransaction.id}`,
-          },
-          { status: status === "FAILED" ? 200 : 500 },
-        );
-      }
+    // Validate required fields
+    if (!session.amount_total) {
+      return NextResponse.json(
+        { message: `Session amount total is null for session ${session.id}` },
+        { status: 500 },
+      );
+    }
 
-      if (fiatTransaction.status !== FiatTransactionStatus.PENDING) {
+    if (!session.customer) {
+      return NextResponse.json(
+        { message: `Session has no customer for session ${session.id}` },
+        { status: 500 },
+      );
+    }
+
+    const stripeCustomerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : session.customer.id;
+
+    // Look up the user or organization by stripeCustomerId
+    let userId: string;
+    let organizationId: string | null = null;
+
+    const user = await userRepository.getUserByStripeCustomerId(
+      stripeCustomerId,
+      prisma,
+    );
+
+    if (user) {
+      userId = user.id;
+    } else {
+      const organization =
+        await organizationRepository.getOrganizationByStripeCustomerId(
+          stripeCustomerId,
+          prisma,
+        );
+
+      if (organization) {
+        organizationId = organization.id;
+        const members = await memberRepository.getMembersByOrganizationId(
+          organizationId,
+          prisma,
+        );
+        const ownerMember = members.find((m) => m.role === MemberRole.OWNER);
+
+        if (!ownerMember) {
+          console.log(`No owner found for organization ${organizationId}`);
+          return NextResponse.json(
+            { message: "Organization owner not found" },
+            { status: 200 },
+          );
+        }
+        userId = ownerMember.userId;
+      } else {
+        console.log(
+          `Stripe customer ${stripeCustomerId} not found in our system for session ${session.id}`,
+        );
         return NextResponse.json(
-          { message: "Fiat transaction is not pending" },
+          { message: "Customer not found in system" },
           { status: 200 },
         );
       }
-
-      try {
-        switch (status) {
-          case "SUCCEEDED":
-            await fiatTransactionRepository.updateFiatTransactionStatus(
-              fiatTransaction,
-              BigInt(amountTotal),
-              currency,
-              FiatTransactionStatus.SUCCEEDED,
-              tx,
-            );
-            return NextResponse.json(
-              {
-                message: `Fiat transaction ${fiatTransaction.id} status changed to SUCCEEDED`,
-              },
-              { status: 200 },
-            );
-          case "FAILED":
-            await fiatTransactionRepository.updateFiatTransactionStatus(
-              fiatTransaction,
-              BigInt(amountTotal),
-              currency,
-              FiatTransactionStatus.FAILED,
-              tx,
-            );
-            return NextResponse.json(
-              {
-                message: `Fiat transaction ${fiatTransaction.id} status changed to FAILED`,
-              },
-              { status: 200 },
-            );
-        }
-      } catch {
-        return NextResponse.json(
-          { message: "Failed to update fiat transaction status" },
-          { status: 500 },
-        );
-      }
-    } catch (error) {
-      console.log("Error updating fiat transaction status", error);
-      throw error;
     }
-  });
-};
 
-const handleCustomerCreatedEvent = async (
-  customer: Stripe.Customer,
-): Promise<NextResponse> => {
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const metadata = customer.metadata;
-      switch (metadata?.type) {
-        case "user": {
-          const userId = metadata.userId;
-          const user = await userRepository.getUserById(userId, tx);
-          if (!user) {
-            return NextResponse.json(
-              { message: "User not found" },
-              { status: 200 },
-            );
-          }
+    const metadata = session.metadata;
+    let credits: number = 0;
+    if (metadata?.credits) {
+      credits = parseInt(metadata.credits);
+    }
 
-          if (user.email !== customer.email) {
-            await stripeClient.updateCustomerEmail(customer.id, user.email);
-          }
-          if (user.stripeCustomerId === customer.id) {
-            return NextResponse.json(
-              { message: "User already has this stripe customer id" },
-              { status: 200 },
-            );
-          }
-          if (user.stripeCustomerId) {
-            await stripeClient.deleteCustomer(customer.id);
-            return NextResponse.json(
-              { message: "User already has a stripe customer id" },
-              { status: 200 },
-            );
-          }
+    if (credits === 0) {
+      return NextResponse.json(
+        { message: "No credits found in session" },
+        { status: 200 },
+      );
+    }
 
-          await userRepository.setUserStripeCustomerId(userId, customer.id, tx);
+    const cents = convertCreditsToCents(credits);
 
-          after(async () => {
-            try {
-              // Apply welcome coupon after setting the stripe customer id
-              const { couponApplied, invoiceId } =
-                await stripeService.claimWelcomeCoupon(userId);
-              console.info(
-                `Welcome coupon applied (${couponApplied}) for invoice ${invoiceId}`,
-              );
-            } catch (err) {
-              console.error("Error applying welcome coupon for user", err);
-            }
-          });
-
-          return NextResponse.json(
-            {
-              message: `✅ Updated user ${userId} stripe customer id to ${customer.id}`,
-            },
-            { status: 200 },
-          );
-        }
-        case "organization": {
-          const organizationId = metadata.organizationId;
-          const organization =
-            await organizationRepository.getOrganizationWithRelationsById(
-              organizationId,
-              tx,
-            );
-          if (!organization) {
-            return NextResponse.json(
-              { message: "Organization not found" },
-              { status: 200 },
-            );
-          }
-          if (organization.stripeCustomerId === customer.id) {
-            return NextResponse.json(
-              { message: "Organization already has this stripe customer id" },
-              { status: 200 },
-            );
-          }
-          if (organization.stripeCustomerId) {
-            await stripeClient.deleteCustomer(customer.id);
-            return NextResponse.json(
-              { message: "Organization already has a stripe customer id" },
-              { status: 200 },
-            );
-          }
-          await organizationRepository.setOrganizationStripeCustomerId(
-            organizationId,
-            customer.id,
-            tx,
-          );
-
-          return NextResponse.json(
-            {
-              message: `✅ Updated organization ${organizationId} stripe customer id to ${customer.id}`,
-            },
-            { status: 200 },
-          );
-        }
-        default: {
-          return NextResponse.json(
-            {
-              message: `Unknown customer type ${metadata?.type} for customer ${customer.id}`,
-            },
-            { status: 200 },
-          );
-        }
-      }
+    // Create credit transaction directly
+    await prisma.$transaction(async (tx) => {
+      await creditTransactionRepository.createCreditTransactionFromPayment(
+        userId,
+        organizationId,
+        cents,
+        session.id,
+        "STRIPE_SESSION",
+        tx,
+      );
     });
-  } catch (error) {
-    console.error("Error handling customer.created event", error);
+
+    console.log(
+      `✅ Processed checkout session ${session.id}: Created credit transaction with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+    );
+
     return NextResponse.json(
-      { message: "Failed to process customer creation" },
+      {
+        message: `Checkout session ${session.id} processed successfully`,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error handling checkout.session.completed event", error);
+    return NextResponse.json(
+      { message: "Failed to process checkout session" },
       { status: 500 },
     );
   }
@@ -465,18 +348,21 @@ const handleInvoicePaidEvent = async (
 
     const metadata = invoice.metadata;
     if (metadata?.origin === "checkout_session") {
+      // If invoice was created from a checkout session, credits are already processed
+      // by the checkout.session.completed event handler
       return NextResponse.json(
-        { message: "Credits will be processed by the checkout session" },
+        { message: "Credits already processed by checkout session" },
         { status: 200 },
       );
     }
 
-    // Check if we already processed this invoice
-    const existingTransaction =
-      await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
-        invoiceId,
-        prisma,
-      );
+    // Check if we already processed this invoice by looking for existing credit transaction
+    const existingTransaction = await prisma.creditTransaction.findFirst({
+      where: {
+        referenceId: invoiceId,
+        referenceType: "STRIPE_INVOICE",
+      },
+    });
 
     if (existingTransaction) {
       console.log(`Invoice ${invoiceId} already processed`);
@@ -548,20 +434,20 @@ const handleInvoicePaidEvent = async (
       `Invoice ${invoiceId}: Calculated ${cents} cents from ${lines.length} line items`,
     );
 
-    // Create the fiat transaction and credit transaction in a database transaction
-    const transaction =
-      await fiatTransactionRepository.createFiatTransactionFromInvoice(
+    // Create credit transaction directly
+    await prisma.$transaction(async (tx) => {
+      await creditTransactionRepository.createCreditTransactionFromPayment(
         userId,
         organizationId,
         cents,
         invoiceId,
-        invoice.amount_paid,
-        invoice.currency,
-        prisma,
+        "STRIPE_INVOICE",
+        tx,
       );
+    });
 
     console.log(
-      `✅ Processed invoice ${invoiceId}: Created fiatTransaction ${transaction.id} with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+      `✅ Processed invoice ${invoiceId}: Created credit transaction with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
     );
 
     return NextResponse.json(

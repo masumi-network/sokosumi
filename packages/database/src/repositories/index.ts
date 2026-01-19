@@ -31,7 +31,6 @@ export * from "./blob.repository.js";
 export * from "./category.repository.js";
 export * from "./creditCost.repository.js";
 export * from "./creditTransaction.repository.js";
-export * from "./fiatTransaction.repository.js";
 export * from "./invitation.repository.js";
 export * from "./job.repository.js";
 export * from "./job-event.repository.js";

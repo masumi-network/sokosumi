@@ -1,6 +1,6 @@
 import "server-only";
 
-import { FiatTransaction, Organization, User } from "@sokosumi/database";
+import { Organization, User } from "@sokosumi/database";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -280,7 +280,9 @@ export const stripeClient = (() => {
 
     async createCheckoutSession(
       stripeCustomerId: string,
-      fiatTransaction: FiatTransaction,
+      userId: string,
+      organizationId: string | null,
+      credits: number,
       price: Price,
       origin: string | null = null,
       promotionCode: string | null = null,
@@ -297,26 +299,29 @@ export const stripeClient = (() => {
           line_items: [
             {
               price: price.id,
-              quantity: Math.floor(
-                Number(fiatTransaction.amount) / price.amountPerCredit,
-              ),
+              quantity: Math.floor(credits / price.amountPerCredit),
             },
           ],
           ...(promotionCode
             ? { discounts: [{ promotion_code: promotionCode }] }
             : { allow_promotion_codes: false }),
-          client_reference_id: fiatTransaction.id,
           customer: stripeCustomerId,
           customer_update: {
             address: "auto",
             name: "auto",
+          },
+          metadata: {
+            credits,
+            userId,
+            ...(organizationId && { organizationId }),
           },
           invoice_creation: {
             enabled: true,
             invoice_data: {
               metadata: {
                 origin: "checkout_session",
-                fiatTransactionId: fiatTransaction.id,
+                userId,
+                ...(organizationId && { organizationId }),
               },
             },
           },
@@ -326,7 +331,7 @@ export const stripeClient = (() => {
           cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
         },
         {
-          idempotencyKey: `${stripeCustomerId}-${fiatTransaction.id}`,
+          idempotencyKey: `${stripeCustomerId}-${userId}-${organizationId ?? "user"}-${credits}`,
         },
       );
       return session;

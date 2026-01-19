@@ -1,9 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
-  fiatTransactionRepository,
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
@@ -62,37 +60,16 @@ export const stripeService = (() => {
           throw new Error("Stripe customer not found");
         }
 
-        const amount = credits * price.amountPerCredit;
-
-        // Transaction only for fiat transaction creation and update
-        const checkoutSession = await prisma.$transaction(async (tx) => {
-          const fiatTransaction =
-            await fiatTransactionRepository.createFiatTransaction(
-              userId,
-              organizationId,
-              convertCreditsToCents(credits),
-              amount,
-              price.currency,
-              tx,
-            );
-
-          const headerList = await headers();
-          const checkoutSession = await stripeClient.createCheckoutSession(
-            stripeCustomerId,
-            fiatTransaction,
-            price,
-            headerList.get("origin"),
-            promotionCode,
-          );
-
-          await fiatTransactionRepository.setFiatTransactionServicePaymentId(
-            fiatTransaction.id,
-            checkoutSession.id,
-            tx,
-          );
-
-          return checkoutSession;
-        });
+        const headerList = await headers();
+        const checkoutSession = await stripeClient.createCheckoutSession(
+          stripeCustomerId,
+          userId,
+          organizationId,
+          credits,
+          price,
+          headerList.get("origin"),
+          promotionCode,
+        );
 
         if (!checkoutSession.url) {
           throw new Error("Failed to create checkout session");

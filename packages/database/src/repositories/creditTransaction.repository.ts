@@ -85,4 +85,50 @@ export const creditTransactionRepository = {
       },
     });
   },
+
+  /**
+   * Creates a credit transaction from a Stripe payment (session or invoice).
+   * This method is idempotent - if a transaction with the same referenceId and referenceType already exists, it returns the existing transaction.
+   *
+   * @param userId - The ID of the user associated with the transaction.
+   * @param organizationId - The ID of the organization, or null if not applicable.
+   * @param cents - The amount in cents (bigint) representing credits to grant.
+   * @param referenceId - The Stripe session ID or invoice ID for idempotency tracking.
+   * @param referenceType - The type of reference ("STRIPE_SESSION" or "STRIPE_INVOICE").
+   * @param tx - The Prisma transaction client to use for database operations.
+   * @returns The created or existing CreditTransaction object.
+   */
+  async createCreditTransactionFromPayment(
+    userId: string,
+    organizationId: string | null,
+    cents: bigint,
+    referenceId: string,
+    referenceType: "STRIPE_SESSION" | "STRIPE_INVOICE",
+    tx: Prisma.TransactionClient,
+  ): Promise<CreditTransaction> {
+    // Check for existing transaction with matching referenceId and referenceType (idempotency)
+    const existing = await tx.creditTransaction.findFirst({
+      where: {
+        referenceId,
+        referenceType,
+      },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    // Create new credit transaction
+    return await tx.creditTransaction.create({
+      data: {
+        amount: cents,
+        user: { connect: { id: userId } },
+        ...(organizationId && {
+          organization: { connect: { id: organizationId } },
+        }),
+        referenceId,
+        referenceType,
+      },
+    });
+  },
 };
