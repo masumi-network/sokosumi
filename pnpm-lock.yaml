@@ -253,8 +253,8 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
       happy-dom:
-        specifier: 20.3.1
-        version: 20.3.1
+        specifier: 20.3.3
+        version: 20.3.3
       humanize-duration:
         specifier: 3.33.2
         version: 3.33.2
@@ -413,8 +413,8 @@ importers:
         specifier: 3.3.3
         version: 3.3.3
       '@happy-dom/jest-environment':
-        specifier: 20.3.1
-        version: 20.3.1(@jest/environment@30.2.0)(@jest/fake-timers@30.2.0)(@jest/types@30.2.0)(jest-mock@30.2.0)(jest-util@30.2.0)
+        specifier: 20.3.3
+        version: 20.3.3(@jest/environment@30.2.0)(@jest/fake-timers@30.2.0)(@jest/types@30.2.0)(jest-mock@30.2.0)(jest-util@30.2.0)
       '@hey-api/openapi-ts':
         specifier: 0.90.4
         version: 0.90.4(typescript@5.9.3)
@@ -1102,8 +1102,8 @@ packages:
   '@formatjs/intl-localematcher@0.6.2':
     resolution: {integrity: sha512-XOMO2Hupl0wdd172Y06h6kLpBz6Dv+J4okPLl4LPtzbr8f66WbIoy4ev98EBuZ6ZK4h5ydTN6XneT4QVpD7cdA==}
 
-  '@happy-dom/jest-environment@20.3.1':
-    resolution: {integrity: sha512-6xStYRf9uk30/NTPN7suGThEQc36CCFPOEgCYT2Ulwd7hJ25jeiuoXIiS7DT3WNLp7iGd5CsL/K7dqFQtQS0Cw==}
+  '@happy-dom/jest-environment@20.3.3':
+    resolution: {integrity: sha512-yb8kQdsnqrelwagUtu7YwvVNoE2+2GFdCapVc31cMfw8zCe+cduULIbEunXRenGCfICOycNUg6uJQidDvOqxYQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       '@jest/environment': '>=25.0.0'
@@ -3680,11 +3680,8 @@ packages:
   '@types/mysql@2.15.27':
     resolution: {integrity: sha512-YfWiV16IY0OeBfBCk8+hXKmdTKrKlwKN1MNKAPBu5JYxLwBEZl7QzeEpGnlZb3VMGJrrGmB84gXiH+ofs/TezA==}
 
-  '@types/node@20.19.29':
-    resolution: {integrity: sha512-YrT9ArrGaHForBaCNwFjoqJWmn8G1Pr7+BH/vwyLHciA9qT/wSiuOhxGCT50JA5xLvFBd6PIiGkE3afxcPE1nw==}
-
-  '@types/node@22.19.6':
-    resolution: {integrity: sha512-qm+G8HuG6hOHQigsi7VGuLjUVu6TtBo/F05zvX04Mw2uCg9Dv0Qxy3Qw7j41SidlTcl5D/5yg0SEZqOB+EqZnQ==}
+  '@types/node@22.19.7':
+    resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
 
   '@types/node@24.10.4':
     resolution: {integrity: sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg==}
@@ -5758,8 +5755,8 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  happy-dom@20.3.1:
-    resolution: {integrity: sha512-tLvsizNno05Hij0PoB0QN/S8xf0YU2AGvO11/JlJDw5McA/gzyn0Ni1RwbTI1/zteUbOekJH0t6q8HFvjbxsGg==}
+  happy-dom@20.3.3:
+    resolution: {integrity: sha512-hM9gltmtQLfmWPqoPreUtRdP3nZCSzQEw7l/JC+up5CxquDykhYFKzIzoFFeVev3AGFEULNvsbE8fpZPgxUYEQ==}
     engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
@@ -8290,6 +8287,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  terser@5.46.0:
+    resolution: {integrity: sha512-jTwoImyr/QbOWFFso3YoU3ik0jBBDJ6JTOQiy/J2YxVJdZCc+5u7skhNwiOR3FQIygFqVUPHl7qbbxtjW2K3Qg==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   test-exclude@6.0.0:
     resolution: {integrity: sha512-cAGWPIyOHU6zlmg88jwm7VRyXnMN7iV68OGAbYDk/Mh/xC/pzVPlQtY6ngoIH/5/tciuhGfvESU8GrHrcxD56w==}
     engines: {node: '>=8'}
@@ -8693,8 +8695,8 @@ packages:
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
 
-  watchpack@2.5.0:
-    resolution: {integrity: sha512-e6vZvY6xboSwLz2GD36c16+O/2Z6fKvIf4pOXptw2rY9MVwE/TXc6RGqxD3I3x0a28lwBY7DE+76uTPSsBrrCA==}
+  watchpack@2.5.1:
+    resolution: {integrity: sha512-Zn5uXdcFNIA1+1Ei5McRd+iRzfhENPCe7LeABkJtNulSxjma+l7ltNx55BWZkRlwRnpOgHqxnjyaDgJnNXnqzg==}
     engines: {node: '>=10.13.0'}
 
   web-namespaces@2.0.1:
@@ -9367,12 +9369,12 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@happy-dom/jest-environment@20.3.1(@jest/environment@30.2.0)(@jest/fake-timers@30.2.0)(@jest/types@30.2.0)(jest-mock@30.2.0)(jest-util@30.2.0)':
+  '@happy-dom/jest-environment@20.3.3(@jest/environment@30.2.0)(@jest/fake-timers@30.2.0)(@jest/types@30.2.0)(jest-mock@30.2.0)(jest-util@30.2.0)':
     dependencies:
       '@jest/environment': 30.2.0
       '@jest/fake-timers': 30.2.0
       '@jest/types': 30.2.0
-      happy-dom: 20.3.1
+      happy-dom: 20.3.3
       jest-mock: 30.2.0
       jest-util: 30.2.0
     transitivePeerDependencies:
@@ -11385,7 +11387,7 @@ snapshots:
   '@scalar/icons@0.5.2(typescript@5.9.3)':
     dependencies:
       '@phosphor-icons/core': 2.1.1
-      '@types/node': 22.19.6
+      '@types/node': 22.19.7
       chalk: 5.6.2
       vue: 3.5.26(typescript@5.9.3)
     transitivePeerDependencies:
@@ -12205,11 +12207,7 @@ snapshots:
     dependencies:
       '@types/node': 24.10.4
 
-  '@types/node@20.19.29':
-    dependencies:
-      undici-types: 6.21.0
-
-  '@types/node@22.19.6':
+  '@types/node@22.19.7':
     dependencies:
       undici-types: 6.21.0
 
@@ -14499,11 +14497,12 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-dom@20.3.1:
+  happy-dom@20.3.3:
     dependencies:
-      '@types/node': 20.19.29
+      '@types/node': 24.10.4
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.1
+      entities: 4.5.0
       whatwg-mimetype: 3.0.0
       ws: 8.19.0
     transitivePeerDependencies:
@@ -17734,12 +17733,19 @@ snapshots:
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2
-      terser: 5.44.1
+      terser: 5.46.0
       webpack: 5.104.1(@swc/core@1.15.8(@swc/helpers@0.5.18))
     optionalDependencies:
       '@swc/core': 1.15.8(@swc/helpers@0.5.18)
 
   terser@5.44.1:
+    dependencies:
+      '@jridgewell/source-map': 0.3.11
+      acorn: 8.15.0
+      commander: 2.20.3
+      source-map-support: 0.5.21
+
+  terser@5.46.0:
     dependencies:
       '@jridgewell/source-map': 0.3.11
       acorn: 8.15.0
@@ -18182,7 +18188,7 @@ snapshots:
     dependencies:
       makeerror: 1.0.12
 
-  watchpack@2.5.0:
+  watchpack@2.5.1:
     dependencies:
       glob-to-regexp: 0.4.1
       graceful-fs: 4.2.11
@@ -18222,7 +18228,7 @@ snapshots:
       schema-utils: 4.3.3
       tapable: 2.3.0
       terser-webpack-plugin: 5.3.16(@swc/core@1.15.8(@swc/helpers@0.5.18))(webpack@5.104.1(@swc/core@1.15.8(@swc/helpers@0.5.18)))
-      watchpack: 2.5.0
+      watchpack: 2.5.1
       webpack-sources: 3.3.3
     transitivePeerDependencies:
       - '@swc/core'
