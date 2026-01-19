@@ -39,12 +39,6 @@ export const auth = betterAuth({
   },
   trustedOrigins: [env.BETTER_AUTH_TRUSTED_ORIGIN],
   user: {
-    changeEmail: {
-      enabled: true,
-    },
-    deleteUser: {
-      enabled: true,
-    },
     additionalFields: {
       termsAccepted: {
         type: "boolean",
