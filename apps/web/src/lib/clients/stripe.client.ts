@@ -321,7 +321,7 @@ export const stripeClient = (() => {
             enabled: true,
             invoice_data: {
               metadata: {
-                origin: "checkout_session",
+                credits,
                 userId,
                 ...(organizationId && { organizationId }),
               },

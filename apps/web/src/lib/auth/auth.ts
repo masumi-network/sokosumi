@@ -31,7 +31,6 @@ import {
   stripeService,
 } from "@/lib/services";
 import {
-  handleCheckoutSessionCompletedEvent,
   handleCustomerUpdatedEvent,
   handleInvoicePaidEvent,
 } from "@/lib/stripe/webhook-handlers";
@@ -367,29 +366,19 @@ export const auth = betterAuth({
         },
       },
       onEvent: async (event) => {
-        console.log("Stripe event:", event);
-        try {
-          switch (event.type) {
-            case "checkout.session.completed": {
-              const session = event.data.object as Stripe.Checkout.Session;
-              await handleCheckoutSessionCompletedEvent(session);
-              break;
-            }
-            case "invoice.paid": {
-              const invoice = event.data.object as Stripe.Invoice;
-              await handleInvoicePaidEvent(invoice);
-              break;
-            }
-            case "customer.updated": {
-              const customer = event.data.object as Stripe.Customer;
-              await handleCustomerUpdatedEvent(customer);
-              break;
-            }
-            default:
-              console.log(`Unhandled Stripe event type: ${event.type}`);
+        switch (event.type) {
+          case "invoice.paid": {
+            const invoice = event.data.object as Stripe.Invoice;
+            await handleInvoicePaidEvent(invoice);
+            break;
           }
-        } catch (error) {
-          console.error(`Error handling Stripe event ${event.type}:`, error);
+          case "customer.updated": {
+            const customer = event.data.object as Stripe.Customer;
+            await handleCustomerUpdatedEvent(customer);
+            break;
+          }
+          default:
+            console.info(`Unhandled Stripe event type: ${event.type}`);
         }
       },
     }),
