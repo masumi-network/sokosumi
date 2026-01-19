@@ -36,8 +36,6 @@ export async function POST(req: Request) {
   const permittedEvents: string[] = [
     "checkout.session.completed",
     "checkout.session.expired",
-    "checkout.session.async_payment_succeeded",
-    "checkout.session.async_payment_failed",
     "invoice.paid",
     "customer.created",
     "customer.updated",
@@ -52,17 +50,9 @@ export async function POST(req: Request) {
           const session = event.data.object as Stripe.Checkout.Session;
           return await handleCheckoutSessionCompletedEvent(session);
         }
-        case "checkout.session.async_payment_succeeded": {
-          const session = event.data.object as Stripe.Checkout.Session;
-          return await handleCheckoutSessionAsyncPaymentSucceededEvent(session);
-        }
         case "checkout.session.expired": {
           const session = event.data.object as Stripe.Checkout.Session;
           return await handleCheckoutSessionExpiredEvent(session);
-        }
-        case "checkout.session.async_payment_failed": {
-          const session = event.data.object as Stripe.Checkout.Session;
-          return await handleCheckoutSessionAsyncPaymentFailedEvent(session);
         }
         case "customer.created": {
           const customer = event.data.object as Stripe.Customer;
@@ -116,19 +106,6 @@ const handleCheckoutSessionCompletedEvent = async (
 };
 
 const handleCheckoutSessionExpiredEvent = async (
-  session: Stripe.Checkout.Session,
-) => {
-  return await updateFiatTransactionStatus(session, "FAILED");
-};
-
-const handleCheckoutSessionAsyncPaymentSucceededEvent = async (
-  session: Stripe.Checkout.Session,
-) => {
-  checkPaymentStatus(session);
-  return await updateFiatTransactionStatus(session, "SUCCEEDED");
-};
-
-const handleCheckoutSessionAsyncPaymentFailedEvent = async (
   session: Stripe.Checkout.Session,
 ) => {
   return await updateFiatTransactionStatus(session, "FAILED");
