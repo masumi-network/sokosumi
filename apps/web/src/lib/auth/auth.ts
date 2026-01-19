@@ -30,6 +30,11 @@ import {
   callUserUpdatedWebHook,
   stripeService,
 } from "@/lib/services";
+import {
+  handleCheckoutSessionCompletedEvent,
+  handleCustomerUpdatedEvent,
+  handleInvoicePaidEvent,
+} from "@/lib/stripe/webhook-handlers";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -38,7 +43,7 @@ export type Account = Awaited<
   ReturnType<typeof auth.api.listUserAccounts>
 >[number];
 
-const stripeClient = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY)
+const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 
@@ -338,7 +343,7 @@ export const auth = betterAuth({
     }),
     nextCookies(),
     stripe({
-      stripeClient,
+      stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: true,
       getCustomerCreateParams: async (user) => {
@@ -349,7 +354,7 @@ export const auth = betterAuth({
           },
         };
       },
-      organization: { 
+      organization: {
         enabled: true,
         getCustomerCreateParams: async (organization) => {
           return {
@@ -362,7 +367,29 @@ export const auth = betterAuth({
         },
       },
       onEvent: async (event) => {
-        console.log("Stripe event:", event);
+        try {
+          switch (event.type) {
+            case "checkout.session.completed": {
+              const session = event.data.object as Stripe.Checkout.Session;
+              await handleCheckoutSessionCompletedEvent(session);
+              break;
+            }
+            case "invoice.paid": {
+              const invoice = event.data.object as Stripe.Invoice;
+              await handleInvoicePaidEvent(invoice);
+              break;
+            }
+            case "customer.updated": {
+              const customer = event.data.object as Stripe.Customer;
+              await handleCustomerUpdatedEvent(customer);
+              break;
+            }
+            default:
+              console.log(`Unhandled Stripe event type: ${event.type}`);
+          }
+        } catch (error) {
+          console.error(`Error handling Stripe event ${event.type}:`, error);
+        }
       },
     }),
   ],
