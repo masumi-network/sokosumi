@@ -32,7 +32,7 @@ import { JobInputFormIntlPath } from "./type";
  * ```
  * InputFieldSchemaType[] → jobInputsFormSchema() → JobInputsFormSchemaType
  *                                                         ↓
- *                                               filterOutNullValues()
+ *                                         filterAndSerializeInputValues()
  *                                                         ↓
  *                                                  InputSchemaType
  * ```
@@ -71,7 +71,7 @@ export const jobInputsFormSchema = (
  * - Used with react-hook-form for form state management
  *
  * @see InputSchemaType for the API-compatible type
- * @see filterOutNullValues for converting to InputSchemaType
+ * @see filterAndSerializeInputValues for converting to InputSchemaType
  */
 export type JobInputsFormSchemaType = z.infer<
   ReturnType<typeof jobInputsFormSchema>
@@ -95,7 +95,7 @@ export type JobInputsFormSchemaType = z.infer<
  *   age: 25
  * };
  *
- * const apiData = filterOutNullValues(formData);
+ * const apiData = filterAndSerializeInputValues(formData);
  * // Result: { name: "John", age: 25 }
  * ```
  */
@@ -121,7 +121,7 @@ function isNonNullableEntry(
   return entry[1] !== null && entry[1] !== undefined;
 }
 
-export function filterOutNullValues(
+export function filterAndSerializeInputValues(
   values: JobInputsFormSchemaType,
 ): InputSchemaType {
   return Object.fromEntries(

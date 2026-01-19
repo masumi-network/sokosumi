@@ -19,7 +19,10 @@ import { createSchedule } from "@/lib/actions/job-schedule";
 import { useSession } from "@/lib/auth/auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
-import { filterOutNullValues, JobInputsFormSchemaType } from "@/lib/job-input";
+import {
+  filterAndSerializeInputValues,
+  JobInputsFormSchemaType,
+} from "@/lib/job-input";
 import { AgentDemoValues } from "@/lib/types/agent";
 import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
 
@@ -57,14 +60,14 @@ export function useJobSubmission({
         | { ok: true; data: { jobId: string; scheduleId?: string } }
         | { ok: false; error: { code: string } };
 
-      const transformedInputData = filterOutNullValues(allValues);
+      const transformedInputData = filterAndSerializeInputValues(allValues);
 
       if (demoValues) {
         result = await startDemoJob({
           input: {
             agentId: agentId,
             inputSchema: flatInputs,
-            inputData: filterOutNullValues(demoValues.input),
+            inputData: filterAndSerializeInputValues(demoValues.input),
           },
           jobStatusResponse: demoValues.output,
         });
