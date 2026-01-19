@@ -40,8 +40,6 @@
     "i18next": "25.7.4",
     "i18next-fs-backend": "2.6.1",
     "neverthrow": "8.2.0",
-    "postmark": "4.0.5",
-    "stripe": "20.2.0",
     "uuid": "13.0.0"
   },
   "devDependencies": {
