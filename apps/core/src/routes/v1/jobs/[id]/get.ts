@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType } from "@sokosumi/database";
 import {
-  jobWithCreditTransaction,
   jobWithEvents,
   jobWithPurchase,
+  jobWithTransaction,
   SokosumiJobStatus,
 } from "@sokosumi/database/types/job";
 
@@ -79,7 +79,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { id },
         include: {
           ...jobWithEvents,
-          ...jobWithCreditTransaction,
+          ...jobWithTransaction,
           ...jobWithPurchase,
         },
       });

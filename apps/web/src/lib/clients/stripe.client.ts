@@ -295,44 +295,42 @@ export const stripeClient = (() => {
       }
 
       const quantity = Math.floor((credits / price.amountPerCredit) * 100);
-      const session = await stripe.checkout.sessions.create(
-        {
-          mode: "payment",
-          line_items: [
-            {
-              price: price.id,
-              quantity,
-            },
-          ],
-          ...(promotionCode
-            ? { discounts: [{ promotion_code: promotionCode }] }
-            : { allow_promotion_codes: false }),
-          customer: stripeCustomerId,
-          customer_update: {
-            address: "auto",
-            name: "auto",
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [
+          {
+            price: price.id,
+            quantity,
           },
-          metadata: {
-            credits,
-            userId,
-            ...(organizationId && { organizationId }),
-          },
-          invoice_creation: {
-            enabled: true,
-            invoice_data: {
-              metadata: {
-                credits,
-                userId,
-                ...(organizationId && { organizationId }),
-              },
-            },
-          },
-          billing_address_collection: "required",
-          tax_id_collection: { enabled: true },
-          success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
+        ],
+        ...(promotionCode
+          ? { discounts: [{ promotion_code: promotionCode }] }
+          : { allow_promotion_codes: false }),
+        customer: stripeCustomerId,
+        customer_update: {
+          address: "auto",
+          name: "auto",
         },
-      );
+        metadata: {
+          credits,
+          userId,
+          ...(organizationId && { organizationId }),
+        },
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            metadata: {
+              credits,
+              userId,
+              ...(organizationId && { organizationId }),
+            },
+          },
+        },
+        billing_address_collection: "required",
+        tax_id_collection: { enabled: true },
+        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
+      });
       return session;
     },
 

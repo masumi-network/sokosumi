@@ -1,17 +1,17 @@
-import type { CreditTransaction, Prisma } from "../generated/prisma/client.js";
+import type { Prisma,Transaction } from "../generated/prisma/client.js";
 
 /**
- * Credit Transaction Repository Interface
+ * Transaction Repository Interface
  *
- * Exports all credit transaction data access methods as a single object
+ * Exports all transaction data access methods as a single object
  * for consistent repository pattern usage.
  */
-export const creditTransactionRepository = {
+export const transactionRepository = {
   /**
    * Get the total credit balance (in cents) for a given user.
    *
-   * This function aggregates all credit transactions for the specified user and sums the 'amount' field.
-   * If the user has no credit transactions, it returns 0n (bigint zero).
+   * This function aggregates all transactions for the specified user and sums the 'amount' field.
+   * If the user has no transactions, it returns 0n (bigint zero).
    *
    * @param userId - The ID of the user whose credit balance is being retrieved.
    * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
@@ -27,8 +27,8 @@ export const creditTransactionRepository = {
   /**
    * Get the total credit balance (in cents) for a given organization.
    *
-   * This function aggregates all credit transactions for the specified organization and sums the 'amount' field.
-   * If the organization has no credit transactions, it returns 0n (bigint zero).
+   * This function aggregates all transactions for the specified organization and sums the 'amount' field.
+   * If the organization has no transactions, it returns 0n (bigint zero).
    *
    * @param organizationId - The ID of the organization whose credit balance is being retrieved.
    * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
@@ -44,18 +44,18 @@ export const creditTransactionRepository = {
   /**
    * Get the total credit balance (in cents) for a given where clause.
    *
-   * This function aggregates all credit transactions for the specified where clause and sums the 'amount' field.
-   * If there are no credit transactions, it returns 0n (bigint zero).
+   * This function aggregates all transactions for the specified where clause and sums the 'amount' field.
+   * If there are no transactions, it returns 0n (bigint zero).
    *
-   * @param where - The where clause to filter credit transactions.
+   * @param where - The where clause to filter transactions.
    * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
    * @returns The total credit balance in cents as a bigint.
    */
   async getCentsByWhere(
-    where: Prisma.CreditTransactionWhereInput,
+    where: Prisma.TransactionWhereInput,
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
-    const centsBalance = await tx.creditTransaction.aggregate({
+    const centsBalance = await tx.transaction.aggregate({
       where,
       _sum: {
         amount: true,
@@ -65,20 +65,20 @@ export const creditTransactionRepository = {
   },
 
   /**
-   * Retrieves the credit transaction associated with a specific job.
+   * Retrieves the transaction associated with a specific job.
    *
-   * This function searches for the first credit transaction linked to the given job ID.
+   * This function searches for the first transaction linked to the given job ID.
    * It includes the related job data in the result.
    *
-   * @param jobId - The ID of the job whose credit transaction is being retrieved.
+   * @param jobId - The ID of the job whose transaction is being retrieved.
    * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
-   * @returns The credit transaction associated with the job, or null if not found.
+   * @returns The transaction associated with the job, or null if not found.
    */
-  async getCreditTransactionByJobId(
+  async getTransactionByJobId(
     jobId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<CreditTransaction | null> {
-    return await tx.creditTransaction.findFirst({
+  ): Promise<Transaction | null> {
+    return await tx.transaction.findFirst({
       where: { job: { id: jobId } },
       include: {
         job: true,
@@ -87,27 +87,27 @@ export const creditTransactionRepository = {
   },
 
   /**
-   * Creates a credit transaction from a Stripe payment (session or invoice).
+   * Creates a transaction from a Stripe payment (invoice).
    * This method is idempotent - if a transaction with the same referenceId and referenceType already exists, it returns the existing transaction.
    *
    * @param userId - The ID of the user associated with the transaction.
    * @param organizationId - The ID of the organization, or null if not applicable.
    * @param cents - The amount in cents (bigint) representing credits to grant.
-   * @param referenceId - The Stripe session ID or invoice ID for idempotency tracking.
-   * @param referenceType - The type of reference ("STRIPE_SESSION" or "STRIPE_INVOICE").
+   * @param referenceId - The Stripe invoice ID for idempotency tracking.
+   * @param referenceType - The type of reference ("STRIPE_INVOICE").
    * @param tx - The Prisma transaction client to use for database operations.
-   * @returns The created or existing CreditTransaction object.
+   * @returns The created or existing Transaction object.
    */
-  async createCreditTransactionFromPayment(
+  async createTransactionFromPayment(
     userId: string,
     organizationId: string | null,
     cents: bigint,
     referenceId: string,
-    referenceType: "STRIPE_SESSION" | "STRIPE_INVOICE",
+    referenceType: "STRIPE_INVOICE",
     tx: Prisma.TransactionClient,
-  ): Promise<CreditTransaction> {
+  ): Promise<Transaction> {
     // Check for existing transaction with matching referenceId and referenceType (idempotency)
-    const existing = await tx.creditTransaction.findFirst({
+    const existing = await tx.transaction.findFirst({
       where: {
         referenceId,
         referenceType,
@@ -118,8 +118,8 @@ export const creditTransactionRepository = {
       return existing;
     }
 
-    // Create new credit transaction
-    return await tx.creditTransaction.create({
+    // Create new transaction
+    return await tx.transaction.create({
       data: {
         amount: cents,
         user: { connect: { id: userId } },

@@ -43,23 +43,21 @@ export function formatJobResponse(job: JobWithSokosumiStatus): JobResponse {
     startedAt: dateToISO(job.createdAt),
     completedAt: job.completedAt ? dateToISO(job.completedAt) : null,
     jobType: job.jobType,
-    price: job.creditTransaction
+    price: job.transaction
       ? {
-          credits: Math.abs(
-            convertCentsToCredits(job.creditTransaction.amount),
-          ),
+          credits: Math.abs(convertCentsToCredits(job.transaction.amount)),
           includedFee: Math.abs(
-            convertCentsToCredits(job.creditTransaction.includedFee),
+            convertCentsToCredits(job.transaction.includedFee),
           ),
         }
       : null,
-    refund: job.refundedCreditTransaction
+    refund: job.refundedTransaction
       ? {
           credits: Math.abs(
-            convertCentsToCredits(job.refundedCreditTransaction.amount),
+            convertCentsToCredits(job.refundedTransaction.amount),
           ),
           includedFee: Math.abs(
-            convertCentsToCredits(job.refundedCreditTransaction.includedFee),
+            convertCentsToCredits(job.refundedTransaction.includedFee),
           ),
         }
       : null,

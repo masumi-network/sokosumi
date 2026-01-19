@@ -6,9 +6,9 @@ import {
   convertCreditsToCents,
 } from "@sokosumi/database/helpers";
 import {
-  creditTransactionRepository,
   memberRepository,
   organizationRepository,
+  transactionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import Stripe from "stripe";
@@ -88,8 +88,8 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  // Check if we already processed this invoice by looking for existing credit transaction
-  const existingTransaction = await prisma.creditTransaction.findFirst({
+  // Check if we already processed this invoice by looking for existing transaction
+  const existingTransaction = await prisma.transaction.findFirst({
     where: {
       referenceId: invoiceId,
       referenceType: "STRIPE_INVOICE",
@@ -110,7 +110,9 @@ export async function handleInvoicePaidEvent(
       const productId = lineItem.pricing.price_details?.product;
 
       if (productId !== allowedProductId) {
-        throw new Error(`Invoice ${invoiceId} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`);
+        throw new Error(
+          `Invoice ${invoiceId} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`,
+        );
       }
 
       totalCredits += lineItem.quantity ?? 0;
@@ -123,9 +125,9 @@ export async function handleInvoicePaidEvent(
 
   const cents = convertCreditsToCents(totalCredits);
 
-  // Create credit transaction directly
+  // Create transaction directly
   await prisma.$transaction(async (tx) => {
-    await creditTransactionRepository.createCreditTransactionFromPayment(
+    await transactionRepository.createTransactionFromPayment(
       userId,
       organizationId,
       cents,
@@ -136,7 +138,7 @@ export async function handleInvoicePaidEvent(
   });
 
   console.log(
-    `✅ Processed invoice ${invoiceId}: Created credit transaction with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+    `✅ Processed invoice ${invoiceId}: Created transaction with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
   );
 }
 
