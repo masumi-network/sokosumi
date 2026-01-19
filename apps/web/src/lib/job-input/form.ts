@@ -83,7 +83,7 @@ export type JobInputsFormSchemaType = z.infer<
  * @param values - InputSchemaType
  * @returns InputSchemaType
  */
-export function serializeInputValues(
+function serializeInputValues(
   values: InputSchemaType,
 ): InputSchemaType {
   return Object.fromEntries(
@@ -125,7 +125,7 @@ export function serializeInputValues(
  * // Result: { name: "John", age: 25 }
  * ```
  */
-export function filterOutNullValues(
+function filterOutNullValues(
   values: JobInputsFormSchemaType,
 ): InputSchemaType {
   return Object.fromEntries(
@@ -134,6 +134,19 @@ export function filterOutNullValues(
     ),
   ) as InputSchemaType;
 }
+
+/**
+ * Prepares input values for submission by filtering out null/undefined values and serializing Date values.
+ *
+ * @param values - JobInputsFormSchemaType
+ * @returns InputSchemaType
+ */
+export function prepareInputValues(values: JobInputsFormSchemaType): InputSchemaType {
+
+  const filteredValues = filterOutNullValues(values);
+  const serializedValues = serializeInputValues(filteredValues);
+  return serializedValues;
+};
 
 /**
  * Type guard to check if a value is a valid InputSchemaType value.
