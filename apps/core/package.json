@@ -20,7 +20,7 @@
     "lint:report": "eslint src --report"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.4.13",
+    "@better-auth/oauth-provider": "1.4.15",
     "@better-auth/utils": "0.3.0",
     "@hono/node-server": "1.19.9",
     "@hono/zod-openapi": "1.2.0",
@@ -33,7 +33,7 @@
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.0.0",
     "ai": "5.0.121",
-    "better-auth": "1.4.13",
+    "better-auth": "1.4.15",
     "better-auth-localization": "2.2.3",
     "dotenv": "17.2.3",
     "hono": "4.11.4",
