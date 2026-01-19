@@ -20,20 +20,20 @@
     "lint:report": "eslint src --report"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.4.13",
+    "@better-auth/oauth-provider": "1.4.15",
     "@better-auth/utils": "0.3.0",
     "@hono/node-server": "1.19.9",
     "@hono/zod-openapi": "1.2.0",
     "@openrouter/ai-sdk-provider": "1.5.4",
-    "@scalar/hono-api-reference": "0.9.33",
-    "@scalar/openapi-to-markdown": "0.3.20",
+    "@scalar/hono-api-reference": "0.9.34",
+    "@scalar/openapi-to-markdown": "0.3.23",
     "@sentry/node": "10.34.0",
     "@sentry/profiling-node": "10.34.0",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.0.0",
     "ai": "5.0.121",
-    "better-auth": "1.4.13",
+    "better-auth": "1.4.15",
     "better-auth-localization": "2.2.3",
     "dotenv": "17.2.3",
     "hono": "4.11.4",
@@ -41,7 +41,7 @@
     "i18next-fs-backend": "2.6.1",
     "neverthrow": "8.2.0",
     "postmark": "4.0.5",
-    "stripe": "20.1.2",
+    "stripe": "20.2.0",
     "uuid": "13.0.0"
   },
   "devDependencies": {
