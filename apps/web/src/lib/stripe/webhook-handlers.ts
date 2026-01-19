@@ -13,6 +13,7 @@ import {
 } from "@sokosumi/database/repositories";
 import Stripe from "stripe";
 
+import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 
 export async function handleInvoicePaidEvent(
@@ -100,15 +101,24 @@ export async function handleInvoicePaidEvent(
     return;
   }
 
-  const metadata = invoice.metadata;
+  // Get the allowed product ID and its default price
+  const allowedProductId = getEnvSecrets().STRIPE_PRODUCT_ID;
+
   let totalCredits: number = 0;
-  if (metadata?.credits) {
-    totalCredits = parseInt(metadata.credits);
+  for (const lineItem of invoice.lines?.data) {
+    if (lineItem.pricing && typeof lineItem.pricing === "object") {
+      const productId = lineItem.pricing.price_details?.product;
+
+      if (productId !== allowedProductId) {
+        throw new Error(`Invoice ${invoiceId} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`);
+      }
+
+      totalCredits += lineItem.quantity ?? 0;
+    }
   }
 
   if (totalCredits === 0) {
-    console.log("Invoice contains no credits");
-    return;
+    throw new Error(`No line items found for invoice ${invoiceId}`);
   }
 
   const cents = convertCreditsToCents(totalCredits);
