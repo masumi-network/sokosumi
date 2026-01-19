@@ -90,8 +90,14 @@ export async function handleInvoicePaidEvent(
   // Get the allowed product ID and its default price
   const allowedProductId = getEnvSecrets().STRIPE_PRODUCT_ID;
 
+  // Ensure invoice has line items
+  const lineItems = invoice.lines?.data;
+  if (!lineItems || lineItems.length === 0) {
+    throw new Error(`No line items found for invoice ${invoiceId}`);
+  }
+
   let totalCredits: number = 0;
-  for (const lineItem of invoice.lines?.data ?? []) {
+  for (const lineItem of lineItems) {
     if (lineItem.pricing && typeof lineItem.pricing === "object") {
       const productId = lineItem.pricing.price_details?.product;
 
@@ -106,7 +112,7 @@ export async function handleInvoicePaidEvent(
   }
 
   if (totalCredits === 0) {
-    throw new Error(`No line items found for invoice ${invoiceId}`);
+    throw new Error(`No valid line items found for invoice ${invoiceId}`);
   }
 
   const cents = convertCreditsToCents(totalCredits);
