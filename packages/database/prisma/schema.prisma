@@ -477,7 +477,6 @@ model CreditTransaction {
 }
 
 enum CreditTransactionReferenceType {
-  STRIPE_SESSION
   STRIPE_INVOICE
 }
 

@@ -38,7 +38,7 @@ DROP COLUMN "errorNoteKey";
 
 -- CreateEnum
 DO $$ BEGIN
- CREATE TYPE "CreditTransactionReferenceType" AS ENUM('STRIPE_SESSION', 'STRIPE_INVOICE');
+ CREATE TYPE "CreditTransactionReferenceType" AS ENUM('STRIPE_INVOICE');
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
