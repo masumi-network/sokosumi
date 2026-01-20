@@ -120,8 +120,6 @@ export async function handleInvoicePaidEvent(
   const referenceId = invoiceId;
   const referenceType = "STRIPE_INVOICE";
 
-  const expiresAt = new Date(Date.now() + 3 * 30 * 24 * 60 * 60 * 1000); // 90 days from now
-
   await prisma.transaction.upsert({
     where: {
       referenceId_referenceType: {
@@ -137,11 +135,9 @@ export async function handleInvoicePaidEvent(
       }),
       referenceId,
       referenceType,
-      expiresAt,
     },
     update: {
       amount: cents,
-      expiresAt,
     },
   });
 
