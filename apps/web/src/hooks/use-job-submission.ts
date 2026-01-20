@@ -58,8 +58,6 @@ export function useJobSubmission({
         | { ok: true; data: { jobId: string; scheduleId?: string } }
         | { ok: false; error: { code: string } };
 
-      const transformedInputData = prepareInputValues(allValues);
-
       if (demoValues) {
         result = await startDemoJob({
           input: {
@@ -73,6 +71,9 @@ export function useJobSubmission({
         scheduleSelection &&
         scheduleSelection.mode !== JobScheduleType.NOW
       ) {
+
+        const transformedInputData = prepareInputValues(allValues);
+
         result = await createSchedule({
           input: {
             agentId: agentId,
@@ -83,6 +84,8 @@ export function useJobSubmission({
           scheduleSelection: scheduleSelection,
         });
       } else {
+        const transformedInputData = prepareInputValues(allValues);
+        
         result = await startJob({
           input: {
             agentId: agentId,
