@@ -1034,6 +1034,64 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
+    "Coworkers": {
+      "Metadata": {
+        "title": "Agentic Coworkers",
+        "description": "Manage your agentic coworkers"
+      },
+      "title": "Agentic Coworkers",
+      "description": "Manage your agentic coworkers",
+      "Chat": {
+        "newChat": "New Chat",
+        "noChats": "No chats yet",
+        "emptyTitle": "Start a conversation",
+        "emptyDescription": "Ask me anything and I'll help you out. You can start a new chat or continue an existing one.",
+        "inputPlaceholder": "Type your message...",
+        "inputHint": "Press Enter to send, Shift+Enter for new line",
+        "assistant": "Assistant",
+        "filterAll": "All",
+        "filterActive": "Active",
+        "filterAwaiting": "Awaiting",
+        "statusActive": "Active",
+        "statusAwaiting": "Awaiting",
+        "statusResolved": "Resolved",
+        "justNow": "Just now",
+        "minutesAgo": "{count} mins ago",
+        "hoursAgo": "{count} hours ago",
+        "daysAgo": "{count} days ago",
+        "deleteDialog": {
+          "title": "Delete Chat",
+          "description": "Are you sure you want to delete this chat? This action cannot be undone.",
+          "cancel": "Cancel",
+          "delete": "Delete"
+        },
+        "selectCoworker": {
+          "title": "Select Agentic Coworker",
+          "description": "Choose a coworker to start a conversation with.",
+          "placeholder": "Select a coworker...",
+          "useCase": "Use case",
+          "cancel": "Cancel",
+          "confirm": "Start Chat"
+        },
+        "coworkers": {
+          "hannah": {
+            "name": "Hannah",
+            "description": "Data Analysis & Research Specialist",
+            "useCase": "Analyze datasets, create reports, and provide research insights"
+          },
+          "john": {
+            "name": "John",
+            "description": "Code Review & Development Assistant",
+            "useCase": "Review code, suggest improvements, and help with debugging"
+          },
+          "demosthenes": {
+            "name": "Demosthenes",
+            "description": "Writing & Communication Expert",
+            "useCase": "Draft documents, improve writing, and craft professional communications"
+          }
+        }
+      }
+    },
     "Schedules": {
       "title": "Schedules",
       "description": "Manage your schedules for your agents",
@@ -1066,6 +1124,7 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
+          "agenticCoworkers": "Agentic Coworkers",
           "exploreAgents": "Explore Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Task Manager",

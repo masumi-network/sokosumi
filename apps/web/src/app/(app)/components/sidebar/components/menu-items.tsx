@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Search } from "lucide-react";
+import { CalendarClock, Search, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -28,6 +28,12 @@ export default function MenuItems() {
   const pathname = usePathname();
 
   const items: MenuItemConfig[] = [
+    {
+      key: "agentic-coworkers",
+      href: "/coworkers",
+      label: t("agenticCoworkers"),
+      Icon: Users,
+    },
     {
       key: "explore-agents",
       href: "/agents",
