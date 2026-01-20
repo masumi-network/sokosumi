@@ -27,8 +27,8 @@
     "generate:api-docs": "next-openapi-gen generate"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.4.15",
-    "@better-auth/stripe": "1.4.15",
+    "@better-auth/oauth-provider": "1.4.16",
+    "@better-auth/stripe": "1.4.16",
     "@better-auth/utils": "0.3.0",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
@@ -59,7 +59,7 @@
     "ably": "2.17.0",
     "ai": "6.0.42",
     "babel-plugin-react-compiler": "1.0.0",
-    "better-auth": "1.4.15",
+    "better-auth": "1.4.16",
     "better-auth-localization": "2.2.3",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -80,7 +80,7 @@
     "lucide-react": "0.562.0",
     "marked": "17.0.1",
     "mdast2docx": "1.6.1",
-    "motion": "12.27.1",
+    "motion": "12.27.2",
     "nanoid": "5.1.6",
     "neverthrow": "8.2.0",
     "next": "16.1.4",
