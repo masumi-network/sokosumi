@@ -65,6 +65,9 @@ model User {
   taskComments TaskComment[]
   taskEvents   TaskEvents[]
 
+  // Subscriptions
+  subscriptions Subscription[]
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
@@ -140,9 +143,51 @@ model Organization {
   stripeCustomerId String?
   invoiceEmail     String?
 
+  subscriptions Subscription[]
+
   @@unique([slug])
   @@unique([stripeCustomerId])
   @@map("organization")
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plan                 String
+  referenceId          String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
+  status String @default("incomplete")
+
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  cancelAtPeriodEnd Boolean   @default(false)
+  cancelAt          DateTime?
+  canceledAt        DateTime?
+  endedAt           DateTime?
+
+  seats Int?
+
+  trialStart DateTime?
+  trialEnd   DateTime?
+
+  // Polymorphic relation: subscription belongs to either a user or organization
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Note: referenceId is NOT unique to allow users to resubscribe after cancellation
+  @@index([referenceId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([stripeSubscriptionId])
+  @@map("subscription")
 }
 
 model Member {

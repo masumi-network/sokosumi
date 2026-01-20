@@ -366,6 +366,7 @@ export const auth = betterAuth({
       createCustomerOnSignUp: false,
       subscription: {
         enabled: false,
+        plans: [],
       },
       organization: {
         enabled: true,
