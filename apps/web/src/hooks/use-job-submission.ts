@@ -16,7 +16,6 @@ import {
   startJob,
 } from "@/lib/actions";
 import { createSchedule } from "@/lib/actions/job-schedule";
-import { useSession } from "@/lib/auth/auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
 import {
@@ -49,7 +48,6 @@ export function useJobSubmission({
 }: UseJobSubmissionOptions): UseJobSubmissionReturn {
   const { id: agentId, creditsPrice } = agent;
   const t = useTranslations("Library.JobInput.Form");
-  const session = useSession();
   const router = useRouter();
 
   const handleSubmit = useCallback(
@@ -75,15 +73,6 @@ export function useJobSubmission({
         scheduleSelection &&
         scheduleSelection.mode !== JobScheduleType.NOW
       ) {
-        if (!session.data) {
-          result = {
-            ok: false,
-            error: { code: CommonErrorCode.UNAUTHENTICATED },
-          };
-          setLoading(false);
-          return;
-        }
-
         result = await createSchedule({
           input: {
             agentId: agentId,
@@ -156,7 +145,6 @@ export function useJobSubmission({
       agentId,
       creditsPrice.cents,
       flatInputs,
-      session.data,
       onSuccess,
       router,
       t,
