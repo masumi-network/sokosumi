@@ -329,7 +329,7 @@ export const jobRepository = {
         const paidJob = await tx.job.create({
           data: {
             ...baseJobData,
-            creditTransaction: {
+            transaction: {
               create: {
                 amount: -data.creditsPrice.cents,
                 includedFee: data.creditsPrice.includedFee,
@@ -369,35 +369,35 @@ export const jobRepository = {
     const job = await tx.job.findUnique({
       where: { id: jobId },
       select: {
-        refundedCreditTransaction: true,
-        creditTransaction: true,
+        refundedTransaction: true,
+        transaction: true,
       },
     });
 
     // If the job has already been refunded, do nothing
-    if (job?.refundedCreditTransaction) {
+    if (job?.refundedTransaction) {
       return;
     }
 
-    const creditTransaction = job?.creditTransaction;
+    const transaction = job?.transaction;
 
-    if (!creditTransaction) {
-      throw new Error("Credit transaction not found");
+    if (!transaction) {
+      throw new Error("Transaction not found");
     }
 
     // Build refund transaction data based on whether it's for a user or organization
-    const refundTransactionData: Prisma.CreditTransactionCreateInput = {
-      amount: creditTransaction.amount * BigInt(-1),
-      includedFee: creditTransaction.includedFee,
+    const refundTransactionData: Prisma.TransactionCreateInput = {
+      amount: transaction.amount * BigInt(-1),
+      includedFee: transaction.includedFee,
       user: {
         connect: {
-          id: creditTransaction.userId,
+          id: transaction.userId,
         },
       },
-      ...(creditTransaction.organizationId && {
+      ...(transaction.organizationId && {
         organization: {
           connect: {
-            id: creditTransaction.organizationId,
+            id: transaction.organizationId,
           },
         },
       }),
@@ -406,7 +406,7 @@ export const jobRepository = {
     await tx.job.update({
       where: { id: jobId },
       data: {
-        refundedCreditTransaction: {
+        refundedTransaction: {
           create: refundTransactionData,
         },
       },
@@ -562,7 +562,7 @@ export const jobRepository = {
  * - Has no on-chain status but has a payByTime that is greater than the cutoff time
  *
  * Jobs are excluded if they meet any of the following criteria:
- * - Have been refunded (refundedCreditTransactionId is not null)
+ * - Have been refunded (refundedTransactionId is not null)
  * - Are non-disputed and have passed their external dispute grace period
  * - Have no on-chain status and no payByTime set
  *
@@ -603,7 +603,7 @@ function jobsNotFinishedWhereQuery(
     NOT: [
       // Filter out jobs that are refunded
       {
-        refundedCreditTransactionId: {
+        refundedTransactionId: {
           not: null,
         },
         jobType: JobType.PAID,

@@ -1,15 +1,15 @@
 import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
 import {
-  creditTransactionRepository,
   jobShareRepository,
+  transactionRepository,
 } from "@sokosumi/database/repositories";
 import {
-  type JobWithCreditTransaction,
-  jobWithCreditTransaction,
   type JobWithEvents,
   jobWithEvents,
   type JobWithPurchase,
   jobWithPurchase,
+  type JobWithTransaction,
+  jobWithTransaction,
 } from "@sokosumi/database/types/job";
 import type {
   InputFieldSchemaType,
@@ -39,12 +39,12 @@ export async function validateCreditBalance(
 
   let centsBalance: bigint;
   if (organizationId) {
-    centsBalance = await creditTransactionRepository.getCentsByOrganizationId(
+    centsBalance = await transactionRepository.getCentsByOrganizationId(
       organizationId,
       tx,
     );
   } else {
-    centsBalance = await creditTransactionRepository.getCentsByUserId(
+    centsBalance = await transactionRepository.getCentsByUserId(
       userId,
       tx,
     );
@@ -71,7 +71,7 @@ export async function createJobWithPayment(
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithEvents & JobWithCreditTransaction & JobWithPurchase> {
+): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -94,7 +94,7 @@ export async function createJobWithPayment(
           },
         },
       },
-      creditTransaction: {
+      transaction: {
         create: {
           amount: -cost.cents,
           includedFee: cost.includedFee,
@@ -117,7 +117,7 @@ export async function createJobWithPayment(
     },
     include: {
       ...jobWithEvents,
-      ...jobWithCreditTransaction,
+      ...jobWithTransaction,
       ...jobWithPurchase,
     },
   });
@@ -137,7 +137,7 @@ export async function createFreeJob(
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithEvents & JobWithCreditTransaction & JobWithPurchase> {
+): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -171,7 +171,7 @@ export async function createFreeJob(
     },
     include: {
       ...jobWithEvents,
-      ...jobWithCreditTransaction,
+      ...jobWithTransaction,
       ...jobWithPurchase,
     },
   });
@@ -292,7 +292,7 @@ export async function getUserJobs(
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: {
         ...jobWithEvents,
-        ...jobWithCreditTransaction,
+        ...jobWithTransaction,
         ...jobWithPurchase,
       },
     }),

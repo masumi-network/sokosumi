@@ -204,4 +204,3 @@ export function transformPurchaseToJobUpdate(
 
   return data;
 }
-

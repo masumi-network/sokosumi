@@ -4,7 +4,7 @@ import { PricingType } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 import {
-  type JobWithCreditTransaction,
+  type JobWithTransaction,
   type JobWithEvents,
   type JobWithPurchase,
 } from "@sokosumi/database/types/job";
@@ -137,7 +137,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Start job with agent
-    let job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase;
+    let job: JobWithEvents & JobWithTransaction & JobWithPurchase;
     switch (agent.pricing.pricingType) {
       case PricingType.FREE:
         const freeJobResult = await createAgentClient().startFreeAgentJob(
