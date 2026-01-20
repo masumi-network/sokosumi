@@ -296,13 +296,12 @@ export const stripeClient = (() => {
         );
       }
 
-      const quantity = Math.floor((credits / price.amountPerCredit) * 100);
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [
           {
             price: price.id,
-            quantity,
+            quantity: credits,
           },
         ],
         ...(promotionCode
