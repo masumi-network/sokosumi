@@ -20,7 +20,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   const t = await getTranslations("App.Credits");
   const { session_id, cancel } = await searchParams;
 
-  const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
+  const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
   const price = await stripeClient.getPriceByProductId(productId);
   const activeOrganization = await userService.getActiveOrganization();
 

@@ -89,7 +89,7 @@ export async function handleInvoicePaidEvent(
   }
 
   // Get the allowed product ID and its default price
-  const allowedProductId = getEnvSecrets().STRIPE_PRODUCT_ID;
+  const allowedProductId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
 
   // Ensure invoice has line items
   const lineItems = invoice.lines?.data;

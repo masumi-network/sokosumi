@@ -274,7 +274,7 @@ export const stripeClient = (() => {
       metadata?: Record<string, string>,
       referralCount: number = 1,
     ): Promise<Stripe.Invoice> {
-      const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
+      const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
       const price = await this.getPriceByProductId(productId);
 
       // Validate coupon and compute quantity of credits
