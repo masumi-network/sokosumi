@@ -40,6 +40,9 @@ export const auth = betterAuth({
   },
   trustedOrigins: [env.BETTER_AUTH_TRUSTED_ORIGIN],
   user: {
+    emailAndPassword: {
+      enabled: true,
+    },
     additionalFields: {
       termsAccepted: {
         type: "boolean",
