@@ -14,7 +14,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
-import { stripeService } from "@/lib/services/stripe.service";
+import { fireGTMEvent } from "@/lib/gtm-events";
 
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
@@ -141,6 +141,11 @@ export async function handleInvoicePaidEvent(
     },
   });
 
+  const amount = invoice.amount_paid;
+  const currency = invoice.currency;
+
+  fireGTMEvent.purchase(referenceId, referenceType, totalCredits, amount, currency);
+
   console.log(
     `✅ Processed invoice ${invoiceId}: Created transaction with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
   );
@@ -158,19 +163,6 @@ export async function handleCustomerCreatedEvent(
         data: { stripeCustomerId: customer.id },
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
-
-      // Claim welcome coupon for new user
-      const { couponApplied, invoiceId } =
-        await stripeService.claimWelcomeCoupon(userId);
-      if (couponApplied && invoiceId) {
-        console.log(
-          `✅ Claimed welcome coupon for user ${userId}, invoice: ${invoiceId}`,
-        );
-      } else {
-        console.log(
-          `⚠️ Failed to claim welcome coupon for user ${userId}`,
-        );
-      }
       break;
     }
     case "organization": {

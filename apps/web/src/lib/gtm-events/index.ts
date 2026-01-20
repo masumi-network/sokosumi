@@ -1,4 +1,3 @@
-import { CheckoutSessionData } from "@/lib/clients";
 import { SocialProviderId } from "@/lib/schemas/auth";
 
 import { fireEvent } from "./utils";
@@ -82,14 +81,14 @@ export const fireGTMEvent = {
     });
   },
 
-  purchase(checkoutSession: CheckoutSessionData) {
-    const { session_id, currency, items, value } = checkoutSession;
+  purchase(referenceId: string, referenceType: string, totalCredits: number, amount: number, currency: string) {
     fireEvent({
       event: "purchase",
-      transaction_id: session_id,
-      value,
-      currency,
-      items,
+      reference_id: referenceId,
+      reference_type: referenceType,
+      total_credits: totalCredits,
+      amount: amount,
+      currency: currency,
     });
   },
 

@@ -24,10 +24,6 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   const price = await stripeClient.getPriceByProductId(productId);
   const activeOrganization = await userService.getActiveOrganization();
 
-  // for credits success modal
-  const checkoutSessionPromise = session_id
-    ? stripeClient.getCheckoutSessionData(session_id)
-    : null;
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
 
   return (
@@ -47,12 +43,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
       </div>
       <div className="max-w-3xl">
         <CreditsForm price={price} organization={activeOrganization} />
-        {checkoutSessionPromise && (
-          <CreditsSuccessModal
-            checkoutSessionPromise={checkoutSessionPromise}
-            randomAgentPromise={randomAgentPromise}
-          />
-        )}
+        { session_id && <CreditsSuccessModal randomAgentPromise={randomAgentPromise} />}
         {cancel && <CreditsCancelModal />}
       </div>
     </div>
