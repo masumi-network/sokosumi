@@ -3,18 +3,8 @@ import { TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
-export const taskAttachmentSchema = z
-  .object({
-    id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
-    url: z.string().openapi({ example: "https://example.com/file.pdf" }),
-    name: z.string().nullish().openapi({ example: "file.pdf" }),
-    mimeType: z
-      .string()
-      .nullish()
-      .openapi({ example: "application/pdf" }),
-    size: z.number().nullish().openapi({ example: 1024 }),
-  })
-  .openapi("TaskAttachment");
+import { attachmentSchema } from "./attachment.schema";
+
 
 export const taskActorSchema = z.discriminatedUnion("type", [
   z.object({
@@ -59,60 +49,28 @@ export const taskCommentSchema = z
     updatedAt: dateTimeSchema,
     userId: z.string().nullish().openapi({ example: "user_123" }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
-    attachments: z.array(taskAttachmentSchema).openapi({ example: [] }),
+    attachments: z.array(attachmentSchema).openapi({ example: [] }),
   })
   .openapi("TaskComment");
 
-export const taskLastEventSchema = z
-  .object({
-    createdAt: dateTimeSchema,
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-  })
-  .openapi("TaskLastEvent");
-
-export const taskBoardItemSchema = z
+export const taskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_123" }),
     name: z.string().openapi({ example: "Review onboarding" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
     orchestrator: orchestratorSchema.nullish(),
+    attachments: z.array(attachmentSchema).openapi({ example: [] }),
     _count: z
       .object({
         comments: z.number().openapi({ example: 2 }),
       })
-      .openapi("TaskBoardItemCount"),
-    lastEvent: taskLastEventSchema.nullish(),
-    updatedAt: dateTimeSchema,
-  })
-  .openapi("TaskBoardItem");
-
-export const taskBoardColumnSchema = z
-  .object({
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-    tasks: z.array(taskBoardItemSchema),
-  })
-  .openapi("TaskBoardColumn");
-
-export const taskBoardResponseSchema = z
-  .object({
-    columns: z.array(taskBoardColumnSchema),
-  })
-  .openapi("TaskBoardResponse");
-
-export const taskDetailSchema = z
-  .object({
-    id: z.string().openapi({ example: "tsk_123" }),
-    name: z.string().openapi({ example: "Review onboarding" }),
-    description: z.string().nullish().openapi({ example: "Notes go here" }),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.DRAFT }),
+      .openapi({ example: { comments: 2 } }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    orchestrator: orchestratorSchema.nullish(),
-    events: z.array(taskEventSchema),
-    comments: z.array(taskCommentSchema),
-    attachments: z.array(taskAttachmentSchema),
   })
-  .openapi("TaskDetail");
+  .openapi("Task");
+
+export const tasksSchema = z.array(taskSchema).openapi("Tasks");
 
 export const createTaskRequestSchema = z.object({
   name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
@@ -185,31 +143,10 @@ export const createTaskCommentRequestSchema = z.object({
 export const updateTaskCommentRequestSchema = z
   .object({
     content: z.string().min(1).openapi({ example: "Updated comment" }),
-  })
-  .openapi("UpdateTaskCommentRequest");
+  });
+  
 
-const setStatusActionSchema = z.object({
-  type: z.literal("SET_STATUS"),
-  to: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-});
-
-const setOrchestratorActionSchema = z.object({
-  type: z.literal("SET_ORCHESTRATOR"),
-  orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
-});
-
-const commentActionSchema = z.object({
-  type: z.literal("COMMENT"),
-  body: z.string().min(1).openapi({ example: "Looks good." }),
-});
-
-export const taskActionSchema = z.discriminatedUnion("type", [
-  setStatusActionSchema,
-  setOrchestratorActionSchema,
-  commentActionSchema,
-]);
-
-export const taskCommandRequestSchema = z.object({
-  actor: taskActorSchema,
-  action: taskActionSchema,
+export const createTaskEventRequestSchema = z.object({
+  status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
+  actor: taskActorSchema.optional(),
 });

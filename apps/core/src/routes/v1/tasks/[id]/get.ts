@@ -4,11 +4,11 @@ import { requireTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTaskDetail } from "@/helpers/task-manager";
+import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { taskDetailSchema } from "@/schemas/task-manager.schema";
-import { taskWithDetailsInclude } from "@/types/task";
+import { taskSchema } from "@/schemas/task.schema";
+import { taskInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -19,14 +19,14 @@ const paramsSchema = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/tasks/{id}",
+  path: "/{id}",
   description: "Retrieve task details",
-  tags: ["Task Manager"],
+  tags: ["Tasks"],
   request: {
     params: paramsSchema,
   },
   responses: {
-    200: jsonSuccessResponse(taskDetailSchema, "Retrieve task"),
+    200: jsonSuccessResponse(taskSchema, "Retrieve task"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },
@@ -41,7 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireTaskAccess(authContext, id, tx);
       return tx.task.findUnique({
         where: { id },
-        include: taskWithDetailsInclude,
+        include: taskInclude,
       });
     });
 
@@ -49,6 +49,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Task not found");
     }
 
-    return ok(c, taskDetailSchema.parse(mapTaskDetail(task)));
+    return ok(c, taskSchema.parse(mapTask(task, authContext.userId)));
   });
 }

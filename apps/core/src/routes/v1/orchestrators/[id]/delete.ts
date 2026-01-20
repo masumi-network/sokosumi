@@ -20,9 +20,9 @@ const responseSchema = z.object({
 
 const route = createRoute({
   method: "delete",
-  path: "/orchestrators/{id}",
+  path: "/{id}",
   description: "Delete orchestrator",
-  tags: ["Task Manager"],
+  tags: ["Orchestrators"],
   request: {
     params: paramsSchema,
   },

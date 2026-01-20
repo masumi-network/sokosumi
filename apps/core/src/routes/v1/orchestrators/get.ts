@@ -4,13 +4,13 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { orchestratorSchema } from "@/schemas/task-manager.schema";
+import { orchestratorSchema } from "@/schemas/task.schema";
 
 const route = createRoute({
   method: "get",
-  path: "/orchestrators",
+  path: "/",
   description: "List user's orchestrators",
-  tags: ["Task Manager"],
+  tags: ["Orchestrators"],
   responses: {
     200: jsonSuccessResponse(
       z.array(orchestratorSchema),

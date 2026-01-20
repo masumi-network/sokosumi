@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { orchestratorSchema } from "@/schemas/task-manager.schema";
+import { orchestratorSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -17,9 +17,9 @@ const paramsSchema = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/orchestrators/{id}",
+  path: "/{id}",
   description: "Retrieve orchestrator by ID",
-  tags: ["Task Manager"],
+  tags: ["Orchestrators"],
   request: {
     params: paramsSchema,
   },

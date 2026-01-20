@@ -1,6 +1,29 @@
-import { TaskStatus } from "@sokosumi/database";
+import { type Attachment, TaskStatus } from "@sokosumi/database";
+
+import type { Task } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
+
+type AttachmentReference = {
+  referenceId: string;
+  referenceType: "Input" | "Task" | "Comment";
+};
+
+function getAttachmentReference(attachment: Attachment): AttachmentReference {
+  if (attachment.jobInputId) {
+    return { referenceId: attachment.jobInputId, referenceType: "Input" };
+  }
+
+  if (attachment.taskId) {
+    return { referenceId: attachment.taskId, referenceType: "Task" };
+  }
+
+  if (attachment.taskCommentId) {
+    return { referenceId: attachment.taskCommentId, referenceType: "Comment" };
+  }
+
+  throw unprocessableEntity("Invalid attachment: missing reference");
+}
 
 export function validateStatusTransition(
   from: TaskStatus,
@@ -23,4 +46,57 @@ export function validateStatusTransition(
       `Invalid status transition from ${from} to ${to}`,
     );
   }
+}
+
+type TaskCommentWithAttachments = {
+  id: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string | null;
+  orchestratorId: string | null;
+  attachments: Attachment[];
+};
+
+export function mapTask(task: Task, userId: string) {
+  return {
+    id: task.id,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+    name: task.name,
+    status: task.status,
+    orchestrator: task.orchestrator,
+    _count: {
+      comments: task._count.comments,
+    },
+    attachments: task.attachments.map((attachment) =>
+      mapTaskAttachment(attachment, userId),
+    ),
+  };
+}
+
+export function mapTaskAttachment(attachment: Attachment, userId: string) {
+  const { referenceId, referenceType } = getAttachmentReference(attachment);
+
+  return {
+    id: attachment.id,
+    createdAt: attachment.createdAt,
+    updatedAt: attachment.updatedAt,
+    userId,
+    referenceId,
+    referenceType,
+    name: attachment.name ?? null,
+    size: attachment.size ? Number(attachment.size) : null,
+    mimeType: attachment.mimeType ?? null,
+    url: attachment.url ?? null,
+  };
+}
+
+export function mapTaskComment(comment: TaskCommentWithAttachments, userId: string) {
+  return {
+    ...comment,
+    attachments: comment.attachments.map((attachment) =>
+      mapTaskAttachment(attachment, userId),
+    ),
+  };
 }

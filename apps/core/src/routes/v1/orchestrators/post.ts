@@ -8,13 +8,13 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   createOrchestratorRequestSchema,
   orchestratorSchema,
-} from "@/schemas/task-manager.schema";
+} from "@/schemas/task.schema";
 
 const route = createRoute({
   method: "post",
-  path: "/orchestrators",
+  path: "/",
   description: "Create orchestrator",
-  tags: ["Task Manager"],
+  tags: ["Orchestrators"],
   request: {
     body: {
       content: {

@@ -1,35 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 
-export const taskWithDetailsInclude = {
+export const taskInclude = {
   orchestrator: true,
   attachments: true,
-  events: {
-    orderBy: {
-      createdAt: "asc",
-    },
-  },
-  comments: {
-    orderBy: {
-      createdAt: "asc",
-    },
-    include: {
-      attachments: true,
-    },
-  },
-} as const;
-
-export type TaskWithDetails = Prisma.TaskGetPayload<{
-  include: typeof taskWithDetailsInclude;
-}>;
-
-export const taskBoardItemInclude = {
-  orchestrator: true,
-  events: {
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 1,
-  },
   _count: {
     select: {
       comments: true,
@@ -37,6 +10,6 @@ export const taskBoardItemInclude = {
   },
 } as const;
 
-export type TaskBoardItem = Prisma.TaskGetPayload<{
-  include: typeof taskBoardItemInclude;
+export type Task = Prisma.TaskGetPayload<{
+  include: typeof taskInclude;
 }>;

@@ -19,9 +19,9 @@ const responseSchema = z.object({
 
 const route = createRoute({
   method: "delete",
-  path: "/tasks/{id}",
+  path: "/{id}",
   description: "Delete task",
-  tags: ["Task Manager"],
+  tags: ["Tasks"],
   request: {
     params: paramsSchema,
   },

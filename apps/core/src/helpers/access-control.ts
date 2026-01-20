@@ -124,31 +124,3 @@ export async function requireOrchestratorAccess(
     throw forbidden("You can only access your own orchestrators");
   }
 }
-
-export async function requireTaskCommentAccess(
-  authContext: AuthenticationContext,
-  commentId: string,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  const comment = await tx.taskComment.findFirst({
-    where: {
-      id: commentId,
-      OR: [
-        { userId: authContext.userId },
-        { task: { userId: authContext.userId } },
-      ],
-    },
-    select: {
-      id: true,
-      taskId: true,
-      userId: true,
-      orchestratorId: true,
-    },
-  });
-
-  if (!comment) {
-    throw forbidden("You can only access your own task comments");
-  }
-
-  return comment;
-}
