@@ -7,7 +7,10 @@ import { toast } from "sonner";
 
 import { CommonErrorCode } from "@/lib/actions";
 import { provideJobInput } from "@/lib/actions/job/action";
-import { filterOutNullValues, JobInputsFormSchemaType } from "@/lib/job-input";
+import {
+  JobInputsFormSchemaType,
+  prepareInputValues,
+} from "@/lib/job-input";
 
 export interface UseProvideJobInputOptions {
   jobId: string;
@@ -36,7 +39,7 @@ export function useProvideJobInput({
       setIsSubmitting(true);
 
       try {
-        const transformedInputData = filterOutNullValues(allValues);
+        const transformedInputData = prepareInputValues(allValues);
 
         if (!statusId) {
           throw new Error("Status ID is required");
