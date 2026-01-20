@@ -92,12 +92,6 @@ importers:
       neverthrow:
         specifier: 8.2.0
         version: 8.2.0
-      postmark:
-        specifier: 4.0.5
-        version: 4.0.5
-      stripe:
-        specifier: 20.2.0
-        version: 20.2.0(@types/node@24.10.4)
       uuid:
         specifier: 13.0.0
         version: 13.0.0
