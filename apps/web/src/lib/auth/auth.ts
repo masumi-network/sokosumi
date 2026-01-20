@@ -366,7 +366,55 @@ export const auth = betterAuth({
       createCustomerOnSignUp: false,
       subscription: {
         enabled: false,
-        plans: [],
+        plans: [
+          {
+            name: "Pro",
+            priceId: "price_1SrGt5Rg6q0nieYDMcRSXEVz",
+          },
+          {
+            name: "Standard",
+            priceId: "price_1SrGs3Rg6q0nieYDnAEdCImG",
+          },
+          {
+            name: "Starter",
+            priceId: "price_1SrGqvRg6q0nieYDrwMiQ4an",
+          },
+          {
+            name: "Free",
+            priceId: "price_1SrGdrRg6q0nieYDNr5kJpNZ",
+          },
+        ],
+        requireEmailVerification: true,
+        getCheckoutSessionParams: async ({ user, plan }: { user: User, plan: Stripe.Plan }) => {
+          return {
+              params: {
+                  tax_id_collection: {
+                      enabled: true
+                  },
+                  billing_address_collection: "required",
+                  custom_text: {
+                      submit: {
+                          message: "We'll start your subscription right away"
+                      }
+                  },
+                  metadata: {
+                      planId: plan.id
+                  }
+              },
+              options: {
+                  idempotencyKey: `sub_${user.id}_${plan.id}_${Date.now()}`
+              }
+          };
+        },
+        authorizeReference: async (user: User, referenceId: string) => {
+          const member = await prisma.member.findFirst({
+              where: {
+                  userId: user.id,
+                  organizationId: referenceId
+              }
+          });
+          return member?.role === "owner" || member?.role === "admin";
+      }
       },
       organization: {
         enabled: true,
