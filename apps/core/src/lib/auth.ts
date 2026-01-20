@@ -13,7 +13,6 @@ import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
-
 const env = getEnv();
 
 export const auth = betterAuth({
