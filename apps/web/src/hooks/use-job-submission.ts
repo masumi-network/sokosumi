@@ -141,7 +141,7 @@ export function useJobSubmission({
         }
       } catch (_error) {
         setLoading(false);
-        toast.error(t("submitError"));
+        toast.error(t("Error.default"));
       }
     },
     [
