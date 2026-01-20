@@ -64,6 +64,7 @@ export function mapTask(task: Task, userId: string) {
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     name: task.name,
+    description: task.description ?? null,
     status: task.status,
     orchestrator: task.orchestrator,
     _count: {
