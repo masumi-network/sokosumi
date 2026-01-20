@@ -25,15 +25,16 @@ export const stripeService = (() => {
   ): Promise<string | null> {
     if (organizationId) {
       const organization =
-        await organizationRepository.getOrganizationWithRelationsById(
-          organizationId,
-          prisma,
-        );
-      if (!organization) throw new Error("Organization not found");
+        await prisma.organization.findUnique({ where: { id: organizationId }, select: { stripeCustomerId: true } });
+      if (!organization) {
+        throw new Error("Organization not found");
+      }
       return organization.stripeCustomerId;
     } else {
-      const user = await userRepository.getUserById(userId, prisma);
-      if (!user) throw new Error("User not found");
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { stripeCustomerId: true } });
+      if (!user) {
+        throw new Error("User not found");
+      }
       return user.stripeCustomerId;
     }
   }
