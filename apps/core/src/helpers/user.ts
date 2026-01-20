@@ -20,7 +20,7 @@ export async function getCredits(
     ? { userId, organizationId }
     : { userId, organizationId: null };
 
-  const { _sum } = await tx.creditTransaction.aggregate({
+  const { _sum } = await tx.transaction.aggregate({
     where,
     _sum: {
       amount: true,

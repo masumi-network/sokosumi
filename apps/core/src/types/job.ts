@@ -1,7 +1,7 @@
 import {
-  type JobWithCreditTransaction,
   type JobWithEvents,
   type JobWithPurchase,
+  type JobWithTransaction,
 } from "@sokosumi/database";
 import {
   computeJobStatus,
@@ -15,7 +15,7 @@ import {
 } from "@sokosumi/database/helpers";
 
 export function flattenJob(
-  job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase,
+  job: JobWithEvents & JobWithTransaction & JobWithPurchase,
 ) {
   return {
     ...job,

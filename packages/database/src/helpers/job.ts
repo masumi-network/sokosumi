@@ -11,10 +11,10 @@ import {
   DemoJobWithStatus,
   FreeJobWithStatus,
   type JobEventWithRelations,
-  JobWithCreditTransaction,
   type JobWithEvents,
   JobWithPurchase,
   JobWithSokosumiStatus,
+  JobWithTransaction,
   PaidJobWithStatus,
   SokosumiJobStatus,
 } from "../types/job.js";
@@ -160,7 +160,7 @@ function getFundsLockedJobStatus(
  * the current lifecycle state of a job, and is used throughout the application for UI and logic.
  *
  * The resolution order is as follows:
- * 1. If the job has been refunded (`refundedCreditTransactionId` is set), return REFUND_RESOLVED.
+ * 1. If the job has been refunded (`refundedTransactionId` is set), return REFUND_RESOLVED.
  * 2. If the job has no on-chain status and there is a next action error, return PAYMENT_FAILED.
  * 3. If the job has not started (no purchase), return a payment-related status (see `checkPaymentStatus`).
  * 4. If the job has a next action, return the corresponding status (see `checkNextAction`).
@@ -179,7 +179,7 @@ function getFundsLockedJobStatus(
  * @returns The resolved JobStatus for the job.
  */
 export function computeJobStatus(
-  job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase,
+  job: JobWithEvents & JobWithTransaction & JobWithPurchase,
 ): SokosumiJobStatus {
   switch (job.jobType) {
     case JobType.FREE:
@@ -223,10 +223,10 @@ function computeDemoJobStatus(_job: Job): SokosumiJobStatus {
 }
 
 function computePaidJobStatus(
-  job: JobWithPurchase & JobWithCreditTransaction & JobWithEvents,
+  job: JobWithPurchase & JobWithTransaction & JobWithEvents,
 ): SokosumiJobStatus {
   // 1. If the job has already been refunded, return the refund resolved status
-  if (job.refundedCreditTransactionId) {
+  if (job.refundedTransactionId) {
     return SokosumiJobStatus.REFUND_RESOLVED;
   }
 
@@ -329,20 +329,20 @@ export function getInputHash(job: JobWithEvents): string | null {
   return initiatedEvent?.input?.inputHash ?? null;
 }
 
-export function getCredits(job: JobWithCreditTransaction): number {
-  const creditTransaction = job.creditTransaction;
-  if (!creditTransaction) {
+export function getCredits(job: JobWithTransaction): number {
+  const transaction = job.transaction;
+  if (!transaction) {
     return 0;
   }
-  return Math.abs(convertCentsToCredits(creditTransaction.amount));
+  return Math.abs(convertCentsToCredits(transaction.amount));
 }
 
-function getCents(job: JobWithCreditTransaction): bigint {
-  const creditTransaction = job.creditTransaction;
-  if (!creditTransaction) {
+function getCents(job: JobWithTransaction): bigint {
+  const transaction = job.transaction;
+  if (!transaction) {
     return BigInt(0);
   }
-  return creditTransaction.amount;
+  return transaction.amount;
 }
 
 export function getResultHash(job: JobWithPurchase): string | null {
@@ -350,7 +350,7 @@ export function getResultHash(job: JobWithPurchase): string | null {
 }
 
 export function mapJobWithStatus(
-  job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase,
+  job: JobWithEvents & JobWithTransaction & JobWithPurchase,
 ): JobWithSokosumiStatus {
   const completedAt = getCompletedAt(job);
   const jobStatusSettled =

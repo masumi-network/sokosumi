@@ -34,25 +34,6 @@ export const userRepository = {
   },
 
   /**
-   * Updates the Stripe customer ID associated with a user.
-   *
-   * @param userId - The unique identifier of the user.
-   * @param stripeCustomerId - The Stripe customer ID to associate, or null to remove it.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to the updated User object.
-   */
-  setUserStripeCustomerId: async (
-    userId: string,
-    stripeCustomerId: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<User> => {
-    return tx.user.update({
-      where: { id: userId },
-      data: { stripeCustomerId },
-    });
-  },
-
-  /**
    * Get a user by their Stripe customer ID.
    *
    * @param stripeCustomerId - The Stripe customer ID.
