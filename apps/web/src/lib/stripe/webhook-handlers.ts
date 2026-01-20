@@ -172,7 +172,7 @@ export async function handleCustomerUpdatedEvent(
 ): Promise<void> {
   // Check if this is an organization customer
   const metadata = customer.metadata;
-  if (metadata?.type === "organization" && metadata?.organizationId) {
+  if (metadata?.customerType === "organization" && metadata?.organizationId) {
     const organizationId = metadata.organizationId;
     const customerEmail =
       typeof customer.email === "string" ? customer.email : null;
