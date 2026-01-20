@@ -24,12 +24,11 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  userAgentRatings   UserAgentRating[]
-  agentLists         AgentList[]
-  creditTransactions CreditTransaction[]
-  fiatTransactions   FiatTransaction[]
-  jobs               Job[]
-  jobSchedules       JobSchedule[]
+  userAgentRatings UserAgentRating[]
+  agentLists       AgentList[]
+  transactions     Transaction[]
+  jobs             Job[]
+  jobSchedules     JobSchedule[]
 
   stripeCustomerId String?
 
@@ -129,15 +128,14 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members            Member[]
-  invitations        Invitation[]
-  agents             Agent[]
-  blacklistedAgents  Agent[]             @relation("AgentBlacklist")
-  jobs               Job[]
-  jobSchedules       JobSchedule[]
-  creditTransactions CreditTransaction[]
-  fiatTransactions   FiatTransaction[]
-  jobShares          JobShare[]
+  members           Member[]
+  invitations       Invitation[]
+  agents            Agent[]
+  blacklistedAgents Agent[]       @relation("AgentBlacklist")
+  jobs              Job[]
+  jobSchedules      JobSchedule[]
+  transactions      Transaction[]
+  jobShares         JobShare[]
 
   stripeCustomerId String?
   invoiceEmail     String?
@@ -454,7 +452,7 @@ enum AgentListType {
   FAVORITE
 }
 
-model CreditTransaction {
+model Transaction {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -462,10 +460,8 @@ model CreditTransaction {
   amount      BigInt // positive is always a credit topup and negative is always a credit spend; 1_000_000_000_000 = 1 credit (10^12) with NEXT_PUBLIC_CREDITS_BASE = 12
   includedFee BigInt @default(0)
 
-  note         String?
-  noteKey      String?
-  errorNote    String?
-  errorNoteKey String?
+  referenceId   String?
+  referenceType TransactionReferenceType?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -473,46 +469,15 @@ model CreditTransaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  fiatTransaction FiatTransaction?
+  job         Job? @relation("TransactionJob")
+  refundedJob Job? @relation("RefundedTransactionJob")
 
-  job         Job? @relation("CreditTransactionJob")
-  refundedJob Job? @relation("RefundedCreditTransactionJob")
-
+  @@unique([referenceId, referenceType])
   @@index([userId, organizationId])
 }
 
-model FiatTransaction {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  amount           BigInt // Base Unit: 100 = 1 USD, 10000 = 100 USD if currency is USD
-  currency         String
-  cents            BigInt
-  servicePaymentId String?               @unique
-  service          FiatService           @default(STRIPE)
-  status           FiatTransactionStatus @default(PENDING)
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id], onDelete: Cascade)
-  creditTransactionId String?            @unique
-
-  @@index([userId, organizationId])
-}
-
-enum FiatTransactionStatus {
-  PENDING
-  SUCCEEDED
-  FAILED
-}
-
-enum FiatService {
-  STRIPE
+enum TransactionReferenceType {
+  STRIPE_INVOICE
 }
 
 enum JobType {
@@ -547,10 +512,10 @@ model Job {
   externalDisputeUnlockTime DateTime?
   sellerVkey                String?
 
-  creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
-  creditTransactionId         String?            @unique
-  refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
-  refundedCreditTransactionId String?            @unique
+  transaction           Transaction? @relation("TransactionJob", fields: [transactionId], references: [id])
+  transactionId         String?      @unique
+  refundedTransaction   Transaction? @relation("RefundedTransactionJob", fields: [refundedTransactionId], references: [id])
+  refundedTransactionId String?      @unique
 
   name String?
 

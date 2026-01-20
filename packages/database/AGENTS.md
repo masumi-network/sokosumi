@@ -23,8 +23,7 @@ packages/database/
 │   │   ├── blob.repository.ts
 │   │   ├── category.repository.ts
 │   │   ├── creditCost.repository.ts
-│   │   ├── creditTransaction.repository.ts
-│   │   ├── fiatTransaction.repository.ts
+│   │   ├── transaction.repository.ts
 │   │   ├── invitation.repository.ts
 │   │   ├── job.repository.ts
 │   │   ├── job-event.repository.ts

@@ -20,12 +20,12 @@ import {
   isPaidJob,
 } from "@sokosumi/database/helpers";
 import {
-  creditTransactionRepository,
   jobEventRepository,
   jobInputRepository,
   jobPurchaseRepository,
   jobRepository,
   jobShareRepository,
+  transactionRepository,
 } from "@sokosumi/database/repositories";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
@@ -78,7 +78,7 @@ export const jobService = (() => {
     if (job.jobType === JobType.DEMO) {
       return null;
     }
-    if (job.refundedCreditTransactionId) {
+    if (job.refundedTransactionId) {
       return null;
     }
     const agentCompletedEvent = job.events.find(
@@ -99,7 +99,7 @@ export const jobService = (() => {
     if (job.jobType === JobType.FREE || job.jobType === JobType.DEMO) {
       return null;
     }
-    if (job.refundedCreditTransactionId) {
+    if (job.refundedTransactionId) {
       return null;
     }
     if (job.purchase === null) {
@@ -124,7 +124,7 @@ export const jobService = (() => {
     cents: bigint,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<void> => {
-    const centsBalance = await creditTransactionRepository.getCentsByUserId(
+    const centsBalance = await transactionRepository.getCentsByUserId(
       userId,
       tx,
     );
@@ -385,11 +385,10 @@ export const jobService = (() => {
     cents: bigint,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<void> => {
-    const centsBalance =
-      await creditTransactionRepository.getCentsByOrganizationId(
-        organizationId,
-        tx,
-      );
+    const centsBalance = await transactionRepository.getCentsByOrganizationId(
+      organizationId,
+      tx,
+    );
     if (centsBalance - cents < BigInt(0)) {
       throw new JobError(
         JobErrorCode.INSUFFICIENT_BALANCE,

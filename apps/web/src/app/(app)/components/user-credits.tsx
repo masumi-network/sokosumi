@@ -1,6 +1,6 @@
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import {
-  creditTransactionRepository,
+  transactionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import { getTranslations } from "next-intl/server";
@@ -36,7 +36,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   let creditLabel: string;
 
   if (activeOrganization) {
-    const cents = await creditTransactionRepository.getCentsByOrganizationId(
+    const cents = await transactionRepository.getCentsByOrganizationId(
       activeOrganization.id,
       prisma,
     );
@@ -46,10 +46,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
       organization: activeOrganization.name,
     });
   } else {
-    const cents = await creditTransactionRepository.getCentsByUserId(
-      user.id,
-      prisma,
-    );
+    const cents = await transactionRepository.getCentsByUserId(user.id, prisma);
     credits = convertCentsToCredits(cents);
     creditLabel = t("userBalance", { credits: credits });
   }
