@@ -97,46 +97,6 @@ export const updateTaskRequestSchema = z
     },
   );
 
-export const createOrchestratorRequestSchema = z.object({
-  slug: z.string().min(1).max(64).openapi({ example: "ops-agent" }),
-  name: z.string().min(1).max(120).openapi({ example: "Ops Agent" }),
-  url: z.string().nullish().openapi({ example: "https://example.com" }),
-  email: z.string().nullish().openapi({ example: "ops@example.com" }),
-  description: z.string().nullish().openapi({ example: "Ops helper" }),
-  image: z.string().nullish().openapi({ example: "https://example.com/logo" }),
-});
-
-export const updateOrchestratorRequestSchema = z
-  .object({
-    name: z.string().min(1).max(120).optional().openapi({
-      example: "Ops Agent",
-    }),
-    url: z.string().nullish().optional().openapi({
-      example: "https://example.com",
-    }),
-    email: z.string().nullish().optional().openapi({
-      example: "ops@example.com",
-    }),
-    description: z.string().nullish().optional().openapi({
-      example: "Ops helper",
-    }),
-    image: z.string().nullish().optional().openapi({
-      example: "https://example.com/logo",
-    }),
-  })
-  .refine(
-    (data) =>
-      data.name !== undefined ||
-      data.url !== undefined ||
-      data.email !== undefined ||
-      data.description !== undefined ||
-      data.image !== undefined,
-    {
-      message: "At least one field must be provided",
-      path: ["name", "url", "email", "description", "image"],
-    },
-  );
-
 export const createTaskCommentRequestSchema = z.object({
   content: z.string().min(1).openapi({ example: "Looks good." }),
   actor: taskActorSchema.optional(),
