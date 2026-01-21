@@ -10,6 +10,7 @@ import prisma from "@/lib/db/prisma";
 export interface AuthenticationContext {
   userId: string;
   organizationId: string | null;
+  orchestratorId: string | null;
 }
 
 export type AuthVariables = {
@@ -46,6 +47,7 @@ async function verifyApiKey(
       authContext: {
         userId: apiKeyResult.key.userId,
         organizationId: apiKeyResult.key.metadata?.organizationId ?? null,
+        orchestratorId: apiKeyResult.key.metadata?.orchestratorId ?? null,
       },
     });
     return true;
@@ -136,6 +138,7 @@ async function verifyOAuthToken(
     authContext: {
       userId: oauthToken.userId,
       organizationId: null,
+      orchestratorId: null,
     },
   });
   return true;
@@ -178,6 +181,7 @@ const sessionMiddleware: MiddlewareHandler<{
     authContext: {
       userId: user.id,
       organizationId: session.activeOrganizationId ?? null,
+      orchestratorId: null,
     },
   });
 
