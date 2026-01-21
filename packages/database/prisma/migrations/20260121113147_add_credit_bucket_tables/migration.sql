@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "CreditBucketReferenceType" AS ENUM ('STRIPE_INVOICE');
+CREATE TYPE "CreditBucketReferenceType" AS ENUM ('STRIPE_INVOICE', 'JOB_REFUND');
 
 -- CreateTable
 CREATE TABLE "credit_bucket" (

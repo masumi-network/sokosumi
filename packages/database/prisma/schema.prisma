@@ -515,6 +515,7 @@ model CreditBucket {
 
 enum CreditBucketReferenceType {
   STRIPE_INVOICE
+  JOB_REFUND
 }
 
 model CreditConsumption {
