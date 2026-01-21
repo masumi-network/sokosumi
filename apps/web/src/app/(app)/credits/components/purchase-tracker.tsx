@@ -15,8 +15,6 @@ export default function PurchaseTracker({
   // Effect is necessary: Analytics tracking when component is displayed
   // Fires once on mount to track purchase conversion
   useEffect(() => {
-    const { session_id } = checkoutSession;
-
     fireGTMEvent.purchase(checkoutSession);
   }, [checkoutSession]);
 
