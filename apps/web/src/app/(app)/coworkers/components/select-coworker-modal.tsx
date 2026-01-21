@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -18,8 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { type Coworker } from "./chat-sidebar";
 
@@ -78,10 +78,15 @@ export default function SelectCoworkerModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("selectCoworker.title")}</DialogTitle>
-          <DialogDescription>{t("selectCoworker.description")}</DialogDescription>
+          <DialogDescription>
+            {t("selectCoworker.description")}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <Select value={selectedCoworkerId} onValueChange={setSelectedCoworkerId}>
+          <Select
+            value={selectedCoworkerId}
+            onValueChange={setSelectedCoworkerId}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder={t("selectCoworker.placeholder")} />
             </SelectTrigger>
@@ -101,7 +106,7 @@ export default function SelectCoworkerModal({
             </SelectContent>
           </Select>
           {selectedCoworker && (
-            <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+            <div className="bg-muted/50 space-y-2 rounded-lg border p-4">
               <div className="flex items-center gap-3">
                 <Avatar className="size-10">
                   <AvatarFallback className="bg-primary text-primary-foreground">
@@ -110,13 +115,15 @@ export default function SelectCoworkerModal({
                 </Avatar>
                 <div>
                   <h3 className="font-semibold">{selectedCoworker.name}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     {selectedCoworker.description}
                   </p>
                 </div>
               </div>
               <div className="text-sm">
-                <span className="font-medium">{t("selectCoworker.useCase")}: </span>
+                <span className="font-medium">
+                  {t("selectCoworker.useCase")}:{" "}
+                </span>
                 <span className="text-muted-foreground">
                   {selectedCoworker.useCase}
                 </span>

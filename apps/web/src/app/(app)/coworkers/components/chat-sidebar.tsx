@@ -2,7 +2,7 @@
 
 import { CircleDot, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   AlertDialog,
@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -62,11 +62,8 @@ export default function ChatSidebar({
   const [filter, setFilter] = useState<"all" | "awaiting">("all");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
-
   const filteredChats =
-    filter === "all"
-      ? chats
-      : chats.filter((chat) => chat.status === filter);
+    filter === "all" ? chats : chats.filter((chat) => chat.status === filter);
 
   // Calculate counts for each filter
   const allCount = chats.length;
@@ -119,7 +116,7 @@ export default function ChatSidebar({
   };
 
   return (
-    <div className="flex h-full flex-col border-r bg-card">
+    <div className="bg-card flex h-full flex-col border-r">
       <div className="border-b p-4">
         <Button
           onClick={onCreateNewChat}
@@ -136,10 +133,10 @@ export default function ChatSidebar({
           <button
             onClick={() => setFilter("all")}
             className={cn(
-              "flex-1 border-b-2 px-2 py-2 text-xs font-medium transition-colors whitespace-nowrap",
+              "flex-1 border-b-2 px-2 py-2 text-xs font-medium whitespace-nowrap transition-colors",
               filter === "all"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                : "text-muted-foreground hover:text-foreground border-transparent",
             )}
           >
             {t("filterAll")} ({allCount})
@@ -147,10 +144,10 @@ export default function ChatSidebar({
           <button
             onClick={() => setFilter("awaiting")}
             className={cn(
-              "flex-1 border-b-2 px-2 py-2 text-xs font-medium transition-colors whitespace-nowrap",
+              "flex-1 border-b-2 px-2 py-2 text-xs font-medium whitespace-nowrap transition-colors",
               filter === "awaiting"
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                : "text-muted-foreground hover:text-foreground border-transparent",
             )}
           >
             {t("filterAwaiting")} ({awaitingCount})
@@ -162,9 +159,7 @@ export default function ChatSidebar({
           {filteredChats.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <MessageSquare className="text-muted-foreground mb-2 size-8" />
-              <p className="text-muted-foreground text-sm">
-                {t("noChats")}
-              </p>
+              <p className="text-muted-foreground text-sm">{t("noChats")}</p>
             </div>
           ) : (
             <div className="space-y-1">
@@ -172,17 +167,17 @@ export default function ChatSidebar({
                 <div
                   key={chat.id}
                   className={cn(
-                    "group relative flex flex-col gap-2 rounded-md px-3 py-3 text-sm transition-colors hover:bg-accent min-w-0 max-w-full overflow-hidden",
+                    "group hover:bg-accent relative flex max-w-full min-w-0 flex-col gap-2 overflow-hidden rounded-md px-3 py-3 text-sm transition-colors",
                     selectedChatId === chat.id &&
                       "bg-accent text-accent-foreground",
                   )}
                 >
                   <button
                     onClick={() => onSelectChat(chat.id)}
-                    className="flex flex-1 flex-col gap-1.5 text-left w-full min-w-0 max-w-full"
+                    className="flex w-full max-w-full min-w-0 flex-1 flex-col gap-1.5 text-left"
                   >
-                    <div className="flex items-start justify-between gap-2 w-full min-w-0 max-w-full">
-                      <div className="flex-1 min-w-0 max-w-full flex items-start gap-2 overflow-hidden">
+                    <div className="flex w-full max-w-full min-w-0 items-start justify-between gap-2">
+                      <div className="flex max-w-full min-w-0 flex-1 items-start gap-2 overflow-hidden">
                         {chat.coworker && (
                           <Avatar className="size-8 shrink-0">
                             <AvatarFallback className="bg-primary text-primary-foreground">
@@ -190,31 +185,37 @@ export default function ChatSidebar({
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-                          <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                            <div className="font-medium truncate text-sm min-w-0 max-w-full">
+                        <div className="max-w-full min-w-0 flex-1 overflow-hidden">
+                          <div className="flex max-w-full min-w-0 items-center gap-1.5">
+                            <div className="max-w-full min-w-0 truncate text-sm font-medium">
                               {chat.coworker?.name || chat.title}
                             </div>
                             {chat.lastMessageTime && (
                               <>
-                                <span className="text-muted-foreground text-[10px] shrink-0">•</span>
-                                <span className="text-muted-foreground text-[10px] shrink-0 whitespace-nowrap">
+                                <span className="text-muted-foreground shrink-0 text-[10px]">
+                                  •
+                                </span>
+                                <span className="text-muted-foreground shrink-0 text-[10px] whitespace-nowrap">
                                   {formatLastMessageTime(chat.lastMessageTime)}
                                 </span>
                               </>
                             )}
                           </div>
                           {chat.lastMessage && (
-                            <div className="text-muted-foreground text-xs mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
+                            <div className="text-muted-foreground mt-0.5 max-w-full truncate overflow-hidden text-xs text-ellipsis whitespace-nowrap">
                               {pruneMessage(chat.lastMessage, 25)}
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {chat.unreadCount !== undefined && chat.unreadCount > 0 && (
-                          <CircleDot className="size-4 text-primary" fill="currentColor" />
-                        )}
+                      <div className="flex shrink-0 items-center gap-2">
+                        {chat.unreadCount !== undefined &&
+                          chat.unreadCount > 0 && (
+                            <CircleDot
+                              className="text-primary size-4"
+                              fill="currentColor"
+                            />
+                          )}
                         {getStatusBadge(chat.status)}
                       </div>
                     </div>
@@ -222,7 +223,7 @@ export default function ChatSidebar({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 h-6 w-6"
+                    className="absolute top-2 right-2 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatToDelete(chat.id);

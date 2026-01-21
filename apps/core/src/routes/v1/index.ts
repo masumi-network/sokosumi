@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { getEnv } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
+import conversationsRouter from "./conversations/index.js";
 import jobsRouter from "./jobs/index.js";
 import usersRouter from "./users/index.js";
 
@@ -70,6 +71,7 @@ app.use(
 
 // Mount Routes
 app.route("/agents", agentsRouter);
+app.route("/conversations", conversationsRouter);
 app.route("/users", usersRouter);
 app.route("/jobs", jobsRouter);
 

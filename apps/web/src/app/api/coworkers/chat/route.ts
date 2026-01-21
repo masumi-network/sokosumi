@@ -3,6 +3,7 @@ import { convertToModelMessages, streamText } from "ai";
 import { NextRequest } from "next/server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import { getOpenaiConversationId } from "@/lib/actions/conversation";
 import { getSession } from "@/lib/auth/utils";
 
 const openrouter = createOpenRouter({
@@ -16,7 +17,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, conversationId } = await req.json();
+
+    // If conversationId is provided, validate ownership
+    // This ensures users can only access their own conversations
+    if (conversationId) {
+      const validationResult = await getOpenaiConversationId({
+        id: conversationId,
+      });
+
+      if (validationResult.isErr()) {
+        return new Response(
+          JSON.stringify({ error: validationResult.error.message }),
+          { status: 403 },
+        );
+      }
+      // Conversation ownership validated - proceed with chat
+    }
 
     const modelMessages = await convertToModelMessages(messages);
 

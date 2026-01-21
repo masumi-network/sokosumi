@@ -51,7 +51,9 @@ export default function ChatMessage({
       <div
         className={cn(
           "min-w-0 flex-1",
-          isUser ? "flex items-end justify-end" : "flex items-start justify-start",
+          isUser
+            ? "flex items-end justify-end"
+            : "flex items-start justify-start",
         )}
       >
         <div
@@ -70,7 +72,7 @@ export default function ChatMessage({
           >
             <div
               className={cn(
-                "prose prose-sm dark:prose-invert max-w-none [&>p]:my-0 [&>*]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&_*]:leading-none [&_*]:!leading-none",
+                "prose prose-sm dark:prose-invert max-w-none [&_*]:!leading-none [&_*]:leading-none [&>*]:my-0 [&>p]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0",
                 isUser && "prose-invert **:text-primary-foreground",
               )}
               style={{ lineHeight: "1.2", fontSize: "0.875rem" }}

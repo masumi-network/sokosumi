@@ -67,13 +67,13 @@ export default function ChatInput({
   const canSubmit = !isLoading && value.trim() && !disabled;
 
   return (
-    <div className="border-t bg-background p-4 w-full max-w-full overflow-hidden">
+    <div className="bg-background w-full max-w-full overflow-hidden border-t p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full overflow-hidden rounded-xl border bg-background shadow-sm"
+        className="bg-background w-full overflow-hidden rounded-xl border shadow-sm"
       >
-        <div className="flex items-center gap-2 min-w-0 w-full">
-          <div className="flex-1 min-w-0 overflow-hidden">
+        <div className="flex w-full min-w-0 items-center gap-2">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <Textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}
@@ -82,13 +82,13 @@ export default function ChatInput({
               disabled={disabled || isLoading}
               name="message"
               className={cn(
-                "w-full resize-none rounded-none border-none px-3 py-1.5 shadow-none outline-hidden ring-0",
+                "w-full resize-none rounded-none border-none px-3 py-1.5 shadow-none ring-0 outline-hidden",
                 "field-sizing-content max-h-[6lh] min-h-[1lh]",
                 "bg-transparent dark:bg-transparent",
                 "focus-visible:ring-0",
-                "overflow-y-auto overflow-x-hidden wrap-break-word break-all whitespace-pre-wrap",
-                "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-button]:h-0",
-                "[scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:rgb(161_161_170)_transparent] focus:[scrollbar-color:rgb(161_161_170)_transparent]",
+                "overflow-x-hidden overflow-y-auto wrap-break-word break-all whitespace-pre-wrap",
+                "[&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-button]:h-0 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent",
+                "[scrollbar-color:transparent_transparent] [scrollbar-width:thin] hover:[scrollbar-color:rgb(161_161_170)_transparent] focus:[scrollbar-color:rgb(161_161_170)_transparent]",
               )}
               style={{
                 wordWrap: "break-word",

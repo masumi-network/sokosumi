@@ -1,6 +1,6 @@
+import gravatarUrl from "gravatar-url";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import gravatarUrl from "gravatar-url";
 
 import { getSession } from "@/lib/auth/utils";
 
@@ -36,7 +36,10 @@ export default async function CoworkersPage() {
         <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
         <p className="text-muted-foreground">{t("description")}</p>
       </div>
-      <ChatInterface userImageUrl={userImageUrl} userName={session.user.name ?? undefined} />
+      <ChatInterface
+        userImageUrl={userImageUrl}
+        userName={session.user.name ?? undefined}
+      />
     </div>
   );
 }

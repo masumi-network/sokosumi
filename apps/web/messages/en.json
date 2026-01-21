@@ -1044,6 +1044,11 @@
       "Chat": {
         "newChat": "New Chat",
         "noChats": "No chats yet",
+        "emptyState": {
+          "title": "Start a conversation",
+          "description": "This chat is empty. Send a message to get started!",
+          "suggestionTitle": "Try asking:"
+        },
         "emptyTitle": "Start a conversation",
         "emptyDescription": "Ask me anything and I'll help you out. You can start a new chat or continue an existing one.",
         "inputPlaceholder": "Type your message...",
