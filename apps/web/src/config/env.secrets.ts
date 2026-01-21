@@ -46,6 +46,7 @@ const envSecretsSchema = z.object({
   STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
   STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
   STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
+  STRIPE_WELCOME_COUPON: z.string().min(1),
 
   // OpenRouter
   OPENROUTER_API_KEY: z.string().startsWith("sk-or-").optional(),

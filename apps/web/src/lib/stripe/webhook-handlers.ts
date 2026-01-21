@@ -15,6 +15,7 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import { stripeService } from "@/lib/services";
 
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
@@ -198,6 +199,19 @@ export async function handleCustomerCreatedEvent(
         data: { stripeCustomerId: customer.id },
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
+
+      // Claim welcome coupon for new user
+      const { couponApplied, invoiceId } =
+        await stripeService.claimWelcomeCoupon(userId);
+      if (couponApplied && invoiceId) {
+        console.log(
+          `✅ Claimed welcome coupon for user ${userId}, invoice: ${invoiceId}`,
+        );
+      } else {
+        console.log(
+          `⚠️ Failed to claim welcome coupon for user ${userId}`,
+        );
+      }
       break;
     }
     case "organization": {
