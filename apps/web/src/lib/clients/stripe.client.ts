@@ -19,7 +19,6 @@ export interface CheckoutSessionData {
     quantity: number;
   }[];
   value: number;
-  isWelcomePromotion: boolean;
 }
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -233,7 +232,6 @@ export const stripeClient = (() => {
      * - session: the checkout session
      * - items: the line items with the product name and quantity
      * - value: the total amount of the checkout session in the currency of the checkout session
-     * - isWelcomePromotion: whether the checkout session has a welcome promotion
      */
     async getCheckoutSessionData(id: string): Promise<CheckoutSessionData> {
       const session = await this.getCheckoutSession(id);
@@ -261,22 +259,12 @@ export const stripeClient = (() => {
       // NOTE:
       // we only allow support for USD for now
       const value = (session.amount_total ?? 0) / 100;
-      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
-      const isWelcomePromotion =
-        session.discounts?.some(
-          (discount) =>
-            typeof discount.coupon === "object" &&
-            discount.coupon &&
-            "id" in discount.coupon &&
-            discount.coupon.id === welcomeCouponId,
-        ) ?? false;
 
       return {
         session_id: session.id,
         currency: session.currency,
         items,
         value,
-        isWelcomePromotion,
       };
     },
 
