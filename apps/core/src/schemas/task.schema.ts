@@ -19,14 +19,15 @@ export const taskActorSchema = z.discriminatedUnion("type", [
 export const orchestratorSchema = z
   .object({
     id: z.string().openapi({ example: "orc_123" }),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
     slug: z.string().openapi({ example: "ops-agent" }),
     name: z.string().openapi({ example: "Ops Agent" }),
     url: z.string().nullish().openapi({ example: "https://example.com" }),
     email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
     image: z.string().nullish().openapi({ example: "https://example.com/logo" }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
+    
   })
   .openapi("Orchestrator");
 
@@ -44,9 +45,9 @@ export const taskEventSchema = z
 export const taskCommentSchema = z
   .object({
     id: z.string().openapi({ example: "com_123" }),
-    content: z.string().openapi({ example: "Looks good." }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
+    content: z.string().openapi({ example: "Looks good." }),
     userId: z.string().nullish().openapi({ example: "user_123" }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
     attachments: z.array(attachmentSchema).openapi({ example: [] }),
@@ -56,6 +57,8 @@ export const taskCommentSchema = z
 export const taskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_123" }),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
     userId: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
@@ -67,8 +70,6 @@ export const taskSchema = z
         comments: z.number().openapi({ example: 2 }),
       })
       .openapi({ example: { comments: 2 } }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
   })
   .openapi("Task");
 
