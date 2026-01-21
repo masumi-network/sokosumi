@@ -1,4 +1,4 @@
-import type { Prisma,Transaction } from "../generated/prisma/client.js";
+import type { Prisma, Transaction } from "../generated/prisma/client.js";
 
 /**
  * Transaction Repository Interface
