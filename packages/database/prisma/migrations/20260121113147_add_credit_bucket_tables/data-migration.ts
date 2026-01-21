@@ -176,6 +176,7 @@ async function main() {
 
         await prisma.creditConsumption.create({
           data: {
+            createdAt: transaction.createdAt,
             amount: consumeFromBucket,
             bucketId: bucket.id,
             transactionId: transaction.id,
