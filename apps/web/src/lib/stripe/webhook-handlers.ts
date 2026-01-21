@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemberRole } from "@sokosumi/database";
+import { CreditBucketReferenceType, MemberRole } from "@sokosumi/database";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -118,37 +118,73 @@ export async function handleInvoicePaidEvent(
 
   const cents = convertCreditsToCents(totalCredits);
   const referenceId = invoiceId;
-  const referenceType = "STRIPE_INVOICE";
+  const referenceType: CreditBucketReferenceType = "STRIPE_INVOICE";
 
-  await prisma.transaction.upsert({
+  // Check if bucket already exists (idempotent check)
+  const existingBucket = await prisma.creditBucket.findUnique({
     where: {
       referenceId_referenceType: {
         referenceId,
         referenceType,
       },
     },
-    create: {
-      amount: cents,
-      user: { connect: { id: userId } },
-      ...(organizationId && {
-        organization: { connect: { id: organizationId } },
-      }),
-      referenceId,
-      referenceType,
-    },
-    update: {
-      amount: cents,
+    include: {
+      sourceTransaction: true,
     },
   });
+
+  if (existingBucket) {
+    // Bucket already exists, update amount if needed
+    if (existingBucket.amount !== cents) {
+      await prisma.creditBucket.update({
+        where: {
+          id: existingBucket.id,
+        },
+        data: {
+          amount: cents,
+        },
+      });
+      console.log(
+        `✅ Updated existing bucket for invoice ${invoiceId} with new amount: ${convertCentsToCredits(cents)} credits`,
+      );
+    } else {
+      console.log(
+        `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
+      );
+    }
+  } else {
+    // Create new transaction and bucket
+    await prisma.transaction.create({
+      data: {
+        amount: cents,
+        user: { connect: { id: userId } },
+        ...(organizationId && {
+          organization: { connect: { id: organizationId } },
+        }),
+        sourceCreditBucket: {
+          create: {
+            amount: cents,
+            expiresAt: null,
+            referenceId,
+            referenceType,
+            userId,
+            organizationId,
+          },
+        }
+      },
+    });
+  }
 
   const amount = invoice.amount_paid;
   const currency = invoice.currency;
 
   fireGTMEvent.purchase(referenceId, referenceType, totalCredits, amount, currency);
 
-  console.log(
-    `✅ Processed invoice ${invoiceId}: Created transaction with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
-  );
+  if (!existingBucket) {
+    console.log(
+      `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+    );
+  }
 }
 
 export async function handleCustomerCreatedEvent(
