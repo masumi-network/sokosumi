@@ -34,7 +34,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   // Get appropriate credits based on context
   let creditLabel: string;
 
-  const cents = await creditBucketRepository.getAvailableBalance(
+  const cents = await creditBucketRepository.getBalance(
     user.id,
     activeOrganization?.id ?? null,
     prisma,

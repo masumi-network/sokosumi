@@ -125,7 +125,7 @@ export const jobService = (() => {
     cents: bigint,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<void> => {
-    const centsBalance = await creditBucketRepository.getAvailableBalance(
+    const centsBalance = await creditBucketRepository.getBalance(
       userId,
       organizationId,
       tx,
@@ -651,7 +651,7 @@ export const jobService = (() => {
       inputData,
     );
 
-    // Create job
+    // Create job, transaction, and consume credits in a single transaction
     // Add breadcrumb for job creation
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -664,32 +664,34 @@ export const jobService = (() => {
       },
     });
 
-    const job = await jobRepository.createJob(
-      {
-        jobType: JobType.PAID,
-        agentJobId: startJobResponse.id,
-        agentId,
-        userId,
-        organizationId,
-        input: JSON.stringify(inputData),
-        inputHash: startJobResponse.input_hash,
-        inputSchema: inputSchema,
-        creditsPrice: agentWithCreditsPrice.creditsPrice,
-        identifierFromPurchaser,
-        externalDisputeUnlockTime: new Date(
-          startJobResponse.externalDisputeUnlockTime,
-        ),
-        payByTime: new Date(startJobResponse.payByTime),
-        submitResultTime: new Date(startJobResponse.submitResultTime),
-        unlockTime: new Date(startJobResponse.unlockTime),
-        blockchainIdentifier: startJobResponse.blockchainIdentifier,
-        sellerVkey: startJobResponse.sellerVKey,
-        name: generatedName,
-        jobScheduleId,
-        attachments: uploadedFiles,
-      },
-      prisma,
-    );
+    const job = await prisma.$transaction(async (tx) => {
+      return await jobRepository.createJob(
+        {
+          jobType: JobType.PAID,
+          agentJobId: startJobResponse.id,
+          agentId,
+          userId,
+          organizationId,
+          input: JSON.stringify(inputData),
+          inputHash: startJobResponse.input_hash,
+          inputSchema: inputSchema,
+          creditsPrice: agentWithCreditsPrice.creditsPrice,
+          identifierFromPurchaser,
+          externalDisputeUnlockTime: new Date(
+            startJobResponse.externalDisputeUnlockTime,
+          ),
+          payByTime: new Date(startJobResponse.payByTime),
+          submitResultTime: new Date(startJobResponse.submitResultTime),
+          unlockTime: new Date(startJobResponse.unlockTime),
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          sellerVkey: startJobResponse.sellerVKey,
+          name: generatedName,
+          jobScheduleId,
+          attachments: uploadedFiles,
+        },
+        tx,
+      );
+    });
 
     // Add breadcrumb for purchase creation
     Sentry.addBreadcrumb({

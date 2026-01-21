@@ -4,6 +4,11 @@ import type {
   Prisma,
 } from "../generated/prisma/client.js";
 
+interface Consumption {
+  bucketId: string;
+  amount: bigint;
+}
+
 /**
  * Credit Bucket Repository Interface
  *
@@ -19,7 +24,7 @@ export const creditBucketRepository = {
    * @param tx - The Prisma transaction client to use for database operations.
    * @returns Array of credit buckets ordered by FIFO.
    */
-  async getUnexpiredBucketsByUser(
+  async getUnexpiredBuckets(
     userId: string,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
@@ -49,7 +54,7 @@ export const creditBucketRepository = {
    * @param tx - The Prisma transaction client to use for database operations.
    * @returns The available balance in cents as a bigint.
    */
-  async getAvailableBalanceForBucket(
+  async getBalanceForBucket(
     bucketId: string,
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
@@ -80,7 +85,7 @@ export const creditBucketRepository = {
    * @param tx - The Prisma transaction client to use for database operations.
    * @returns The total available balance in cents as a bigint.
    */
-  async getAvailableBalance(
+  async getBalance(
     userId: string,
     organizationId: string | null,
     tx: Prisma.TransactionClient,
@@ -133,29 +138,27 @@ export const creditBucketRepository = {
    * @param userId - The ID of the user.
    * @param organizationId - Optional organization ID (null for personal credits).
    * @param amountToConsume - The amount to consume in cents (must be positive).
-   * @param transactionId - The transaction ID that represents this spending.
    * @param tx - The Prisma transaction client to use for database operations.
    * @returns Array of CreditConsumption records created, or throws error if insufficient balance.
    */
-  async consumeCreditsFIFO(
+  async prepareConsumption(
     userId: string,
     organizationId: string | null,
     amountToConsume: bigint,
-    transactionId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<CreditConsumption[]> {
+  ): Promise<Consumption[]> {
     if (amountToConsume <= BigInt(0)) {
       throw new Error("Amount to consume must be positive");
     }
 
     // Get buckets in FIFO order
-    const buckets = await this.getUnexpiredBucketsByUser(
+    const buckets = await this.getUnexpiredBuckets(
       userId,
       organizationId,
       tx,
     );
 
-    const consumptions: CreditConsumption[] = [];
+    const consumptions: Consumption[] = [];
     let remaining = amountToConsume;
 
     for (const bucket of buckets) {
@@ -164,7 +167,7 @@ export const creditBucketRepository = {
       }
 
       // Calculate available balance for this bucket
-      const available = await this.getAvailableBalanceForBucket(bucket.id, tx);
+      const available = await this.getBalanceForBucket(bucket.id, tx);
 
       if (available <= BigInt(0)) {
         continue; // Skip empty buckets
@@ -173,15 +176,7 @@ export const creditBucketRepository = {
       // Consume from this bucket (either all available or just what we need)
       const consumeFromBucket = available < remaining ? available : remaining;
 
-      const consumption = await tx.creditConsumption.create({
-        data: {
-          amount: consumeFromBucket,
-          bucketId: bucket.id,
-          transactionId,
-        },
-      });
-
-      consumptions.push(consumption);
+      consumptions.push({ bucketId: bucket.id, amount: consumeFromBucket });
       remaining -= consumeFromBucket;
     }
 

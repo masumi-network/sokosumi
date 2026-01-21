@@ -13,6 +13,7 @@ import {
   type JobWithSokosumiStatus,
 } from "../types/job.js";
 import { AttachmentData } from "./attachment.repository.js";
+import { creditBucketRepository } from "./credit-bucket.repository.js";
 
 interface CreateDemoJobData {
   jobType: typeof JobType.DEMO;
@@ -326,6 +327,13 @@ export const jobRepository = {
         });
         return mapJobWithStatus(freeJob);
       case JobType.PAID:
+        const consumptions = await creditBucketRepository.prepareConsumption(
+          data.userId,
+          data.organizationId ?? null,
+          data.creditsPrice.cents,
+          tx,
+        );
+        
         const paidJob = await tx.job.create({
           data: {
             ...baseJobData,
@@ -345,6 +353,14 @@ export const jobRepository = {
                     },
                   },
                 }),
+                creditConsumptions: {
+                  createMany: {
+                    data: consumptions.map((consumption) => ({
+                      bucketId: consumption.bucketId,
+                      amount: consumption.amount,
+                    })),
+                  },
+                },
               },
             },
             payByTime: data.payByTime,
