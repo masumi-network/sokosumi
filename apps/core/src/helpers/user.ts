@@ -16,16 +16,44 @@ export async function getCredits(
   organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const where = organizationId
-    ? { userId, organizationId }
-    : { userId, organizationId: null };
+  const now = new Date();
 
-  const { _sum } = await tx.transaction.aggregate({
-    where,
-    _sum: {
+  // Get all unexpired buckets
+  const buckets = await tx.creditBucket.findMany({
+    where: {
+      userId,
+      organizationId: organizationId ?? null,
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } },
+      ],
+    },
+    select: {
+      id: true,
       amount: true,
     },
   });
 
-  return convertCentsToCredits(_sum.amount ?? BigInt(0));
+  if (buckets.length === 0) {
+    return 0;
+  }
+
+  // Sum all consumptions for these buckets
+  const bucketIds = buckets.map((b) => b.id);
+  const consumptionSum = await tx.creditConsumption.aggregate({
+    where: {
+      bucketId: { in: bucketIds },
+    },
+    _sum: { amount: true },
+  });
+
+  // Sum all buckets
+  const totalBucketAmount = buckets.reduce(
+    (sum, bucket) => sum + bucket.amount,
+    0n,
+  );
+
+  const totalConsumed = consumptionSum._sum.amount ?? 0n;
+  const cents = totalBucketAmount - totalConsumed;
+  return convertCentsToCredits(cents);
 }
