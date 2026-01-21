@@ -4,7 +4,6 @@ import baseConfig from "../../eslint.config.mjs";
 const eslintConfig = defineConfig([
   ...baseConfig,
   globalIgnores([
-    "src/generated/**",
     "src/clients/openapi/generated/**",
     "dist/**",
     "*.config.mjs",
