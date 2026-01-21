@@ -62,28 +62,13 @@ export async function createJobWithPayment(
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  // Create transaction first (we need its ID for consumption records)
-  const transaction = await tx.transaction.create({
-    data: {
-      amount: -cost.cents,
-      includedFee: cost.includedFee,
-      user: { connect: { id: input.userId } },
-      ...(input.organizationId && {
-        organization: { connect: { id: input.organizationId } },
-      }),
-    },
-  });
-
-  // Consume credits from buckets in FIFO order (this creates CreditConsumption records)
-  await creditBucketRepository.consumeCreditsFIFO(
+  const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
     input.organizationId,
     cost.cents,
-    transaction.id,
     tx,
   );
 
-  // Create job with the transaction
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -106,7 +91,24 @@ export async function createJobWithPayment(
           },
         },
       },
-      transaction: { connect: { id: transaction.id } },
+      transaction: {
+        create: {
+          amount: -cost.cents,
+          includedFee: cost.includedFee,
+          user: { connect: { id: input.userId } },
+          ...(input.organizationId && {
+            organization: { connect: { id: input.organizationId } },
+          }),
+          creditConsumptions: {
+            createMany: {
+              data: consumptions.map((consumption) => ({
+                bucketId: consumption.bucketId,
+                amount: consumption.amount,
+              })),
+            },
+          },
+        },
+      },
       name: input.name,
       payByTime: new Date(agentJobResponse.payByTime),
       externalDisputeUnlockTime: new Date(

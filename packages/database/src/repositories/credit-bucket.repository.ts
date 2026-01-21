@@ -144,11 +144,11 @@ export const creditBucketRepository = {
   async prepareConsumption(
     userId: string,
     organizationId: string | null,
-    amountToConsume: bigint,
+    cents: bigint,
     tx: Prisma.TransactionClient,
   ): Promise<Consumption[]> {
-    if (amountToConsume <= BigInt(0)) {
-      throw new Error("Amount to consume must be positive");
+    if (cents <= BigInt(0)) {
+      throw new Error("Cents to consume must be positive");
     }
 
     // Get buckets in FIFO order
@@ -159,7 +159,7 @@ export const creditBucketRepository = {
     );
 
     const consumptions: Consumption[] = [];
-    let remaining = amountToConsume;
+    let remaining = cents;
 
     for (const bucket of buckets) {
       if (remaining <= BigInt(0)) {
@@ -183,7 +183,7 @@ export const creditBucketRepository = {
     // Check if we consumed enough
     if (remaining > BigInt(0)) {
       throw new Error(
-        `Insufficient balance: tried to consume ${amountToConsume} but only ${amountToConsume - remaining} available`,
+        `Insufficient balance: tried to consume ${cents} but only ${cents - remaining} available`,
       );
     }
 
