@@ -56,6 +56,7 @@ export const taskCommentSchema = z
 export const taskSchema = z
   .object({
     id: z.string().openapi({ example: "tsk_123" }),
+    userId: z.string().openapi({ example: "user_123" }),
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),

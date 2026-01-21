@@ -1,6 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
 
 import { requireTaskAccess } from "@/helpers/access-control";
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -29,6 +31,7 @@ const route = createRoute({
     200: jsonSuccessResponse(responseSchema, "Delete task"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
@@ -39,9 +42,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await prisma.$transaction(async (tx) => {
       await requireTaskAccess(authContext, id, tx);
-      await tx.task.delete({
+      const task = await tx.task.findUnique({
         where: { id },
+        select: { status: true },
       });
+
+      if (!task) {
+        throw notFound("Task not found");
+      }
+
+      if (task.status !== TaskStatus.DRAFT) {
+        throw unprocessableEntity("Only draft tasks can be deleted");
+      }
+
+      await tx.task.delete({ where: { id } });
     });
 
     return ok(c, { id });

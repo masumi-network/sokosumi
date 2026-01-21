@@ -997,6 +997,7 @@ model Task {
 enum TaskStatus {
   DRAFT
   READY
+  INPUT_REQUIRED
   RUNNING
   COMPLETED
   FAILED

@@ -35,8 +35,17 @@ export function validateStatusTransition(
 
   const allowedTransitions: Record<TaskStatus, TaskStatus[]> = {
     [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.RUNNING],
-    [TaskStatus.READY]: [TaskStatus.RUNNING],
-    [TaskStatus.RUNNING]: [TaskStatus.COMPLETED, TaskStatus.FAILED],
+    [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.RUNNING],
+    [TaskStatus.INPUT_REQUIRED]: [
+      TaskStatus.RUNNING,
+      TaskStatus.COMPLETED,
+      TaskStatus.FAILED,
+    ],
+    [TaskStatus.RUNNING]: [
+      TaskStatus.INPUT_REQUIRED,
+      TaskStatus.COMPLETED,
+      TaskStatus.FAILED,
+    ],
     [TaskStatus.COMPLETED]: [],
     [TaskStatus.FAILED]: [],
   };
@@ -61,6 +70,7 @@ type TaskCommentWithAttachments = {
 export function mapTask(task: Task, userId: string) {
   return {
     id: task.id,
+    userId,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     name: task.name,
