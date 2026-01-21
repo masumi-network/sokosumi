@@ -121,70 +121,69 @@ export async function handleInvoicePaidEvent(
   const referenceType: CreditBucketReferenceType = "STRIPE_INVOICE";
 
   // Check if bucket already exists (idempotent check)
-  const existingBucket = await prisma.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
-        referenceType,
-      },
-    },
-    include: {
-      sourceTransaction: true,
-    },
-  });
-
-  if (existingBucket) {
-    // Bucket already exists, update amount if needed
-    if (existingBucket.amount !== cents) {
-      await prisma.creditBucket.update({
-        where: {
-          id: existingBucket.id,
+  prisma.$transaction(async (tx) => {
+    const existingBucket = await tx.creditBucket.findUnique({
+      where: {
+        referenceId_referenceType: {
+          referenceId,
+          referenceType,
         },
+      },
+      include: {
+        sourceTransaction: true,
+      },
+    });
+
+    if (existingBucket) {
+      // Bucket already exists, update amount if needed
+      if (existingBucket.amount !== cents) {
+        await tx.creditBucket.update({
+          where: {
+            id: existingBucket.id,
+          },
+          data: {
+            amount: cents,
+          },
+        });
+        console.log(
+          `✅ Updated existing bucket for invoice ${invoiceId} with new amount: ${convertCentsToCredits(cents)} credits`,
+        );
+      } else {
+        console.log(
+          `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
+        );
+      }
+    } else {
+      // Create new transaction and bucket
+      await tx.transaction.create({
         data: {
           amount: cents,
+          user: { connect: { id: userId } },
+          ...(organizationId && {
+            organization: { connect: { id: organizationId } },
+          }),
+          sourceCreditBucket: {
+            create: {
+              amount: cents,
+              expiresAt: null,
+              referenceId,
+              referenceType,
+              userId,
+              organizationId,
+            },
+          }
         },
       });
       console.log(
-        `✅ Updated existing bucket for invoice ${invoiceId} with new amount: ${convertCentsToCredits(cents)} credits`,
-      );
-    } else {
-      console.log(
-        `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
+        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
       );
     }
-  } else {
-    // Create new transaction and bucket
-    await prisma.transaction.create({
-      data: {
-        amount: cents,
-        user: { connect: { id: userId } },
-        ...(organizationId && {
-          organization: { connect: { id: organizationId } },
-        }),
-        sourceCreditBucket: {
-          create: {
-            amount: cents,
-            expiresAt: null,
-            referenceId,
-            referenceType,
-            userId,
-            organizationId,
-          },
-        }
-      },
-    });
-  }
+  });
 
   const amount = invoice.amount_paid;
   const currency = invoice.currency;
 
   fireGTMEvent.purchase(referenceId, referenceType, totalCredits, amount, currency);
-
-  if (!existingBucket) {
-    console.log(
-      `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
-    );
-  }
 }
 
 export async function handleCustomerCreatedEvent(

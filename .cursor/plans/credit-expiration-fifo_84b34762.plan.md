@@ -92,7 +92,7 @@ flowchart TD
 
 ## Balance & API Read Paths
 
-- Replace current balance calculations in [`/Users/andreas/Developer/masumi-network/sokosumi/packages/database/src/repositories/transaction.repository.ts`](/Users/andreas/Developer/masumi-network/sokosumi/packages/database/src/repositories/transaction.repository.ts) and UI usage (e.g., [`/Users/andreas/Developer/masumi-network/sokosumi/apps/web/src/app/(app)/components/user-credits.tsx`](/Users/andreas/Developer/masumi-network/sokosumi/apps/web/src/app/\\\\\\\\\\\\\(app)/components/user-credits.tsx)) to calculate balance dynamically:
+- Replace current balance calculations in [`/Users/andreas/Developer/masumi-network/sokosumi/packages/database/src/repositories/transaction.repository.ts`](/Users/andreas/Developer/masumi-network/sokosumi/packages/database/src/repositories/transaction.repository.ts) and UI usage (e.g., [`/Users/andreas/Developer/masumi-network/sokosumi/apps/web/src/app/(app)/components/user-credits.tsx`](/Users/andreas/Developer/masumi-network/sokosumi/apps/web/src/app/\\\\\\\\\\\\\\(app)/components/user-credits.tsx)) to calculate balance dynamically:
   - Balance = `sum(bucket.amount where unexpired) - sum(consumption.amount where bucket is unexpired)`
   - Query buckets and consumptions, then calculate in application code or use SQL aggregation.
 - **Performance note**: For now, calculate on-demand. If performance becomes an issue, consider:
