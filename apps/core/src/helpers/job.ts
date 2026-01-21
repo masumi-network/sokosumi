@@ -1,7 +1,7 @@
 import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
 import {
+  creditBucketRepository,
   jobShareRepository,
-  transactionRepository,
 } from "@sokosumi/database/repositories";
 import {
   type JobWithEvents,
@@ -23,6 +23,7 @@ import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
 import { badRequest, forbidden, notFound } from "./error";
+import { getCredits } from "./user";
 
 /**
  * Validates that user or organization has sufficient credit balance
@@ -37,18 +38,7 @@ export async function validateCreditBalance(
     return;
   }
 
-  let centsBalance: bigint;
-  if (organizationId) {
-    centsBalance = await transactionRepository.getCentsByOrganizationId(
-      organizationId,
-      tx,
-    );
-  } else {
-    centsBalance = await transactionRepository.getCentsByUserId(
-      userId,
-      tx,
-    );
-  }
+  const centsBalance = await getCredits(userId, organizationId, tx);
 
   if (centsBalance < costCents) {
     throw badRequest("Insufficient balance");
@@ -56,7 +46,7 @@ export async function validateCreditBalance(
 }
 
 /**
- * Creates a paid job with payment records
+ * Creates a paid job with payment records and consumes credits FIFO
  */
 export async function createJobWithPayment(
   input: {
@@ -72,6 +62,28 @@ export async function createJobWithPayment(
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+  // Create transaction first (we need its ID for consumption records)
+  const transaction = await tx.transaction.create({
+    data: {
+      amount: -cost.cents,
+      includedFee: cost.includedFee,
+      user: { connect: { id: input.userId } },
+      ...(input.organizationId && {
+        organization: { connect: { id: input.organizationId } },
+      }),
+    },
+  });
+
+  // Consume credits from buckets in FIFO order (this creates CreditConsumption records)
+  await creditBucketRepository.consumeCreditsFIFO(
+    input.userId,
+    input.organizationId,
+    cost.cents,
+    transaction.id,
+    tx,
+  );
+
+  // Create job with the transaction
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -94,16 +106,7 @@ export async function createJobWithPayment(
           },
         },
       },
-      transaction: {
-        create: {
-          amount: -cost.cents,
-          includedFee: cost.includedFee,
-          user: { connect: { id: input.userId } },
-          ...(input.organizationId && {
-            organization: { connect: { id: input.organizationId } },
-          }),
-        },
-      },
+      transaction: { connect: { id: transaction.id } },
       name: input.name,
       payByTime: new Date(agentJobResponse.payByTime),
       externalDisputeUnlockTime: new Date(
