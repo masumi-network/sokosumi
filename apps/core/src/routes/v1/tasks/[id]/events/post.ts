@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
 
 import {
   requireTaskAccess,
@@ -9,7 +10,6 @@ import { validateStatusTransition } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
-  createTaskEventRequestSchema,
   taskEventSchema,
 } from "@/schemas/task.schema";
 
@@ -18,6 +18,11 @@ const paramsSchema = z.object({
     param: { name: "id", in: "path" },
     example: "tsk_123",
   }),
+});
+
+export const createTaskEventRequestSchema = z.object({
+  status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
+  description: z.string().nullish().openapi({ example: "Task Event is running" }),
 });
 
 const route = createRoute({
