@@ -27,20 +27,13 @@ export async function POST(req: NextRequest) {
         id: conversationId,
       });
 
-      // Handle plain object return format: { ok: true, data: T } or { ok: false, error: E }
-      // Type assertion needed because function is typed as neverthrow Result but actually returns plain object
-      const result = validationResult as unknown as
-        | { ok: true; data: { conversationId: string } }
-        | { ok: false; error: { message: string; code?: string } };
-
-      if (!result || result.ok === false) {
-        const errorMessage =
-          result?.error?.message || "Conversation not found";
-        return new Response(JSON.stringify({ error: errorMessage }), {
-          status: 403,
-        });
+      if (validationResult.isErr()) {
+        return new Response(
+          JSON.stringify({ error: validationResult.error.message }),
+          { status: 403 },
+        );
       }
-      // Conversation ownership validated - proceed with chat
+      // Conversation ownership validated - proceed with chat 
     }
 
     const modelMessages = await convertToModelMessages(messages);
