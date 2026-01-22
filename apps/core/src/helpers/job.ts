@@ -60,71 +60,72 @@ export async function createJobWithPayment(
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const consumptions = await creditBucketRepository.prepareConsumption(
-    input.userId,
-    input.organizationId,
-    cost.cents,
-    tx,
-  );
+  return await prisma.$transaction(async (tx) => {
+    const consumptions = await creditBucketRepository.prepareConsumption(
+      input.userId,
+      input.organizationId,
+      cost.cents,
+      tx,
+    );
 
-  return await tx.job.create({
-    data: {
-      agentJobId: agentJobResponse.id,
-      jobType: JobType.PAID,
-      agent: { connect: { id: input.agentId } },
-      user: { connect: { id: input.userId } },
-      ...(input.organizationId && {
-        organization: { connect: { id: input.organizationId } },
-      }),
-      events: {
-        create: {
-          status: AgentJobStatus.INITIATED,
-          result: null,
-          inputSchema: JSON.stringify(input.inputSchema),
-          input: {
-            create: {
-              input: JSON.stringify(input.inputData),
-              inputHash: agentJobResponse.input_hash,
+    return await tx.job.create({
+      data: {
+        agentJobId: agentJobResponse.id,
+        jobType: JobType.PAID,
+        agent: { connect: { id: input.agentId } },
+        user: { connect: { id: input.userId } },
+        ...(input.organizationId && {
+          organization: { connect: { id: input.organizationId } },
+        }),
+        events: {
+          create: {
+            status: AgentJobStatus.INITIATED,
+            result: null,
+            inputSchema: JSON.stringify(input.inputSchema),
+            input: {
+              create: {
+                input: JSON.stringify(input.inputData),
+                inputHash: agentJobResponse.input_hash,
+              },
             },
           },
         },
-      },
-      transaction: {
-        create: {
-          amount: -cost.cents,
-          includedFee: cost.includedFee,
-          user: { connect: { id: input.userId } },
-          ...(input.organizationId && {
-            organization: { connect: { id: input.organizationId } },
-          }),
-          creditConsumptions: {
-            createMany: {
-              data: consumptions.map((consumption) => ({
-                bucketId: consumption.bucketId,
-                amount: consumption.amount,
-              })),
+        transaction: {
+          create: {
+            amount: -cost.cents,
+            includedFee: cost.includedFee,
+            user: { connect: { id: input.userId } },
+            ...(input.organizationId && {
+              organization: { connect: { id: input.organizationId } },
+            }),
+            creditConsumptions: {
+              createMany: {
+                data: consumptions.map((consumption) => ({
+                  bucketId: consumption.bucketId,
+                  amount: consumption.amount,
+                })),
+              },
             },
           },
         },
+        name: input.name,
+        payByTime: new Date(agentJobResponse.payByTime),
+        externalDisputeUnlockTime: new Date(
+          agentJobResponse.externalDisputeUnlockTime,
+        ),
+        submitResultTime: new Date(agentJobResponse.submitResultTime),
+        unlockTime: new Date(agentJobResponse.unlockTime),
+        blockchainIdentifier: agentJobResponse.blockchainIdentifier,
+        sellerVkey: agentJobResponse.sellerVKey,
+        identifierFromPurchaser,
       },
-      name: input.name,
-      payByTime: new Date(agentJobResponse.payByTime),
-      externalDisputeUnlockTime: new Date(
-        agentJobResponse.externalDisputeUnlockTime,
-      ),
-      submitResultTime: new Date(agentJobResponse.submitResultTime),
-      unlockTime: new Date(agentJobResponse.unlockTime),
-      blockchainIdentifier: agentJobResponse.blockchainIdentifier,
-      sellerVkey: agentJobResponse.sellerVKey,
-      identifierFromPurchaser,
-    },
-    include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
-    },
+      include: {
+        ...jobWithEvents,
+        ...jobWithTransaction,
+        ...jobWithPurchase,
+      },
+    });
   });
 }
 
