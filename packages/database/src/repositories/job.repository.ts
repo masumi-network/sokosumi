@@ -429,14 +429,14 @@ export const jobRepository = {
             },
           },
           expiresAt: null,
-        },
-        ...(transaction.organizationId && {
-          organization: {
-            connect: {
-              id: transaction.organizationId,
+          ...(transaction.organizationId && {
+            organization: {
+              connect: {
+                id: transaction.organizationId,
+              },
             },
-          },
-        }),
+          }),
+        },
       }
     };
 
