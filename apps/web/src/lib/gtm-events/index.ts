@@ -48,16 +48,6 @@ export const fireGTMEvent = {
   },
 
   /**
-   * @param sessionId - The ID of the checkout session.
-   */
-  freeCreditPurchase(sessionId: string) {
-    fireEvent({
-      event: "free_credit_purchase",
-      transaction_id: sessionId,
-    });
-  },
-
-  /**
    * @param agentName - The name of the agent.
    * @param credits - The number of credits to run a job on agent.
    */
