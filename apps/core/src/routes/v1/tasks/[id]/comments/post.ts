@@ -9,7 +9,6 @@ import { mapTaskComment } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
-  createTaskCommentRequestSchema,
   taskCommentSchema,
 } from "@/schemas/task.schema";
 
@@ -18,6 +17,10 @@ const paramsSchema = z.object({
     param: { name: "id", in: "path" },
     example: "tsk_123",
   }),
+});
+
+export const createTaskCommentRequestSchema = z.object({
+  content: z.string().min(1).openapi({ example: "Looks good." }),
 });
 
 const route = createRoute({

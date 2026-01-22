@@ -63,10 +63,6 @@ export const taskSchema = z
 
 export const tasksSchema = z.array(taskSchema).openapi("Tasks");
 
-export const createTaskCommentRequestSchema = z.object({
-  content: z.string().min(1).openapi({ example: "Looks good." }),
-});
-
 export const createTaskEventRequestSchema = z.object({
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
   description: z.string().nullish().openapi({ example: "Task Event is running" }),
