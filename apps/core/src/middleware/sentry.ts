@@ -33,6 +33,7 @@ export function sentryMiddleware(): MiddlewareHandler<{
           Sentry.getCurrentScope().setUser({
             id: authContext.userId,
             organizationId: authContext.organizationId || undefined,
+            orchestratorId: authContext.orchestratorId || undefined,
           });
         }
 

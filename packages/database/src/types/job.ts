@@ -3,9 +3,9 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type {
-  CreditTransaction,
   JobType,
   Prisma,
+  Transaction,
 } from "../generated/prisma/client.js";
 
 export const jobWithEvents = {
@@ -37,20 +37,20 @@ export type JobWithPurchase = Prisma.JobGetPayload<{
   include: typeof jobWithPurchase;
 }>;
 
-export const jobWithCreditTransaction = {
-  creditTransaction: true,
+export const jobWithTransaction = {
+  transaction: true,
 } as const;
 
-export type JobWithCreditTransaction = Prisma.JobGetPayload<{
-  include: typeof jobWithCreditTransaction;
+export type JobWithTransaction = Prisma.JobGetPayload<{
+  include: typeof jobWithTransaction;
 }>;
 
-export const jobWithRefundedCreditTransaction = {
-  refundedCreditTransaction: true,
+export const jobWithRefundedTransaction = {
+  refundedTransaction: true,
 } as const;
 
-export type JobWithRefundedCreditTransaction = Prisma.JobGetPayload<{
-  include: typeof jobWithRefundedCreditTransaction;
+export type JobWithRefundedTransaction = Prisma.JobGetPayload<{
+  include: typeof jobWithRefundedTransaction;
 }>;
 
 export const jobWithAgent = {
@@ -91,8 +91,8 @@ export const jobInclude = {
   ...jobWithAgent,
   ...jobWithUser,
   ...jobWithOrganization,
-  ...jobWithCreditTransaction,
-  ...jobWithRefundedCreditTransaction,
+  ...jobWithTransaction,
+  ...jobWithRefundedTransaction,
   ...jobWithShare,
 } as const;
 
@@ -134,8 +134,8 @@ type BaseJobWithStatus = JobWithRelations & {
 
 type BaseFreeJob = {
   jobType: typeof JobType.FREE;
-  creditTransaction: null;
-  creditTransactionId: null;
+  transaction: null;
+  transactionId: null;
   identifierFromPurchaser: null;
   blockchainIdentifier: null;
   payByTime: null;
@@ -153,8 +153,8 @@ type BaseFreeJob = {
 
 type BaseDemoJob = {
   jobType: typeof JobType.DEMO;
-  creditTransaction: null;
-  creditTransactionId: null;
+  transaction: null;
+  transactionId: null;
   identifierFromPurchaser: null;
   blockchainIdentifier: null;
   payByTime: null;
@@ -172,8 +172,8 @@ type BaseDemoJob = {
 
 type BasePaidJob = {
   jobType: typeof JobType.PAID;
-  creditTransaction: CreditTransaction;
-  creditTransactionId: string;
+  transaction: Transaction;
+  transactionId: string;
   blockchainIdentifier: string;
   payByTime: Date;
   submitResultTime: Date;

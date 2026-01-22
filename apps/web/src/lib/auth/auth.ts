@@ -1,6 +1,7 @@
 import "server-only";
 
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { User } from "@sokosumi/database";
 import { betterAuth } from "better-auth";
@@ -11,11 +12,13 @@ import { apiKey, jwt, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
+import Stripe from "stripe";
 import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { uploadProfileImage } from "@/lib/blob/utils";
+import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
@@ -28,6 +31,11 @@ import {
   callUserUpdatedWebHook,
   stripeService,
 } from "@/lib/services";
+import {
+  handleCustomerCreatedEvent,
+  handleCustomerUpdatedEvent,
+  handleInvoicePaidEvent,
+} from "@/lib/stripe/webhook-handlers";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -35,6 +43,8 @@ export type Invitation = typeof auth.$Infer.Invitation;
 export type Account = Awaited<
   ReturnType<typeof auth.api.listUserAccounts>
 >[number];
+
+const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 
@@ -80,8 +90,18 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user, _ctx) => {
-          await stripeService.createStripeCustomerForUser(user.id);
-
+          stripeClient.createUserCustomer(user.id, user.name, user.email).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "stripe_user_customer_creation",
+              },
+              extra: {
+                userId: user.id,
+                email: user.email,
+                name: user.name,
+              },
+            });
+          });
           // Validate user data before calling webhook
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
@@ -277,9 +297,19 @@ export const auth = betterAuth({
     organization({
       organizationCreation: {
         afterCreate: async ({ organization }) => {
-          await stripeService.createStripeCustomerForOrganization(
-            organization.id,
-          );
+          stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "stripe_organization_customer_creation",
+              },
+              extra: {
+                organizationId: organization.id,
+                name: organization.name,
+                slug: organization.slug,
+                invoiceEmail: organization.invoiceEmail,
+              },
+            });
+          });
         },
       },
       schema: {
@@ -328,11 +358,90 @@ export const auth = betterAuth({
     }),
     localization({
       defaultLocale: "default",
-      // TODO:
-      // implement dynamic localization
-      // by using `getLocale` function
     }),
     nextCookies(),
+    stripe({
+      stripeClient: stripeInstance,
+      stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
+      createCustomerOnSignUp: false,
+      subscription: {
+        enabled: false,
+      },
+      organization: {
+        enabled: true,
+      },
+      onEvent: async (event) => {
+        switch (event.type) {
+          case "invoice.paid": {
+            const invoice = event.data.object as Stripe.Invoice;
+            try {
+              await handleInvoicePaidEvent(invoice);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "invoice.paid",
+                  invoiceId: invoice.id,
+                },
+                extra: {
+                  eventId: event.id,
+                  invoice: invoice.id,
+                  customer:
+                    typeof invoice.customer === "string"
+                      ? invoice.customer
+                      : invoice.customer?.id,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          case "customer.updated": {
+            const customer = event.data.object as Stripe.Customer;
+            try {
+              await handleCustomerUpdatedEvent(customer);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.updated",
+                  customerId: customer.id,
+                },
+                extra: {
+                  eventId: event.id,
+                  customer: customer.id,
+                  email: customer.email,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          case "customer.created": {
+            const customer = event.data.object as Stripe.Customer;
+            try {
+              await handleCustomerCreatedEvent(customer);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.created",
+                  customerId: customer.id,
+                },
+                extra: {
+                  eventId: event.id,
+                  customer: customer.id,
+                  email: customer.email,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          default: {
+            console.info(`Unhandled Stripe event type: ${event.type}`);
+            break;
+          }
+        }
+      },
+    }),
   ],
 });
 
