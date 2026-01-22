@@ -135,24 +135,9 @@ export async function handleInvoicePaidEvent(
     });
 
     if (existingBucket) {
-      // Bucket already exists, update amount if needed
-      if (existingBucket.amount !== cents) {
-        await tx.creditBucket.update({
-          where: {
-            id: existingBucket.id,
-          },
-          data: {
-            amount: cents,
-          },
-        });
-        console.log(
-          `✅ Updated existing bucket for invoice ${invoiceId} with new amount: ${convertCentsToCredits(cents)} credits`,
-        );
-      } else {
-        console.log(
-          `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
-        );
-      }
+      console.log(
+        `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
+      );
     } else {
       // Create new transaction and bucket
       await tx.transaction.create({
