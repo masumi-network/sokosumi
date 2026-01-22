@@ -21,8 +21,7 @@ export async function getCents(
   // Get all unexpired buckets
   const buckets = await tx.creditBucket.findMany({
     where: {
-      userId,
-      organizationId: organizationId ?? null,
+      ...(organizationId ? { organizationId } : { userId }),
       OR: [
         { expiresAt: null },
         { expiresAt: { gt: now } },

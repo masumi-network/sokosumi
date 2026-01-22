@@ -1,6 +1,5 @@
 import type {
   CreditBucket,
-  CreditConsumption,
   Prisma,
 } from "../generated/prisma/client.js";
 
@@ -32,8 +31,7 @@ export const creditBucketRepository = {
     const now = new Date();
     return await tx.creditBucket.findMany({
       where: {
-        userId,
-        organizationId: organizationId ?? null,
+        ...(organizationId ? { organizationId } : { userId }),
         OR: [
           { expiresAt: null },
           { expiresAt: { gt: now } },
@@ -95,8 +93,7 @@ export const creditBucketRepository = {
     // Get all unexpired buckets
     const buckets = await tx.creditBucket.findMany({
       where: {
-        userId,
-        organizationId: organizationId ?? null,
+        ...(organizationId ? { organizationId } : { userId }),
         OR: [
           { expiresAt: null },
           { expiresAt: { gt: now } },
@@ -126,8 +123,8 @@ export const creditBucketRepository = {
       (sum, bucket) => sum + bucket.amount,
       BigInt(0),
     );
+    
     const totalConsumed = consumptionSum._sum.amount ?? BigInt(0);
-
     return totalBucketAmount - totalConsumed;
   },
 
