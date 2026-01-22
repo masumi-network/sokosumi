@@ -1,9 +1,10 @@
+import * as Sentry from "@sentry/nextjs";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { convertToModelMessages, streamText } from "ai";
 import { NextRequest } from "next/server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { getOpenaiConversationId } from "@/lib/actions/conversation";
+import { getConversationId } from "@/lib/actions/conversation";
 import { getSession } from "@/lib/auth/utils";
 
 const openrouter = createOpenRouter({
@@ -22,15 +23,17 @@ export async function POST(req: NextRequest) {
     // If conversationId is provided, validate ownership
     // This ensures users can only access their own conversations
     if (conversationId) {
-      const validationResult = await getOpenaiConversationId({
+      const validationResult = await getConversationId({
         id: conversationId,
       });
 
-      if (validationResult.isErr()) {
-        return new Response(
-          JSON.stringify({ error: validationResult.error.message }),
-          { status: 403 },
-        );
+      // Handle plain object return format: { ok: true, data: T } or { ok: false, error: E }
+      if (!validationResult || validationResult.ok === false) {
+        const errorMessage =
+          validationResult?.error?.message || "Conversation not found";
+        return new Response(JSON.stringify({ error: errorMessage }), {
+          status: 403,
+        });
       }
       // Conversation ownership validated - proceed with chat
     }
@@ -45,7 +48,11 @@ export async function POST(req: NextRequest) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error("Chat API error:", error);
+    Sentry.captureException(error, {
+      tags: {
+        context: "chat_api",
+      },
+    });
     return new Response("Internal Server Error", { status: 500 });
   }
 }

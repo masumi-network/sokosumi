@@ -113,7 +113,7 @@ export function useConversations(): UseConversationsReturn {
   }, [parseServerActionResult]);
 
   /**
-   * Creates a new OpenAI conversation and stores it in the database.
+   * Creates a new conversation and stores it in the database.
    */
   const createNewConversation = useCallback(
     async (
@@ -124,72 +124,18 @@ export function useConversations(): UseConversationsReturn {
       setError(null);
 
       try {
-        const result = await createConversation({ metadata, title });
+        const rawResult = await createConversation({ metadata, title });
+        const result = parseServerActionResult<Conversation, ActionError>(
+          rawResult,
+        );
 
-        // Handle serialized Result from Next.js server action
-        // neverthrow Results lose their methods when serialized, so we check the structure
-        const resultAny = result as any;
-
-        let isError = false;
-        let value: Conversation | null = null;
-        let error: ActionError | null = null;
-
-        try {
-          // Check for @/lib/ts-res format: { ok: true, data: T } or { ok: false, error: E }
-          if (resultAny?.ok === true && resultAny?.data) {
-            // Success case: { ok: true, data: Conversation }
-            value = resultAny.data;
-          } else if (resultAny?.ok === false && resultAny?.error) {
-            // Error case: { ok: false, error: ActionError }
-            isError = true;
-            error = resultAny.error;
-          } else if (typeof resultAny?.isErr === "function") {
-            // It's a proper neverthrow Result (shouldn't happen after serialization, but handle it)
-            isError = resultAny.isErr();
-            if (isError) {
-              error = resultAny.error;
-            } else {
-              value = resultAny.value;
-            }
-          } else if (
-            resultAny?.id &&
-            resultAny?.userId &&
-            typeof resultAny.id === "string" &&
-            typeof resultAny.userId === "string"
-          ) {
-            // Fallback: It's the Conversation object directly
-            value = resultAny as Conversation;
-          } else {
-            // Unknown format, treat as error
-            isError = true;
-            error = {
-              message: "Invalid response format",
-              code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-            };
-          }
-        } catch (parseError) {
-          isError = true;
-          error = {
-            message:
-              parseError instanceof Error
-                ? parseError.message
-                : "Failed to parse result",
-            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-          };
-        }
-
-        if (isError || error) {
-          setError(
-            error || {
-              message: "Unknown error",
-              code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-            },
-          );
+        if (result.isErr) {
+          setError(result.error);
           setIsLoading(false);
           return null;
         }
 
-        if (!value) {
+        if (!result.value) {
           setError({
             message: "No conversation data returned",
             code: CommonErrorCode.INTERNAL_SERVER_ERROR,
@@ -198,7 +144,7 @@ export function useConversations(): UseConversationsReturn {
           return null;
         }
 
-        const newConversation = value;
+        const newConversation = result.value;
         setConversations((prev) => [newConversation, ...prev]);
         setSelectedConversation({ ...newConversation, items: [] }); // Select new conversation
         

@@ -2,13 +2,14 @@ import type { Conversation, Prisma } from "../generated/prisma/client.js";
 
 /**
  * Repository for conversation-related database operations.
- * Provides methods to manage OpenAI conversation mappings with strict user-scoped access.
+ * Provides methods to manage internal conversation IDs with strict user-scoped access.
+ * Note: The "openaiId" field stores internal UUIDs (kept for schema compatibility).
  */
 export const conversationRepository = {
   /**
    * Creates a new conversation mapping.
    *
-   * @param data - Conversation data including OpenAI ID and user ID
+   * @param data - Conversation data including internal conversation ID and user ID
    * @param tx - Prisma transaction client
    * @returns Created conversation
    */
@@ -51,12 +52,12 @@ export const conversationRepository = {
   },
 
   /**
-   * Retrieves a conversation by OpenAI conversation ID.
+   * Retrieves a conversation by internal conversation ID (stored in openaiId field).
    * CRITICAL: This is ONLY used internally after ownership validation.
-   * OpenAI IDs are never exposed in API responses.
+   * Internal conversation IDs are never exposed in API responses.
    * Only returns non-deleted conversations by default.
    *
-   * @param openaiId - OpenAI conversation ID
+   * @param openaiId - Internal conversation ID (stored in openaiId field for schema compatibility)
    * @param userId - User ID for ownership validation
    * @param tx - Prisma transaction client
    * @param includeDeleted - If true, includes deleted conversations (for recovery purposes)

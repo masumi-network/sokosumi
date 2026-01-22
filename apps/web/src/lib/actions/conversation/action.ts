@@ -56,7 +56,7 @@ export interface ConversationWithItems extends Conversation {
 /**
  * Creates a new conversation and stores it in the database.
  * Uses OpenRouter for chat functionality (no OpenAI API required).
- * If conversationId is provided, uses it; otherwise generates a UUID.
+ * If conversationId is provided, uses it; otherwise generates an internal UUID.
  */
 export const createConversation = withAuthContext<
   CreateConversationParameters,
@@ -71,6 +71,7 @@ export const createConversation = withAuthContext<
       conversationId || `conv_${randomUUID().replace(/-/g, "")}`;
 
     // Check if conversation already exists in our database
+    // Note: getConversationByOpenaiId uses the openaiId field which stores our internal UUID
     const existing = await conversationRepository.getConversationByOpenaiId(
       finalConversationId,
       userId,
@@ -92,9 +93,10 @@ export const createConversation = withAuthContext<
     }
 
     // Create database mapping
+    // Note: openaiId field stores our internal UUID (kept for schema compatibility)
     const conversation = await conversationRepository.createConversation(
       {
-        openaiId: finalConversationId, // Stored as openaiId for schema compatibility, but it's our own UUID
+        openaiId: finalConversationId,
         userId,
         title: title || `Conversation ${new Date().toLocaleString()}`,
         metadata: { ...metadata, user_id: userId },
@@ -193,7 +195,7 @@ export const updateConversation = withAuthContext<
 /**
  * Gets a conversation by internal database ID.
  * CRITICAL: Validates ownership before returning.
- * Optionally fetches items from OpenAI API if needed.
+ * Returns conversation without items (items are managed client-side via localStorage).
  */
 export const getConversation = withAuthContext<
   GetConversationParameters,
@@ -219,9 +221,8 @@ export const getConversation = withAuthContext<
       } as unknown as Result<ConversationWithItems, ActionError>;
     }
 
-    // Optionally fetch items from OpenAI if needed
-    // For now, return conversation without items
-    // Items can be fetched separately via OpenAI API after ownership validation
+    // Return conversation without items
+    // Items are managed client-side via localStorage for better performance
 
     return {
       ok: true,
@@ -293,9 +294,9 @@ export const listConversations = withAuthContext<
 });
 
 /**
- * Deletes a conversation mapping from the database.
+ * Soft deletes a conversation from the database (sets deletedAt timestamp).
  * CRITICAL: Validates ownership before deleting.
- * Note: OpenAI conversation deletion should be handled separately if needed.
+ * The conversation can be recovered by setting deletedAt to null.
  */
 export const deleteConversation = withAuthContext<
   GetConversationParameters,
@@ -349,11 +350,12 @@ export const deleteConversation = withAuthContext<
  * Validates that a conversation exists and belongs to the user.
  * CRITICAL: Validates ownership before returning.
  * This is used internally by API routes to validate conversation access.
- * Note: The "openaiId" field in the database is now just an internal conversation ID (not from OpenAI).
+ * Note: The "openaiId" field in the database stores an internal conversation ID (not from OpenAI).
+ * This is kept for schema compatibility but represents our own UUID.
  */
-export const getOpenaiConversationId = withAuthContext<
+export const getConversationId = withAuthContext<
   GetConversationParameters,
-  Result<{ openaiId: string }, ActionError>
+  Result<{ conversationId: string }, ActionError>
 >(async ({ id, authContext }) => {
   const { userId } = authContext;
 
@@ -372,13 +374,13 @@ export const getOpenaiConversationId = withAuthContext<
           message: "Conversation not found or unauthorized",
           code: CommonErrorCode.BAD_INPUT,
         },
-      } as unknown as Result<{ openaiId: string }, ActionError>;
+      } as unknown as Result<{ conversationId: string }, ActionError>;
     }
 
     return {
       ok: true,
-      data: { openaiId: conversation.openaiId },
-    } as unknown as Result<{ openaiId: string }, ActionError>;
+      data: { conversationId: conversation.openaiId },
+    } as unknown as Result<{ conversationId: string }, ActionError>;
   } catch (error) {
     return {
       ok: false,
@@ -389,6 +391,6 @@ export const getOpenaiConversationId = withAuthContext<
             : "Failed to validate conversation",
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       },
-    } as unknown as Result<{ openaiId: string }, ActionError>;
+    } as unknown as Result<{ conversationId: string }, ActionError>;
   }
 });

@@ -120,7 +120,7 @@ export default function ChatSidebar({
       <div className="border-b p-4">
         <Button
           onClick={onCreateNewChat}
-          className="w-full"
+          className="w-full cursor-pointer hover:opacity-90 transition-opacity"
           variant="primary"
           size="default"
         >
@@ -167,14 +167,14 @@ export default function ChatSidebar({
                 <div
                   key={chat.id}
                   className={cn(
-                    "group hover:bg-accent relative flex max-w-full min-w-0 flex-col gap-2 overflow-hidden rounded-md px-3 py-3 text-sm transition-colors",
+                    "group hover:bg-accent/50 relative flex max-w-full min-w-0 flex-col gap-2 overflow-hidden rounded-md px-3 py-3 text-sm transition-colors",
                     selectedChatId === chat.id &&
                       "bg-accent text-accent-foreground",
                   )}
                 >
                   <button
                     onClick={() => onSelectChat(chat.id)}
-                    className="flex w-full max-w-full min-w-0 flex-1 flex-col gap-1.5 text-left"
+                    className="flex w-full max-w-full min-w-0 flex-1 flex-col gap-1.5 text-left cursor-pointer"
                   >
                     <div className="flex w-full max-w-full min-w-0 items-start justify-between gap-2">
                       <div className="flex max-w-full min-w-0 flex-1 items-start gap-2 overflow-hidden">
@@ -223,13 +223,13 @@ export default function ChatSidebar({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute top-2 right-2 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="absolute top-2 right-2 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatToDelete(chat.id);
                     }}
                   >
-                    <Trash2 className="size-3" />
+                    <Trash2 className="size-3 group-hover:text-primary transition-colors" />
                   </Button>
                 </div>
               ))}
@@ -263,7 +263,7 @@ export default function ChatSidebar({
                   setChatToDelete(null);
                 }
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
             >
               {t("deleteDialog.delete")}
             </AlertDialogAction>

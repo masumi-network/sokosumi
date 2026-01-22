@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -128,6 +128,175 @@ function extractMessageContent(message: unknown): string {
   return content.trim();
 }
 
+// Helper function to generate suggestions based on coworker ID
+function getCoworkerSuggestions(coworkerId?: string): string[] {
+  if (!coworkerId) return [];
+  
+  const suggestionMap: Record<string, string[]> = {
+    hannah: [
+      "How can I analyze data effectively?",
+      "What are the best practices for data visualization?",
+      "How do I identify trends in my data?",
+      "What statistical methods should I use?",
+    ],
+    john: [
+      "How can I improve my code quality?",
+      "What are common debugging techniques?",
+      "How do I write more maintainable code?",
+      "What's the best way to structure my project?",
+    ],
+    demosthenes: [
+      "How can I write more clearly?",
+      "What makes a good professional email?",
+      "How do I structure a compelling proposal?",
+      "What are tips for better business writing?",
+    ],
+  };
+  
+  return suggestionMap[coworkerId] || [];
+}
+
+// Welcome screen component for when user has no chats
+function WelcomeScreen({
+  userName,
+  onSendMessage,
+  isLoading,
+}: {
+  userName?: string;
+  onSendMessage: (message: string) => void;
+  isLoading: boolean;
+}) {
+  const t = useTranslations("App.Coworkers.Chat");
+  const [welcomeInput, setWelcomeInput] = useState("");
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (welcomeInput.trim() && !isLoading) {
+      onSendMessage(welcomeInput.trim());
+      setWelcomeInput("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter") {
+      if (e.nativeEvent.isComposing) {
+        return;
+      }
+      if (e.shiftKey) {
+        return;
+      }
+      e.preventDefault();
+      const form = e.currentTarget.form;
+      form?.requestSubmit();
+    }
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8">
+      <div className="mb-8 text-center">
+        <h1 className="mb-4 text-3xl font-semibold">
+          {userName
+            ? t("welcomeScreen.titleWithName", { name: userName })
+            : t("welcomeScreen.title")}
+        </h1>
+      </div>
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-2xl"
+      >
+        <div className="bg-muted/50 flex w-full items-center gap-3 rounded-xl border px-4 py-3 shadow-sm">
+          <div className="text-muted-foreground shrink-0 text-lg">+</div>
+          <textarea
+            value={welcomeInput}
+            onChange={(e) => setWelcomeInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t("welcomeScreen.placeholder")}
+            disabled={isLoading}
+            className="min-h-[1lh] w-full resize-none bg-transparent text-lg outline-none placeholder:text-muted-foreground disabled:opacity-50"
+            rows={1}
+            style={{
+              fieldSizing: "content",
+              maxHeight: "200px",
+              lineHeight: "1.5",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!welcomeInput.trim() || isLoading}
+            className="text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Send className="size-5" />
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Empty chat state component with suggestion buttons
+function EmptyChatState({
+  selectedChatId,
+  chats,
+  isLoading,
+  onSendMessage,
+}: {
+  selectedChatId: string;
+  chats: Chat[];
+  isLoading: boolean;
+  onSendMessage: (message: string) => void;
+}) {
+  const t = useTranslations("App.Coworkers.Chat");
+  const selectedChat = chats.find((c) => c.id === selectedChatId);
+  const coworker = selectedChat?.coworker;
+  const suggestions = useMemo(
+    () => getCoworkerSuggestions(coworker?.id),
+    [coworker?.id],
+  );
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center">
+      <MessageSquare className="text-muted-foreground mb-4 size-12" />
+      <h2 className="mb-2 text-xl font-semibold">
+        {coworker
+          ? t("emptyState.titleWithName", { name: coworker.name })
+          : t("emptyState.title")}
+      </h2>
+      <p className="text-muted-foreground mb-6 max-w-md text-sm">
+        {coworker?.description
+          ? `${t("emptyState.description")} ${coworker.description}.`
+          : t("emptyState.description")}
+      </p>
+      {suggestions.length > 0 && (
+        <div className="mt-4 w-full max-w-2xl">
+          <p className="mb-3 text-sm font-medium">
+            {t("emptyState.suggestionTitle")}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {suggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => onSendMessage(suggestion)}
+                disabled={isLoading}
+                className="bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-lg border px-4 py-2 text-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {coworker?.useCase && suggestions.length === 0 && (
+        <div className="bg-muted/50 mt-4 max-w-md rounded-lg border p-4">
+          <p className="mb-2 text-sm font-medium">
+            {t("emptyState.suggestionTitle")}
+          </p>
+          <p className="text-muted-foreground text-sm">{coworker.useCase}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ChatInterface({
   userImageUrl,
   userName,
@@ -190,8 +359,9 @@ export default function ChatInterface({
             };
           });
         }
-      } catch (error) {
-        console.error("Failed to load messages from localStorage:", error);
+      } catch (_error) {
+        // Silently handle localStorage errors (non-critical, fallback to empty)
+        // localStorage may be unavailable in private browsing mode or quota exceeded
       }
       return null;
     },
@@ -217,8 +387,9 @@ export default function ChatInterface({
           };
         });
         localStorage.setItem(storageKey, JSON.stringify(serializable));
-      } catch (error) {
-        console.error("Failed to save messages to localStorage:", error);
+      } catch (_error) {
+        // Silently handle localStorage errors (non-critical, messages still in memory)
+        // localStorage may be unavailable in private browsing mode or quota exceeded
       }
     },
     [getMessagesStorageKey],
@@ -541,9 +712,9 @@ export default function ChatInterface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, t]); // Don't include chats in deps to avoid infinite loop
 
-  const handleCreateNewChat = () => {
+  const handleCreateNewChat = useCallback(() => {
     setShowSelectCoworkerModal(true);
-  };
+  }, []);
 
   const handleCoworkerSelected = async (coworker: Coworker) => {
     // Create conversation and store in DB
@@ -782,39 +953,48 @@ export default function ChatInterface({
     try {
       const storageKey = getMessagesStorageKey(chatId);
       localStorage.removeItem(storageKey);
-    } catch (error) {
-      console.error("Failed to remove messages from localStorage:", error);
+    } catch (_error) {
+      // Silently handle localStorage errors (non-critical, already removed from memory)
+      // localStorage may be unavailable in private browsing mode
     }
   };
 
+  const handleSendMessage = useCallback(
+    (messageText: string) => {
+      if (!messageText.trim() || isLoading) return;
+
+      const trimmedMessage = messageText.trim();
+      if (!selectedChatId) {
+        handleCreateNewChat();
+        return;
+      }
+
+      // Only update timestamp when user sends message, don't update lastMessage
+      // The lastMessage will be updated by useEffect or onFinish when assistant responds
+      if (selectedChatId) {
+        const now = new Date();
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === selectedChatId
+              ? {
+                  ...chat,
+                  updatedAt: now,
+                  status: "active" as ChatStatus,
+                  unreadCount: undefined,
+                }
+              : chat,
+          ),
+        );
+      }
+
+      sendMessage({ text: trimmedMessage });
+      setInput("");
+    },
+    [isLoading, selectedChatId, sendMessage, setInput, handleCreateNewChat],
+  );
+
   const handleInputSubmit = () => {
-    if (!input.trim() || isLoading) return;
-
-    const messageText = input.trim();
-    if (!selectedChatId) {
-      handleCreateNewChat();
-    }
-
-    // Only update timestamp when user sends message, don't update lastMessage
-    // The lastMessage will be updated by useEffect or onFinish when assistant responds
-    if (selectedChatId) {
-      const now = new Date();
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === selectedChatId
-            ? {
-                ...chat,
-                updatedAt: now,
-                status: "active" as ChatStatus,
-                unreadCount: undefined,
-              }
-            : chat,
-        ),
-      );
-    }
-
-    sendMessage({ text: messageText });
-    setInput("");
+    handleSendMessage(input);
   };
 
   const handleStop = () => {
@@ -886,33 +1066,12 @@ export default function ChatInterface({
           </div>
         )}
         {selectedChatId && messages.length === 0 ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center">
-            {(() => {
-              const selectedChat = chats.find((c) => c.id === selectedChatId);
-              const coworker = selectedChat?.coworker;
-              return (
-                <>
-                  <MessageSquare className="text-muted-foreground mb-4 size-12" />
-                  <h2 className="mb-2 text-xl font-semibold">
-                    {t("emptyState.title")}
-                  </h2>
-                  <p className="text-muted-foreground mb-4 max-w-md text-sm">
-                    {t("emptyState.description")}
-                  </p>
-                  {coworker?.useCase && (
-                    <div className="bg-muted/50 mt-4 max-w-md rounded-lg border p-4">
-                      <p className="mb-2 text-sm font-medium">
-                        {t("emptyState.suggestionTitle")}
-                      </p>
-                      <p className="text-muted-foreground text-sm">
-                        {coworker.useCase}
-                      </p>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
+          <EmptyChatState
+            selectedChatId={selectedChatId}
+            chats={chats}
+            isLoading={status === "streaming" || status === "submitted"}
+            onSendMessage={handleSendMessage}
+          />
         ) : (
           <ScrollArea ref={scrollAreaRef} className="min-h-0 flex-1">
             <div className="flex flex-col pt-4">

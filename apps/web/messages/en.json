@@ -1046,6 +1046,7 @@
         "noChats": "No chats yet",
         "emptyState": {
           "title": "Start a conversation",
+          "titleWithName": "Start a conversation with {name}",
           "description": "This chat is empty. Send a message to get started!",
           "suggestionTitle": "Try asking:"
         },
