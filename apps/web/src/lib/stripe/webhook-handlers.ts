@@ -122,7 +122,7 @@ export async function handleInvoicePaidEvent(
   const referenceType: CreditBucketReferenceType = "STRIPE_INVOICE";
 
   // Check if bucket already exists (idempotent check)
-  prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const existingBucket = await tx.creditBucket.findUnique({
       where: {
         referenceId_referenceType: {
