@@ -43,12 +43,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userId: authContext.userId,
           name: body.name,
           description: body.description ?? null,
-          orchestratorId: body.orchestratorId ?? null,
-        },
-        include: taskInclude,
+          orchestratorId: authContext.orchestratorId ? authContext.orchestratorId : body.orchestratorId ?? null,
+          },
+          include: taskInclude,
+        });
       });
-    });
 
-    return created(c, taskSchema.parse(mapTask(task)));
-  });
+      return created(c, taskSchema.parse(mapTask(task)));
+    },
+  );
 }
