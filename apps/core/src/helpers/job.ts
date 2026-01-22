@@ -1,4 +1,4 @@
-import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
+import { AgentJobStatus, JobType, Prisma } from "@sokosumi/database";
 import {
   creditBucketRepository,
   jobShareRepository,
@@ -126,6 +126,8 @@ export async function createJobWithPayment(
         ...jobWithPurchase,
       },
     });
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
   });
 }
 
