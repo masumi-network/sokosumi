@@ -187,22 +187,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         // Create job, transaction, and consume credits in a single transaction
-        job = await prisma.$transaction(async (tx) => {
-          return await createJobWithPayment(
-            {
-              agentId,
-              userId: authContext.userId,
-              organizationId: authContext.organizationId,
-              inputData,
-              inputSchema: flatInputSchema,
-              name: jobName,
-            },
-            agent.cost,
-            paidJobResult.value,
-            identifierFromPurchaser,
-            tx,
-          );
-        });
+        job = await createJobWithPayment(
+          {
+            agentId,
+            userId: authContext.userId,
+            organizationId: authContext.organizationId,
+            inputData,
+            inputSchema: flatInputSchema,
+            name: jobName,
+          },
+          agent.cost,
+          paidJobResult.value,
+          identifierFromPurchaser,
+        );
 
         // Create purchase with payment API
         const createPurchaseResult = await paymentClient().createPurchase(
