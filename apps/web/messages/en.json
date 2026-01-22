@@ -1047,8 +1047,13 @@
         "emptyState": {
           "title": "Start a conversation",
           "titleWithName": "Start a conversation with {name}",
-          "description": "This chat is empty. Send a message to get started!",
+          "description": "This chat is empty.{specialization} Send a message to get started!",
           "suggestionTitle": "Try asking:"
+        },
+        "welcomeScreen": {
+          "title": "Hi, what can I help you ship today?",
+          "titleWithName": "Hi {name}, what can I help you ship today?",
+          "placeholder": "Ask anything"
         },
         "emptyTitle": "Start a conversation",
         "emptyDescription": "Ask me anything and I'll help you out. You can start a new chat or continue an existing one.",

@@ -1,5 +1,5 @@
-import * as Sentry from "@sentry/nextjs";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import * as Sentry from "@sentry/nextjs";
 import { convertToModelMessages, streamText } from "ai";
 import { NextRequest } from "next/server";
 

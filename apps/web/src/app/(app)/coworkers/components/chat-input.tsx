@@ -67,7 +67,7 @@ export default function ChatInput({
   const canSubmit = !isLoading && value.trim() && !disabled;
 
   return (
-    <div className="bg-background w-full max-w-full overflow-hidden border-t p-4">
+    <div className="bg-background w-full max-w-full overflow-hidden">
       <form
         onSubmit={handleSubmit}
         className="bg-background w-full overflow-hidden rounded-xl border shadow-sm"

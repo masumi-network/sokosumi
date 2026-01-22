@@ -97,7 +97,7 @@ export default function ChatSidebar({
     return t("daysAgo", { count: diffDays });
   };
 
-  const pruneMessage = (message: string, maxLength: number = 50) => {
+  const pruneMessage = (message: string, maxLength: number = 58) => {
     if (message.length <= maxLength) return message;
     return message.slice(0, maxLength) + "...";
   };
@@ -202,8 +202,10 @@ export default function ChatSidebar({
                             )}
                           </div>
                           {chat.lastMessage && (
-                            <div className="text-muted-foreground mt-0.5 max-w-full truncate overflow-hidden text-xs text-ellipsis whitespace-nowrap">
-                              {pruneMessage(chat.lastMessage, 25)}
+                            <div className="text-muted-foreground mt-0.5 max-w-[240px] overflow-hidden text-xs">
+                              <div className="truncate whitespace-nowrap">
+                                {pruneMessage(chat.lastMessage, 58)}
+                              </div>
                             </div>
                           )}
                         </div>

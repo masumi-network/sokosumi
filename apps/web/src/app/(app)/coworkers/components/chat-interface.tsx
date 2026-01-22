@@ -2,14 +2,17 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { MessageSquare } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import type { Conversation } from "@/lib/actions/conversation";
+import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
 import { useConversations } from "../hooks/use-conversations";
@@ -161,10 +164,12 @@ function WelcomeScreen({
   userName,
   onSendMessage,
   isLoading,
+  isTransitioning,
 }: {
   userName?: string;
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  isTransitioning: boolean;
 }) {
   const t = useTranslations("App.Coworkers.Chat");
   const [welcomeInput, setWelcomeInput] = useState("");
@@ -191,9 +196,22 @@ function WelcomeScreen({
     }
   };
 
+  const isStreaming = isLoading;
+  const canSubmit = !isLoading && welcomeInput.trim();
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8">
-      <div className="mb-8 text-center">
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col items-center justify-center p-8 transition-opacity duration-500",
+        isTransitioning && "animate-out fade-out duration-500",
+      )}
+    >
+      <div
+        className={cn(
+          "mb-8 text-center transition-all duration-500",
+          isTransitioning && "animate-out fade-out slide-out-to-top-4 duration-500",
+        )}
+      >
         <h1 className="mb-4 text-3xl font-semibold">
           {userName
             ? t("welcomeScreen.titleWithName", { name: userName })
@@ -202,48 +220,83 @@ function WelcomeScreen({
       </div>
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-2xl"
+        className={cn(
+          "bg-background w-full max-w-2xl overflow-hidden rounded-xl border shadow-sm transition-all duration-500",
+          isTransitioning && "animate-out fade-out slide-out-to-bottom-4 duration-500",
+        )}
       >
-        <div className="bg-muted/50 flex w-full items-center gap-3 rounded-xl border px-4 py-3 shadow-sm">
-          <div className="text-muted-foreground shrink-0 text-lg">+</div>
-          <textarea
-            value={welcomeInput}
-            onChange={(e) => setWelcomeInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t("welcomeScreen.placeholder")}
-            disabled={isLoading}
-            className="min-h-[1lh] w-full resize-none bg-transparent text-lg outline-none placeholder:text-muted-foreground disabled:opacity-50"
-            rows={1}
-            style={{
-              fieldSizing: "content",
-              maxHeight: "200px",
-              lineHeight: "1.5",
-            }}
-          />
-          <button
-            type="submit"
-            disabled={!welcomeInput.trim() || isLoading}
-            className="text-muted-foreground hover:text-foreground shrink-0 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Send className="size-5" />
-          </button>
+        <div className="flex w-full min-w-0 items-center gap-2">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <Textarea
+              value={welcomeInput}
+              onChange={(e) => setWelcomeInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t("welcomeScreen.placeholder")}
+              disabled={isLoading}
+              name="message"
+              className={cn(
+                "w-full resize-none rounded-none border-none px-3 py-1.5 shadow-none ring-0 outline-hidden",
+                "field-sizing-content max-h-[6lh] min-h-lh",
+                "bg-transparent dark:bg-transparent",
+                "focus-visible:ring-0",
+                "overflow-x-hidden overflow-y-auto wrap-break-word break-all whitespace-pre-wrap",
+                "[&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-button]:h-0 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent",
+                "[scrollbar-color:transparent_transparent] [scrollbar-width:thin] hover:[scrollbar-color:rgb(161_161_170)_transparent] focus:[scrollbar-color:rgb(161_161_170)_transparent]",
+              )}
+              style={{
+                wordWrap: "break-word",
+                overflowWrap: "break-word",
+                wordBreak: "break-word",
+                lineHeight: "1.5",
+              }}
+            />
+          </div>
+          <div className="shrink-0 p-1">
+            {isStreaming ? (
+              <Button
+                variant="default"
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+                type="button"
+                disabled
+              >
+                <Loader2 className="size-4 animate-spin" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                variant="primary"
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+              >
+                <Send className="size-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </form>
     </div>
   );
 }
 
-// Empty chat state component with suggestion buttons
+// Empty chat state component with suggestion buttons and centered input
 function EmptyChatState({
   selectedChatId,
   chats,
   isLoading,
   onSendMessage,
+  input,
+  onInputChange,
+  onInputSubmit,
 }: {
   selectedChatId: string;
   chats: Chat[];
   isLoading: boolean;
   onSendMessage: (message: string) => void;
+  input: string;
+  onInputChange: (value: string) => void;
+  onInputSubmit: () => void;
 }) {
   const t = useTranslations("App.Coworkers.Chat");
   const selectedChat = chats.find((c) => c.id === selectedChatId);
@@ -255,44 +308,49 @@ function EmptyChatState({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center">
-      <MessageSquare className="text-muted-foreground mb-4 size-12" />
-      <h2 className="mb-2 text-xl font-semibold">
-        {coworker
-          ? t("emptyState.titleWithName", { name: coworker.name })
-          : t("emptyState.title")}
-      </h2>
-      <p className="text-muted-foreground mb-6 max-w-md text-sm">
-        {coworker?.description
-          ? `${t("emptyState.description")} ${coworker.description}.`
-          : t("emptyState.description")}
-      </p>
-      {suggestions.length > 0 && (
-        <div className="mt-4 w-full max-w-2xl">
-          <p className="mb-3 text-sm font-medium">
-            {t("emptyState.suggestionTitle")}
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {suggestions.map((suggestion, index) => (
-              <button
-                key={index}
-                onClick={() => onSendMessage(suggestion)}
-                disabled={isLoading}
-                className="bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-lg border px-4 py-2 text-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {suggestion}
-              </button>
-            ))}
+      <div className="mb-8">
+        <h2 className="mb-2 text-3xl font-semibold">
+          {coworker
+            ? t("emptyState.titleWithName", { name: coworker.name })
+            : t("emptyState.title")}
+        </h2>
+        {suggestions.length > 0 && (
+          <div className="mt-4 w-full max-w-2xl">
+            <p className="mb-3 text-sm font-medium">
+              {t("emptyState.suggestionTitle")}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => onSendMessage(suggestion)}
+                  disabled={isLoading}
+                  className="bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-lg border px-4 py-2 text-sm transition-all hover:scale-105 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-      {coworker?.useCase && suggestions.length === 0 && (
-        <div className="bg-muted/50 mt-4 max-w-md rounded-lg border p-4">
-          <p className="mb-2 text-sm font-medium">
-            {t("emptyState.suggestionTitle")}
-          </p>
-          <p className="text-muted-foreground text-sm">{coworker.useCase}</p>
-        </div>
-      )}
+        )}
+        {coworker?.useCase && suggestions.length === 0 && (
+          <div className="bg-muted/50 mt-4 max-w-md rounded-lg border p-4">
+            <p className="mb-2 text-sm font-medium">
+              {t("emptyState.suggestionTitle")}
+            </p>
+            <p className="text-muted-foreground text-sm">{coworker.useCase}</p>
+          </div>
+        )}
+      </div>
+      <div className="w-full max-w-2xl">
+        <ChatInput
+          value={input}
+          onChange={onInputChange}
+          onSubmit={onInputSubmit}
+          isLoading={isLoading}
+          disabled={false}
+        />
+      </div>
     </div>
   );
 }
@@ -314,6 +372,8 @@ export default function ChatInterface({
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
+  const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
+  const [showMessagesAfterTransition, setShowMessagesAfterTransition] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   // Store messages per chat ID (in-memory cache)
@@ -620,6 +680,32 @@ export default function ChatInterface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations.length, chats.length]); // Only depend on length to avoid re-running when conversations change
 
+  // Reset transition state when chats are loaded
+  useEffect(() => {
+    if (chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning) {
+      // Hide messages during transition to prevent layout shifts
+      setShowMessagesAfterTransition(false);
+      
+      // Show messages after animation completes (300ms delay + 500ms duration = 800ms)
+      const showTimer = setTimeout(() => {
+        setShowMessagesAfterTransition(true);
+      }, 800);
+      
+      // Reset transition state after animation completes
+      const resetTimer = setTimeout(() => {
+        setIsWelcomeTransitioning(false);
+      }, 200);
+      
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(resetTimer);
+      };
+    } else if (!isWelcomeTransitioning) {
+      // Ensure messages are shown when not transitioning
+      setShowMessagesAfterTransition(true);
+    }
+  }, [chats.length, conversations.length, isWelcomeTransitioning]);
+
   // Sync conversations from DB to chats state
   useEffect(() => {
     if (conversations.length === 0 && chats.length === 0) {
@@ -716,7 +802,8 @@ export default function ChatInterface({
     setShowSelectCoworkerModal(true);
   }, []);
 
-  const handleCoworkerSelected = async (coworker: Coworker) => {
+  const handleCoworkerSelected = useCallback(
+    async (coworker: Coworker) => {
     // Create conversation and store in DB
     const conversation = await createNewConversation(
       {
@@ -760,7 +847,9 @@ export default function ChatInterface({
     });
 
     setSelectedChatId(conversation.id);
-  };
+    },
+    [createNewConversation, setMessages, setInput, setChats, setSelectedChatId],
+  );
 
   // Track which chat ID the current messages belong to
   const messagesChatIdRef = useRef<string | null>(null);
@@ -960,10 +1049,35 @@ export default function ChatInterface({
   };
 
   const handleSendMessage = useCallback(
-    (messageText: string) => {
+    async (messageText: string) => {
       if (!messageText.trim() || isLoading) return;
 
       const trimmedMessage = messageText.trim();
+      
+      // If no chat exists, create one with Hannah as default
+      if (!selectedChatId && chats.length === 0) {
+        // Start transition animation
+        setIsWelcomeTransitioning(true);
+        
+        const hannahCoworker: Coworker = {
+          id: "hannah",
+          name: t("coworkers.hannah.name"),
+          description: t("coworkers.hannah.description"),
+          useCase: t("coworkers.hannah.useCase"),
+        };
+        
+        // Wait for welcome screen fade-out to complete before showing chat UI
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        
+        await handleCoworkerSelected(hannahCoworker);
+        // Wait a bit for the conversation to be created and selected
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        // Now send the message
+        sendMessage({ text: trimmedMessage });
+        setInput("");
+        return;
+      }
+      
       if (!selectedChatId) {
         handleCreateNewChat();
         return;
@@ -990,7 +1104,7 @@ export default function ChatInterface({
       sendMessage({ text: trimmedMessage });
       setInput("");
     },
-    [isLoading, selectedChatId, sendMessage, setInput, handleCreateNewChat],
+    [isLoading, selectedChatId, chats.length, sendMessage, setInput, handleCreateNewChat, handleCoworkerSelected, t],
   );
 
   const handleInputSubmit = () => {
@@ -1004,9 +1118,34 @@ export default function ChatInterface({
     // For now, this is a placeholder for future stop functionality
   };
 
+  // Show welcome screen when there are no chats
+  if (chats.length === 0 && conversations.length === 0 && !isWelcomeTransitioning) {
+    // Extract first name from userName
+    const firstName = userName?.split(" ")[0] ?? userName;
+    return (
+      <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg border">
+        <WelcomeScreen
+          userName={firstName}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
+          isTransitioning={isWelcomeTransitioning}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg border">
-      <div className="w-64 shrink-0">
+      <div
+        className={cn(
+          "w-96 shrink-0 transition-opacity duration-700",
+          chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning
+            ? "animate-in fade-in slide-in-from-left-4 duration-500 delay-200"
+            : chats.length > 0 && conversations.length > 0
+              ? "opacity-100"
+              : "opacity-0",
+        )}
+      >
         <ChatSidebar
           chats={chats}
           selectedChatId={selectedChatId}
@@ -1015,9 +1154,18 @@ export default function ChatInterface({
           onDeleteChat={handleDeleteChat}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {selectedChatId && (
-          <div className="bg-card shrink-0 border-b px-6 py-4">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col transition-opacity duration-700",
+          chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning
+            ? "animate-in fade-in slide-in-from-right-4 duration-500 delay-300"
+            : chats.length > 0 && conversations.length > 0
+              ? "opacity-100"
+              : "opacity-0",
+        )}
+      >
+        {selectedChatId && messages.length > 0 && (
+          <div className="bg-card shrink-0 border-b px-6 py-4 animate-in fade-in slide-in-from-top-2 duration-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {(() => {
@@ -1071,16 +1219,21 @@ export default function ChatInterface({
             chats={chats}
             isLoading={status === "streaming" || status === "submitted"}
             onSendMessage={handleSendMessage}
+            input={input}
+            onInputChange={setInput}
+            onInputSubmit={handleInputSubmit}
           />
         ) : (
-          <ScrollArea ref={scrollAreaRef} className="min-h-0 flex-1">
-            <div className="flex flex-col pt-4">
-              {messagesWithTimestamps.map((message) => {
-                const role = message.role as "user" | "assistant";
-                // Extract content from message - AI SDK v6 format
-                let content = "";
+          <>
+            {showMessagesAfterTransition && (
+              <ScrollArea ref={scrollAreaRef} className="min-h-0 flex-1">
+                <div className="flex flex-col pt-4 animate-in fade-in duration-500">
+                  {messagesWithTimestamps.map((message, index) => {
+                    const role = message.role as "user" | "assistant";
+                    // Extract content from message - AI SDK v6 format
+                    let content = "";
 
-                const messageAny = message as Record<string, unknown>;
+                    const messageAny = message as Record<string, unknown>;
 
                 // 1. Try content property (most common for AI SDK)
                 if (
@@ -1195,15 +1348,22 @@ export default function ChatInterface({
                 const coworkerName = selectedChat?.coworker?.name;
 
                 return (
-                  <ChatMessage
+                  <div
                     key={message.id}
-                    role={role}
-                    content={content}
-                    userImageUrl={userImageUrl}
-                    userName={userName}
-                    createdAt={createdAt}
-                    coworkerName={coworkerName}
-                  />
+                    className="animate-in fade-in slide-in-from-bottom-2 duration-500"
+                    style={{
+                      animationDelay: `${index * 50}ms`,
+                    }}
+                  >
+                    <ChatMessage
+                      role={role}
+                      content={content}
+                      userImageUrl={userImageUrl}
+                      userName={userName}
+                      createdAt={createdAt}
+                      coworkerName={coworkerName}
+                    />
+                  </div>
                 );
               })}
               {isLoading &&
@@ -1243,19 +1403,23 @@ export default function ChatInterface({
                     </div>
                   );
                 })()}
-              <div ref={messagesEndRef} />
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+            )}
+            <div className="flex shrink-0 justify-center overflow-hidden p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="w-full max-w-2xl">
+                <ChatInput
+                  value={input}
+                  onChange={setInput}
+                  onSubmit={handleInputSubmit}
+                  onStop={handleStop}
+                  isLoading={isLoading}
+                />
+              </div>
             </div>
-          </ScrollArea>
+          </>
         )}
-        <div className="w-full max-w-full shrink-0 overflow-hidden border-t">
-          <ChatInput
-            value={input}
-            onChange={setInput}
-            onSubmit={handleInputSubmit}
-            onStop={handleStop}
-            isLoading={isLoading}
-          />
-        </div>
       </div>
       <SelectCoworkerModal
         open={showSelectCoworkerModal}
