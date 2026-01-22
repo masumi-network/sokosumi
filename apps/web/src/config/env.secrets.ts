@@ -50,6 +50,7 @@ const envSecretsSchema = z.object({
 
   // OpenRouter
   OPENROUTER_API_KEY: z.string().startsWith("sk-or-").optional(),
+  OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
   // Seed
   SEED_DATABASE: z

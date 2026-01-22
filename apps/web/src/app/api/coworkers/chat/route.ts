@@ -7,7 +7,7 @@ import { getOpenaiConversationId } from "@/lib/actions/conversation";
 import { getSession } from "@/lib/auth/utils";
 
 const openrouter = createOpenRouter({
-  apiKey: getEnvSecrets().OPENROUTER_API_KEY || "",
+  apiKey: getEnvSecrets().OPENROUTER_CHAT_API_KEY || "",
 });
 
 export async function POST(req: NextRequest) {
