@@ -28,6 +28,7 @@ interface UseConversationsReturn {
     title?: string,
   ) => Promise<void>;
   deleteSelectedConversation: () => Promise<void>;
+  deleteConversationById: (id: string) => Promise<void>;
   refreshConversations: () => Promise<void>;
 }
 
@@ -41,6 +42,75 @@ export function useConversations(): UseConversationsReturn {
     useState<ConversationWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
+
+  /**
+   * Helper to parse serialized Result objects from Next.js server actions
+   */
+  const parseServerActionResult = useCallback(
+    <T, E extends ActionError>(
+      rawResult: unknown,
+    ): { isErr: boolean; value: T | null; error: E | null } => {
+      const resultAny = rawResult as any;
+
+      if (resultAny?.ok === true && resultAny?.data) {
+        return { isErr: false, value: resultAny.data, error: null };
+      } else if (resultAny?.ok === false && resultAny?.error) {
+        return { isErr: true, value: null, error: resultAny.error };
+      } else if (typeof resultAny?.isErr === "function") {
+        // It's a proper neverthrow Result (shouldn't happen after serialization)
+        return {
+          isErr: resultAny.isErr(),
+          value: resultAny.isErr() ? null : resultAny.value,
+          error: resultAny.isErr() ? resultAny.error : null,
+        };
+      }
+
+      // Unknown format, treat as error
+      return {
+        isErr: true,
+        value: null,
+        error: {
+          message: "Invalid response format",
+          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        } as E,
+      };
+    },
+    [],
+  );
+
+  /**
+   * Refreshes the conversations list from the database
+   */
+  const refreshConversations = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const rawResult = await listConversations({});
+      const result = parseServerActionResult<Conversation[], ActionError>(
+        rawResult,
+      );
+
+      if (result.isErr) {
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+
+      setConversations(result.value || []);
+      setIsLoading(false);
+    } catch (error) {
+      // Handle thrown errors (e.g., UnAuthenticatedError from withAuthContext)
+      setError({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to refresh conversations",
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      });
+      setIsLoading(false);
+    }
+  }, [parseServerActionResult]);
 
   /**
    * Creates a new OpenAI conversation and stores it in the database.
@@ -131,6 +201,11 @@ export function useConversations(): UseConversationsReturn {
         const newConversation = value;
         setConversations((prev) => [newConversation, ...prev]);
         setSelectedConversation({ ...newConversation, items: [] }); // Select new conversation
+        
+        // Refresh conversations list to ensure deleted conversations are excluded
+        // This ensures we have the latest state from DB after creating a new conversation
+        void refreshConversations();
+        
         setIsLoading(false);
         return newConversation;
       } catch (error) {
@@ -145,42 +220,7 @@ export function useConversations(): UseConversationsReturn {
         return null;
       }
     },
-    [],
-  );
-
-  /**
-   * Helper to parse serialized Result objects from Next.js server actions
-   */
-  const parseServerActionResult = useCallback(
-    <T, E extends ActionError>(
-      rawResult: unknown,
-    ): { isErr: boolean; value: T | null; error: E | null } => {
-      const resultAny = rawResult as any;
-
-      if (resultAny?.ok === true && resultAny?.data) {
-        return { isErr: false, value: resultAny.data, error: null };
-      } else if (resultAny?.ok === false && resultAny?.error) {
-        return { isErr: true, value: null, error: resultAny.error };
-      } else if (typeof resultAny?.isErr === "function") {
-        // It's a proper neverthrow Result (shouldn't happen after serialization)
-        return {
-          isErr: resultAny.isErr(),
-          value: resultAny.isErr() ? null : resultAny.value,
-          error: resultAny.isErr() ? resultAny.error : null,
-        };
-      }
-
-      // Unknown format, treat as error
-      return {
-        isErr: true,
-        value: null,
-        error: {
-          message: "Invalid response format",
-          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        } as E,
-      };
-    },
-    [],
+    [refreshConversations],
   );
 
   /**
@@ -299,10 +339,16 @@ export function useConversations(): UseConversationsReturn {
         return;
       }
 
+      // Remove from local state immediately for responsive UI
       setConversations((prev) =>
         prev.filter((conv) => conv.id !== selectedConversation.id),
       );
       setSelectedConversation(null);
+      
+      // Refresh conversations list to ensure we have the latest state from DB
+      // This ensures deleted conversations stay excluded even after other operations
+      void refreshConversations();
+      
       setIsLoading(false);
     } catch (error) {
       setError({
@@ -314,41 +360,54 @@ export function useConversations(): UseConversationsReturn {
       });
       setIsLoading(false);
     }
-  }, [selectedConversation, parseServerActionResult]);
+  }, [selectedConversation, parseServerActionResult, refreshConversations]);
 
   /**
-   * Refreshes the conversations list from the database
+   * Deletes a conversation by ID (can be any conversation, not just the selected one)
    */
-  const refreshConversations = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const deleteConversationById = useCallback(
+    async (id: string) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const rawResult = await listConversations({});
-      const result = parseServerActionResult<Conversation[], ActionError>(
-        rawResult,
-      );
+      try {
+        const rawResult = await deleteConversation({ id });
+        const result = parseServerActionResult<{ success: boolean }, ActionError>(
+          rawResult,
+        );
 
-      if (result.isErr) {
-        setError(result.error);
+        if (result.isErr) {
+          setError(result.error);
+          setIsLoading(false);
+          return;
+        }
+
+        // Remove from local state immediately for responsive UI
+        setConversations((prev) => prev.filter((conv) => conv.id !== id));
+        
+        // If this was the selected conversation, clear selection
+        if (selectedConversation?.id === id) {
+          setSelectedConversation(null);
+        }
+        
+        // Refresh conversations list to ensure we have the latest state from DB
+        // This ensures deleted conversations stay excluded even after other operations
+        void refreshConversations();
+        
         setIsLoading(false);
-        return;
+      } catch (error) {
+        setError({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to delete conversation",
+          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        });
+        setIsLoading(false);
       }
-
-      setConversations(result.value || []);
-      setIsLoading(false);
-    } catch (error) {
-      // Handle thrown errors (e.g., UnAuthenticatedError from withAuthContext)
-      setError({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to refresh conversations",
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
-      setIsLoading(false);
-    }
-  }, [parseServerActionResult]);
+    },
+    [parseServerActionResult, refreshConversations, selectedConversation],
+  );
 
   // Load conversations on mount
   useEffect(() => {
@@ -378,6 +437,7 @@ export function useConversations(): UseConversationsReturn {
     selectConversation,
     updateSelectedConversation,
     deleteSelectedConversation,
+    deleteConversationById,
     refreshConversations,
   };
 }

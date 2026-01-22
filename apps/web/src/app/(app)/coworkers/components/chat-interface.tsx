@@ -138,7 +138,7 @@ export default function ChatInterface({
     selectedConversation,
     createNewConversation,
     selectConversation,
-    deleteSelectedConversation,
+    deleteConversationById,
   } = useConversations();
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -765,9 +765,11 @@ export default function ChatInterface({
   };
 
   const handleDeleteChat = async (chatId: string) => {
-    // Delete from DB if this is the selected conversation
+    // Delete from DB (works for any conversation, not just the selected one)
+    await deleteConversationById(chatId);
+
+    // If this was the selected conversation, clear selection and messages
     if (selectedChatId === chatId) {
-      await deleteSelectedConversation();
       setSelectedChatId(null);
       setMessages([]);
       setInput("");
