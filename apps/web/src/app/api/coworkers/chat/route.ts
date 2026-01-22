@@ -28,9 +28,14 @@ export async function POST(req: NextRequest) {
       });
 
       // Handle plain object return format: { ok: true, data: T } or { ok: false, error: E }
-      if (!validationResult || validationResult.ok === false) {
+      // Type assertion needed because function is typed as neverthrow Result but actually returns plain object
+      const result = validationResult as unknown as
+        | { ok: true; data: { conversationId: string } }
+        | { ok: false; error: { message: string; code?: string } };
+
+      if (!result || result.ok === false) {
         const errorMessage =
-          validationResult?.error?.message || "Conversation not found";
+          result?.error?.message || "Conversation not found";
         return new Response(JSON.stringify({ error: errorMessage }), {
           status: 403,
         });
