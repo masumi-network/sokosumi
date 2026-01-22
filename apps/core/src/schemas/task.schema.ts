@@ -63,12 +63,6 @@ export const taskSchema = z
 
 export const tasksSchema = z.array(taskSchema).openapi("Tasks");
 
-export const createTaskRequestSchema = z.object({
-  name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
-  description: z.string().nullish().openapi({ example: "Notes go here" }),
-  orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
-});
-
 export const updateTaskRequestSchema = z
   .object({
     name: z.string().min(1).max(120).optional().openapi({

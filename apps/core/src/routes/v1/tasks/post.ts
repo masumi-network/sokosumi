@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -6,10 +6,15 @@ import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
-  createTaskRequestSchema,
   taskSchema,
 } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
+
+export const createTaskRequestSchema = z.object({
+  name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
+  description: z.string().nullish().openapi({ example: "Notes go here" }),
+  orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+});
 
 const route = createRoute({
   method: "post",
