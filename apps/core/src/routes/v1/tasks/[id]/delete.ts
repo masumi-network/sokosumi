@@ -1,11 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import { requireTaskAccess } from "@/helpers/access-control";
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { taskInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -39,12 +41,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, TaskStatus.DRAFT, tx);
-
-      await tx.task.delete({ where: { id, status: TaskStatus.DRAFT } });
+    const task = await prisma.task.delete({ 
+      where: { 
+        id, 
+        userId: authContext.userId, 
+        status: TaskStatus.DRAFT, 
+      },
+      include: taskInclude
     });
 
-    return ok(c, { id });
+    if (!task) {
+      throw forbidden("You can only delete your own draft or ready tasks");
+    }
+
+    return ok(c, mapTask(task));
   });
 }
