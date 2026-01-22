@@ -122,10 +122,10 @@ importers:
         version: 0.3.0
       '@hey-api/client-fetch':
         specifier: 0.13.1
-        version: 0.13.1(@hey-api/openapi-ts@0.90.6(typescript@5.9.3))
+        version: 0.13.1(@hey-api/openapi-ts@0.90.8(typescript@5.9.3))
       '@hey-api/client-next':
         specifier: 0.5.1
-        version: 0.5.1(@hey-api/openapi-ts@0.90.6(typescript@5.9.3))
+        version: 0.5.1(@hey-api/openapi-ts@0.90.8(typescript@5.9.3))
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.71.1(react@19.2.3))
@@ -413,8 +413,8 @@ importers:
         specifier: 20.3.4
         version: 20.3.4(@jest/environment@30.2.0)(@jest/fake-timers@30.2.0)(@jest/types@30.2.0)(jest-mock@30.2.0)(jest-util@30.2.0)
       '@hey-api/openapi-ts':
-        specifier: 0.90.6
-        version: 0.90.6(typescript@5.9.3)
+        specifier: 0.90.8
+        version: 0.90.8(typescript@5.9.3)
       '@noble/hashes':
         specifier: 2.0.1
         version: 2.0.1
@@ -550,8 +550,8 @@ importers:
         version: 4.3.5
     devDependencies:
       '@hey-api/openapi-ts':
-        specifier: 0.90.6
-        version: 0.90.6(typescript@5.9.3)
+        specifier: 0.90.8
+        version: 0.90.8(typescript@5.9.3)
       '@types/jest':
         specifier: 30.0.0
         version: 30.0.0
@@ -1134,8 +1134,8 @@ packages:
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
-  '@hey-api/codegen-core@0.5.2':
-    resolution: {integrity: sha512-88cqrrB2cLXN8nMOHidQTcVOnZsJ5kebEbBefjMCifaUCwTA30ouSSWvTZqrOX4O104zjJyu7M8Gcv/NNYQuaA==}
+  '@hey-api/codegen-core@0.5.4':
+    resolution: {integrity: sha512-vi4q2fquMdY6krHLE2ZEt3yqiyt2RAFOdoPhNkCWKjUYSE0xuGEdMNdHGrBr8O6bvya289OnkXaPu6OIAJ0iHQ==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       typescript: '>=5.5.3'
@@ -1144,12 +1144,15 @@ packages:
     resolution: {integrity: sha512-oS+5yAdwnK20lSeFO1d53Ku+yaGCsY8PcrmSq2GtSs3bsBfRnHAbpPKSVzQcaxAOrzj5NB+f34WhZglVrNayBA==}
     engines: {node: '>= 16'}
 
-  '@hey-api/openapi-ts@0.90.6':
-    resolution: {integrity: sha512-ByE2BUkiV5bEA6hKGpcB1ZzHG2ybzQ/3qX/1xMSy5ylkN6uVlp53+OCoh6L3/53bSyKXD7TmfAF0m6q8cU9zkA==}
+  '@hey-api/openapi-ts@0.90.8':
+    resolution: {integrity: sha512-w+Gz4Jh9WVGrD0lDhxXcHIwscJDXV/VV5a2Kj/O1J99JydqH8Jaq382ezcyznmM/WsdBYa6qGwlItGx/iMinBg==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
       typescript: '>=5.5.3'
+
+  '@hey-api/types@0.1.1':
+    resolution: {integrity: sha512-h9OQG7nl2SHKW6g/sO3XneSn4fz5ow6T/c2hEYsrOCuZry8kLPbZ9335OBgeYLyEB1OEa2KjvsQcef0UBKzMAg==}
 
   '@hono/node-server@1.19.6':
     resolution: {integrity: sha512-Shz/KjlIeAhfiuE93NDKVdZ7HdBVLQAfdbaXEaoAVO3ic9ibRSLGIQGkcBbFyuLr+7/1D5ZCINM8B+6IvXeMtw==}
@@ -6624,6 +6627,9 @@ packages:
   lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
+  lodash@4.17.23:
+    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+
   log-symbols@6.0.0:
     resolution: {integrity: sha512-i24m8rpwhmPIS4zscNzK6MSEhk0DUWa/8iYQWxhffV8jkI4Phvs3F+quL5xvS0gdQR0FyTCMMH33Y78dDTzzIw==}
     engines: {node: '>=18'}
@@ -7302,8 +7308,8 @@ packages:
   perfect-debounce@1.0.0:
     resolution: {integrity: sha512-xCy9V055GLEqoFaHoC1SoLIaLmWctgCUaBaWxDZ7/Zx4CTyX7cJQLJOok/orfjZAh9kEYpjJa4d0KcJmCbctZA==}
 
-  perfect-debounce@2.0.0:
-    resolution: {integrity: sha512-fkEH/OBiKrqqI/yIgjR92lMfs2K8105zt/VT6+7eTjNwisrsh47CeIED9z58zI7DfKdH3uHAn25ziRZn3kgAow==}
+  perfect-debounce@2.1.0:
+    resolution: {integrity: sha512-LjgdTytVFXeUgtHZr9WYViYSM/g8MkcTPYDlPa3cDqMirHjKiSZPYd6DoL7pK8AJQr+uWkQvCjHNdiMqsrJs+g==}
 
   pg-cloudflare@1.3.0:
     resolution: {integrity: sha512-6lswVVSztmHiRtD6I8hw4qP/nDm1EJbKMRhf3HCYaqud7frGysPv7FYJ5noZQdhQtN2xJnimfMtvQq21pdbzyQ==}
@@ -9399,16 +9405,17 @@ snapshots:
       '@tanstack/vue-virtual': 3.13.18(vue@3.5.27(typescript@5.9.3))
       vue: 3.5.27(typescript@5.9.3)
 
-  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.90.6(typescript@5.9.3))':
+  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.90.8(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.90.6(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.90.8(typescript@5.9.3)
 
-  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.90.6(typescript@5.9.3))':
+  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.90.8(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.90.6(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.90.8(typescript@5.9.3)
 
-  '@hey-api/codegen-core@0.5.2(typescript@5.9.3)':
+  '@hey-api/codegen-core@0.5.4(typescript@5.9.3)':
     dependencies:
+      '@hey-api/types': 0.1.1
       ansi-colors: 4.1.3
       color-support: 1.1.3
       typescript: 5.9.3
@@ -9418,12 +9425,13 @@ snapshots:
       '@jsdevtools/ono': 7.1.3
       '@types/json-schema': 7.0.15
       js-yaml: 4.1.1
-      lodash: 4.17.21
+      lodash: 4.17.23
 
-  '@hey-api/openapi-ts@0.90.6(typescript@5.9.3)':
+  '@hey-api/openapi-ts@0.90.8(typescript@5.9.3)':
     dependencies:
-      '@hey-api/codegen-core': 0.5.2(typescript@5.9.3)
+      '@hey-api/codegen-core': 0.5.4(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.2
+      '@hey-api/types': 0.1.1
       ansi-colors: 4.1.3
       c12: 3.3.3
       color-support: 1.1.3
@@ -9433,6 +9441,8 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - magicast
+
+  '@hey-api/types@0.1.1': {}
 
   '@hono/node-server@1.19.6(hono@4.10.6)':
     dependencies:
@@ -13116,7 +13126,7 @@ snapshots:
       jiti: 2.6.1
       ohash: 2.0.11
       pathe: 2.0.3
-      perfect-debounce: 2.0.0
+      perfect-debounce: 2.1.0
       pkg-types: 2.3.0
       rc9: 2.1.2
 
@@ -15612,6 +15622,8 @@ snapshots:
 
   lodash@4.17.21: {}
 
+  lodash@4.17.23: {}
+
   log-symbols@6.0.0:
     dependencies:
       chalk: 5.6.2
@@ -16547,7 +16559,7 @@ snapshots:
 
   perfect-debounce@1.0.0: {}
 
-  perfect-debounce@2.0.0: {}
+  perfect-debounce@2.1.0: {}
 
   pg-cloudflare@1.3.0:
     optional: true
