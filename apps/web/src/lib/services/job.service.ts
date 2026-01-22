@@ -664,6 +664,7 @@ export const jobService = (() => {
       },
     });
 
+    // Create job, transaction, and consume credits in a single transaction
     const job = await prisma.$transaction(async (tx) => {
       return await jobRepository.createJob(
         {
