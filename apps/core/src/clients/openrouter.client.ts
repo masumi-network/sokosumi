@@ -9,7 +9,7 @@ export type AgentInfo = {
 };
 
 export const openrouterClient = (() => {
-  const apiKey = getEnv().OPENROUTER_TEXT_API_KEY;
+  const apiKey = getEnv().OPENROUTER_DEFAULT_API_KEY;
   if (!apiKey) {
     return {
       async generateJobName(): Promise<string | null> {

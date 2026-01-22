@@ -38,7 +38,7 @@ const envSchema = z.object({
   REGISTRY_API_KEY: z.string().min(1),
 
   // OpenRouter
-  OPENROUTER_TEXT_API_KEY: z.string().startsWith("sk-or-").optional(),
+  OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
