@@ -64,7 +64,7 @@ export default function ChatMessage({
         >
           <div
             className={cn(
-              "rounded-lg px-3 py-0",
+              "rounded-lg px-3 py-3 min-h-[1.5rem]",
               isUser
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground",
@@ -72,10 +72,10 @@ export default function ChatMessage({
           >
             <div
               className={cn(
-                "prose prose-sm dark:prose-invert max-w-none [&_*]:!leading-none [&_*]:leading-none [&>*]:my-0 [&>p]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0",
+                "prose prose-sm dark:prose-invert max-w-none [&_*]:!leading-none [&_*]:leading-none [&>*]:my-0 [&>p]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&_*]:!m-0",
                 isUser && "prose-invert **:text-primary-foreground",
               )}
-              style={{ lineHeight: "1.2", fontSize: "0.875rem" }}
+              style={{ lineHeight: "1.1", fontSize: "0.875rem" }}
             >
               {content && content.trim() ? (
                 <Markdown>{content}</Markdown>

@@ -1059,16 +1059,20 @@ export default function ChatInterface({
                   }
 
                   return (
-                    <div className="flex gap-4 px-4 py-6">
+                    <div className="flex gap-3 px-4 py-0">
                       <Avatar className="size-8 shrink-0">
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          A
+                          {(() => {
+                            const selectedChat = chats.find(
+                              (c) => c.id === selectedChatId,
+                            );
+                            return selectedChat?.coworker?.name
+                              ? selectedChat.coworker.name.charAt(0).toUpperCase()
+                              : "A";
+                          })()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 space-y-2">
-                        <div className="text-sm font-medium">
-                          {t("assistant")}
-                        </div>
+                      <div className="flex items-center">
                         <div className="flex gap-1">
                           <div className="bg-muted h-2 w-2 animate-pulse rounded-full" />
                           <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-75" />
