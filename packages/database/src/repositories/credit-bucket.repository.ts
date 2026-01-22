@@ -31,7 +31,12 @@ export const creditBucketRepository = {
     const now = new Date();
     return await tx.creditBucket.findMany({
       where: {
-        ...(organizationId ? { organizationId } : { userId }),
+        ...(organizationId ? { 
+          organizationId 
+        } : {
+          userId,
+          organizationId: null,
+        }),
         OR: [
           { expiresAt: null },
           { expiresAt: { gt: now } },
@@ -93,7 +98,12 @@ export const creditBucketRepository = {
     // Get all unexpired buckets
     const buckets = await tx.creditBucket.findMany({
       where: {
-        ...(organizationId ? { organizationId } : { userId }),
+        ...(organizationId ? { 
+          organizationId 
+        } : {
+          userId,
+          organizationId: null,
+        }),
         OR: [
           { expiresAt: null },
           { expiresAt: { gt: now } },
