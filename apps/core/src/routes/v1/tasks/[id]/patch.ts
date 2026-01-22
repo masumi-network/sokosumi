@@ -9,7 +9,6 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   taskSchema,
-  updateTaskRequestSchema,
 } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
@@ -19,6 +18,24 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
+
+export const updateTaskRequestSchema = z
+  .object({
+    name: z.string().min(1).max(120).optional().openapi({
+      example: "Updated task title",
+    }),
+    description: z.string().nullish().optional().openapi({
+      example: "Updated description",
+    }),
+    orchestratorId: z.string().nullish().optional().openapi({ example: "orc_123" }),
+  })
+  .refine(
+    (data) => data.name !== undefined || data.description !== undefined || data.orchestratorId !== undefined,
+    {
+      message: "At least one field must be provided",
+      path: ["name", "description", "orchestratorId"],
+    },
+  );
 
 const route = createRoute({
   method: "patch",

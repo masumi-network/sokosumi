@@ -63,24 +63,6 @@ export const taskSchema = z
 
 export const tasksSchema = z.array(taskSchema).openapi("Tasks");
 
-export const updateTaskRequestSchema = z
-  .object({
-    name: z.string().min(1).max(120).optional().openapi({
-      example: "Updated task title",
-    }),
-    description: z.string().nullish().optional().openapi({
-      example: "Updated description",
-    }),
-    orchestratorId: z.string().nullish().optional().openapi({ example: "orc_123" }),
-  })
-  .refine(
-    (data) => data.name !== undefined || data.description !== undefined || data.orchestratorId !== undefined,
-    {
-      message: "At least one field must be provided",
-      path: ["name", "description", "orchestratorId"],
-    },
-  );
-
 export const createTaskCommentRequestSchema = z.object({
   content: z.string().min(1).openapi({ example: "Looks good." }),
 });
