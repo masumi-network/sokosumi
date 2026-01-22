@@ -63,7 +63,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (task.status !== body.status) {
         await tx.task.update({
-          where: { id },
+          where: { id, status: task.status },
           data: { status: body.status },
         });
       }
