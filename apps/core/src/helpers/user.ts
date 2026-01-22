@@ -4,18 +4,18 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import prisma from "@/lib/db/prisma";
 
 /**
- * Gets credits for a user or organization
+ * Gets credit balance in cents for a user or organization
  *
  * @param userId - The user ID to fetch
  * @param organizationId - Optional organization ID. If provided, returns organization credits; otherwise returns user credits
  * @param tx - Optional Prisma transaction client for transaction support
- * @returns The credits as a number
+ * @returns The credit in cents as a bigint
  */
-export async function getCredits(
+export async function getCents(
   userId: string,
   organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
-): Promise<number> {
+): Promise<bigint> {
   const now = new Date();
 
   // Get all unexpired buckets
@@ -35,7 +35,7 @@ export async function getCredits(
   });
 
   if (buckets.length === 0) {
-    return 0;
+    return 0n;
   }
 
   // Sum all consumptions for these buckets
@@ -55,5 +55,22 @@ export async function getCredits(
 
   const totalConsumed = consumptionSum._sum.amount ?? 0n;
   const cents = totalBucketAmount - totalConsumed;
+  return cents;
+}
+
+/**
+ * Gets credits for a user or organization
+ *
+ * @param userId - The user ID to fetch
+ * @param organizationId - Optional organization ID. If provided, returns organization credits; otherwise returns user credits
+ * @param tx - Optional Prisma transaction client for transaction support
+ * @returns The credits as a number
+ */
+export async function getCredits(
+  userId: string,
+  organizationId: string | null,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<number> {
+  const cents = await getCents(userId, organizationId, tx);
   return convertCentsToCredits(cents);
 }

@@ -23,7 +23,7 @@ import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
 import { badRequest, forbidden, notFound } from "./error";
-import { getCredits } from "./user";
+import { getCents } from "./user";
 
 /**
  * Validates that user or organization has sufficient credit balance
@@ -38,7 +38,7 @@ export async function validateCreditBalance(
     return;
   }
 
-  const centsBalance = await getCredits(userId, organizationId, tx);
+  const centsBalance = await getCents(userId, organizationId, tx);
 
   if (centsBalance < costCents) {
     throw badRequest("Insufficient balance");
