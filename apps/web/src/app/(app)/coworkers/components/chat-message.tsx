@@ -30,6 +30,7 @@ export default function ChatMessage({
     ? formatter.dateTime(createdAt, {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       })
     : null;
 
