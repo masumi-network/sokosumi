@@ -9,6 +9,6 @@ export const taskInclude = {
   },
 } as const;
 
-export type Task = Prisma.TaskGetPayload<{
+export type TaskWithIncludes = Prisma.TaskGetPayload<{
   include: typeof taskInclude;
 }>;

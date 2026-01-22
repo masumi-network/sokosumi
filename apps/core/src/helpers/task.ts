@@ -1,6 +1,6 @@
 import { type Attachment, TaskStatus } from "@sokosumi/database";
 
-import type { Task } from "@/types/task";
+import type { TaskWithIncludes } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
 
@@ -67,7 +67,7 @@ type TaskCommentWithAttachments = {
   attachments: Attachment[];
 };
 
-export function mapTask(task: Task) {
+export function mapTask(task: TaskWithIncludes) {
   return {
     id: task.id,
     createdAt: task.createdAt,
