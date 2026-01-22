@@ -5,17 +5,6 @@ import { dateTimeSchema } from "@/helpers/datetime.js";
 
 import { attachmentSchema } from "./attachment.schema";
 
-
-export const taskActorSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("user"),
-  }),
-  z.object({
-    type: z.literal("orchestrator"),
-    orchestratorId: z.string().openapi({ example: "orc_123" }),
-  }),
-]);
-
 export const orchestratorSchema = z
   .object({
     id: z.string().openapi({ example: "orc_123" }),
