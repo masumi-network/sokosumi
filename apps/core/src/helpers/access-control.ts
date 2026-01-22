@@ -91,6 +91,30 @@ export async function requireUserAccess(
   return user;
 }
 
+/**
+ * Validates task access and fetches the task record
+ * Throws 403 if user doesn't have access to the task, 404 if task doesn't exist
+ *
+ * @param authContext - The authenticated user context
+ * @param taskId - The task ID to fetch and validate
+ * @param status - Optional status to validate
+ * @param tx - Optional Prisma transaction client for transaction support
+ * @returns The validated task with all relations
+ * @throws {forbidden} If user doesn't have access to the task
+ * @throws {notFound} If task doesn't exist
+ * @throws {unprocessableEntity} If task status is not valid
+ *
+ * @example
+ * // In a route handler
+ * const task = await requireTaskAccess(authContext, taskId, status?);
+ *
+ * @example
+ * // With transaction
+ * await prisma.$transaction(async (tx) => {
+ *   const task = await requireTaskAccess(authContext, taskId, status?, tx);
+ *   // ... other operations within transaction
+ * });
+ */
 export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
@@ -107,7 +131,7 @@ export async function requireTaskAccess(
   });
 
   if (!task) {
-    throw forbidden("You can only access your own tasks");
+    throw forbidden("You can only access your own tasks or tasks assigned to your orchestrator");
   }
 
   if (status && task.status !== status) {

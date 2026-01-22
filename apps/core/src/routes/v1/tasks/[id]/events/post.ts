@@ -54,7 +54,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const event = await prisma.$transaction(async (tx) => {
       const task = await requireTaskAccess(authContext, id, undefined, tx);
 
-
       validateStatusTransition(task.status, body.status);
 
       if (task.status !== body.status) {
@@ -71,7 +70,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userId: authContext.orchestratorId ? null : authContext.userId,
           orchestratorId: authContext.orchestratorId ?? null,
           description: body.description ?? null,
-
         },
       });
     });

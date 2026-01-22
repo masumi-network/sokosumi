@@ -27,7 +27,6 @@ export const orchestratorSchema = z
     email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
     image: z.string().nullish().openapi({ example: "https://example.com/logo" }),
-    
   })
   .openapi("Orchestrator");
 
@@ -102,12 +101,6 @@ export const updateTaskRequestSchema = z
 export const createTaskCommentRequestSchema = z.object({
   content: z.string().min(1).openapi({ example: "Looks good." }),
 });
-
-export const updateTaskCommentRequestSchema = z
-  .object({
-    content: z.string().min(1).openapi({ example: "Updated comment" }),
-  });
-  
 
 export const createTaskEventRequestSchema = z.object({
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),

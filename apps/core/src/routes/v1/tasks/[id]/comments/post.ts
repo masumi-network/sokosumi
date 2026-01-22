@@ -52,7 +52,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const comment = await prisma.$transaction(async (tx) => {
       await requireTaskAccess(authContext, id, undefined, tx);
-    
       return tx.taskComment.create({
         data: {
           taskId: id,
