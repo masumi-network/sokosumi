@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -49,10 +48,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
       include: taskInclude
     });
-
-    if (!task) {
-      throw forbidden("You can only delete your own draft or ready tasks");
-    }
 
     return ok(c, mapTask(task));
   });
