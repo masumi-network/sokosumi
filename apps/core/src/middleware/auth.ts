@@ -132,7 +132,6 @@ async function verifyOAuthToken(
     return false;
   }
 
-  // OAuth tokens always have null organizationId
   setAuthContext(c, {
     isAuthenticated: true,
     authContext: {
