@@ -38,7 +38,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
+      await requireTaskAccess(authContext, id, undefined, tx);
       return tx.task.findUnique({
         where: { id },
         include: taskInclude,
@@ -49,6 +49,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Task not found");
     }
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext.userId)));
+    return ok(c, taskSchema.parse(mapTask(task)));
   });
 }

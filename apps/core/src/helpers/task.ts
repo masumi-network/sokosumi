@@ -67,33 +67,32 @@ type TaskCommentWithAttachments = {
   attachments: Attachment[];
 };
 
-export function mapTask(task: Task, userId: string) {
+export function mapTask(task: Task) {
   return {
     id: task.id,
-    userId,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     name: task.name,
     description: task.description ?? null,
     status: task.status,
-    orchestrator: task.orchestrator,
+    userId: task.userId,
+    orchestratorId: task.orchestratorId ?? null,
     _count: {
       comments: task._count.comments,
     },
     attachments: task.attachments.map((attachment) =>
-      mapTaskAttachment(attachment, userId),
+      mapTaskAttachment(attachment),
     ),
   };
 }
 
-export function mapTaskAttachment(attachment: Attachment, userId: string) {
+export function mapTaskAttachment(attachment: Attachment) {
   const { referenceId, referenceType } = getAttachmentReference(attachment);
 
   return {
     id: attachment.id,
     createdAt: attachment.createdAt,
     updatedAt: attachment.updatedAt,
-    userId,
     referenceId,
     referenceType,
     name: attachment.name ?? null,
@@ -103,11 +102,11 @@ export function mapTaskAttachment(attachment: Attachment, userId: string) {
   };
 }
 
-export function mapTaskComment(comment: TaskCommentWithAttachments, userId: string) {
+export function mapTaskComment(comment: TaskCommentWithAttachments) {
   return {
     ...comment,
     attachments: comment.attachments.map((attachment) =>
-      mapTaskAttachment(attachment, userId),
+      mapTaskAttachment(attachment),
     ),
   };
 }

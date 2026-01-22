@@ -1,10 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
-  requireOrchestratorAccess,
   requireTaskAccess,
 } from "@/helpers/access-control";
-import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { validateStatusTransition } from "@/helpers/task";
@@ -52,26 +50,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
-    const actor = body.actor ?? { type: "user" };
 
     const event = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
+      const task = await requireTaskAccess(authContext, id, undefined, tx);
 
-      const task = await tx.task.findUnique({
-        where: { id },
-        select: { status: true, orchestratorId: true },
-      });
-
-      if (!task) {
-        throw notFound("Task not found");
-      }
-
-      if (actor.type === "orchestrator") {
-        await requireOrchestratorAccess(authContext, actor.orchestratorId, tx);
-        if (task.orchestratorId !== actor.orchestratorId) {
-          throw forbidden("Orchestrator does not match task");
-        }
-      }
 
       validateStatusTransition(task.status, body.status);
 
@@ -86,9 +68,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           taskId: id,
           status: body.status,
-          userId: actor.type === "user" ? authContext.userId : null,
-          orchestratorId:
-            actor.type === "orchestrator" ? actor.orchestratorId : null,
+          userId: authContext.orchestratorId ? null : authContext.userId,
+          orchestratorId: authContext.orchestratorId ?? null,
+          description: body.description ?? null,
+
         },
       });
     });

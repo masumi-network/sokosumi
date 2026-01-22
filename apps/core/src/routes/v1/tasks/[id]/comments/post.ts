@@ -1,10 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
-  requireOrchestratorAccess,
   requireTaskAccess,
 } from "@/helpers/access-control";
-import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTaskComment } from "@/helpers/task";
@@ -53,32 +51,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     const comment = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
-      const task = await tx.task.findUnique({
-        where: { id },
-        select: { orchestratorId: true },
-      });
-
-      if (!task) {
-        throw notFound("Task not found");
-      }
-
-      const actor = body.actor ?? { type: "user" };
-
-      if (actor.type === "orchestrator") {
-        await requireOrchestratorAccess(authContext, actor.orchestratorId, tx);
-        if (task.orchestratorId !== actor.orchestratorId) {
-          throw forbidden("Orchestrator does not match task");
-        }
-      }
-
+      await requireTaskAccess(authContext, id, undefined, tx);
+    
       return tx.taskComment.create({
         data: {
           taskId: id,
           content: body.content,
-          userId: actor.type === "user" ? authContext.userId : null,
-          orchestratorId:
-            actor.type === "orchestrator" ? actor.orchestratorId : null,
+          userId: authContext.orchestratorId ? null : authContext.userId,
+          orchestratorId: authContext.orchestratorId ?? null,
         },
         include: { attachments: true },
       });
@@ -86,7 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return created(
       c,
-      taskCommentSchema.parse(mapTaskComment(comment, authContext.userId)),
+      taskCommentSchema.parse(mapTaskComment(comment)),
     );
   });
 }

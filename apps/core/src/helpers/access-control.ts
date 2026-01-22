@@ -1,9 +1,9 @@
-import type { Prisma, User } from "@sokosumi/database";
+import type { Prisma, Task, TaskStatus, User } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 
-import { forbidden, notFound } from "./error";
+import { forbidden, notFound, unprocessableEntity } from "./error";
 
 /**
  * Validates job access and returns the job if valid
@@ -94,33 +94,27 @@ export async function requireUserAccess(
 export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
+  status?: TaskStatus,
   tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
+): Promise<Task> {
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
-      userId: authContext.userId,
+      ...(authContext.orchestratorId
+        ? { orchestratorId: authContext.orchestratorId }
+        : { userId: authContext.userId }),
     },
   });
 
   if (!task) {
     throw forbidden("You can only access your own tasks");
   }
-}
 
-export async function requireOrchestratorAccess(
-  authContext: AuthenticationContext,
-  orchestratorId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const orchestrator = await tx.orchestrator.findFirst({
-    where: {
-      id: orchestratorId,
-      userId: authContext.userId,
-    },
-  });
-
-  if (!orchestrator) {
-    throw forbidden("You can only access your own orchestrators");
+  if (status && task.status !== status) {
+    throw unprocessableEntity(
+      `You can not perform this action on this task. Task is in ${task.status} status, but ${status} is required.`,
+    );
   }
+
+  return task;
 }

@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireTaskAccess } from "@/helpers/access-control";
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -39,16 +38,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const events = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
-
-      const task = await tx.task.findUnique({
-        where: { id },
-        select: { id: true },
-      });
-
-      if (!task) {
-        throw notFound("Task not found");
-      }
+      await requireTaskAccess(authContext, id, undefined, tx);
 
       return tx.taskEvents.findMany({
         where: { taskId: id },

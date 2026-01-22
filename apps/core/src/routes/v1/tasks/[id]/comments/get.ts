@@ -39,7 +39,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const comments = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
+      await requireTaskAccess(authContext, id, undefined, tx);
       return tx.taskComment.findMany({
         where: { taskId: id },
         include: { attachments: true },
@@ -51,7 +51,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       z
         .array(taskCommentSchema)
-        .parse(comments.map((comment) => mapTaskComment(comment, authContext.userId))),
+        .parse(comments.map((comment) => mapTaskComment(comment))),
     );
   });
 }

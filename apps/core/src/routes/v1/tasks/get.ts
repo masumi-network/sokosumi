@@ -61,17 +61,7 @@ const route = withGlobalHeaderParameters(
               userId: "user_123",
               name: "Review onboarding",
               status: TaskStatus.READY,
-              orchestrator: {
-                id: "orc_123",
-                slug: "ops-agent",
-                name: "Ops Agent",
-                url: "https://example.com",
-                email: "ops@example.com",
-                description: "Ops helper",
-                image: "https://example.com/logo",
-                createdAt: "2025-01-01T00:00:00.000Z",
-                updatedAt: "2025-01-01T00:00:00.000Z",
-              },
+              orchestratorId: "orc_123",
               _count: {
                 comments: 2,
               },
@@ -104,9 +94,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const where = {
-      userId: authContext.userId,
+      ...(authContext.orchestratorId
+        ? { orchestratorId: authContext.orchestratorId }
+        : { userId: authContext.userId }),
       ...(status ? { status } : {}),
-      ...(orchestratorId ? { orchestratorId } : {}),
+      // Only allow orchestratorId filter for regular users (not orchestrators)
+      // Orchestrators can only see their own tasks, so we ignore the query parameter
+      ...(orchestratorId && !authContext.orchestratorId
+        ? { orchestratorId }
+        : {}),
     };
 
     const takePlusOne = take + 1;
@@ -125,7 +121,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const hasMore = tasks.length === takePlusOne;
     const mappedTasks = tasks
       .slice(0, take)
-      .map((task) => mapTask(task, authContext.userId));
+      .map((task) => mapTask(task));
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,

@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { requireOrchestratorAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -39,10 +38,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      if (body.orchestratorId) {
-        await requireOrchestratorAccess(authContext, body.orchestratorId, tx);
-      }
-
       return tx.task.create({
         data: {
           userId: authContext.userId,
@@ -54,6 +49,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    return created(c, taskSchema.parse(mapTask(task, authContext.userId)));
+    return created(c, taskSchema.parse(mapTask(task)));
   });
 }

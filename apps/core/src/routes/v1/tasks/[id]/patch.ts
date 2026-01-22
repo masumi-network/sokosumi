@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
 
 import { requireTaskAccess } from "@/helpers/access-control";
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -47,6 +47,7 @@ function buildUpdateData(body: z.infer<typeof updateTaskRequestSchema>) {
   return {
     ...(body.name !== undefined && { name: body.name }),
     ...(body.description !== undefined && { description: body.description }),
+    ...(body.orchestratorId !== undefined && { orchestratorId: body.orchestratorId }),
   };
 }
 
@@ -57,7 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
+      await requireTaskAccess(authContext, id, TaskStatus.DRAFT, tx);
       return tx.task.update({
         where: { id },
         data: buildUpdateData(body),
@@ -65,10 +66,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    if (!task) {
-      throw notFound("Task not found");
-    }
-
-    return ok(c, taskSchema.parse(mapTask(task, authContext.userId)));
+    return ok(c, taskSchema.parse(mapTask(task)));
   });
 }

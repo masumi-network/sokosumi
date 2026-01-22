@@ -36,6 +36,7 @@ export const taskEventSchema = z
     id: z.string().openapi({ example: "evt_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
+    description: z.string().nullish().openapi({ example: "Task Event is running" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
     userId: z.string().nullish().openapi({ example: "user_123" }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
@@ -63,13 +64,12 @@ export const taskSchema = z
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-    orchestrator: orchestratorSchema.nullish(),
+    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
     attachments: z.array(attachmentSchema).openapi({ example: [] }),
     _count: z
       .object({
         comments: z.number().openapi({ example: 2 }),
-      })
-      .openapi({ example: { comments: 2 } }),
+      }),
   })
   .openapi("Task");
 
@@ -89,18 +89,18 @@ export const updateTaskRequestSchema = z
     description: z.string().nullish().optional().openapi({
       example: "Updated description",
     }),
+    orchestratorId: z.string().nullish().optional().openapi({ example: "orc_123" }),
   })
   .refine(
-    (data) => data.name !== undefined || data.description !== undefined,
+    (data) => data.name !== undefined || data.description !== undefined || data.orchestratorId !== undefined,
     {
       message: "At least one field must be provided",
-      path: ["name", "description"],
+      path: ["name", "description", "orchestratorId"],
     },
   );
 
 export const createTaskCommentRequestSchema = z.object({
   content: z.string().min(1).openapi({ example: "Looks good." }),
-  actor: taskActorSchema.optional(),
 });
 
 export const updateTaskCommentRequestSchema = z
@@ -111,5 +111,5 @@ export const updateTaskCommentRequestSchema = z
 
 export const createTaskEventRequestSchema = z.object({
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
-  actor: taskActorSchema.optional(),
+  description: z.string().nullish().openapi({ example: "Task Event is running" }),
 });

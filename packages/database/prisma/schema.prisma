@@ -1008,7 +1008,8 @@ model TaskEvents {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  status TaskStatus
+  description String?
+  status      TaskStatus
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)

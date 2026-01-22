@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireOrchestratorAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -52,11 +51,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
     const orchestrator = await prisma.$transaction(async (tx) => {
-      await requireOrchestratorAccess(authContext, id, tx);
       return tx.orchestrator.findUnique({
         where: { id },
       });

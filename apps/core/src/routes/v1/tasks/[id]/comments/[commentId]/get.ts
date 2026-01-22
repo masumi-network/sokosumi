@@ -42,7 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, commentId } = c.req.valid("param");
 
     const comment = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
+      await requireTaskAccess(authContext, id, undefined, tx);
 
       return tx.taskComment.findFirst({
         where: {
@@ -59,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      taskCommentSchema.parse(mapTaskComment(comment, authContext.userId)),
+      taskCommentSchema.parse(mapTaskComment(comment)),
     );
   });
 }

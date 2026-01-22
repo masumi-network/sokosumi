@@ -9,7 +9,7 @@ import { orchestratorSchema } from "@/schemas/task.schema";
 const route = createRoute({
   method: "get",
   path: "/",
-  description: "List user's orchestrators",
+  description: "List orchestrators",
   tags: ["Orchestrators"],
   responses: {
     200: jsonSuccessResponse(
@@ -29,13 +29,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-
     const orchestrators = await prisma.$transaction(async (tx) => {
       return tx.orchestrator.findMany({
-        where: {
-          userId: authContext.userId,
-        },
         orderBy: {
           createdAt: "desc",
         },
