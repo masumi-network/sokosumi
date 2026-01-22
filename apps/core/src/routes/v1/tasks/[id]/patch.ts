@@ -60,7 +60,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.$transaction(async (tx) => {
       await requireTaskAccess(authContext, id, TaskStatus.DRAFT, tx);
       return tx.task.update({
-        where: { id },
+        where: { id, status: TaskStatus.DRAFT },
         data: buildUpdateData(body),
         include: taskInclude,
       });

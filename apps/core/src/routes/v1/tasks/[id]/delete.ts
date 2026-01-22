@@ -42,7 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await prisma.$transaction(async (tx) => {
       await requireTaskAccess(authContext, id, TaskStatus.DRAFT, tx);
 
-      await tx.task.delete({ where: { id } });
+      await tx.task.delete({ where: { id, status: TaskStatus.DRAFT } });
     });
 
     return ok(c, { id });
