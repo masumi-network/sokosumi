@@ -13,7 +13,7 @@ export type AgentInfo = {
 
 export const openrouterClient = (() => {
   const openrouter = createOpenRouter({
-    apiKey: getEnvSecrets().OPENROUTER_API_KEY,
+    apiKey: getEnvSecrets().OPENROUTER_DEFAULT_API_KEY,
   });
 
   return {
