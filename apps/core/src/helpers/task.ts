@@ -34,7 +34,7 @@ export function validateStatusTransition(
   }
 
   const allowedTransitions: Record<TaskStatus, TaskStatus[]> = {
-    [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.RUNNING],
+    [TaskStatus.DRAFT]: [TaskStatus.READY],
     [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.RUNNING],
     [TaskStatus.INPUT_REQUIRED]: [
       TaskStatus.RUNNING,
