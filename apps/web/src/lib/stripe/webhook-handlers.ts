@@ -14,7 +14,6 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
-import { fireGTMEvent } from "@/lib/gtm-events";
 import { stripeService } from "@/lib/services";
 
 export async function handleInvoicePaidEvent(
@@ -180,11 +179,6 @@ export async function handleInvoicePaidEvent(
       );
     }
   });
-
-  const amount = invoice.amount_paid;
-  const currency = invoice.currency;
-
-  fireGTMEvent.purchase(referenceId, referenceType, totalCredits, amount, currency);
 }
 
 export async function handleCustomerCreatedEvent(
