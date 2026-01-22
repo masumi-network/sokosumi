@@ -53,10 +53,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const orchestrator = await prisma.$transaction(async (tx) => {
-      return tx.orchestrator.findUnique({
-        where: { id },
-      });
+    const orchestrator = await prisma.orchestrator.findUnique({
+      where: { id },
     });
 
     if (!orchestrator) {
