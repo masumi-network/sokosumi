@@ -692,6 +692,8 @@ export const jobService = (() => {
         },
         tx,
       );
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     // Add breadcrumb for purchase creation
