@@ -10,16 +10,6 @@ export interface Price {
   currency: string;
 }
 
-export interface CheckoutSessionData {
-  session_id: string;
-  currency: string | null;
-  items: {
-    item_id: string;
-    item_name: string;
-    quantity: number;
-  }[];
-  value: number;
-}
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
   const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
@@ -210,6 +200,18 @@ export const stripeClient = (() => {
     async getInvoice(invoiceId: string): Promise<Stripe.Invoice> {
       return await stripe.invoices.retrieve(invoiceId, {
         expand: ["lines.data.price.product"],
+      });
+    },
+
+    async getCheckoutSession(
+      sessionId: string,
+    ): Promise<Stripe.Checkout.Session> {
+      return await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: [
+          "line_items",
+          "line_items.data.price.product",
+          "discounts.coupon",
+        ],
       });
     },
 

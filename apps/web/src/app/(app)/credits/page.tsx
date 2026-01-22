@@ -7,6 +7,7 @@ import { stripeClient } from "@/lib/clients";
 import { agentService, userService } from "@/lib/services";
 
 import CreditsCancelModal from "./components/cancel-modal";
+import PurchaseTracker from "./components/purchase-tracker";
 import CreditsSuccessModal from "./components/success-modal";
 
 interface CreditsPageProps {
@@ -25,6 +26,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   const activeOrganization = await userService.getActiveOrganization();
 
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
+  const checkoutSession = session_id ? await stripeClient.getCheckoutSession(session_id) : null;
 
   return (
     <div className="w-full space-y-12 px-2">
@@ -44,6 +46,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
       <div className="max-w-3xl">
         <CreditsForm price={price} organization={activeOrganization} />
         { session_id && <CreditsSuccessModal randomAgentPromise={randomAgentPromise} />}
+        { checkoutSession && <PurchaseTracker checkoutSession={checkoutSession} />}
         {cancel && <CreditsCancelModal />}
       </div>
     </div>
