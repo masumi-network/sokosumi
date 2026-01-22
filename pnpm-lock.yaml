@@ -51,8 +51,8 @@ importers:
         specifier: 0.9.35
         version: 0.9.35(hono@4.11.4)
       '@scalar/openapi-to-markdown':
-        specifier: 0.3.24
-        version: 0.3.24(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
+        specifier: 0.3.25
+        version: 0.3.25(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
       '@sentry/node':
         specifier: 10.35.0
         version: 10.35.0
@@ -2989,8 +2989,8 @@ packages:
     resolution: {integrity: sha512-sr2nV0ngVEw3hUPWISj6t0VRztUIbFqNxZNY8ZwpvYj6YoU99c1cng9+4njxi3d7F7YgbNMPL2PQ2bWQLQEknQ==}
     engines: {node: '>=20'}
 
-  '@scalar/components@0.16.24':
-    resolution: {integrity: sha512-1k9jY8KTdYQpWRNisBHfgmDgT3gORtTQ/lunghYgkrclqiw6Gr2ARx1jCgo4D0QwKrqEUIbZ7Bv9YFdh6/vU+w==}
+  '@scalar/components@0.16.25':
+    resolution: {integrity: sha512-mZ4uabIP/k11rSro1hL7Qs56nPEurFLDReDvnaFMoChZYzz7qlZFA3aRgGUYygnUora3mym6SU0SxXuwLgWfPA==}
     engines: {node: '>=20'}
 
   '@scalar/core@0.3.32':
@@ -3015,8 +3015,8 @@ packages:
     resolution: {integrity: sha512-Oo+AwX+3VtNWmUeCvw7ig+aoWxC1z4YDgA1wpLD8wWUh9eE+txni/7z7Q557da7vY+NPm2r3p1edOrABaiCZ6g==}
     engines: {node: '>=20'}
 
-  '@scalar/oas-utils@0.6.21':
-    resolution: {integrity: sha512-56ZFQSCLCbzwGtS8shITEqjUq0T5cchl4vJtGgdx2GCoU4M51YyJnrh2k+vdcf40KdrOlJgme6MpXQpVeNlYCg==}
+  '@scalar/oas-utils@0.6.22':
+    resolution: {integrity: sha512-7MiVbxLSEm3u54TuBufCB+R8Dvuq3pjvKtRJyPxPELL8KOjm37XnTZo9jVliker+GJGxnAMi/1wD27RNZmx0Zg==}
     engines: {node: '>=20'}
 
   '@scalar/object-utils@1.2.22':
@@ -3027,8 +3027,8 @@ packages:
     resolution: {integrity: sha512-qnx/JNXXmNLF0rzR5MR6qLX+DpMB0q1VX2hsuVVxUxpdbsgJ9VTc5EVhEl9neAxrCr31nh6V99Diz0SvB8GmTQ==}
     engines: {node: '>=20'}
 
-  '@scalar/openapi-to-markdown@0.3.24':
-    resolution: {integrity: sha512-DAHbDvOJ8GmoWzG7uKpMEDczM7fw8agXal5NqwoAl6lVr03m+Zl7DEAHeKfPXxbUeZ0nI/AcD8jgf11wJkX6zA==}
+  '@scalar/openapi-to-markdown@0.3.25':
+    resolution: {integrity: sha512-L8NcSsxezWHrbPh6UNqL3630rvGn9KKhNG8E09ZaOoJBUogh/KbJRAIPHWji4kTKR8WDOquj80SA4lvVMxpTbQ==}
     engines: {node: '>=20'}
 
   '@scalar/openapi-types@0.5.3':
@@ -3062,8 +3062,8 @@ packages:
     resolution: {integrity: sha512-t8QoQO4ZWekiSdJ2O7C+PbXfv7x2fmhv3C7t/iITdNpOyLv4jAhlELGpxQHkWsU0ZwRrLU8e+rV0jJcKWE6vYA==}
     engines: {node: '>=20'}
 
-  '@scalar/workspace-store@0.25.0':
-    resolution: {integrity: sha512-BnnoRmyflNglxXRv30tzLF055smM1eSd9S+dThw88lJgTlH3eE1TgvQts+ylOll9lOYd/6LnXZokQi9N5a1pdA==}
+  '@scalar/workspace-store@0.25.1':
+    resolution: {integrity: sha512-0kwtlwH+1lUO9RSvgUkViT8aj5Mn8+0UvEr3kbvV7aiGC65paWnLSCMRoG5tMDCzDulElgSXfRONK2LSD5C9hw==}
     engines: {node: '>=18'}
 
   '@schummar/icu-type-parser@1.21.5':
@@ -5224,8 +5224,8 @@ packages:
     resolution: {integrity: sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g==}
     engines: {node: '>=0.12'}
 
-  entities@7.0.0:
-    resolution: {integrity: sha512-FDWG5cmEYf2Z00IkYRhbFrwIwvdFKH07uV8dvNy0omp/Qb1xcyCWp2UDtcwJF4QZZvk0sLudP6/hAu42TaqVhQ==}
+  entities@7.0.1:
+    resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
     engines: {node: '>=0.12'}
 
   env-paths@2.2.1:
@@ -6614,6 +6614,9 @@ packages:
 
   lodash-es@4.17.22:
     resolution: {integrity: sha512-XEawp1t0gxSi9x01glktRZ5HDy0HXqrM0x5pXQM98EaI0NxO6jVM7omDOxsuEo5UIASAnm2bRp1Jt/e0a2XU8Q==}
+
+  lodash-es@4.17.23:
+    resolution: {integrity: sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg==}
 
   lodash.memoize@4.1.2:
     resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
@@ -11361,7 +11364,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@scalar/components@0.16.24(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
+  '@scalar/components@0.16.25(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
     dependencies:
       '@floating-ui/utils': 0.2.10
       '@floating-ui/vue': 1.1.9(vue@3.5.27(typescript@5.9.3))
@@ -11369,7 +11372,7 @@ snapshots:
       '@scalar/code-highlight': 0.2.2
       '@scalar/helpers': 0.2.8
       '@scalar/icons': 0.5.2(typescript@5.9.3)
-      '@scalar/oas-utils': 0.6.21(typescript@5.9.3)
+      '@scalar/oas-utils': 0.6.22(typescript@5.9.3)
       '@scalar/themes': 0.13.26
       '@scalar/use-hooks': 0.3.6(typescript@5.9.3)
       '@vueless/storybook-dark-mode': 10.0.6(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))
@@ -11411,7 +11414,7 @@ snapshots:
       '@scalar/helpers': 0.2.8
       yaml: 2.8.2
 
-  '@scalar/oas-utils@0.6.21(typescript@5.9.3)':
+  '@scalar/oas-utils@0.6.22(typescript@5.9.3)':
     dependencies:
       '@scalar/helpers': 0.2.8
       '@scalar/json-magic': 0.9.2
@@ -11419,7 +11422,7 @@ snapshots:
       '@scalar/openapi-types': 0.5.3
       '@scalar/themes': 0.13.26
       '@scalar/types': 0.5.8
-      '@scalar/workspace-store': 0.25.0(typescript@5.9.3)
+      '@scalar/workspace-store': 0.25.1(typescript@5.9.3)
       flatted: 3.3.3
       type-fest: 5.4.1
       yaml: 2.8.2
@@ -11447,11 +11450,11 @@ snapshots:
       leven: 4.1.0
       yaml: 2.8.2
 
-  '@scalar/openapi-to-markdown@0.3.24(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
+  '@scalar/openapi-to-markdown@0.3.25(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)':
     dependencies:
-      '@scalar/components': 0.16.24(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
+      '@scalar/components': 0.16.25(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
       '@scalar/helpers': 0.2.8
-      '@scalar/oas-utils': 0.6.21(typescript@5.9.3)
+      '@scalar/oas-utils': 0.6.22(typescript@5.9.3)
       '@scalar/openapi-parser': 0.24.2
       '@scalar/openapi-types': 0.5.3
       '@scalar/openapi-upgrader': 0.1.7
@@ -11515,7 +11518,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@scalar/workspace-store@0.25.0(typescript@5.9.3)':
+  '@scalar/workspace-store@0.25.1(typescript@5.9.3)':
     dependencies:
       '@scalar/code-highlight': 0.2.2
       '@scalar/helpers': 0.2.8
@@ -12507,7 +12510,7 @@ snapshots:
     dependencies:
       '@babel/parser': 7.28.6
       '@vue/shared': 3.5.27
-      entities: 7.0.0
+      entities: 7.0.1
       estree-walker: 2.0.2
       source-map-js: 1.2.1
 
@@ -12560,7 +12563,7 @@ snapshots:
   '@vueless/storybook-dark-mode@10.0.6(storybook@10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))':
     dependencies:
       '@storybook/global': 5.0.0
-      lodash-es: 4.17.22
+      lodash-es: 4.17.23
       storybook: 10.1.11(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
 
   '@vueuse/core@10.11.1(vue@3.5.27(typescript@5.9.3))':
@@ -13196,7 +13199,7 @@ snapshots:
   chevrotain-allstar@0.3.1(chevrotain@11.0.3):
     dependencies:
       chevrotain: 11.0.3
-      lodash-es: 4.17.22
+      lodash-es: 4.17.23
 
   chevrotain@10.5.0:
     dependencies:
@@ -13565,7 +13568,7 @@ snapshots:
   dagre-d3-es@7.0.13:
     dependencies:
       d3: 7.9.0
-      lodash-es: 4.17.22
+      lodash-es: 4.17.23
 
   damerau-levenshtein@1.0.8: {}
 
@@ -13789,7 +13792,7 @@ snapshots:
 
   entities@6.0.1: {}
 
-  entities@7.0.0: {}
+  entities@7.0.1: {}
 
   env-paths@2.2.1: {}
 
@@ -15605,6 +15608,8 @@ snapshots:
   lodash-es@4.17.21: {}
 
   lodash-es@4.17.22: {}
+
+  lodash-es@4.17.23: {}
 
   lodash.memoize@4.1.2: {}
 
