@@ -98,8 +98,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? { orchestratorId: authContext.orchestratorId }
         : { userId: authContext.userId }),
       ...(status ? { status } : {}),
-      // Only allow orchestratorId filter for regular users (not orchestrators)
-      // Orchestrators can only see their own tasks, so we ignore the query parameter
       ...(orchestratorId && !authContext.orchestratorId
         ? { orchestratorId }
         : {}),
