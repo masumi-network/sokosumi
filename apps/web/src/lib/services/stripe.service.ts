@@ -25,14 +25,19 @@ export const stripeService = (() => {
     organizationId: string | null,
   ): Promise<string | null> {
     if (organizationId) {
-      const organization =
-        await prisma.organization.findUnique({ where: { id: organizationId }, select: { stripeCustomerId: true } });
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { stripeCustomerId: true },
+      });
       if (!organization) {
         throw new Error("Organization not found");
       }
       return organization.stripeCustomerId;
     } else {
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { stripeCustomerId: true } });
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { stripeCustomerId: true },
+      });
       if (!user) {
         throw new Error("User not found");
       }
@@ -194,7 +199,11 @@ export const stripeService = (() => {
       if (!user) {
         return null;
       }
-      return await stripeClient.createUserCustomer(user.id, user.name, user.email);
+      return await stripeClient.createUserCustomer(
+        user.id,
+        user.name,
+        user.email,
+      );
     },
 
     async createStripeCustomerForOrganization(
@@ -208,7 +217,12 @@ export const stripeService = (() => {
       if (!organization) {
         return null;
       }
-      return await stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail);
+      return await stripeClient.createOrganizationCustomer(
+        organization.id,
+        organization.slug,
+        organization.name,
+        organization.invoiceEmail,
+      );
     },
 
     async syncOrganizationInvoiceEmailWithStripe(
@@ -329,8 +343,12 @@ export const stripeService = (() => {
 
         let orgStripeCustomerId = organization.stripeCustomerId;
         if (!orgStripeCustomerId) {
-          const orgCustomer =
-            await stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail);
+          const orgCustomer = await stripeClient.createOrganizationCustomer(
+            organization.id,
+            organization.slug,
+            organization.name,
+            organization.invoiceEmail,
+          );
           if (!orgCustomer) {
             throw new Error("Failed to create organization Stripe customer");
           }

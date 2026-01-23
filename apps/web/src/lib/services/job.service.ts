@@ -371,8 +371,6 @@ export const jobService = (() => {
     }
   }
 
-
-
   /**
    * Generates a job name using AI based on agent information and input data.
    * Returns null if generation fails.
@@ -665,36 +663,39 @@ export const jobService = (() => {
     });
 
     // Create job, transaction, and consume credits in a single transaction
-    const job = await prisma.$transaction(async (tx) => {
-      return await jobRepository.createJob(
-        {
-          jobType: JobType.PAID,
-          agentJobId: startJobResponse.id,
-          agentId,
-          userId,
-          organizationId,
-          input: JSON.stringify(inputData),
-          inputHash: startJobResponse.input_hash,
-          inputSchema: inputSchema,
-          creditsPrice: agentWithCreditsPrice.creditsPrice,
-          identifierFromPurchaser,
-          externalDisputeUnlockTime: new Date(
-            startJobResponse.externalDisputeUnlockTime,
-          ),
-          payByTime: new Date(startJobResponse.payByTime),
-          submitResultTime: new Date(startJobResponse.submitResultTime),
-          unlockTime: new Date(startJobResponse.unlockTime),
-          blockchainIdentifier: startJobResponse.blockchainIdentifier,
-          sellerVkey: startJobResponse.sellerVKey,
-          name: generatedName,
-          jobScheduleId,
-          attachments: uploadedFiles,
-        },
-        tx,
-      );
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
+    const job = await prisma.$transaction(
+      async (tx) => {
+        return await jobRepository.createJob(
+          {
+            jobType: JobType.PAID,
+            agentJobId: startJobResponse.id,
+            agentId,
+            userId,
+            organizationId,
+            input: JSON.stringify(inputData),
+            inputHash: startJobResponse.input_hash,
+            inputSchema: inputSchema,
+            creditsPrice: agentWithCreditsPrice.creditsPrice,
+            identifierFromPurchaser,
+            externalDisputeUnlockTime: new Date(
+              startJobResponse.externalDisputeUnlockTime,
+            ),
+            payByTime: new Date(startJobResponse.payByTime),
+            submitResultTime: new Date(startJobResponse.submitResultTime),
+            unlockTime: new Date(startJobResponse.unlockTime),
+            blockchainIdentifier: startJobResponse.blockchainIdentifier,
+            sellerVkey: startJobResponse.sellerVKey,
+            name: generatedName,
+            jobScheduleId,
+            attachments: uploadedFiles,
+          },
+          tx,
+        );
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
 
     // Add breadcrumb for purchase creation
     Sentry.addBreadcrumb({

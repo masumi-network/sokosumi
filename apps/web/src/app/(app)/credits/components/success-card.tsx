@@ -19,10 +19,7 @@ interface SuccessCardProps {
   children: React.ReactNode;
 }
 
-export default function SuccessCard({
-  className,
-  children,
-}: SuccessCardProps) {
+export default function SuccessCard({ className, children }: SuccessCardProps) {
   const t = useTranslations("App.Credits.Success");
 
   return (

@@ -90,18 +90,20 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user, _ctx) => {
-          stripeClient.createUserCustomer(user.id, user.name, user.email).catch((error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "stripe_user_customer_creation",
-              },
-              extra: {
-                userId: user.id,
-                email: user.email,
-                name: user.name,
-              },
+          stripeClient
+            .createUserCustomer(user.id, user.name, user.email)
+            .catch((error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_user_customer_creation",
+                },
+                extra: {
+                  userId: user.id,
+                  email: user.email,
+                  name: user.name,
+                },
+              });
             });
-          });
           // Validate user data before calling webhook
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
@@ -297,19 +299,26 @@ export const auth = betterAuth({
     organization({
       organizationCreation: {
         afterCreate: async ({ organization }) => {
-          stripeClient.createOrganizationCustomer(organization.id, organization.slug, organization.name, organization.invoiceEmail).catch((error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "stripe_organization_customer_creation",
-              },
-              extra: {
-                organizationId: organization.id,
-                name: organization.name,
-                slug: organization.slug,
-                invoiceEmail: organization.invoiceEmail,
-              },
+          stripeClient
+            .createOrganizationCustomer(
+              organization.id,
+              organization.slug,
+              organization.name,
+              organization.invoiceEmail,
+            )
+            .catch((error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_organization_customer_creation",
+                },
+                extra: {
+                  organizationId: organization.id,
+                  name: organization.name,
+                  slug: organization.slug,
+                  invoiceEmail: organization.invoiceEmail,
+                },
+              });
             });
-          });
         },
       },
       schema: {
@@ -365,7 +374,7 @@ export const auth = betterAuth({
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {
-        enabled: false
+        enabled: false,
       },
       organization: {
         enabled: true,

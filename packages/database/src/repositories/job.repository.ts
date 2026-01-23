@@ -334,7 +334,7 @@ export const jobRepository = {
           data.creditsPrice.cents,
           tx,
         );
-        
+
         const paidJob = await tx.job.create({
           data: {
             ...baseJobData,
@@ -437,7 +437,7 @@ export const jobRepository = {
             },
           }),
         },
-      }
+      },
     };
 
     await tx.job.update({

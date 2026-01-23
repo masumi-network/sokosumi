@@ -34,7 +34,11 @@ export const stripeClient = (() => {
   }
 
   return {
-    async createUserCustomer(userId: string, name: string, email: string): Promise<Stripe.Customer> {
+    async createUserCustomer(
+      userId: string,
+      name: string,
+      email: string,
+    ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create(
         {
           name,
