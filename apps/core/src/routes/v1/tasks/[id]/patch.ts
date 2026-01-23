@@ -1,6 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
+import { requireTaskAccess } from "@/helpers/access-control";
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -73,18 +75,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const task = await prisma.task.update({
-      where: { 
-        id, 
-        ...(authContext.orchestratorId
-          ? { orchestratorId: authContext.orchestratorId }
-          : { userId: authContext.userId }),
-        status: {
-          in: [TaskStatus.DRAFT, TaskStatus.READY],
-        },
-      },
-      data: buildUpdateData(body),
-      include: taskInclude,
+    const task = await prisma.$transaction(async (tx) => {
+      const taskResult = await requireTaskAccess(authContext, id, tx);
+      if (
+        taskResult.status !== TaskStatus.DRAFT &&
+        taskResult.status !== TaskStatus.READY
+      ) {
+        throw forbidden("You can only update draft or ready tasks");
+      }
+      
+      return tx.task.update({
+        where: { id },
+        data: buildUpdateData(body),
+        include: taskInclude,
+      }); 
     });
 
     return ok(c, taskSchema.parse(mapTask(task)));
