@@ -15,6 +15,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "lint:report": "eslint src --report"

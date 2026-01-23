@@ -20,22 +20,22 @@ const params = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-  method: "get",
-  path: "/{id}/input-schema",
-  description: "Get input schema for an agent",
-  tags: ["Agents"],
-  request: {
-    params,
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      inputSchemaSchema,
-      "Retrieve the input schema for an agent",
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
+    method: "get",
+    path: "/{id}/input-schema",
+    description: "Get input schema for an agent",
+    tags: ["Agents"],
+    request: {
+      params,
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        inputSchemaSchema,
+        "Retrieve the input schema for an agent",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      404: jsonErrorResponse("Not Found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
   }),
 );
 
