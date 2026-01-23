@@ -1,4 +1,3 @@
-
 import { SocialProviderId } from "@/lib/schemas/auth";
 
 import { fireEvent } from "./utils";
@@ -76,7 +75,7 @@ export const fireGTMEvent = {
     sessionId: string,
     currency: string | null,
     value: number | null,
-    items: { item_id: string, item_name: string, quantity: number }[],
+    items: { item_id: string; item_name: string; quantity: number | null }[],
   ) {
     fireEvent({
       event: "purchase",

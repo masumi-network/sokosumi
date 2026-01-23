@@ -16,9 +16,8 @@ export interface CheckoutSessionData {
   items: {
     item_id: string;
     item_name: string;
-    quantity: number;
+    quantity: number | null;
   }[];
-  
 }
 
 export default function PurchaseTracker({
@@ -27,14 +26,17 @@ export default function PurchaseTracker({
   // Effect is necessary: Analytics tracking when component is displayed
   // Fires once on mount to track purchase conversion
   useEffect(() => {
-    const { session_id, currency, value, items } = mapCheckoutSession(checkoutSession);
+    const { session_id, currency, value, items } =
+      mapCheckoutSession(checkoutSession);
     fireGTMEvent.purchase(session_id, currency, value, items);
   }, [checkoutSession]);
 
   return null;
 }
 
-function mapCheckoutSession(session: Stripe.Checkout.Session): CheckoutSessionData {
+function mapCheckoutSession(
+  session: Stripe.Checkout.Session,
+): CheckoutSessionData {
   const lineItems = session.line_items?.data ?? [];
   const items = lineItems
     .map((item) => {
