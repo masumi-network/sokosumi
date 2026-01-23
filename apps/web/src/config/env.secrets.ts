@@ -39,6 +39,11 @@ const envSecretsSchema = z.object({
     .transform((val: string) => val.trim().toLowerCase() === "true")
     .default(false),
 
+  MAINTENANCE_MODE: z
+    .string()
+    .transform((val: string) => val.trim().toLowerCase() === "true")
+    .default(false),
+
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),

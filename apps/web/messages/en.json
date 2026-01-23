@@ -1650,6 +1650,11 @@
     "message": "The page you're trying to access might have been removed, had its name changed, or is temporarily unavailable.",
     "returnHome": "Return Home"
   },
+  "Maintenance": {
+    "title": "Maintenance Mode",
+    "description": "We're currently performing maintenance",
+    "message": "We're working hard to improve your experience. Please check back soon."
+  },
   "Library": {
     "Auth": {
       "Schema": {
