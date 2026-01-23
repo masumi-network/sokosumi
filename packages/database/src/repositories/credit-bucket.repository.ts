@@ -1,7 +1,4 @@
-import type {
-  CreditBucket,
-  Prisma,
-} from "../generated/prisma/client.js";
+import type { CreditBucket, Prisma } from "../generated/prisma/client.js";
 
 interface Consumption {
   bucketId: string;
@@ -31,52 +28,21 @@ export const creditBucketRepository = {
     const now = new Date();
     return await tx.creditBucket.findMany({
       where: {
-        ...(organizationId ? { 
-          organizationId 
-        } : {
-          userId,
-          organizationId: null,
-        }),
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: now } },
-        ],
+        ...(organizationId
+          ? {
+              organizationId,
+            }
+          : {
+              userId,
+              organizationId: null,
+            }),
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
       orderBy: [
         { expiresAt: { sort: "asc", nulls: "last" } },
         { createdAt: "asc" },
       ],
     });
-  },
-
-  /**
-   * Calculate the available balance for a specific bucket.
-   * Available balance = bucket.amount - sum(consumptions for this bucket).
-   *
-   * @param bucketId - The ID of the credit bucket.
-   * @param tx - The Prisma transaction client to use for database operations.
-   * @returns The available balance in cents as a bigint.
-   */
-  async getBalanceForBucket(
-    bucketId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<bigint> {
-    const bucket = await tx.creditBucket.findUnique({
-      where: { id: bucketId },
-      select: { amount: true },
-    });
-
-    if (!bucket) {
-      return BigInt(0);
-    }
-
-    const consumptionSum = await tx.creditConsumption.aggregate({
-      where: { bucketId },
-      _sum: { amount: true },
-    });
-
-    const consumed = consumptionSum._sum.amount ?? BigInt(0);
-    return bucket.amount - consumed;
   },
 
   /**
@@ -98,16 +64,15 @@ export const creditBucketRepository = {
     // Get all unexpired buckets
     const buckets = await tx.creditBucket.findMany({
       where: {
-        ...(organizationId ? { 
-          organizationId 
-        } : {
-          userId,
-          organizationId: null,
-        }),
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: now } },
-        ],
+        ...(organizationId
+          ? {
+              organizationId,
+            }
+          : {
+              userId,
+              organizationId: null,
+            }),
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
       select: {
         id: true,
@@ -133,7 +98,7 @@ export const creditBucketRepository = {
       (sum, bucket) => sum + bucket.amount,
       BigInt(0),
     );
-    
+
     const totalConsumed = consumptionSum._sum.amount ?? BigInt(0);
     return totalBucketAmount - totalConsumed;
   },
@@ -159,11 +124,7 @@ export const creditBucketRepository = {
     }
 
     // Get buckets in FIFO order
-    const buckets = await this.getUnexpiredBuckets(
-      userId,
-      organizationId,
-      tx,
-    );
+    const buckets = await this.getUnexpiredBuckets(userId, organizationId, tx);
 
     const consumptions: Consumption[] = [];
     let remaining = cents;
@@ -174,7 +135,7 @@ export const creditBucketRepository = {
       }
 
       // Calculate available balance for this bucket
-      const available = await this.getBalanceForBucket(bucket.id, tx);
+      const available = await getBalanceForBucket(bucket, tx);
 
       if (available <= BigInt(0)) {
         continue; // Skip empty buckets
@@ -197,3 +158,24 @@ export const creditBucketRepository = {
     return consumptions;
   },
 };
+
+/**
+ * Calculate the available balance for a specific bucket.
+ * Available balance = bucket.amount - sum(consumptions for this bucket).
+ *
+ * @param bucket - The credit bucket.
+ * @param tx - The Prisma transaction client to use for database operations.
+ * @returns The available balance in cents as a bigint.
+ */
+async function getBalanceForBucket(
+  bucket: CreditBucket,
+  tx: Prisma.TransactionClient,
+): Promise<bigint> {
+  const consumptionSum = await tx.creditConsumption.aggregate({
+    where: { bucketId: bucket.id },
+    _sum: { amount: true },
+  });
+
+  const consumed = consumptionSum._sum.amount ?? BigInt(0);
+  return bucket.amount - consumed;
+}
