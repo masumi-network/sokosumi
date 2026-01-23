@@ -8,7 +8,6 @@
  * Validation: sum(bucket.amount) - sum(consumption.amount) = sum(transaction.amount)
  */
 
-
 import "dotenv/config";
 
 import { createPrismaClient } from "../../../src/client.js";
@@ -98,7 +97,9 @@ async function main() {
   console.log(`Created ${bucketsCreated} buckets`);
 
   // Phase 2: Process negative transactions (spends) and create consumptions
-  console.log("Phase 2: Processing negative transactions and creating consumptions...");
+  console.log(
+    "Phase 2: Processing negative transactions and creating consumptions...",
+  );
 
   // Get all negative transactions ordered chronologically
   const negativeTransactions = await prisma.transaction.findMany({
@@ -117,7 +118,9 @@ async function main() {
     },
   });
 
-  console.log(`Found ${negativeTransactions.length} negative transactions to process`);
+  console.log(
+    `Found ${negativeTransactions.length} negative transactions to process`,
+  );
 
   let consumptionsCreated = 0;
   let totalConsumed = BigInt(0);
@@ -130,12 +133,15 @@ async function main() {
       const now = new Date();
       const buckets = await prisma.creditBucket.findMany({
         where: {
-          userId: transaction.userId,
-          organizationId: transaction.organizationId ?? null,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: now } },
-          ],
+          ...(transaction.organizationId
+            ? {
+                organizationId: transaction.organizationId,
+              }
+            : {
+                userId: transaction.userId,
+                organizationId: null,
+              }),
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         },
         orderBy: [
           { expiresAt: { sort: "asc", nulls: "last" } },
@@ -195,10 +201,7 @@ async function main() {
         );
       }
     } catch (error) {
-      console.error(
-        `Error processing transaction ${transaction.id}:`,
-        error,
-      );
+      console.error(`Error processing transaction ${transaction.id}:`, error);
       throw error;
     }
   }
@@ -230,7 +233,9 @@ async function main() {
 
   console.log(`Total bucket amount: ${totalBuckets}`);
   console.log(`Total consumption amount: ${totalConsumptions}`);
-  console.log(`Calculated balance (buckets - consumptions): ${calculatedBalance}`);
+  console.log(
+    `Calculated balance (buckets - consumptions): ${calculatedBalance}`,
+  );
   console.log(`Expected balance (sum of transactions): ${expectedBalance}`);
 
   if (calculatedBalance !== expectedBalance) {
@@ -238,7 +243,9 @@ async function main() {
       `⚠️  Validation warning: Calculated balance (${calculatedBalance}) does not match expected balance (${expectedBalance}). Difference: ${calculatedBalance - expectedBalance}`,
     );
   } else {
-    console.log("✅ Validation passed: Calculated balance matches expected balance");
+    console.log(
+      "✅ Validation passed: Calculated balance matches expected balance",
+    );
   }
 
   console.log("Credit bucket data migration completed!");
