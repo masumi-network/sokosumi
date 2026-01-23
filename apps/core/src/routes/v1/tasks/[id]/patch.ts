@@ -79,10 +79,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(authContext.orchestratorId
           ? { orchestratorId: authContext.orchestratorId }
           : { userId: authContext.userId }),
-        OR: [
-          { status: TaskStatus.DRAFT },
-          { status: TaskStatus.READY },
-        ],
+        status: {
+          in: [TaskStatus.DRAFT, TaskStatus.READY],
+        },
       },
       data: buildUpdateData(body),
       include: taskInclude,
