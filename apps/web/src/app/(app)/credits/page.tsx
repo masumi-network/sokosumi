@@ -26,7 +26,10 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   const activeOrganization = await userService.getActiveOrganization();
 
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
-  const checkoutSession = session_id ? await stripeClient.getCheckoutSession(session_id) : null;
+
+  const checkoutSession = session_id
+    ? await stripeClient.getCheckoutSession(session_id).catch(() => null)
+    : null;
 
   return (
     <div className="w-full space-y-12 px-2">
@@ -45,8 +48,12 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
       </div>
       <div className="max-w-3xl">
         <CreditsForm price={price} organization={activeOrganization} />
-        { session_id && <CreditsSuccessModal randomAgentPromise={randomAgentPromise} />}
-        { checkoutSession && <PurchaseTracker checkoutSession={checkoutSession} />}
+        {session_id && (
+          <CreditsSuccessModal randomAgentPromise={randomAgentPromise} />
+        )}
+        {checkoutSession && (
+          <PurchaseTracker checkoutSession={checkoutSession} />
+        )}
         {cancel && <CreditsCancelModal />}
       </div>
     </div>
