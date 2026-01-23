@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "json-canonicalize": "2.0.0",
-    "zod": "4.3.5",
+    "zod": "4.3.6",
     "neverthrow": "8.2.0"
   },
   "devDependencies": {
