@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemberRole } from "@sokosumi/database";
+import { CreditBucketReferenceType, MemberRole } from "@sokosumi/database";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -14,7 +14,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
-import { stripeService } from "@/lib/services/stripe.service";
+import { stripeService } from "@/lib/services";
 
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
@@ -89,7 +89,7 @@ export async function handleInvoicePaidEvent(
   }
 
   // Get the allowed product ID and its default price
-  const allowedProductId = getEnvSecrets().STRIPE_PRODUCT_ID;
+  const allowedProductId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
 
   // Ensure invoice has line items
   const lineItems = invoice.lines?.data;
@@ -112,38 +112,60 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  if (totalCredits === 0) {
-    throw new Error(`No valid line items found for invoice ${invoiceId}`);
+  if (totalCredits <= 0) {
+    throw new Error(
+      `Invalid total credits ${totalCredits} for invoice ${invoiceId}`,
+    );
   }
 
   const cents = convertCreditsToCents(totalCredits);
   const referenceId = invoiceId;
-  const referenceType = "STRIPE_INVOICE";
+  const referenceType: CreditBucketReferenceType = "STRIPE_INVOICE";
 
-  await prisma.transaction.upsert({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
-        referenceType,
+  // Check if bucket already exists (idempotent check)
+  await prisma.$transaction(async (tx) => {
+    const existingBucket = await tx.creditBucket.findUnique({
+      where: {
+        referenceId_referenceType: {
+          referenceId,
+          referenceType,
+        },
       },
-    },
-    create: {
-      amount: cents,
-      user: { connect: { id: userId } },
-      ...(organizationId && {
-        organization: { connect: { id: organizationId } },
-      }),
-      referenceId,
-      referenceType,
-    },
-    update: {
-      amount: cents,
-    },
-  });
+      include: {
+        sourceTransaction: true,
+      },
+    });
 
-  console.log(
-    `✅ Processed invoice ${invoiceId}: Created transaction with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
-  );
+    if (existingBucket) {
+      console.log(
+        `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
+      );
+    } else {
+      // Create new transaction and bucket
+      await tx.transaction.create({
+        data: {
+          amount: cents,
+          user: { connect: { id: userId } },
+          ...(organizationId && {
+            organization: { connect: { id: organizationId } },
+          }),
+          sourceCreditBucket: {
+            create: {
+              amount: cents,
+              expiresAt: null,
+              referenceId,
+              referenceType,
+              userId,
+              organizationId,
+            },
+          },
+        },
+      });
+      console.log(
+        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+      );
+    }
+  });
 }
 
 export async function handleCustomerCreatedEvent(
@@ -167,15 +189,18 @@ export async function handleCustomerCreatedEvent(
           `✅ Claimed welcome coupon for user ${userId}, invoice: ${invoiceId}`,
         );
       } else {
-        console.log(
-          `⚠️ Failed to claim welcome coupon for user ${userId}`,
-        );
+        console.log(`⚠️ Failed to claim welcome coupon for user ${userId}`);
       }
       break;
     }
     case "organization": {
-      await prisma.organization.update({ where: { id: metadata.organizationId }, data: { stripeCustomerId: customer.id } });
-      console.log(`✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`);
+      await prisma.organization.update({
+        where: { id: metadata.organizationId },
+        data: { stripeCustomerId: customer.id },
+      });
+      console.log(
+        `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
+      );
       break;
     }
     default: {

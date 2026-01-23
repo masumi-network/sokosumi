@@ -18,10 +18,7 @@ import {
 import { createSchedule } from "@/lib/actions/job-schedule";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
-import {
-  JobInputsFormSchemaType,
-  prepareInputValues,
-} from "@/lib/job-input";
+import { JobInputsFormSchemaType, prepareInputValues } from "@/lib/job-input";
 import { AgentDemoValues } from "@/lib/types/agent";
 import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
 

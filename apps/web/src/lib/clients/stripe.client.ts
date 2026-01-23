@@ -10,16 +10,6 @@ export interface Price {
   currency: string;
 }
 
-export interface CheckoutSessionData {
-  session_id: string;
-  currency: string | null;
-  items: {
-    item_id: string;
-    item_name: string;
-    quantity: number;
-  }[];
-  value: number;
-}
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
   const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
@@ -44,7 +34,11 @@ export const stripeClient = (() => {
   }
 
   return {
-    async createUserCustomer(userId: string, name: string, email: string): Promise<Stripe.Customer> {
+    async createUserCustomer(
+      userId: string,
+      name: string,
+      email: string,
+    ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create(
         {
           name,
@@ -225,49 +219,6 @@ export const stripeClient = (() => {
       });
     },
 
-    /**
-     * Get the data for a checkout session.
-     * This is used for Google Tag Manager to track the checkout session.
-     *
-     * - session: the checkout session
-     * - items: the line items with the product name and quantity
-     * - value: the total amount of the checkout session in the currency of the checkout session
-     */
-    async getCheckoutSessionData(id: string): Promise<CheckoutSessionData> {
-      const session = await this.getCheckoutSession(id);
-      const lineItems = session.line_items?.data ?? [];
-      const items = lineItems
-        .map((item) => {
-          if (
-            item.price?.product &&
-            typeof item.price.product === "object" &&
-            "id" in item.price.product &&
-            "name" in item.price.product
-          ) {
-            return {
-              item_id: item.price.product.id,
-              item_name: item.price.product.name,
-              quantity: item.quantity,
-            };
-          }
-        })
-        .filter(Boolean) as {
-        item_id: string;
-        item_name: string;
-        quantity: number;
-      }[];
-      // NOTE:
-      // we only allow support for USD for now
-      const value = (session.amount_total ?? 0) / 100;
-
-      return {
-        session_id: session.id,
-        currency: session.currency,
-        items,
-        value,
-      };
-    },
-
     async createCheckoutSession(
       stripeCustomerId: string,
       userId: string,
@@ -329,7 +280,7 @@ export const stripeClient = (() => {
       metadata?: Record<string, string>,
       referralCount: number = 1,
     ): Promise<Stripe.Invoice> {
-      const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
+      const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
       const price = await this.getPriceByProductId(productId);
 
       // Validate coupon and compute quantity of credits
