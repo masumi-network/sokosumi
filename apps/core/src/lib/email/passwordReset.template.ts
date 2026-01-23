@@ -77,4 +77,3 @@ export function renderPasswordResetTemplate({
 </html>
   `.trim();
 }
-

@@ -1,16 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  requireTaskAccess,
-} from "@/helpers/access-control";
+import { requireTaskAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTaskComment } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  taskCommentSchema,
-} from "@/schemas/task.schema";
+import { taskCommentSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -57,7 +53,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireTaskAccess(authContext, id, tx);
       return tx.taskComment.create({
         data: {
-          taskId: id,
+          task: {
+            connect: {
+              id,
+            },
+          },
           content: body.content,
           userId: authContext.orchestratorId ? null : authContext.userId,
           orchestratorId: authContext.orchestratorId ?? null,
@@ -66,9 +66,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    return created(
-      c,
-      taskCommentSchema.parse(mapTaskComment(comment)),
-    );
+    return created(c, taskCommentSchema.parse(mapTaskComment(comment)));
   });
 }
