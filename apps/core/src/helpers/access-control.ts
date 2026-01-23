@@ -104,15 +104,15 @@ export async function requireUserAccess(
  * @throws {forbidden} If user does not have access to the task
  *
  * @example
- * const task = await requireTaskAccess(authContext, taskId);
+ * const task = await requireUserTaskAccess(authContext, taskId);
  *
  * @example
  * await prisma.$transaction(async (tx) => {
- *   const task = await requireTaskAccess(authContext, taskId, tx);
+ *   const task = await requireUserTaskAccess(authContext, taskId, tx);
  *   // ... additional operations
  * });
  */
-export async function requireTaskAccess(
+export async function requireUserTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
