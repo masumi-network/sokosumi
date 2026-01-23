@@ -31,8 +31,18 @@ export async function proxy(request: NextRequest) {
 
   // Check maintenance mode - redirect to /maintenance if enabled
   const isMaintenanceMode = getEnvSecrets().MAINTENANCE_MODE;
-  if (isMaintenanceMode && pathname !== "/maintenance") {
-    return NextResponse.redirect(new URL("/maintenance", request.url));
+  if (isMaintenanceMode) {
+    if (pathname.startsWith("/api")) {
+      return NextResponse.json(
+        { error: "Service is under maintenance" },
+        { status: 503 },
+      );
+    }
+    if (pathname !== "/maintenance") {
+      return NextResponse.redirect(new URL("/maintenance", request.url), {
+        status: 503,
+      });
+    }
   }
 
   const isApiV1Path = pathname.startsWith("/api/v1");
