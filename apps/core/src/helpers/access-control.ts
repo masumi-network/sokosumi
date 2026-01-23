@@ -1,4 +1,4 @@
-import type { Prisma, Task, User } from "@sokosumi/database";
+import type { Prisma, User } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -117,8 +117,8 @@ export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  const task = await tx.task.findFirst({
+): Promise<void> {
+  const task = await tx.task.findUnique({
     where: {
       id: taskId,
       ...(authContext.orchestratorId
@@ -128,7 +128,9 @@ export async function requireTaskAccess(
   });
 
   if (!task) {
-    throw forbidden("You can only access your own tasks or tasks assigned to your orchestrator");
+    throw forbidden(
+      "You can only access your own tasks or tasks assigned to your orchestrator",
+    );
   }
 
   return task;
