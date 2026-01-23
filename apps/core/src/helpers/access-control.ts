@@ -32,7 +32,7 @@ export async function requireJobAccess(
   authContext: AuthenticationContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
+): Promise<Job> {
   const job = await tx.job.findFirst({
     where: {
       OR: [
@@ -47,6 +47,7 @@ export async function requireJobAccess(
       "You can only access your own jobs or jobs shared with your organization",
     );
   }
+  return job;
 }
 
 /**
@@ -117,7 +118,7 @@ export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Task | null> {
+): Promise<Task> {
   const task = await tx.task.findUnique({
     where: {
       id: taskId,
