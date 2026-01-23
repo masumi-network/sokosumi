@@ -11,7 +11,7 @@ CREATE TABLE "credit_bucket" (
     "referenceId" TEXT,
     "referenceType" "CreditBucketReferenceType",
     "sourceTransactionId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "userId" TEXT,
     "organizationId" TEXT,
 
     CONSTRAINT "credit_bucket_pkey" PRIMARY KEY ("id")

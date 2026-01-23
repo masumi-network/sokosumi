@@ -498,8 +498,8 @@ model CreditBucket {
   sourceTransaction   Transaction @relation("CreditBucketSource", fields: [sourceTransactionId], references: [id], onDelete: Cascade)
 
   // User/Organization ownership
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
