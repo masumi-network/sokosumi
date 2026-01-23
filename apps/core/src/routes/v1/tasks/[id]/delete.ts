@@ -40,10 +40,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
+      const taskResult = await requireTaskAccess(authContext, id, tx);
       if (
-        task.status !== TaskStatus.DRAFT &&
-        task.status !== TaskStatus.READY
+        taskResult.status !== TaskStatus.DRAFT &&
+        taskResult.status !== TaskStatus.READY
       ) {
         throw forbidden("You can only delete draft or ready tasks");
       }
