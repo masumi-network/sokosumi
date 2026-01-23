@@ -5,6 +5,7 @@ import { requireTaskAccess } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskSchema } from "@/schemas/task.schema";
