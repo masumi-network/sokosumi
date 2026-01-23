@@ -39,9 +39,7 @@ export async function proxy(request: NextRequest) {
       );
     }
     if (pathname !== "/maintenance") {
-      return NextResponse.redirect(new URL("/maintenance", request.url), {
-        status: 503,
-      });
+      return NextResponse.redirect(new URL("/maintenance", request.url));
     }
   }
 
