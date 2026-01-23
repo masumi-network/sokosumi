@@ -69,7 +69,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const commentsWithCount = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, undefined, tx);
+      await requireTaskAccess(authContext, id, tx);
 
       const takePlusOne = take + 1;
 

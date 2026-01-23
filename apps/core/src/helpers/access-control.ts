@@ -1,9 +1,9 @@
-import type { Prisma, Task, TaskStatus, User } from "@sokosumi/database";
+import type { Prisma, Task, User } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 
-import { forbidden, notFound, unprocessableEntity } from "./error";
+import { forbidden, notFound } from "./error";
 
 /**
  * Validates job access and returns the job if valid
@@ -118,7 +118,6 @@ export async function requireUserAccess(
 export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
-  status?: TaskStatus,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   const task = await tx.task.findFirst({
@@ -132,12 +131,6 @@ export async function requireTaskAccess(
 
   if (!task) {
     throw forbidden("You can only access your own tasks or tasks assigned to your orchestrator");
-  }
-
-  if (status && task.status !== status) {
-    throw unprocessableEntity(
-      `You can not perform this action on this task. Task is in ${task.status} status, but ${status} is required.`,
-    );
   }
 
   return task;

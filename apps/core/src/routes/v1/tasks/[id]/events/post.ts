@@ -57,7 +57,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     const event = await prisma.$transaction(async (tx) => {
-      const task = await requireTaskAccess(authContext, id, undefined, tx);
+      const task = await requireTaskAccess(authContext, id, tx);
 
       validateStatusTransition(task.status, body.status);
 

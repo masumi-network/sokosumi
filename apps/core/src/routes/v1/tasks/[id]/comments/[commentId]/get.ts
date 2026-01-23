@@ -42,7 +42,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, commentId } = c.req.valid("param");
 
     const comment = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, undefined, tx);
+      await requireTaskAccess(authContext, id, tx);
 
       return tx.taskComment.findFirst({
         where: {

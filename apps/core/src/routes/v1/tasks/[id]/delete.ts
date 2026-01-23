@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import { requireTaskAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -38,13 +37,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    const task = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, TaskStatus.DRAFT, tx);
-
-      return await tx.task.delete({
-        where: { id, status: TaskStatus.DRAFT },
-        include: taskInclude,
-      });
+    //Only the owner of the task can delete it
+    const task = await prisma.task.delete({ 
+      where: { 
+        id, 
+        userId: authContext.userId,
+        OR: [
+          { status: TaskStatus.DRAFT },
+          { status: TaskStatus.READY },
+        ],
+      },
+      include: taskInclude
     });
 
     return ok(c, taskSchema.parse(mapTask(task)));
