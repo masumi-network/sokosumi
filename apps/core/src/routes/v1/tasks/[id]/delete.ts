@@ -1,12 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import { notFound } from "@/helpers/error";
+import { requireTaskAccess } from "@/helpers/access-control";
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { taskSchema } from "@/schemas/task.schema";
+import { taskInclude, taskSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -36,24 +37,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    //Only the owner of the task can delete it
-    const task = await prisma.task.deleteMany({ 
-      where: { 
-        id, 
-        ...(authContext.orchestratorId
-          ? { orchestratorId: authContext.orchestratorId }
-          : { userId: authContext.userId }),
-        OR: [
-          { status: TaskStatus.DRAFT },
-          { status: TaskStatus.READY },
-        ],
-      },
+    const task = await prisma.$transaction(async (tx) => {
+      await requireTaskAccess(authContext, id, tx);
+      if (
+        task.status !== TaskStatus.DRAFT &&
+        task.status !== TaskStatus.READY
+      ) {
+        throw forbidden("You can only delete draft or ready tasks");
+      }
+      return tx.task.delete({
+        where: { id },
+        include: taskInclude,
+      });
     });
 
-    if (task.count === 0) {
-      throw notFound("Task not found");
-    }
-
-    return ok(c, { id });
+    return ok(c, taskSchema.parse(mapTask(task)));
   });
 }
