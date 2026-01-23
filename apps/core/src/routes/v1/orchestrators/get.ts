@@ -30,12 +30,10 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     // Note: This endpoint is public to all authenticated users
-    const orchestrators = await prisma.$transaction(async (tx) => {
-      return tx.orchestrator.findMany({
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
+    const orchestrators = await prisma.orchestrator.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     return ok(c, z.array(orchestratorSchema).parse(orchestrators));
