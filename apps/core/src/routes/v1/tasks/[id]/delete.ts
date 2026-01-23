@@ -1,13 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskSchema } from "@/schemas/task.schema";
-import { taskInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -38,18 +37,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     //Only the owner of the task can delete it
-    const task = await prisma.task.delete({ 
+    const task = await prisma.task.deleteMany({ 
       where: { 
         id, 
         userId: authContext.userId,
+        ...(authContext.orchestratorId
+          ? { orchestratorId: authContext.orchestratorId }
+          : { userId: authContext.userId }),
         OR: [
           { status: TaskStatus.DRAFT },
           { status: TaskStatus.READY },
         ],
       },
-      include: taskInclude
     });
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    if (task.count === 0) {
+      throw notFound("Task not found");
+    }
+
+    return ok(c, { id });
   });
 }
