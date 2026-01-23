@@ -40,7 +40,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.task.deleteMany({ 
       where: { 
         id, 
-        userId: authContext.userId,
         ...(authContext.orchestratorId
           ? { orchestratorId: authContext.orchestratorId }
           : { userId: authContext.userId }),
