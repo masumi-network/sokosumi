@@ -53,41 +53,41 @@ const requestBodySchema = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-  method: "post",
-  path: "/{id}/inputs",
-  description: "Provide input for a job awaiting input",
-  tags: ["Jobs"],
-  request: {
-    params,
-    body: {
-      content: {
-        "application/json": {
-          schema: requestBodySchema,
+    method: "post",
+    path: "/{id}/inputs",
+    description: "Provide input for a job awaiting input",
+    tags: ["Jobs"],
+    request: {
+      params,
+      body: {
+        content: {
+          "application/json": {
+            schema: requestBodySchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(jobInputSchema, "Input provided successfully", {
-      data: {
-        id: "cmi4gmksz000104l8wps8p7fp",
-        input: '{"prompt":"How many planets are in the solar system?"}',
-        inputHash: "input_hash",
-        signature: "signature",
-      },
-      meta: {
-        timestamp: "2025-01-15T12:00:00.000Z",
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-      },
-    }),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict - Input already provided"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
+    responses: {
+      201: jsonSuccessResponse(jobInputSchema, "Input provided successfully", {
+        data: {
+          id: "cmi4gmksz000104l8wps8p7fp",
+          input: '{"prompt":"How many planets are in the solar system?"}',
+          inputHash: "input_hash",
+          signature: "signature",
+        },
+        meta: {
+          timestamp: "2025-01-15T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+      }),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict - Input already provided"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
   }),
 );
 

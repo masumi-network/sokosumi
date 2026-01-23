@@ -29,34 +29,34 @@ const inputRequestSchema = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-  method: "get",
-  path: "/{id}/input-request",
-  description: "Get pending input request for a job",
-  tags: ["Jobs"],
-  request: {
-    params,
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      inputRequestSchema,
-      "Retrieve input request by ID",
-      {
-        data: {
-          id: "input_request_123",
-          message: "How many planets are in the solar system?",
-          inputSchema: "input_schema",
+    method: "get",
+    path: "/{id}/input-request",
+    description: "Get pending input request for a job",
+    tags: ["Jobs"],
+    request: {
+      params,
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        inputRequestSchema,
+        "Retrieve input request by ID",
+        {
+          data: {
+            id: "input_request_123",
+            message: "How many planets are in the solar system?",
+            inputSchema: "input_schema",
+          },
+          meta: {
+            timestamp: "2025-01-15T12:00:00.000Z",
+            requestId: "550e8400-e29b-41d4-a716-446655440000",
+          },
         },
-        meta: {
-          timestamp: "2025-01-15T12:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
-      },
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
   }),
 );
 
