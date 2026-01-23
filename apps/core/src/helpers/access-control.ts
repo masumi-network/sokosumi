@@ -170,3 +170,37 @@ export async function requireOrchestratorTaskAccess(
   }
   return task;
 }
+
+/**
+ * Validates access to a task based on the authentication context (user or orchestrator)
+ * and fetches the task record. Directs to the appropriate access control depending
+ * on whether the request comes from a user or an orchestrator.
+ *
+ * Throws 403 if the authenticated user or orchestrator does not have access to the task.
+ *
+ * @param authContext - The authentication context of the current user or orchestrator
+ * @param taskId - The ID of the task to fetch and validate
+ * @param tx - Optional Prisma transaction client for transaction support (defaults to main Prisma client)
+ * @returns The validated task if access is permitted
+ * @throws {notFound} If the task does not exist
+ * @throws {forbidden} If the user or orchestrator does not have access to the task
+ *
+ * @example
+ * const task = await requireTaskAccess(authContext, taskId);
+ *
+ * @example
+ * await prisma.$transaction(async (tx) => {
+ *   const task = await requireTaskAccess(authContext, taskId, tx);
+ *   // ... additional operations
+ * });
+ */
+export async function requireTaskAccess(
+  authContext: AuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  if (authContext.orchestratorId) {
+    return await requireOrchestratorTaskAccess(authContext, taskId, tx);
+  }
+  return await requireUserTaskAccess(authContext, taskId, tx);
+}
