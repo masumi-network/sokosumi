@@ -93,25 +93,23 @@ export async function requireUserAccess(
 
 /**
  * Validates task access and fetches the task record
- * Throws 403 if user doesn't have access to the task, 404 if task doesn't exist
+ * Throws 403 if user doesn't have access to the task
  *
  * @param authContext - The authenticated user context
  * @param taskId - The task ID to fetch and validate
- * @param status - Optional status to validate
  * @param tx - Optional Prisma transaction client for transaction support
  * @returns The validated task with all relations
  * @throws {forbidden} If user doesn't have access to the task
- * @throws {notFound} If task doesn't exist
- * @throws {unprocessableEntity} If task status is not valid
+
  *
  * @example
  * // In a route handler
- * const task = await requireTaskAccess(authContext, taskId, status?);
+ * const task = await requireTaskAccess(authContext, taskId);
  *
  * @example
  * // With transaction
  * await prisma.$transaction(async (tx) => {
- *   const task = await requireTaskAccess(authContext, taskId, status?, tx);
+ *   const task = await requireTaskAccess(authContext, taskId, tx);
  *   // ... other operations within transaction
  * });
  */
