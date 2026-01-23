@@ -40,6 +40,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const body = c.req.valid("json");
 
+    if (authContext.orchestratorId) {
+      throw forbidden("An orchestrator cannot create tasks");
+    }
+
     const task = await prisma.$transaction(async (tx) => {
       return tx.task.create({
         data: {
