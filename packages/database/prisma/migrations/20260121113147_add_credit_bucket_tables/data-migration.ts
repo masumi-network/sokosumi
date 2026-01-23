@@ -130,7 +130,7 @@ async function main() {
 
     try {
       // Get all buckets for this user/organization in FIFO order
-      const now = new Date();
+      const now = transaction.createdAt;
       const buckets = await prisma.creditBucket.findMany({
         where: {
           ...(transaction.organizationId
