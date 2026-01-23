@@ -3,7 +3,7 @@
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { Suspense, use } from "react";
+import { Suspense } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import {
@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckoutSessionData } from "@/lib/clients";
 
 import RandomAgentCard from "./random-agent-card";
 import SuccessCard, {
@@ -22,7 +21,6 @@ import SuccessCard, {
 } from "./success-card";
 
 interface CreditsSuccessModalProps {
-  checkoutSessionPromise: Promise<CheckoutSessionData>;
   randomAgentPromise: Promise<{
     agent: AgentWithCreditsPrice;
     averageExecutionDuration: number | null;
@@ -64,17 +62,12 @@ function CreditsSuccessModalInner(props: CreditsSuccessModalProps) {
 }
 
 function SuccessCardContentInner({
-  checkoutSessionPromise,
   randomAgentPromise,
 }: CreditsSuccessModalProps) {
   const t = useTranslations("App.Credits.Success");
-  const checkoutSession = use(checkoutSessionPromise);
 
   return (
-    <SuccessCard
-      checkoutSession={checkoutSession}
-      className="bg-background flex min-h-svh w-svw flex-col rounded-none p-2 md:min-h-auto md:w-auto md:rounded-xl md:p-4"
-    >
+    <SuccessCard className="bg-background flex min-h-svh w-svw flex-col rounded-none p-2 md:min-h-auto md:w-auto md:rounded-xl md:p-4">
       <h1 className="text-foreground text-center text-lg font-light md:text-2xl">
         {t("getStarted")}
       </h1>

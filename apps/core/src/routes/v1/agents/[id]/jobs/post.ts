@@ -186,6 +186,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
+        // Create job, transaction, and consume credits in a single transaction
         job = await createJobWithPayment(
           {
             agentId,

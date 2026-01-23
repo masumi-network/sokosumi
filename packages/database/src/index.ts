@@ -34,7 +34,7 @@
 export * from "./generated/prisma/browser.js";
 
 // Explicitly re-export Prisma namespace for better discoverability
-export type { Prisma } from "./generated/prisma/browser.js";
+export { Prisma } from "./generated/prisma/browser.js";
 
 // Export additional model-related types
 export * from "./generated/prisma/models.js";

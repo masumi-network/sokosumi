@@ -484,9 +484,6 @@ importers:
       prettier-plugin-tailwindcss:
         specifier: 0.7.2
         version: 0.7.2(prettier@3.8.1)
-      prisma:
-        specifier: 7.3.0
-        version: 7.3.0(@types/react@19.2.9)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
       puppeteer:
         specifier: 24.34.0
         version: 24.34.0(typescript@5.9.3)

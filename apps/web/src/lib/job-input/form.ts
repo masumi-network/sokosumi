@@ -83,9 +83,7 @@ export type JobInputsFormSchemaType = z.infer<
  * @param values - InputSchemaType
  * @returns InputSchemaType
  */
-function serializeInputValues(
-  values: InputSchemaType,
-): InputSchemaType {
+function serializeInputValues(values: InputSchemaType): InputSchemaType {
   return Object.fromEntries(
     Object.entries(values).map(([key, value]) => {
       if (value instanceof Date) {
@@ -93,9 +91,12 @@ function serializeInputValues(
       }
 
       if (Array.isArray(value)) {
-        return [key, value.map((item) =>
-          item instanceof Date ? item.toISOString() : item,
-        ) as InputSchemaType[string]];
+        return [
+          key,
+          value.map((item) =>
+            item instanceof Date ? item.toISOString() : item,
+          ) as InputSchemaType[string],
+        ];
       }
 
       return [key, value];
@@ -125,9 +126,7 @@ function serializeInputValues(
  * // Result: { name: "John", age: 25 }
  * ```
  */
-function filterOutNullValues(
-  values: JobInputsFormSchemaType,
-): InputSchemaType {
+function filterOutNullValues(values: JobInputsFormSchemaType): InputSchemaType {
   return Object.fromEntries(
     Object.entries(values).filter(
       ([_, value]) => value !== null && value !== undefined,
@@ -141,12 +140,13 @@ function filterOutNullValues(
  * @param values - JobInputsFormSchemaType
  * @returns InputSchemaType
  */
-export function prepareInputValues(values: JobInputsFormSchemaType): InputSchemaType {
-
+export function prepareInputValues(
+  values: JobInputsFormSchemaType,
+): InputSchemaType {
   const filteredValues = filterOutNullValues(values);
   const serializedValues = serializeInputValues(filteredValues);
   return serializedValues;
-};
+}
 
 /**
  * Type guard to check if a value is a valid InputSchemaType value.
