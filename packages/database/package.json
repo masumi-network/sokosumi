@@ -55,9 +55,8 @@
     "prisma:studio": "pnpm exec prisma studio",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "migrate:credit-bucket": "pnpm exec tsx prisma/migrations/20260121113147_add_credit_bucket_tables/data-migration.ts"
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\""
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.3.0",

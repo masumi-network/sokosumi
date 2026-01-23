@@ -28,43 +28,43 @@ const params = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-  method: "get",
-  path: "/{id}",
-  description: "Get job details by ID",
-  tags: ["Jobs"],
-  request: {
-    params,
-  },
-  responses: {
-    200: jsonSuccessResponse(jobSchema, "Retrieve job by ID", {
-      data: {
-        id: "cmi4gmksz000104l8wps8p7fp",
-        createdAt: "2025-01-15T10:30:00.000Z",
-        updatedAt: "2025-01-15T10:35:00.000Z",
-        agentId: "agent_123",
-        userId: "user_123",
-        organizationId: "organization_123",
-        name: "Research Task",
-        jobType: JobType.PAID,
-        status: SokosumiJobStatus.COMPLETED,
-        completedAt: "2025-01-15T10:35:00.000Z",
-        credits: 5,
-        input: '{"prompt":"How many planets are in the solar system?"}',
-        inputHash: "input_hash_123",
-        inputSchema: "input_schema_123",
-        result: "# Answer\n\nThere are 8 planets in the solar system.",
-        resultHash: "result_hash_123",
-      },
-      meta: {
-        timestamp: "2025-01-15T12:00:00.000Z",
-        requestId: "550e8400-e29b-41d4-a716-446655440000",
-      },
-    }),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
+    method: "get",
+    path: "/{id}",
+    description: "Get job details by ID",
+    tags: ["Jobs"],
+    request: {
+      params,
+    },
+    responses: {
+      200: jsonSuccessResponse(jobSchema, "Retrieve job by ID", {
+        data: {
+          id: "cmi4gmksz000104l8wps8p7fp",
+          createdAt: "2025-01-15T10:30:00.000Z",
+          updatedAt: "2025-01-15T10:35:00.000Z",
+          agentId: "agent_123",
+          userId: "user_123",
+          organizationId: "organization_123",
+          name: "Research Task",
+          jobType: JobType.PAID,
+          status: SokosumiJobStatus.COMPLETED,
+          completedAt: "2025-01-15T10:35:00.000Z",
+          credits: 5,
+          input: '{"prompt":"How many planets are in the solar system?"}',
+          inputHash: "input_hash_123",
+          inputSchema: "input_schema_123",
+          result: "# Answer\n\nThere are 8 planets in the solar system.",
+          resultHash: "result_hash_123",
+        },
+        meta: {
+          timestamp: "2025-01-15T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+      }),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
   }),
 );
 
