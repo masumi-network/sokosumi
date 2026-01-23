@@ -23,27 +23,23 @@ const route = createRoute({
     params: paramsSchema,
   },
   responses: {
-    200: jsonSuccessResponse(
-      orchestratorSchema,
-      "Retrieve orchestrator",
-      {
-        data: {
-          id: "orc_123",
-          slug: "ops-agent",
-          name: "Ops Agent",
-          url: "https://example.com",
-          email: "ops@example.com",
-          description: "Ops helper",
-          image: "https://example.com/logo",
-          createdAt: "2025-01-01T00:00:00.000Z",
-          updatedAt: "2025-01-01T00:00:00.000Z",
-        },
-        meta: {
-          timestamp: "2025-01-01T00:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
+    200: jsonSuccessResponse(orchestratorSchema, "Retrieve orchestrator", {
+      data: {
+        id: "orc_123",
+        slug: "ops-agent",
+        name: "Ops Agent",
+        url: "https://example.com",
+        email: "ops@example.com",
+        description: "Ops helper",
+        image: "https://example.com/logo",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        updatedAt: "2025-01-01T00:00:00.000Z",
       },
-    ),
+      meta: {
+        timestamp: "2025-01-01T00:00:00.000Z",
+        requestId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+    }),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },

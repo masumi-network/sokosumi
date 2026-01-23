@@ -15,7 +15,10 @@ export const orchestratorSchema = z
     url: z.string().nullish().openapi({ example: "https://example.com" }),
     email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
-    image: z.string().nullish().openapi({ example: "https://example.com/logo" }),
+    image: z
+      .string()
+      .nullish()
+      .openapi({ example: "https://example.com/logo" }),
   })
   .openapi("Orchestrator");
 
@@ -24,7 +27,10 @@ export const taskEventSchema = z
     id: z.string().openapi({ example: "evt_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    description: z.string().nullish().openapi({ example: "Task Event is running" }),
+    description: z
+      .string()
+      .nullish()
+      .openapi({ example: "Task Event is running" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
     userId: z.string().nullish().openapi({ example: "user_123" }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
@@ -54,10 +60,9 @@ export const taskSchema = z
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
     attachments: z.array(attachmentSchema).openapi({ example: [] }),
-    _count: z
-      .object({
-        comments: z.number().openapi({ example: 2 }),
-      }),
+    _count: z.object({
+      comments: z.number().openapi({ example: 2 }),
+    }),
   })
   .openapi("Task");
 

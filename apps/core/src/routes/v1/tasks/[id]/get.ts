@@ -37,7 +37,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.task.findFirst({
-      where: { 
+      where: {
         id,
         ...(authContext.orchestratorId
           ? { orchestratorId: authContext.orchestratorId }

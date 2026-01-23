@@ -5,9 +5,7 @@ import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  taskSchema,
-} from "@/schemas/task.schema";
+import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z.object({
@@ -48,13 +46,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userId: authContext.userId,
           name: body.name,
           description: body.description ?? null,
-          orchestratorId: authContext.orchestratorId ?? body.orchestratorId ?? null,
-          },
-          include: taskInclude,
-        });
+          orchestratorId:
+            authContext.orchestratorId ?? body.orchestratorId ?? null,
+        },
+        include: taskInclude,
       });
+    });
 
-      return created(c, taskSchema.parse(mapTask(task)));
-    },
-  );
+    return created(c, taskSchema.parse(mapTask(task)));
+  });
 }

@@ -57,9 +57,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Task comment not found");
     }
 
-    return ok(
-      c,
-      taskCommentSchema.parse(mapTaskComment(comment)),
-    );
+    return ok(c, taskCommentSchema.parse(mapTaskComment(comment)));
   });
 }
