@@ -60,22 +60,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       validateStatusTransition(task.status, body.status);
 
-      const updatedTask = await tx.task.update({
-        where: { id, status: task.status },
+      // Create the event first
+      const event = await tx.taskEvent.create({
         data: {
+          taskId: id,
           status: body.status,
-          events: {
-            create: {
-              status: body.status,
-              description: body.description ?? null,
-              userId: authContext.orchestratorId ? null : authContext.userId,
-              orchestratorId: authContext.orchestratorId ?? null,
-            },
-          },
+          description: body.description ?? null,
+          userId: authContext.orchestratorId ? null : authContext.userId,
+          orchestratorId: authContext.orchestratorId ?? null,
         },
-        include: { events: { orderBy: { createdAt: "desc" } } },
       });
-      return updatedTask.events.at(0);
+
+      // Then update the task
+      if (task.status !== body.status) {
+        await tx.task.update({
+          where: { id, status: task.status },
+          data: {
+            status: body.status,
+          },
+        });
+      }
+      return event;
     });
 
     return created(c, taskEventSchema.parse(event));
