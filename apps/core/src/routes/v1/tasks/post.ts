@@ -50,8 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userId: authContext.userId,
           name: body.name,
           description: body.description ?? null,
-          orchestratorId:
-            authContext.orchestratorId ?? body.orchestratorId ?? null,
+          orchestratorId: body.orchestratorId ?? null,
         },
         include: taskInclude,
       });
