@@ -112,8 +112,10 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  if (totalCredits === 0) {
-    throw new Error(`No valid line items found for invoice ${invoiceId}`);
+  if (totalCredits <= 0) {
+    throw new Error(
+      `Invalid total credits ${totalCredits} for invoice ${invoiceId}`,
+    );
   }
 
   const cents = convertCreditsToCents(totalCredits);
@@ -156,7 +158,7 @@ export async function handleInvoicePaidEvent(
               userId,
               organizationId,
             },
-          }
+          },
         },
       });
       console.log(
@@ -187,15 +189,18 @@ export async function handleCustomerCreatedEvent(
           `✅ Claimed welcome coupon for user ${userId}, invoice: ${invoiceId}`,
         );
       } else {
-        console.log(
-          `⚠️ Failed to claim welcome coupon for user ${userId}`,
-        );
+        console.log(`⚠️ Failed to claim welcome coupon for user ${userId}`);
       }
       break;
     }
     case "organization": {
-      await prisma.organization.update({ where: { id: metadata.organizationId }, data: { stripeCustomerId: customer.id } });
-      console.log(`✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`);
+      await prisma.organization.update({
+        where: { id: metadata.organizationId },
+        data: { stripeCustomerId: customer.id },
+      });
+      console.log(
+        `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
+      );
       break;
     }
     default: {
