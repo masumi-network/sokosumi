@@ -1,4 +1,4 @@
-import type { Prisma, User } from "@sokosumi/database";
+import type { Prisma, Task, User } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -117,7 +117,7 @@ export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
+): Promise<Task | null> {
   const task = await tx.task.findUnique({
     where: {
       id: taskId,
