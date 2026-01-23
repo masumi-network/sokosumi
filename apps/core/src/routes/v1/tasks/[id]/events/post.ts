@@ -75,7 +75,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         include: { events: { orderBy: { createdAt: "desc" } } },
       });
-      return updatedTask.events.at(-1);
+      return updatedTask.events.at(0);
     });
 
     return created(c, taskEventSchema.parse(event));
