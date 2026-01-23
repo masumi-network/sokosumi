@@ -128,7 +128,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.3",
-    "@hey-api/openapi-ts": "0.90.8",
+    "@hey-api/openapi-ts": "0.90.9",
     "@happy-dom/jest-environment": "20.3.4",
     "@noble/hashes": "2.0.1",
     "@swc/core": "1.15.10",

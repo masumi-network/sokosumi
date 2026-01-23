@@ -58,7 +58,7 @@
     "neverthrow": "8.2.0"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.90.8",
+    "@hey-api/openapi-ts": "0.90.9",
     "@types/jest": "30.0.0",
     "@types/node": "24.10.4",
     "jest": "30.2.0",
