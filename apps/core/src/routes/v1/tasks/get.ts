@@ -119,9 +119,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const mappedTasks = tasks
-      .slice(0, take)
-      .map((task) => mapTask(task));
+    const mappedTasks = tasks.slice(0, take).map((task) => mapTask(task));
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,
@@ -130,10 +128,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor,
     );
 
-    return ok(
-      c,
-      z.array(taskSchema).parse(mappedTasks),
-      paginationMeta,
-    );
+    return ok(c, z.array(taskSchema).parse(mappedTasks), paginationMeta);
   });
 }

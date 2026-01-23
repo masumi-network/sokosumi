@@ -1,17 +1,13 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import {
-  requireTaskAccess,
-} from "@/helpers/access-control";
+import { requireTaskAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { validateStatusTransition } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  taskEventSchema,
-} from "@/schemas/task.schema";
+import { taskEventSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -22,7 +18,10 @@ const paramsSchema = z.object({
 
 export const createTaskEventRequestSchema = z.object({
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
-  description: z.string().nullish().openapi({ example: "Task Event is running" }),
+  description: z
+    .string()
+    .nullish()
+    .openapi({ example: "Task Event is running" }),
 });
 
 const route = createRoute({
@@ -61,22 +60,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       validateStatusTransition(task.status, body.status);
 
-      if (task.status !== body.status) {
-        await tx.task.update({
-          where: { id },
-          data: { status: body.status },
-        });
-      }
-
-      return tx.taskEvents.create({
+      const updatedTask = await tx.task.update({
+        where: { id, status: task.status },
         data: {
-          taskId: id,
           status: body.status,
-          userId: authContext.orchestratorId ? null : authContext.userId,
-          orchestratorId: authContext.orchestratorId ?? null,
-          description: body.description ?? null,
+          events: {
+            create: {
+              status: body.status,
+              description: body.description ?? null,
+              userId: authContext.orchestratorId ? null : authContext.userId,
+              orchestratorId: authContext.orchestratorId ?? null,
+            },
+          },
         },
+        include: { events: { orderBy: { createdAt: "desc" } } },
       });
+      return updatedTask.events.at(-1);
     });
 
     return created(c, taskEventSchema.parse(event));

@@ -8,9 +8,7 @@ import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  taskSchema,
-} from "@/schemas/task.schema";
+import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -28,10 +26,17 @@ export const updateTaskRequestSchema = z
     description: z.string().nullish().optional().openapi({
       example: "Updated description",
     }),
-    orchestratorId: z.string().nullish().optional().openapi({ example: "orc_123" }),
+    orchestratorId: z
+      .string()
+      .nullish()
+      .optional()
+      .openapi({ example: "orc_123" }),
   })
   .refine(
-    (data) => data.name !== undefined || data.description !== undefined || data.orchestratorId !== undefined,
+    (data) =>
+      data.name !== undefined ||
+      data.description !== undefined ||
+      data.orchestratorId !== undefined,
     {
       message: "At least one field must be provided",
       path: ["name", "description", "orchestratorId"],
@@ -65,7 +70,9 @@ function buildUpdateData(body: z.infer<typeof updateTaskRequestSchema>) {
   return {
     ...(body.name !== undefined && { name: body.name }),
     ...(body.description !== undefined && { description: body.description }),
-    ...(body.orchestratorId !== undefined && { orchestratorId: body.orchestratorId }),
+    ...(body.orchestratorId !== undefined && {
+      orchestratorId: body.orchestratorId,
+    }),
   };
 }
 

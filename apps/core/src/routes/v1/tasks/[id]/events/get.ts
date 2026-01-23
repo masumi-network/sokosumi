@@ -23,10 +23,7 @@ const route = createRoute({
     params: paramsSchema,
   },
   responses: {
-    200: jsonSuccessResponse(
-      z.array(taskEventSchema),
-      "Retrieve task events",
-    ),
+    200: jsonSuccessResponse(z.array(taskEventSchema), "Retrieve task events"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },
