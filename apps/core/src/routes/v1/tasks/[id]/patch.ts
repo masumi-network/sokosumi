@@ -1,8 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
 
-import { requireTaskAccess } from "@/helpers/access-control";
-import { forbidden } from "@/helpers/error";
+import { requireUserTaskAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -18,30 +16,15 @@ const paramsSchema = z.object({
   }),
 });
 
-export const updateTaskRequestSchema = z
-  .object({
-    name: z.string().min(1).max(120).optional().openapi({
-      example: "Updated task title",
-    }),
-    description: z.string().nullish().optional().openapi({
-      example: "Updated description",
-    }),
-    orchestratorId: z
-      .string()
-      .nullish()
-      .optional()
-      .openapi({ example: "orc_123" }),
-  })
-  .refine(
-    (data) =>
-      data.name !== undefined ||
-      data.description !== undefined ||
-      data.orchestratorId !== undefined,
-    {
-      message: "At least one field must be provided",
-      path: ["name", "description", "orchestratorId"],
-    },
-  );
+export const patchTaskRequestSchema = z.object({
+  name: z.string().min(1).max(120).openapi({
+    example: "Updated task title",
+  }),
+  description: z.string().optional().openapi({
+    example: "Updated description",
+  }),
+  orchestratorId: z.string().optional().openapi({ example: "orc_123" }),
+});
 
 const route = createRoute({
   method: "patch",
@@ -53,7 +36,7 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: updateTaskRequestSchema,
+          schema: patchTaskRequestSchema,
         },
       },
     },
@@ -66,16 +49,6 @@ const route = createRoute({
   },
 });
 
-function buildUpdateData(body: z.infer<typeof updateTaskRequestSchema>) {
-  return {
-    ...(body.name !== undefined && { name: body.name }),
-    ...(body.description !== undefined && { description: body.description }),
-    ...(body.orchestratorId !== undefined && {
-      orchestratorId: body.orchestratorId,
-    }),
-  };
-}
-
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
@@ -83,19 +56,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
-      const taskResult = await requireTaskAccess(authContext, id, tx);
-      if (
-        taskResult.status !== TaskStatus.DRAFT &&
-        taskResult.status !== TaskStatus.READY
-      ) {
-        throw forbidden("You can only update draft or ready tasks");
-      }
-      
+      await requireUserTaskAccess(authContext, id, tx);
+
       return tx.task.update({
         where: { id },
-        data: buildUpdateData(body),
+        data: {
+          name: body.name,
+          description: body.description,
+          orchestratorId: body.orchestratorId ?? null,
+        },
         include: taskInclude,
-      }); 
+      });
     });
 
     return ok(c, taskSchema.parse(mapTask(task)));
