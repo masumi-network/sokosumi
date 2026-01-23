@@ -129,9 +129,11 @@ export async function requireTaskAccess(
   });
 
   if (!task) {
-    throw forbidden(
-      "You can only access your own tasks or tasks assigned to your orchestrator",
-    );
+    if (authContext.orchestratorId) {
+      throw forbidden("You can only access tasks assigned to you");
+    } else {
+      throw forbidden("You can only access your own tasks");
+    }
   }
 
   return task;
