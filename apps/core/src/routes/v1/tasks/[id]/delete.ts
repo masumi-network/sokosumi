@@ -39,6 +39,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
+    if (authContext.orchestratorId) {
+      throw forbidden("Orchestrators cannot delete tasks");
+    }
+
     const task = await prisma.$transaction(async (tx) => {
       const taskResult = await requireUserTaskAccess(authContext, id, tx);
       if (
