@@ -26,13 +26,13 @@
     "@hono/zod-openapi": "1.2.0",
     "@openrouter/ai-sdk-provider": "2.0.0",
     "@scalar/hono-api-reference": "0.9.35",
-    "@scalar/openapi-to-markdown": "0.3.25",
+    "@scalar/openapi-to-markdown": "0.3.26",
     "@sentry/node": "10.36.0",
     "@sentry/profiling-node": "10.36.0",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.0.0",
-    "ai": "6.0.42",
+    "ai": "6.0.48",
     "better-auth": "1.4.17",
     "better-auth-localization": "2.2.3",
     "dotenv": "17.2.3",
@@ -43,7 +43,7 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "24.10.4",
+    "@types/node": "24.10.9",
     "tsup": "8.5.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
