@@ -23,7 +23,7 @@ import { taskInclude } from "@/types/task";
 const query = z
   .object({
     status: z
-      .nativeEnum(TaskStatus)
+      .enum(TaskStatus)
       .optional()
       .openapi({
         param: { name: "status", in: "query" },
