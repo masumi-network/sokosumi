@@ -37,7 +37,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const events = await prisma.$transaction(async (tx) => {
       await requireTaskAccess(authContext, id, tx);
 
-      return tx.taskEvents.findMany({
+      return tx.taskEvent.findMany({
         where: { taskId: id },
         orderBy: { createdAt: "asc" },
       });
