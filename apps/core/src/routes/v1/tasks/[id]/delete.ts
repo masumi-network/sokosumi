@@ -30,7 +30,6 @@ const route = createRoute({
     200: jsonSuccessResponse(taskSchema, "Delete task"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
