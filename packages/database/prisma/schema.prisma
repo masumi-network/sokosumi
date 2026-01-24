@@ -61,9 +61,8 @@ model User {
   orchestrators Orchestrator[]
 
   // Tasks
-  tasks        Task[]
-  taskComments TaskComment[]
-  taskEvents   TaskEvents[]
+  tasks      Task[]
+  taskEvents TaskEvent[]
 
   // Credit Buckets
   creditBuckets CreditBucket[]
@@ -783,19 +782,10 @@ model Attachment {
   mimeType String? // Optional - MIME type
   size     BigInt? // Optional - file size in bytes
 
-  // Polymorphic relations - exactly one should be set
-  jobInputId String?
-  jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
-
-  taskId String?
-  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  taskCommentId String?
-  taskComment   TaskComment? @relation(fields: [taskCommentId], references: [id], onDelete: Cascade)
+  jobInputId String
+  jobInput   JobInput @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
 
   @@index([jobInputId])
-  @@index([taskId])
-  @@index([taskCommentId])
   @@map("attachment")
 }
 
@@ -1023,9 +1013,8 @@ model Orchestrator {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tasks        Task[]
-  taskComments TaskComment[]
-  taskEvents   TaskEvents[]
+  tasks      Task[]
+  taskEvents TaskEvent[]
 
   @@map("orchestrator")
 }
@@ -1040,15 +1029,13 @@ model Task {
 
   name        String
   description String?
-  attachments Attachment[]
 
   status TaskStatus @default(DRAFT)
 
   orchestratorId String?
   orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
-  comments TaskComment[]
-  events   TaskEvents[]
+  events TaskEvent[]
 
   @@map("task")
 }
@@ -1062,13 +1049,16 @@ enum TaskStatus {
   FAILED
 }
 
-model TaskEvents {
+model TaskEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  description String?
-  status      TaskStatus
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  status  TaskStatus?
+  comment String?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1076,28 +1066,5 @@ model TaskEvents {
   orchestratorId String?
   orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@map("taskEvents")
-}
-
-model TaskComment {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  content     String
-  attachments Attachment[]
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  orchestratorId String?
-  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
-
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@map("taskComment")
+  @@map("taskEvent")
 }
