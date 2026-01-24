@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
 
+import { badRequest } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -95,6 +96,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     let where: Prisma.TaskWhereInput;
     if (authContext.orchestratorId) {
+      if (status === TaskStatus.DRAFT) {
+        throw badRequest(
+          "Orchestrators cannot filter by DRAFT status. DRAFT tasks are not accessible to orchestrators.",
+        );
+      }
       where = {
         orchestratorId: authContext.orchestratorId,
         ...(status ? { status } : {}),
