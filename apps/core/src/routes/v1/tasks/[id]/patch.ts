@@ -22,10 +22,10 @@ export const patchTaskRequestSchema = z.object({
   name: z.string().min(1).max(120).openapi({
     example: "Updated task title",
   }),
-  description: z.string().optional().openapi({
+  description: z.string().nullable().openapi({
     example: "Updated description",
   }),
-  orchestratorId: z.string().optional().openapi({ example: "orc_123" }),
+  orchestratorId: z.string().nullable().openapi({ example: "orc_123" }),
 });
 
 const route = createRoute({
@@ -76,7 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name: body.name,
           description: body.description,
-          orchestratorId: body.orchestratorId ?? null,
+          orchestratorId: body.orchestratorId,
         },
         include: taskInclude,
       });
