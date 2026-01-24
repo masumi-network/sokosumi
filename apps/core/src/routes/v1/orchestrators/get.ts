@@ -9,7 +9,7 @@ import { orchestratorSchema } from "@/schemas/task.schema";
 const route = createRoute({
   method: "get",
   path: "/",
-  description: "Publicly list orchestrators",
+  description: "List availableorchestrators",
   tags: ["Orchestrators"],
   responses: {
     200: jsonSuccessResponse(
