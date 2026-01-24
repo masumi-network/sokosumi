@@ -21,9 +21,12 @@ export const createTaskEventRequestSchema = z
   .object({
     status: z
       .enum(TaskStatus)
-      .nullish()
+      .optional()
       .openapi({ example: TaskStatus.RUNNING }),
-    comment: z.string().nullish().openapi({ example: "Task Event is running" }),
+    comment: z
+      .string()
+      .optional()
+      .openapi({ example: "Task Event is running" }),
   })
   .refine((data) => data.status !== undefined || data.comment !== undefined, {
     message: "At least one of status or comment is required",
@@ -65,9 +68,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const task = await requireTaskAccess(authContext, id, tx);
       const { status, comment } = body;
 
-      const isStatusEvent = status !== undefined && status !== null;
-      const isCommentOnlyEvent =
-        !isStatusEvent && comment !== undefined && comment !== null;
+      const isStatusEvent = status !== undefined;
+      const isCommentOnlyEvent = !isStatusEvent && comment !== undefined;
 
       // Handle status event (status can include optional comment)
       if (isStatusEvent) {
@@ -78,7 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             taskId: id,
             status,
-            comment: comment ?? null,
+            comment,
             userId: authContext.orchestratorId ? null : authContext.userId,
             orchestratorId: authContext.orchestratorId ?? null,
           },
