@@ -1,10 +1,14 @@
 import type { Prisma } from "@sokosumi/database";
 
 export const taskInclude = {
-  attachments: true,
   _count: {
     select: {
-      comments: true,
+      events: true,
+    },
+  },
+  events: {
+    orderBy: {
+      createdAt: "asc",
     },
   },
 } as const;
