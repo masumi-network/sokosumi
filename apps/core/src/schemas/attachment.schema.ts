@@ -16,7 +16,7 @@ export const attachmentSchema = z
       description: "ID of the reference",
     }),
     referenceType: z
-      .enum(["Input", "Task", "Comment"])
+      .enum(["Input"])
       .openapi({ example: "Input", description: "Type of the reference" }),
     name: z
       .string()
