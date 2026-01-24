@@ -3,8 +3,6 @@ import { TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
-import { attachmentSchema } from "./attachment.schema";
-
 export const orchestratorSchema = z
   .object({
     id: z.string().openapi({ example: "orc_123" }),
@@ -27,10 +25,7 @@ export const taskEventSchema = z
     id: z.string().openapi({ example: "evt_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    description: z
-      .string()
-      .nullish()
-      .openapi({ example: "Task Event is running" }),
+    comment: z.string().nullish().openapi({ example: "Looks good." }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
     userId: z.string().nullish().openapi({ example: "user_123" }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
@@ -42,10 +37,9 @@ export const taskCommentSchema = z
     id: z.string().openapi({ example: "com_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    content: z.string().openapi({ example: "Looks good." }),
+    text: z.string().openapi({ example: "Looks good." }),
     userId: z.string().nullish().openapi({ example: "user_123" }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
-    attachments: z.array(attachmentSchema).openapi({ example: [] }),
   })
   .openapi("TaskComment");
 
@@ -55,14 +49,11 @@ export const taskSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     userId: z.string().openapi({ example: "user_123" }),
+    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
-    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
-    attachments: z.array(attachmentSchema).openapi({ example: [] }),
-    _count: z.object({
-      comments: z.number().openapi({ example: 2 }),
-    }),
+    events: z.array(taskEventSchema).openapi({ example: [] }),
   })
   .openapi("Task");
 
