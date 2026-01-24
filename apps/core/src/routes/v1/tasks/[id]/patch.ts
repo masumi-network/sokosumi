@@ -59,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireUserTaskAccess(authContext, id, tx);
 
       return tx.task.update({
-        where: { id },
+        where: { id, userId: authContext.userId },
         data: {
           name: body.name,
           description: body.description,
