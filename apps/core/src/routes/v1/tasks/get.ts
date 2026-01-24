@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { Prisma, TaskStatus } from "@sokosumi/database";
 
 import {
   jsonErrorResponse,
@@ -93,15 +93,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { status, orchestratorId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const where = {
-      ...(authContext.orchestratorId
-        ? { orchestratorId: authContext.orchestratorId }
-        : { userId: authContext.userId }),
-      ...(status ? { status } : {}),
-      ...(orchestratorId && !authContext.orchestratorId
-        ? { orchestratorId }
-        : {}),
-    };
+    let where: Prisma.TaskWhereInput;
+    if (authContext.orchestratorId) {
+      where = {
+        orchestratorId: authContext.orchestratorId,
+        ...(status ? { status } : {}),
+      };
+    } else {
+      where = {
+        userId: authContext.userId,
+        ...(status ? { status } : {}),
+        ...(orchestratorId ? { orchestratorId } : {}),
+      };
+    }
 
     const takePlusOne = take + 1;
     const [tasks, count] = await prisma.$transaction([
