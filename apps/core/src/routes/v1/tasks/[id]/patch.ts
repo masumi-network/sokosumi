@@ -18,15 +18,27 @@ const paramsSchema = z.object({
   }),
 });
 
-export const patchTaskRequestSchema = z.object({
-  name: z.string().min(1).max(120).openapi({
-    example: "Updated task title",
-  }),
-  description: z.string().nullable().openapi({
-    example: "Updated description",
-  }),
-  orchestratorId: z.string().nullable().openapi({ example: "orc_123" }),
-});
+export const patchTaskRequestSchema = z
+  .object({
+    name: z.string().min(1).max(120).optional().openapi({
+      example: "Updated task title",
+    }),
+    description: z.string().nullish().openapi({
+      example: "Updated description",
+    }),
+    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.description !== undefined ||
+      data.orchestratorId !== undefined,
+    {
+      message:
+        "At least one of name, description or orchestratorId is required",
+      path: ["name", "description", "orchestratorId"],
+    },
+  );
 
 const route = createRoute({
   method: "patch",
