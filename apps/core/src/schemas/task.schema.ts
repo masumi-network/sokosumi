@@ -26,7 +26,10 @@ export const taskEventSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     comment: z.string().nullish().openapi({ example: "Looks good." }),
-    status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
+    status: z
+      .enum(TaskStatus)
+      .nullish()
+      .openapi({ example: TaskStatus.RUNNING }),
     userId: z.string().nullish().openapi({ example: "user_123" }),
     orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
   })
