@@ -123,6 +123,9 @@ export async function requireUserTaskAccess(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
+  if (authContext.orchestratorId) {
+    throw forbidden("Only the user is allowed to do this operation");
+  }
   const task = await tx.task.findUnique({
     where: {
       id: taskId,
