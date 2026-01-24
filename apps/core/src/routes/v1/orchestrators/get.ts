@@ -29,7 +29,6 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    // Note: This endpoint is public to all authenticated users
     const orchestrators = await prisma.orchestrator.findMany({
       orderBy: {
         createdAt: "desc",
