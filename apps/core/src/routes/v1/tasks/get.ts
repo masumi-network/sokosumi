@@ -98,6 +98,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where = {
         orchestratorId: authContext.orchestratorId,
         ...(status ? { status } : {}),
+        NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
       where = {
