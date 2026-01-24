@@ -1,4 +1,10 @@
-import type { Job, Prisma, Task, User } from "@sokosumi/database";
+import {
+  type Job,
+  type Prisma,
+  type Task,
+  TaskStatus,
+  type User,
+} from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -160,7 +166,7 @@ export async function requireOrchestratorTaskAccess(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   const task = await tx.task.findUnique({
-    where: { id: taskId },
+    where: { id: taskId, status: { not: TaskStatus.DRAFT } },
   });
   if (!task) {
     throw notFound("Task not found");
