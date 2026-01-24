@@ -52,7 +52,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only delete draft or ready tasks");
       }
       return tx.task.delete({
-        where: { id },
+        where: {
+          id,
+          userId: authContext.userId,
+          status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
+        },
         include: taskInclude,
       });
     });
