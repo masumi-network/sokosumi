@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
 import { requireTaskAccess } from "@/helpers/access-control";
+import { unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { validateStatusTransition } from "@/helpers/task";
@@ -16,13 +17,18 @@ const paramsSchema = z.object({
   }),
 });
 
-export const createTaskEventRequestSchema = z.object({
-  status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
-  description: z
-    .string()
-    .nullish()
-    .openapi({ example: "Task Event is running" }),
-});
+export const createTaskEventRequestSchema = z
+  .object({
+    status: z
+      .enum(TaskStatus)
+      .nullish()
+      .openapi({ example: TaskStatus.RUNNING }),
+    comment: z.string().nullish().openapi({ example: "Task Event is running" }),
+  })
+  .refine((data) => data.status !== undefined || data.comment !== undefined, {
+    message: "At least one of status or comment is required",
+    path: ["status", "comment"],
+  });
 
 const route = createRoute({
   method: "post",
@@ -57,30 +63,56 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const event = await prisma.$transaction(async (tx) => {
       const task = await requireTaskAccess(authContext, id, tx);
+      const { status, comment } = body;
 
-      validateStatusTransition(task.status, body.status);
+      const isStatusEvent = status !== undefined && status !== null;
+      const isCommentOnlyEvent =
+        !isStatusEvent && comment !== undefined && comment !== null;
 
-      // Create the event first
-      const event = await tx.taskEvent.create({
-        data: {
-          taskId: id,
-          status: body.status,
-          description: body.description ?? null,
-          userId: authContext.orchestratorId ? null : authContext.userId,
-          orchestratorId: authContext.orchestratorId ?? null,
-        },
-      });
+      // Handle status event (status can include optional comment)
+      if (isStatusEvent) {
+        validateStatusTransition(authContext, task.status, status);
 
-      // Then update the task
-      if (task.status !== body.status) {
-        await tx.task.update({
-          where: { id, status: task.status },
+        // Create the status event (with optional comment)
+        const event = await tx.taskEvent.create({
           data: {
-            status: body.status,
+            taskId: id,
+            status,
+            comment: comment ?? null,
+            userId: authContext.orchestratorId ? null : authContext.userId,
+            orchestratorId: authContext.orchestratorId ?? null,
           },
         });
+
+        // Update task status if it changed
+        if (task.status !== status) {
+          await tx.task.update({
+            where: { id, status: task.status },
+            data: {
+              status,
+            },
+          });
+        }
+
+        return event;
       }
-      return event;
+
+      // Handle comment-only event (no status change)
+      if (isCommentOnlyEvent) {
+        const event = await tx.taskEvent.create({
+          data: {
+            taskId: id,
+            status: null,
+            comment,
+            userId: authContext.orchestratorId ? null : authContext.userId,
+            orchestratorId: authContext.orchestratorId ?? null,
+          },
+        });
+
+        return event;
+      }
+
+      throw unprocessableEntity("Either status or comment must be provided");
     });
 
     return created(c, taskEventSchema.parse(event));
