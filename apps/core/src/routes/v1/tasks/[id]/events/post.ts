@@ -84,15 +84,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
-        // Update task status if it changed
-        if (task.status !== status) {
-          await tx.task.update({
-            where: { id, status: task.status },
-            data: {
-              status,
-            },
-          });
-        }
+        await tx.task.update({
+          where: { id, status: task.status },
+          data: {
+            status,
+          },
+        });
 
         return event;
       }
