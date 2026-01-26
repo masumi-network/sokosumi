@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import * as Sentry from "@sentry/node";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -48,35 +47,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const attachments = await prisma.attachment.findMany({
       where: {
-        OR: [
-          { jobInput: { event: { job: { userId: authContext.userId } } } },
-          { task: { userId: authContext.userId } },
-          { taskComment: { task: { userId: authContext.userId } } },
-        ],
+        jobInput: { event: { job: { userId: authContext.userId } } },
       },
     });
 
     const attachmentsList = attachments.flatMap((attachment) => {
-      let referenceType: "Input" | "Task" | "Comment";
-      let referenceId: string;
-
-      if (attachment.jobInputId) {
-        referenceType = "Input";
-        referenceId = attachment.jobInputId;
-      } else if (attachment.taskId) {
-        referenceType = "Task";
-        referenceId = attachment.taskId;
-      } else if (attachment.taskCommentId) {
-        referenceType = "Comment";
-        referenceId = attachment.taskCommentId;
-      } else {
-        Sentry.captureException(new Error("Invalid attachment"), {
-          extra: {
-            attachmentId: attachment.id,
-          },
-        });
-        return [];
-      }
+      const referenceType = "Input";
+      const referenceId = attachment.jobInputId;
       return {
         ...attachment,
         userId: authContext.userId,

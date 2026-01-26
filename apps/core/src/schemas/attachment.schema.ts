@@ -7,7 +7,7 @@ export const attachmentSchema = z
     id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    userId: z.string().openapi({
+    userId: z.string().nullish().optional().openapi({
       example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
       description: "ID of the user",
     }),
@@ -16,7 +16,7 @@ export const attachmentSchema = z
       description: "ID of the reference",
     }),
     referenceType: z
-      .enum(["Input", "Task", "Comment"])
+      .enum(["Input"])
       .openapi({ example: "Input", description: "Type of the reference" }),
     name: z
       .string()
