@@ -32,7 +32,7 @@ import { JobInputFormIntlPath } from "./type";
  * ```
  * InputFieldSchemaType[] → jobInputsFormSchema() → JobInputsFormSchemaType
  *                                                         ↓
- *                                               filterOutNullValues()
+ *                                         filterOutNullValues()
  *                                                         ↓
  *                                                  InputSchemaType
  * ```
@@ -78,6 +78,33 @@ export type JobInputsFormSchemaType = z.infer<
 >;
 
 /**
+ * Serializes InputSchemaType to a format compatible with the API.
+ *
+ * @param values - InputSchemaType
+ * @returns InputSchemaType
+ */
+function serializeInputValues(values: InputSchemaType): InputSchemaType {
+  return Object.fromEntries(
+    Object.entries(values).map(([key, value]) => {
+      if (value instanceof Date) {
+        return [key, value.toISOString()];
+      }
+
+      if (Array.isArray(value)) {
+        return [
+          key,
+          value.map((item) =>
+            item instanceof Date ? item.toISOString() : item,
+          ) as InputSchemaType[string],
+        ];
+      }
+
+      return [key, value];
+    }),
+  ) as InputSchemaType;
+}
+
+/**
  * Converts form state to API-compatible format by removing null/undefined values.
  *
  * This is the primary bridge between:
@@ -99,14 +126,26 @@ export type JobInputsFormSchemaType = z.infer<
  * // Result: { name: "John", age: 25 }
  * ```
  */
-export function filterOutNullValues(
-  values: JobInputsFormSchemaType,
-): InputSchemaType {
+function filterOutNullValues(values: JobInputsFormSchemaType): InputSchemaType {
   return Object.fromEntries(
     Object.entries(values).filter(
       ([_, value]) => value !== null && value !== undefined,
     ),
   ) as InputSchemaType;
+}
+
+/**
+ * Prepares input values for submission by filtering out null/undefined values and serializing Date values.
+ *
+ * @param values - JobInputsFormSchemaType
+ * @returns InputSchemaType
+ */
+export function prepareInputValues(
+  values: JobInputsFormSchemaType,
+): InputSchemaType {
+  const filteredValues = filterOutNullValues(values);
+  const serializedValues = serializeInputValues(filteredValues);
+  return serializedValues;
 }
 
 /**

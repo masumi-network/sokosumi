@@ -177,25 +177,25 @@ const config = {
 
 ## Commands
 
-| Command                | Purpose                         |
-| ---------------------- | ------------------------------- |
-| `pnpm install`         | Install dependencies            |
-| `pnpm dev`             | Watch all workspace packages    |
-| `pnpm web:dev`         | Run web app dev server          |
-| `pnpm core:dev`        | Run core API dev server         |
-| `pnpm build`           | Build for production            |
-| `pnpm web:build`       | Build web app for production    |
-| `pnpm core:build`      | Build core API for production   |
-| `pnpm web:start`       | Smoke test production build     |
-| `pnpm lint`            | Lint entire codebase            |
-| `pnpm web:lint`        | Lint web app                    |
-| `pnpm web:lint:report` | CI-friendly lint report         |
-| `pnpm test`            | Run tests locally               |
-| `pnpm web:test`        | Run web app tests               |
-| `pnpm masumi:test`     | Run masumi package tests        |
-| `pnpm web:test:ci`     | CI test execution               |
-| `pnpm web:format`      | Format web app code             |
-| `pnpm database:format` | Format database package code    |
+| Command                | Purpose                       |
+| ---------------------- | ----------------------------- |
+| `pnpm install`         | Install dependencies          |
+| `pnpm dev`             | Watch all workspace packages  |
+| `pnpm web:dev`         | Run web app dev server        |
+| `pnpm core:dev`        | Run core API dev server       |
+| `pnpm build`           | Build for production          |
+| `pnpm web:build`       | Build web app for production  |
+| `pnpm core:build`      | Build core API for production |
+| `pnpm web:start`       | Smoke test production build   |
+| `pnpm lint`            | Lint entire codebase          |
+| `pnpm web:lint`        | Lint web app                  |
+| `pnpm web:lint:report` | CI-friendly lint report       |
+| `pnpm test`            | Run tests locally             |
+| `pnpm web:test`        | Run web app tests             |
+| `pnpm masumi:test`     | Run masumi package tests      |
+| `pnpm web:test:ci`     | CI test execution             |
+| `pnpm web:format`      | Format web app code           |
+| `pnpm database:format` | Format database package code  |
 
 ## Testing Guidelines
 
@@ -245,6 +245,11 @@ docs(readme): update setup instructions
 - Use backticks for file, directory, function, and class names
 - Reference existing code rather than duplicating it
 - Use `@/lib/*` aliases for imports
+
+## Additional Rules
+
+- [Linting](.cursor/rules/lint.mdc)
+- [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 
 ## References
 

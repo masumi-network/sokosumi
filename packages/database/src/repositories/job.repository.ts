@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  CreditBucketReferenceType,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
@@ -12,6 +13,8 @@ import {
   jobOrderBy,
   type JobWithSokosumiStatus,
 } from "../types/job.js";
+import { AttachmentData } from "./attachment.repository.js";
+import { creditBucketRepository } from "./credit-bucket.repository.js";
 
 interface CreateDemoJobData {
   jobType: typeof JobType.DEMO;
@@ -34,6 +37,7 @@ interface CreateJobBase {
   input: string;
   inputHash: string | null;
   name: string | null;
+  attachments: AttachmentData[];
   jobScheduleId?: string | null | undefined;
 }
 
@@ -286,6 +290,16 @@ export const jobRepository = {
             create: {
               input: data.input,
               inputHash: data.inputHash,
+              attachments: {
+                createMany: {
+                  data: data.attachments.map((attachment) => ({
+                    url: attachment.url,
+                    name: attachment.name,
+                    mimeType: attachment.mimeType,
+                    size: attachment.size,
+                  })),
+                },
+              },
             },
           },
         },
@@ -314,10 +328,17 @@ export const jobRepository = {
         });
         return mapJobWithStatus(freeJob);
       case JobType.PAID:
+        const consumptions = await creditBucketRepository.prepareConsumption(
+          data.userId,
+          data.organizationId ?? null,
+          data.creditsPrice.cents,
+          tx,
+        );
+
         const paidJob = await tx.job.create({
           data: {
             ...baseJobData,
-            creditTransaction: {
+            transaction: {
               create: {
                 amount: -data.creditsPrice.cents,
                 includedFee: data.creditsPrice.includedFee,
@@ -333,6 +354,14 @@ export const jobRepository = {
                     },
                   },
                 }),
+                creditConsumptions: {
+                  createMany: {
+                    data: consumptions.map((consumption) => ({
+                      bucketId: consumption.bucketId,
+                      amount: consumption.amount,
+                    })),
+                  },
+                },
               },
             },
             payByTime: data.payByTime,
@@ -357,44 +386,64 @@ export const jobRepository = {
     const job = await tx.job.findUnique({
       where: { id: jobId },
       select: {
-        refundedCreditTransaction: true,
-        creditTransaction: true,
+        refundedTransaction: true,
+        transaction: true,
       },
     });
 
     // If the job has already been refunded, do nothing
-    if (job?.refundedCreditTransaction) {
+    if (job?.refundedTransaction) {
       return;
     }
 
-    const creditTransaction = job?.creditTransaction;
+    const transaction = job?.transaction;
 
-    if (!creditTransaction) {
-      throw new Error("Credit transaction not found");
+    if (!transaction) {
+      throw new Error("Transaction not found");
     }
 
-    // Build refund transaction data based on whether it's for a user or organization
-    const refundTransactionData: Prisma.CreditTransactionCreateInput = {
-      amount: creditTransaction.amount * BigInt(-1),
-      includedFee: creditTransaction.includedFee,
+    const amount = transaction.amount * BigInt(-1);
+    const refundTransactionData: Prisma.TransactionCreateInput = {
+      amount,
+      includedFee: transaction.includedFee,
       user: {
         connect: {
-          id: creditTransaction.userId,
+          id: transaction.userId,
         },
       },
-      ...(creditTransaction.organizationId && {
+      ...(transaction.organizationId && {
         organization: {
           connect: {
-            id: creditTransaction.organizationId,
+            id: transaction.organizationId,
           },
         },
       }),
+      sourceCreditBucket: {
+        create: {
+          amount,
+          referenceId: jobId,
+          referenceType: CreditBucketReferenceType.JOB_REFUND,
+          user: {
+            connect: {
+              id: transaction.userId,
+            },
+          },
+          expiresAt: null,
+          ...(transaction.organizationId && {
+            organization: {
+              connect: {
+                id: transaction.organizationId,
+              },
+            },
+          }),
+        },
+      },
     };
 
     await tx.job.update({
       where: { id: jobId },
       data: {
-        refundedCreditTransaction: {
+        refundedTransaction: {
           create: refundTransactionData,
         },
       },
@@ -550,7 +599,7 @@ export const jobRepository = {
  * - Has no on-chain status but has a payByTime that is greater than the cutoff time
  *
  * Jobs are excluded if they meet any of the following criteria:
- * - Have been refunded (refundedCreditTransactionId is not null)
+ * - Have been refunded (refundedTransactionId is not null)
  * - Are non-disputed and have passed their external dispute grace period
  * - Have no on-chain status and no payByTime set
  *
@@ -569,20 +618,32 @@ function jobsNotFinishedWhereQuery(
             notIn: finalizedOnChainJobStatuses,
           },
         },
+        jobType: JobType.PAID,
       },
       // Filter in jobs that have no on-chain status
       {
         purchase: {
           onChainStatus: null,
         },
+        jobType: JobType.PAID,
+      },
+      // Filter in free jobs that are not finalized
+      {
+        jobType: JobType.FREE,
+        events: {
+          none: {
+            status: { in: finalizedAgentJobStatuses },
+          },
+        },
       },
     ],
     NOT: [
       // Filter out jobs that are refunded
       {
-        refundedCreditTransactionId: {
+        refundedTransactionId: {
           not: null,
         },
+        jobType: JobType.PAID,
       },
       // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
       {
@@ -593,6 +654,7 @@ function jobsNotFinishedWhereQuery(
           not: null,
           lt: cutoffTime,
         },
+        jobType: JobType.PAID,
       },
       // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
       {
@@ -600,21 +662,11 @@ function jobsNotFinishedWhereQuery(
           onChainStatus: null,
         },
         payByTime: { not: null, lt: cutoffTime },
+        jobType: JobType.PAID,
       },
       // Filter out demo jobs
       {
         jobType: JobType.DEMO,
-      },
-      // Filter out free jobs that are completed or failed on agentJobStatus
-      {
-        jobType: JobType.FREE,
-        events: {
-          some: {
-            status: {
-              in: finalizedAgentJobStatuses,
-            },
-          },
-        },
       },
     ],
   };

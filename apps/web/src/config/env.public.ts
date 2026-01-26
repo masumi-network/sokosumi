@@ -34,7 +34,31 @@ const envPublicConfigSchema = z.object({
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
 
 function validateEnv() {
-  const parsedConfig = envPublicConfigSchema.safeParse(process.env);
+  const rawEnv = {
+    NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID:
+      process.env.NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID,
+    NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:
+      process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID,
+    NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME:
+      process.env.NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+    NEXT_PUBLIC_PASSWORD_MIN_LENGTH:
+      process.env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
+    NEXT_PUBLIC_PASSWORD_MAX_LENGTH:
+      process.env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
+    NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
+    NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
+    NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
+    NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
+    NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
+    NEXT_PUBLIC_FEE_PERCENTAGE_POINTS:
+      process.env.NEXT_PUBLIC_FEE_PERCENTAGE_POINTS,
+    NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD:
+      process.env.NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
+    NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG:
+      process.env.NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG,
+  };
+
+  const parsedConfig = envPublicConfigSchema.safeParse(rawEnv);
   if (!parsedConfig.success) {
     console.error(
       "❌ Invalid environment variables:",

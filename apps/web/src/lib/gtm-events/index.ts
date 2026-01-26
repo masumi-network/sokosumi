@@ -1,4 +1,3 @@
-import { CheckoutSessionData } from "@/lib/clients";
 import { SocialProviderId } from "@/lib/schemas/auth";
 
 import { fireEvent } from "./utils";
@@ -49,16 +48,6 @@ export const fireGTMEvent = {
   },
 
   /**
-   * @param sessionId - The ID of the checkout session.
-   */
-  freeCreditPurchase(sessionId: string) {
-    fireEvent({
-      event: "free_credit_purchase",
-      transaction_id: sessionId,
-    });
-  },
-
-  /**
    * @param agentName - The name of the agent.
    * @param credits - The number of credits to run a job on agent.
    */
@@ -82,11 +71,15 @@ export const fireGTMEvent = {
     });
   },
 
-  purchase(checkoutSession: CheckoutSessionData) {
-    const { session_id, currency, items, value } = checkoutSession;
+  purchase(
+    sessionId: string,
+    currency: string | null,
+    value: number | null,
+    items: { item_id: string; item_name: string; quantity: number | null }[],
+  ) {
     fireEvent({
       event: "purchase",
-      transaction_id: session_id,
+      transaction_id: sessionId,
       value,
       currency,
       items,

@@ -23,24 +23,11 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_TRUSTED_ORIGIN: z.url(),
 
-  // Social Providers
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
-  MICROSOFT_CLIENT_ID: z.string().min(1),
-  MICROSOFT_CLIENT_SECRET: z.string().min(1),
-
   // Sentry
   SENTRY_DSN: z.url().optional(),
   SENTRY_ENVIRONMENT: z
     .enum(["development", "staging", "production"])
     .optional(),
-
-  // Postmark
-  POSTMARK_SERVER_ID: z.string().min(1),
-  POSTMARK_FROM_EMAIL: z.email(),
-
-  // Stripe
-  STRIPE_SECRET_KEY: z.string().min(1),
 
   // Payment
   PAYMENT_API_URL: z.url(),
@@ -51,12 +38,7 @@ const envSchema = z.object({
   REGISTRY_API_KEY: z.string().min(1),
 
   // OpenRouter
-  OPENROUTER_API_KEY: z.string().startsWith("sk-or-").optional(),
-
-  // Analytics Webhooks
-  WEBHOOK_USER_CREATED: z.url().optional(),
-  WEBHOOK_USER_UPDATED: z.url().optional(),
-  WEBHOOK_ACCOUNT_CREATED: z.url().optional(),
+  OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),

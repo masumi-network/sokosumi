@@ -1,6 +1,5 @@
 import "server-only";
 
-import { FiatTransaction, Organization, User } from "@sokosumi/database";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -11,17 +10,6 @@ export interface Price {
   currency: string;
 }
 
-export interface CheckoutSessionData {
-  session_id: string;
-  currency: string | null;
-  items: {
-    item_id: string;
-    item_name: string;
-    quantity: number;
-  }[];
-  value: number;
-  isWelcomePromotion: boolean;
-}
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
   const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
@@ -46,37 +34,44 @@ export const stripeClient = (() => {
   }
 
   return {
-    async createUserCustomer(user: User): Promise<Stripe.Customer> {
+    async createUserCustomer(
+      userId: string,
+      name: string,
+      email: string,
+    ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create(
         {
-          name: user.name,
-          email: user.email,
-          metadata: { userId: user.id, type: "user" },
+          name,
+          email,
+          metadata: { userId, customerType: "user" },
         },
         {
-          idempotencyKey: `${user.id}`,
+          idempotencyKey: `user-${userId}`,
         },
       );
       return customer;
     },
 
     async createOrganizationCustomer(
-      organization: Organization,
+      organizationId: string,
+      slug: string,
+      name: string,
+      invoiceEmail?: string | null,
     ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create(
         {
-          name: organization.name,
-          ...(organization.invoiceEmail && {
-            email: organization.invoiceEmail,
+          name,
+          ...(invoiceEmail && {
+            email: invoiceEmail,
           }),
           metadata: {
-            organizationId: organization.id,
-            organizationSlug: organization.slug,
-            type: "organization",
+            organizationId,
+            organizationSlug: slug,
+            customerType: "organization",
           },
         },
         {
-          idempotencyKey: `${organization.id}`,
+          idempotencyKey: `organization-${organizationId}`,
         },
       );
       return customer;
@@ -224,63 +219,11 @@ export const stripeClient = (() => {
       });
     },
 
-    /**
-     * Get the data for a checkout session.
-     * This is used for Google Tag Manager to track the checkout session.
-     *
-     * - session: the checkout session
-     * - items: the line items with the product name and quantity
-     * - value: the total amount of the checkout session in the currency of the checkout session
-     * - isWelcomePromotion: whether the checkout session has a welcome promotion
-     */
-    async getCheckoutSessionData(id: string): Promise<CheckoutSessionData> {
-      const session = await this.getCheckoutSession(id);
-      const lineItems = session.line_items?.data ?? [];
-      const items = lineItems
-        .map((item) => {
-          if (
-            item.price?.product &&
-            typeof item.price.product === "object" &&
-            "id" in item.price.product &&
-            "name" in item.price.product
-          ) {
-            return {
-              item_id: item.price.product.id,
-              item_name: item.price.product.name,
-              quantity: item.quantity,
-            };
-          }
-        })
-        .filter(Boolean) as {
-        item_id: string;
-        item_name: string;
-        quantity: number;
-      }[];
-      // NOTE:
-      // we only allow support for USD for now
-      const value = (session.amount_total ?? 0) / 100;
-      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
-      const isWelcomePromotion =
-        session.discounts?.some(
-          (discount) =>
-            typeof discount.coupon === "object" &&
-            discount.coupon &&
-            "id" in discount.coupon &&
-            discount.coupon.id === welcomeCouponId,
-        ) ?? false;
-
-      return {
-        session_id: session.id,
-        currency: session.currency,
-        items,
-        value,
-        isWelcomePromotion,
-      };
-    },
-
     async createCheckoutSession(
       stripeCustomerId: string,
-      fiatTransaction: FiatTransaction,
+      userId: string,
+      organizationId: string | null,
+      credits: number,
       price: Price,
       origin: string | null = null,
       promotionCode: string | null = null,
@@ -291,44 +234,43 @@ export const stripeClient = (() => {
           "Price amountPerCredit is 0 – cannot create checkout session for free product",
         );
       }
-      const session = await stripe.checkout.sessions.create(
-        {
-          mode: "payment",
-          line_items: [
-            {
-              price: price.id,
-              quantity: Math.floor(
-                Number(fiatTransaction.amount) / price.amountPerCredit,
-              ),
-            },
-          ],
-          ...(promotionCode
-            ? { discounts: [{ promotion_code: promotionCode }] }
-            : { allow_promotion_codes: false }),
-          client_reference_id: fiatTransaction.id,
-          customer: stripeCustomerId,
-          customer_update: {
-            address: "auto",
-            name: "auto",
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [
+          {
+            price: price.id,
+            quantity: credits,
           },
-          invoice_creation: {
-            enabled: true,
-            invoice_data: {
-              metadata: {
-                origin: "checkout_session",
-                fiatTransactionId: fiatTransaction.id,
-              },
+        ],
+        ...(promotionCode
+          ? { discounts: [{ promotion_code: promotionCode }] }
+          : { allow_promotion_codes: false }),
+        customer: stripeCustomerId,
+        customer_update: {
+          address: "auto",
+          name: "auto",
+        },
+        metadata: {
+          credits,
+          userId,
+          ...(organizationId && { organizationId }),
+        },
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            metadata: {
+              credits,
+              userId,
+              ...(organizationId && { organizationId }),
             },
           },
-          billing_address_collection: "required",
-          tax_id_collection: { enabled: true },
-          success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
         },
-        {
-          idempotencyKey: `${stripeCustomerId}-${fiatTransaction.id}`,
-        },
-      );
+        billing_address_collection: "required",
+        tax_id_collection: { enabled: true },
+        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
+      });
       return session;
     },
 
@@ -338,7 +280,7 @@ export const stripeClient = (() => {
       metadata?: Record<string, string>,
       referralCount: number = 1,
     ): Promise<Stripe.Invoice> {
-      const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
+      const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
       const price = await this.getPriceByProductId(productId);
 
       // Validate coupon and compute quantity of credits

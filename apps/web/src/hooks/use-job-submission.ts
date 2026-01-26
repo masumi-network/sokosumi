@@ -16,10 +16,9 @@ import {
   startJob,
 } from "@/lib/actions";
 import { createSchedule } from "@/lib/actions/job-schedule";
-import { useSession } from "@/lib/auth/auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
-import { filterOutNullValues, JobInputsFormSchemaType } from "@/lib/job-input";
+import { JobInputsFormSchemaType, prepareInputValues } from "@/lib/job-input";
 import { AgentDemoValues } from "@/lib/types/agent";
 import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
 
@@ -46,103 +45,100 @@ export function useJobSubmission({
 }: UseJobSubmissionOptions): UseJobSubmissionReturn {
   const { id: agentId, creditsPrice } = agent;
   const t = useTranslations("Library.JobInput.Form");
-  const session = useSession();
   const router = useRouter();
 
   const handleSubmit = useCallback(
     async (allValues: JobInputsFormSchemaType) => {
       setLoading(true);
 
-      let result:
-        | { ok: true; data: { jobId: string; scheduleId?: string } }
-        | { ok: false; error: { code: string } };
+      try {
+        let result:
+          | { ok: true; data: { jobId: string; scheduleId?: string } }
+          | { ok: false; error: { code: string } };
 
-      const transformedInputData = filterOutNullValues(allValues);
+        if (demoValues) {
+          result = await startDemoJob({
+            input: {
+              agentId: agentId,
+              inputSchema: flatInputs,
+              inputData: prepareInputValues(demoValues.input),
+            },
+            jobStatusResponse: demoValues.output,
+          });
+        } else if (
+          scheduleSelection &&
+          scheduleSelection.mode !== JobScheduleType.NOW
+        ) {
+          const transformedInputData = prepareInputValues(allValues);
 
-      if (demoValues) {
-        result = await startDemoJob({
-          input: {
-            agentId: agentId,
-            inputSchema: flatInputs,
-            inputData: filterOutNullValues(demoValues.input),
-          },
-          jobStatusResponse: demoValues.output,
-        });
-      } else if (
-        scheduleSelection &&
-        scheduleSelection.mode !== JobScheduleType.NOW
-      ) {
-        if (!session.data) {
-          result = {
-            ok: false,
-            error: { code: CommonErrorCode.UNAUTHENTICATED },
-          };
-          setLoading(false);
-          return;
-        }
-
-        result = await createSchedule({
-          input: {
-            agentId: agentId,
-            inputSchema: flatInputs,
-            inputData: transformedInputData,
-            maxAcceptedCents: creditsPrice.cents,
-          },
-          scheduleSelection: scheduleSelection,
-        });
-      } else {
-        result = await startJob({
-          input: {
-            agentId: agentId,
-            maxAcceptedCents: creditsPrice.cents,
-            inputSchema: flatInputs,
-            inputData: transformedInputData,
-          },
-        });
-      }
-
-      setLoading(false);
-      if (result.ok) {
-        fireGTMEvent.agentHired(
-          getAgentName(agent),
-          convertCentsToCredits(creditsPrice.cents),
-        );
-        track("Agent hired", {
-          agentId: agentId,
-          credits: convertCentsToCredits(creditsPrice.cents),
-          jobId: result.data.jobId,
-        });
-        onSuccess();
-        if (result.data?.scheduleId) {
-          router.push(`/schedules`);
+          result = await createSchedule({
+            input: {
+              agentId: agentId,
+              inputSchema: flatInputs,
+              inputData: transformedInputData,
+              maxAcceptedCents: creditsPrice.cents,
+            },
+            scheduleSelection: scheduleSelection,
+          });
         } else {
-          router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
+          const transformedInputData = prepareInputValues(allValues);
+
+          result = await startJob({
+            input: {
+              agentId: agentId,
+              maxAcceptedCents: creditsPrice.cents,
+              inputSchema: flatInputs,
+              inputData: transformedInputData,
+            },
+          });
         }
-      } else {
-        switch (result.error.code) {
-          case CommonErrorCode.UNAUTHENTICATED:
-            toast.error(t("Error.unauthenticated"), {
-              action: {
-                label: t("Error.unauthenticatedAction"),
-                onClick: () => router.push(`/login`),
-              },
-            });
-            break;
-          case CommonErrorCode.BAD_INPUT:
-            toast.error(t("Error.badInput"));
-            break;
-          case JobErrorCode.INSUFFICIENT_BALANCE:
-            toast.error(t("Error.insufficientBalance"), {
-              action: {
-                label: t("Error.insufficientBalanceAction"),
-                onClick: () => router.push(`/credits`),
-              },
-            });
-            break;
-          default:
-            toast.error(t("Error.default"));
-            break;
+
+        setLoading(false);
+        if (result.ok) {
+          fireGTMEvent.agentHired(
+            getAgentName(agent),
+            convertCentsToCredits(creditsPrice.cents),
+          );
+          track("Agent hired", {
+            agentId: agentId,
+            credits: convertCentsToCredits(creditsPrice.cents),
+            jobId: result.data.jobId,
+          });
+          onSuccess();
+          if (result.data?.scheduleId) {
+            router.push(`/schedules`);
+          } else {
+            router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
+          }
+        } else {
+          switch (result.error.code) {
+            case CommonErrorCode.UNAUTHENTICATED:
+              toast.error(t("Error.unauthenticated"), {
+                action: {
+                  label: t("Error.unauthenticatedAction"),
+                  onClick: () => router.push(`/login`),
+                },
+              });
+              break;
+            case CommonErrorCode.BAD_INPUT:
+              toast.error(t("Error.badInput"));
+              break;
+            case JobErrorCode.INSUFFICIENT_BALANCE:
+              toast.error(t("Error.insufficientBalance"), {
+                action: {
+                  label: t("Error.insufficientBalanceAction"),
+                  onClick: () => router.push(`/credits`),
+                },
+              });
+              break;
+            default:
+              toast.error(t("Error.default"));
+              break;
+          }
         }
+      } catch (_error) {
+        setLoading(false);
+        toast.error(t("Error.default"));
       }
     },
     [
@@ -153,7 +149,6 @@ export function useJobSubmission({
       agentId,
       creditsPrice.cents,
       flatInputs,
-      session.data,
       onSuccess,
       router,
       t,

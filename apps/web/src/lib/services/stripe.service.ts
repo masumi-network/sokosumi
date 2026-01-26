@@ -1,9 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
-  fiatTransactionRepository,
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
@@ -27,16 +25,22 @@ export const stripeService = (() => {
     organizationId: string | null,
   ): Promise<string | null> {
     if (organizationId) {
-      const organization =
-        await organizationRepository.getOrganizationWithRelationsById(
-          organizationId,
-          prisma,
-        );
-      if (!organization) throw new Error("Organization not found");
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { stripeCustomerId: true },
+      });
+      if (!organization) {
+        throw new Error("Organization not found");
+      }
       return organization.stripeCustomerId;
     } else {
-      const user = await userRepository.getUserById(userId, prisma);
-      if (!user) throw new Error("User not found");
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { stripeCustomerId: true },
+      });
+      if (!user) {
+        throw new Error("User not found");
+      }
       return user.stripeCustomerId;
     }
   }
@@ -62,37 +66,16 @@ export const stripeService = (() => {
           throw new Error("Stripe customer not found");
         }
 
-        const amount = credits * price.amountPerCredit;
-
-        // Transaction only for fiat transaction creation and update
-        const checkoutSession = await prisma.$transaction(async (tx) => {
-          const fiatTransaction =
-            await fiatTransactionRepository.createFiatTransaction(
-              userId,
-              organizationId,
-              convertCreditsToCents(credits),
-              amount,
-              price.currency,
-              tx,
-            );
-
-          const headerList = await headers();
-          const checkoutSession = await stripeClient.createCheckoutSession(
-            stripeCustomerId,
-            fiatTransaction,
-            price,
-            headerList.get("origin"),
-            promotionCode,
-          );
-
-          await fiatTransactionRepository.setFiatTransactionServicePaymentId(
-            fiatTransaction.id,
-            checkoutSession.id,
-            tx,
-          );
-
-          return checkoutSession;
-        });
+        const headerList = await headers();
+        const checkoutSession = await stripeClient.createCheckoutSession(
+          stripeCustomerId,
+          userId,
+          organizationId,
+          credits,
+          price,
+          headerList.get("origin"),
+          promotionCode,
+        );
 
         if (!checkoutSession.url) {
           throw new Error("Failed to create checkout session");
@@ -216,7 +199,11 @@ export const stripeService = (() => {
       if (!user) {
         return null;
       }
-      return await stripeClient.createUserCustomer(user);
+      return await stripeClient.createUserCustomer(
+        user.id,
+        user.name,
+        user.email,
+      );
     },
 
     async createStripeCustomerForOrganization(
@@ -230,7 +217,12 @@ export const stripeService = (() => {
       if (!organization) {
         return null;
       }
-      return await stripeClient.createOrganizationCustomer(organization);
+      return await stripeClient.createOrganizationCustomer(
+        organization.id,
+        organization.slug,
+        organization.name,
+        organization.invoiceEmail,
+      );
     },
 
     async syncOrganizationInvoiceEmailWithStripe(
@@ -351,8 +343,12 @@ export const stripeService = (() => {
 
         let orgStripeCustomerId = organization.stripeCustomerId;
         if (!orgStripeCustomerId) {
-          const orgCustomer =
-            await stripeClient.createOrganizationCustomer(organization);
+          const orgCustomer = await stripeClient.createOrganizationCustomer(
+            organization.id,
+            organization.slug,
+            organization.name,
+            organization.invoiceEmail,
+          );
           if (!orgCustomer) {
             throw new Error("Failed to create organization Stripe customer");
           }
@@ -382,7 +378,6 @@ export const stripeService = (() => {
 
       return { personalCoupon, orgCoupon };
     },
-
     /**
      * Claims a welcome coupon for a customer.
      * @param userId - The ID of the user.

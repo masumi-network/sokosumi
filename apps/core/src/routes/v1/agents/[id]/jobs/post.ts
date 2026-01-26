@@ -4,9 +4,9 @@ import { PricingType } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 import {
-  type JobWithCreditTransaction,
   type JobWithEvents,
   type JobWithPurchase,
+  type JobWithTransaction,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
 import { v4 as uuidv4 } from "uuid";
@@ -137,7 +137,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Start job with agent
-    let job: JobWithEvents & JobWithCreditTransaction & JobWithPurchase;
+    let job: JobWithEvents & JobWithTransaction & JobWithPurchase;
     switch (agent.pricing.pricingType) {
       case PricingType.FREE:
         const freeJobResult = await createAgentClient().startFreeAgentJob(
@@ -145,7 +145,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           inputData,
         );
 
-        if (!freeJobResult.ok) {
+        if (freeJobResult.isErr()) {
           throw unprocessableEntity(
             `Free agent job start failed: ${freeJobResult.error}`,
           );
@@ -160,7 +160,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             inputSchema: flatInputSchema,
             name: jobName,
           },
-          freeJobResult.data,
+          freeJobResult.value,
         );
         break;
       case PricingType.FIXED:
@@ -180,12 +180,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           inputData,
         );
 
-        if (!paidJobResult.ok) {
+        if (paidJobResult.isErr()) {
           throw unprocessableEntity(
             `Paid agent job start failed: ${paidJobResult.error}`,
           );
         }
 
+        // Create job, transaction, and consume credits in a single transaction
         job = await createJobWithPayment(
           {
             agentId,
@@ -196,14 +197,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: jobName,
           },
           agent.cost,
-          paidJobResult.data,
+          paidJobResult.value,
           identifierFromPurchaser,
         );
 
         // Create purchase with payment API
-        const createPurchaseResult = await paymentClient.createPurchase(
+        const createPurchaseResult = await paymentClient().createPurchase(
           agent.blockchainIdentifier,
-          paidJobResult.data,
+          paidJobResult.value,
           inputData,
           identifierFromPurchaser,
         );

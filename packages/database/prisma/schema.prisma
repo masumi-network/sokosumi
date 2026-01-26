@@ -24,14 +24,11 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  userAgentRatings   UserAgentRating[]
-  agentLists         AgentList[]
-  creditTransactions CreditTransaction[]
-  fiatTransactions   FiatTransaction[]
-  jobs               Job[]
-  jobSchedules       JobSchedule[]
-  blobs              Blob[]              @relation("UserBlob")
-  links              Link[]              @relation("UserLink")
+  userAgentRatings UserAgentRating[]
+  agentLists       AgentList[]
+  transactions     Transaction[]
+  jobs             Job[]
+  jobSchedules     JobSchedule[]
 
   stripeCustomerId String?
 
@@ -59,6 +56,16 @@ model User {
 
   // Onboarding
   onboardingCompleted Boolean @default(false)
+
+  // Orchestrators
+  orchestrators Orchestrator[]
+
+  // Tasks
+  tasks      Task[]
+  taskEvents TaskEvent[]
+
+  // Credit Buckets
+  creditBuckets CreditBucket[]
 
   @@unique([email])
   @@unique([stripeCustomerId])
@@ -123,18 +130,20 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members            Member[]
-  invitations        Invitation[]
-  agents             Agent[]
-  blacklistedAgents  Agent[]             @relation("AgentBlacklist")
-  jobs               Job[]
-  jobSchedules       JobSchedule[]
-  creditTransactions CreditTransaction[]
-  fiatTransactions   FiatTransaction[]
-  jobShares          JobShare[]
+  members           Member[]
+  invitations       Invitation[]
+  agents            Agent[]
+  blacklistedAgents Agent[]       @relation("AgentBlacklist")
+  jobs              Job[]
+  jobSchedules      JobSchedule[]
+  transactions      Transaction[]
+  jobShares         JobShare[]
 
   stripeCustomerId String?
   invoiceEmail     String?
+
+  // Credit Buckets
+  creditBuckets CreditBucket[]
 
   @@unique([slug])
   @@unique([stripeCustomerId])
@@ -448,7 +457,7 @@ enum AgentListType {
   FAVORITE
 }
 
-model CreditTransaction {
+model Transaction {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -456,57 +465,77 @@ model CreditTransaction {
   amount      BigInt // positive is always a credit topup and negative is always a credit spend; 1_000_000_000_000 = 1 credit (10^12) with NEXT_PUBLIC_CREDITS_BASE = 12
   includedFee BigInt @default(0)
 
-  note         String?
-  noteKey      String?
-  errorNote    String?
-  errorNoteKey String?
-
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  fiatTransaction FiatTransaction?
+  job         Job? @relation("TransactionJob")
+  refundedJob Job? @relation("RefundedTransactionJob")
 
-  job         Job? @relation("CreditTransactionJob")
-  refundedJob Job? @relation("RefundedCreditTransactionJob")
+  sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
+  creditConsumptions CreditConsumption[]
 
   @@index([userId, organizationId])
 }
 
-model FiatTransaction {
+model CreditBucket {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  amount           BigInt // Base Unit: 100 = 1 USD, 10000 = 100 USD if currency is USD
-  currency         String
-  cents            BigInt
-  servicePaymentId String?               @unique
-  service          FiatService           @default(STRIPE)
-  status           FiatTransactionStatus @default(PENDING)
+  // Amount of credits in this bucket (in cents, always positive)
+  amount    BigInt
+  expiresAt DateTime? // (null = non-expiring)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId   String?
+  referenceType CreditBucketReferenceType?
+
+  // Link to the transaction that created this bucket (topup)
+  sourceTransactionId String      @unique
+  sourceTransaction   Transaction @relation("CreditBucketSource", fields: [sourceTransactionId], references: [id], onDelete: Cascade)
+
+  // User/Organization ownership
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id], onDelete: Cascade)
-  creditTransactionId String?            @unique
+  // Track which transactions consumed from this bucket
+  consumptions CreditConsumption[]
 
-  @@index([userId, organizationId])
+  @@unique([referenceId, referenceType])
+  @@index([userId, organizationId, expiresAt])
+  @@index([expiresAt])
+  @@map("credit_bucket")
 }
 
-enum FiatTransactionStatus {
-  PENDING
-  SUCCEEDED
-  FAILED
+enum CreditBucketReferenceType {
+  STRIPE_INVOICE
+  JOB_REFUND
 }
 
-enum FiatService {
-  STRIPE
+model CreditConsumption {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Amount consumed from this bucket (in cents, always positive)
+  amount BigInt
+
+  // Which bucket this consumption came from
+  bucketId String
+  bucket   CreditBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  // Link to the transaction that represents this spending
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([bucketId, transactionId])
+  @@index([bucketId])
+  @@index([transactionId])
+  @@map("credit_consumption")
 }
 
 enum JobType {
@@ -541,10 +570,10 @@ model Job {
   externalDisputeUnlockTime DateTime?
   sellerVkey                String?
 
-  creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
-  creditTransactionId         String?            @unique
-  refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
-  refundedCreditTransactionId String?            @unique
+  transaction           Transaction? @relation("TransactionJob", fields: [transactionId], references: [id])
+  transactionId         String?      @unique
+  refundedTransaction   Transaction? @relation("RefundedTransactionJob", fields: [refundedTransactionId], references: [id])
+  refundedTransactionId String?      @unique
 
   name String?
 
@@ -631,6 +660,8 @@ model JobInput {
   input     String
   inputHash String?
   signature String?
+
+  attachments Attachment[]
 
   @@map("jobInput")
 }
@@ -726,24 +757,36 @@ model Blob {
   updatedAt DateTime @updatedAt
 
   fileUrl   String?
-  fileName  String?
-  mime      String?
+  name      String?
+  mimeType  String?
   size      BigInt?
-  origin    BlobOrigin
-  sourceUrl String?
+  sourceUrl String
   status    BlobStatus
-
-  userId String
-  user   User   @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
 
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, sourceUrl]) // For deduplication checks
-  @@index([status, origin, createdAt]) // For getPendingResultBlobs query
-  @@index([eventId, origin]) // For fetching blobs by job event with origin filter
-  @@index([userId, status]) // For user-specific blob queries
+  @@index([status, createdAt]) // For getPendingResultBlobs query
+  @@index([eventId]) // For fetching blobs by job event
   @@map("blob")
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  url      String // Required - file URL
+  name     String? // Optional - file name
+  mimeType String? // Optional - MIME type
+  size     BigInt? // Optional - file size in bytes
+
+  jobInputId String
+  jobInput   JobInput @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
+
+  @@index([jobInputId])
+  @@map("attachment")
 }
 
 model Link {
@@ -754,20 +797,12 @@ model Link {
   url   String
   title String?
 
-  userId String
-  user   User   @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
-
   eventId String
   event   JobEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, url]) // For deduplication checks
   @@index([eventId]) // For fetching all links for a job event
   @@map("link")
-}
-
-enum BlobOrigin {
-  INPUT
-  OUTPUT
 }
 
 enum BlobStatus {
@@ -961,4 +996,75 @@ model Jwks {
   expiresAt  DateTime?
 
   @@map("jwks")
+}
+
+model Orchestrator {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slug        String  @unique
+  name        String
+  url         String?
+  email       String?
+  description String?
+  image       String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tasks      Task[]
+  taskEvents TaskEvent[]
+
+  @@map("orchestrator")
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  status TaskStatus @default(DRAFT)
+
+  orchestratorId String?
+  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+
+  events TaskEvent[]
+
+  @@map("task")
+}
+
+enum TaskStatus {
+  DRAFT
+  READY
+  INPUT_REQUIRED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model TaskEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  status  TaskStatus?
+  comment String?
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  orchestratorId String?
+  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+
+  @@map("taskEvent")
 }

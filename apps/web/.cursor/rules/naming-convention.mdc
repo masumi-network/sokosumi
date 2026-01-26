@@ -1,6 +1,5 @@
 ---
-description: Naming Convention
-globs: 
+description: "Naming Convention"
 alwaysApply: true
 ---
 - Use lowercase with dashes for directories (e.g., components/auth-wizard).

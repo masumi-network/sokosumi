@@ -45,6 +45,8 @@ updates:
           - "better-auth-harmony"
           - "better-auth-localization"
           - "@better-auth/utils"
+          - "@better-auth/oauth-provider"
+          - "@better-auth/stripe"
       hey-api:
         patterns:
           - "@hey-api/*"
@@ -54,11 +56,14 @@ updates:
       vercel:
         patterns:
           - "@vercel/*"
+      happy-dom:
+        patterns:
+          - "happy-dom"
+          - "@happy-dom/*"
       testing:
         patterns:
           - "jest"
           - "@testing-library/*"
-          - "@happy-dom/*"
           - "@types/jest"
       markdown:
         patterns:

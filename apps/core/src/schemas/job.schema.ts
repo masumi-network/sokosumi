@@ -32,7 +32,7 @@ export const jobEventSchema = z
     inputSchema: z.string().nullish().openapi({ example: "input_schema" }),
     input: jobInputSchema.nullish(),
     result: z.string().nullish().openapi({ example: "Markdown text" }),
-    blobs: z.array(fileSchema).openapi({ example: [] }),
+    files: z.array(fileSchema).openapi({ example: [] }),
     links: z.array(linkSchema).openapi({ example: [] }),
   })
   .openapi("Job Event");

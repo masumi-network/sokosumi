@@ -1,12 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import {
-  AgentJobStatus,
-  JobEventWithRelations,
-  JobShare,
-  PaidJobWithStatus,
-} from "@sokosumi/database";
+import { JobShare, PaidJobWithStatus } from "@sokosumi/database";
 import {
   jobRepository,
   jobShareRepository,
@@ -38,11 +33,7 @@ import {
   withAuthContext,
 } from "@/middleware/auth-middleware";
 
-import {
-  handleInputDataFileUploads,
-  saveUploadedFilesForEventId,
-  type UploadedFileWithMeta,
-} from "./utils";
+import { handleInputDataFileUploads, type UploadedFile } from "./utils";
 
 interface StartDemoJobParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">;
@@ -108,7 +99,7 @@ export const startJob = withAuthContext<
       });
 
       // Upload files if any
-      let uploadedFiles: UploadedFileWithMeta[] = [];
+      let uploadedFiles: UploadedFile[] = [];
       if (input.inputData) {
         uploadedFiles = await handleInputDataFileUploads(
           userId,
@@ -156,21 +147,7 @@ export const startJob = withAuthContext<
       }
       const parsed = parsedResult.data;
 
-      const job = await jobService.startJob(parsed);
-
-      if (uploadedFiles.length > 0) {
-        const initiatedEvent = job.events.find(
-          (event: JobEventWithRelations) =>
-            event.status === AgentJobStatus.INITIATED,
-        );
-        if (initiatedEvent) {
-          await saveUploadedFilesForEventId(
-            userId,
-            initiatedEvent.id,
-            uploadedFiles,
-          );
-        }
-      }
+      const job = await jobService.startJob(parsed, uploadedFiles);
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
@@ -289,11 +266,7 @@ export const provideJobInput = withAuthContext<
       });
 
       // Upload files if any
-      let uploadedFiles: Array<{
-        url: string;
-        fileName: string;
-        size: number;
-      }> = [];
+      let uploadedFiles: UploadedFile[] = [];
       if (Object.keys(inputData).length > 0) {
         uploadedFiles = await handleInputDataFileUploads(userId, inputData);
       }
@@ -319,17 +292,15 @@ export const provideJobInput = withAuthContext<
       });
 
       // Call service to provide job input
-      const { job, jobEvent } = await jobService.provideJobInput({
-        jobId,
-        statusId,
-        userId,
-        inputData,
-      });
-
-      // Save uploaded files
-      if (uploadedFiles.length > 0) {
-        await saveUploadedFilesForEventId(userId, jobEvent.id, uploadedFiles);
-      }
+      const { job } = await jobService.provideJobInput(
+        {
+          jobId,
+          statusId,
+          userId,
+          inputData,
+        },
+        uploadedFiles,
+      );
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({

@@ -44,18 +44,23 @@
     "prepare": "pnpm build",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
     "test": "jest",
-    "test:ci": "jest --ci"
+    "test:ci": "jest --ci",
+    "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
+    "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
+    "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
     "json-canonicalize": "2.0.0",
-    "zod": "4.3.5"
+    "zod": "4.3.6",
+    "neverthrow": "8.2.0"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "0.90.10",
     "@types/jest": "30.0.0",
-    "@types/node": "24.10.4",
+    "@types/node": "24.10.9",
     "jest": "30.2.0",
     "ts-jest": "29.4.6",
     "typescript": "5.9.3"

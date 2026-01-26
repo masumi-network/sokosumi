@@ -66,15 +66,13 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         ? formatDateTimeMedium(formatter.dateTime, job.completedAt)
         : "-",
     },
-    ...(job.creditTransaction
+    ...(job.transaction
       ? [
           {
             key: "credits",
             label: t("credits"),
             rowClassName: "",
-            content: Math.abs(
-              convertCentsToCredits(job.creditTransaction.amount),
-            ),
+            content: Math.abs(convertCentsToCredits(job.transaction.amount)),
           },
         ]
       : []),

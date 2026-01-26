@@ -1,6 +1,6 @@
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import {
-  creditTransactionRepository,
+  creditBucketRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import { getTranslations } from "next-intl/server";
@@ -32,25 +32,21 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   const activeOrganization = await userService.getActiveOrganization();
 
   // Get appropriate credits based on context
-  let credits: number;
   let creditLabel: string;
 
+  const cents = await creditBucketRepository.getBalance(
+    user.id,
+    activeOrganization?.id ?? null,
+    prisma,
+  );
+
+  const credits = convertCentsToCredits(cents);
   if (activeOrganization) {
-    const cents = await creditTransactionRepository.getCentsByOrganizationId(
-      activeOrganization.id,
-      prisma,
-    );
-    credits = convertCentsToCredits(cents);
     creditLabel = t("organizationBalance", {
       credits: credits,
       organization: activeOrganization.name,
     });
   } else {
-    const cents = await creditTransactionRepository.getCentsByUserId(
-      user.id,
-      prisma,
-    );
-    credits = convertCentsToCredits(cents);
     creditLabel = t("userBalance", { credits: credits });
   }
 

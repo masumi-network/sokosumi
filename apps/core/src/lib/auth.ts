@@ -1,30 +1,12 @@
 import { oauthProvider } from "@better-auth/oauth-provider";
-import * as Sentry from "@sentry/node";
-import { APIError, betterAuth } from "better-auth";
+import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import {
-  apiKey,
-  createAuthMiddleware,
-  jwt,
-  openAPI,
-  organization,
-} from "better-auth/plugins";
+import { apiKey, jwt, openAPI, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 
-import { postmarkClient } from "@/clients/postmark.client";
-import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { mapProfileToUser } from "@/helpers/profile-mapper";
 import prisma from "@/lib/db/prisma";
-import {
-  renderEmailVerificationTemplate,
-  renderOrganizationInvitationTemplate,
-  renderPasswordResetTemplate,
-} from "@/lib/email/index.js";
-import { i18next } from "@/lib/i18next";
-import { stripeService } from "@/services/stripe.service";
-import { webhookService } from "@/services/webhook.service";
 
 const env = getEnv();
 
@@ -44,91 +26,6 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  databaseHooks: {
-    account: {
-      create: {
-        after: async (account, _ctx) => {
-          webhookService.callAccountCreated(account.userId, account.providerId);
-        },
-      },
-    },
-    user: {
-      create: {
-        before: async (user, _ctx) => {
-          if (!user.termsAccepted) {
-            throw new APIError("BAD_REQUEST", {
-              message: "Terms of service must be accepted to create an account",
-              code: "TERMS_NOT_ACCEPTED",
-            });
-          }
-        },
-        after: async (user, _ctx) => {
-          await stripeService.createUserCustomerAndSave(
-            user.id,
-            user.name,
-            user.email,
-          );
-          webhookService.callUserCreated(user);
-        },
-      },
-      update: {
-        after: async (user, _ctx) => {
-          webhookService.callUserUpdated(user);
-        },
-      },
-    },
-  },
-  hooks: {
-    before: createAuthMiddleware(async (ctx) => {
-      switch (ctx.path) {
-        // Check if user has accepted terms
-        case "/sign-up/email": {
-          if (!ctx.body?.termsAccepted) {
-            throw new APIError("BAD_REQUEST", {
-              message: "Terms of service must be accepted to sign up",
-              code: "TERMS_NOT_ACCEPTED",
-            });
-          }
-          break;
-        }
-      }
-    }),
-    after: createAuthMiddleware(async (ctx) => {
-      // Check if user has accepted terms
-      if (ctx.path.startsWith("/sign-in")) {
-        const user = ctx.context.newSession?.user;
-        if (user && !user.termsAccepted) {
-          throw new APIError("BAD_REQUEST", {
-            message: "Terms of service must be accepted to sign in",
-            code: "TERMS_NOT_ACCEPTED",
-          });
-        }
-      }
-      // Sync user email with Stripe after email change verification
-      if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
-        const user = ctx.context.newSession?.user;
-        if (user.stripeCustomerId && user.email) {
-          // Fire and forget - don't wait for sync to complete
-          stripeClient
-            .updateCustomerEmail(user.stripeCustomerId, user.email)
-            .then(() => {
-              console.log(
-                `✅ Synced user ${user.id} (${user.email}) email to Stripe customer ${user.stripeCustomerId}`,
-              );
-            })
-            .catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  user_id: user.id,
-                  email: user.email,
-                  stripe_customer_id: user.stripeCustomerId,
-                },
-              });
-            });
-        }
-      }
-    }),
-  },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   basePath: "/auth",
@@ -136,76 +33,8 @@ export const auth = betterAuth({
     storage: "database",
   },
   trustedOrigins: [env.BETTER_AUTH_TRUSTED_ORIGIN],
-  emailAndPassword: {
-    enabled: true,
-    maxPasswordLength: LIMITS.PASSWORD_MAX_LENGTH,
-    minPasswordLength: LIMITS.PASSWORD_MIN_LENGTH,
-    requireEmailVerification: true,
-    autoSignIn: false,
-    sendResetPassword: async ({ user, url }) => {
-      const language = "en";
-      const t = i18next.getFixedT(language, "emails");
-
-      postmarkClient
-        .sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: user.email,
-          Tag: "reset-password",
-          Subject: t("resetPassword.subject"),
-          HtmlBody: renderPasswordResetTemplate({
-            name: user.name,
-            resetLink: url,
-            lng: language,
-          }),
-          MessageStream: "authentications",
-        })
-        .catch((error) => {
-          Sentry.captureException(error, {
-            tags: {
-              user_id: user.id,
-              email: user.email,
-            },
-          });
-        });
-    },
-  },
-  emailVerification: {
-    sendVerificationEmail: async ({ user, url }) => {
-      const language = "en";
-      const t = i18next.getFixedT(language, "emails");
-
-      postmarkClient
-        .sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: user.email,
-          Tag: "verification-email",
-          Subject: t("verification.subject"),
-          HtmlBody: renderEmailVerificationTemplate({
-            name: user.name,
-            verificationLink: url,
-            lng: language,
-          }),
-          MessageStream: "authentications",
-        })
-        .catch((error) => {
-          Sentry.captureException(error, {
-            tags: {
-              user_id: user.id,
-              email: user.email,
-            },
-          });
-        });
-    },
-    sendOnSignUp: true,
-    sendOnSignIn: true,
-    expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
-    autoSignInAfterVerification: true,
-  },
   user: {
-    changeEmail: {
-      enabled: true,
-    },
-    deleteUser: {
+    emailAndPassword: {
       enabled: true,
     },
     additionalFields: {
@@ -236,26 +65,6 @@ export const auth = betterAuth({
       },
     },
   },
-  socialProviders: {
-    google: {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
-      mapProfileToUser,
-    },
-    microsoft: {
-      clientId: env.MICROSOFT_CLIENT_ID,
-      clientSecret: env.MICROSOFT_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
-      mapProfileToUser,
-    },
-  },
-  account: {
-    accountLinking: {
-      enabled: true,
-      trustedProviders: ["google", "microsoft"],
-    },
-  },
   plugins: [
     localization({
       defaultLocale: "default",
@@ -270,69 +79,7 @@ export const auth = betterAuth({
       enableMetadata: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
-    oauthProvider({
-      loginPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/signin`,
-      consentPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/oauth/consent`,
-      scopes: ["openid", "offline_access"],
-      clientRegistrationDefaultScopes: ["openid", "offline_access"],
-      accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
-      refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
-      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
-      codeExpiresIn: 600, // 10 minutes (default: 600)
-      prefix: {
-        opaqueAccessToken: "soko_access_token_",
-        refreshToken: "soko_refresh_token_",
-        clientSecret: "soko_client_secret_",
-      },
-    }),
     organization({
-      organizationCreation: {
-        afterCreate: async ({ organization }) => {
-          await stripeService.createOrganizationCustomerAndSave(
-            organization.id,
-            organization.name,
-            organization.invoiceEmail ?? null,
-            organization.slug,
-          );
-        },
-      },
-      invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
-      organizationLimit: LIMITS.ORGANIZATION_LIMIT,
-      invitationExpiresIn: TIME.INVITATION_EXPIRES,
-      cancelPendingInvitationsOnReInvite: true,
-      allowUserToCreateOrganization(user) {
-        return user.emailVerified;
-      },
-      async sendInvitationEmail(data) {
-        const inviteLink = `${env.BETTER_AUTH_URL}/accept-invitation/${data.id}`;
-        const language = "en";
-        const t = i18next.getFixedT(language, "emails");
-
-        postmarkClient
-          .sendEmail({
-            From: env.POSTMARK_FROM_EMAIL,
-            To: data.email,
-            Tag: "invitation-email",
-            Subject: t("invitation.subject"),
-            HtmlBody: renderOrganizationInvitationTemplate({
-              organizationName: data.organization.name,
-              invitorUsername: data.inviter.user.name,
-              invitationLink: inviteLink,
-              lng: language,
-            }),
-            MessageStream: "organizations",
-          })
-          .catch((error) => {
-            Sentry.captureException(error, {
-              tags: {
-                user_id: data.inviter.user.id,
-                email: data.email,
-                organization_id: data.organization.id,
-                invitation_id: data.id,
-              },
-            });
-          });
-      },
       schema: {
         organization: {
           additionalFields: {
@@ -350,6 +97,21 @@ export const auth = betterAuth({
             },
           },
         },
+      },
+    }),
+    oauthProvider({
+      loginPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/signin`,
+      consentPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/oauth/consent`,
+      scopes: ["openid", "offline_access"],
+      clientRegistrationDefaultScopes: ["openid", "offline_access"],
+      accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
+      refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
+      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
+      codeExpiresIn: 600, // 10 minutes (default: 600)
+      prefix: {
+        opaqueAccessToken: "soko_access_token_",
+        refreshToken: "soko_refresh_token_",
+        clientSecret: "soko_client_secret_",
       },
     }),
   ],

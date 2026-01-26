@@ -1,6 +1,9 @@
 ---
-description: Translation cleanup rules for next-intl
-globs: *.tsx, *.ts, messages/*.json
+description: "Translation cleanup rules for next-intl"
+globs:
+  - "*.tsx"
+  - "*.ts"
+  - "messages/*.json"
 alwaysApply: true
 ---
 

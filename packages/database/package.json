@@ -55,22 +55,22 @@
     "prisma:studio": "pnpm exec prisma studio",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\""
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.2.0",
-    "@prisma/client": "7.2.0",
+    "@prisma/adapter-pg": "7.3.0",
+    "@prisma/client": "7.3.0",
     "decimal.js": "10.6.0",
-    "pg": "8.16.3",
-    "pg-pool": "3.10.1",
+    "pg": "8.17.2",
+    "pg-pool": "3.11.0",
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "24.10.4",
+    "@types/node": "24.10.9",
     "@types/pg": "8.16.0",
     "dotenv": "17.2.3",
-    "prisma": "7.2.0",
+    "prisma": "7.3.0",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   }

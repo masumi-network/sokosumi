@@ -34,7 +34,11 @@ type PurchaseRequestedAction =
   | "WithdrawRefundRequested"
   | "WithdrawRefundInitiated";
 
-type PurchaseErrorType = null | "NetworkError" | "InsufficientFunds" | "Unknown";
+type PurchaseErrorType =
+  | null
+  | "NetworkError"
+  | "InsufficientFunds"
+  | "Unknown";
 
 function onChainStateToOnChainJobStatus(
   onChainState: PurchaseOnChainState,
@@ -181,7 +185,11 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
   if (transaction) {
     data.onChainTransactionHash = transaction.txHash ?? undefined;
     data.onChainTransactionStatus = transactionStatusToOnChainTransactionStatus(
-      transaction.status as "Pending" | "Confirmed" | "FailedViaTimeout" | "RolledBack",
+      transaction.status as
+        | "Pending"
+        | "Confirmed"
+        | "FailedViaTimeout"
+        | "RolledBack",
     );
   }
 
