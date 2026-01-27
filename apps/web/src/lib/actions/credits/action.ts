@@ -96,7 +96,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
     const price = priceId
       ? await stripeClient.getPriceById(priceId)
       : await stripeClient.getPriceByProductId(
-          getEnvSecrets().STRIPE_PRODUCT_ID,
+          getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID,
         );
     const credits = await stripeService.getCreditsForCoupon(couponId, price);
 

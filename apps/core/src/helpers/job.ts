@@ -1,7 +1,7 @@
-import { AgentJobStatus, JobType, type Prisma } from "@sokosumi/database";
+import { AgentJobStatus, JobType, Prisma } from "@sokosumi/database";
 import {
+  creditBucketRepository,
   jobShareRepository,
-  transactionRepository,
 } from "@sokosumi/database/repositories";
 import {
   type JobWithEvents,
@@ -23,6 +23,7 @@ import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
 import { badRequest, forbidden, notFound } from "./error";
+import { getCents } from "./user";
 
 /**
  * Validates that user or organization has sufficient credit balance
@@ -37,18 +38,7 @@ export async function validateCreditBalance(
     return;
   }
 
-  let centsBalance: bigint;
-  if (organizationId) {
-    centsBalance = await transactionRepository.getCentsByOrganizationId(
-      organizationId,
-      tx,
-    );
-  } else {
-    centsBalance = await transactionRepository.getCentsByUserId(
-      userId,
-      tx,
-    );
-  }
+  const centsBalance = await getCents(userId, organizationId, tx);
 
   if (centsBalance < costCents) {
     throw badRequest("Insufficient balance");
@@ -56,7 +46,7 @@ export async function validateCreditBalance(
 }
 
 /**
- * Creates a paid job with payment records
+ * Creates a paid job with payment records and consumes credits FIFO
  */
 export async function createJobWithPayment(
   input: {
@@ -70,57 +60,78 @@ export async function createJobWithPayment(
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  return await tx.job.create({
-    data: {
-      agentJobId: agentJobResponse.id,
-      jobType: JobType.PAID,
-      agent: { connect: { id: input.agentId } },
-      user: { connect: { id: input.userId } },
-      ...(input.organizationId && {
-        organization: { connect: { id: input.organizationId } },
-      }),
-      events: {
-        create: {
-          status: AgentJobStatus.INITIATED,
-          result: null,
-          inputSchema: JSON.stringify(input.inputSchema),
-          input: {
-            create: {
-              input: JSON.stringify(input.inputData),
-              inputHash: agentJobResponse.input_hash,
-            },
-          },
-        },
-      },
-      transaction: {
-        create: {
-          amount: -cost.cents,
-          includedFee: cost.includedFee,
+  return await prisma.$transaction(
+    async (tx) => {
+      const consumptions = await creditBucketRepository.prepareConsumption(
+        input.userId,
+        input.organizationId,
+        cost.cents,
+        tx,
+      );
+
+      return await tx.job.create({
+        data: {
+          agentJobId: agentJobResponse.id,
+          jobType: JobType.PAID,
+          agent: { connect: { id: input.agentId } },
           user: { connect: { id: input.userId } },
           ...(input.organizationId && {
             organization: { connect: { id: input.organizationId } },
           }),
+          events: {
+            create: {
+              status: AgentJobStatus.INITIATED,
+              result: null,
+              inputSchema: JSON.stringify(input.inputSchema),
+              input: {
+                create: {
+                  input: JSON.stringify(input.inputData),
+                  inputHash: agentJobResponse.input_hash,
+                },
+              },
+            },
+          },
+          transaction: {
+            create: {
+              amount: -cost.cents,
+              includedFee: cost.includedFee,
+              user: { connect: { id: input.userId } },
+              ...(input.organizationId && {
+                organization: { connect: { id: input.organizationId } },
+              }),
+              creditConsumptions: {
+                createMany: {
+                  data: consumptions.map((consumption) => ({
+                    bucketId: consumption.bucketId,
+                    amount: consumption.amount,
+                  })),
+                },
+              },
+            },
+          },
+          name: input.name,
+          payByTime: new Date(agentJobResponse.payByTime),
+          externalDisputeUnlockTime: new Date(
+            agentJobResponse.externalDisputeUnlockTime,
+          ),
+          submitResultTime: new Date(agentJobResponse.submitResultTime),
+          unlockTime: new Date(agentJobResponse.unlockTime),
+          blockchainIdentifier: agentJobResponse.blockchainIdentifier,
+          sellerVkey: agentJobResponse.sellerVKey,
+          identifierFromPurchaser,
         },
-      },
-      name: input.name,
-      payByTime: new Date(agentJobResponse.payByTime),
-      externalDisputeUnlockTime: new Date(
-        agentJobResponse.externalDisputeUnlockTime,
-      ),
-      submitResultTime: new Date(agentJobResponse.submitResultTime),
-      unlockTime: new Date(agentJobResponse.unlockTime),
-      blockchainIdentifier: agentJobResponse.blockchainIdentifier,
-      sellerVkey: agentJobResponse.sellerVKey,
-      identifierFromPurchaser,
+        include: {
+          ...jobWithEvents,
+          ...jobWithTransaction,
+          ...jobWithPurchase,
+        },
+      });
     },
-    include: {
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     },
-  });
+  );
 }
 
 /**

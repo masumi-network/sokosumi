@@ -1,7 +1,4 @@
-import {
-  prepareInputValues,
-  JobInputsFormSchemaType,
-} from "@/lib/job-input";
+import { prepareInputValues, JobInputsFormSchemaType } from "@/lib/job-input";
 
 describe("prepareInputValues", () => {
   it("serializes Date values and removes null/undefined entries", () => {
@@ -20,7 +17,7 @@ describe("prepareInputValues", () => {
     expect(result).toEqual({
       startDate: firstDate.toISOString(),
       dateRange: [firstDate.toISOString(), secondDate.toISOString()],
-      count: 2,  
+      count: 2,
     });
   });
 });

@@ -6,6 +6,8 @@ import { getEnv } from "@/config/env.js";
 import agentsRouter from "./agents/index.js";
 import conversationsRouter from "./conversations/index.js";
 import jobsRouter from "./jobs/index.js";
+import orchestratorsRouter from "./orchestrators/index.js";
+import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
 
 const app = new OpenAPIHono();
@@ -74,5 +76,7 @@ app.route("/agents", agentsRouter);
 app.route("/conversations", conversationsRouter);
 app.route("/users", usersRouter);
 app.route("/jobs", jobsRouter);
+app.route("/orchestrators", orchestratorsRouter);
+app.route("/tasks", tasksRouter);
 
 export default app;

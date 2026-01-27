@@ -13,26 +13,17 @@ import {
 } from "@/components/ui/card";
 import { DialogClose } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckoutSessionData } from "@/lib/clients";
-
-import PurchaseTracker from "./purchase-tracker";
 
 interface SuccessCardProps {
-  checkoutSession: CheckoutSessionData;
   className?: string;
   children: React.ReactNode;
 }
 
-export default function SuccessCard({
-  checkoutSession,
-  className,
-  children,
-}: SuccessCardProps) {
+export default function SuccessCard({ className, children }: SuccessCardProps) {
   const t = useTranslations("App.Credits.Success");
 
   return (
     <>
-      <PurchaseTracker checkoutSession={checkoutSession} />
       <Card className={className}>
         <CardHeader className="text-center">
           <div className="absolute top-2 right-2">

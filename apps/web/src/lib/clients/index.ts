@@ -1,4 +1,5 @@
 export * from "./agent.client";
+export * from "./core.client";
 export * from "./masumi-payment.client";
 export * from "./masumi-registry.client";
 export * from "./openrouter.client";

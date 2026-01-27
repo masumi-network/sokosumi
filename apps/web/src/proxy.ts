@@ -1,6 +1,8 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
+import { getEnvSecrets } from "@/config/env.secrets";
+
 const EXCLUDED_PATHS = [
   "/auth/",
   "/signin",
@@ -20,11 +22,26 @@ const EXCLUDED_PATHS = [
   "/manifest.webmanifest",
   "/favicon.ico",
   "/apple-touch-icon",
+  "/maintenance",
 ];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
+
+  // Check maintenance mode - redirect to /maintenance if enabled
+  const isMaintenanceMode = getEnvSecrets().MAINTENANCE_MODE;
+  if (isMaintenanceMode) {
+    if (pathname.startsWith("/api")) {
+      return NextResponse.json(
+        { error: "Service is under maintenance" },
+        { status: 503 },
+      );
+    }
+    if (pathname !== "/maintenance") {
+      return NextResponse.redirect(new URL("/maintenance", request.url));
+    }
+  }
 
   const isApiV1Path = pathname.startsWith("/api/v1");
 

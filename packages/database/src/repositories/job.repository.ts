@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  CreditBucketReferenceType,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
@@ -13,6 +14,7 @@ import {
   type JobWithSokosumiStatus,
 } from "../types/job.js";
 import { AttachmentData } from "./attachment.repository.js";
+import { creditBucketRepository } from "./credit-bucket.repository.js";
 
 interface CreateDemoJobData {
   jobType: typeof JobType.DEMO;
@@ -326,6 +328,13 @@ export const jobRepository = {
         });
         return mapJobWithStatus(freeJob);
       case JobType.PAID:
+        const consumptions = await creditBucketRepository.prepareConsumption(
+          data.userId,
+          data.organizationId ?? null,
+          data.creditsPrice.cents,
+          tx,
+        );
+
         const paidJob = await tx.job.create({
           data: {
             ...baseJobData,
@@ -345,6 +354,14 @@ export const jobRepository = {
                     },
                   },
                 }),
+                creditConsumptions: {
+                  createMany: {
+                    data: consumptions.map((consumption) => ({
+                      bucketId: consumption.bucketId,
+                      amount: consumption.amount,
+                    })),
+                  },
+                },
               },
             },
             payByTime: data.payByTime,
@@ -385,9 +402,9 @@ export const jobRepository = {
       throw new Error("Transaction not found");
     }
 
-    // Build refund transaction data based on whether it's for a user or organization
+    const amount = transaction.amount * BigInt(-1);
     const refundTransactionData: Prisma.TransactionCreateInput = {
-      amount: transaction.amount * BigInt(-1),
+      amount,
       includedFee: transaction.includedFee,
       user: {
         connect: {
@@ -401,6 +418,26 @@ export const jobRepository = {
           },
         },
       }),
+      sourceCreditBucket: {
+        create: {
+          amount,
+          referenceId: jobId,
+          referenceType: CreditBucketReferenceType.JOB_REFUND,
+          user: {
+            connect: {
+              id: transaction.userId,
+            },
+          },
+          expiresAt: null,
+          ...(transaction.organizationId && {
+            organization: {
+              connect: {
+                id: transaction.organizationId,
+              },
+            },
+          }),
+        },
+      },
     };
 
     await tx.job.update({

@@ -7,10 +7,7 @@ import { toast } from "sonner";
 
 import { CommonErrorCode } from "@/lib/actions";
 import { provideJobInput } from "@/lib/actions/job/action";
-import {
-  JobInputsFormSchemaType,
-  prepareInputValues,
-} from "@/lib/job-input";
+import { JobInputsFormSchemaType, prepareInputValues } from "@/lib/job-input";
 
 export interface UseProvideJobInputOptions {
   jobId: string;

@@ -61,9 +61,11 @@ model User {
   orchestrators Orchestrator[]
 
   // Tasks
-  tasks        Task[]
-  taskComments TaskComment[]
-  taskEvents   TaskEvents[]
+  tasks      Task[]
+  taskEvents TaskEvent[]
+
+  // Credit Buckets
+  creditBuckets CreditBucket[]
 
   // Conversations
   conversations Conversation[]
@@ -142,6 +144,9 @@ model Organization {
 
   stripeCustomerId String?
   invoiceEmail     String?
+
+  // Credit Buckets
+  creditBuckets CreditBucket[]
 
   @@unique([slug])
   @@unique([stripeCustomerId])
@@ -463,9 +468,6 @@ model Transaction {
   amount      BigInt // positive is always a credit topup and negative is always a credit spend; 1_000_000_000_000 = 1 credit (10^12) with NEXT_PUBLIC_CREDITS_BASE = 12
   includedFee BigInt @default(0)
 
-  referenceId   String?
-  referenceType TransactionReferenceType?
-
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -475,12 +477,68 @@ model Transaction {
   job         Job? @relation("TransactionJob")
   refundedJob Job? @relation("RefundedTransactionJob")
 
-  @@unique([referenceId, referenceType])
+  sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
+  creditConsumptions CreditConsumption[]
+
   @@index([userId, organizationId])
 }
 
-enum TransactionReferenceType {
+model CreditBucket {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Amount of credits in this bucket (in cents, always positive)
+  amount    BigInt
+  expiresAt DateTime? // (null = non-expiring)
+
+  referenceId   String?
+  referenceType CreditBucketReferenceType?
+
+  // Link to the transaction that created this bucket (topup)
+  sourceTransactionId String      @unique
+  sourceTransaction   Transaction @relation("CreditBucketSource", fields: [sourceTransactionId], references: [id], onDelete: Cascade)
+
+  // User/Organization ownership
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Track which transactions consumed from this bucket
+  consumptions CreditConsumption[]
+
+  @@unique([referenceId, referenceType])
+  @@index([userId, organizationId, expiresAt])
+  @@index([expiresAt])
+  @@map("credit_bucket")
+}
+
+enum CreditBucketReferenceType {
   STRIPE_INVOICE
+  JOB_REFUND
+}
+
+model CreditConsumption {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Amount consumed from this bucket (in cents, always positive)
+  amount BigInt
+
+  // Which bucket this consumption came from
+  bucketId String
+  bucket   CreditBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  // Link to the transaction that represents this spending
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([bucketId, transactionId])
+  @@index([bucketId])
+  @@index([transactionId])
+  @@map("credit_consumption")
 }
 
 enum JobType {
@@ -727,19 +785,10 @@ model Attachment {
   mimeType String? // Optional - MIME type
   size     BigInt? // Optional - file size in bytes
 
-  // Polymorphic relations - exactly one should be set
-  jobInputId String?
-  jobInput   JobInput? @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
-
-  taskId String?
-  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  taskCommentId String?
-  taskComment   TaskComment? @relation(fields: [taskCommentId], references: [id], onDelete: Cascade)
+  jobInputId String
+  jobInput   JobInput @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
 
   @@index([jobInputId])
-  @@index([taskId])
-  @@index([taskCommentId])
   @@map("attachment")
 }
 
@@ -967,9 +1016,8 @@ model Orchestrator {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tasks        Task[]
-  taskComments TaskComment[]
-  taskEvents   TaskEvents[]
+  tasks      Task[]
+  taskEvents TaskEvent[]
 
   @@map("orchestrator")
 }
@@ -984,15 +1032,13 @@ model Task {
 
   name        String
   description String?
-  attachments Attachment[]
 
   status TaskStatus @default(DRAFT)
 
   orchestratorId String?
   orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
-  comments TaskComment[]
-  events   TaskEvents[]
+  events TaskEvent[]
 
   @@map("task")
 }
@@ -1000,17 +1046,22 @@ model Task {
 enum TaskStatus {
   DRAFT
   READY
+  INPUT_REQUIRED
   RUNNING
   COMPLETED
   FAILED
 }
 
-model TaskEvents {
+model TaskEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  status TaskStatus
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  status  TaskStatus?
+  comment String?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1018,30 +1069,7 @@ model TaskEvents {
   orchestratorId String?
   orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@map("taskEvents")
-}
-
-model TaskComment {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  content     String
-  attachments Attachment[]
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  orchestratorId String?
-  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
-
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@map("taskComment")
+  @@map("taskEvent")
 }
 
 model Conversation {

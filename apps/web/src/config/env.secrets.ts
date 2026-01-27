@@ -39,14 +39,19 @@ const envSecretsSchema = z.object({
     .transform((val: string) => val.trim().toLowerCase() === "true")
     .default(false),
 
+  MAINTENANCE_MODE: z
+    .string()
+    .transform((val: string) => val.trim().toLowerCase() === "true")
+    .default(false),
+
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
-  STRIPE_PRODUCT_ID: z.string().min(1),
-  STRIPE_WELCOME_COUPON: z.string().min(1),
+  STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
   STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
   STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
+  STRIPE_WELCOME_COUPON: z.string().min(1),
 
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
@@ -85,6 +90,9 @@ const envSecretsSchema = z.object({
 
   PAYMENT_API_KEY: z.string().min(1),
   PAYMENT_API_URL: z.url().default("https://payment.masumi.network/api/v1"),
+
+  // Core API
+  CORE_API_URL: z.url().default("http://localhost:3001"),
 
   // Social Secrets
   GOOGLE_CLIENT_ID: z.string().min(1),
