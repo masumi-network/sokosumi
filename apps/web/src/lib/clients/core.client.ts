@@ -54,11 +54,15 @@ export const coreClient = (() => {
     const requestHeaders = await headers();
     const authHeaders = buildAuthHeaders(requestHeaders);
     const mergedHeaders = mergeHeaders(options.headers, authHeaders);
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
-    const response = await fetch(`${getEnvSecrets().CORE_API_URL}${path}`, {
-      ...options,
-      headers: mergedHeaders,
-    });
+    const response = await fetch(
+      `${getEnvSecrets().CORE_API_URL}${normalizedPath}`,
+      {
+        ...options,
+        headers: mergedHeaders,
+      },
+    );
 
     if (!response.ok) {
       throw new Error("Failed to fetch from Core API");
