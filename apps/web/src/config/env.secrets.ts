@@ -90,6 +90,9 @@ const envSecretsSchema = z.object({
   PAYMENT_API_KEY: z.string().min(1),
   PAYMENT_API_URL: z.url().default("https://payment.masumi.network/api/v1"),
 
+  // Core API
+  CORE_API_URL: z.url().default("http://localhost:3001"),
+
   // Social Secrets
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
