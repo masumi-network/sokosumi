@@ -43,16 +43,16 @@ importers:
         version: 0.3.0
       '@hono/node-server':
         specifier: 1.19.9
-        version: 1.19.9(hono@4.11.5)
+        version: 1.19.9(hono@4.11.6)
       '@hono/zod-openapi':
         specifier: 1.2.0
-        version: 1.2.0(hono@4.11.5)(zod@4.3.6)
+        version: 1.2.0(hono@4.11.6)(zod@4.3.6)
       '@openrouter/ai-sdk-provider':
         specifier: 2.0.2
         version: 2.0.2(ai@6.0.48(zod@4.3.6))(zod@4.3.6)
       '@scalar/hono-api-reference':
         specifier: 0.9.37
-        version: 0.9.37(hono@4.11.5)
+        version: 0.9.37(hono@4.11.6)
       '@scalar/openapi-to-markdown':
         specifier: 0.3.30
         version: 0.3.30(typescript@5.9.3)
@@ -84,8 +84,8 @@ importers:
         specifier: 17.2.3
         version: 17.2.3
       hono:
-        specifier: 4.11.5
-        version: 4.11.5
+        specifier: 4.11.6
+        version: 4.11.6
       i18next:
         specifier: 25.8.0
         version: 25.8.0(typescript@5.9.3)
@@ -5828,8 +5828,8 @@ packages:
     resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
     engines: {node: '>=16.9.0'}
 
-  hono@4.11.5:
-    resolution: {integrity: sha512-WemPi9/WfyMwZs+ZUXdiwcCh9Y+m7L+8vki9MzDw3jJ+W9Lc+12HGsd368Qc1vZi1xwW8BWMMsnK5efYKPdt4g==}
+  hono@4.11.6:
+    resolution: {integrity: sha512-ofIiiHyl34SV6AuhE3YT2mhO5HRWokce+eUYE82TsP6z0/H3JeJcjVWEMSIAiw2QkjDOEpES/lYsg8eEbsLtdw==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -9361,21 +9361,21 @@ snapshots:
     dependencies:
       hono: 4.11.4
 
-  '@hono/node-server@1.19.9(hono@4.11.5)':
+  '@hono/node-server@1.19.9(hono@4.11.6)':
     dependencies:
-      hono: 4.11.5
+      hono: 4.11.6
 
-  '@hono/zod-openapi@1.2.0(hono@4.11.5)(zod@4.3.6)':
+  '@hono/zod-openapi@1.2.0(hono@4.11.6)(zod@4.3.6)':
     dependencies:
       '@asteasolutions/zod-to-openapi': 8.4.0(zod@4.3.6)
-      '@hono/zod-validator': 0.7.6(hono@4.11.5)(zod@4.3.6)
-      hono: 4.11.5
+      '@hono/zod-validator': 0.7.6(hono@4.11.6)(zod@4.3.6)
+      hono: 4.11.6
       openapi3-ts: 4.5.0
       zod: 4.3.6
 
-  '@hono/zod-validator@0.7.6(hono@4.11.5)(zod@4.3.6)':
+  '@hono/zod-validator@0.7.6(hono@4.11.6)(zod@4.3.6)':
     dependencies:
-      hono: 4.11.5
+      hono: 4.11.6
       zod: 4.3.6
 
   '@hookform/resolvers@5.2.2(react-hook-form@7.71.1(react@19.2.3))':
@@ -11332,10 +11332,10 @@ snapshots:
 
   '@scalar/helpers@0.2.9': {}
 
-  '@scalar/hono-api-reference@0.9.37(hono@4.11.5)':
+  '@scalar/hono-api-reference@0.9.37(hono@4.11.6)':
     dependencies:
       '@scalar/core': 0.3.34
-      hono: 4.11.5
+      hono: 4.11.6
 
   '@scalar/icons@0.5.2(typescript@5.9.3)':
     dependencies:
@@ -14615,7 +14615,7 @@ snapshots:
 
   hono@4.11.4: {}
 
-  hono@4.11.5: {}
+  hono@4.11.6: {}
 
   html-escaper@2.0.2: {}
 
