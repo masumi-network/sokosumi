@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.17",
-    "@better-auth/utils": "0.3.0",
+    "@better-auth/utils": "0.3.1",
     "@hono/node-server": "1.19.9",
     "@hono/zod-openapi": "1.2.0",
     "@openrouter/ai-sdk-provider": "2.0.2",

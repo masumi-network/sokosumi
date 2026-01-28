@@ -29,7 +29,7 @@
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.17",
     "@better-auth/stripe": "1.4.17",
-    "@better-auth/utils": "0.3.0",
+    "@better-auth/utils": "0.3.1",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
     "@hookform/resolvers": "5.2.2",
