@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { Conversation } from "@/lib/actions/conversation";
+import {
+  addConversationItem,
+  getConversationItems,
+} from "@/lib/actions/conversation/core-api-actions";
 import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
@@ -134,7 +138,7 @@ function extractMessageContent(message: unknown): string {
 // Helper function to generate suggestions based on coworker ID
 function getCoworkerSuggestions(coworkerId?: string): string[] {
   if (!coworkerId) return [];
-  
+
   const suggestionMap: Record<string, string[]> = {
     hannah: [
       "How can I analyze data effectively?",
@@ -155,7 +159,7 @@ function getCoworkerSuggestions(coworkerId?: string): string[] {
       "What are tips for better business writing?",
     ],
   };
-  
+
   return suggestionMap[coworkerId] || [];
 }
 
@@ -209,7 +213,8 @@ function WelcomeScreen({
       <div
         className={cn(
           "mb-8 text-center transition-all duration-500",
-          isTransitioning && "animate-out fade-out slide-out-to-top-4 duration-500",
+          isTransitioning &&
+            "animate-out fade-out slide-out-to-top-4 duration-500",
         )}
       >
         <h1 className="mb-4 text-3xl font-semibold">
@@ -222,7 +227,8 @@ function WelcomeScreen({
         onSubmit={handleSubmit}
         className={cn(
           "bg-background w-full max-w-2xl overflow-hidden rounded-xl border shadow-sm transition-all duration-500",
-          isTransitioning && "animate-out fade-out slide-out-to-bottom-4 duration-500",
+          isTransitioning &&
+            "animate-out fade-out slide-out-to-bottom-4 duration-500",
         )}
       >
         <div className="flex w-full min-w-0 items-center gap-2">
@@ -325,7 +331,7 @@ function EmptyChatState({
                   key={index}
                   onClick={() => onSendMessage(suggestion)}
                   disabled={isLoading}
-                  className="bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-lg border px-4 py-2 text-sm transition-all hover:scale-105 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg border px-4 py-2 text-sm transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {suggestion}
                 </button>
@@ -373,86 +379,43 @@ export default function ChatInterface({
   const [input, setInput] = useState("");
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
-  const [showMessagesAfterTransition, setShowMessagesAfterTransition] = useState(true);
+  const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
+    useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   // Store messages per chat ID (in-memory cache)
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
   const previousChatIdRef = useRef<string | null>(null);
+  // Ref to track current chat ID for use in prepareSendMessagesRequest (synchronous access)
+  const currentChatIdRef = useRef<string | null>(null);
+  // Track which conversations we've already fetched items for to populate previews
+  const fetchedPreviewConversationIds = useRef<Set<string>>(new Set());
 
-  // Helper to get localStorage key for a conversation
-  const getMessagesStorageKey = useCallback((conversationId: string) => {
-    return `coworker-chat-messages-${conversationId}`;
-  }, []);
-
-  // Helper to load messages from localStorage
-  const loadMessagesFromStorage = useCallback(
-    (conversationId: string): unknown[] | null => {
-      try {
-        const storageKey = getMessagesStorageKey(conversationId);
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          // Convert dates back from ISO strings and ensure UIMessage format
-          return parsed.map((msg: Record<string, unknown>) => {
-            const contentText =
-              typeof msg.content === "string"
-                ? msg.content
-                : msg.parts && Array.isArray(msg.parts)
-                  ? msg.parts
-                      .map((p: unknown) =>
-                        p && typeof p === "object" && "text" in p
-                          ? String(p.text)
-                          : "",
-                      )
-                      .join("")
-                  : "";
-            return {
-              ...msg,
-              id: msg.id || `msg-${Date.now()}-${Math.random()}`,
-              role: msg.role || "user",
-              parts: msg.parts || [{ type: "text", text: contentText }],
-              content: contentText || msg.content || "",
-              createdAt: msg.createdAt
-                ? new Date(msg.createdAt as string)
-                : new Date(),
-            };
-          });
-        }
-      } catch (_error) {
-        // Silently handle localStorage errors (non-critical, fallback to empty)
-        // localStorage may be unavailable in private browsing mode or quota exceeded
-      }
-      return null;
+  // Helper to convert ConversationItem[] to UIMessage format
+  const convertItemsToMessages = useCallback(
+    (
+      items: Array<{
+        id: string;
+        role: string;
+        content: Array<{ type: string; text?: string }> | string;
+        created_at: number;
+      }>,
+    ) => {
+      return items.map((item) => {
+        const contentText =
+          typeof item.content === "string"
+            ? item.content
+            : item.content.map((c) => c.text || "").join("");
+        return {
+          id: item.id,
+          role: item.role,
+          parts: [{ type: "text", text: contentText }],
+          content: contentText,
+          createdAt: new Date(item.created_at * 1000),
+        };
+      });
     },
-    [getMessagesStorageKey],
-  );
-
-  // Helper to save messages to localStorage
-  const saveMessagesToStorage = useCallback(
-    (conversationId: string, messagesToSave: unknown[]) => {
-      try {
-        const storageKey = getMessagesStorageKey(conversationId);
-        // Convert to JSON-safe format (dates become ISO strings)
-        const serializable = messagesToSave.map((msg: unknown) => {
-          const msgObj = msg as Record<string, unknown>;
-          return {
-            ...msgObj,
-            createdAt:
-              msgObj.createdAt instanceof Date
-                ? msgObj.createdAt.toISOString()
-                : typeof msgObj.createdAt === "string"
-                  ? msgObj.createdAt
-                  : new Date().toISOString(),
-          };
-        });
-        localStorage.setItem(storageKey, JSON.stringify(serializable));
-      } catch (_error) {
-        // Silently handle localStorage errors (non-critical, messages still in memory)
-        // localStorage may be unavailable in private browsing mode or quota exceeded
-      }
-    },
-    [getMessagesStorageKey],
+    [],
   );
 
   // Function to update chat preview with assistant message
@@ -463,8 +426,8 @@ export default function ChatInterface({
       }
 
       const now = new Date();
-      setChats((prev) =>
-        prev.map((chat) => {
+      setChats((prev) => {
+        return prev.map((chat) => {
           if (chat.id === chatId) {
             return {
               ...chat,
@@ -487,8 +450,8 @@ export default function ChatInterface({
             };
           }
           return chat;
-        }),
-      );
+        });
+      });
     },
     [selectedChatId, t],
   );
@@ -496,11 +459,16 @@ export default function ChatInterface({
   const { messages, sendMessage, status, setMessages } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/coworkers/chat",
-      body: selectedChatId
-        ? {
-            conversationId: selectedChatId,
-          }
-        : undefined,
+      prepareSendMessagesRequest(request) {
+        // Use ref for synchronous access to current chat ID
+        const chatId = currentChatIdRef.current || selectedChatId;
+        const body = {
+          messages: request.messages,
+          ...(chatId ? { conversationId: chatId } : {}),
+          ...request.body,
+        };
+        return { body };
+      },
     }),
     onFinish: ({ messages: finishedMessages }) => {
       if (!selectedChatId || finishedMessages.length === 0) {
@@ -531,6 +499,22 @@ export default function ChatInterface({
           const isFirstAssistantMessage =
             finishedMessages.filter((m) => m.role === "assistant").length === 1;
           updateChatPreview(selectedChatId, content, isFirstAssistantMessage);
+
+          // Save assistant message to database via Core API
+          // Format as Responses API output_text array: [{"type": "output_text", "text": "..."}]
+          const formattedContent: Array<{ type: string; text: string }> =
+            content ? [{ type: "output_text", text: content }] : [];
+
+          addConversationItem({
+            conversationId: selectedChatId,
+            role: "assistant",
+            content: formattedContent,
+          }).catch((error) => {
+            console.error(
+              "Failed to add assistant message to conversation via Core API:",
+              error,
+            );
+          });
         }
       }
     },
@@ -611,62 +595,8 @@ export default function ChatInterface({
     }
   }, [messages, selectedChatId, chats, updateChatPreview]);
 
-  // Preload messages from localStorage for all conversations when they're loaded
-  useEffect(() => {
-    if (conversations.length === 0) {
-      return;
-    }
-
-    // Preload messages from localStorage for each conversation
-    conversations.forEach((conv) => {
-      // Skip if already loaded in memory
-      if (chatMessagesRef.current.has(conv.id)) {
-        return;
-      }
-
-      // Try to load from localStorage
-      const storedMessages = loadMessagesFromStorage(conv.id);
-      if (storedMessages && storedMessages.length > 0) {
-        // Store in memory for faster access
-        chatMessagesRef.current.set(conv.id, storedMessages);
-
-        // Extract last assistant message for preview
-        const lastAssistantMessage = [...storedMessages]
-          .reverse()
-          .find((msg: unknown) => {
-            const msgAny = msg as Record<string, unknown>;
-            return msgAny.role === "assistant";
-          });
-
-        if (lastAssistantMessage) {
-          const content = extractMessageContent(lastAssistantMessage);
-          const createdAt = (lastAssistantMessage as Record<string, unknown>)
-            .createdAt;
-          const messageTime =
-            createdAt instanceof Date
-              ? createdAt
-              : typeof createdAt === "string"
-                ? new Date(createdAt)
-                : new Date();
-
-          if (content) {
-            // Update chat preview with last message
-            setChats((prev) =>
-              prev.map((chat) =>
-                chat.id === conv.id
-                  ? {
-                      ...chat,
-                      lastMessage: content,
-                      lastMessageTime: messageTime,
-                    }
-                  : chat,
-              ),
-            );
-          }
-        }
-      }
-    });
-  }, [conversations, loadMessagesFromStorage]);
+  // Note: Messages are now fetched from DB when selecting a conversation
+  // No need to preload from localStorage since DB is the source of truth
 
   // Auto-select first chat when conversations are loaded
   useEffect(() => {
@@ -682,20 +612,24 @@ export default function ChatInterface({
 
   // Reset transition state when chats are loaded
   useEffect(() => {
-    if (chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning) {
+    if (
+      chats.length > 0 &&
+      conversations.length > 0 &&
+      isWelcomeTransitioning
+    ) {
       // Hide messages during transition to prevent layout shifts
       setShowMessagesAfterTransition(false);
-      
+
       // Show messages after animation completes (300ms delay + 500ms duration = 800ms)
       const showTimer = setTimeout(() => {
         setShowMessagesAfterTransition(true);
       }, 800);
-      
+
       // Reset transition state after animation completes
       const resetTimer = setTimeout(() => {
         setIsWelcomeTransitioning(false);
       }, 200);
-      
+
       return () => {
         clearTimeout(showTimer);
         clearTimeout(resetTimer);
@@ -736,44 +670,16 @@ export default function ChatInterface({
           };
         }
 
-        // Try to get lastMessage from localStorage if not in existingChat
-        let lastMessage = existingChat?.lastMessage;
-        let lastMessageTime = existingChat?.lastMessageTime;
-
-        if (!lastMessage) {
-          // Try to load from localStorage to get last message
-          const storedMessages = chatMessagesRef.current.get(conv.id);
-          if (storedMessages && storedMessages.length > 0) {
-            const lastAssistantMessage = [...storedMessages]
-              .reverse()
-              .find((msg: unknown) => {
-                const msgAny = msg as Record<string, unknown>;
-                return msgAny.role === "assistant";
-              });
-
-            if (lastAssistantMessage) {
-              const content = extractMessageContent(lastAssistantMessage);
-              const createdAt = (
-                lastAssistantMessage as Record<string, unknown>
-              ).createdAt;
-              if (content) {
-                lastMessage = content;
-                lastMessageTime =
-                  createdAt instanceof Date
-                    ? createdAt
-                    : typeof createdAt === "string"
-                      ? new Date(createdAt)
-                      : new Date();
-              }
-            }
-          }
-        }
+        // Get lastMessage from existing chat (preserved from previous state)
+        // Note: Last message will be updated when messages are loaded from DB
+        const lastMessage = existingChat?.lastMessage;
+        const lastMessageTime = existingChat?.lastMessageTime;
 
         return {
           id: conv.id,
           title: conv.title || coworkerName || t("newChat"),
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt,
+          createdAt: new Date(conv.createdAt),
+          updatedAt: new Date(conv.updatedAt),
           status: (existingChat?.status || "active") as ChatStatus,
           coworker,
           lastMessage,
@@ -798,55 +704,151 @@ export default function ChatInterface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, t]); // Don't include chats in deps to avoid infinite loop
 
+  // Fetch items for conversations to populate previews when conversations are loaded
+  useEffect(() => {
+    if (conversations.length === 0) {
+      return;
+    }
+
+    // Fetch items for all conversations that haven't been fetched yet
+    // This runs when conversations are loaded to populate previews automatically
+    conversations.forEach((conv) => {
+      // Skip if we've already fetched items for this conversation
+      if (fetchedPreviewConversationIds.current.has(conv.id)) {
+        return;
+      }
+
+      // Mark as fetching to avoid duplicate requests
+      fetchedPreviewConversationIds.current.add(conv.id);
+
+      // Fetch items for this conversation to populate preview
+      void getConversationItems({ conversationId: conv.id })
+        .then((rawResult: unknown) => {
+          // Parse the serialized Result from server action
+          type SerializedResult =
+            | {
+                ok: true;
+                data: Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  created_at: number;
+                }>;
+              }
+            | { ok: false; error: unknown }
+            | { isOk: () => boolean; value?: unknown };
+          const resultAny = rawResult as SerializedResult;
+          let items: Array<{
+            id: string;
+            role: string;
+            content: Array<{ type: string; text?: string }> | string;
+            created_at: number;
+          }> | null = null;
+
+          if (
+            resultAny &&
+            "ok" in resultAny &&
+            resultAny.ok === true &&
+            "data" in resultAny
+          ) {
+            items = resultAny.data;
+          } else if (
+            resultAny &&
+            "isOk" in resultAny &&
+            typeof resultAny.isOk === "function"
+          ) {
+            // It's a proper neverthrow Result (shouldn't happen after serialization, but handle it)
+            if (resultAny.isOk() && "value" in resultAny) {
+              items = resultAny.value as Array<{
+                id: string;
+                role: string;
+                content: Array<{ type: string; text?: string }> | string;
+                created_at: number;
+              }>;
+            }
+          }
+
+          if (items && items.length > 0) {
+            // Find the last assistant message
+            const lastAssistantItem = items
+              .slice()
+              .reverse()
+              .find((item) => item.role === "assistant");
+            if (lastAssistantItem) {
+              const lastMessageContent =
+                typeof lastAssistantItem.content === "string"
+                  ? lastAssistantItem.content
+                  : lastAssistantItem.content.map((c) => c.text || "").join("");
+              if (lastMessageContent) {
+                updateChatPreview(conv.id, lastMessageContent, false);
+              }
+            }
+          }
+        })
+        .catch((error) => {
+          // If fetch fails, remove from fetched set so we can retry later
+          fetchedPreviewConversationIds.current.delete(conv.id);
+          console.error(
+            `Failed to fetch items for conversation ${conv.id}:`,
+            error,
+          );
+        });
+    });
+    // Fetch items when conversations are loaded
+    // The ref prevents duplicate fetches, so we can safely fetch for all conversations
+  }, [conversations, updateChatPreview]); // updateChatPreview is stable (doesn't depend on chats)
+
   const handleCreateNewChat = useCallback(() => {
     setShowSelectCoworkerModal(true);
   }, []);
 
   const handleCoworkerSelected = useCallback(
     async (coworker: Coworker) => {
-    // Create conversation and store in DB
-    const conversation = await createNewConversation(
-      {
-        coworker_id: coworker.id,
-        coworker_name: coworker.name,
-        coworker_description: coworker.description,
-        coworker_useCase: coworker.useCase,
-      },
-      coworker.name,
-    );
+      // Create conversation and store in DB
+      const conversation = await createNewConversation(
+        {
+          coworker_id: coworker.id,
+          coworker_name: coworker.name,
+          coworker_description: coworker.description,
+          coworker_useCase: coworker.useCase,
+        },
+        coworker.name,
+      );
 
-    if (!conversation) {
-      return; // Error handling is done in the hook
-    }
-
-    // Initialize empty messages for new chat
-    chatMessagesRef.current.set(conversation.id, []);
-    previousChatIdRef.current = conversation.id; // Set ref immediately to prevent preview updates
-    messagesChatIdRef.current = conversation.id; // Track that messages belong to this chat
-    setMessages([]);
-    setInput("");
-
-    // Temporarily add to chats with full coworker info so sync effect can preserve it
-    // The sync effect will update it properly when conversations state updates
-    const tempChat: Chat = {
-      id: conversation.id,
-      title: conversation.title || coworker.name,
-      createdAt: conversation.createdAt,
-      updatedAt: conversation.updatedAt,
-      status: "active",
-      coworker,
-    };
-    setChats((prev) => {
-      // Check if already exists (from sync effect)
-      if (prev.find((c) => c.id === conversation.id)) {
-        return prev.map((c) =>
-          c.id === conversation.id ? { ...c, coworker } : c,
-        );
+      if (!conversation) {
+        return; // Error handling is done in the hook
       }
-      return [tempChat, ...prev];
-    });
 
-    setSelectedChatId(conversation.id);
+      // Initialize empty messages for new chat
+      chatMessagesRef.current.set(conversation.id, []);
+      previousChatIdRef.current = conversation.id; // Set ref immediately to prevent preview updates
+      messagesChatIdRef.current = conversation.id; // Track that messages belong to this chat
+      setMessages([]);
+      setInput("");
+
+      // Temporarily add to chats with full coworker info so sync effect can preserve it
+      // The sync effect will update it properly when conversations state updates
+      const tempChat: Chat = {
+        id: conversation.id,
+        title: conversation.title || coworker.name,
+        createdAt: new Date(conversation.createdAt),
+        updatedAt: new Date(conversation.updatedAt),
+        status: "active",
+        coworker,
+      };
+      setChats((prev) => {
+        // Check if already exists (from sync effect)
+        if (prev.find((c) => c.id === conversation.id)) {
+          return prev.map((c) =>
+            c.id === conversation.id ? { ...c, coworker } : c,
+          );
+        }
+        return [tempChat, ...prev];
+      });
+
+      setSelectedChatId(conversation.id);
+      // Update ref immediately for synchronous access in prepareSendMessagesRequest
+      currentChatIdRef.current = conversation.id;
     },
     [createNewConversation, setMessages, setInput, setChats, setSelectedChatId],
   );
@@ -854,10 +856,8 @@ export default function ChatInterface({
   // Track which chat ID the current messages belong to
   const messagesChatIdRef = useRef<string | null>(null);
 
-  // Load messages when switching chats
+  // Load messages from database when switching chats
   useEffect(() => {
-    // CRITICAL: Clear messages IMMEDIATELY when switching chats to prevent race conditions
-    // This ensures old messages don't get associated with the new chat
     if (selectedChatId) {
       const currentSelectedChatId = selectedChatId;
 
@@ -868,68 +868,124 @@ export default function ChatInterface({
       // Set ref AFTER clearing messages to prevent preview updates with wrong messages
       previousChatIdRef.current = currentSelectedChatId;
 
-      // Use setTimeout to ensure messages are cleared before loading new ones
-      // This prevents race conditions when switching chats quickly
-      const timeoutId = setTimeout(() => {
+      // Fetch messages from database (source of truth)
+      const loadMessagesFromDB = async () => {
         // Only proceed if we're still on the same chat (user didn't switch again)
         if (selectedChatId !== currentSelectedChatId) {
           return;
         }
 
-        // 1. First try to load from memory (for current session)
-        const savedMessages = chatMessagesRef.current.get(
-          currentSelectedChatId,
-        );
-        if (savedMessages && savedMessages.length > 0) {
-          messagesChatIdRef.current = currentSelectedChatId;
-          setMessages(savedMessages as Parameters<typeof setMessages>[0]);
-          return;
-        }
-
-        // 2. Try to load from localStorage (persisted across sessions)
-        const storedMessages = loadMessagesFromStorage(currentSelectedChatId);
-        if (storedMessages && storedMessages.length > 0) {
-          messagesChatIdRef.current = currentSelectedChatId;
-          setMessages(storedMessages as Parameters<typeof setMessages>[0]);
-          // Also save to memory for faster access
-          chatMessagesRef.current.set(currentSelectedChatId, storedMessages);
-          return;
-        }
-
-        // 3. Try to load from selectedConversation.items (from DB, if available)
-        if (
-          selectedConversation?.id === currentSelectedChatId &&
-          selectedConversation.items &&
-          selectedConversation.items.length > 0
-        ) {
-          // Convert ConversationItem[] to UIMessage format
-          // UIMessage format requires 'parts' array with text content
-          const dbMessages = selectedConversation.items.map((item) => {
-            const contentText =
-              typeof item.content === "string"
-                ? item.content
-                : item.content.map((c) => c.text || "").join("");
-            return {
-              id: item.id,
-              role: item.role,
-              parts: [{ type: "text", text: contentText }],
-              content: contentText,
-              createdAt: new Date(item.created_at),
-            };
-          });
-          messagesChatIdRef.current = currentSelectedChatId;
-          setMessages(
-            dbMessages as unknown as Parameters<typeof setMessages>[0],
+        try {
+          // Check in-memory cache first (for performance)
+          const cachedMessages = chatMessagesRef.current.get(
+            currentSelectedChatId,
           );
-          // Save to both memory and localStorage
-          chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
-          saveMessagesToStorage(currentSelectedChatId, dbMessages);
-          return;
-        }
+          if (cachedMessages && cachedMessages.length > 0) {
+            messagesChatIdRef.current = currentSelectedChatId;
+            setMessages(cachedMessages as Parameters<typeof setMessages>[0]);
+          }
 
-        // 4. No messages found - start fresh
-        messagesChatIdRef.current = currentSelectedChatId;
-        setMessages([]);
+          // Always fetch from DB to ensure we have the latest data
+          // This ensures DB is the source of truth
+          const rawItemsResult: unknown = await getConversationItems({
+            conversationId: currentSelectedChatId,
+          });
+
+          // Parse the serialized Result from server action
+          type SerializedResult =
+            | {
+                ok: true;
+                data: Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  created_at: number;
+                }>;
+              }
+            | { ok: false; error: unknown }
+            | { isOk: () => boolean; value?: unknown };
+          const resultAny = rawItemsResult as SerializedResult;
+          let items: Array<{
+            id: string;
+            role: string;
+            content: Array<{ type: string; text?: string }> | string;
+            created_at: number;
+          }> | null = null;
+
+          if (
+            resultAny &&
+            "ok" in resultAny &&
+            resultAny.ok === true &&
+            "data" in resultAny
+          ) {
+            items = resultAny.data;
+          } else if (
+            resultAny &&
+            "isOk" in resultAny &&
+            typeof resultAny.isOk === "function"
+          ) {
+            // It's a proper neverthrow Result (shouldn't happen after serialization, but handle it)
+            if (resultAny.isOk() && "value" in resultAny) {
+              items = resultAny.value as Array<{
+                id: string;
+                role: string;
+                content: Array<{ type: string; text?: string }> | string;
+                created_at: number;
+              }>;
+            }
+          }
+
+          if (items && items.length > 0) {
+            const dbMessages = convertItemsToMessages(items);
+            messagesChatIdRef.current = currentSelectedChatId;
+            setMessages(
+              dbMessages as unknown as Parameters<typeof setMessages>[0],
+            );
+            // Update cache with fresh data from DB
+            chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
+
+            // Extract last assistant message and update chat preview
+            const lastAssistantItem = items
+              .slice()
+              .reverse()
+              .find((item) => item.role === "assistant");
+            if (lastAssistantItem) {
+              const lastMessageContent =
+                typeof lastAssistantItem.content === "string"
+                  ? lastAssistantItem.content
+                  : lastAssistantItem.content.map((c) => c.text || "").join("");
+              if (lastMessageContent) {
+                updateChatPreview(
+                  currentSelectedChatId,
+                  lastMessageContent,
+                  false,
+                );
+              }
+            }
+          } else if (!cachedMessages) {
+            // No cache and DB fetch failed - start fresh
+            messagesChatIdRef.current = currentSelectedChatId;
+            setMessages([]);
+          }
+        } catch (error) {
+          console.error("Failed to load messages from database:", error);
+          // Fallback to cache if available
+          const cachedMessages = chatMessagesRef.current.get(
+            currentSelectedChatId,
+          );
+          if (cachedMessages && cachedMessages.length > 0) {
+            messagesChatIdRef.current = currentSelectedChatId;
+            setMessages(cachedMessages as Parameters<typeof setMessages>[0]);
+          } else {
+            messagesChatIdRef.current = currentSelectedChatId;
+            setMessages([]);
+          }
+        }
+      };
+
+      // Small delay to ensure messages are cleared before loading
+      const timeoutId = setTimeout(() => {
+        void loadMessagesFromDB();
       }, 0);
 
       return () => {
@@ -940,13 +996,7 @@ export default function ChatInterface({
       messagesChatIdRef.current = null;
       setMessages([]);
     }
-  }, [
-    selectedChatId,
-    selectedConversation,
-    setMessages,
-    loadMessagesFromStorage,
-    saveMessagesToStorage,
-  ]);
+  }, [selectedChatId, setMessages, convertItemsToMessages, updateChatPreview]);
 
   // Also reload messages when selectedConversation updates (in case it loads after selectedChatId is set)
   useEffect(() => {
@@ -964,34 +1014,39 @@ export default function ChatInterface({
       }
 
       // Convert ConversationItem[] to UIMessage format
-      const dbMessages = selectedConversation.items.map((item) => {
-        const contentText =
-          typeof item.content === "string"
-            ? item.content
-            : item.content.map((c) => c.text || "").join("");
-        return {
-          id: item.id,
-          role: item.role,
-          parts: [{ type: "text", text: contentText }],
-          content: contentText,
-          createdAt: new Date(item.created_at),
-        };
-      });
+      const dbMessages = convertItemsToMessages(selectedConversation.items);
       messagesChatIdRef.current = selectedChatId; // Track that messages belong to this chat
       setMessages(dbMessages as unknown as Parameters<typeof setMessages>[0]);
-      // Save to both memory and localStorage
+      // Update cache with data from DB
       chatMessagesRef.current.set(selectedChatId, dbMessages);
-      saveMessagesToStorage(selectedChatId, dbMessages);
+
+      // Extract last assistant message and update chat preview
+      const lastAssistantItem = selectedConversation.items
+        .slice()
+        .reverse()
+        .find((item) => item.role === "assistant");
+      if (lastAssistantItem) {
+        const lastMessageContent =
+          typeof lastAssistantItem.content === "string"
+            ? lastAssistantItem.content
+            : lastAssistantItem.content.map((c) => c.text || "").join("");
+        if (lastMessageContent) {
+          updateChatPreview(selectedChatId, lastMessageContent, false);
+        }
+      }
+
       previousChatIdRef.current = selectedChatId;
     }
   }, [
     selectedConversation,
     selectedChatId,
     setMessages,
-    saveMessagesToStorage,
+    convertItemsToMessages,
+    updateChatPreview,
   ]);
 
-  // Save messages whenever they change for the current chat (but not during initial load)
+  // Update in-memory cache whenever messages change for the current chat
+  // Note: Messages are persisted to DB via addConversationItem, so we only cache here
   useEffect(() => {
     if (
       selectedChatId &&
@@ -999,16 +1054,15 @@ export default function ChatInterface({
       messagesChatIdRef.current === selectedChatId &&
       messages.length > 0
     ) {
-      // Save to memory
+      // Update cache for performance (DB is source of truth)
       chatMessagesRef.current.set(selectedChatId, messages);
-      // Also persist to localStorage
-      saveMessagesToStorage(selectedChatId, messages);
     }
-  }, [messages, selectedChatId, saveMessagesToStorage]);
+  }, [messages, selectedChatId]);
 
   const handleSelectChat = async (chatId: string | null) => {
     if (!chatId) {
       setSelectedChatId(null);
+      currentChatIdRef.current = null;
       return;
     }
 
@@ -1016,6 +1070,8 @@ export default function ChatInterface({
     await selectConversation(chatId);
 
     setSelectedChatId(chatId);
+    // Update ref immediately for synchronous access in prepareSendMessagesRequest
+    currentChatIdRef.current = chatId;
     // Clear unread count when selecting a chat
     setChats((prev) =>
       prev.map((chat) =>
@@ -1031,21 +1087,14 @@ export default function ChatInterface({
     // If this was the selected conversation, clear selection and messages
     if (selectedChatId === chatId) {
       setSelectedChatId(null);
+      currentChatIdRef.current = null;
       setMessages([]);
       setInput("");
     }
 
-    // Remove from local state
+    // Remove from local state and cache
     setChats((prev) => prev.filter((chat) => chat.id !== chatId));
     chatMessagesRef.current.delete(chatId);
-    // Also remove from localStorage
-    try {
-      const storageKey = getMessagesStorageKey(chatId);
-      localStorage.removeItem(storageKey);
-    } catch (_error) {
-      // Silently handle localStorage errors (non-critical, already removed from memory)
-      // localStorage may be unavailable in private browsing mode
-    }
   };
 
   const handleSendMessage = useCallback(
@@ -1053,22 +1102,22 @@ export default function ChatInterface({
       if (!messageText.trim() || isLoading) return;
 
       const trimmedMessage = messageText.trim();
-      
+
       // If no chat exists, create one with Hannah as default
       if (!selectedChatId && chats.length === 0) {
         // Start transition animation
         setIsWelcomeTransitioning(true);
-        
+
         const hannahCoworker: Coworker = {
           id: "hannah",
           name: t("coworkers.hannah.name"),
           description: t("coworkers.hannah.description"),
           useCase: t("coworkers.hannah.useCase"),
         };
-        
+
         // Wait for welcome screen fade-out to complete before showing chat UI
         await new Promise((resolve) => setTimeout(resolve, 300));
-        
+
         await handleCoworkerSelected(hannahCoworker);
         // Wait a bit for the conversation to be created and selected
         await new Promise((resolve) => setTimeout(resolve, 50));
@@ -1077,7 +1126,7 @@ export default function ChatInterface({
         setInput("");
         return;
       }
-      
+
       if (!selectedChatId) {
         handleCreateNewChat();
         return;
@@ -1104,7 +1153,16 @@ export default function ChatInterface({
       sendMessage({ text: trimmedMessage });
       setInput("");
     },
-    [isLoading, selectedChatId, chats.length, sendMessage, setInput, handleCreateNewChat, handleCoworkerSelected, t],
+    [
+      isLoading,
+      selectedChatId,
+      chats.length,
+      sendMessage,
+      setInput,
+      handleCreateNewChat,
+      handleCoworkerSelected,
+      t,
+    ],
   );
 
   const handleInputSubmit = () => {
@@ -1119,7 +1177,11 @@ export default function ChatInterface({
   };
 
   // Show welcome screen when there are no chats
-  if (chats.length === 0 && conversations.length === 0 && !isWelcomeTransitioning) {
+  if (
+    chats.length === 0 &&
+    conversations.length === 0 &&
+    !isWelcomeTransitioning
+  ) {
     // Extract first name from userName
     const firstName = userName?.split(" ")[0] ?? userName;
     return (
@@ -1140,7 +1202,7 @@ export default function ChatInterface({
         className={cn(
           "w-96 shrink-0 transition-opacity duration-700",
           chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning
-            ? "animate-in fade-in slide-in-from-left-4 duration-500 delay-200"
+            ? "animate-in fade-in slide-in-from-left-4 delay-200 duration-500"
             : chats.length > 0 && conversations.length > 0
               ? "opacity-100"
               : "opacity-0",
@@ -1158,14 +1220,14 @@ export default function ChatInterface({
         className={cn(
           "flex min-h-0 flex-1 flex-col transition-opacity duration-700",
           chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning
-            ? "animate-in fade-in slide-in-from-right-4 duration-500 delay-300"
+            ? "animate-in fade-in slide-in-from-right-4 delay-300 duration-500"
             : chats.length > 0 && conversations.length > 0
               ? "opacity-100"
               : "opacity-0",
         )}
       >
         {selectedChatId && messages.length > 0 && (
-          <div className="bg-card shrink-0 border-b px-6 py-4 animate-in fade-in slide-in-from-top-2 duration-500">
+          <div className="bg-card animate-in fade-in slide-in-from-top-2 shrink-0 border-b px-6 py-4 duration-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {(() => {
@@ -1227,7 +1289,7 @@ export default function ChatInterface({
           <>
             {showMessagesAfterTransition && (
               <ScrollArea ref={scrollAreaRef} className="min-h-0 flex-1">
-                <div className="flex flex-col pt-4 animate-in fade-in duration-500">
+                <div className="animate-in fade-in flex flex-col pt-4 duration-500">
                   {messagesWithTimestamps.map((message, index) => {
                     const role = message.role as "user" | "assistant";
                     // Extract content from message - AI SDK v6 format
@@ -1235,179 +1297,191 @@ export default function ChatInterface({
 
                     const messageAny = message as Record<string, unknown>;
 
-                // 1. Try content property (most common for AI SDK)
-                if (
-                  "content" in messageAny &&
-                  messageAny.content !== undefined &&
-                  messageAny.content !== null
-                ) {
-                  const msgContent = messageAny.content;
-                  if (typeof msgContent === "string") {
-                    content = msgContent;
-                  } else if (Array.isArray(msgContent)) {
-                    // Content is an array of parts - extract text from each part
-                    content = msgContent
-                      .map((part: unknown) => {
-                        if (typeof part === "string") return part;
-                        if (part && typeof part === "object") {
-                          const partObj = part as Record<string, unknown>;
-                          // Try text property first
-                          if (
-                            "text" in partObj &&
-                            partObj.text !== null &&
-                            partObj.text !== undefined
-                          ) {
-                            return String(partObj.text);
-                          }
-                          // Try type: "text" with text property
-                          if (
-                            "type" in partObj &&
-                            partObj.type === "text" &&
-                            "text" in partObj &&
-                            partObj.text !== null &&
-                            partObj.text !== undefined
-                          ) {
-                            return String(partObj.text);
-                          }
-                          // Try content property within part
-                          if (
-                            "content" in partObj &&
-                            partObj.content !== null &&
-                            partObj.content !== undefined
-                          ) {
-                            return String(partObj.content);
-                          }
+                    // 1. Try content property (most common for AI SDK)
+                    if (
+                      "content" in messageAny &&
+                      messageAny.content !== undefined &&
+                      messageAny.content !== null
+                    ) {
+                      const msgContent = messageAny.content;
+                      if (typeof msgContent === "string") {
+                        content = msgContent;
+                      } else if (Array.isArray(msgContent)) {
+                        // Content is an array of parts - extract text from each part
+                        content = msgContent
+                          .map((part: unknown) => {
+                            if (typeof part === "string") return part;
+                            if (part && typeof part === "object") {
+                              const partObj = part as Record<string, unknown>;
+                              // Try text property first
+                              if (
+                                "text" in partObj &&
+                                partObj.text !== null &&
+                                partObj.text !== undefined
+                              ) {
+                                return String(partObj.text);
+                              }
+                              // Try type: "text" with text property
+                              if (
+                                "type" in partObj &&
+                                partObj.type === "text" &&
+                                "text" in partObj &&
+                                partObj.text !== null &&
+                                partObj.text !== undefined
+                              ) {
+                                return String(partObj.text);
+                              }
+                              // Try content property within part
+                              if (
+                                "content" in partObj &&
+                                partObj.content !== null &&
+                                partObj.content !== undefined
+                              ) {
+                                return String(partObj.content);
+                              }
+                            }
+                            return "";
+                          })
+                          .filter(Boolean)
+                          .join("");
+                      } else if (msgContent && typeof msgContent === "object") {
+                        const contentObj = msgContent as Record<
+                          string,
+                          unknown
+                        >;
+                        if ("text" in contentObj) {
+                          content = String(contentObj.text);
+                        } else {
+                          content = JSON.stringify(contentObj);
                         }
-                        return "";
-                      })
-                      .filter(Boolean)
-                      .join("");
-                  } else if (msgContent && typeof msgContent === "object") {
-                    const contentObj = msgContent as Record<string, unknown>;
-                    if ("text" in contentObj) {
-                      content = String(contentObj.text);
-                    } else {
-                      content = JSON.stringify(contentObj);
-                    }
-                  } else if (msgContent !== null && msgContent !== undefined) {
-                    content = String(msgContent);
-                  }
-                }
-
-                // 2. Try text property (for user messages sent via sendMessage)
-                if (
-                  !content &&
-                  "text" in messageAny &&
-                  messageAny.text !== undefined &&
-                  messageAny.text !== null
-                ) {
-                  content = String(messageAny.text);
-                }
-
-                // 3. Try parts array
-                if (
-                  !content &&
-                  "parts" in messageAny &&
-                  Array.isArray(messageAny.parts)
-                ) {
-                  content = (messageAny.parts as unknown[])
-                    .map((part: unknown) => {
-                      if (typeof part === "string") return part;
-                      if (part && typeof part === "object") {
-                        const partObj = part as Record<string, unknown>;
-                        if ("text" in partObj) return String(partObj.text);
+                      } else if (
+                        msgContent !== null &&
+                        msgContent !== undefined
+                      ) {
+                        content = String(msgContent);
                       }
-                      return "";
-                    })
-                    .filter(Boolean)
-                    .join("");
-                }
+                    }
 
-                // 4. For user messages, check if the message itself is a string (edge case)
-                if (
-                  !content &&
-                  role === "user" &&
-                  typeof message === "string"
-                ) {
-                  content = message;
-                }
+                    // 2. Try text property (for user messages sent via sendMessage)
+                    if (
+                      !content &&
+                      "text" in messageAny &&
+                      messageAny.text !== undefined &&
+                      messageAny.text !== null
+                    ) {
+                      content = String(messageAny.text);
+                    }
 
-                let createdAt: Date | undefined;
-                if ("createdAt" in message) {
-                  const createdAtValue = message.createdAt;
-                  if (createdAtValue instanceof Date) {
-                    createdAt = createdAtValue;
-                  } else if (
-                    typeof createdAtValue === "string" ||
-                    typeof createdAtValue === "number"
-                  ) {
-                    createdAt = new Date(createdAtValue);
-                  }
-                }
-                const selectedChat = chats.find((c) => c.id === selectedChatId);
-                const coworkerName = selectedChat?.coworker?.name;
+                    // 3. Try parts array
+                    if (
+                      !content &&
+                      "parts" in messageAny &&
+                      Array.isArray(messageAny.parts)
+                    ) {
+                      content = (messageAny.parts as unknown[])
+                        .map((part: unknown) => {
+                          if (typeof part === "string") return part;
+                          if (part && typeof part === "object") {
+                            const partObj = part as Record<string, unknown>;
+                            if ("text" in partObj) return String(partObj.text);
+                          }
+                          return "";
+                        })
+                        .filter(Boolean)
+                        .join("");
+                    }
 
-                return (
-                  <div
-                    key={message.id}
-                    className="animate-in fade-in slide-in-from-bottom-2 duration-500"
-                    style={{
-                      animationDelay: `${index * 50}ms`,
-                    }}
-                  >
-                    <ChatMessage
-                      role={role}
-                      content={content}
-                      userImageUrl={userImageUrl}
-                      userName={userName}
-                      createdAt={createdAt}
-                      coworkerName={coworkerName}
-                    />
-                  </div>
-                );
-              })}
-              {isLoading &&
-                (() => {
-                  // Check if the last message is an assistant message being streamed
-                  // If it is, we're already rendering it, so hide the loading indicator
-                  const lastMessage =
-                    messagesWithTimestamps[messagesWithTimestamps.length - 1];
+                    // 4. For user messages, check if the message itself is a string (edge case)
+                    if (
+                      !content &&
+                      role === "user" &&
+                      typeof message === "string"
+                    ) {
+                      content = message;
+                    }
 
-                  if (lastMessage && lastMessage.role === "assistant") {
-                    // The last message is an assistant message, so it's being streamed
-                    // Hide the loading indicator
-                    return null;
-                  }
+                    let createdAt: Date | undefined;
+                    if ("createdAt" in message) {
+                      const createdAtValue = message.createdAt;
+                      if (createdAtValue instanceof Date) {
+                        createdAt = createdAtValue;
+                      } else if (
+                        typeof createdAtValue === "string" ||
+                        typeof createdAtValue === "number"
+                      ) {
+                        createdAt = new Date(createdAtValue);
+                      }
+                    }
+                    const selectedChat = chats.find(
+                      (c) => c.id === selectedChatId,
+                    );
+                    const coworkerName = selectedChat?.coworker?.name;
 
-                  return (
-                    <div className="flex gap-3 px-4 py-0">
-                      <Avatar className="size-8 shrink-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {(() => {
-                            const selectedChat = chats.find(
-                              (c) => c.id === selectedChatId,
-                            );
-                            return selectedChat?.coworker?.name
-                              ? selectedChat.coworker.name.charAt(0).toUpperCase()
-                              : "A";
-                          })()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex items-center">
-                        <div className="flex gap-1">
-                          <div className="bg-muted h-2 w-2 animate-pulse rounded-full" />
-                          <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-75" />
-                          <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-150" />
-                        </div>
+                    return (
+                      <div
+                        key={message.id}
+                        className="animate-in fade-in slide-in-from-bottom-2 duration-500"
+                        style={{
+                          animationDelay: `${index * 50}ms`,
+                        }}
+                      >
+                        <ChatMessage
+                          role={role}
+                          content={content}
+                          userImageUrl={userImageUrl}
+                          userName={userName}
+                          createdAt={createdAt}
+                          coworkerName={coworkerName}
+                        />
                       </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })}
+                  {isLoading &&
+                    (() => {
+                      // Check if the last message is an assistant message being streamed
+                      // If it is, we're already rendering it, so hide the loading indicator
+                      const lastMessage =
+                        messagesWithTimestamps[
+                          messagesWithTimestamps.length - 1
+                        ];
+
+                      if (lastMessage && lastMessage.role === "assistant") {
+                        // The last message is an assistant message, so it's being streamed
+                        // Hide the loading indicator
+                        return null;
+                      }
+
+                      return (
+                        <div className="flex gap-3 px-4 py-0">
+                          <Avatar className="size-8 shrink-0">
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {(() => {
+                                const selectedChat = chats.find(
+                                  (c) => c.id === selectedChatId,
+                                );
+                                return selectedChat?.coworker?.name
+                                  ? selectedChat.coworker.name
+                                      .charAt(0)
+                                      .toUpperCase()
+                                  : "A";
+                              })()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex items-center">
+                            <div className="flex gap-1">
+                              <div className="bg-muted h-2 w-2 animate-pulse rounded-full" />
+                              <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-75" />
+                              <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-150" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
             )}
-            <div className="flex shrink-0 justify-center overflow-hidden p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="animate-in fade-in slide-in-from-bottom-4 flex shrink-0 justify-center overflow-hidden p-4 duration-500">
               <div className="w-full max-w-2xl">
                 <ChatInput
                   value={input}

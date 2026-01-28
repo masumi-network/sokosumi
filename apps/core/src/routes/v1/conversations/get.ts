@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { conversationRepository } from "@sokosumi/database/repositories";
 
+import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -45,23 +46,39 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    try {
+      const { authContext } = c.var;
 
-    const conversations = await conversationRepository.getUserConversations(
-      authContext.userId,
-      prisma,
-    );
+      // Database is the source of truth - fetch conversations directly from DB
+      const conversations = await conversationRepository.getUserConversations(
+        authContext.userId,
+        prisma,
+      );
 
-    // Map to response schema (excludes openaiId)
-    const response = conversations.map((conv) => ({
-      id: conv.id,
-      userId: conv.userId,
-      title: conv.title,
-      metadata: conv.metadata as Record<string, unknown> | null,
-      createdAt: conv.createdAt,
-      updatedAt: conv.updatedAt,
-    }));
+      // Map database conversations to response format
+      const response = conversations.map((conv) => ({
+        id: conv.id,
+        userId: conv.userId,
+        title: conv.title,
+        metadata: (conv.metadata as Record<string, unknown> | null) || null,
+        createdAt: conv.createdAt.toISOString(),
+        updatedAt: conv.updatedAt.toISOString(),
+      }));
 
-    return ok(c, response);
+      return ok(c, response);
+    } catch (error) {
+      // Re-throw HTTPException as-is, wrap other errors
+      if (
+        error &&
+        typeof error === "object" &&
+        "status" in error &&
+        "message" in error
+      ) {
+        throw error;
+      }
+      throw internalServerError(
+        `Failed to retrieve conversations: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   });
 }

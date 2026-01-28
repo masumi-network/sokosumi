@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import {
@@ -11,7 +12,7 @@ import {
   getConversation,
   listConversations,
   updateConversation,
-} from "@/lib/actions/conversation";
+} from "@/lib/actions/conversation/core-api-actions";
 
 interface UseConversationsReturn {
   conversations: Conversation[];
@@ -34,7 +35,7 @@ interface UseConversationsReturn {
 
 /**
  * Hook for managing conversations via database-backed API.
- * Uses internal database IDs (never exposes OpenAI conversation IDs).
+ * Uses internal database IDs.
  */
 export function useConversations(): UseConversationsReturn {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -92,7 +93,20 @@ export function useConversations(): UseConversationsReturn {
       );
 
       if (result.isErr) {
-        setError(result.error);
+        const error = result.error;
+        setError(error);
+
+        // Show user-friendly error message
+        const errorMessage =
+          error?.message || "Failed to refresh conversations";
+        const isServiceUnavailable = errorMessage.includes("unavailable");
+
+        toast.error(errorMessage, {
+          description: isServiceUnavailable
+            ? "The conversation service is temporarily unavailable. Please try again in a moment."
+            : undefined,
+        });
+
         setIsLoading(false);
         return;
       }
@@ -101,13 +115,21 @@ export function useConversations(): UseConversationsReturn {
       setIsLoading(false);
     } catch (error) {
       // Handle thrown errors (e.g., UnAuthenticatedError from withAuthContext)
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh conversations";
       setError({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to refresh conversations",
+        message: errorMessage,
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       });
+
+      toast.error(errorMessage, {
+        description: errorMessage.includes("unavailable")
+          ? "The conversation service is temporarily unavailable. Please try again in a moment."
+          : undefined,
+      });
+
       setIsLoading(false);
     }
   }, [parseServerActionResult]);
@@ -130,7 +152,18 @@ export function useConversations(): UseConversationsReturn {
         );
 
         if (result.isErr) {
-          setError(result.error);
+          const error = result.error;
+          setError(error);
+
+          // Show user-friendly error message
+          const errorMessage =
+            error?.message || "Failed to create conversation";
+          toast.error(errorMessage, {
+            description: errorMessage.includes("unavailable")
+              ? "The conversation service is temporarily unavailable. Please try again in a moment."
+              : undefined,
+          });
+
           setIsLoading(false);
           return null;
         }
@@ -147,21 +180,29 @@ export function useConversations(): UseConversationsReturn {
         const newConversation = result.value;
         setConversations((prev) => [newConversation, ...prev]);
         setSelectedConversation({ ...newConversation, items: [] }); // Select new conversation
-        
+
         // Refresh conversations list to ensure deleted conversations are excluded
         // This ensures we have the latest state from DB after creating a new conversation
         void refreshConversations();
-        
+
         setIsLoading(false);
         return newConversation;
       } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to create conversation";
         setError({
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to create conversation",
+          message: errorMessage,
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
+
+        toast.error(errorMessage, {
+          description: errorMessage.includes("unavailable")
+            ? "The conversation service is temporarily unavailable. Please try again in a moment."
+            : undefined,
+        });
+
         setIsLoading(false);
         return null;
       }
@@ -193,13 +234,21 @@ export function useConversations(): UseConversationsReturn {
         setSelectedConversation(result.value);
         setIsLoading(false);
       } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to select conversation";
         setError({
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to select conversation",
+          message: errorMessage,
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
+
+        toast.error(errorMessage, {
+          description: errorMessage.includes("unavailable")
+            ? "The conversation service is temporarily unavailable. Please try again in a moment."
+            : undefined,
+        });
+
         setIsLoading(false);
       }
     },
@@ -229,7 +278,18 @@ export function useConversations(): UseConversationsReturn {
         );
 
         if (result.isErr) {
-          setError(result.error);
+          const error = result.error;
+          setError(error);
+
+          // Show user-friendly error message
+          const errorMessage =
+            error?.message || "Failed to update conversation";
+          toast.error(errorMessage, {
+            description: errorMessage.includes("unavailable")
+              ? "The conversation service is temporarily unavailable. Please try again in a moment."
+              : undefined,
+          });
+
           setIsLoading(false);
           return;
         }
@@ -247,13 +307,21 @@ export function useConversations(): UseConversationsReturn {
         }
         setIsLoading(false);
       } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to update conversation";
         setError({
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to update conversation",
+          message: errorMessage,
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
+
+        toast.error(errorMessage, {
+          description: errorMessage.includes("unavailable")
+            ? "The conversation service is temporarily unavailable. Please try again in a moment."
+            : undefined,
+        });
+
         setIsLoading(false);
       }
     },
@@ -280,7 +348,17 @@ export function useConversations(): UseConversationsReturn {
       );
 
       if (result.isErr) {
-        setError(result.error);
+        const error = result.error;
+        setError(error);
+
+        // Show user-friendly error message
+        const errorMessage = error?.message || "Failed to delete conversation";
+        toast.error(errorMessage, {
+          description: errorMessage.includes("unavailable")
+            ? "The conversation service is temporarily unavailable. Please try again in a moment."
+            : undefined,
+        });
+
         setIsLoading(false);
         return;
       }
@@ -290,20 +368,28 @@ export function useConversations(): UseConversationsReturn {
         prev.filter((conv) => conv.id !== selectedConversation.id),
       );
       setSelectedConversation(null);
-      
+
       // Refresh conversations list to ensure we have the latest state from DB
       // This ensures deleted conversations stay excluded even after other operations
       void refreshConversations();
-      
+
       setIsLoading(false);
     } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to delete conversation";
       setError({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete conversation",
+        message: errorMessage,
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       });
+
+      toast.error(errorMessage, {
+        description: errorMessage.includes("unavailable")
+          ? "The conversation service is temporarily unavailable. Please try again in a moment."
+          : undefined,
+      });
+
       setIsLoading(false);
     }
   }, [selectedConversation, parseServerActionResult, refreshConversations]);
@@ -318,37 +404,57 @@ export function useConversations(): UseConversationsReturn {
 
       try {
         const rawResult = await deleteConversation({ id });
-        const result = parseServerActionResult<{ success: boolean }, ActionError>(
-          rawResult,
-        );
+        const result = parseServerActionResult<
+          { success: boolean },
+          ActionError
+        >(rawResult);
 
         if (result.isErr) {
-          setError(result.error);
+          const error = result.error;
+          setError(error);
+
+          // Show user-friendly error message
+          const errorMessage =
+            error?.message || "Failed to delete conversation";
+          toast.error(errorMessage, {
+            description: errorMessage.includes("unavailable")
+              ? "The conversation service is temporarily unavailable. Please try again in a moment."
+              : undefined,
+          });
+
           setIsLoading(false);
           return;
         }
 
         // Remove from local state immediately for responsive UI
         setConversations((prev) => prev.filter((conv) => conv.id !== id));
-        
+
         // If this was the selected conversation, clear selection
         if (selectedConversation?.id === id) {
           setSelectedConversation(null);
         }
-        
+
         // Refresh conversations list to ensure we have the latest state from DB
         // This ensures deleted conversations stay excluded even after other operations
         void refreshConversations();
-        
+
         setIsLoading(false);
       } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to delete conversation";
         setError({
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to delete conversation",
+          message: errorMessage,
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
+
+        toast.error(errorMessage, {
+          description: errorMessage.includes("unavailable")
+            ? "The conversation service is temporarily unavailable. Please try again in a moment."
+            : undefined,
+        });
+
         setIsLoading(false);
       }
     },

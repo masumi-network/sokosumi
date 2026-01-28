@@ -1,7 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
 import { conversationRepository } from "@sokosumi/database/repositories";
+import { randomUUID } from "crypto";
 
-import { conflict } from "@/helpers/error";
+import { conflict, internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -57,40 +58,68 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const body = c.req.valid("json");
+    try {
+      const { authContext } = c.var;
+      const body = c.req.valid("json");
 
-    // Check if conversation with this openaiId already exists for this user
-    const existing = await conversationRepository.getConversationByOpenaiId(
-      body.openaiId,
-      authContext.userId,
-      prisma,
-    );
+      // Database is the source of truth - create conversation directly in DB
+      // Generate a unique ID for the internal conversation identifier
+      const openaiId = randomUUID();
 
-    if (existing) {
-      throw conflict("Conversation already exists");
-    }
+      // Check if conversation with this ID already exists (shouldn't happen with UUID, but safety check)
+      const existing = await conversationRepository.getConversationByOpenaiId(
+        openaiId,
+        authContext.userId,
+        prisma,
+      );
 
-    const conversation = await conversationRepository.createConversation(
-      {
-        openaiId: body.openaiId,
+      if (existing) {
+        throw conflict("Conversation already exists");
+      }
+
+      // Create conversation in database with title and metadata
+      const conversationData = {
+        openaiId,
         userId: authContext.userId,
         title: body.title,
-        metadata: body.metadata,
-      },
-      prisma,
-    );
+        metadata: body.metadata
+          ? {
+              ...body.metadata,
+              userId: authContext.userId, // Store userId in metadata for reference
+            }
+          : { userId: authContext.userId },
+      };
 
-    // Map to response schema (excludes openaiId)
-    const response = {
-      id: conversation.id,
-      userId: conversation.userId,
-      title: conversation.title,
-      metadata: conversation.metadata as Record<string, unknown> | null,
-      createdAt: conversation.createdAt,
-      updatedAt: conversation.updatedAt,
-    };
+      const conversation = await conversationRepository.createConversation(
+        conversationData,
+        prisma,
+      );
 
-    return created(c, response);
+      // Map to response schema
+      const response = {
+        id: conversation.id,
+        userId: conversation.userId,
+        title: conversation.title,
+        metadata:
+          (conversation.metadata as Record<string, unknown> | null) || null,
+        createdAt: conversation.createdAt.toISOString(),
+        updatedAt: conversation.updatedAt.toISOString(),
+      };
+
+      return created(c, response);
+    } catch (error) {
+      // Re-throw HTTPException as-is, wrap other errors
+      if (
+        error &&
+        typeof error === "object" &&
+        "status" in error &&
+        "message" in error
+      ) {
+        throw error;
+      }
+      throw internalServerError(
+        `Failed to create conversation: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   });
 }

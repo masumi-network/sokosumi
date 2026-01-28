@@ -120,7 +120,7 @@ export default function ChatSidebar({
       <div className="border-b p-4">
         <Button
           onClick={onCreateNewChat}
-          className="w-full cursor-pointer hover:opacity-90 transition-opacity"
+          className="w-full cursor-pointer transition-opacity hover:opacity-90"
           variant="primary"
           size="default"
         >
@@ -174,7 +174,7 @@ export default function ChatSidebar({
                 >
                   <button
                     onClick={() => onSelectChat(chat.id)}
-                    className="flex w-full max-w-full min-w-0 flex-1 flex-col gap-1.5 text-left cursor-pointer"
+                    className="flex w-full max-w-full min-w-0 flex-1 cursor-pointer flex-col gap-1.5 text-left"
                   >
                     <div className="flex w-full max-w-full min-w-0 items-start justify-between gap-2">
                       <div className="flex max-w-full min-w-0 flex-1 items-start gap-2 overflow-hidden">
@@ -225,13 +225,13 @@ export default function ChatSidebar({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute top-2 right-2 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
+                    className="absolute top-2 right-2 h-6 w-6 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatToDelete(chat.id);
                     }}
                   >
-                    <Trash2 className="size-3 group-hover:text-primary transition-colors" />
+                    <Trash2 className="group-hover:text-primary size-3 transition-colors" />
                   </Button>
                 </div>
               ))}

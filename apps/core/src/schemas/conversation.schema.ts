@@ -4,7 +4,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
 
 /**
  * Conversation response schema.
- * CRITICAL: openaiId is intentionally NOT included in response schema
+ * CRITICAL: Internal conversation identifier is intentionally NOT included in response schema
  * to prevent users from accessing other users' conversations.
  */
 export const conversationSchema = z
@@ -17,15 +17,12 @@ export const conversationSchema = z
       description: "User ID who owns this conversation",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
-    title: z
-      .string()
-      .nullable()
-      .openapi({
-        description: "Conversation title",
-        example: "Chat with Hannah",
-      }),
+    title: z.string().nullable().openapi({
+      description: "Conversation title",
+      example: "Chat with Hannah",
+    }),
     metadata: z
-      .record(z.unknown())
+      .record(z.string(), z.any())
       .nullable()
       .openapi({
         description: "Additional metadata (coworker info, etc.)",
@@ -37,7 +34,7 @@ export const conversationSchema = z
     updatedAt: dateTimeSchema.openapi({
       description: "When the conversation was last updated",
     }),
-    // openaiId is intentionally NOT included in response schema
+    // Internal conversation identifier is intentionally NOT included in response schema
   })
   .openapi("Conversation");
 
@@ -45,27 +42,22 @@ export type Conversation = z.infer<typeof conversationSchema>;
 
 /**
  * Request schema for creating a new conversation mapping.
- * openaiId is accepted in request but never returned in response.
+ * If conversationId is not provided, a new conversation will be created.
+ * Internal conversation identifier is never returned in response.
  */
 export const createConversationRequestSchema = z
   .object({
-    openaiId: z
-      .string()
-      .min(1)
-      .openapi({
-        description:
-          "OpenAI conversation ID (stored but never exposed in responses)",
-        example: "conv_abc123xyz",
-      }),
-    title: z
-      .string()
-      .optional()
-      .openapi({
-        description: "Conversation title",
-        example: "Chat with Hannah",
-      }),
+    openaiId: z.string().min(1).optional().openapi({
+      description:
+        "Conversation ID (optional - if not provided, a new conversation will be created)",
+      example: "conv_abc123xyz",
+    }),
+    title: z.string().optional().openapi({
+      description: "Conversation title",
+      example: "Chat with Hannah",
+    }),
     metadata: z
-      .record(z.unknown())
+      .record(z.string(), z.any())
       .optional()
       .openapi({
         description: "Additional metadata",
@@ -83,15 +75,12 @@ export type CreateConversationRequest = z.infer<
  */
 export const updateConversationRequestSchema = z
   .object({
-    title: z
-      .string()
-      .optional()
-      .openapi({
-        description: "Conversation title",
-        example: "Updated chat title",
-      }),
+    title: z.string().optional().openapi({
+      description: "Conversation title",
+      example: "Updated chat title",
+    }),
     metadata: z
-      .record(z.unknown())
+      .record(z.string(), z.any())
       .optional()
       .openapi({
         description: "Additional metadata",

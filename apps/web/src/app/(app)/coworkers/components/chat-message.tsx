@@ -65,7 +65,7 @@ export default function ChatMessage({
         >
           <div
             className={cn(
-              "rounded-lg px-3 py-3 min-h-[1.5rem]",
+              "min-h-[1.5rem] rounded-lg px-3 py-3",
               isUser
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground",
@@ -73,10 +73,21 @@ export default function ChatMessage({
           >
             <div
               className={cn(
-                "prose prose-sm dark:prose-invert max-w-none [&_*]:!leading-none [&_*]:leading-none [&>*]:my-0 [&>p]:my-0 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&_*]:!m-0",
-                isUser && "prose-invert **:text-primary-foreground",
+                "prose prose-sm dark:prose-invert max-w-none",
+                // Allow proper spacing for paragraphs and line breaks
+                "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+                // Ensure proper line height for readability
+                "[&_*]:leading-relaxed",
+                // Prevent headings from being too large (keep them as regular text size)
+                "[&_h1]:text-base [&_h2]:text-base [&_h3]:text-base [&_h4]:text-base [&_h5]:text-base [&_h6]:text-base",
+                "[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold",
+                // Ensure bold text stays as bold, not headings
+                "[&_strong]:font-semibold [&_strong]:text-inherit",
+                // Proper spacing for line breaks
+                "[&_br]:block [&_br]:h-3",
+                isUser && "prose-invert [&_strong]:text-primary-foreground",
               )}
-              style={{ lineHeight: "1.1", fontSize: "0.875rem" }}
+              style={{ fontSize: "0.875rem" }}
             >
               {content && content.trim() ? (
                 <Markdown>{content}</Markdown>

@@ -22,14 +22,17 @@ const route = withGlobalHeaderParameters(
     tags: ["Conversations"],
     request: {
       params: z.object({
-        id: z.string().uuid().openapi({
-          param: {
-            name: "id",
-            in: "path",
-          },
-          description: "Internal database ID (not OpenAI ID)",
-          example: "550e8400-e29b-41d4-a716-446655440000",
-        }),
+        id: z
+          .string()
+          .uuid()
+          .openapi({
+            param: {
+              name: "id",
+              in: "path",
+            },
+            description: "Internal database ID",
+            example: "550e8400-e29b-41d4-a716-446655440000",
+          }),
       }),
       body: {
         content: {
@@ -71,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    // CRITICAL: Validate ownership before update
+    // Database is the source of truth - validate ownership and update in DB
     const conversation = await conversationRepository.getConversationById(
       id,
       authContext.userId,
@@ -82,24 +85,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Conversation not found");
     }
 
-    const updated = await conversationRepository.updateConversation(
+    // Merge existing metadata with new metadata, preserving userId
+    const existingMetadata =
+      (conversation.metadata as Record<string, unknown> | null) || {};
+    const updatedMetadata = {
+      ...existingMetadata,
+      ...body.metadata,
+      userId: authContext.userId, // Ensure userId is preserved
+    };
+
+    // Update conversation in database
+    const updatedConversation = await conversationRepository.updateConversation(
       id,
       authContext.userId,
       {
         title: body.title,
-        metadata: body.metadata,
+        metadata: updatedMetadata,
       },
       prisma,
     );
 
-    // Map to response schema (excludes openaiId)
+    // Map to response schema (excludes internal conversation identifier)
     const response = {
-      id: updated.id,
-      userId: updated.userId,
-      title: updated.title,
-      metadata: updated.metadata as Record<string, unknown> | null,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
+      id: updatedConversation.id,
+      userId: updatedConversation.userId,
+      title: updatedConversation.title,
+      metadata:
+        (updatedConversation.metadata as Record<string, unknown> | null) ||
+        null,
+      createdAt: updatedConversation.createdAt.toISOString(),
+      updatedAt: updatedConversation.updatedAt.toISOString(),
     };
 
     return ok(c, response);
