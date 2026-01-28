@@ -5,7 +5,11 @@ import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
-import { getTaskById } from "@/app/tasks/data/mock-data";
+import { getSession } from "@/lib/auth/utils";
+import { agentService } from "@/lib/services";
+import { orchestratorService } from "@/lib/services/orchestrator.service";
+import { taskService } from "@/lib/services/task.service";
+import { mapTaskToTaskWithOrchestrator } from "@/lib/utils/task-transformer";
 
 export default async function TaskDetailPage({
   params,
@@ -13,22 +17,59 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const task = getTaskById(taskId);
+  const [taskResult, orchestrators, agents] = await Promise.all([
+    taskService.getTaskById(taskId),
+    orchestratorService.listOrchestrators(),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+  ]);
 
-  if (!task) {
+  if (!taskResult) {
     return notFound();
   }
+
+  const orchestratorsById = new Map(
+    orchestrators.map((orchestrator) => [orchestrator.id, orchestrator]),
+  );
+  const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
+  const agentNameById = new Map<string, string>();
+  for (const agent of agents) {
+    agentNameById.set(agent.id, agent.name);
+  }
+  const task = mapTaskToTaskWithOrchestrator(
+    taskResult,
+    orchestratorsById,
+    agentsById,
+  );
+  const session = await getSession();
+  const userById = new Map<string, { name: string; image: string | null }>();
+  if (session?.user) {
+    userById.set(session.user.id, {
+      name: session.user.name ?? "User",
+      image: session.user.image ?? null,
+    });
+  }
+  const orchestratorById = new Map<
+    string,
+    { name: string; image: string | null }
+  >(
+    orchestrators.map((orchestrator) => [
+      orchestrator.id,
+      {
+        name: orchestrator.name,
+        image: orchestrator.image ?? null,
+      },
+    ]),
+  );
 
   const t = await getTranslations("App.Tasks.Detail");
   const tCard = await getTranslations("App.Tasks.Card");
 
   return (
-    <div className="w-full space-y-6 px-2">
+    <div className="w-full max-w-3xl space-y-6 px-2">
       <TaskDetailHeader
         task={task}
         labels={{
           back: t("back"),
-          budget: tCard("budget"),
           actions: {
             edit: t("actions.edit"),
             delete: t("actions.delete"),
@@ -40,10 +81,6 @@ export default async function TaskDetailPage({
         task={task}
         labels={{
           status: t("status"),
-          assignee: t("assignee"),
-          tags: t("tags"),
-          dueDate: t("dueDate"),
-          budget: tCard("budget"),
           orchestrator: t("orchestrator"),
         }}
       />
@@ -51,6 +88,7 @@ export default async function TaskDetailPage({
       <TaskDescription
         title={t("description")}
         description={task.description}
+        agentNameById={agentNameById}
       />
 
       <TaskActivitySection
@@ -58,7 +96,9 @@ export default async function TaskDetailPage({
         placeholder={t("commentPlaceholder")}
         attachLabel={t("attach")}
         submitLabel={t("submit")}
-        activities={task.activities}
+        events={task.events}
+        userById={userById}
+        orchestratorById={orchestratorById}
       />
     </div>
   );

@@ -1,21 +1,33 @@
 import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, Paperclip } from "lucide-react";
 
-import { TaskActivity } from "@/app/tasks/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { TaskEvent } from "@/lib/types/task";
+
+interface ActorInfo {
+  name: string;
+  image: string | null;
+}
 
 interface TaskActivityProps {
   title: string;
   placeholder: string;
   attachLabel: string;
   submitLabel: string;
-  activities: TaskActivity[];
+  events: TaskEvent[];
+  userById?: Map<string, ActorInfo>;
+  orchestratorById?: Map<string, ActorInfo>;
 }
 
 function getInitials(name: string) {
-  return name
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return "?";
+  }
+
+  return trimmedName
     .split(" ")
     .map((part) => part[0])
     .join("")
@@ -28,7 +40,9 @@ export function TaskActivitySection({
   placeholder,
   attachLabel,
   submitLabel,
-  activities,
+  events,
+  userById,
+  orchestratorById,
 }: TaskActivityProps) {
   return (
     <div className="space-y-4">
@@ -57,33 +71,58 @@ export function TaskActivitySection({
       </div>
 
       <div className="space-y-4">
-        {activities.map((activity) => (
-          <div
-            key={activity.id}
-            className="bg-muted/30 flex items-center gap-3 rounded-lg px-3 py-2"
-          >
-            <Avatar className="size-9">
-              <AvatarImage src={activity.actorImage} alt={activity.actorName} />
-              <AvatarFallback>{getInitials(activity.actorName)}</AvatarFallback>
-            </Avatar>
-            <div className="flex w-full flex-row items-center justify-between space-y-1">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-semibold">{activity.actorName}</span>
-                <span className="text-muted-foreground">{activity.action}</span>
-                {activity.status && (
-                  <span className="text-primary font-semibold">
-                    {activity.status}
+        {events.map((event) => {
+          const actorLabel = event.orchestratorId
+            ? "Orchestrator"
+            : event.userId
+              ? "User"
+              : "System";
+          const actorInfo = event.orchestratorId
+            ? orchestratorById?.get(event.orchestratorId)
+            : event.userId
+              ? userById?.get(event.userId)
+              : undefined;
+          const actorName = actorInfo?.name ?? actorLabel;
+          const actorImage = actorInfo?.image ?? null;
+          const action = event.comment ? "commented" : "updated status";
+
+          return (
+            <div
+              key={event.id}
+              className="bg-muted/30 flex items-start gap-3 rounded-lg px-3 py-2"
+            >
+              <Avatar className="size-9">
+                {actorImage ? (
+                  <AvatarImage src={actorImage} alt={actorName} />
+                ) : null}
+                <AvatarFallback>{getInitials(actorName)}</AvatarFallback>
+              </Avatar>
+              <div className="flex w-full flex-col gap-1">
+                <div className="flex flex-row items-center justify-between">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-semibold">{actorName}</span>
+                    <span className="text-muted-foreground">{action}</span>
+                    {event.status && (
+                      <span className="text-primary font-semibold">
+                        {event.status}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-muted-foreground text-xs">
+                    {formatDistanceToNow(new Date(event.createdAt), {
+                      addSuffix: true,
+                    })}
                   </span>
-                )}
+                </div>
+                {event.comment ? (
+                  <p className="text-muted-foreground text-sm">
+                    {event.comment}
+                  </p>
+                ) : null}
               </div>
-              <span className="text-muted-foreground text-xs">
-                {formatDistanceToNow(new Date(activity.timestamp), {
-                  addSuffix: true,
-                })}
-              </span>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

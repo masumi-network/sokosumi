@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { agentService } from "@/lib/services";
+import { orchestratorService } from "@/lib/services/orchestrator.service";
 
 import { NewTaskForm } from "./components/new-task-form";
 
@@ -10,10 +11,18 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const agents = await agentService.getAvailableAgents();
+  const [agents, orchestrators] = await Promise.all([
+    agentService.getAvailableAgents(),
+    orchestratorService.listOrchestrators(),
+  ]);
+  const orchestratorOptions = orchestrators.map((orchestrator) => ({
+    id: orchestrator.id,
+    name: orchestrator.name,
+    image: orchestrator.image ?? "",
+  }));
 
   return (
-    <div className="w-full space-y-6 px-2">
+    <div className="w-full max-w-3xl space-y-6 px-2">
       <NewTaskForm
         labels={{
           pageTitle: t("title"),
@@ -22,45 +31,11 @@ export default async function NewTaskPage() {
           descriptionPlaceholder: t("descriptionPlaceholder"),
           orchestrator: t("orchestrator"),
           orchestratorDescription: t("orchestratorDescription"),
-          tag: t("tag"),
           uploadFile: t("uploadFile"),
-          recentlyViewedFiles: t("recentlyViewedFiles"),
           saveDraft: t("saveDraft"),
           cancel: t("cancel"),
         }}
-        orchestratorOptions={[
-          {
-            id: "claude",
-            name: "Claude",
-            image:
-              "https://upload.wikimedia.org/wikipedia/commons/6/6d/Anthropic_logo.svg",
-          },
-          {
-            id: "gpt-4-1",
-            name: "GPT-4.1",
-            image:
-              "https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg",
-          },
-          {
-            id: "gemini",
-            name: "Gemini",
-            image:
-              "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_Gemini_logo.svg",
-          },
-          {
-            id: "llama-3-2",
-            name: "Llama 3.2",
-            image:
-              "https://upload.wikimedia.org/wikipedia/commons/3/3f/Meta_LLaMA_logo.svg",
-          },
-        ]}
-        tagOptions={[
-          "GWI Spark",
-          "Statista Single Answer",
-          "Basic News Search",
-          "Instagram Page Analysis",
-        ]}
-        recentFiles={["Proposal.pdf", "data.csv"]}
+        orchestratorOptions={orchestratorOptions}
         agents={agents}
       />
     </div>

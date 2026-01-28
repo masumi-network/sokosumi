@@ -1,8 +1,8 @@
 import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnId,
-  type TaskCardData,
-} from "@/app/tasks/types";
+  type TaskWithOrchestrator,
+} from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";
 import { TaskListItem } from "./task-list-item";
@@ -10,17 +10,13 @@ import { TaskListItem } from "./task-list-item";
 interface TaskListSectionProps {
   columnId: KanbanColumnId;
   title: string;
-  tasks: TaskCardData[];
-  taskLabels: {
-    budget: string;
-  };
+  tasks: TaskWithOrchestrator[];
 }
 
 export function TaskListSection({
   columnId,
   title,
   tasks,
-  taskLabels,
 }: TaskListSectionProps) {
   return (
     <section className="flex flex-col gap-2 border-b px-4 py-2 last:border-b-0">
@@ -32,7 +28,7 @@ export function TaskListSection({
 
       <div className="space-y-2">
         {tasks.map((task) => (
-          <TaskListItem key={task.id} task={task} labels={taskLabels} />
+          <TaskListItem key={task.id} task={task} />
         ))}
       </div>
     </section>

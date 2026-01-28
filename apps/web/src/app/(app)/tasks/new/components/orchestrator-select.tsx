@@ -10,8 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-import type { OrchestratorOption } from "./orchestrator.types";
+import type { OrchestratorOption } from "@/lib/types/orchestrator";
 
 interface OrchestratorSelectProps {
   label: string;

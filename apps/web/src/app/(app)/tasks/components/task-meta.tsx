@@ -1,92 +1,65 @@
-import { Cog, MessageSquare } from "lucide-react";
+import { MessageSquare, UserCog } from "lucide-react";
 
-import { type TaskAgentStep, type TaskCardData } from "@/app/tasks/types";
-import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ipfsUrlResolver } from "@/lib/ipfs";
+import { type TaskWithOrchestrator } from "@/lib/types/task";
 import { formatShortDate } from "@/lib/utils/datetime";
 
-import { AgentStatusIcon } from "./agent-status-icon";
-
-interface TaskPrimaryAgentProps {
-  agent?: TaskAgentStep;
-  className?: string;
-  nameClassName?: string;
-}
-
-export function TaskPrimaryAgent({
-  agent,
-  className,
-  nameClassName,
-}: TaskPrimaryAgentProps) {
-  if (!agent) return null;
-
-  return (
-    <div className={cn("flex items-center gap-1.5", className)}>
-      <span className={cn("truncate", nameClassName)}>{agent.name}</span>
-      <AgentStatusIcon status={agent.status} />
-    </div>
-  );
-}
-
-interface BudgetSummaryProps {
-  budgetLabel: string;
-  budget?: number | null;
-  className?: string;
-  labelClassName?: string;
-  valueClassName?: string;
-}
-
-export function BudgetSummary({
-  budgetLabel,
-  budget,
-  className,
-  labelClassName,
-  valueClassName,
-}: BudgetSummaryProps) {
-  if (budget === undefined || budget === null) return null;
-
-  return (
-    <div
-      className={cn(
-        "text-muted-foreground flex items-center text-sm",
-        className,
-      )}
-    >
-      <span className={cn("text-foreground font-medium", labelClassName)}>
-        {budgetLabel}:
-      </span>
-      <span className={cn("ml-1", valueClassName)}>
-        {typeof budget === "number" ? `$${budget}` : "—"}
-      </span>
-    </div>
-  );
-}
-
 interface TaskMetaDetailsProps {
-  orchestrator: TaskCardData["orchestrator"];
-  commentsCount: TaskCardData["commentsCount"];
-  date: TaskCardData["date"];
+  orchestrator: TaskWithOrchestrator["orchestrator"];
+  commentsCount: TaskWithOrchestrator["commentsCount"];
+  createdAt: TaskWithOrchestrator["createdAt"];
   variant?: "card" | "list";
+}
+
+function OrchestratorAvatar({
+  orchestrator,
+}: {
+  orchestrator: TaskWithOrchestrator["orchestrator"];
+}) {
+  const image = orchestrator?.image
+    ? ipfsUrlResolver(orchestrator.image)
+    : null;
+
+  return (
+    <Avatar className="size-4 shrink-0">
+      {image ? (
+        <AvatarImage
+          src={image}
+          alt={orchestrator?.name ?? "Orchestrator"}
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
+      <AvatarFallback className="bg-transparent">
+        <UserCog className="size-4" aria-hidden />
+      </AvatarFallback>
+    </Avatar>
+  );
 }
 
 export function TaskMetaDetails({
   orchestrator,
   commentsCount,
-  date,
+  createdAt,
   variant = "card",
 }: TaskMetaDetailsProps) {
   if (variant === "list") {
     return (
       <>
         <div className="text-muted-foreground xs:w-auto flex w-24 items-center gap-1.5 truncate">
-          <Cog className="size-4 shrink-0" aria-hidden />
-          <span className="truncate">{orchestrator}</span>
+          <OrchestratorAvatar orchestrator={orchestrator} />
+          <span className="truncate">{orchestrator?.name ?? "—"}</span>
         </div>
         <div className="text-muted-foreground flex items-center gap-1.5">
           <MessageSquare className="size-4" aria-hidden />
           <span>{commentsCount}</span>
         </div>
         <div className="text-muted-foreground flex items-center gap-1.5">
-          <span className="whitespace-nowrap">{formatShortDate(date)}</span>
+          <span className="whitespace-nowrap">
+            {formatShortDate(createdAt)}
+          </span>
         </div>
       </>
     );
@@ -95,8 +68,8 @@ export function TaskMetaDetails({
   return (
     <div className="text-muted-foreground flex items-center justify-between gap-3 text-sm">
       <div className="flex items-center gap-1.5">
-        <Cog className="size-4" aria-hidden />
-        <span>{orchestrator}</span>
+        <OrchestratorAvatar orchestrator={orchestrator} />
+        <span>{orchestrator?.name ?? "—"}</span>
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
@@ -104,7 +77,7 @@ export function TaskMetaDetails({
           <span>{commentsCount}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span>{formatShortDate(date)}</span>
+          <span>{formatShortDate(createdAt)}</span>
         </div>
       </div>
     </div>

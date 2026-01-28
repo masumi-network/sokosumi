@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 export interface MentionRecordEntry<TData = unknown> {
   value: string;
@@ -43,25 +44,9 @@ interface EditingRange {
   end: number;
 }
 
-interface MentionMatch {
-  slug: string;
-  start: number;
-  end: number;
-}
-
-const MENTION_MATCH_REGEX = /@([\w-]+)/g;
 const POPUP_HEIGHT_PX = 240; // max-h-60 = 15rem = 240px
 const POPUP_WIDTH_PX = 288; // w-72 = 18rem = 288px
 const VIEWPORT_PADDING_PX = 8;
-
-function slugifyMentionValue(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w-]+/g, "")
-    .replace(/-+/g, "-");
-}
 
 function deslugifyMentionSlug(slug: string): string {
   return slug.replace(/-/g, " ");
@@ -146,24 +131,6 @@ function createTextareaMeasurementElement(
   return { measure, marker, textareaStyle };
 }
 
-// Parse all mention matches from text
-function parseMentions(text: string): MentionMatch[] {
-  const matches: MentionMatch[] = [];
-  const mentionRegex = new RegExp(MENTION_MATCH_REGEX);
-  mentionRegex.lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = mentionRegex.exec(text))) {
-    matches.push({
-      slug: match[1],
-      start: match.index,
-      end: match.index + match[0].length,
-    });
-  }
-
-  return matches;
-}
-
 export function MentionTextarea<TData = unknown>({
   id,
   value,
@@ -205,10 +172,10 @@ export function MentionTextarea<TData = unknown>({
     return normalized;
   }, [mentions]);
 
-  const slugToKey = useMemo(() => {
+  const keyToValue = useMemo(() => {
     const map = new Map<string, string>();
     for (const mention of normalizedMentions) {
-      map.set(mention.slug, mention.key);
+      map.set(mention.key, mention.value);
     }
     return map;
   }, [normalizedMentions]);
@@ -217,6 +184,14 @@ export function MentionTextarea<TData = unknown>({
     const map = new Map<string, string>();
     for (const mention of normalizedMentions) {
       map.set(mention.slug, mention.value);
+    }
+    return map;
+  }, [normalizedMentions]);
+
+  const slugToKey = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const mention of normalizedMentions) {
+      map.set(mention.slug, mention.key);
     }
     return map;
   }, [normalizedMentions]);
@@ -234,14 +209,18 @@ export function MentionTextarea<TData = unknown>({
     const uniqueKeys: string[] = [];
     const seenKeys = new Set<string>();
     for (const mention of parsed) {
-      const key = slugToKey.get(mention.slug);
-      if (!key) continue;
-      if (seenKeys.has(key)) continue;
-      seenKeys.add(key);
-      uniqueKeys.push(key);
+      const directKey = keyToValue.has(mention.id) ? mention.id : null;
+      const slugKey =
+        slugToKey.get(mention.slug) ??
+        slugToKey.get(slugifyMentionValue(mention.id));
+      const resolvedKey = directKey ?? slugKey ?? null;
+      if (!resolvedKey) continue;
+      if (seenKeys.has(resolvedKey)) continue;
+      seenKeys.add(resolvedKey);
+      uniqueKeys.push(resolvedKey);
     }
     return uniqueKeys;
-  }, [slugToKey, value]);
+  }, [keyToValue, slugToKey, value]);
 
   const lastSelectedKeysRef = useRef<string[]>([]);
   useEffect(() => {
@@ -482,7 +461,12 @@ export function MentionTextarea<TData = unknown>({
   );
 
   const openMentionPopup = useCallback(
-    (mentionSlug: string, mentionStart: number, mentionEnd: number) => {
+    (
+      mentionKey: string,
+      mentionSlug: string,
+      mentionStart: number,
+      mentionEnd: number,
+    ) => {
       isSelectingRef.current = true;
 
       // Calculate position for the popup (text before the @)
@@ -491,7 +475,8 @@ export function MentionTextarea<TData = unknown>({
 
       // Open popup with full list (avoid filtering by slug; mention.name has spaces)
       const clickedMentionIndex = normalizedMentions.findIndex(
-        (mention) => mention.slug === mentionSlug,
+        (mention) =>
+          mention.key === mentionKey || mention.slug === mentionSlug,
       );
       openSuggestions({
         nextQuery: "",
@@ -520,13 +505,14 @@ export function MentionTextarea<TData = unknown>({
   const handleMentionSpanClick = useCallback(
     (
       event: React.MouseEvent,
+      mentionKey: string,
       mentionSlug: string,
       mentionStart: number,
       mentionEnd: number,
     ) => {
       event.preventDefault();
       event.stopPropagation();
-      openMentionPopup(mentionSlug, mentionStart, mentionEnd);
+      openMentionPopup(mentionKey, mentionSlug, mentionStart, mentionEnd);
     },
     [openMentionPopup],
   );
@@ -547,22 +533,33 @@ export function MentionTextarea<TData = unknown>({
           );
         }
 
+        const mentionKey = mention.id;
         const mentionSlug = mention.slug;
-        const isKnownMention = slugToKey.has(mentionSlug);
+        const isKnownMention =
+          keyToValue.has(mentionKey) || slugToValue.has(mentionSlug);
 
         // Always render human-friendly text (never a sluggy representation).
         // - Known mentions: show original name with spaces
         // - Unknown / partially edited mentions: de-slugify as a best-effort fallback
         const displayName =
-          slugToValue.get(mentionSlug) ?? deslugifyMentionSlug(mentionSlug);
+          keyToValue.get(mentionKey) ??
+          slugToValue.get(mentionSlug) ??
+          slugToValue.get(slugifyMentionValue(mentionKey)) ??
+          deslugifyMentionSlug(mentionSlug);
 
         nodes.push(
           <span
-            key={`${mentionSlug}-${mention.start}`}
+            key={`${mentionKey}-${mention.start}`}
             role="button"
             tabIndex={-1}
             onClick={(e) =>
-              handleMentionSpanClick(e, mentionSlug, mention.start, mention.end)
+              handleMentionSpanClick(
+                e,
+                mentionKey,
+                mentionSlug,
+                mention.start,
+                mention.end,
+              )
             }
             onMouseDown={(e) => {
               // Prevent textarea blur
@@ -590,7 +587,7 @@ export function MentionTextarea<TData = unknown>({
 
       return nodes;
     },
-    [handleMentionSpanClick, slugToKey, slugToValue],
+    [handleMentionSpanClick, keyToValue, slugToValue],
   );
 
   return (

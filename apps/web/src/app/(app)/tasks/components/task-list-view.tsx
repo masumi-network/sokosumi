@@ -1,19 +1,16 @@
 import {
   type KanbanColumnDefinition,
   type KanbanColumnId,
-  type TaskCardData,
-} from "@/app/tasks/types";
+  type TaskWithOrchestrator,
+} from "@/lib/types/task";
 
 import { TaskListSection } from "./task-list-section";
 
 interface TaskListViewProps {
-  tasks: TaskCardData[];
+  tasks: TaskWithOrchestrator[];
   columns: KanbanColumnDefinition[];
   labels: {
     columns: Record<KanbanColumnId, string>;
-    taskCard: {
-      budget: string;
-    };
   };
 }
 
@@ -31,7 +28,6 @@ export function TaskListView({ tasks, columns, labels }: TaskListViewProps) {
             columnId={column.id}
             title={labels.columns[column.id]}
             tasks={columnTasks}
-            taskLabels={labels.taskCard}
           />
         );
       })}

@@ -2,21 +2,18 @@ import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnDefinition,
   type KanbanColumnId,
-  type TaskCardData,
-} from "@/app/tasks/types";
+  type TaskWithOrchestrator,
+} from "@/lib/types/task";
 
 import { AddTaskButton } from "./add-task-button";
 import { KanbanColumn } from "./kanban-column";
 
 interface KanbanBoardProps {
-  tasks: TaskCardData[];
+  tasks: TaskWithOrchestrator[];
   columns: KanbanColumnDefinition[];
   labels: {
     columns: Record<KanbanColumnId, string>;
     addTask: string;
-    taskCard: {
-      budget: string;
-    };
   };
 }
 
@@ -33,7 +30,6 @@ export function KanbanBoard({ tasks, columns, labels }: KanbanBoardProps) {
             title={labels.columns[column.id]}
             statusColor={COLUMN_STATUS_COLORS[column.id]}
             tasks={columnTasks}
-            taskLabels={labels.taskCard}
             footer={
               isFirstColumn ? (
                 <AddTaskButton label={labels.addTask} />

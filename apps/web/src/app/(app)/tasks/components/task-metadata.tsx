@@ -1,20 +1,14 @@
-import { TAG_COLOR_TOKEN_MAP, TaskCardData } from "@/app/tasks/types";
-import { AgentJobStatusBadge } from "@/components/jobs/agent-job-status-badge";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { formatShortDate } from "@/lib/utils/datetime";
+import { TaskWithOrchestrator } from "@/lib/types/task";
+
+import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
   status: string;
-  assignee: string;
-  tags: string;
-  dueDate: string;
-  budget: string;
   orchestrator: string;
 }
 
 interface TaskMetadataProps {
-  task: TaskCardData;
+  task: TaskWithOrchestrator;
   labels: TaskMetadataLabels;
 }
 
@@ -24,59 +18,20 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
       key: "status",
       label: labels.status,
       value: (
-        <AgentJobStatusBadge
+        <TaskStatusBadge
           status={task.status}
           className="rounded-full px-3 py-1 text-xs font-semibold"
         />
       ),
     },
     {
-      key: "assignee",
-      label: labels.assignee,
-      value: <span className="text-sm font-medium">{task.assignee}</span>,
-    },
-    {
-      key: "tags",
-      label: labels.tags,
-      value: (
-        <div className="flex flex-wrap items-center gap-2">
-          {task.tags.map((tag) => (
-            <Badge
-              key={tag.label}
-              variant="secondary"
-              className={cn(
-                "border-0 px-2 py-0.5 text-xs font-medium",
-                TAG_COLOR_TOKEN_MAP[tag.color],
-              )}
-            >
-              {tag.label}
-            </Badge>
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: "dueDate",
-      label: labels.dueDate,
-      value: (
-        <span className="text-sm font-medium">
-          {formatShortDate(task.dueDate)}
-        </span>
-      ),
-    },
-    {
-      key: "budget",
-      label: labels.budget,
-      value: (
-        <span className="text-sm font-medium">
-          {typeof task.budget === "number" ? `$${task.budget}` : "—"}
-        </span>
-      ),
-    },
-    {
       key: "orchestrator",
       label: labels.orchestrator,
-      value: <span className="text-sm font-medium">{task.orchestrator}</span>,
+      value: (
+        <span className="text-sm font-medium">
+          {task.orchestrator?.name ?? "—"}
+        </span>
+      ),
     },
   ];
 

@@ -10,9 +10,9 @@ import type {
   NormalizedMention,
 } from "@/components/ui/mention-textarea";
 import { MentionTextarea } from "@/components/ui/mention-textarea";
+import type { OrchestratorOption } from "@/lib/types/orchestrator";
 
 import { FileUploadButton } from "./file-upload-button";
-import type { OrchestratorOption } from "./orchestrator.types";
 import { OrchestratorSelect } from "./orchestrator-select";
 
 interface NewTaskFormLabels {
@@ -22,9 +22,7 @@ interface NewTaskFormLabels {
   descriptionPlaceholder: string;
   orchestrator: string;
   orchestratorDescription: string;
-  tag: string;
   uploadFile: string;
-  recentlyViewedFiles: string;
   saveDraft: string;
   cancel: string;
 }
@@ -32,28 +30,17 @@ interface NewTaskFormLabels {
 interface NewTaskFormProps {
   labels: NewTaskFormLabels;
   orchestratorOptions: OrchestratorOption[];
-  tagOptions: string[];
-  recentFiles: string[];
   agents: AgentWithRelations[];
 }
 
 export function NewTaskForm({
   labels,
   orchestratorOptions,
-  tagOptions: _tagOptions,
-  recentFiles: _recentFiles,
   agents,
 }: NewTaskFormProps) {
   const [description, setDescription] = useState("");
-  const [_selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [orchestratorId, setOrchestratorId] = useState<string>(
     orchestratorOptions[0]?.id ?? "",
-  );
-  const [_selectedTags, _setSelectedTags] = useState<string[]>([]);
-
-  const pageTitleDisplay = useMemo(
-    () => `${labels.pageTitle}`,
-    [labels.pageTitle],
   );
 
   const agentMentions = useMemo(() => {
@@ -89,13 +76,13 @@ export function NewTaskForm({
   );
 
   const handleFileUpload = () => {
-    console.log("file uploaded");
+    // TODO: implement file upload
   };
 
   return (
     <div className="max-w-3xl space-y-6">
       <header className="flex items-center gap-2">
-        <h1 className="text-2xl font-light md:text-3xl">{pageTitleDisplay}</h1>
+        <h1 className="text-2xl font-light md:text-3xl">{labels.pageTitle}</h1>
       </header>
 
       <section className="space-y-4">
@@ -114,7 +101,6 @@ export function NewTaskForm({
             onChange={setDescription}
             mentions={agentMentions}
             renderItem={renderMentionItem}
-            onSelectedKeysChange={setSelectedAgents}
             className="min-h-48"
           />
         </div>

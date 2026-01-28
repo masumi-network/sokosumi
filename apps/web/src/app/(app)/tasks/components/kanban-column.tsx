@@ -1,4 +1,4 @@
-import type { TaskCardData } from "@/app/tasks/types";
+import type { TaskWithOrchestrator } from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";
 import { TaskCard } from "./task-card";
@@ -6,10 +6,7 @@ import { TaskCard } from "./task-card";
 interface KanbanColumnProps {
   title: string;
   statusColor: string;
-  tasks: TaskCardData[];
-  taskLabels: {
-    budget: string;
-  };
+  tasks: TaskWithOrchestrator[];
   footer?: React.ReactNode;
 }
 
@@ -17,7 +14,6 @@ export function KanbanColumn({
   title,
   statusColor,
   tasks,
-  taskLabels,
   footer,
 }: KanbanColumnProps) {
   return (
@@ -30,7 +26,7 @@ export function KanbanColumn({
 
       <div className="flex flex-1 flex-col gap-3">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} labels={taskLabels} />
+          <TaskCard key={task.id} task={task} />
         ))}
         {footer}
       </div>

@@ -1,8 +1,12 @@
 import { getTranslations } from "next-intl/server";
 
+import { agentService } from "@/lib/services";
+import { orchestratorService } from "@/lib/services/orchestrator.service";
+import { taskService } from "@/lib/services/task.service";
+import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
+import { mapTaskToTaskWithOrchestrator } from "@/lib/utils/task-transformer";
+
 import { TasksView } from "./components/tasks-view";
-import { KANBAN_COLUMNS, MOCK_TASKS } from "./data/mock-data";
-import type { KanbanColumnId } from "./types";
 
 export const metadata = {
   title: "Task Manager",
@@ -12,12 +16,26 @@ export default async function TasksPage() {
   const t = await getTranslations("App.Tasks");
   const tColumns = await getTranslations("App.Tasks.Columns");
 
+  const [orchestrators, agents, tasksResult] = await Promise.all([
+    orchestratorService.listOrchestrators(),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    taskService.listTasks({ limit: 20 }),
+  ]);
+
+  const orchestratorsById = new Map(
+    orchestrators.map((orchestrator) => [orchestrator.id, orchestrator]),
+  );
+  const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
+  const tasks = tasksResult.tasks.map((task) =>
+    mapTaskToTaskWithOrchestrator(task, orchestratorsById, agentsById),
+  );
+
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
     todo: tColumns("todo"),
     "in-progress": tColumns("inProgress"),
     "input-required": tColumns("inputRequired"),
-    "refund-requested": tColumns("refundRequested"),
+    complete: tColumns("complete"),
   };
 
   return (
@@ -28,7 +46,8 @@ export default async function TasksPage() {
       </div>
 
       <TasksView
-        tasks={MOCK_TASKS}
+        tasks={tasks}
+        nextCursor={tasksResult.pagination?.nextCursor ?? null}
         columns={KANBAN_COLUMNS}
         labels={{
           tabs: {
@@ -37,9 +56,6 @@ export default async function TasksPage() {
           },
           columns: columnLabels,
           addTask: t("Actions.addTask"),
-          taskCard: {
-            budget: t("Card.budget"),
-          },
           jobsPlaceholder: t("Jobs.placeholder"),
           display: {
             button: t("Display.button"),
@@ -47,6 +63,7 @@ export default async function TasksPage() {
             board: t("Display.board"),
           },
           listPlaceholder: t("List.placeholder"),
+          loadMore: t("Actions.loadMore"),
         }}
       />
     </div>

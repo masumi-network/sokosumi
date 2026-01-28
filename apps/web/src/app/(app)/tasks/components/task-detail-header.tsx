@@ -1,14 +1,13 @@
 import { ArrowLeft, Pencil, Trash } from "lucide-react";
 import Link from "next/link";
 
-import { type TaskCardData } from "@/app/tasks/types";
 import { Button } from "@/components/ui/button";
+import { type TaskWithOrchestrator } from "@/lib/types/task";
 
 interface TaskDetailHeaderProps {
-  task: TaskCardData;
+  task: TaskWithOrchestrator;
   labels: {
     back: string;
-    budget: string;
     actions: {
       edit: string;
       delete: string;
@@ -36,7 +35,7 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl leading-tight font-semibold">
-                {task.title}
+                {task.name}
               </h1>
             </div>
           </div>

@@ -1064,13 +1064,13 @@
         "todo": "Todo",
         "inProgress": "In Progress",
         "inputRequired": "Input Required",
-        "refundRequested": "Refund Requested"
+        "complete": "Complete"
       },
       "Actions": {
-        "addTask": "Add Task"
+        "addTask": "Add Task",
+        "loadMore": "Load More"
       },
       "Card": {
-        "budget": "Budget",
         "comments": "Comments",
         "orchestrator": "Orchestrator",
         "date": "Date"
@@ -1089,9 +1089,6 @@
       "Detail": {
         "back": "Back to tasks",
         "status": "Status",
-        "assignee": "Assignee",
-        "tags": "Tags",
-        "dueDate": "Due Date",
         "orchestrator": "Orchestrator",
         "description": "Description",
         "activity": "Activity",
@@ -1110,9 +1107,7 @@
         "descriptionPlaceholder": "Enter task details...",
         "orchestrator": "Orchestrator",
         "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
-        "tag": "Tag",
         "uploadFile": "Upload File",
-        "recentlyViewedFiles": "Recently Viewed Files",
         "saveDraft": "Save Draft",
         "cancel": "Cancel"
       }

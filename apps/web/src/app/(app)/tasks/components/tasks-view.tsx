@@ -1,21 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
-import { KANBAN_COLUMNS } from "@/app/tasks/data/mock-data";
+import { loadMoreTasks } from "@/app/tasks/actions";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  KANBAN_COLUMNS,
   type KanbanColumnDefinition,
   type KanbanColumnId,
-  type TaskCardData,
-} from "@/app/tasks/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  type TaskWithOrchestrator,
+} from "@/lib/types/task";
 
 import { KanbanBoard } from "./kanban-board";
 import { TaskListView } from "./task-list-view";
 import { ViewModeSwitch } from "./view-mode-switch";
 
 interface TasksViewProps {
-  tasks: TaskCardData[];
+  tasks: TaskWithOrchestrator[];
+  nextCursor?: string | null;
   columns?: KanbanColumnDefinition[];
   labels: {
     tabs: {
@@ -24,9 +27,6 @@ interface TasksViewProps {
     };
     columns: Record<KanbanColumnId, string>;
     addTask: string;
-    taskCard: {
-      budget: string;
-    };
     jobsPlaceholder: string;
     display: {
       button: string;
@@ -34,15 +34,35 @@ interface TasksViewProps {
       board: string;
     };
     listPlaceholder: string;
+    loadMore: string;
   };
 }
 
 export function TasksView({
   tasks,
+  nextCursor: initialNextCursor,
   columns = KANBAN_COLUMNS,
   labels,
 }: TasksViewProps) {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
+  const [items, setItems] = useState<TaskWithOrchestrator[]>(tasks);
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    initialNextCursor ?? null,
+  );
+  const [isPending, startTransition] = useTransition();
+
+  const handleLoadMore = () => {
+    if (!nextCursor) return;
+    startTransition(async () => {
+      try {
+        const result = await loadMoreTasks(nextCursor);
+        setItems((prev) => [...prev, ...result.tasks]);
+        setNextCursor(result.nextCursor);
+      } catch {
+        setNextCursor(null);
+      }
+    });
+  };
 
   return (
     <Tabs defaultValue="tasks" className="flex flex-col gap-4">
@@ -61,24 +81,33 @@ export function TasksView({
       <TabsContent value="tasks" className="flex flex-col gap-4">
         {viewMode === "board" ? (
           <KanbanBoard
-            tasks={tasks}
+            tasks={items}
             columns={columns}
             labels={{
               columns: labels.columns,
               addTask: labels.addTask,
-              taskCard: labels.taskCard,
             }}
           />
         ) : (
           <TaskListView
-            tasks={tasks}
+            tasks={items}
             columns={columns}
             labels={{
               columns: labels.columns,
-              taskCard: labels.taskCard,
             }}
           />
         )}
+        {nextCursor ? (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              disabled={isPending}
+            >
+              {isPending ? "Loading..." : labels.loadMore}
+            </Button>
+          </div>
+        ) : null}
       </TabsContent>
 
       <TabsContent value="jobs">
