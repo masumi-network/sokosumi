@@ -25,7 +25,7 @@
     "@better-auth/utils": "0.3.1",
     "@hono/node-server": "1.19.9",
     "@hono/zod-openapi": "1.2.0",
-    "@openrouter/ai-sdk-provider": "2.0.2",
+    "@openrouter/ai-sdk-provider": "2.1.1",
     "@scalar/hono-api-reference": "0.9.37",
     "@scalar/openapi-to-markdown": "0.3.32",
     "@sentry/node": "10.37.0",
