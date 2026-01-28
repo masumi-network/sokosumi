@@ -1,5 +1,6 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
@@ -63,12 +64,42 @@ export default function Markdown({
         </table>
       </div>
     ),
+    // Ensure bold text stays as bold, not headings - prevent it from being styled like headings
+    strong: ({ children, ...props }) => (
+      <strong {...props} className="font-semibold text-inherit">
+        {children}
+      </strong>
+    ),
+    // Prevent headings from being too large - limit their size
+    h1: ({ children, ...props }) => (
+      <h1 {...props} className="my-2 text-base font-semibold first:mt-0">
+        {children}
+      </h1>
+    ),
+    h2: ({ children, ...props }) => (
+      <h2 {...props} className="my-2 text-base font-semibold first:mt-0">
+        {children}
+      </h2>
+    ),
+    h3: ({ children, ...props }) => (
+      <h3 {...props} className="my-2 text-sm font-semibold first:mt-0">
+        {children}
+      </h3>
+    ),
+    // Handle line breaks with proper spacing
+    br: () => <br className="block h-3" />,
+    // Ensure paragraphs have proper spacing
+    p: ({ children, ...props }) => (
+      <p {...props} className="my-2 leading-relaxed first:mt-0 last:mb-0">
+        {children}
+      </p>
+    ),
   };
 
   return (
     <div className={cn("prose dark:prose-invert max-w-none", className)}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkBreaks, remarkGfm]}
         rehypePlugins={[rehypeRaw]}
         components={components}
       >

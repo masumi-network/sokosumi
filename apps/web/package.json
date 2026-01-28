@@ -108,6 +108,7 @@
     "react-window": "2.2.5",
     "recharts": "2.15.4",
     "rehype-raw": "7.0.0",
+    "remark-breaks": "4.0.0",
     "remark-frontmatter": "5.0.0",
     "remark-gfm": "4.0.1",
     "remark-math": "6.0.0",
