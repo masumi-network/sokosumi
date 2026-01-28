@@ -27,7 +27,7 @@
     "@hono/zod-openapi": "1.2.0",
     "@openrouter/ai-sdk-provider": "2.0.2",
     "@scalar/hono-api-reference": "0.9.37",
-    "@scalar/openapi-to-markdown": "0.3.30",
+    "@scalar/openapi-to-markdown": "0.3.32",
     "@sentry/node": "10.37.0",
     "@sentry/profiling-node": "10.37.0",
     "@sokosumi/database": "workspace:*",
