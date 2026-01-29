@@ -54,9 +54,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         <Sidebar session={session} />
         <div className="flex min-w-0 flex-1 flex-col overflow-clip">
           <Header session={session} className="h-16 p-4" />
-          <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
+          <main className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4">
             <EmergencyDialog />
-            {children}
+            <div className="flex h-full flex-1 flex-col overflow-hidden">
+              {children}
+            </div>
           </main>
           <FooterSections className="p-4" />
         </div>

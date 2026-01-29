@@ -33,7 +33,7 @@ export default async function ChatPage() {
     });
 
   return (
-    <div className="w-full px-2">
+    <div className="flex h-full w-full flex-1 flex-col px-2">
       <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
         <ChatInterface
           userImageUrl={userImageUrl}

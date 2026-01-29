@@ -23,7 +23,7 @@ export default async function OnboardingPage() {
   }
 
   if (session.user.onboardingCompleted) {
-    redirect("/agents");
+    redirect("/chat");
   }
 
   const t = await getTranslations("Onboarding.Metadata");

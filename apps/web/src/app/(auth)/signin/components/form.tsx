@@ -102,9 +102,9 @@ export default function SignInForm({
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
 
-    // Redirect to the original URL if provided, otherwise go to /agents
+    // Redirect to the original URL if provided, otherwise go to /chat
     // Validate returnUrl to prevent open redirect attacks
-    let redirectUrl = "/agents";
+    let redirectUrl = "/chat";
     if (returnUrl) {
       try {
         // Only allow relative URLs or URLs from the same origin
@@ -113,7 +113,7 @@ export default function SignInForm({
           redirectUrl = returnUrl;
         }
       } catch {
-        // Invalid URL, fallback to /agents
+        // Invalid URL, fallback to /chat
       }
     }
 

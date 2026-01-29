@@ -39,7 +39,7 @@ export default async function AuthLayout({
       pathname.startsWith("/auth/callback/") || pathname.startsWith("/oauth");
 
     if (!shouldSkipRedirect) {
-      redirect("/agents");
+      redirect("/chat");
     }
   }
 

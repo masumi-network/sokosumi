@@ -17,8 +17,10 @@ import {
 import { Session } from "@/lib/auth/auth";
 
 import AgentLists from "./components/agent-lists";
+import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
+import NewChatButton from "./components/new-chat-button";
 
 interface SidebarProps {
   session: Session;
@@ -46,8 +48,13 @@ export default function Sidebar({ session }: SidebarProps) {
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
-        <MenuItems />
+        {/* Top Section: Chats */}
+        <NewChatButton />
+        <ChatListsClient />
+        {/* Divider */}
         <SidebarSeparator className="mx-0" />
+        {/* Bottom Section: Agents */}
+        <MenuItems />
         <AgentLists userId={session.user.id} />
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">

@@ -2,15 +2,15 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Loader2, Send } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { MultimodalInput } from "@/components/chat/multimodal-input";
+import type { Attachment } from "@/components/chat/preview-attachment";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
 import type { Conversation } from "@/lib/actions/conversation";
 import {
   addConversationItem,
@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
 import { useConversations } from "../hooks/use-conversations";
-import ChatInput from "./chat-input";
 import ChatMessage from "./chat-message";
 import ChatSidebar, { type ChatStatus, type Coworker } from "./chat-sidebar";
 import SelectCoworkerModal from "./select-coworker-modal";
@@ -168,119 +167,80 @@ function WelcomeScreen({
   onSendMessage,
   isLoading,
   isTransitioning,
+  input,
+  setInput,
+  attachments,
+  setAttachments,
+  messages,
+  setMessages,
+  sendMessage,
+  status,
+  stop,
 }: {
   userName?: string;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, coworker?: Coworker) => void;
   isLoading: boolean;
   isTransitioning: boolean;
+  input: string;
+  setInput: (value: string) => void;
+  attachments: Attachment[];
+  setAttachments: (
+    attachments: Attachment[] | ((prev: Attachment[]) => Attachment[]),
+  ) => void;
+  messages: unknown[];
+  setMessages: (messages: unknown[] | ((prev: unknown[]) => unknown[])) => void;
+  sendMessage: (
+    message: { text: string } | { role: string; parts: unknown[] },
+  ) => void;
+  status: "ready" | "streaming" | "submitted" | "error";
+  stop: () => void;
 }) {
   const t = useTranslations("App.Chat.Chat");
-  const [welcomeInput, setWelcomeInput] = useState("");
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (welcomeInput.trim() && !isLoading) {
-      onSendMessage(welcomeInput.trim());
-      setWelcomeInput("");
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter") {
-      if (e.nativeEvent.isComposing) {
-        return;
-      }
-      if (e.shiftKey) {
-        return;
-      }
-      e.preventDefault();
-      const form = e.currentTarget.form;
-      form?.requestSubmit();
-    }
-  };
-
-  const isStreaming = isLoading;
-  const canSubmit = !isLoading && welcomeInput.trim();
 
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-1 flex-col items-center justify-center p-8 transition-opacity duration-500",
+        "relative flex h-full w-full flex-col items-center px-8 pt-8 pb-4 transition-opacity duration-500",
         isTransitioning && "animate-out fade-out duration-500",
       )}
     >
       <div
         className={cn(
-          "mb-8 text-center transition-all duration-500",
+          "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center transition-all duration-500",
           isTransitioning &&
             "animate-out fade-out slide-out-to-top-4 duration-500",
         )}
       >
-        <h1 className="mb-4 text-3xl font-semibold">
+        <h1 className="mb-2 text-3xl font-semibold">
           {userName
-            ? t("welcomeScreen.titleWithName", { name: userName })
-            : t("welcomeScreen.title")}
+            ? t("welcomeScreen.greetingWithName", { name: userName })
+            : t("welcomeScreen.greeting")}
         </h1>
+        <p className="text-muted-foreground text-2xl">
+          {t("welcomeScreen.question")}
+        </p>
       </div>
-      <form
-        onSubmit={handleSubmit}
+      <div
         className={cn(
-          "bg-background w-full max-w-2xl overflow-hidden rounded-xl border shadow-sm transition-all duration-500",
+          "absolute bottom-4 left-1/2 w-full max-w-[33.6rem] -translate-x-1/2 transition-all duration-500",
           isTransitioning &&
             "animate-out fade-out slide-out-to-bottom-4 duration-500",
         )}
       >
-        <div className="flex w-full min-w-0 items-center gap-2">
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <Textarea
-              value={welcomeInput}
-              onChange={(e) => setWelcomeInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t("welcomeScreen.placeholder")}
-              disabled={isLoading}
-              name="message"
-              className={cn(
-                "w-full resize-none rounded-none border-none px-3 py-1.5 shadow-none ring-0 outline-hidden",
-                "field-sizing-content max-h-[6lh] min-h-lh",
-                "bg-transparent dark:bg-transparent",
-                "focus-visible:ring-0",
-                "overflow-x-hidden overflow-y-auto wrap-break-word break-all whitespace-pre-wrap",
-                "[&::-webkit-scrollbar-thumb]:bg-muted [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-button]:h-0 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent",
-                "[scrollbar-color:transparent_transparent] [scrollbar-width:thin] hover:[scrollbar-color:rgb(161_161_170)_transparent] focus:[scrollbar-color:rgb(161_161_170)_transparent]",
-              )}
-              style={{
-                wordWrap: "break-word",
-                overflowWrap: "break-word",
-                wordBreak: "break-word",
-                lineHeight: "1.5",
-              }}
-            />
-          </div>
-          <div className="shrink-0 p-1">
-            {isStreaming ? (
-              <Button
-                variant="default"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                type="button"
-                disabled
-              >
-                <Loader2 className="size-4 animate-spin" />
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={!canSubmit}
-                variant="primary"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-              >
-                <Send className="size-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </form>
+        <MultimodalInput
+          input={input}
+          setInput={setInput}
+          status={status}
+          stop={stop}
+          attachments={attachments}
+          setAttachments={setAttachments}
+          messages={messages as unknown[]}
+          setMessages={setMessages}
+          sendMessage={sendMessage}
+          onSendMessage={onSendMessage}
+          showSuggestedActions={true}
+        />
+      </div>
     </div>
   );
 }
@@ -294,14 +254,32 @@ function EmptyChatState({
   input,
   onInputChange,
   onInputSubmit,
+  attachments,
+  setAttachments,
+  messages,
+  setMessages,
+  sendMessage,
+  status,
+  stop,
 }: {
   selectedChatId: string;
   chats: Chat[];
   isLoading: boolean;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, coworker?: Coworker) => void;
   input: string;
   onInputChange: (value: string) => void;
   onInputSubmit: () => void;
+  attachments: Attachment[];
+  setAttachments: (
+    attachments: Attachment[] | ((prev: Attachment[]) => Attachment[]),
+  ) => void;
+  messages: unknown[];
+  setMessages: (messages: unknown[] | ((prev: unknown[]) => unknown[])) => void;
+  sendMessage: (
+    message: { text: string } | { role: string; parts: unknown[] },
+  ) => void;
+  status: "ready" | "streaming" | "submitted" | "error";
+  stop: () => void;
 }) {
   const t = useTranslations("App.Chat.Chat");
   const selectedChat = chats.find((c) => c.id === selectedChatId);
@@ -320,7 +298,7 @@ function EmptyChatState({
             : t("emptyState.title")}
         </h2>
         {suggestions.length > 0 && (
-          <div className="mt-4 w-full max-w-2xl">
+          <div className="mt-4 w-full max-w-[33.6rem]">
             <p className="mb-3 text-sm font-medium">
               {t("emptyState.suggestionTitle")}
             </p>
@@ -347,13 +325,21 @@ function EmptyChatState({
           </div>
         )}
       </div>
-      <div className="w-full max-w-2xl">
-        <ChatInput
-          value={input}
-          onChange={onInputChange}
-          onSubmit={onInputSubmit}
-          isLoading={isLoading}
-          disabled={false}
+      <div className="w-full max-w-[33.6rem]">
+        <MultimodalInput
+          chatId={selectedChatId}
+          input={input}
+          setInput={onInputChange}
+          status={status}
+          stop={stop}
+          attachments={attachments}
+          setAttachments={setAttachments}
+          messages={messages as unknown[]}
+          setMessages={setMessages}
+          sendMessage={sendMessage}
+          onSendMessage={onSendMessage}
+          showSuggestedActions={false}
+          coworker={coworker}
         />
       </div>
     </div>
@@ -365,6 +351,8 @@ export default function ChatInterface({
   userName,
 }: ChatInterfaceProps) {
   const t = useTranslations("App.Chat.Chat");
+  const searchParams = useSearchParams();
+  const urlConversationId = searchParams?.get("conversationId");
   const {
     conversations,
     selectedConversation,
@@ -374,8 +362,11 @@ export default function ChatInterface({
   } = useConversations();
 
   const [chats, setChats] = useState<Chat[]>([]);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(
+    urlConversationId || null,
+  );
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
   const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
@@ -446,7 +437,7 @@ export default function ChatInterface({
     [selectedChatId, t],
   );
 
-  const { messages, sendMessage, status, setMessages } = useChat({
+  const { messages, sendMessage, status, setMessages, stop } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest(request) {
@@ -460,6 +451,9 @@ export default function ChatInterface({
         return { body };
       },
     }),
+    onError: (error) => {
+      console.error("Chat API error:", error);
+    },
     onFinish: ({ messages: finishedMessages }) => {
       if (!selectedChatId || finishedMessages.length === 0) {
         return;
@@ -587,18 +581,7 @@ export default function ChatInterface({
 
   // Note: Messages are now fetched from DB when selecting a conversation
   // No need to preload from localStorage since DB is the source of truth
-
-  // Auto-select first chat when conversations are loaded
-  useEffect(() => {
-    if (conversations.length > 0 && !selectedChatId && chats.length > 0) {
-      // Select the first conversation
-      const firstChatId = chats[0]?.id;
-      if (firstChatId) {
-        void handleSelectChat(firstChatId);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversations.length, chats.length]); // Only depend on length to avoid re-running when conversations change
+  // Welcome view is always shown by default - chats are only selected when user explicitly clicks on them
 
   // Reset transition state when chats are loaded
   useEffect(() => {
@@ -838,6 +821,12 @@ export default function ChatInterface({
       setSelectedChatId(conversation.id);
       // Update ref immediately for synchronous access in prepareSendMessagesRequest
       currentChatIdRef.current = conversation.id;
+      // Update URL to reflect selected conversation
+      window.history.pushState(
+        {},
+        "",
+        `/chat?conversationId=${conversation.id}`,
+      );
     },
     [createNewConversation, setMessages, setInput, setChats, setSelectedChatId],
   );
@@ -1052,6 +1041,7 @@ export default function ChatInterface({
     if (!chatId) {
       setSelectedChatId(null);
       currentChatIdRef.current = null;
+      window.history.pushState({}, "", "/chat");
       return;
     }
 
@@ -1061,7 +1051,21 @@ export default function ChatInterface({
     setSelectedChatId(chatId);
     // Update ref immediately for synchronous access in prepareSendMessagesRequest
     currentChatIdRef.current = chatId;
+    // Update URL to reflect selected conversation
+    window.history.pushState({}, "", `/chat?conversationId=${chatId}`);
   };
+
+  // Sync URL parameter with selectedChatId on mount and when URL changes
+  useEffect(() => {
+    if (urlConversationId && urlConversationId !== selectedChatId) {
+      handleSelectChat(urlConversationId);
+    } else if (!urlConversationId && selectedChatId) {
+      // If URL has no conversationId, always clear selection to show welcome view
+      setSelectedChatId(null);
+      currentChatIdRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlConversationId]);
 
   const handleDeleteChat = async (chatId: string) => {
     // Delete from DB (works for any conversation, not just the selected one)
@@ -1081,17 +1085,18 @@ export default function ChatInterface({
   };
 
   const handleSendMessage = useCallback(
-    async (messageText: string) => {
+    async (messageText: string, coworker?: Coworker) => {
       if (!messageText.trim() || isLoading) return;
 
       const trimmedMessage = messageText.trim();
 
-      // If no chat exists, create one with Hannah as default
-      if (!selectedChatId && chats.length === 0) {
+      // If no chat is selected, create one with the selected coworker or default to Hannah
+      if (!selectedChatId) {
         // Start transition animation
         setIsWelcomeTransitioning(true);
 
-        const hannahCoworker: Coworker = {
+        // Use provided coworker or default to Hannah
+        const selectedCoworker: Coworker = coworker || {
           id: "hannah",
           name: t("coworkers.hannah.name"),
           description: t("coworkers.hannah.description"),
@@ -1101,17 +1106,18 @@ export default function ChatInterface({
         // Wait for welcome screen fade-out to complete before showing chat UI
         await new Promise((resolve) => setTimeout(resolve, 300));
 
-        await handleCoworkerSelected(hannahCoworker);
-        // Wait a bit for the conversation to be created and selected
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await handleCoworkerSelected(selectedCoworker);
+
+        // Wait for state to update and ensure conversation ID is set
+        const conversationId = currentChatIdRef.current;
+        if (!conversationId) {
+          // Wait a bit more and retry
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
         // Now send the message
         sendMessage({ text: trimmedMessage });
         setInput("");
-        return;
-      }
-
-      if (!selectedChatId) {
-        handleCreateNewChat();
         return;
       }
 
@@ -1152,63 +1158,80 @@ export default function ChatInterface({
   };
 
   const handleStop = () => {
-    // Stop the current streaming response
-    // The useChat hook doesn't have a direct stop method in v6,
-    // but we can clear the input and reset state if needed
-    // For now, this is a placeholder for future stop functionality
+    stop();
   };
 
-  // Show welcome screen when there are no chats
-  if (
-    chats.length === 0 &&
-    conversations.length === 0 &&
-    !isWelcomeTransitioning
-  ) {
+  // Show welcome screen when no chat is selected (always show by default)
+  if (!selectedChatId && !isWelcomeTransitioning) {
     // Extract first name from userName
     const firstName = userName?.split(" ")[0] ?? userName;
     return (
-      <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg">
+      <div className="flex h-full w-full overflow-hidden rounded-lg">
         <WelcomeScreen
           userName={firstName}
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
           isTransitioning={isWelcomeTransitioning}
+          input={input}
+          setInput={setInput}
+          attachments={attachments}
+          setAttachments={setAttachments}
+          messages={messages}
+          setMessages={setMessages}
+          sendMessage={sendMessage}
+          status={status}
+          stop={handleStop}
         />
       </div>
     );
   }
 
+  // Hide sidebar when messages exist, show full-width chat interface
+  const hasActiveChat = selectedChatId && messages.length > 0;
+
+  // Get the selected chat's coworker for MultimodalInput
+  const selectedChat = chats.find((c) => c.id === selectedChatId);
+  const selectedChatCoworker = selectedChat?.coworker;
+
   return (
-    <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg">
-      <div
-        className={cn(
-          "w-96 shrink-0 transition-opacity duration-700",
-          chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning
-            ? "animate-in fade-in slide-in-from-left-4 delay-200 duration-500"
-            : chats.length > 0 && conversations.length > 0
-              ? "opacity-100"
-              : "opacity-0",
-        )}
-      >
-        <ChatSidebar
-          chats={chats}
-          selectedChatId={selectedChatId}
-          onSelectChat={handleSelectChat}
-          onCreateNewChat={handleCreateNewChat}
-          onDeleteChat={handleDeleteChat}
-        />
-      </div>
+    <div className="flex h-full w-full overflow-hidden rounded-lg">
+      {!hasActiveChat && (
+        <div
+          className={cn(
+            "w-96 shrink-0 transition-opacity duration-700",
+            chats.length > 0 &&
+              conversations.length > 0 &&
+              isWelcomeTransitioning
+              ? "animate-in fade-in slide-in-from-left-4 delay-200 duration-500"
+              : chats.length > 0 && conversations.length > 0
+                ? "opacity-100"
+                : "opacity-0",
+          )}
+        >
+          <ChatSidebar
+            chats={chats}
+            selectedChatId={selectedChatId}
+            onSelectChat={handleSelectChat}
+            onCreateNewChat={handleCreateNewChat}
+            onDeleteChat={handleDeleteChat}
+          />
+        </div>
+      )}
       <div
         className={cn(
           "flex min-h-0 flex-1 flex-col transition-opacity duration-700",
-          chats.length > 0 && conversations.length > 0 && isWelcomeTransitioning
-            ? "animate-in fade-in slide-in-from-right-4 delay-300 duration-500"
-            : chats.length > 0 && conversations.length > 0
-              ? "opacity-100"
-              : "opacity-0",
+          hasActiveChat
+            ? "w-full"
+            : chats.length > 0 &&
+                conversations.length > 0 &&
+                isWelcomeTransitioning
+              ? "animate-in fade-in slide-in-from-right-4 delay-300 duration-500"
+              : chats.length > 0 && conversations.length > 0
+                ? "opacity-100"
+                : "opacity-0",
         )}
       >
-        {selectedChatId && messages.length > 0 && (
+        {hasActiveChat && (
           <div className="bg-card animate-in fade-in slide-in-from-top-2 shrink-0 border-b px-6 py-4 duration-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1257,16 +1280,45 @@ export default function ChatInterface({
             </div>
           </div>
         )}
-        {selectedChatId && messages.length === 0 ? (
-          <EmptyChatState
-            selectedChatId={selectedChatId}
-            chats={chats}
-            isLoading={status === "streaming" || status === "submitted"}
-            onSendMessage={handleSendMessage}
-            input={input}
-            onInputChange={setInput}
-            onInputSubmit={handleInputSubmit}
-          />
+        {selectedChatId && !hasActiveChat ? (
+          <>
+            <EmptyChatState
+              selectedChatId={selectedChatId}
+              chats={chats}
+              isLoading={status === "streaming" || status === "submitted"}
+              onSendMessage={handleSendMessage}
+              input={input}
+              onInputChange={setInput}
+              onInputSubmit={handleInputSubmit}
+              attachments={attachments}
+              setAttachments={setAttachments}
+              messages={messages}
+              setMessages={setMessages}
+              sendMessage={sendMessage}
+              onSendMessage={handleSendMessage}
+              status={status}
+              stop={handleStop}
+            />
+            <div className="bg-background/80 flex shrink-0 justify-center overflow-hidden border-t px-4 py-2 backdrop-blur-sm">
+              <div className="w-full max-w-[33.6rem]">
+                <MultimodalInput
+                  chatId={selectedChatId}
+                  input={input}
+                  setInput={setInput}
+                  status={status}
+                  stop={handleStop}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
+                  messages={messages}
+                  setMessages={setMessages}
+                  sendMessage={sendMessage}
+                  onSendMessage={handleSendMessage}
+                  showSuggestedActions={false}
+                  coworker={selectedChatCoworker}
+                />
+              </div>
+            </div>
+          </>
         ) : (
           <>
             {showMessagesAfterTransition && (
@@ -1463,14 +1515,21 @@ export default function ChatInterface({
                 </div>
               </ScrollArea>
             )}
-            <div className="animate-in fade-in slide-in-from-bottom-4 flex shrink-0 justify-center overflow-hidden p-4 duration-500">
-              <div className="w-full max-w-2xl">
-                <ChatInput
-                  value={input}
-                  onChange={setInput}
-                  onSubmit={handleInputSubmit}
-                  onStop={handleStop}
-                  isLoading={isLoading}
+            <div className="bg-background/80 flex shrink-0 justify-center overflow-hidden px-4 py-2 backdrop-blur-sm">
+              <div className="w-full max-w-[33.6rem]">
+                <MultimodalInput
+                  chatId={selectedChatId || undefined}
+                  input={input}
+                  setInput={setInput}
+                  status={status}
+                  stop={handleStop}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
+                  messages={messages}
+                  setMessages={setMessages}
+                  sendMessage={sendMessage}
+                  onSendMessage={handleSendMessage}
+                  showSuggestedActions={false}
                 />
               </div>
             </div>

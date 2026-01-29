@@ -1052,10 +1052,14 @@
           "suggestionTitle": "Try asking:"
         },
         "welcomeScreen": {
-          "title": "Hi, what can I help you ship today?",
-          "titleWithName": "Hi {name}, what can I help you ship today?",
-          "placeholder": "Ask anything"
+          "greeting": "Welcome!",
+          "greetingWithName": "Welcome {name}!",
+          "question": "How can we help you today?",
+          "title": "Welcome! How can we help you today?",
+          "titleWithName": "Welcome {name}! How can we help you today?",
+          "placeholder": "What's on your mind?"
         },
+        "introducingCoworkers": "Introducing: Agentic Coworkers",
         "emptyTitle": "Start a conversation",
         "emptyDescription": "Ask me anything and I'll help you out. You can start a new chat or continue an existing one.",
         "inputPlaceholder": "Type your message...",
@@ -1101,7 +1105,10 @@
             "description": "Writing & Communication Expert",
             "useCase": "Draft documents, improve writing, and craft professional communications"
           }
-        }
+        },
+        "errorTitle": "Error",
+        "errorDescription": "An error occurred while processing your message. Please try again.",
+        "tryAgain": "Try Again"
       }
     },
     "Schedules": {
@@ -1137,10 +1144,16 @@
       "Content": {
         "MenuItems": {
           "chat": "Chat",
+          "newChat": "New Chat",
           "exploreAgents": "Explore Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Task Manager",
           "scheduledAgents": "Scheduled Agents"
+        },
+        "ChatLists": {
+          "title": "Chats",
+          "noChats": "No chats yet",
+          "untitledChat": "Untitled Chat"
         },
         "AgentLists": {
           "pinnedTitle": "Pinned Agents",
