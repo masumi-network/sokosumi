@@ -1067,6 +1067,7 @@
         "complete": "Complete"
       },
       "Actions": {
+        "add": "Add",
         "addTask": "Add Task",
         "loadMore": "Load More"
       },
@@ -1107,8 +1108,13 @@
         "descriptionPlaceholder": "Enter task details...",
         "orchestrator": "Orchestrator",
         "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
+        "status": "Status",
+        "statusDescription": "Choose the initial status for this task",
+        "statusDraft": "Draft",
+        "statusReady": "Ready",
+        "back": "Back",
         "uploadFile": "Upload File",
-        "saveDraft": "Save Draft",
+        "saveDraft": "Save",
         "cancel": "Cancel"
       }
     },

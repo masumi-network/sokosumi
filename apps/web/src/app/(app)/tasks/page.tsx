@@ -55,6 +55,7 @@ export default async function TasksPage() {
             jobs: t("Tabs.jobs"),
           },
           columns: columnLabels,
+          add: t("Actions.add"),
           addTask: t("Actions.addTask"),
           jobsPlaceholder: t("Jobs.placeholder"),
           display: {

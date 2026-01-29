@@ -12,6 +12,7 @@ import {
   type TaskWithOrchestrator,
 } from "@/lib/types/task";
 
+import { AddTaskButton } from "./add-task-button";
 import { KanbanBoard } from "./kanban-board";
 import { TaskListView } from "./task-list-view";
 import { ViewModeSwitch } from "./view-mode-switch";
@@ -26,6 +27,7 @@ interface TasksViewProps {
       jobs: string;
     };
     columns: Record<KanbanColumnId, string>;
+    add: string;
     addTask: string;
     jobsPlaceholder: string;
     display: {
@@ -67,10 +69,13 @@ export function TasksView({
   return (
     <Tabs defaultValue="tasks" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <TabsList>
-          <TabsTrigger value="tasks">{labels.tabs.tasks}</TabsTrigger>
-          <TabsTrigger value="jobs">{labels.tabs.jobs}</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center gap-2">
+          <TabsList>
+            <TabsTrigger value="tasks">{labels.tabs.tasks}</TabsTrigger>
+            <TabsTrigger value="jobs">{labels.tabs.jobs}</TabsTrigger>
+          </TabsList>
+          <AddTaskButton label={labels.add} />
+        </div>
         <ViewModeSwitch
           value={viewMode}
           onChange={setViewMode}

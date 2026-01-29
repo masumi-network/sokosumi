@@ -49,6 +49,32 @@ export const openrouterClient = (() => {
       }
     },
 
+    async generateTaskName(description: string): Promise<string | null> {
+      const systemPrompt = `Generate a concise task name following these rules:
+        - Length: 30-60 characters (including spaces and punctuation)
+        - Language: Match the input
+        - Format: Single sentence
+        - Output: Name only, no other text
+        - Do NOT: include end of sentence punctuation
+      `;
+      const userPrompt = `Task Description: ${description}`;
+
+      try {
+        const { text } = await generateText({
+          model: openrouter("anthropic/claude-haiku-4.5"),
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.9,
+          maxOutputTokens: 40,
+        });
+
+        return text || null;
+      } catch (error) {
+        console.error("OpenRouter task name generation failed:", error);
+        return null;
+      }
+    },
+
     async generateAgentSummary(description: string): Promise<string | null> {
       const systemPrompt = `You are a summary generator. Output ONLY the summary text—no questions, no explanations, no preamble.
 

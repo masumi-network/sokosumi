@@ -16,7 +16,9 @@ export function TaskCard({ task }: TaskCardProps) {
       <Card className="hover:bg-foreground/5 py-4">
         <CardContent className="space-y-2 px-4">
           <div className="space-y-2">
-            <h3 className="text-lg leading-tight font-semibold">{task.name}</h3>
+            <h3 className="line-clamp-2 text-lg leading-tight font-semibold">
+              {task.name}
+            </h3>
             <TaskStatusBadge
               status={task.status}
               className="rounded-full text-xs font-medium"

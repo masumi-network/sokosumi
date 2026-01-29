@@ -326,7 +326,7 @@ export function MentionTextarea<TData = unknown>({
       // If editing an existing mention, replace it
       if (editingRange) {
         const nextChar = value[editingRange.end];
-        const insertion = `@${mentionSlug}${
+        const insertion = `@${mention.key}:${mentionSlug}${
           shouldAppendTrailingSpace(nextChar) ? " " : ""
         }`;
         const { nextValue, nextCaret } = replaceTextRange(
@@ -353,7 +353,7 @@ export function MentionTextarea<TData = unknown>({
       }
 
       const nextChar = value[caret];
-      const insertion = `@${mentionSlug}${
+      const insertion = `@${mention.key}:${mentionSlug}${
         shouldAppendTrailingSpace(nextChar) ? " " : ""
       }`;
       const { nextValue, nextCaret } = replaceTextRange(

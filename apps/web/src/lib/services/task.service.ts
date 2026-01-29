@@ -23,6 +23,17 @@ interface ListTasksParams {
   limit?: number;
 }
 
+interface CreateTaskInput {
+  name: string;
+  description: string | null;
+  orchestratorId: string | null;
+}
+
+interface CreateTaskEventInput {
+  status?: TaskStatus;
+  comment?: string;
+}
+
 function buildQuery(params: ListTasksParams): string {
   const query = new URLSearchParams();
   if (params.status) query.set("status", params.status);
@@ -63,8 +74,48 @@ export const taskService = (() => {
     }
   }
 
+  async function createTask(input: CreateTaskInput) {
+    const json: CoreApiResponse<TaskWithEvents> = await coreClient.request(
+      "/v1/tasks",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+      },
+    );
+
+    if (!json.data) {
+      throw new Error("Failed to create task");
+    }
+
+    return json.data;
+  }
+
+  async function createTaskEvent(taskId: string, input: CreateTaskEventInput) {
+    const json: CoreApiResponse<TaskEvent> = await coreClient.request(
+      `/v1/tasks/${encodeURIComponent(taskId)}/events`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+      },
+    );
+
+    if (!json.data) {
+      throw new Error("Failed to create task event");
+    }
+
+    return json.data;
+  }
+
   return {
     listTasks,
     getTaskById,
+    createTask,
+    createTaskEvent,
   };
 })();

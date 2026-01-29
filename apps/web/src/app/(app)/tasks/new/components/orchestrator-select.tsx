@@ -45,7 +45,7 @@ export function OrchestratorSelect({
             aria-label={label}
           >
             {triggerOption ? (
-              <div className="flex min-w-0 items-center gap-2 text-lg">
+              <div className="flex min-w-0 items-center gap-2">
                 <Avatar className="size-8">
                   <AvatarImage
                     src={triggerOption.image}
