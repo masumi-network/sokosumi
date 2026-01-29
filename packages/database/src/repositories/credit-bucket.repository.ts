@@ -101,46 +101,9 @@ export const creditBucketRepository = {
       throw new Error("Cents to consume must be positive");
     }
 
-    if (!organizationId) {
-      const now = new Date();
-      const buckets = await getFifoBucketsToCoverSpendPersonal(
-        userId,
-        now,
-        cents,
-        tx,
-      );
-
-      const consumptions: Consumption[] = [];
-      let remaining = cents;
-
-      for (const bucket of buckets) {
-        if (remaining <= BigInt(0)) {
-          break;
-        }
-
-        const available = bucket.available;
-
-        if (available <= BigInt(0)) {
-          continue;
-        }
-
-        const consumeFromBucket = available < remaining ? available : remaining;
-
-        consumptions.push({ bucketId: bucket.id, amount: consumeFromBucket });
-        remaining -= consumeFromBucket;
-      }
-
-      if (remaining > BigInt(0)) {
-        throw new Error(
-          `Insufficient balance: tried to consume ${cents} but only ${cents - remaining} available`,
-        );
-      }
-
-      return consumptions;
-    }
-
     const now = new Date();
-    const buckets = await getFifoBucketsToCoverSpendOrganization(
+    const buckets = await getFifoBucketsToCoverSpend(
+      userId,
       organizationId,
       now,
       cents,
@@ -158,17 +121,15 @@ export const creditBucketRepository = {
       const available = bucket.available;
 
       if (available <= BigInt(0)) {
-        continue; // Skip empty buckets
+        continue;
       }
 
-      // Consume from this bucket (either all available or just what we need)
       const consumeFromBucket = available < remaining ? available : remaining;
 
       consumptions.push({ bucketId: bucket.id, amount: consumeFromBucket });
       remaining -= consumeFromBucket;
     }
 
-    // Check if we consumed enough
     if (remaining > BigInt(0)) {
       throw new Error(
         `Insufficient balance: tried to consume ${cents} but only ${cents - remaining} available`,
@@ -179,51 +140,17 @@ export const creditBucketRepository = {
   },
 };
 
-async function getFifoBucketsToCoverSpendPersonal(
+async function getFifoBucketsToCoverSpend(
   userId: string,
+  organizationId: string | null,
   now: Date,
   cents: bigint,
   tx: Prisma.TransactionClient,
 ): Promise<Array<{ id: string; available: bigint }>> {
-  return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
-    WITH bucket_avail AS (
-      SELECT
-        cb.id,
-        (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
-        cb."expiresAt",
-        cb."createdAt"
-      FROM credit_bucket cb
-      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
-      WHERE cb."userId" = ${userId}
-        AND cb."organizationId" IS NULL
-        AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
-      GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
-      HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
-    ),
-    ordered AS (
-      SELECT
-        id,
-        available,
-        "expiresAt",
-        "createdAt",
-        SUM(available) OVER (
-          ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
-        ) AS running_total
-      FROM bucket_avail
-    )
-    SELECT id, available
-    FROM ordered
-    WHERE running_total - available < ${cents}
-    ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
-  `;
-}
+  const where = organizationId
+    ? Prisma.sql`cb."organizationId" = ${organizationId}`
+    : Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
 
-async function getFifoBucketsToCoverSpendOrganization(
-  organizationId: string,
-  now: Date,
-  cents: bigint,
-  tx: Prisma.TransactionClient,
-): Promise<Array<{ id: string; available: bigint }>> {
   return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
     WITH bucket_avail AS (
       SELECT
@@ -233,7 +160,7 @@ async function getFifoBucketsToCoverSpendOrganization(
         cb."createdAt"
       FROM credit_bucket cb
       LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
-      WHERE cb."organizationId" = ${organizationId}
+      WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
       GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
       HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
