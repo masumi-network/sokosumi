@@ -340,8 +340,8 @@ importers:
         specifier: 2.0.18
         version: 2.0.18(react@19.2.4)
       react-resizable-panels:
-        specifier: 4.5.2
-        version: 4.5.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 4.5.4
+        version: 4.5.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-social-login-buttons:
         specifier: 4.1.1
         version: 4.1.1(react@19.2.4)
@@ -7765,8 +7765,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@4.5.2:
-    resolution: {integrity: sha512-PJyyR41poi1O1MvvQzDVtEBRq1x7B/9jB6yoFbm67pm8AvPUUwhljFtxfhaYy8klsmkQ6AvxZgDxXTkDl4vy4Q==}
+  react-resizable-panels@4.5.4:
+    resolution: {integrity: sha512-zK+Tz+73MBZKDtBUUcKjezaq+in8K10TJ8+slH/LNza5IL2CRFMKm0GbKyMPAGDPKY1x8G7sWx3Wu9inFRZGFA==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -17060,7 +17060,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.10
 
-  react-resizable-panels@4.5.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  react-resizable-panels@4.5.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
