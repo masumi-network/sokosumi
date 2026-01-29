@@ -56,7 +56,9 @@
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "test": "node --test --import tsx \"src/**/*.test.ts\"",
+    "test:ci": "node --test --import tsx \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.3.0",
@@ -67,7 +69,7 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "24.10.9",
+    "@types/node": "^24.10.9",
     "@types/pg": "8.16.0",
     "dotenv": "17.2.3",
     "prisma": "7.3.0",
