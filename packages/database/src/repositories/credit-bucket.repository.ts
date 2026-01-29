@@ -1,4 +1,4 @@
-import type { CreditBucket, Prisma } from "../generated/prisma/client.js";
+import { type CreditBucket, Prisma } from "../generated/prisma/client.js";
 
 interface Consumption {
   bucketId: string;
@@ -60,47 +60,25 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<bigint> {
     const now = new Date();
+    const where = organizationId
+      ? Prisma.sql`cb."organizationId" = ${organizationId}`
+      : Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
 
-    // Get all unexpired buckets
-    const buckets = await tx.creditBucket.findMany({
-      where: {
-        ...(organizationId
-          ? {
-              organizationId,
-            }
-          : {
-              userId,
-              organizationId: null,
-            }),
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
-      select: {
-        id: true,
-        amount: true,
-      },
-    });
+    const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
+      WITH bucket_avail AS (
+        SELECT
+          (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
+        FROM credit_bucket cb
+        LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+        WHERE ${where}
+          AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+        GROUP BY cb.id, cb.amount
+      )
+      SELECT COALESCE(SUM(available), 0)::bigint AS balance
+      FROM bucket_avail
+    `;
 
-    if (buckets.length === 0) {
-      return BigInt(0);
-    }
-
-    const bucketIds = buckets.map((b) => b.id);
-
-    // Sum all consumptions for these buckets
-    const consumptionSum = await tx.creditConsumption.aggregate({
-      where: {
-        bucketId: { in: bucketIds },
-      },
-      _sum: { amount: true },
-    });
-
-    const totalBucketAmount = buckets.reduce(
-      (sum, bucket) => sum + bucket.amount,
-      BigInt(0),
-    );
-
-    const totalConsumed = consumptionSum._sum.amount ?? BigInt(0);
-    return totalBucketAmount - totalConsumed;
+    return result[0]?.balance ?? 0n;
   },
 
   /**
@@ -123,8 +101,14 @@ export const creditBucketRepository = {
       throw new Error("Cents to consume must be positive");
     }
 
-    // Get buckets in FIFO order
-    const buckets = await this.getUnexpiredBuckets(userId, organizationId, tx);
+    const now = new Date();
+    const buckets = await getFifoBucketsToCoverSpend(
+      userId,
+      organizationId,
+      now,
+      cents,
+      tx,
+    );
 
     const consumptions: Consumption[] = [];
     let remaining = cents;
@@ -134,21 +118,18 @@ export const creditBucketRepository = {
         break;
       }
 
-      // Calculate available balance for this bucket
-      const available = await getBalanceForBucket(bucket, tx);
+      const available = bucket.available;
 
       if (available <= BigInt(0)) {
-        continue; // Skip empty buckets
+        continue;
       }
 
-      // Consume from this bucket (either all available or just what we need)
       const consumeFromBucket = available < remaining ? available : remaining;
 
       consumptions.push({ bucketId: bucket.id, amount: consumeFromBucket });
       remaining -= consumeFromBucket;
     }
 
-    // Check if we consumed enough
     if (remaining > BigInt(0)) {
       throw new Error(
         `Insufficient balance: tried to consume ${cents} but only ${cents - remaining} available`,
@@ -159,23 +140,45 @@ export const creditBucketRepository = {
   },
 };
 
-/**
- * Calculate the available balance for a specific bucket.
- * Available balance = bucket.amount - sum(consumptions for this bucket).
- *
- * @param bucket - The credit bucket.
- * @param tx - The Prisma transaction client to use for database operations.
- * @returns The available balance in cents as a bigint.
- */
-async function getBalanceForBucket(
-  bucket: CreditBucket,
+async function getFifoBucketsToCoverSpend(
+  userId: string,
+  organizationId: string | null,
+  now: Date,
+  cents: bigint,
   tx: Prisma.TransactionClient,
-): Promise<bigint> {
-  const consumptionSum = await tx.creditConsumption.aggregate({
-    where: { bucketId: bucket.id },
-    _sum: { amount: true },
-  });
+): Promise<Array<{ id: string; available: bigint }>> {
+  const where = organizationId
+    ? Prisma.sql`cb."organizationId" = ${organizationId}`
+    : Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
 
-  const consumed = consumptionSum._sum.amount ?? BigInt(0);
-  return bucket.amount - consumed;
+  return await tx.$queryRaw<Array<{ id: string; available: bigint }>>`
+    WITH bucket_avail AS (
+      SELECT
+        cb.id,
+        (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
+        cb."expiresAt",
+        cb."createdAt"
+      FROM credit_bucket cb
+      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+      WHERE ${where}
+        AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+      GROUP BY cb.id, cb.amount, cb."expiresAt", cb."createdAt"
+      HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+    ),
+    ordered AS (
+      SELECT
+        id,
+        available,
+        "expiresAt",
+        "createdAt",
+        SUM(available) OVER (
+          ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+        ) AS running_total
+      FROM bucket_avail
+    )
+    SELECT id, available
+    FROM ordered
+    WHERE running_total - available < ${cents}
+    ORDER BY "expiresAt" ASC NULLS LAST, "createdAt" ASC, id ASC
+  `;
 }
