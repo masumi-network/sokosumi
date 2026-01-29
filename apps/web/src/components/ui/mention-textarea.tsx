@@ -7,6 +7,15 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 
+import {
+  createMentionSpan,
+  getMentionToken,
+  serializeEditorText,
+  setEditorFromRaw,
+  shouldAppendTrailingSpace,
+  type MentionDisplayResolver,
+} from "./mention-textarea-utils";
+
 export interface MentionRecordEntry<TData = unknown> {
   value: string;
   slug?: string | null;
@@ -39,14 +48,13 @@ interface TriggerPosition {
   left: number;
 }
 
-interface EditingRange {
-  start: number;
-  end: number;
-}
-
 const POPUP_HEIGHT_PX = 240; // max-h-60 = 15rem = 240px
 const POPUP_WIDTH_PX = 288; // w-72 = 18rem = 288px
 const VIEWPORT_PADDING_PX = 8;
+
+const MENTION_CLASSNAME =
+  "text-primary cursor-pointer font-semibold hover:underline";
+const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
 
 function deslugifyMentionSlug(slug: string): string {
   return slug.replace(/-/g, " ");
@@ -56,11 +64,212 @@ function isWhitespaceChar(char: string): boolean {
   return char.trim() === "";
 }
 
-function shouldAppendTrailingSpace(nextChar: string | undefined): boolean {
-  // Preserve existing behavior: insert a trailing space at end-of-text.
-  if (nextChar === undefined || nextChar === "") return true;
-  // Avoid double-spacing when we're inserting before existing whitespace/newlines.
-  return !isWhitespaceChar(nextChar);
+function isMentionSpan(node: Node): node is HTMLSpanElement {
+  if (!(node instanceof HTMLSpanElement)) return false;
+  return Boolean(node.dataset.mentionKey && node.dataset.mentionSlug);
+}
+
+function isLineBreak(node: Node): node is HTMLBRElement {
+  return node.nodeType === Node.ELEMENT_NODE && node.nodeName === "BR";
+}
+
+function getMentionTokenLength(span: HTMLSpanElement): number {
+  return getMentionToken(
+    span.dataset.mentionKey ?? "",
+    span.dataset.mentionSlug ?? "",
+  ).length;
+}
+
+function getSerializedLength(node: Node): number {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent?.length ?? 0;
+  }
+
+  if (isMentionSpan(node)) {
+    return getMentionTokenLength(node);
+  }
+
+  if (isLineBreak(node)) {
+    return 1;
+  }
+
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    let result = 0;
+    node.childNodes.forEach((child) => {
+      result += getSerializedLength(child);
+    });
+    return result;
+  }
+
+  return 0;
+}
+
+function getSerializedOffset(
+  root: HTMLElement,
+  targetNode: Node,
+  targetOffset: number,
+): number {
+  let offset = 0;
+  function traverse(node: Node): boolean {
+    if (node === targetNode) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += targetOffset;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const children = Array.from(node.childNodes);
+        for (let index = 0; index < targetOffset; index += 1) {
+          offset += getSerializedLength(children[index]);
+        }
+      }
+      return true;
+    }
+
+    if (
+      node.nodeType === Node.TEXT_NODE ||
+      isMentionSpan(node) ||
+      isLineBreak(node)
+    ) {
+      offset += getSerializedLength(node);
+      return false;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      for (const child of Array.from(node.childNodes)) {
+        if (traverse(child)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  traverse(root);
+  return offset;
+}
+
+function getCaretOffset(root: HTMLElement): number | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.endContainer)) return null;
+  return getSerializedOffset(root, range.endContainer, range.endOffset);
+}
+
+function serializeEditor(root: HTMLElement): { text: string; caret: number } {
+  const text = serializeEditorText(root);
+  const caret = getCaretOffset(root) ?? text.length;
+  return { text, caret };
+}
+
+function findPositionForOffset(
+  root: HTMLElement,
+  targetOffset: number,
+): { node: Node; offset: number } {
+  let remaining = targetOffset;
+
+  function walk(node: Node): { node: Node; offset: number } | null {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const length = node.textContent?.length ?? 0;
+      if (remaining <= length) {
+        return { node, offset: remaining };
+      }
+      remaining -= length;
+      return null;
+    }
+
+    if (isMentionSpan(node)) {
+      const length = getMentionTokenLength(node);
+      if (remaining <= length) {
+        const parent = node.parentNode ?? root;
+        const index = Array.from(parent.childNodes).indexOf(node);
+        return { node: parent, offset: remaining === length ? index + 1 : index };
+      }
+      remaining -= length;
+      return null;
+    }
+
+    if (isLineBreak(node)) {
+      if (remaining <= 1) {
+        const parent = node.parentNode ?? root;
+        const index = Array.from(parent.childNodes).indexOf(node);
+        return { node: parent, offset: remaining === 1 ? index + 1 : index };
+      }
+      remaining -= 1;
+      return null;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const children = Array.from(node.childNodes);
+      for (const child of children) {
+        const result = walk(child);
+        if (result) return result;
+      }
+    }
+
+    return null;
+  }
+
+  return walk(root) ?? { node: root, offset: root.childNodes.length };
+}
+
+function getFirstSerializedChar(node: Node): string | undefined {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return (node.textContent ?? "")[0];
+  }
+
+  if (isMentionSpan(node)) {
+    return "@";
+  }
+
+  if (isLineBreak(node)) {
+    return "\n";
+  }
+
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    for (const child of Array.from(node.childNodes)) {
+      const char = getFirstSerializedChar(child);
+      if (char) return char;
+    }
+  }
+
+  return undefined;
+}
+
+function getPreviousNode(root: HTMLElement, node: Node): Node | null {
+  let current: Node | null = node;
+  while (current && current !== root) {
+    if (current.previousSibling) {
+      current = current.previousSibling;
+      while (current?.lastChild) {
+        current = current.lastChild;
+      }
+      return current;
+    }
+    current = current.parentNode;
+  }
+  return null;
+}
+
+function getNextNode(root: HTMLElement, node: Node): Node | null {
+  let current: Node | null = node;
+  while (current && current !== root) {
+    if (current.nextSibling) {
+      current = current.nextSibling;
+      while (current?.firstChild) {
+        current = current.firstChild;
+      }
+      return current;
+    }
+    current = current.parentNode;
+  }
+  return null;
+}
+
+function getNextCharAfterNode(
+  root: HTMLElement,
+  node: Node,
+): string | undefined {
+  const nextNode = getNextNode(root, node);
+  if (!nextNode) return undefined;
+  return getFirstSerializedChar(nextNode);
 }
 
 function getActiveTrigger(
@@ -70,8 +279,6 @@ function getActiveTrigger(
   const clampedCaret = Math.max(0, Math.min(caret, text.length));
   if (clampedCaret === 0) return null;
 
-  // Match the behavior of /@([^\s@]*)$/ against the text prefix.
-  // Walk backward from caret to the start of the current token (whitespace boundary).
   let tokenStart = clampedCaret;
   while (tokenStart > 0 && !isWhitespaceChar(text[tokenStart - 1] ?? "")) {
     tokenStart -= 1;
@@ -85,50 +292,167 @@ function getActiveTrigger(
   return { query, triggerStart: tokenStart };
 }
 
-function replaceTextRange(
-  text: string,
-  range: EditingRange,
-  insertion: string,
-): { nextValue: string; nextCaret: number } {
-  const before = text.slice(0, range.start);
-  const after = text.slice(range.end);
-  const nextValue = `${before}${insertion}${after}`;
-  const nextCaret = before.length + insertion.length;
-  return { nextValue, nextCaret };
+function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
+  let top = rect.bottom;
+  let left = rect.left;
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+
+  if (top + POPUP_HEIGHT_PX > viewportHeight - VIEWPORT_PADDING_PX) {
+    top = rect.top - POPUP_HEIGHT_PX;
+    if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
+  }
+
+  if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
+
+  if (left < VIEWPORT_PADDING_PX) left = VIEWPORT_PADDING_PX;
+  const maxLeft = viewportWidth - POPUP_WIDTH_PX - VIEWPORT_PADDING_PX;
+  if (left > maxLeft && maxLeft > 0) left = maxLeft;
+
+  return { top, left };
 }
 
-function createTextareaMeasurementElement(
-  textarea: HTMLTextAreaElement,
-  textUpToTrigger: string,
-): {
-  measure: HTMLDivElement;
-  marker: HTMLSpanElement;
-  textareaStyle: CSSStyleDeclaration;
-} {
-  const textareaStyle = window.getComputedStyle(textarea);
-  const measure = document.createElement("div");
+function getCaretRect(root: HTMLElement): DOMRect | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.endContainer)) return null;
 
-  // Copy textarea styles exactly
-  measure.style.position = "absolute";
-  measure.style.visibility = "hidden";
-  measure.style.whiteSpace = "pre-wrap";
-  measure.style.wordBreak = "break-word";
-  measure.style.font = textareaStyle.font;
-  measure.style.padding = textareaStyle.padding;
-  measure.style.border = textareaStyle.border;
-  measure.style.width = textareaStyle.width;
-  measure.style.lineHeight = textareaStyle.lineHeight;
-  measure.style.letterSpacing = textareaStyle.letterSpacing;
-  measure.style.top = "0";
-  measure.style.left = "0";
+  const rect = range.getBoundingClientRect();
+  if (rect.width !== 0 || rect.height !== 0) return rect;
 
-  // Add text content with a marker span
-  measure.textContent = textUpToTrigger;
   const marker = document.createElement("span");
-  marker.textContent = "\u200b"; // zero-width space
-  measure.appendChild(marker);
+  marker.textContent = "\u200b";
 
-  return { measure, marker, textareaStyle };
+  const markerRange = range.cloneRange();
+  markerRange.collapse(true);
+  markerRange.insertNode(marker);
+  const markerRect = marker.getBoundingClientRect();
+  marker.remove();
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  return markerRect;
+}
+
+function setCaretAfterNode(root: HTMLElement, node: Node): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  if (node.nodeType === Node.TEXT_NODE) {
+    range.setStart(node, node.textContent?.length ?? 0);
+  } else {
+    const parent = node.parentNode ?? root;
+    const index = Array.from(parent.childNodes).indexOf(node as ChildNode);
+    range.setStart(parent, index + 1);
+  }
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function replaceRangeWithMention<TData>(
+  root: HTMLElement,
+  startOffset: number,
+  endOffset: number,
+  mention: NormalizedMention<TData>,
+  appendSpace: boolean,
+  resolveDisplay: MentionDisplayResolver,
+): void {
+  const range = document.createRange();
+  const startPos = findPositionForOffset(root, startOffset);
+  const endPos = findPositionForOffset(root, endOffset);
+  range.setStart(startPos.node, startPos.offset);
+  range.setEnd(endPos.node, endPos.offset);
+  range.deleteContents();
+
+  const { displayName, isKnown } = resolveDisplay(mention.key, mention.slug);
+  const mentionSpan = createMentionSpan(
+    mention.key,
+    mention.slug,
+    displayName,
+    isKnown,
+    {
+      mentionClassName: MENTION_CLASSNAME,
+      unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+    },
+  );
+
+  range.insertNode(mentionSpan);
+  let caretNode: Node = mentionSpan;
+  if (appendSpace) {
+    const spaceNode = document.createTextNode(" ");
+    mentionSpan.after(spaceNode);
+    caretNode = spaceNode;
+  }
+  setCaretAfterNode(root, caretNode);
+}
+
+function removeMentionAtSelection(
+  root: HTMLElement,
+  direction: "backward" | "forward",
+): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+    return false;
+  }
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.startContainer)) return false;
+
+  if (range.startContainer.nodeType === Node.TEXT_NODE) {
+    const text = range.startContainer.textContent ?? "";
+    if (direction === "backward" && range.startOffset === 0) {
+      const previous = getPreviousNode(root, range.startContainer);
+      if (previous && isMentionSpan(previous)) {
+        previous.remove();
+        return true;
+      }
+    }
+    if (direction === "forward" && range.startOffset === text.length) {
+      const next = getNextNode(root, range.startContainer);
+      if (next && isMentionSpan(next)) {
+        next.remove();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
+    const element = range.startContainer;
+    if (direction === "backward" && range.startOffset > 0) {
+      const nodeBefore = element.childNodes[range.startOffset - 1];
+      if (nodeBefore && isMentionSpan(nodeBefore)) {
+        nodeBefore.remove();
+        return true;
+      }
+    }
+    if (
+      direction === "forward" &&
+      range.startOffset < element.childNodes.length
+    ) {
+      const nodeAfter = element.childNodes[range.startOffset];
+      if (nodeAfter && isMentionSpan(nodeAfter)) {
+        nodeAfter.remove();
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function insertLineBreak(root: HTMLElement): void {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.startContainer)) return;
+
+  range.deleteContents();
+  const br = document.createElement("br");
+  range.insertNode(br);
+  setCaretAfterNode(root, br);
 }
 
 export function MentionTextarea<TData = unknown>({
@@ -142,16 +466,18 @@ export function MentionTextarea<TData = unknown>({
   onSelectedKeysChange,
 }: MentionTextareaProps<TData>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [query, setQuery] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [triggerPosition, setTriggerPosition] =
     useState<TriggerPosition | null>(null);
-  const [editingRange, setEditingRange] = useState<EditingRange | null>(null);
   const isSelectingRef = useRef(false);
+  const editingMentionRef = useRef<HTMLSpanElement | null>(null);
+  const lastSerializedValueRef = useRef<string>(value);
 
   useEffect(() => {
     setIsMounted(true);
@@ -196,6 +522,21 @@ export function MentionTextarea<TData = unknown>({
     return map;
   }, [normalizedMentions]);
 
+  const resolveDisplay = useCallback<MentionDisplayResolver>(
+    (mentionKey: string, mentionSlug: string) => {
+      const isKnown =
+        keyToValue.has(mentionKey) || slugToValue.has(mentionSlug);
+      const displayName =
+        keyToValue.get(mentionKey) ??
+        slugToValue.get(mentionSlug) ??
+        slugToValue.get(slugifyMentionValue(mentionKey)) ??
+        deslugifyMentionSlug(mentionSlug);
+
+      return { displayName, isKnown };
+    },
+    [keyToValue, slugToValue],
+  );
+
   const filteredMentions = useMemo(() => {
     if (query === null || query === "") return normalizedMentions;
     const normalizedQuery = query.toLowerCase();
@@ -237,73 +578,20 @@ export function MentionTextarea<TData = unknown>({
     onSelectedKeysChange(selectedKeys);
   }, [onSelectedKeysChange, selectedKeys]);
 
-  // Measure text position for popup placement
-  const measureTextPosition = useCallback(
-    (textUpToTrigger: string): TriggerPosition | null => {
-      const textarea = textareaRef.current;
-      const container = containerRef.current;
-      if (!textarea || !container) return null;
-
-      const { measure, marker, textareaStyle } =
-        createTextareaMeasurementElement(textarea, textUpToTrigger);
-
-      container.appendChild(measure);
-
-      const markerRect = marker.getBoundingClientRect();
-
-      // Account for textarea scroll position
-      const scrollTop = textarea.scrollTop;
-      const scrollLeft = textarea.scrollLeft;
-
-      // Calculate position relative to viewport, accounting for textarea scroll
-      // (markerRect is in viewport coords, but our measurement element doesn't scroll)
-      let top = markerRect.bottom - scrollTop;
-      let left = markerRect.left - scrollLeft;
-
-      // Ensure popup stays within reasonable bounds
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-
-      // If popup would go below viewport, position it above the trigger
-      if (top + POPUP_HEIGHT_PX > viewportHeight - VIEWPORT_PADDING_PX) {
-        // Position above the line instead
-        const lineHeight = parseFloat(textareaStyle.lineHeight) || 20;
-        top = top - lineHeight - POPUP_HEIGHT_PX;
-        if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
-      }
-
-      // Clamp top position to viewport
-      if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
-
-      // Clamp left position to viewport
-      if (left < VIEWPORT_PADDING_PX) left = VIEWPORT_PADDING_PX;
-      const maxLeft = viewportWidth - POPUP_WIDTH_PX - VIEWPORT_PADDING_PX;
-      if (left > maxLeft && maxLeft > 0) left = maxLeft;
-
-      container.removeChild(measure);
-
-      return { top, left };
-    },
-    [],
-  );
-
   const openSuggestions = useCallback(
     ({
       nextQuery,
       nextTriggerPosition,
       nextActiveIndex = 0,
-      nextEditingRange = null,
     }: {
       nextQuery: string;
       nextTriggerPosition: TriggerPosition | null;
       nextActiveIndex?: number;
-      nextEditingRange?: EditingRange | null;
     }) => {
       setQuery(nextQuery);
       setIsOpen(true);
       setActiveIndex(nextActiveIndex);
       setTriggerPosition(nextTriggerPosition);
-      setEditingRange(nextEditingRange);
     },
     [],
   );
@@ -313,94 +601,149 @@ export function MentionTextarea<TData = unknown>({
     setQuery(null);
     setActiveIndex(0);
     setTriggerPosition(null);
-    setEditingRange(null);
+    editingMentionRef.current = null;
   }, []);
+
+  const syncEditorValue = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return { text: "", caret: 0 };
+    const result = serializeEditor(editor);
+    lastSerializedValueRef.current = result.text;
+    onChange(result.text);
+    return result;
+  }, [onChange]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (serializeEditorText(editor) === value) {
+      lastSerializedValueRef.current = value;
+      return;
+    }
+    setEditorFromRaw(editor, value, resolveDisplay, {
+      mentionClassName: MENTION_CLASSNAME,
+      unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+    });
+    lastSerializedValueRef.current = value;
+  }, [resolveDisplay, value]);
 
   const insertMention = useCallback(
     (mention: NormalizedMention<TData>) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
+      const editor = editorRef.current;
+      if (!editor) return;
 
-      const mentionSlug = mention.slug;
-
-      // If editing an existing mention, replace it
-      if (editingRange) {
-        const nextChar = value[editingRange.end];
-        const insertion = `@${mention.key}:${mentionSlug}${
-          shouldAppendTrailingSpace(nextChar) ? " " : ""
-        }`;
-        const { nextValue, nextCaret } = replaceTextRange(
-          value,
-          editingRange,
-          insertion,
+      if (editingMentionRef.current) {
+        const existingNode = editingMentionRef.current;
+        const nextChar = getNextCharAfterNode(editor, existingNode);
+        const appendSpace = shouldAppendTrailingSpace(nextChar);
+        const { displayName, isKnown } = resolveDisplay(
+          mention.key,
+          mention.slug,
         );
-        onChange(nextValue);
-        closeSuggestions();
+        const mentionSpan = createMentionSpan(
+          mention.key,
+          mention.slug,
+          displayName,
+          isKnown,
+          {
+            mentionClassName: MENTION_CLASSNAME,
+            unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+          },
+        );
 
-        setTimeout(() => {
-          textarea.setSelectionRange(nextCaret, nextCaret);
-          textarea.focus();
-        }, 0);
+        existingNode.replaceWith(mentionSpan);
+        let caretNode: Node = mentionSpan;
+        if (appendSpace) {
+          const spaceNode = document.createTextNode(" ");
+          mentionSpan.after(spaceNode);
+          caretNode = spaceNode;
+        }
+        setCaretAfterNode(editor, caretNode);
+        editingMentionRef.current = null;
+        syncEditorValue();
+        closeSuggestions();
+        editor.focus();
         return;
       }
 
-      // Otherwise, insert at current caret position (typing flow)
-      const caret = textarea.selectionStart ?? value.length;
-      const trigger = getActiveTrigger(value, caret);
+      const { text, caret } = serializeEditor(editor);
+      const trigger = getActiveTrigger(text, caret);
       if (!trigger) {
         closeSuggestions();
         return;
       }
 
-      const nextChar = value[caret];
-      const insertion = `@${mention.key}:${mentionSlug}${
-        shouldAppendTrailingSpace(nextChar) ? " " : ""
-      }`;
-      const { nextValue, nextCaret } = replaceTextRange(
-        value,
-        { start: trigger.triggerStart, end: caret },
-        insertion,
+      const nextChar = text[caret];
+      const appendSpace = shouldAppendTrailingSpace(nextChar);
+      replaceRangeWithMention(
+        editor,
+        trigger.triggerStart,
+        caret,
+        mention,
+        appendSpace,
+        resolveDisplay,
       );
-
-      onChange(nextValue);
+      syncEditorValue();
       closeSuggestions();
-
-      setTimeout(() => {
-        textarea.setSelectionRange(nextCaret, nextCaret);
-        textarea.focus();
-      }, 0);
+      editor.focus();
     },
-    [closeSuggestions, editingRange, onChange, value],
+    [closeSuggestions, resolveDisplay, syncEditorValue],
   );
 
-  const handleChange = useCallback(
-    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const nextValue = event.target.value;
-      onChange(nextValue);
+  const handleInput = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const { text, caret } = syncEditorValue();
+    editingMentionRef.current = null;
 
-      // Clear editing range when typing
-      setEditingRange(null);
+    const trigger = getActiveTrigger(text, caret);
+    if (trigger) {
+      const caretRect = getCaretRect(editor);
+      const fallbackRect = editor.getBoundingClientRect();
+      const position = caretRect
+        ? getPopupPositionFromRect(caretRect)
+        : getPopupPositionFromRect(fallbackRect);
+      openSuggestions({
+        nextQuery: trigger.query,
+        nextTriggerPosition: position,
+        nextActiveIndex: 0,
+      });
+      return;
+    }
 
-      const caret = event.target.selectionStart ?? nextValue.length;
-      const trigger = getActiveTrigger(nextValue, caret);
-
-      if (trigger) {
-        const textUpToTrigger = nextValue.slice(0, trigger.triggerStart);
-        openSuggestions({
-          nextQuery: trigger.query,
-          nextTriggerPosition: measureTextPosition(textUpToTrigger),
-          nextActiveIndex: 0,
-          nextEditingRange: null,
-        });
-      } else {
-        closeSuggestions();
-      }
-    },
-    [closeSuggestions, measureTextPosition, onChange, openSuggestions],
-  );
+    closeSuggestions();
+  }, [closeSuggestions, openSuggestions, syncEditorValue]);
 
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+
+      if (event.key === "Backspace") {
+        if (removeMentionAtSelection(editor, "backward")) {
+          event.preventDefault();
+          syncEditorValue();
+          closeSuggestions();
+          return;
+        }
+      }
+
+      if (event.key === "Delete") {
+        if (removeMentionAtSelection(editor, "forward")) {
+          event.preventDefault();
+          syncEditorValue();
+          closeSuggestions();
+          return;
+        }
+      }
+
+      if (event.key === "Enter" && !isOpen) {
+        event.preventDefault();
+        insertLineBreak(editor);
+        syncEditorValue();
+        return;
+      }
+
       if (!isOpen) return;
 
       if (event.key === "Escape") {
@@ -435,11 +778,18 @@ export function MentionTextarea<TData = unknown>({
         }
       }
     },
-    [activeIndex, closeSuggestions, filteredMentions, insertMention, isOpen],
+    [
+      activeIndex,
+      closeSuggestions,
+      filteredMentions,
+      insertMention,
+      isOpen,
+      syncEditorValue,
+    ],
   );
 
   const handleBlur = useCallback(() => {
-    // Delay closing to allow click on dropdown items
+    setIsFocused(false);
     setTimeout(() => {
       if (!isSelectingRef.current) {
         closeSuggestions();
@@ -447,6 +797,10 @@ export function MentionTextarea<TData = unknown>({
       isSelectingRef.current = false;
     }, 150);
   }, [closeSuggestions]);
+
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+  }, []);
 
   const handleItemMouseDown = useCallback(() => {
     isSelectingRef.current = true;
@@ -461,19 +815,12 @@ export function MentionTextarea<TData = unknown>({
   );
 
   const openMentionPopup = useCallback(
-    (
-      mentionKey: string,
-      mentionSlug: string,
-      mentionStart: number,
-      mentionEnd: number,
-    ) => {
+    (mentionKey: string, mentionSlug: string, node: HTMLSpanElement) => {
       isSelectingRef.current = true;
+      editingMentionRef.current = node;
+      const rect = node.getBoundingClientRect();
+      const position = getPopupPositionFromRect(rect);
 
-      // Calculate position for the popup (text before the @)
-      const textUpToMention = value.slice(0, mentionStart);
-      const position = measureTextPosition(textUpToMention);
-
-      // Open popup with full list (avoid filtering by slug; mention.name has spaces)
       const clickedMentionIndex = normalizedMentions.findIndex(
         (mention) =>
           mention.key === mentionKey || mention.slug === mentionSlug,
@@ -482,18 +829,44 @@ export function MentionTextarea<TData = unknown>({
         nextQuery: "",
         nextTriggerPosition: position,
         nextActiveIndex: clickedMentionIndex >= 0 ? clickedMentionIndex : 0,
-        nextEditingRange: { start: mentionStart, end: mentionEnd },
       });
 
-      // Focus textarea
       setTimeout(() => {
-        textareaRef.current?.focus();
+        editorRef.current?.focus();
       }, 0);
     },
-    [measureTextPosition, normalizedMentions, openSuggestions, value],
+    [normalizedMentions, openSuggestions],
   );
 
-  // Scroll active item into view
+  const handleEditorMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const mentionSpan = target.closest("span[data-mention-key]");
+      if (mentionSpan instanceof HTMLSpanElement) {
+        event.preventDefault();
+        isSelectingRef.current = true;
+      }
+    },
+    [],
+  );
+
+  const handleEditorClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const mentionSpan = target.closest("span[data-mention-key]");
+      if (!(mentionSpan instanceof HTMLSpanElement)) return;
+      const mentionKey = mentionSpan.dataset.mentionKey;
+      const mentionSlug = mentionSpan.dataset.mentionSlug;
+      if (!mentionKey || !mentionSlug) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openMentionPopup(mentionKey, mentionSlug, mentionSpan);
+    },
+    [openMentionPopup],
+  );
+
   useEffect(() => {
     if (!isOpen || !listRef.current) return;
     const activeItem = listRef.current.querySelector(
@@ -502,127 +875,38 @@ export function MentionTextarea<TData = unknown>({
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, isOpen]);
 
-  const handleMentionSpanClick = useCallback(
-    (
-      event: React.MouseEvent,
-      mentionKey: string,
-      mentionSlug: string,
-      mentionStart: number,
-      mentionEnd: number,
-    ) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openMentionPopup(mentionKey, mentionSlug, mentionStart, mentionEnd);
-    },
-    [openMentionPopup],
-  );
-
-  const renderHighlightedContent = useCallback(
-    (text: string) => {
-      const nodes: ReactNode[] = [];
-      const allMentions = parseMentions(text);
-      let lastIndex = 0;
-
-      for (const mention of allMentions) {
-        // Add text before this mention
-        if (mention.start > lastIndex) {
-          nodes.push(
-            <span key={`text-${lastIndex}`}>
-              {text.slice(lastIndex, mention.start)}
-            </span>,
-          );
-        }
-
-        const mentionKey = mention.id;
-        const mentionSlug = mention.slug;
-        const isKnownMention =
-          keyToValue.has(mentionKey) || slugToValue.has(mentionSlug);
-
-        // Always render human-friendly text (never a sluggy representation).
-        // - Known mentions: show original name with spaces
-        // - Unknown / partially edited mentions: de-slugify as a best-effort fallback
-        const displayName =
-          keyToValue.get(mentionKey) ??
-          slugToValue.get(mentionSlug) ??
-          slugToValue.get(slugifyMentionValue(mentionKey)) ??
-          deslugifyMentionSlug(mentionSlug);
-
-        nodes.push(
-          <span
-            key={`${mentionKey}-${mention.start}`}
-            role="button"
-            tabIndex={-1}
-            onClick={(e) =>
-              handleMentionSpanClick(
-                e,
-                mentionKey,
-                mentionSlug,
-                mention.start,
-                mention.end,
-              )
-            }
-            onMouseDown={(e) => {
-              // Prevent textarea blur
-              e.preventDefault();
-              isSelectingRef.current = true;
-            }}
-            className={cn(
-              "text-primary pointer-events-auto cursor-pointer font-semibold hover:underline",
-              !isKnownMention && "opacity-80",
-            )}
-          >
-            @{displayName}
-          </span>,
-        );
-
-        lastIndex = mention.end;
-      }
-
-      // Add remaining text after last mention
-      if (lastIndex < text.length) {
-        nodes.push(
-          <span key={`text-${lastIndex}`}>{text.slice(lastIndex)}</span>,
-        );
-      }
-
-      return nodes;
-    },
-    [handleMentionSpanClick, keyToValue, slugToValue],
-  );
-
   return (
     <div className="relative" ref={containerRef}>
-      {/* Actual textarea - positioned first for proper layering */}
-      <textarea
+      <div
         id={id}
-        ref={textareaRef}
-        value={value}
-        placeholder={placeholder}
-        onChange={handleChange}
+        ref={editorRef}
+        role="textbox"
+        aria-multiline="true"
+        contentEditable
+        onInput={handleInput}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
+        onFocus={handleFocus}
+        onClick={handleEditorClick}
+        onMouseDown={handleEditorMouseDown}
         className={cn(
-          "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 caret-foreground field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base text-transparent transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 caret-foreground field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base text-foreground transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm whitespace-pre-wrap wrap-break-word",
           className,
         )}
       />
 
-      {/* Highlight overlay - on top of textarea to capture mention clicks */}
-      <div
-        aria-hidden
-        className={cn(
-          "text-foreground pointer-events-none absolute inset-0 overflow-hidden rounded-md px-3 py-2 text-base wrap-break-word whitespace-pre-line md:text-sm",
-          className,
-        )}
-      >
-        {value ? (
-          renderHighlightedContent(value)
-        ) : (
-          <span className="text-muted-foreground">{placeholder}</span>
-        )}
-      </div>
+      {!value && !isFocused && placeholder ? (
+        <div
+          aria-hidden
+          className={cn(
+            "text-muted-foreground pointer-events-none absolute inset-0 rounded-md px-3 py-2 text-base md:text-sm whitespace-pre-wrap wrap-break-word",
+            className,
+          )}
+        >
+          {placeholder}
+        </div>
+      ) : null}
 
-      {/* Dropdown menu */}
       {isMounted &&
         isOpen &&
         filteredMentions.length > 0 &&
@@ -632,10 +916,10 @@ export function MentionTextarea<TData = unknown>({
             style={
               triggerPosition
                 ? { top: triggerPosition.top, left: triggerPosition.left }
-                : textareaRef.current
+                : editorRef.current
                   ? {
-                      top: textareaRef.current.getBoundingClientRect().bottom,
-                      left: textareaRef.current.getBoundingClientRect().left,
+                      top: editorRef.current.getBoundingClientRect().bottom,
+                      left: editorRef.current.getBoundingClientRect().left,
                     }
                   : undefined
             }
