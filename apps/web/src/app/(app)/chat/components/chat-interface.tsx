@@ -214,7 +214,7 @@ function WelcomeScreen({
     >
       <div
         className={cn(
-          "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center transition-all duration-500",
+          "flex flex-1 flex-col items-center justify-center text-center transition-all duration-500",
           isTransitioning &&
             "animate-out fade-out slide-out-to-top-4 duration-500",
         )}
@@ -230,7 +230,7 @@ function WelcomeScreen({
       </div>
       <div
         className={cn(
-          "absolute bottom-4 left-1/2 w-full max-w-[33.6rem] -translate-x-1/2 transition-all duration-500",
+          "w-full max-w-[33.6rem] shrink-0 transition-all duration-500",
           isTransitioning &&
             "animate-out fade-out slide-out-to-bottom-4 duration-500",
         )}
