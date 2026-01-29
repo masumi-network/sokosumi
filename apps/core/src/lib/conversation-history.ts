@@ -4,7 +4,14 @@ import {
 } from "@sokosumi/database/repositories";
 import type { Prisma } from "@sokosumi/database/src/generated/prisma/client.js";
 
-import type { ResponseMessage } from "@/clients/openai-conversations.client";
+/**
+ * Message format for OpenRouter Responses API
+ * Used when fetching conversation history for AI response generation
+ */
+export interface ResponseMessage {
+  role: "user" | "assistant" | "system";
+  content: string | Array<{ type: string; text?: string }>;
+}
 
 /**
  * Fetches conversation history from the database for use with OpenRouter's Responses API.

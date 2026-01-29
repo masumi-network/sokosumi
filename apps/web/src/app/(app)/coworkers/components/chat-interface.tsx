@@ -34,7 +34,6 @@ interface Chat {
   lastMessageTime?: Date;
   status: ChatStatus;
   coworker?: Coworker;
-  unreadCount?: number;
 }
 
 interface ChatInterfaceProps {
@@ -438,15 +437,6 @@ export default function ChatInterface({
               lastMessageTime: now,
               updatedAt: now,
               status: "active" as ChatStatus,
-              unreadCount:
-                chatId === selectedChatId ? undefined : chat.unreadCount,
-            };
-          }
-          // Increment unread count for other chats
-          if (chatId !== selectedChatId) {
-            return {
-              ...chat,
-              unreadCount: (chat.unreadCount ?? 0) + 1,
             };
           }
           return chat;
@@ -652,7 +642,7 @@ export default function ChatInterface({
         const coworkerId = metadata?.coworker_id as string | undefined;
         const coworkerName = metadata?.coworker_name as string | undefined;
 
-        // Find existing chat to preserve UI state (lastMessage, unreadCount, etc.)
+        // Find existing chat to preserve UI state (lastMessage, etc.)
         const existingChat = chats.find((c) => c.id === conv.id);
 
         // Build coworker object from metadata or existing chat
@@ -684,7 +674,6 @@ export default function ChatInterface({
           coworker,
           lastMessage,
           lastMessageTime,
-          unreadCount: existingChat?.unreadCount,
         };
       });
 
@@ -1072,12 +1061,6 @@ export default function ChatInterface({
     setSelectedChatId(chatId);
     // Update ref immediately for synchronous access in prepareSendMessagesRequest
     currentChatIdRef.current = chatId;
-    // Clear unread count when selecting a chat
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId ? { ...chat, unreadCount: undefined } : chat,
-      ),
-    );
   };
 
   const handleDeleteChat = async (chatId: string) => {
@@ -1143,7 +1126,6 @@ export default function ChatInterface({
                   ...chat,
                   updatedAt: now,
                   status: "active" as ChatStatus,
-                  unreadCount: undefined,
                 }
               : chat,
           ),

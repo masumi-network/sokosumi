@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDot, MessageSquare, Plus, Trash2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -39,7 +39,6 @@ interface Chat {
   lastMessageTime?: Date;
   status: ChatStatus;
   coworker?: Coworker;
-  unreadCount?: number;
 }
 
 interface ChatSidebarProps {
@@ -211,13 +210,6 @@ export default function ChatSidebar({
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        {chat.unreadCount !== undefined &&
-                          chat.unreadCount > 0 && (
-                            <CircleDot
-                              className="text-primary size-4"
-                              fill="currentColor"
-                            />
-                          )}
                         {getStatusBadge(chat.status)}
                       </div>
                     </div>
