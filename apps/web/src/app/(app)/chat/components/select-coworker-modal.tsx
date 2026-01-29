@@ -34,7 +34,7 @@ export default function SelectCoworkerModal({
   onOpenChange,
   onSelect,
 }: SelectCoworkerModalProps) {
-  const t = useTranslations("App.Coworkers.Chat");
+  const t = useTranslations("App.Chat.Chat");
   const [selectedCoworkerId, setSelectedCoworkerId] = useState<string>("");
 
   const coworkers: Coworker[] = [

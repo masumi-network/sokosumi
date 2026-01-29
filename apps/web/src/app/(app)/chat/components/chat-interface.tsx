@@ -174,7 +174,7 @@ function WelcomeScreen({
   isLoading: boolean;
   isTransitioning: boolean;
 }) {
-  const t = useTranslations("App.Coworkers.Chat");
+  const t = useTranslations("App.Chat.Chat");
   const [welcomeInput, setWelcomeInput] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -303,7 +303,7 @@ function EmptyChatState({
   onInputChange: (value: string) => void;
   onInputSubmit: () => void;
 }) {
-  const t = useTranslations("App.Coworkers.Chat");
+  const t = useTranslations("App.Chat.Chat");
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const coworker = selectedChat?.coworker;
   const suggestions = useMemo(
@@ -339,7 +339,7 @@ function EmptyChatState({
           </div>
         )}
         {coworker?.useCase && suggestions.length === 0 && (
-          <div className="bg-muted/50 mt-4 max-w-md rounded-lg border p-4">
+          <div className="bg-muted/50 mt-4 max-w-md rounded-lg p-4">
             <p className="mb-2 text-sm font-medium">
               {t("emptyState.suggestionTitle")}
             </p>
@@ -364,7 +364,7 @@ export default function ChatInterface({
   userImageUrl,
   userName,
 }: ChatInterfaceProps) {
-  const t = useTranslations("App.Coworkers.Chat");
+  const t = useTranslations("App.Chat.Chat");
   const {
     conversations,
     selectedConversation,
@@ -448,7 +448,7 @@ export default function ChatInterface({
 
   const { messages, sendMessage, status, setMessages } = useChat({
     transport: new DefaultChatTransport({
-      api: "/api/coworkers/chat",
+      api: "/api/chat",
       prepareSendMessagesRequest(request) {
         // Use ref for synchronous access to current chat ID
         const chatId = currentChatIdRef.current || selectedChatId;
@@ -1167,7 +1167,7 @@ export default function ChatInterface({
     // Extract first name from userName
     const firstName = userName?.split(" ")[0] ?? userName;
     return (
-      <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg border">
+      <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg">
         <WelcomeScreen
           userName={firstName}
           onSendMessage={handleSendMessage}
@@ -1179,7 +1179,7 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg border">
+    <div className="flex h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg">
       <div
         className={cn(
           "w-96 shrink-0 transition-opacity duration-700",

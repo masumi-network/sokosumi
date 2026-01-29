@@ -25,7 +25,7 @@ export default function ChatInput({
   isLoading = false,
   disabled = false,
 }: ChatInputProps) {
-  const t = useTranslations("App.Coworkers.Chat");
+  const t = useTranslations("App.Chat.Chat");
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter") {

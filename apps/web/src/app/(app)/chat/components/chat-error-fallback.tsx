@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 
 export function ChatErrorFallback() {
-  const t = useTranslations("App.Coworkers.Chat");
+  const t = useTranslations("App.Chat.Chat");
 
   const handleRetry = () => {
     window.location.reload();

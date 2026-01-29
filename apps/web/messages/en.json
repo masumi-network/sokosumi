@@ -240,7 +240,8 @@
       "organizations": "Organizations",
       "api-docs": "API Documentation",
       "mcp": "Model Context Protocol (MCP)",
-      "schedules": "Scheduled Agents"
+      "schedules": "Scheduled Agents",
+      "chat": "Chat"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1034,13 +1035,13 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
-    "Coworkers": {
+    "Chat": {
       "Metadata": {
-        "title": "Agentic Coworkers",
-        "description": "Manage your agentic coworkers"
+        "title": "Chat",
+        "description": "Chat with your AI coworkers"
       },
-      "title": "Agentic Coworkers",
-      "description": "Manage your agentic coworkers",
+      "title": "Chat",
+      "description": "Chat with your AI coworkers",
       "Chat": {
         "newChat": "New Chat",
         "noChats": "No chats yet",
@@ -1135,7 +1136,7 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
-          "agenticCoworkers": "Agentic Coworkers",
+          "chat": "Chat",
           "exploreAgents": "Explore Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Task Manager",

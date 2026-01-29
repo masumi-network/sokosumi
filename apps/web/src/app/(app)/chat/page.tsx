@@ -2,12 +2,14 @@ import gravatarUrl from "gravatar-url";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { getSession } from "@/lib/auth/utils";
 
+import { ChatErrorFallback } from "./components/chat-error-fallback";
 import ChatInterface from "./components/chat-interface";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Coworkers.Metadata");
+  const t = await getTranslations("App.Chat.Metadata");
 
   return {
     title: t("title"),
@@ -15,8 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function CoworkersPage() {
-  const t = await getTranslations("App.Coworkers");
+export default async function ChatPage() {
+  const t = await getTranslations("App.Chat");
   const session = await getSession();
 
   if (!session) {
@@ -31,15 +33,13 @@ export default async function CoworkersPage() {
     });
 
   return (
-    <div className="w-full space-y-12 px-2">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("description")}</p>
-      </div>
-      <ChatInterface
-        userImageUrl={userImageUrl}
-        userName={session.user.name ?? undefined}
-      />
+    <div className="w-full px-2">
+      <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
+        <ChatInterface
+          userImageUrl={userImageUrl}
+          userName={session.user.name ?? undefined}
+        />
+      </DefaultErrorBoundary>
     </div>
   );
 }

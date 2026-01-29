@@ -56,7 +56,7 @@ export default function ChatSidebar({
   onCreateNewChat,
   onDeleteChat,
 }: ChatSidebarProps) {
-  const t = useTranslations("App.Coworkers.Chat");
+  const t = useTranslations("App.Chat.Chat");
   const formatter = useFormatter();
   const [filter, setFilter] = useState<"all" | "awaiting">("all");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);

@@ -29,9 +29,9 @@ export default function MenuItems() {
 
   const items: MenuItemConfig[] = [
     {
-      key: "agentic-coworkers",
-      href: "/coworkers",
-      label: t("agenticCoworkers"),
+      key: "chat",
+      href: "/chat",
+      label: t("chat"),
       Icon: Users,
     },
     {
