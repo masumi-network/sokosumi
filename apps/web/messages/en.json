@@ -1115,7 +1115,8 @@
         "back": "Back",
         "uploadFile": "Upload File",
         "saveDraft": "Save",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "ctrl": "Ctrl"
       }
     },
     "Error": {

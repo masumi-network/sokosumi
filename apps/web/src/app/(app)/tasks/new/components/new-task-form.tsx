@@ -1,10 +1,10 @@
 "use client";
 
 import { AgentWithRelations, TaskStatus } from "@sokosumi/database";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import AgentIcon from "@/components/agents/agent-icon";
@@ -16,6 +16,7 @@ import type {
 import { MentionTextarea } from "@/components/ui/mention-textarea";
 import { createTask } from "@/lib/actions/task/action";
 import type { OrchestratorOption } from "@/lib/types/orchestrator";
+import { getOSFromUserAgent } from "@/lib/utils";
 
 import { FileUploadButton } from "./file-upload-button";
 import { OrchestratorSelect } from "./orchestrator-select";
@@ -36,6 +37,7 @@ interface NewTaskFormLabels {
   uploadFile: string;
   saveDraft: string;
   cancel: string;
+  ctrl: string;
 }
 
 interface NewTaskFormProps {
@@ -99,6 +101,7 @@ export function NewTaskForm({
   const selectedOrchestratorName =
     orchestratorOptions.find((option) => option.id === orchestratorId)?.name ??
     "";
+  const { os, isMobile } = getOSFromUserAgent();
 
   const isSaveDisabled = !description.trim() || isSubmitting;
 
@@ -106,7 +109,7 @@ export function NewTaskForm({
     // TODO: implement file upload
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (isSaveDisabled) return;
     setIsSubmitting(true);
     try {
@@ -123,11 +126,34 @@ export function NewTaskForm({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [
+    description,
+    orchestratorId,
+    selectedOrchestratorName,
+    status,
+    isSaveDisabled,
+    router,
+  ]);
 
   const handleCancel = () => {
     router.push("/tasks");
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing) return;
+
+      const isSubmitKey =
+        event.key === "Enter" && (event.metaKey || event.ctrlKey);
+      if (!isSubmitKey) return;
+
+      event.preventDefault();
+      handleSave();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -194,14 +220,22 @@ export function NewTaskForm({
       <div className="flex items-center justify-end gap-3 pt-4">
         <Button
           type="button"
-          className="min-w-28"
+          className="min-w-28 items-center justify-between gap-1"
           disabled={isSaveDisabled}
           onClick={handleSave}
         >
-          {isSubmitting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-          ) : null}
-          {labels.saveDraft}
+          <div className="flex items-center gap-2">
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : null}
+            {labels.saveDraft}
+            {!isMobile && (
+              <div className="flex items-center gap-1">
+                {os === "MacOS" ? <Command /> : labels.ctrl}
+                <CornerDownLeft />
+              </div>
+            )}
+          </div>
         </Button>
         <Button
           type="button"

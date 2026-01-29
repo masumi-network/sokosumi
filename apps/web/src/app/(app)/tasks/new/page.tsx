@@ -39,6 +39,7 @@ export default async function NewTaskPage() {
           uploadFile: t("uploadFile"),
           saveDraft: t("saveDraft"),
           cancel: t("cancel"),
+          ctrl: t("ctrl"),
         }}
         orchestratorOptions={orchestratorOptions}
         agents={agents}
