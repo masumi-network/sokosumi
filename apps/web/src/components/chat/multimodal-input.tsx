@@ -330,10 +330,25 @@ function PureMultimodalInput({
     return () => textarea.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
-  const coworkers = [
-    { id: "hannah", name: t("coworkers.hannah.name") },
-    { id: "john", name: t("coworkers.john.name") },
-    { id: "demosthenes", name: t("coworkers.demosthenes.name") },
+  const coworkers: Coworker[] = [
+    {
+      id: "hannah",
+      name: t("coworkers.hannah.name"),
+      description: t("coworkers.hannah.description"),
+      useCase: t("coworkers.hannah.useCase"),
+    },
+    {
+      id: "john",
+      name: t("coworkers.john.name"),
+      description: t("coworkers.john.description"),
+      useCase: t("coworkers.john.useCase"),
+    },
+    {
+      id: "demosthenes",
+      name: t("coworkers.demosthenes.name"),
+      description: t("coworkers.demosthenes.description"),
+      useCase: t("coworkers.demosthenes.useCase"),
+    },
   ];
 
   const handleCoworkerSelect = useCallback((coworker: Coworker) => {

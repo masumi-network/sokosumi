@@ -1,10 +1,20 @@
 "use client";
 
+import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { MultimodalInput } from "@/components/chat/multimodal-input";
 import type { Attachment } from "@/components/chat/preview-attachment";
@@ -182,16 +192,14 @@ function WelcomeScreen({
   isLoading: boolean;
   isTransitioning: boolean;
   input: string;
-  setInput: (value: string) => void;
+  setInput: Dispatch<SetStateAction<string>>;
   attachments: Attachment[];
   setAttachments: (
     attachments: Attachment[] | ((prev: Attachment[]) => Attachment[]),
   ) => void;
-  messages: unknown[];
-  setMessages: (messages: unknown[] | ((prev: unknown[]) => unknown[])) => void;
-  sendMessage: (
-    message: { text: string } | { role: string; parts: unknown[] },
-  ) => void;
+  messages: UIMessage[];
+  setMessages: UseChatHelpers<UIMessage>["setMessages"];
+  sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
   status: "ready" | "streaming" | "submitted" | "error";
   stop: () => void;
 }) {
@@ -234,7 +242,7 @@ function WelcomeScreen({
           stop={stop}
           attachments={attachments}
           setAttachments={setAttachments}
-          messages={messages as unknown[]}
+          messages={messages}
           setMessages={setMessages}
           sendMessage={sendMessage}
           onSendMessage={onSendMessage}
@@ -267,17 +275,15 @@ function EmptyChatState({
   isLoading: boolean;
   onSendMessage: (message: string, coworker?: Coworker) => void;
   input: string;
-  onInputChange: (value: string) => void;
+  onInputChange: Dispatch<SetStateAction<string>>;
   onInputSubmit: () => void;
   attachments: Attachment[];
   setAttachments: (
     attachments: Attachment[] | ((prev: Attachment[]) => Attachment[]),
   ) => void;
-  messages: unknown[];
-  setMessages: (messages: unknown[] | ((prev: unknown[]) => unknown[])) => void;
-  sendMessage: (
-    message: { text: string } | { role: string; parts: unknown[] },
-  ) => void;
+  messages: UIMessage[];
+  setMessages: UseChatHelpers<UIMessage>["setMessages"];
+  sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
   status: "ready" | "streaming" | "submitted" | "error";
   stop: () => void;
 }) {
@@ -329,12 +335,12 @@ function EmptyChatState({
         <MultimodalInput
           chatId={selectedChatId}
           input={input}
-          setInput={onInputChange}
+          setInput={onInputChange as Dispatch<SetStateAction<string>>}
           status={status}
           stop={stop}
           attachments={attachments}
           setAttachments={setAttachments}
-          messages={messages as unknown[]}
+          messages={messages}
           setMessages={setMessages}
           sendMessage={sendMessage}
           onSendMessage={onSendMessage}
@@ -365,7 +371,7 @@ export default function ChatInterface({
   const [selectedChatId, setSelectedChatId] = useState<string | null>(
     urlConversationId || null,
   );
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState<string>("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
@@ -1295,7 +1301,6 @@ export default function ChatInterface({
               messages={messages}
               setMessages={setMessages}
               sendMessage={sendMessage}
-              onSendMessage={handleSendMessage}
               status={status}
               stop={handleStop}
             />
