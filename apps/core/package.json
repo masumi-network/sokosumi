@@ -18,7 +18,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "lint:report": "eslint src --report"
+    "lint:report": "eslint src --report",
+    "test": "node --test --import tsx \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.18",

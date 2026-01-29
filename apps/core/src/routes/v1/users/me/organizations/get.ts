@@ -1,8 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { attachCreditsToOrganizations } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { organizationsSchema } from "@/schemas/organization.schema";
@@ -48,19 +48,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: { organization: true },
       });
 
-      return await Promise.all(
-        members.map(async (member) => {
-          const credits = await getCredits(
-            authContext.userId,
-            member.organization.id,
-            tx,
-          );
-          return {
-            ...member.organization,
-            role: member.role,
-            credits,
-          };
-        }),
+      return await attachCreditsToOrganizations(
+        members.map((member) => ({
+          organization: member.organization,
+          role: member.role,
+        })),
+        tx,
       );
     });
     return ok(c, organizationsSchema.parse(organizations));
