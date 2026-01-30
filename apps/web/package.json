@@ -45,7 +45,7 @@
     "@openrouter/ai-sdk-provider": "2.1.1",
     "@radix-ui/react-slot": "1.2.4",
     "@react-email/components": "1.0.6",
-    "@sentry/nextjs": "10.37.0",
+    "@sentry/nextjs": "10.38.0",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@sparticuz/chromium-min": "143.0.4",
