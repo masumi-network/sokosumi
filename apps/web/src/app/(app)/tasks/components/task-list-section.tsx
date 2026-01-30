@@ -11,12 +11,14 @@ interface TaskListSectionProps {
   columnId: KanbanColumnId;
   title: string;
   tasks: TaskWithOrchestrator[];
+  renderTask?: (task: TaskWithOrchestrator) => React.ReactNode;
 }
 
 export function TaskListSection({
   columnId,
   title,
   tasks,
+  renderTask,
 }: TaskListSectionProps) {
   return (
     <section className="flex flex-col gap-2 border-b px-4 py-2 last:border-b-0">
@@ -27,9 +29,13 @@ export function TaskListSection({
       />
 
       <div className="space-y-2">
-        {tasks.map((task) => (
-          <TaskListItem key={task.id} task={task} />
-        ))}
+        {tasks.map((task) =>
+          renderTask ? (
+            renderTask(task)
+          ) : (
+            <TaskListItem key={task.id} task={task} />
+          ),
+        )}
       </div>
     </section>
   );

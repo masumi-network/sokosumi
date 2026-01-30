@@ -29,6 +29,12 @@ interface CreateTaskInput {
   orchestratorId: string | null;
 }
 
+interface PatchTaskInput {
+  name?: string;
+  description?: string | null;
+  orchestratorId?: string | null;
+}
+
 interface CreateTaskEventInput {
   status?: TaskStatus;
   comment?: string;
@@ -112,10 +118,46 @@ export const taskService = (() => {
     return json.data;
   }
 
+  async function patchTask(taskId: string, input: PatchTaskInput) {
+    const json: CoreApiResponse<TaskWithEvents> = await coreClient.request(
+      `/v1/tasks/${encodeURIComponent(taskId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+      },
+    );
+
+    if (!json.data) {
+      throw new Error("Failed to update task");
+    }
+
+    return json.data;
+  }
+
+  async function deleteTask(taskId: string) {
+    const json: CoreApiResponse<TaskWithEvents> = await coreClient.request(
+      `/v1/tasks/${encodeURIComponent(taskId)}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (!json.data) {
+      throw new Error("Failed to delete task");
+    }
+
+    return json.data;
+  }
+
   return {
     listTasks,
     getTaskById,
     createTask,
     createTaskEvent,
+    patchTask,
+    deleteTask,
   };
 })();

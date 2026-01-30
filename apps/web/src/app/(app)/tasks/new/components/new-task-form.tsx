@@ -1,44 +1,12 @@
-"use client";
+import { AgentWithRelations } from "@sokosumi/database";
 
-import { AgentWithRelations, TaskStatus } from "@sokosumi/database";
-import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import AgentIcon from "@/components/agents/agent-icon";
-import { Button } from "@/components/ui/button";
-import type {
-  MentionRecordEntry,
-  NormalizedMention,
-} from "@/components/ui/mention-textarea";
-import { MentionTextarea } from "@/components/ui/mention-textarea";
-import { createTask } from "@/lib/actions/task/action";
+import {
+  TaskForm,
+  type TaskFormLabels,
+} from "@/app/tasks/components/task-form";
 import type { OrchestratorOption } from "@/lib/types/orchestrator";
-import { getOSFromUserAgent } from "@/lib/utils";
 
-import { FileUploadButton } from "./file-upload-button";
-import { OrchestratorSelect } from "./orchestrator-select";
-import { StatusSelect } from "./status-select";
-
-interface NewTaskFormLabels {
-  pageTitle: string;
-  details: string;
-  detailsDescription: string;
-  descriptionPlaceholder: string;
-  orchestrator: string;
-  orchestratorDescription: string;
-  status: string;
-  statusDescription: string;
-  statusDraft: string;
-  statusReady: string;
-  back: string;
-  uploadFile: string;
-  saveDraft: string;
-  cancel: string;
-  ctrl: string;
-}
+type NewTaskFormLabels = TaskFormLabels;
 
 interface NewTaskFormProps {
   labels: NewTaskFormLabels;
@@ -51,201 +19,12 @@ export function NewTaskForm({
   orchestratorOptions,
   agents,
 }: NewTaskFormProps) {
-  const router = useRouter();
-  const [description, setDescription] = useState("");
-  const [orchestratorId, setOrchestratorId] = useState<string>(
-    orchestratorOptions[0]?.id ?? "",
-  );
-  const [status, setStatus] = useState<TaskStatus>(TaskStatus.DRAFT);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const agentMentions = useMemo(() => {
-    const record: Record<string, MentionRecordEntry<AgentWithRelations>> = {};
-    for (const agent of agents) {
-      record[agent.id] = {
-        value: agent.name,
-        data: agent,
-      };
-    }
-    return record;
-  }, [agents]);
-
-  const renderMentionItem = useCallback(
-    (mention: NormalizedMention<AgentWithRelations>, _isActive: boolean) => {
-      const agent = mention.data;
-      if (!agent) {
-        return (
-          <div className="flex items-center gap-2 truncate">
-            <span className="truncate">{mention.value}</span>
-          </div>
-        );
-      }
-
-      return (
-        <div className="flex items-center gap-2 truncate">
-          <AgentIcon agent={agent} />
-          <span className="truncate">{agent.name}</span>
-        </div>
-      );
-    },
-    [],
-  );
-
-  const statusOptions = useMemo(
-    () => [
-      { value: TaskStatus.DRAFT, label: labels.statusDraft },
-      { value: TaskStatus.READY, label: labels.statusReady },
-    ],
-    [labels.statusDraft, labels.statusReady],
-  );
-  const selectedOrchestratorName =
-    orchestratorOptions.find((option) => option.id === orchestratorId)?.name ??
-    "";
-  const { os, isMobile } = getOSFromUserAgent();
-
-  const isSaveDisabled = !description.trim() || isSubmitting;
-
-  const handleFileUpload = () => {
-    // TODO: implement file upload
-  };
-
-  const handleSave = useCallback(async () => {
-    if (isSaveDisabled) return;
-    setIsSubmitting(true);
-    try {
-      const result = await createTask({
-        description,
-        orchestratorId,
-        orchestratorName: selectedOrchestratorName || "Task",
-        status,
-      });
-      router.push(`/tasks/${result.taskId}`);
-    } catch (error) {
-      console.error("Failed to create task", error);
-      toast.error("Failed to create task");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [
-    description,
-    orchestratorId,
-    selectedOrchestratorName,
-    status,
-    isSaveDisabled,
-    router,
-  ]);
-
-  const handleCancel = () => {
-    router.push("/tasks");
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.isComposing) return;
-
-      const isSubmitKey =
-        event.key === "Enter" && (event.metaKey || event.ctrlKey);
-      if (!isSubmitKey) return;
-
-      event.preventDefault();
-      handleSave();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
-
   return (
-    <div className="max-w-3xl space-y-6">
-      <header className="flex items-center gap-2">
-        <Link href="/tasks" aria-label={labels.back}>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full"
-            aria-label={labels.back}
-          >
-            <ArrowLeft className="size-4" />
-            <span className="sr-only">{labels.back}</span>
-          </Button>
-        </Link>
-        <h1 className="text-2xl font-light md:text-3xl">{labels.pageTitle}</h1>
-      </header>
-
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{labels.details}</h2>
-          <p className="text-muted-foreground text-sm">
-            {labels.detailsDescription}
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <MentionTextarea<AgentWithRelations>
-            id="task-description"
-            placeholder={labels.descriptionPlaceholder}
-            value={description}
-            onChange={setDescription}
-            mentions={agentMentions}
-            renderItem={renderMentionItem}
-            className="min-h-48"
-          />
-        </div>
-
-        <div className="flex w-full items-center justify-end gap-2">
-          <FileUploadButton
-            label={labels.uploadFile}
-            onClick={handleFileUpload}
-          />
-        </div>
-
-        <div className="flex w-full flex-col items-start gap-4 md:flex-row md:justify-between">
-          <OrchestratorSelect
-            label={labels.orchestrator}
-            description={labels.orchestratorDescription}
-            value={orchestratorId}
-            options={orchestratorOptions}
-            onChange={setOrchestratorId}
-          />
-          <StatusSelect
-            label={labels.status}
-            description={labels.statusDescription}
-            value={status}
-            options={statusOptions}
-            onChange={setStatus}
-          />
-        </div>
-      </section>
-
-      <div className="flex items-center justify-end gap-3 pt-4">
-        <Button
-          type="button"
-          className="min-w-28 items-center justify-between gap-1"
-          disabled={isSaveDisabled}
-          onClick={handleSave}
-        >
-          <div className="flex items-center gap-2">
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : null}
-            {labels.saveDraft}
-            {!isMobile && (
-              <div className="flex items-center gap-1">
-                {os === "MacOS" ? <Command /> : labels.ctrl}
-                <CornerDownLeft />
-              </div>
-            )}
-          </div>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-w-24"
-          onClick={handleCancel}
-        >
-          {labels.cancel}
-        </Button>
-      </div>
-    </div>
+    <TaskForm
+      mode="create"
+      labels={labels}
+      orchestratorOptions={orchestratorOptions}
+      agents={agents}
+    />
   );
 }

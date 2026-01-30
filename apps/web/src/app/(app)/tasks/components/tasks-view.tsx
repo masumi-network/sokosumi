@@ -1,10 +1,19 @@
 "use client";
 
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { loadMoreTasks } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
@@ -14,6 +23,7 @@ import {
 
 import { AddTaskButton } from "./add-task-button";
 import { KanbanBoard } from "./kanban-board";
+import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListView } from "./task-list-view";
 import { ViewModeSwitch } from "./view-mode-switch";
 
@@ -37,6 +47,7 @@ interface TasksViewProps {
     };
     listPlaceholder: string;
     loadMore: string;
+    dragError: string;
   };
 }
 
@@ -52,6 +63,49 @@ export function TasksView({
     initialNextCursor ?? null,
   );
   const [isPending, startTransition] = useTransition();
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const activeId = event.active.id;
+    const overId = event.over?.id;
+    if (typeof activeId !== "string" || typeof overId !== "string") return;
+
+    const toColumn = overId as KanbanColumnId;
+    if (!isDnDColumn(toColumn)) return;
+
+    const fromColumn = event.active.data.current?.columnId as
+      | KanbanColumnId
+      | undefined;
+    if (!fromColumn || fromColumn === toColumn) return;
+
+    const desiredStatus = statusForColumn(toColumn);
+    if (!desiredStatus) return;
+
+    const previousItems = items;
+    setItems((prev) =>
+      prev.map((task) =>
+        task.id === activeId
+          ? { ...task, status: desiredStatus, columnId: toColumn }
+          : task,
+      ),
+    );
+
+    startTransition(async () => {
+      try {
+        await setTaskStatusFromDrag({
+          taskId: activeId,
+          desiredStatus,
+        });
+      } catch {
+        setItems(previousItems);
+        toast.error(labels.dragError);
+      }
+    });
+  };
 
   const handleLoadMore = () => {
     if (!nextCursor) return;
@@ -84,24 +138,26 @@ export function TasksView({
       </div>
 
       <TabsContent value="tasks" className="flex flex-col gap-4">
-        {viewMode === "board" ? (
-          <KanbanBoard
-            tasks={items}
-            columns={columns}
-            labels={{
-              columns: labels.columns,
-              addTask: labels.addTask,
-            }}
-          />
-        ) : (
-          <TaskListView
-            tasks={items}
-            columns={columns}
-            labels={{
-              columns: labels.columns,
-            }}
-          />
-        )}
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          {viewMode === "board" ? (
+            <KanbanBoard
+              tasks={items}
+              columns={columns}
+              labels={{
+                columns: labels.columns,
+                addTask: labels.addTask,
+              }}
+            />
+          ) : (
+            <TaskListView
+              tasks={items}
+              columns={columns}
+              labels={{
+                columns: labels.columns,
+              }}
+            />
+          )}
+        </DndContext>
         {nextCursor ? (
           <div className="flex justify-center">
             <Button

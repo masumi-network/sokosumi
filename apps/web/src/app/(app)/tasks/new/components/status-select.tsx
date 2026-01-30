@@ -22,6 +22,7 @@ interface StatusSelectProps {
   value: TaskStatus;
   options: StatusOption[];
   onChange: (value: TaskStatus) => void;
+  disabled?: boolean;
 }
 
 export function StatusSelect({
@@ -30,6 +31,7 @@ export function StatusSelect({
   value,
   options,
   onChange,
+  disabled = false,
 }: StatusSelectProps) {
   const selectedOption = options.find((option) => option.value === value);
 
@@ -40,12 +42,13 @@ export function StatusSelect({
         <p className="text-muted-foreground text-sm">{description}</p>
       </div>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild disabled={disabled}>
           <Button
             type="button"
             variant="outline"
             className="text-primary w-full justify-between gap-2 p-5"
             aria-label={label}
+            disabled={disabled}
           >
             <span>{selectedOption?.label ?? label}</span>
             <ChevronDown className="text-muted-foreground size-4" aria-hidden />

@@ -41,17 +41,15 @@ export default async function TaskDetailPage({
     agentsById,
   );
   const session = await getSession();
-  const userById = new Map<string, { name: string; image: string | null }>();
-  if (session?.user) {
-    userById.set(session.user.id, {
-      name: session.user.name ?? "User",
-      image: session.user.image ?? null,
-    });
-  }
-  const orchestratorById = new Map<
-    string,
-    { name: string; image: string | null }
-  >(
+  const currentUser = session?.user
+    ? {
+        id: session.user.id,
+        name: session.user.name ?? "User",
+        image: session.user.image ?? null,
+      }
+    : null;
+  const userById = currentUser ? { [currentUser.id]: currentUser } : undefined;
+  const orchestratorById = Object.fromEntries(
     orchestrators.map((orchestrator) => [
       orchestrator.id,
       {
@@ -62,7 +60,6 @@ export default async function TaskDetailPage({
   );
 
   const t = await getTranslations("App.Tasks.Detail");
-  const tCard = await getTranslations("App.Tasks.Card");
 
   return (
     <div className="w-full max-w-3xl space-y-6 px-2">
@@ -73,6 +70,9 @@ export default async function TaskDetailPage({
           actions: {
             edit: t("actions.edit"),
             delete: t("actions.delete"),
+            confirmDelete: t("actions.confirmDelete"),
+            confirmDeleteDescription: t("actions.confirmDeleteDescription"),
+            deleteError: t("actions.deleteError"),
           },
         }}
       />
@@ -92,6 +92,7 @@ export default async function TaskDetailPage({
       />
 
       <TaskActivitySection
+        taskId={taskId}
         title={t("activity")}
         placeholder={t("commentPlaceholder")}
         attachLabel={t("attach")}
@@ -99,6 +100,7 @@ export default async function TaskDetailPage({
         events={task.events}
         userById={userById}
         orchestratorById={orchestratorById}
+        currentUser={currentUser}
       />
     </div>
   );

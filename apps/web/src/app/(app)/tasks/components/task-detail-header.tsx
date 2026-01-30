@@ -1,8 +1,11 @@
-import { ArrowLeft, Pencil, Trash } from "lucide-react";
+import { TaskStatus } from "@sokosumi/database";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { type TaskWithOrchestrator } from "@/lib/types/task";
+
+import { TaskDetailActions } from "./task-detail-actions";
 
 interface TaskDetailHeaderProps {
   task: TaskWithOrchestrator;
@@ -11,11 +14,17 @@ interface TaskDetailHeaderProps {
     actions: {
       edit: string;
       delete: string;
+      confirmDelete: string;
+      confirmDeleteDescription: string;
+      deleteError: string;
     };
   };
 }
 
 export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
+  const canEdit =
+    task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
+
   return (
     <div className="flex flex-col">
       <div className="flex flex-col items-center gap-3 md:flex-row md:justify-between">
@@ -41,16 +50,9 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Pencil className="size-4" aria-hidden />
-            <span>{labels.actions.edit}</span>
-          </Button>
-          <Button variant="destructive" size="sm" className="gap-2">
-            <Trash className="size-4" aria-hidden />
-            <span>{labels.actions.delete}</span>
-          </Button>
-        </div>
+        {canEdit ? (
+          <TaskDetailActions taskId={task.id} labels={labels.actions} />
+        ) : null}
       </div>
     </div>
   );

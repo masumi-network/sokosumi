@@ -58,6 +58,7 @@ export default async function TasksPage() {
           add: t("Actions.add"),
           addTask: t("Actions.addTask"),
           jobsPlaceholder: t("Jobs.placeholder"),
+          dragError: t("Errors.updateStatus"),
           display: {
             button: t("Display.button"),
             list: t("Display.list"),

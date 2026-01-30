@@ -1071,6 +1071,9 @@
         "addTask": "Add Task",
         "loadMore": "Load More"
       },
+      "Errors": {
+        "updateStatus": "Failed to update task status"
+      },
       "Card": {
         "comments": "Comments",
         "orchestrator": "Orchestrator",
@@ -1098,13 +1101,18 @@
         "submit": "Submit",
         "actions": {
           "edit": "Edit",
-          "delete": "Delete"
+          "delete": "Delete",
+          "confirmDelete": "Delete this task?",
+          "confirmDeleteDescription": "This cannot be undone. This will permanently delete the task.",
+          "deleteError": "Failed to delete task"
         }
       },
       "NewTask": {
         "title": "New Task",
         "details": "Details",
         "detailsDescription": "Briefly explain the task that needs to be done",
+        "name": "Task name",
+        "namePlaceholder": "Enter a short title",
         "descriptionPlaceholder": "Enter task details...",
         "orchestrator": "Orchestrator",
         "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
@@ -1115,6 +1123,25 @@
         "back": "Back",
         "uploadFile": "Upload File",
         "saveDraft": "Save",
+        "cancel": "Cancel",
+        "ctrl": "Ctrl"
+      },
+      "EditTask": {
+        "title": "Edit Task",
+        "details": "Details",
+        "detailsDescription": "Update the task details before sending it",
+        "name": "Task name",
+        "namePlaceholder": "Enter a short title",
+        "descriptionPlaceholder": "Update task details...",
+        "orchestrator": "Orchestrator",
+        "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
+        "status": "Status",
+        "statusDescription": "Choose the status for this task",
+        "statusDraft": "Draft",
+        "statusReady": "Ready",
+        "back": "Back",
+        "uploadFile": "Upload File",
+        "save": "Save",
         "cancel": "Cancel",
         "ctrl": "Ctrl"
       }
