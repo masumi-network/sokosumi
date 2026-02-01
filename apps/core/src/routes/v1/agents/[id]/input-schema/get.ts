@@ -60,11 +60,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const inputSchemaResult =
       await createAgentClient().fetchAgentInputSchema(agent);
-    if (!inputSchemaResult.ok) {
+    if (inputSchemaResult.isErr()) {
       throw unprocessableEntity(inputSchemaResult.error);
     }
 
-    const inputSchema = inputSchemaSchema.parse(inputSchemaResult.data);
+    const inputSchema = inputSchemaSchema.parse(inputSchemaResult.value);
     return ok(c, inputSchema);
   });
 }
