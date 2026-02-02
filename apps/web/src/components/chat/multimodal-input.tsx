@@ -16,7 +16,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -351,6 +351,15 @@ function PureMultimodalInput({
     },
   ];
 
+  // Helper function to get coworker image URL
+  const getCoworkerImageUrl = (coworkerId: string): string | null => {
+    const imageMap: Record<string, string> = {
+      hannah: "/images/coworkers/hannah.png",
+      demosthenes: "/images/coworkers/demosthenes.png",
+    };
+    return imageMap[coworkerId] || null;
+  };
+
   const handleCoworkerSelect = useCallback((coworker: Coworker) => {
     setSelectedCoworker(coworker);
     setShowCoworkerModal(false);
@@ -374,7 +383,16 @@ function PureMultimodalInput({
                     className="cursor-pointer"
                     onClick={() => handleCoworkerSelect(coworker)}
                   >
-                    <Avatar className="border-background size-6 border-2 transition-transform hover:scale-110">
+                    <Avatar className="border-background size-[1.8rem] border-2 transition-transform hover:scale-110">
+                      {getCoworkerImageUrl(coworker.id) && (
+                        <AvatarImage
+                          src={getCoworkerImageUrl(coworker.id)!}
+                          alt={coworker.name}
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      )}
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                         {coworker.name.charAt(0)}
                       </AvatarFallback>
@@ -383,6 +401,7 @@ function PureMultimodalInput({
                 </TooltipTrigger>
                 <TooltipContent
                   side="top"
+                  hideArrow
                   className="bg-popover text-popover-foreground border-border max-w-xs rounded-lg border p-3 shadow-lg"
                 >
                   <div className="flex flex-col gap-2">
@@ -494,6 +513,15 @@ function PureMultimodalInput({
               className="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Avatar className="size-5 shrink-0">
+                {getCoworkerImageUrl(selectedCoworker.id) && (
+                  <AvatarImage
+                    src={getCoworkerImageUrl(selectedCoworker.id)!}
+                    alt={selectedCoworker.name}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                )}
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   {selectedCoworker.name.charAt(0)}
                 </AvatarFallback>

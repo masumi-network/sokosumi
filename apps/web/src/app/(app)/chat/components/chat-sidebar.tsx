@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -179,6 +179,23 @@ export default function ChatSidebar({
                       <div className="flex max-w-full min-w-0 flex-1 items-start gap-2 overflow-hidden">
                         {chat.coworker && (
                           <Avatar className="size-8 shrink-0">
+                            {(() => {
+                              const imageMap: Record<string, string> = {
+                                hannah: "/images/coworkers/hannah.png",
+                                demosthenes:
+                                  "/images/coworkers/demosthenes.png",
+                              };
+                              const imageUrl = imageMap[chat.coworker.id];
+                              return imageUrl ? (
+                                <AvatarImage
+                                  src={imageUrl}
+                                  alt={chat.coworker.name}
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              ) : null;
+                            })()}
                             <AvatarFallback className="bg-primary text-primary-foreground">
                               {chat.coworker.name.charAt(0)}
                             </AvatarFallback>

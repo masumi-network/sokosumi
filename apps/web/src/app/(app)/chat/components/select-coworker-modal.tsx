@@ -109,6 +109,15 @@ export default function SelectCoworkerModal({
             <div className="bg-muted/50 space-y-2 rounded-lg border p-4">
               <div className="flex items-center gap-3">
                 <Avatar className="size-10">
+                  {getCoworkerImageUrl(selectedCoworker.id) && (
+                    <AvatarImage
+                      src={getCoworkerImageUrl(selectedCoworker.id)!}
+                      alt={selectedCoworker.name}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     {selectedCoworker.name.charAt(0)}
                   </AvatarFallback>

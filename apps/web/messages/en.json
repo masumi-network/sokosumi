@@ -1151,7 +1151,7 @@
           "scheduledAgents": "Scheduled Agents"
         },
         "ChatLists": {
-          "title": "Chats",
+          "title": "Recent Chats",
           "noChats": "No chats yet",
           "untitledChat": "Untitled Chat"
         },

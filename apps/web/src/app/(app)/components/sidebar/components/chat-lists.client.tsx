@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo } from "react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -140,6 +140,7 @@ export default function ChatListsClient() {
                     coworker_id?: string;
                   } | null;
                   const coworkerName = metadata?.coworker_name;
+                  const coworkerId = metadata?.coworker_id;
                   const displayName =
                     conversation.title ||
                     coworkerName ||
@@ -166,6 +167,30 @@ export default function ChatListsClient() {
                           >
                             <div className="group/chat-menu flex w-full items-center justify-start gap-2 group-data-[collapsible=icon]:justify-center">
                               <Avatar className="size-6 shrink-0">
+                                {coworkerId &&
+                                  (() => {
+                                    const imageMap: Record<string, string> = {
+                                      hannah: "/images/coworkers/hannah.png",
+                                      demosthenes:
+                                        "/images/coworkers/demosthenes.png",
+                                    };
+                                    const imageUrl = imageMap[coworkerId];
+                                    return imageUrl ? (
+                                      <AvatarImage
+                                        src={imageUrl}
+                                        alt={coworkerName || "Coworker"}
+                                        onError={(
+                                          e: React.SyntheticEvent<
+                                            HTMLImageElement,
+                                            Event
+                                          >,
+                                        ) => {
+                                          e.currentTarget.style.display =
+                                            "none";
+                                        }}
+                                      />
+                                    ) : null;
+                                  })()}
                                 <AvatarFallback
                                   className={cn(
                                     "bg-primary text-primary-foreground text-xs",

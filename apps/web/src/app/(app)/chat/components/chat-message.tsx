@@ -13,6 +13,7 @@ interface ChatMessageProps {
   userName?: string;
   createdAt?: Date;
   coworkerName?: string;
+  coworkerId?: string;
 }
 
 export default function ChatMessage({
@@ -22,6 +23,7 @@ export default function ChatMessage({
   userName,
   createdAt,
   coworkerName,
+  coworkerId,
 }: ChatMessageProps) {
   const isUser = role === "user";
   const formatter = useFormatter();
@@ -37,13 +39,29 @@ export default function ChatMessage({
   return (
     <div
       className={cn(
-        "flex gap-3 px-4 py-0",
-        isUser ? "justify-end" : "bg-card",
-        !isUser && "bg-card",
+        "flex w-full gap-3 px-4 py-0.5",
+        isUser ? "justify-end" : "justify-start",
       )}
     >
       {!isUser && (
         <Avatar className="size-8 shrink-0">
+          {coworkerId &&
+            (() => {
+              const imageMap: Record<string, string> = {
+                hannah: "/images/coworkers/hannah.png",
+                demosthenes: "/images/coworkers/demosthenes.png",
+              };
+              const imageUrl = imageMap[coworkerId];
+              return imageUrl ? (
+                <AvatarImage
+                  src={imageUrl}
+                  alt={coworkerName || "Coworker"}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : null;
+            })()}
           <AvatarFallback className="bg-primary text-primary-foreground">
             {coworkerName ? coworkerName.charAt(0).toUpperCase() : "A"}
           </AvatarFallback>
@@ -51,15 +69,13 @@ export default function ChatMessage({
       )}
       <div
         className={cn(
-          "min-w-0 flex-1",
-          isUser
-            ? "flex items-end justify-end"
-            : "flex items-start justify-start",
+          "flex w-full",
+          isUser ? "items-end justify-end" : "items-start justify-start",
         )}
       >
         <div
           className={cn(
-            "flex max-w-[80%] flex-col gap-0.5",
+            "flex max-w-[50%] flex-col gap-0.5",
             isUser ? "items-end" : "items-start",
           )}
         >

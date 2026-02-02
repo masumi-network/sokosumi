@@ -50,11 +50,11 @@ export default function Sidebar({ session }: SidebarProps) {
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Top Section: Chats */}
         <NewChatButton />
-        <ChatListsClient />
-        {/* Divider */}
-        <SidebarSeparator className="mx-0" />
         {/* Bottom Section: Agents */}
         <MenuItems />
+        {/* Divider */}
+        <SidebarSeparator className="mx-0" />
+        <ChatListsClient />
         <AgentLists userId={session.user.id} />
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">

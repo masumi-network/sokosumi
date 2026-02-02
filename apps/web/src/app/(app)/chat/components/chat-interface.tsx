@@ -4,7 +4,7 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -18,8 +18,7 @@ import {
 
 import { MultimodalInput } from "@/components/chat/multimodal-input";
 import type { Attachment } from "@/components/chat/preview-attachment";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Conversation } from "@/lib/actions/conversation";
 import {
@@ -219,7 +218,7 @@ function WelcomeScreen({
             "animate-out fade-out slide-out-to-top-4 duration-500",
         )}
       >
-        <h1 className="mb-2 text-3xl font-semibold">
+        <h1 className="mb-2 text-3xl font-medium">
           {userName
             ? t("welcomeScreen.greetingWithName", { name: userName })
             : t("welcomeScreen.greeting")}
@@ -357,6 +356,7 @@ export default function ChatInterface({
   userName,
 }: ChatInterfaceProps) {
   const t = useTranslations("App.Chat.Chat");
+  const router = useRouter();
   const searchParams = useSearchParams();
   const urlConversationId = searchParams?.get("conversationId");
   const {
@@ -827,14 +827,18 @@ export default function ChatInterface({
       setSelectedChatId(conversation.id);
       // Update ref immediately for synchronous access in prepareSendMessagesRequest
       currentChatIdRef.current = conversation.id;
-      // Update URL to reflect selected conversation
-      window.history.pushState(
-        {},
-        "",
-        `/chat?conversationId=${conversation.id}`,
-      );
+      // Update URL to reflect selected conversation using router for consistency
+      isUpdatingUrlRef.current = true;
+      router.push(`/chat?conversationId=${conversation.id}`, { scroll: false });
     },
-    [createNewConversation, setMessages, setInput, setChats, setSelectedChatId],
+    [
+      createNewConversation,
+      setMessages,
+      setInput,
+      setChats,
+      setSelectedChatId,
+      router,
+    ],
   );
 
   // Track which chat ID the current messages belong to
@@ -1047,7 +1051,8 @@ export default function ChatInterface({
     if (!chatId) {
       setSelectedChatId(null);
       currentChatIdRef.current = null;
-      window.history.pushState({}, "", "/chat");
+      isUpdatingUrlRef.current = true;
+      router.push("/chat", { scroll: false });
       return;
     }
 
@@ -1057,19 +1062,30 @@ export default function ChatInterface({
     setSelectedChatId(chatId);
     // Update ref immediately for synchronous access in prepareSendMessagesRequest
     currentChatIdRef.current = chatId;
-    // Update URL to reflect selected conversation
-    window.history.pushState({}, "", `/chat?conversationId=${chatId}`);
+    // Update URL to reflect selected conversation using router for consistency
+    isUpdatingUrlRef.current = true;
+    router.push(`/chat?conversationId=${chatId}`, { scroll: false });
   };
 
   // Sync URL parameter with selectedChatId on mount and when URL changes
+  // Only sync when URL changes externally (not when we update it ourselves)
+  // Use a ref to track if we're updating the URL ourselves to prevent loops
+  const isUpdatingUrlRef = useRef(false);
+
   useEffect(() => {
+    // Skip if we're updating the URL ourselves
+    if (isUpdatingUrlRef.current) {
+      isUpdatingUrlRef.current = false;
+      return;
+    }
+
+    // Only handle URL changes if they differ from current selection
+    // This prevents clearing selection when we update URL ourselves
     if (urlConversationId && urlConversationId !== selectedChatId) {
       handleSelectChat(urlConversationId);
-    } else if (!urlConversationId && selectedChatId) {
-      // If URL has no conversationId, always clear selection to show welcome view
-      setSelectedChatId(null);
-      currentChatIdRef.current = null;
     }
+    // Don't clear selection if URL has no conversationId - user might be navigating
+    // Only clear if we explicitly want to show welcome view
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlConversationId]);
 
@@ -1237,55 +1253,6 @@ export default function ChatInterface({
                 : "opacity-0",
         )}
       >
-        {hasActiveChat && (
-          <div className="bg-card animate-in fade-in slide-in-from-top-2 shrink-0 border-b px-6 py-4 duration-500">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {(() => {
-                  const selectedChat = chats.find(
-                    (c) => c.id === selectedChatId,
-                  );
-                  if (selectedChat?.coworker) {
-                    return (
-                      <>
-                        <Avatar className="size-8">
-                          <AvatarFallback className="bg-primary text-primary-foreground">
-                            {selectedChat.coworker.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <h2 className="text-lg font-semibold">
-                          {selectedChat.coworker.name}
-                        </h2>
-                      </>
-                    );
-                  }
-                  return (
-                    <h2 className="text-lg font-semibold">
-                      {selectedChat?.title || t("assistant")}
-                    </h2>
-                  );
-                })()}
-                {selectedChatId &&
-                  (() => {
-                    const selectedChat = chats.find(
-                      (c) => c.id === selectedChatId,
-                    );
-                    if (selectedChat?.status === "awaiting") {
-                      return (
-                        <Badge
-                          variant="default"
-                          className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                        >
-                          {t("statusAwaiting")}
-                        </Badge>
-                      );
-                    }
-                    return null;
-                  })()}
-              </div>
-            </div>
-          </div>
-        )}
         {selectedChatId && !hasActiveChat ? (
           <>
             <EmptyChatState
@@ -1328,195 +1295,227 @@ export default function ChatInterface({
           <>
             {showMessagesAfterTransition && (
               <ScrollArea ref={scrollAreaRef} className="min-h-0 flex-1">
-                <div className="animate-in fade-in flex flex-col pt-4 duration-500">
-                  {messagesWithTimestamps.map((message, index) => {
-                    const role = message.role as "user" | "assistant";
-                    // Extract content from message - AI SDK v6 format
-                    let content = "";
+                <div className="animate-in fade-in flex flex-col items-center pt-4 duration-500">
+                  <div className="flex w-full max-w-4xl flex-col">
+                    {messagesWithTimestamps.map((message, index) => {
+                      const role = message.role as "user" | "assistant";
+                      // Extract content from message - AI SDK v6 format
+                      let content = "";
 
-                    const messageAny = message as Record<string, unknown>;
+                      const messageAny = message as Record<string, unknown>;
 
-                    // 1. Try content property (most common for AI SDK)
-                    if (
-                      "content" in messageAny &&
-                      messageAny.content !== undefined &&
-                      messageAny.content !== null
-                    ) {
-                      const msgContent = messageAny.content;
-                      if (typeof msgContent === "string") {
-                        content = msgContent;
-                      } else if (Array.isArray(msgContent)) {
-                        // Content is an array of parts - extract text from each part
-                        content = msgContent
+                      // 1. Try content property (most common for AI SDK)
+                      if (
+                        "content" in messageAny &&
+                        messageAny.content !== undefined &&
+                        messageAny.content !== null
+                      ) {
+                        const msgContent = messageAny.content;
+                        if (typeof msgContent === "string") {
+                          content = msgContent;
+                        } else if (Array.isArray(msgContent)) {
+                          // Content is an array of parts - extract text from each part
+                          content = msgContent
+                            .map((part: unknown) => {
+                              if (typeof part === "string") return part;
+                              if (part && typeof part === "object") {
+                                const partObj = part as Record<string, unknown>;
+                                // Try text property first
+                                if (
+                                  "text" in partObj &&
+                                  partObj.text !== null &&
+                                  partObj.text !== undefined
+                                ) {
+                                  return String(partObj.text);
+                                }
+                                // Try type: "text" with text property
+                                if (
+                                  "type" in partObj &&
+                                  partObj.type === "text" &&
+                                  "text" in partObj &&
+                                  partObj.text !== null &&
+                                  partObj.text !== undefined
+                                ) {
+                                  return String(partObj.text);
+                                }
+                                // Try content property within part
+                                if (
+                                  "content" in partObj &&
+                                  partObj.content !== null &&
+                                  partObj.content !== undefined
+                                ) {
+                                  return String(partObj.content);
+                                }
+                              }
+                              return "";
+                            })
+                            .filter(Boolean)
+                            .join("");
+                        } else if (
+                          msgContent &&
+                          typeof msgContent === "object"
+                        ) {
+                          const contentObj = msgContent as Record<
+                            string,
+                            unknown
+                          >;
+                          if ("text" in contentObj) {
+                            content = String(contentObj.text);
+                          } else {
+                            content = JSON.stringify(contentObj);
+                          }
+                        } else if (
+                          msgContent !== null &&
+                          msgContent !== undefined
+                        ) {
+                          content = String(msgContent);
+                        }
+                      }
+
+                      // 2. Try text property (for user messages sent via sendMessage)
+                      if (
+                        !content &&
+                        "text" in messageAny &&
+                        messageAny.text !== undefined &&
+                        messageAny.text !== null
+                      ) {
+                        content = String(messageAny.text);
+                      }
+
+                      // 3. Try parts array
+                      if (
+                        !content &&
+                        "parts" in messageAny &&
+                        Array.isArray(messageAny.parts)
+                      ) {
+                        content = (messageAny.parts as unknown[])
                           .map((part: unknown) => {
                             if (typeof part === "string") return part;
                             if (part && typeof part === "object") {
                               const partObj = part as Record<string, unknown>;
-                              // Try text property first
-                              if (
-                                "text" in partObj &&
-                                partObj.text !== null &&
-                                partObj.text !== undefined
-                              ) {
+                              if ("text" in partObj)
                                 return String(partObj.text);
-                              }
-                              // Try type: "text" with text property
-                              if (
-                                "type" in partObj &&
-                                partObj.type === "text" &&
-                                "text" in partObj &&
-                                partObj.text !== null &&
-                                partObj.text !== undefined
-                              ) {
-                                return String(partObj.text);
-                              }
-                              // Try content property within part
-                              if (
-                                "content" in partObj &&
-                                partObj.content !== null &&
-                                partObj.content !== undefined
-                              ) {
-                                return String(partObj.content);
-                              }
                             }
                             return "";
                           })
                           .filter(Boolean)
                           .join("");
-                      } else if (msgContent && typeof msgContent === "object") {
-                        const contentObj = msgContent as Record<
-                          string,
-                          unknown
-                        >;
-                        if ("text" in contentObj) {
-                          content = String(contentObj.text);
-                        } else {
-                          content = JSON.stringify(contentObj);
+                      }
+
+                      // 4. For user messages, check if the message itself is a string (edge case)
+                      if (
+                        !content &&
+                        role === "user" &&
+                        typeof message === "string"
+                      ) {
+                        content = message;
+                      }
+
+                      let createdAt: Date | undefined;
+                      if ("createdAt" in message) {
+                        const createdAtValue = message.createdAt;
+                        if (createdAtValue instanceof Date) {
+                          createdAt = createdAtValue;
+                        } else if (
+                          typeof createdAtValue === "string" ||
+                          typeof createdAtValue === "number"
+                        ) {
+                          createdAt = new Date(createdAtValue);
                         }
-                      } else if (
-                        msgContent !== null &&
-                        msgContent !== undefined
-                      ) {
-                        content = String(msgContent);
                       }
-                    }
-
-                    // 2. Try text property (for user messages sent via sendMessage)
-                    if (
-                      !content &&
-                      "text" in messageAny &&
-                      messageAny.text !== undefined &&
-                      messageAny.text !== null
-                    ) {
-                      content = String(messageAny.text);
-                    }
-
-                    // 3. Try parts array
-                    if (
-                      !content &&
-                      "parts" in messageAny &&
-                      Array.isArray(messageAny.parts)
-                    ) {
-                      content = (messageAny.parts as unknown[])
-                        .map((part: unknown) => {
-                          if (typeof part === "string") return part;
-                          if (part && typeof part === "object") {
-                            const partObj = part as Record<string, unknown>;
-                            if ("text" in partObj) return String(partObj.text);
-                          }
-                          return "";
-                        })
-                        .filter(Boolean)
-                        .join("");
-                    }
-
-                    // 4. For user messages, check if the message itself is a string (edge case)
-                    if (
-                      !content &&
-                      role === "user" &&
-                      typeof message === "string"
-                    ) {
-                      content = message;
-                    }
-
-                    let createdAt: Date | undefined;
-                    if ("createdAt" in message) {
-                      const createdAtValue = message.createdAt;
-                      if (createdAtValue instanceof Date) {
-                        createdAt = createdAtValue;
-                      } else if (
-                        typeof createdAtValue === "string" ||
-                        typeof createdAtValue === "number"
-                      ) {
-                        createdAt = new Date(createdAtValue);
-                      }
-                    }
-                    const selectedChat = chats.find(
-                      (c) => c.id === selectedChatId,
-                    );
-                    const coworkerName = selectedChat?.coworker?.name;
-
-                    return (
-                      <div
-                        key={message.id}
-                        className="animate-in fade-in slide-in-from-bottom-2 duration-500"
-                        style={{
-                          animationDelay: `${index * 50}ms`,
-                        }}
-                      >
-                        <ChatMessage
-                          role={role}
-                          content={content}
-                          userImageUrl={userImageUrl}
-                          userName={userName}
-                          createdAt={createdAt}
-                          coworkerName={coworkerName}
-                        />
-                      </div>
-                    );
-                  })}
-                  {isLoading &&
-                    (() => {
-                      // Check if the last message is an assistant message being streamed
-                      // If it is, we're already rendering it, so hide the loading indicator
-                      const lastMessage =
-                        messagesWithTimestamps[
-                          messagesWithTimestamps.length - 1
-                        ];
-
-                      if (lastMessage && lastMessage.role === "assistant") {
-                        // The last message is an assistant message, so it's being streamed
-                        // Hide the loading indicator
-                        return null;
-                      }
+                      const selectedChat = chats.find(
+                        (c) => c.id === selectedChatId,
+                      );
+                      const coworkerName = selectedChat?.coworker?.name;
 
                       return (
-                        <div className="flex gap-3 px-4 py-0">
-                          <Avatar className="size-8 shrink-0">
-                            <AvatarFallback className="bg-primary text-primary-foreground">
+                        <div
+                          key={message.id}
+                          className="animate-in fade-in slide-in-from-bottom-2 mb-1 duration-500"
+                          style={{
+                            animationDelay: `${index * 50}ms`,
+                          }}
+                        >
+                          <ChatMessage
+                            role={role}
+                            content={content}
+                            userImageUrl={userImageUrl}
+                            userName={userName}
+                            createdAt={createdAt}
+                            coworkerName={coworkerName}
+                            coworkerId={selectedChat?.coworker?.id}
+                          />
+                        </div>
+                      );
+                    })}
+                    {isLoading &&
+                      (() => {
+                        // Check if the last message is an assistant message being streamed
+                        // If it is, we're already rendering it, so hide the loading indicator
+                        const lastMessage =
+                          messagesWithTimestamps[
+                            messagesWithTimestamps.length - 1
+                          ];
+
+                        if (lastMessage && lastMessage.role === "assistant") {
+                          // The last message is an assistant message, so it's being streamed
+                          // Hide the loading indicator
+                          return null;
+                        }
+
+                        return (
+                          <div className="flex gap-3 px-4 py-0">
+                            <Avatar className="size-8 shrink-0">
                               {(() => {
                                 const selectedChat = chats.find(
                                   (c) => c.id === selectedChatId,
                                 );
-                                return selectedChat?.coworker?.name
-                                  ? selectedChat.coworker.name
-                                      .charAt(0)
-                                      .toUpperCase()
-                                  : "A";
+                                const coworkerId = selectedChat?.coworker?.id;
+                                const imageMap: Record<string, string> = {
+                                  hannah: "/images/coworkers/hannah.png",
+                                  demosthenes:
+                                    "/images/coworkers/demosthenes.png",
+                                };
+                                const imageUrl = coworkerId
+                                  ? imageMap[coworkerId]
+                                  : null;
+                                return imageUrl ? (
+                                  <AvatarImage
+                                    src={imageUrl}
+                                    alt={
+                                      selectedChat?.coworker?.name || "Coworker"
+                                    }
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                ) : null;
                               })()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex items-center">
-                            <div className="flex gap-1">
-                              <div className="bg-muted h-2 w-2 animate-pulse rounded-full" />
-                              <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-75" />
-                              <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-150" />
+                              <AvatarFallback className="bg-primary text-primary-foreground">
+                                {(() => {
+                                  const selectedChat = chats.find(
+                                    (c) => c.id === selectedChatId,
+                                  );
+                                  return selectedChat?.coworker?.name
+                                    ? selectedChat.coworker.name
+                                        .charAt(0)
+                                        .toUpperCase()
+                                    : "A";
+                                })()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex items-center">
+                              <div className="flex gap-1">
+                                <div className="bg-muted h-2 w-2 animate-pulse rounded-full" />
+                                <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-75" />
+                                <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-150" />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })()}
-                  <div ref={messagesEndRef} />
+                        );
+                      })()}
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
               </ScrollArea>
             )}
