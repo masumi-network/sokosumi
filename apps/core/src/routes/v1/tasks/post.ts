@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -40,14 +41,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const body = c.req.valid("json");
 
+    if (authContext.orchestratorId) {
+      throw forbidden(
+        "An orchestrator cannot create tasks. Please use the users authToken to create tasks.",
+      );
+    }
+
     const task = await prisma.$transaction(async (tx) => {
       return tx.task.create({
         data: {
           userId: authContext.userId,
           name: body.name,
           description: body.description ?? null,
-          orchestratorId:
-            authContext.orchestratorId ?? body.orchestratorId ?? null,
+          orchestratorId: body.orchestratorId ?? null,
         },
         include: taskInclude,
       });

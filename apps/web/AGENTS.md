@@ -151,6 +151,26 @@ import { getUser } from "../services/user";
 - Never access Prisma directly from components
 - Use server actions for mutations
 
+### Stripe: Sandbox (test) vs production
+
+Stripe **test mode** and **live mode** are separate environments. The app does not switch modes in code; it uses whatever `STRIPE_*` env vars are set.
+
+| Aspect             | Sandbox (test)                                                  | Production (live)                                                              |
+| ------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **API keys**       | `sk_test_...`, `pk_test_...`                                    | `sk_live_...`, `pk_live_...`                                                   |
+| **Data**           | Coupons, products, prices, customers in **test** dashboard only | Same resources must exist in **live** dashboard; they are not copied from test |
+| **Webhook secret** | From Stripe test webhook endpoint                               | From Stripe live webhook endpoint                                              |
+
+**If coupons work in sandbox but not in production:**
+
+1. **Coupon/product IDs** – Create the same coupons (and credit product/prices) in the **live** Stripe Dashboard, or set production env vars to the live coupon/product IDs. Test data does not exist in live.
+2. **Stripe customer** – Users have a `stripeCustomerId` in your DB; in production that ID must refer to a customer in the **live** Stripe account. New production users get a customer created in live when they first use Stripe.
+3. **Auth in server actions** – When claiming a coupon from a server action, the credits flow passes the request auth into `stripeService.claimCoupon` so it does not rely on `getAuthContext()` again (which can be null in production if cookies/headers differ).
+
+Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CREDIT_PRODUCT_ID`, `STRIPE_ONBOARD_PERSONAL_COUPON`, `STRIPE_ONBOARD_ORGANIZATION_COUPON`, `STRIPE_WELCOME_COUPON` (and optionally `STRIPE_PUBLISHABLE_KEY` for client-side).
+
+**Coupon semantics for credits:** Credits come from the coupon metadata key `credits` (positive integer). The discount at checkout is applied via the coupon’s `percent_off`. Only coupons with both `metadata.credits` and `percent_off` are supported; `amount_off`-only coupons are not supported.
+
 ### Styling
 
 - Use semantic colors from `globals.css`

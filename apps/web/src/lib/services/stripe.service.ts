@@ -10,14 +10,11 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getAuthContext, verifyUserId } from "@/lib/auth/utils";
+import { verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
-import {
-  CouponCurrencyError,
-  CouponNotFoundError,
-  CouponTypeError,
-} from "@/lib/errors/coupon-errors";
+import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
+import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 export const stripeService = (() => {
   async function getStripeCustomerId(
@@ -95,30 +92,27 @@ export const stripeService = (() => {
      * @param couponId - The ID of the coupon to claim
      * @param maxRedemptions - Maximum number of times this promotion code can be redeemed (default: 1)
      * @param metadata - Optional metadata to attach to the promotion code
-     * @returns {Promise<Stripe.PromotionCode | null>} The promotion code if successfully claimed, otherwise null.
+     * @param authContext - Auth context (userId, organizationId).
+     * @returns {Promise<Stripe.PromotionCode>} The promotion code if successfully claimed, otherwise null.
      */
     async claimCoupon(
       couponId: string,
       maxRedemptions: number = 1,
+      authContext: { userId: string; organizationId: string | null },
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const context = await getAuthContext();
-      if (!context) {
-        return null;
-      }
-
       let stripeCustomerId = await getStripeCustomerId(
-        context.userId,
-        context.organizationId,
+        authContext.userId,
+        authContext.organizationId,
       );
 
       // Create Stripe customer if doesn't exist
       if (!stripeCustomerId) {
-        const customer = context.organizationId
+        const customer = authContext.organizationId
           ? await this.createStripeCustomerForOrganization(
-              context.organizationId,
+              authContext.organizationId,
             )
-          : await this.createStripeCustomerForUser(context.userId);
+          : await this.createStripeCustomerForUser(authContext.userId);
 
         if (!customer) {
           return null;
@@ -160,36 +154,12 @@ export const stripeService = (() => {
       }
     },
 
-    async getCreditsForCoupon(couponId: string, price: Price): Promise<number> {
+    async getCreditsForCoupon(couponId: string): Promise<number> {
       const coupon = await stripeClient.getCouponById(couponId);
       if (!coupon) {
         throw new CouponNotFoundError(couponId);
       }
-      if (coupon.percent_off) {
-        throw new CouponTypeError("Only fixed-amount coupons are supported");
-      }
-      if (!coupon.amount_off) {
-        throw new CouponTypeError("Coupon must have a fixed amount");
-      }
-
-      if (coupon.currency?.toLowerCase() !== price.currency.toLowerCase()) {
-        throw new CouponCurrencyError(
-          coupon.currency ?? "unknown",
-          price.currency,
-        );
-      }
-
-      // Prevent division by zero for price.unit_amount
-      if (price.amountPerCredit === 0) {
-        throw new CouponTypeError(
-          "Price amountPerCredit is 0 – cannot calculate credits for free product",
-        );
-      }
-      const credits = Math.floor(coupon.amount_off / price.amountPerCredit);
-      if (credits < 1) {
-        throw new CouponTypeError("Coupon amount is too low");
-      }
-      return credits;
+      return getCreditsForCoupon(coupon);
     },
 
     async createStripeCustomerForUser(
