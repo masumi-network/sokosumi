@@ -41,3 +41,22 @@ export function feeFromCentsBasedOnPercentagePoints(
     new Decimal(cents.toString()).mul(multiplier).toFixed(0).toString(),
   );
 }
+
+/**
+ * This function rounds up the total cents to show credits as integer.
+ * Adds the difference to the total fee.
+ * @param totalCents - The total cents to round up.
+ * @param totalFee - The total fee.
+ * @returns The rounded total cents with fee and the total fee which also includes difference.
+ */
+export function roundUpCentsWithFee(
+  cents: bigint,
+  fee: bigint,
+): { cents: bigint; includedFee: bigint } {
+  const centsWithFee = cents + fee;
+  const roundedCentsWithFee = convertCreditsToCents(
+    Math.ceil(convertCentsToCredits(centsWithFee)),
+  );
+  const diff = roundedCentsWithFee - centsWithFee;
+  return { cents: roundedCentsWithFee, includedFee: fee + diff };
+}
