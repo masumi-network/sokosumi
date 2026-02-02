@@ -5,7 +5,7 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 
-import { requireTaskAccess } from "@/helpers/access-control";
+import { requireOrchestratorTaskAccess } from "@/helpers/access-control";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -53,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { jobId } = c.req.valid("json");
 
     const job = await prisma.$transaction(async (tx) => {
-      const task = await requireTaskAccess(authContext, taskId, tx);
+      const task = await requireOrchestratorTaskAccess(authContext, taskId, tx);
 
       const existingJob = await tx.job.findUnique({
         where: { id: jobId },
