@@ -139,13 +139,13 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
       if (data.coupon && data.coupon.trim().length > 0) {
         result = await claimFreeCreditsWithCoupon({
           organizationId: organization?.id ?? null,
-          priceId: price.id,
+          price: price,
           couponId: data.coupon.trim(),
         });
       } else if (data.credits && data.credits > 0) {
         result = await purchaseCredits({
           organizationId: organization?.id ?? null,
-          priceId: price.id,
+          price: price,
           credits: data.credits,
         });
       } else {
