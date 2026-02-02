@@ -38,7 +38,7 @@ export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="truncate text-sm font-semibold">
+              <span className="line-clamp-1 text-sm font-semibold">
                 {task.name}
               </span>
             </div>

@@ -4,7 +4,7 @@ import { AgentWithRelations, TaskStatus } from "@sokosumi/database";
 import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FileUploadButton } from "@/app/tasks/new/components/file-upload-button";
@@ -21,7 +21,7 @@ import type {
 import { MentionTextarea } from "@/components/ui/mention-textarea";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import type { OrchestratorOption } from "@/lib/types/orchestrator";
-import { getOSFromUserAgent } from "@/lib/utils";
+import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 export interface TaskFormLabels {
   pageTitle: string;
@@ -78,7 +78,25 @@ export function TaskForm({
   );
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { os, isMobile } = getOSFromUserAgent();
+  const [{ os, isMobile }, setOsInfo] = useState<{
+    os: OS;
+    isMobile: boolean;
+  }>({
+    os: "Unknown",
+    isMobile: false,
+  });
+  const hasMountedOsDetection = useRef(false);
+
+  useEffect(() => {
+    if (hasMountedOsDetection.current) return;
+
+    hasMountedOsDetection.current = true;
+    const frame = requestAnimationFrame(() => {
+      setOsInfo(getOSFromUserAgent());
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const agentMentions = useMemo(() => {
     const record: Record<string, MentionRecordEntry<AgentWithRelations>> = {};
