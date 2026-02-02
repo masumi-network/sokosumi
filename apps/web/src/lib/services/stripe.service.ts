@@ -10,7 +10,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getAuthContext, verifyUserId } from "@/lib/auth/utils";
+import { verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import {
@@ -95,30 +95,27 @@ export const stripeService = (() => {
      * @param couponId - The ID of the coupon to claim
      * @param maxRedemptions - Maximum number of times this promotion code can be redeemed (default: 1)
      * @param metadata - Optional metadata to attach to the promotion code
-     * @returns {Promise<Stripe.PromotionCode | null>} The promotion code if successfully claimed, otherwise null.
+     * @param authContext - Auth context (userId, organizationId).
+     * @returns {Promise<Stripe.PromotionCode>} The promotion code if successfully claimed, otherwise null.
      */
     async claimCoupon(
       couponId: string,
       maxRedemptions: number = 1,
+      authContext: { userId: string; organizationId: string | null },
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const context = await getAuthContext();
-      if (!context) {
-        return null;
-      }
-
       let stripeCustomerId = await getStripeCustomerId(
-        context.userId,
-        context.organizationId,
+        authContext.userId,
+        authContext.organizationId,
       );
 
       // Create Stripe customer if doesn't exist
       if (!stripeCustomerId) {
-        const customer = context.organizationId
+        const customer = authContext.organizationId
           ? await this.createStripeCustomerForOrganization(
-              context.organizationId,
+              authContext.organizationId,
             )
-          : await this.createStripeCustomerForUser(context.userId);
+          : await this.createStripeCustomerForUser(authContext.userId);
 
         if (!customer) {
           return null;

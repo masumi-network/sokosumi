@@ -100,8 +100,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
         );
     const credits = await stripeService.getCreditsForCoupon(couponId, price);
 
-    // Claim the coupon for this user (creates/gets promotion code)
-    const promo = await stripeService.claimCoupon(couponId, 1);
+    const promo = await stripeService.claimCoupon(couponId, 1, authContext);
     if (!promo || !promo.active) {
       return Err({
         message: "Invalid coupon",
