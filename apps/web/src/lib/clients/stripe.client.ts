@@ -3,6 +3,7 @@ import "server-only";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 export interface Price {
   id: string;
@@ -283,28 +284,12 @@ export const stripeClient = (() => {
       const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
       const price = await this.getPriceByProductId(productId);
 
-      // Validate coupon and compute quantity of credits
       const coupon = await stripe.coupons.retrieve(couponId);
       if (!coupon) throw new Error("Coupon not found");
-      if (coupon.percent_off)
-        throw new Error("Only fixed-amount coupons are supported");
-      if (!coupon.amount_off)
-        throw new Error("Coupon must have a fixed amount");
-      if (coupon.currency?.toLowerCase() !== price.currency.toLowerCase()) {
-        throw new Error(
-          `Coupon currency ${coupon.currency ?? "unknown"} does not match price currency ${price.currency}`,
-        );
+      if (!coupon.percent_off) {
+        throw new Error("Coupon must have percent_off");
       }
-      if (price.amountPerCredit === 0) {
-        throw new Error(
-          "Price amountPerCredit is 0 – cannot calculate credits for free product",
-        );
-      }
-
-      const quantity = Math.floor(coupon.amount_off / price.amountPerCredit);
-      if (quantity < 1) {
-        throw new Error("Coupon amount is too low to redeem any credits");
-      }
+      const credits = getCreditsForCoupon(coupon);
 
       // 1) Add invoice items representing the free credits
       const itemsToCreate = Math.min(referralCount!, MAX_REFERRAL_COUNT);
@@ -314,8 +299,8 @@ export const stripeClient = (() => {
             customer: customerId,
             pricing: { price: price.id },
             currency: price.currency,
-            quantity,
-            description: `Referral credit redemption (${quantity} credits) - ${index + 1} of ${itemsToCreate}`,
+            quantity: credits,
+            description: `Referral credit redemption (${credits} credits) - ${index + 1} of ${itemsToCreate}`,
             metadata: {
               coupon_id: couponId,
               redemption_type: "free_coupon",

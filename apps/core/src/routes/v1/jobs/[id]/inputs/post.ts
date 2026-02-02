@@ -155,7 +155,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       inputData,
     );
 
-    if (!provideInputResult.ok) {
+    if (provideInputResult.isErr()) {
       throw unprocessableEntity(provideInputResult.error);
     }
 
@@ -163,8 +163,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       data: {
         event: { connect: { id: jobEvent.id } },
         input: JSON.stringify(inputData),
-        inputHash: provideInputResult.data.input_hash,
-        signature: provideInputResult.data.signature,
+        inputHash: provideInputResult.value.input_hash,
+        signature: provideInputResult.value.signature,
       },
     });
 
