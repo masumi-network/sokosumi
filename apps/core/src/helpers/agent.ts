@@ -5,7 +5,11 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import { feeFromCentsBasedOnPercentagePoints } from "@sokosumi/database/helpers";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  feeFromCentsBasedOnPercentagePoints,
+} from "@sokosumi/database/helpers";
 
 import { CREDIT, TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
@@ -208,7 +212,7 @@ const calculateAgentCost = (
         totalFee += fee;
       }
 
-      return { cents: totalCents + totalFee, includedFee: totalFee };
+      return roundUpCentsWithFee(totalCents, totalFee);
     }
     case PricingType.FREE: {
       return { cents: BigInt(0), includedFee: BigInt(0) };
@@ -217,6 +221,25 @@ const calculateAgentCost = (
       throw unprocessableEntity("Agent has invalid or unknown pricing");
     }
   }
+};
+
+/**
+ * This function rounds up the total cents to show credits as integer.
+ * Adds the difference to the total fee.
+ * @param totalCents - The total cents to round up.
+ * @param totalFee - The total fee.
+ * @returns The rounded total cents with fee and the total fee which also includes difference.
+ */
+const roundUpCentsWithFee = (
+  cents: bigint,
+  fee: bigint,
+): { cents: bigint; includedFee: bigint } => {
+  const centsWithFee = cents + fee;
+  const roundedCentsWithFee = convertCreditsToCents(
+    Math.ceil(convertCentsToCredits(centsWithFee)),
+  );
+  const diff = roundedCentsWithFee - centsWithFee;
+  return { cents: roundedCentsWithFee, includedFee: fee + diff };
 };
 
 /**
