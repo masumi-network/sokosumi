@@ -166,21 +166,18 @@ export const getAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
 ): AgentCost => {
-  const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
-  return calculateAgentCost(agent, creditCosts, minFeeCents);
+  return calculateAgentCost(agent, creditCosts);
 };
 
 /**
  * This function calculates the cost for an agent.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
- * @param minFeeCents - The minimum fee cents.
  * @returns The cost for the agent.
  */
 const calculateAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
-  minFeeCents: bigint,
 ): AgentCost => {
   switch (agent.pricing.pricingType) {
     case PricingType.FIXED: {
@@ -215,9 +212,6 @@ const calculateAgentCost = (
         totalFee += fee;
       }
 
-      if (totalFee < minFeeCents) {
-        totalFee = minFeeCents;
-      }
       const { cents: totalCentsWithFee } = roundUpCentsWithFee(
         totalCents,
         totalFee,
