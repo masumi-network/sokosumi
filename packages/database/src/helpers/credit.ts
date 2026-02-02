@@ -8,11 +8,13 @@ const CREDITS_BASE = 10 ** 12;
  * @returns Credit value as decimal number
  */
 export function convertCentsToCredits(cents: bigint): number {
+  let credits = 0;
   if (cents > BigInt(Number.MAX_SAFE_INTEGER)) {
-    // Use decimal.js
-    return new Decimal(cents.toString()).div(CREDITS_BASE).toNumber();
+    credits = new Decimal(cents.toString()).div(CREDITS_BASE).toNumber();
+  } else {
+    credits = Number(cents) / CREDITS_BASE;
   }
-  return Number(cents) / CREDITS_BASE;
+  return Number(credits.toFixed(2));
 }
 
 /**
