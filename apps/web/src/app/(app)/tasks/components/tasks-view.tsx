@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTasks } from "@/app/tasks/actions";
@@ -63,6 +63,8 @@ export function TasksView({
     initialNextCursor ?? null,
   );
   const [isPending, startTransition] = useTransition();
+  const moveVersionRef = useRef(0);
+  const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -85,7 +87,12 @@ export function TasksView({
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
 
-    const previousItems = items;
+    const previousStatus = statusForColumn(fromColumn);
+    if (!previousStatus) return;
+
+    const moveVersion = (moveVersionRef.current += 1);
+    pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
+
     setItems((prev) =>
       prev.map((task) =>
         task.id === activeId
@@ -100,8 +107,26 @@ export function TasksView({
           taskId: activeId,
           desiredStatus,
         });
+        if (
+          pendingMoveVersionByTaskIdRef.current.get(activeId) === moveVersion
+        ) {
+          pendingMoveVersionByTaskIdRef.current.delete(activeId);
+        }
       } catch {
-        setItems(previousItems);
+        const pendingVersion =
+          pendingMoveVersionByTaskIdRef.current.get(activeId);
+        if (pendingVersion !== moveVersion) return;
+
+        pendingMoveVersionByTaskIdRef.current.delete(activeId);
+        setItems((prev) =>
+          prev.map((task) =>
+            task.id === activeId &&
+            task.columnId === toColumn &&
+            task.status === desiredStatus
+              ? { ...task, status: previousStatus, columnId: fromColumn }
+              : task,
+          ),
+        );
         toast.error(labels.dragError);
       }
     });
