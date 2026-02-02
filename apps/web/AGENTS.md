@@ -169,6 +169,8 @@ Stripe **test mode** and **live mode** are separate environments. The app does n
 
 Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CREDIT_PRODUCT_ID`, `STRIPE_ONBOARD_PERSONAL_COUPON`, `STRIPE_ONBOARD_ORGANIZATION_COUPON`, `STRIPE_WELCOME_COUPON` (and optionally `STRIPE_PUBLISHABLE_KEY` for client-side).
 
+**Coupon semantics for credits:** Credits come from the coupon metadata key `credits` (positive integer). The discount at checkout is applied via the coupon’s `percent_off`. Only coupons with both `metadata.credits` and `percent_off` are supported; `amount_off`-only coupons are not supported.
+
 ### Styling
 
 - Use semantic colors from `globals.css`

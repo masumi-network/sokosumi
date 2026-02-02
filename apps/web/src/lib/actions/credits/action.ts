@@ -98,7 +98,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
       : await stripeClient.getPriceByProductId(
           getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID,
         );
-    const credits = await stripeService.getCreditsForCoupon(couponId, price);
+    const credits = await stripeService.getCreditsForCoupon(couponId);
 
     const promo = await stripeService.claimCoupon(couponId, 1, authContext);
     if (!promo || !promo.active) {

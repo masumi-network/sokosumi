@@ -13,11 +13,8 @@ import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
-import {
-  CouponCurrencyError,
-  CouponNotFoundError,
-  CouponTypeError,
-} from "@/lib/errors/coupon-errors";
+import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
+import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 export const stripeService = (() => {
   async function getStripeCustomerId(
@@ -157,36 +154,12 @@ export const stripeService = (() => {
       }
     },
 
-    async getCreditsForCoupon(couponId: string, price: Price): Promise<number> {
+    async getCreditsForCoupon(couponId: string): Promise<number> {
       const coupon = await stripeClient.getCouponById(couponId);
       if (!coupon) {
         throw new CouponNotFoundError(couponId);
       }
-      if (coupon.percent_off) {
-        throw new CouponTypeError("Only fixed-amount coupons are supported");
-      }
-      if (!coupon.amount_off) {
-        throw new CouponTypeError("Coupon must have a fixed amount");
-      }
-
-      if (coupon.currency?.toLowerCase() !== price.currency.toLowerCase()) {
-        throw new CouponCurrencyError(
-          coupon.currency ?? "unknown",
-          price.currency,
-        );
-      }
-
-      // Prevent division by zero for price.unit_amount
-      if (price.amountPerCredit === 0) {
-        throw new CouponTypeError(
-          "Price amountPerCredit is 0 – cannot calculate credits for free product",
-        );
-      }
-      const credits = Math.floor(coupon.amount_off / price.amountPerCredit);
-      if (credits < 1) {
-        throw new CouponTypeError("Coupon amount is too low");
-      }
-      return credits;
+      return getCreditsForCoupon(coupon);
     },
 
     async createStripeCustomerForUser(
