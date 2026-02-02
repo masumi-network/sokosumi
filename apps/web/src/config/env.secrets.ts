@@ -16,7 +16,6 @@ const envSecretsSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
-  MIN_FEE_CREDITS: z.coerce.number().min(0).default(1),
 
   CHROMIUM_EXECUTABLE_URL: z
     .url()

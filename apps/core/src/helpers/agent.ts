@@ -6,9 +6,8 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import {
-  convertCentsToCredits,
-  convertCreditsToCents,
   feeFromCentsBasedOnPercentagePoints,
+  roundUpCentsWithFee,
 } from "@sokosumi/database/helpers";
 
 import { CREDIT, TIME } from "@/config/constants";
@@ -166,21 +165,18 @@ export const getAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
 ): AgentCost => {
-  const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
-  return calculateAgentCost(agent, creditCosts, minFeeCents);
+  return calculateAgentCost(agent, creditCosts);
 };
 
 /**
  * This function calculates the cost for an agent.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
- * @param minFeeCents - The minimum fee cents.
  * @returns The cost for the agent.
  */
 const calculateAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
-  minFeeCents: bigint,
 ): AgentCost => {
   switch (agent.pricing.pricingType) {
     case PricingType.FIXED: {
@@ -215,14 +211,7 @@ const calculateAgentCost = (
         totalFee += fee;
       }
 
-      if (totalFee < minFeeCents) {
-        totalFee = minFeeCents;
-      }
-      const { cents: totalCentsWithFee } = roundUpCentsWithFee(
-        totalCents,
-        totalFee,
-      );
-      return { cents: totalCentsWithFee, includedFee: totalFee };
+      return roundUpCentsWithFee(totalCents, totalFee);
     }
     case PricingType.FREE: {
       return { cents: BigInt(0), includedFee: BigInt(0) };
@@ -231,25 +220,6 @@ const calculateAgentCost = (
       throw unprocessableEntity("Agent has invalid or unknown pricing");
     }
   }
-};
-
-/**
- * This function rounds up the total cents to show credits as integer.
- * Adds the difference to the total fee.
- * @param totalCents - The total cents to round up.
- * @param totalFee - The total fee.
- * @returns The rounded total cents with fee and the total fee which also includes difference.
- */
-const roundUpCentsWithFee = (
-  cents: bigint,
-  fee: bigint,
-): { cents: bigint; fee: bigint } => {
-  const centsWithFee = cents + fee;
-  const roundedCentsWithFee = convertCreditsToCents(
-    Math.ceil(convertCentsToCredits(centsWithFee)),
-  );
-  const diff = roundedCentsWithFee - centsWithFee;
-  return { cents: roundedCentsWithFee, fee: fee + diff };
 };
 
 /**
