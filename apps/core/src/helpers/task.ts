@@ -69,5 +69,6 @@ export function mapTask(task: TaskWithIncludes) {
     description: task.description ?? null,
     status: task.status,
     events: task.events,
+    jobIds: task.jobs.map((j) => j.id),
   };
 }
