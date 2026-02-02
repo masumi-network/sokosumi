@@ -244,7 +244,7 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {[10, 25, 50, 100].map((amount) => (
+              {[1000, 2500, 5000, 10000].map((amount) => (
                 <Button
                   key={amount}
                   type="button"
