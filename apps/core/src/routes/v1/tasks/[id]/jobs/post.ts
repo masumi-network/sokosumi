@@ -74,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const updatedJob = await tx.job.update({
-        where: { id: jobId },
+        where: { id: jobId, taskId: null, userId: task.userId },
         data: { taskId },
         include: {
           ...jobWithEvents,
