@@ -125,10 +125,10 @@ importers:
         version: 0.3.1
       '@hey-api/client-fetch':
         specifier: 0.13.1
-        version: 0.13.1(@hey-api/openapi-ts@0.91.0(typescript@5.9.3))
+        version: 0.13.1(@hey-api/openapi-ts@0.91.1(typescript@5.9.3))
       '@hey-api/client-next':
         specifier: 0.5.1
-        version: 0.5.1(@hey-api/openapi-ts@0.91.0(typescript@5.9.3))
+        version: 0.5.1(@hey-api/openapi-ts@0.91.1(typescript@5.9.3))
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.71.1(react@19.2.4))
@@ -416,8 +416,8 @@ importers:
         specifier: 20.4.0
         version: 20.4.0(@jest/environment@30.2.0)(@jest/fake-timers@30.2.0)(@jest/types@30.2.0)(jest-mock@30.2.0)(jest-util@30.2.0)
       '@hey-api/openapi-ts':
-        specifier: 0.91.0
-        version: 0.91.0(typescript@5.9.3)
+        specifier: 0.91.1
+        version: 0.91.1(typescript@5.9.3)
       '@noble/hashes':
         specifier: 2.0.1
         version: 2.0.1
@@ -550,8 +550,8 @@ importers:
         version: 4.3.6
     devDependencies:
       '@hey-api/openapi-ts':
-        specifier: 0.91.0
-        version: 0.91.0(typescript@5.9.3)
+        specifier: 0.91.1
+        version: 0.91.1(typescript@5.9.3)
       '@types/jest':
         specifier: 30.0.0
         version: 30.0.0
@@ -1133,8 +1133,8 @@ packages:
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
-  '@hey-api/codegen-core@0.6.0':
-    resolution: {integrity: sha512-O6TRP3g1188gdpZC9yio64KkvWD97QpLjaCFnwTgykTZtzQXZbkyw+lYPVfZ7Ee+m7eLau1/jEJmQcUY9G0sLw==}
+  '@hey-api/codegen-core@0.6.1':
+    resolution: {integrity: sha512-khTIpxhKEAqmRmeLUnAFJQs4Sbg9RPokovJk9rRcC8B5MWH1j3/BRSqfpAIiJUBDU1+nbVg2RVCV+eQ174cdvw==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       typescript: '>=5.5.3'
@@ -1143,15 +1143,15 @@ packages:
     resolution: {integrity: sha512-gRbyyTjzpFVNmbD+Upn3w4dWV+bCXGJbff3A7leDO/tfNxSz1xIb6Ad/5UKtvEW9kDt/2Uyc3XkFZ6rpafvbfQ==}
     engines: {node: '>= 16'}
 
-  '@hey-api/openapi-ts@0.91.0':
-    resolution: {integrity: sha512-AHkd982HsPz1XpqRm59URwJyJqTzyzzC30EAp07b/0M9KojjneCPxm8FnvFnXLRTMyKgcOymMsYXuLzJ9mpMHA==}
+  '@hey-api/openapi-ts@0.91.1':
+    resolution: {integrity: sha512-d16WR35UtthK/ihAIwJaKxrj/zvb5LbYwtVJCyZFFMin2qzDU8Y3Lpk78ensAykrLoaDLzpd0iIyt9JCP5Qmww==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
       typescript: '>=5.5.3'
 
-  '@hey-api/shared@0.1.0':
-    resolution: {integrity: sha512-qEDMSBWEEWxcBU5XHacjCCnFOVq1YWPPR3owURVep60I7ejfSG5OINxM4eF+p3KJGMcZduzzfq9pd1grStHZBg==}
+  '@hey-api/shared@0.1.1':
+    resolution: {integrity: sha512-/irgNGXw9TL5aKB3S7jCLgh07vgDFkYjSjz7vEWO9xEe6MUhx76zSFzkPspk2UrLghYayvmaKPf1ky4XjNI9ZQ==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       typescript: '>=5.5.3'
@@ -9361,15 +9361,15 @@ snapshots:
       '@tanstack/vue-virtual': 3.13.18(vue@3.5.27(typescript@5.9.3))
       vue: 3.5.27(typescript@5.9.3)
 
-  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.91.0(typescript@5.9.3))':
+  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.91.1(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.91.0(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.91.1(typescript@5.9.3)
 
-  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.91.0(typescript@5.9.3))':
+  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.91.1(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.91.0(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.91.1(typescript@5.9.3)
 
-  '@hey-api/codegen-core@0.6.0(typescript@5.9.3)':
+  '@hey-api/codegen-core@0.6.1(typescript@5.9.3)':
     dependencies:
       '@hey-api/types': 0.1.3(typescript@5.9.3)
       ansi-colors: 4.1.3
@@ -9386,11 +9386,11 @@ snapshots:
       js-yaml: 4.1.1
       lodash: 4.17.23
 
-  '@hey-api/openapi-ts@0.91.0(typescript@5.9.3)':
+  '@hey-api/openapi-ts@0.91.1(typescript@5.9.3)':
     dependencies:
-      '@hey-api/codegen-core': 0.6.0(typescript@5.9.3)
+      '@hey-api/codegen-core': 0.6.1(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.3
-      '@hey-api/shared': 0.1.0(typescript@5.9.3)
+      '@hey-api/shared': 0.1.1(typescript@5.9.3)
       '@hey-api/types': 0.1.3(typescript@5.9.3)
       ansi-colors: 4.1.3
       color-support: 1.1.3
@@ -9399,9 +9399,9 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  '@hey-api/shared@0.1.0(typescript@5.9.3)':
+  '@hey-api/shared@0.1.1(typescript@5.9.3)':
     dependencies:
-      '@hey-api/codegen-core': 0.6.0(typescript@5.9.3)
+      '@hey-api/codegen-core': 0.6.1(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.3
       '@hey-api/types': 0.1.3(typescript@5.9.3)
       ansi-colors: 4.1.3
