@@ -17,18 +17,23 @@ export interface MentionSpanStyleOptions {
   unknownMentionClassName?: string;
 }
 
-function isWhitespaceChar(char: string): boolean {
+export function isWhitespaceChar(char: string): boolean {
   return char.trim() === "";
 }
 
-export function shouldAppendTrailingSpace(nextChar: string | undefined): boolean {
+export function shouldAppendTrailingSpace(
+  nextChar: string | undefined,
+): boolean {
   // Preserve existing behavior: insert a trailing space at end-of-text.
   if (nextChar === undefined || nextChar === "") return true;
   // Avoid double-spacing when we're inserting before existing whitespace/newlines.
   return !isWhitespaceChar(nextChar);
 }
 
-export function getMentionToken(mentionKey: string, mentionSlug: string): string {
+export function getMentionToken(
+  mentionKey: string,
+  mentionSlug: string,
+): string {
   return `@${mentionKey}:${mentionSlug}`;
 }
 
@@ -41,12 +46,12 @@ export function buildMentionToken(
   return `${token}${shouldAppendTrailingSpace(nextChar) ? " " : ""}`;
 }
 
-function isMentionSpan(node: Node): node is HTMLSpanElement {
-  if (!(node instanceof HTMLElement)) return false;
+export function isMentionSpan(node: Node): node is HTMLSpanElement {
+  if (!(node instanceof HTMLSpanElement)) return false;
   return Boolean(node.dataset.mentionKey && node.dataset.mentionSlug);
 }
 
-function isLineBreak(node: Node): node is HTMLBRElement {
+export function isLineBreak(node: Node): node is HTMLBRElement {
   return node.nodeType === Node.ELEMENT_NODE && node.nodeName === "BR";
 }
 
@@ -114,7 +119,8 @@ export function createMentionSpan(
     span.className = options.mentionClassName;
   }
   if (!isKnown && options?.unknownMentionClassName) {
-    span.className = `${span.className} ${options.unknownMentionClassName}`.trim();
+    span.className =
+      `${span.className} ${options.unknownMentionClassName}`.trim();
   }
   return span;
 }

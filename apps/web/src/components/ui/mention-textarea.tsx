@@ -10,6 +10,9 @@ import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 import {
   createMentionSpan,
   getMentionToken,
+  isLineBreak,
+  isMentionSpan,
+  isWhitespaceChar,
   serializeEditorText,
   setEditorFromRaw,
   shouldAppendTrailingSpace,
@@ -58,19 +61,6 @@ const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
 
 function deslugifyMentionSlug(slug: string): string {
   return slug.replace(/-/g, " ");
-}
-
-function isWhitespaceChar(char: string): boolean {
-  return char.trim() === "";
-}
-
-function isMentionSpan(node: Node): node is HTMLSpanElement {
-  if (!(node instanceof HTMLSpanElement)) return false;
-  return Boolean(node.dataset.mentionKey && node.dataset.mentionSlug);
-}
-
-function isLineBreak(node: Node): node is HTMLBRElement {
-  return node.nodeType === Node.ELEMENT_NODE && node.nodeName === "BR";
 }
 
 function getMentionTokenLength(span: HTMLSpanElement): number {
@@ -180,7 +170,10 @@ function findPositionForOffset(
       if (remaining <= length) {
         const parent = node.parentNode ?? root;
         const index = Array.from(parent.childNodes).indexOf(node);
-        return { node: parent, offset: remaining === length ? index + 1 : index };
+        return {
+          node: parent,
+          offset: remaining === length ? index + 1 : index,
+        };
       }
       remaining -= length;
       return null;
@@ -822,8 +815,7 @@ export function MentionTextarea<TData = unknown>({
       const position = getPopupPositionFromRect(rect);
 
       const clickedMentionIndex = normalizedMentions.findIndex(
-        (mention) =>
-          mention.key === mentionKey || mention.slug === mentionSlug,
+        (mention) => mention.key === mentionKey || mention.slug === mentionSlug,
       );
       openSuggestions({
         nextQuery: "",
@@ -890,7 +882,7 @@ export function MentionTextarea<TData = unknown>({
         onClick={handleEditorClick}
         onMouseDown={handleEditorMouseDown}
         className={cn(
-          "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 caret-foreground field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base text-foreground transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm whitespace-pre-wrap wrap-break-word",
+          "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 caret-foreground text-foreground field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base wrap-break-word whitespace-pre-wrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
           className,
         )}
       />
@@ -899,7 +891,7 @@ export function MentionTextarea<TData = unknown>({
         <div
           aria-hidden
           className={cn(
-            "text-muted-foreground pointer-events-none absolute inset-0 rounded-md px-3 py-2 text-base md:text-sm whitespace-pre-wrap wrap-break-word",
+            "text-muted-foreground pointer-events-none absolute inset-0 rounded-md px-3 py-2 text-base wrap-break-word whitespace-pre-wrap md:text-sm",
             className,
           )}
         >

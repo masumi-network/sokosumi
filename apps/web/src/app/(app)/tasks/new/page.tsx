@@ -1,9 +1,8 @@
 import { getTranslations } from "next-intl/server";
 
+import { TaskForm } from "@/app/tasks/components/task-form";
 import { agentService } from "@/lib/services";
 import { orchestratorService } from "@/lib/services/orchestrator.service";
-
-import { NewTaskForm } from "./components/new-task-form";
 
 export const metadata = {
   title: "New Task",
@@ -23,7 +22,8 @@ export default async function NewTaskPage() {
 
   return (
     <div className="w-full max-w-3xl space-y-6 px-2">
-      <NewTaskForm
+      <TaskForm
+        mode="create"
         labels={{
           pageTitle: t("title"),
           details: t("details"),
