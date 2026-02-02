@@ -19,12 +19,3 @@ export class CouponTypeError extends CouponError {
     super(message, "COUPON_TYPE_ERROR");
   }
 }
-
-export class CouponCurrencyError extends CouponError {
-  constructor(currency: string, expectedCurrency?: string) {
-    const message = expectedCurrency
-      ? `Coupon currency ${currency} does not match expected currency ${expectedCurrency}`
-      : `Coupon currency ${currency} is not supported`;
-    super(message, "COUPON_CURRENCY_ERROR");
-  }
-}
