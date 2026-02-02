@@ -86,7 +86,7 @@
     "next": "16.1.6",
     "next-intl": "4.8.1",
     "next-themes": "0.4.6",
-    "nuqs": "2.8.6",
+    "nuqs": "2.8.7",
     "p-limit": "7.2.0",
     "p-timeout": "7.0.1",
     "postmark": "4.0.5",
@@ -128,7 +128,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.3",
-    "@hey-api/openapi-ts": "0.91.0",
+    "@hey-api/openapi-ts": "0.91.1",
     "@happy-dom/jest-environment": "20.4.0",
     "@noble/hashes": "2.0.1",
     "@swc/core": "1.15.11",
