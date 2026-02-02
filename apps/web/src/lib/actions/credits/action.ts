@@ -100,7 +100,10 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
         );
     const credits = await stripeService.getCreditsForCoupon(couponId);
 
-    const promo = await stripeService.claimCoupon(couponId, 1, authContext);
+    const promo = await stripeService.claimCoupon(couponId, 1, {
+      userId,
+      organizationId,
+    });
     if (!promo || !promo.active) {
       return Err({
         message: "Invalid coupon",
@@ -111,7 +114,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
     // Create the checkout session (for org if orgId provided, else personal)
     const { url } = await stripeService.createStripeCheckoutSession(
       userId,
-      organizationId ?? null,
+      organizationId,
       credits,
       price,
       promo.id,
