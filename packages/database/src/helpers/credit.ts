@@ -1,6 +1,6 @@
 import { Decimal } from "decimal.js";
 
-const CREDITS_BASE = 10 ** 12;
+const CREDITS_BASE = 10 ** 10;
 
 /**
  * Converts credit cents (stored as BigInt) to user-facing credit value.
@@ -14,7 +14,7 @@ export function convertCentsToCredits(cents: bigint): number {
   } else {
     credits = Number(cents) / CREDITS_BASE;
   }
-  return Number(credits.toFixed(2));
+  return credits;
 }
 
 /**
