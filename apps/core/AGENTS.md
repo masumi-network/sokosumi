@@ -231,7 +231,7 @@ const credits = convertCentsToCredits(BigInt(1000000000000)); // 1.0
 const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 ```
 
-**Note**: Credits use base 10^12 for precision (1 credit = 10^12 cents).
+**Note**: Credits use base 10^10 for precision (1 credit = 10^10 cents).
 
 ### Datetime Schemas
 
@@ -422,7 +422,7 @@ const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 
 ### Credit Handling
 
-- Credits are stored as BigInt cents (base 10^12)
+- Credits are stored as BigInt cents (base 10^10)
 - Always use `convertCentsToCredits()` when returning credit values to users
 - Use `convertCreditsToCents()` when storing user-provided credit values
 - Take absolute value when displaying credits: `Math.abs(convertCentsToCredits(amount))`

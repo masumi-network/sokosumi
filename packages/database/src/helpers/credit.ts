@@ -1,24 +1,26 @@
 import { Decimal } from "decimal.js";
 
-const CREDITS_BASE = 10 ** 12;
+const CREDITS_BASE = 10 ** 10;
 
 /**
  * Converts credit cents (stored as BigInt) to user-facing credit value.
- * @param cents - Credit amount in cents (1 credit = 10^12 cents)
+ * @param cents - Credit amount in cents (1 credit = 10^10 cents)
  * @returns Credit value as decimal number
  */
 export function convertCentsToCredits(cents: bigint): number {
+  let credits = 0;
   if (cents > BigInt(Number.MAX_SAFE_INTEGER)) {
-    // Use decimal.js
-    return new Decimal(cents.toString()).div(CREDITS_BASE).toNumber();
+    credits = new Decimal(cents.toString()).div(CREDITS_BASE).toNumber();
+  } else {
+    credits = Number(cents) / CREDITS_BASE;
   }
-  return Number(cents) / CREDITS_BASE;
+  return credits;
 }
 
 /**
  * Converts user-facing credit value to credit cents (stored as BigInt).
  * @param credits - Credit value as decimal number
- * @returns Credit amount in cents (1 credit = 10^12 cents)
+ * @returns Credit amount in cents (1 credit = 10^10 cents)
  */
 export function convertCreditsToCents(credits: number): bigint {
   return BigInt(new Decimal(credits).mul(CREDITS_BASE).toFixed(0).toString());
@@ -38,4 +40,23 @@ export function feeFromCentsBasedOnPercentagePoints(
   return BigInt(
     new Decimal(cents.toString()).mul(multiplier).toFixed(0).toString(),
   );
+}
+
+/**
+ * This function rounds up the total cents to show credits as integer.
+ * Adds the difference to the total fee.
+ * @param totalCents - The total cents to round up.
+ * @param totalFee - The total fee.
+ * @returns The rounded total cents with fee and the total fee which also includes difference.
+ */
+export function roundUpCentsWithFee(
+  cents: bigint,
+  fee: bigint,
+): { cents: bigint; includedFee: bigint } {
+  const centsWithFee = cents + fee;
+  const roundedCentsWithFee = convertCreditsToCents(
+    Math.ceil(convertCentsToCredits(centsWithFee)),
+  );
+  const diff = roundedCentsWithFee - centsWithFee;
+  return { cents: roundedCentsWithFee, includedFee: fee + diff };
 }
