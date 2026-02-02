@@ -73,6 +73,7 @@
     "embla-carousel-react": "8.6.0",
     "encoding": "0.1.13",
     "fake-indexeddb": "6.2.5",
+    "flags": "^4.0.2",
     "gravatar-url": "4.0.1",
     "happy-dom": "20.4.0",
     "humanize-duration": "3.33.2",

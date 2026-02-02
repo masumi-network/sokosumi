@@ -9,12 +9,7 @@ interface AddTaskButtonProps {
 
 export function AddTaskButton({ label }: AddTaskButtonProps) {
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      type="button"
-      className="gap-1.5"
-    >
+    <Button variant="outline" size="sm" type="button" className="gap-1.5">
       <Link
         href="/tasks/new"
         className="flex w-full items-center justify-center gap-2"

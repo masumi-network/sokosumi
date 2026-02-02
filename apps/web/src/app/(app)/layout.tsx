@@ -8,6 +8,7 @@ import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
+import { taskManagerMenuEnabled } from "@/lib/flags/task-manager";
 import { userService } from "@/lib/services";
 
 import Header from "./components/header";
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   const session = await getSessionOrRedirect();
+  const isTaskManagerMenuEnabled = await taskManagerMenuEnabled();
 
   const pendingInvitationId = await userService.getFirstPendingInvitationId();
   if (pendingInvitationId) {
@@ -51,7 +53,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         defaultOpen={defaultOpen}
         className="flex max-w-svw overflow-clip"
       >
-        <Sidebar session={session} />
+        <Sidebar
+          session={session}
+          taskManagerMenuEnabled={isTaskManagerMenuEnabled}
+        />
         <div className="flex min-w-0 flex-1 flex-col overflow-clip">
           <Header session={session} className="h-16 p-4" />
           <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
