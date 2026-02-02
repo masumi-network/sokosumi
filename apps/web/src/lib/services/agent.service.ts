@@ -386,8 +386,6 @@ export const agentService = (() => {
           cents,
           feePercentagePoints,
         );
-
-        // round up to the nearest integer
         totalCents += cents;
         totalFee += fee;
       }
