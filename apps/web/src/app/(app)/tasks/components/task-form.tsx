@@ -4,7 +4,7 @@ import { AgentWithRelations, TaskStatus } from "@sokosumi/database";
 import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { FileUploadButton } from "@/app/tasks/new/components/file-upload-button";
@@ -19,9 +19,9 @@ import type {
   NormalizedMention,
 } from "@/components/ui/mention-textarea";
 import { MentionTextarea } from "@/components/ui/mention-textarea";
+import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import type { OrchestratorOption } from "@/lib/types/orchestrator";
-import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 export interface TaskFormLabels {
   pageTitle: string;
@@ -78,25 +78,7 @@ export function TaskForm({
   );
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [{ os, isMobile }, setOsInfo] = useState<{
-    os: OS;
-    isMobile: boolean;
-  }>({
-    os: "Unknown",
-    isMobile: false,
-  });
-  const hasMountedOsDetection = useRef(false);
-
-  useEffect(() => {
-    if (hasMountedOsDetection.current) return;
-
-    hasMountedOsDetection.current = true;
-    const frame = requestAnimationFrame(() => {
-      setOsInfo(getOSFromUserAgent());
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, []);
+  const { os, isMobile } = useOSDetection();
 
   const agentMentions = useMemo(() => {
     const record: Record<string, MentionRecordEntry<AgentWithRelations>> = {};
@@ -137,9 +119,6 @@ export function TaskForm({
     ],
     [labels.statusDraft, labels.statusReady],
   );
-  const selectedOrchestratorName =
-    orchestratorOptions.find((option) => option.id === orchestratorId)?.name ??
-    "";
 
   const isNameRequired = mode === "edit";
   const isSaveDisabled =
@@ -158,7 +137,6 @@ export function TaskForm({
         const result = await createTask({
           description: trimmedDescription,
           orchestratorId,
-          orchestratorName: selectedOrchestratorName || "Task",
           status,
         });
         router.push(`/tasks/${result.taskId}`);
@@ -193,7 +171,6 @@ export function TaskForm({
     orchestratorId,
     originalStatus,
     router,
-    selectedOrchestratorName,
     status,
     taskId,
   ]);

@@ -11,23 +11,18 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo } from "react";
 
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
 import { Button } from "@/components/ui/button";
 import { useJobSchedule } from "@/hooks/use-job-schedule";
 import { useJobSubmission } from "@/hooks/use-job-submission";
+import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, JobInputsFormSchemaType } from "@/lib/job-input";
 import { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
 import { JobScheduleSelectionType } from "@/lib/types/job";
-import { cn, formatDuration, getOSFromUserAgent, type OS } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 
 import { AcceptTermsOfService } from "./accept-terms-of-service";
 import {
@@ -92,25 +87,7 @@ function JobInputsFlatFormStandard({
   const { creditsPrice } = agent;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
-  const [{ os, isMobile }, setOsInfo] = useState<{
-    os: OS;
-    isMobile: boolean;
-  }>({
-    os: "Unknown",
-    isMobile: false,
-  });
-  const hasMountedOsDetection = useRef(false);
-
-  useEffect(() => {
-    if (hasMountedOsDetection.current) return;
-
-    hasMountedOsDetection.current = true;
-    const frame = requestAnimationFrame(() => {
-      setOsInfo(getOSFromUserAgent());
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, []);
+  const { os, isMobile } = useOSDetection();
 
   const { open, loading, setLoading, handleClose } = useCreateJobModalContext();
 
