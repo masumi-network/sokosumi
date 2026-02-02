@@ -8,6 +8,9 @@ export const taskInclude = {
   },
   jobs: {
     select: { id: true },
+    orderBy: {
+      createdAt: "asc",
+    },
   },
 } as const;
 

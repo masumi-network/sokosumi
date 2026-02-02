@@ -5,8 +5,8 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 
-import { requireOrchestratorTaskAccess } from "@/helpers/access-control";
-import { forbidden, notFound } from "@/helpers/error";
+import { requireTaskAccess } from "@/helpers/access-control";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -42,6 +42,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -52,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { jobId } = c.req.valid("json");
 
     const job = await prisma.$transaction(async (tx) => {
-      const task = await requireOrchestratorTaskAccess(authContext, taskId, tx);
+      const task = await requireTaskAccess(authContext, taskId, tx);
 
       const existingJob = await tx.job.findUnique({
         where: { id: jobId },
@@ -66,6 +67,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden(
           "You can only add jobs that belong to the task owner to this task",
         );
+      }
+
+      if (existingJob.taskId !== null) {
+        throw conflict("Job is already linked to a task");
       }
 
       const updatedJob = await tx.job.update({
