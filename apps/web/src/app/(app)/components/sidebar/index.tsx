@@ -22,9 +22,13 @@ import MenuItems from "./components/menu-items";
 
 interface SidebarProps {
   session: Session;
+  taskManagerMenuEnabled: boolean;
 }
 
-export default function Sidebar({ session }: SidebarProps) {
+export default function Sidebar({
+  session,
+  taskManagerMenuEnabled,
+}: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-[64px] border-b">
@@ -46,7 +50,7 @@ export default function Sidebar({ session }: SidebarProps) {
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
-        <MenuItems />
+        <MenuItems taskManagerMenuEnabled={taskManagerMenuEnabled} />
         <SidebarSeparator className="mx-0" />
         <AgentLists userId={session.user.id} />
       </SidebarContent>
