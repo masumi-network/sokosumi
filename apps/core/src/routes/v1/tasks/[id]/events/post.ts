@@ -95,7 +95,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           where: { id, status: task.status },
           data: {
             status,
-            ...(transactionId && { transactionId }),
+            ...(transactionId && {
+              transaction: { connect: { id: transactionId } },
+            }),
           },
         });
 
