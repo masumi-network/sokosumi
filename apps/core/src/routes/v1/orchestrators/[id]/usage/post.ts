@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 import {
   convertCentsToCredits,
@@ -9,21 +9,15 @@ import {
   creditBucketRepository,
 } from "@sokosumi/database/repositories";
 
-import { badRequest, forbidden } from "@/helpers/error";
+import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { orchestratorUsageSchema } from "@/schemas/orchestrator-usage.schema";
 
+import { paramsSchema } from "../schema";
 import { createOrchestratorUsageRequestSchema } from "./schema";
-
-const paramsSchema = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    example: "orc_123",
-  }),
-});
 
 const route = createRoute({
   method: "post",
@@ -46,6 +40,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -119,6 +114,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
         if (existing) {
+          const requestedCents = convertCreditsToCents(credits);
+
+          if (
+            existing.cents !== requestedCents ||
+            existing.referenceId !== (referenceId ?? null)
+          ) {
+            throw conflict(
+              "Idempotency key already used with different parameters",
+            );
+          }
+
           return { usage: existing, created: false };
         }
 
@@ -136,7 +142,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             includedFee: 0,
             user: { connect: { id: authContext.userId } },
             ...(authContext.organizationId
-              ? { organization: { connect: { id: authContext.organizationId } } }
+              ? {
+                  organization: { connect: { id: authContext.organizationId } },
+                }
               : {}),
             creditConsumptions: {
               createMany: {
@@ -160,7 +168,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             orchestrator: { connect: { id } },
             user: { connect: { id: authContext.userId } },
             ...(authContext.organizationId
-              ? { organization: { connect: { id: authContext.organizationId } } }
+              ? {
+                  organization: { connect: { id: authContext.organizationId } },
+                }
               : {}),
             transaction: { connect: { id: transaction.id } },
           },
