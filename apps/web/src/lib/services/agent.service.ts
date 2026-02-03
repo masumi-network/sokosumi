@@ -13,10 +13,6 @@ import {
   Prisma,
 } from "@sokosumi/database";
 import {
-  feeFromCentsBasedOnPercentagePoints,
-  roundUpCentsWithFee,
-} from "@sokosumi/database/helpers";
-import {
   agentListRepository,
   agentRatingRepository,
   agentRepository,
@@ -25,7 +21,6 @@ import {
   memberRepository,
 } from "@sokosumi/database/repositories";
 
-import { getEnvPublicConfig } from "@/config/env.public";
 import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
@@ -337,16 +332,15 @@ export const agentService = (() => {
     },
 
     /**
-     * Calculates the total credit price (in cents) for an agent, including any applicable fee.
+     * Calculates the total credit price (in cents) for an agent.
      *
      * - Sums the cost of all fixed pricing units for the agent, using the current credit cost per unit.
-     * - Applies a fee percentage (from NEXT_PUBLIC_FEE_PERCENTAGE) to the total cost.
-     * - Returns the agent object extended with a `creditsPrice` field containing the total price and included fee.
+     * - Returns the agent object extended with a `creditsPrice` field containing the total price.
      *
      * @param agent - The agent with pricing and relations data.
      * @param tx - Optional Prisma transaction client for DB operations (defaults to main Prisma client).
      * @returns The agent object with an added `creditsPrice` property.
-     * @throws If the fee percentage is negative or if a credit cost for a unit is not found or if the agent has invalid or unknown pricing.
+     * @throws If a credit cost for a unit is not found or if the agent has invalid or unknown pricing.
      */
     getAgentCreditsPrice: async (
       agent: AgentWithRelations,
@@ -361,21 +355,13 @@ export const agentService = (() => {
       if (amounts.length === 0) {
         return {
           ...agent,
-          creditsPrice: { cents: BigInt(0), includedFee: BigInt(0) },
+          creditsPrice: { cents: BigInt(0) },
         };
       }
 
-      const feePercentagePoints =
-        getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE_POINTS;
-      if (feePercentagePoints < 0) {
-        throw new Error(
-          "Added fee percentage must be equal to or greater than 0",
-        );
-      }
       const amountsParsed = pricingAmountsSchema.parse(amounts);
 
       let totalCents = BigInt(0);
-      let totalFee = BigInt(0);
       for (const amount of amountsParsed) {
         const creditCost = await creditCostRepository.getCreditCostByUnit(
           amount.unit,
@@ -385,21 +371,13 @@ export const agentService = (() => {
           throw new Error(`Credit cost not found for unit ${amount.unit}`);
         }
         const cents = amount.amount * creditCost.centsPerUnit;
-        const fee = feeFromCentsBasedOnPercentagePoints(
-          cents,
-          feePercentagePoints,
-        );
         totalCents += cents;
-        totalFee += fee;
       }
-
-      const { cents, includedFee } = roundUpCentsWithFee(totalCents, totalFee);
 
       return {
         ...agent,
         creditsPrice: {
-          cents: cents,
-          includedFee: includedFee,
+          cents: totalCents,
         },
       };
     },

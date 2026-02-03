@@ -95,7 +95,6 @@ function createMockAgent(
     blacklistedOrganizations: [],
     creditsPrice: {
       cents: BigInt(0),
-      includedFee: BigInt(0),
     },
     ...overrides,
   };

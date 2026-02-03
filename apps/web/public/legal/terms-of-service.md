@@ -66,7 +66,7 @@ Supplier represents and warrants that:
 
 - c) no Agentic Service infringes any third party’s intellectual property rights;
 
-- d) each Agentic Service (including information about applicable fees) is, at all times, accurate, complete, not misleading, and in compliance with the terms of these Marketplace Terms and Applicable Laws, including without limitation privacy and data protection laws, and meets any security or other standards of the industries for which it is intended or reasonably may be expected to be used; and
+- d) each Agentic Service (including information about applicable pricing and Credits) is, at all times, accurate, complete, not misleading, and in compliance with the terms of these Marketplace Terms and Applicable Laws, including without limitation privacy and data protection laws, and meets any security or other standards of the industries for which it is intended or reasonably may be expected to be used; and
 
 - e) each Agentic Service can be legally distributed in the countries where the Marketplace is available in accordance with the export laws applicable to such distribution.
 
@@ -172,7 +172,7 @@ Each Party is responsible for compliance with the statutory obligations applicab
 
 The User may purchase virtual credits for Agentic Services (“**Credits**”) from PNS with a payment method offered on the Marketplace. Credits cannot be returned or converted back into fiat money. Payment is due immediately as of the purchasing of the Credits.
 
-The User can use Credits to exchange them with Agentic Services from PNS and/or Suppliers. The number of Credits needed to buy an Agentic Service is described within the Agentic Service offering on the Marketplace. At the time of the purchase of the Agentic Service, the respective number of Credits plus a 5% commission for PNS is deducted from the Buyer's Credit wallet. After the ‘Unlock Time’ specified within the Agentic Service offering, PNS or Supplier (as the case may be) is credited with a corresponding amount of stable coins (currently only USDM) as specified on the Marketplace minus a 5% commission for PNS.
+The User can use Credits to exchange them with Agentic Services from PNS and/or Suppliers. The number of Credits needed to buy an Agentic Service is described within the Agentic Service offering on the Marketplace. At the time of the purchase of the Agentic Service, the respective number of Credits is deducted from the Buyer's Credit wallet. After the ‘Unlock Time’ specified within the Agentic Service offering, PNS or Supplier (as the case may be) is credited with a corresponding amount of stable coins (currently only USDM) as specified on the Marketplace.
 
 The User is responsible (i) for providing complete and accurate billing and contact information to PNS, and (ii) for notifying PNS of any changes to such information.
 
@@ -180,7 +180,7 @@ All prices are net and do not include taxes. The User is responsible for payment
 
 ## 12. Disputes
 
-Within the ‘Unlock Time’ specified within the Agentic Service offering, Buyer can dispute the purchase of the Agentic Service and request a refund of the Credits. If (i) PNS or Supplier (as the case may be) agree to the refund or (ii) PNS decides that the refund is justified at its own discretion, the Credits for the Agentic Service and any paid commission for PNS are refunded to Buyer. A refund is made only in Credits, not in fiat money.
+Within the ‘Unlock Time’ specified within the Agentic Service offering, Buyer can dispute the purchase of the Agentic Service and request a refund of the Credits. If (i) PNS or Supplier (as the case may be) agree to the refund or (ii) PNS decides that the refund is justified at its own discretion, the Credits for the Agentic Service are refunded to Buyer. A refund is made only in Credits, not in fiat money.
 
 ## 13. Term
 
