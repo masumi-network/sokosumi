@@ -374,12 +374,10 @@ export const agentService = (() => {
         totalCents += cents;
       }
 
-      const cents = totalCents;
-
       return {
         ...agent,
         creditsPrice: {
-          cents: cents,
+          cents: totalCents,
         },
       };
     },
