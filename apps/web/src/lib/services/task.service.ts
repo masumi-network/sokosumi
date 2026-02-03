@@ -1,6 +1,10 @@
 import "server-only";
 
-import { type TaskEvent, TaskStatus } from "@sokosumi/database";
+import {
+  type JobWithEvents,
+  type TaskEvent,
+  TaskStatus,
+} from "@sokosumi/database";
 
 import { type CoreApiResponse, coreClient } from "@/lib/clients/core.client";
 
@@ -14,6 +18,7 @@ export interface TaskWithEvents {
   description?: string | null;
   status: TaskStatus;
   events: TaskEvent[];
+  jobs: JobWithEvents[];
 }
 
 interface ListTasksParams {
