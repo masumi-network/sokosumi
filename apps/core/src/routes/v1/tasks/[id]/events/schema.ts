@@ -30,14 +30,13 @@ export const createTaskEventRequestSchema = z
           path: ["credits"],
         });
       }
-      return;
-    }
-
-    if (data.credits !== undefined) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Credits can only be set when completing a task",
-        path: ["credits"],
-      });
+    } else {
+      if (data.credits !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Credits can only be set when completing a task",
+          path: ["credits"],
+        });
+      }
     }
   });
