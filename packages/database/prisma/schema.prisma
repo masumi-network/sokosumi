@@ -589,9 +589,14 @@ model Job {
   jobScheduleId String?
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
 
+  // Optional link to the task this job belongs to
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
   @@index([userId])
   @@index([jobType])
   @@index([jobScheduleId])
+  @@index([taskId])
   @@index([agentId])
   @@index([agentId, createdAt])
 }
@@ -1040,6 +1045,7 @@ model Task {
   orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
   events TaskEvent[]
+  jobs   Job[]
 
   @@map("task")
 }
