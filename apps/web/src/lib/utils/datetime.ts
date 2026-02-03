@@ -10,6 +10,21 @@ const formatRelativeLocale: Record<FormatRelativeToken, string> = {
   other: "PP",
 };
 
+export function formatShortDate(date: string | Date): string {
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return "—";
+    }
+    return new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+    }).format(dateObj);
+  } catch {
+    return "—";
+  }
+}
+
 export function getDateGroupKey(dateInput: Date | number): string | null {
   return formatRelative(new Date(dateInput), new Date(), {
     locale: {

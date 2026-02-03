@@ -24,10 +24,11 @@ import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-mod
 import { Button } from "@/components/ui/button";
 import { useJobSchedule } from "@/hooks/use-job-schedule";
 import { useJobSubmission } from "@/hooks/use-job-submission";
+import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, JobInputsFormSchemaType } from "@/lib/job-input";
 import { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
 import { JobScheduleSelectionType } from "@/lib/types/job";
-import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 
 import { AcceptTermsOfService } from "./accept-terms-of-service";
 import {
@@ -111,8 +112,7 @@ function JobInputsGroupedFormStandard({
   const { creditsPrice } = agent;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
-
-  const { os, isMobile } = getOSFromUserAgent();
+  const { os, isMobile } = useOSDetection();
 
   const { open, loading, setLoading, handleClose } = useCreateJobModalContext();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Search } from "lucide-react";
+import { CalendarClock, Search, SquareCheckBig } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -23,7 +23,11 @@ interface MenuItemConfig {
   hasIndicator?: boolean;
 }
 
-export default function MenuItems() {
+interface MenuItemsProps {
+  taskManagerMenuEnabled: boolean;
+}
+
+export default function MenuItems({ taskManagerMenuEnabled }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
 
@@ -34,6 +38,16 @@ export default function MenuItems() {
       label: t("exploreAgents"),
       Icon: Search,
     },
+    ...(taskManagerMenuEnabled
+      ? [
+          {
+            key: "task-manager",
+            href: "/tasks",
+            label: t("taskManager"),
+            Icon: SquareCheckBig,
+          },
+        ]
+      : []),
     {
       key: "scheduled-agents",
       href: "/schedules",
