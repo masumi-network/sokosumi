@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTasks } from "@/app/tasks/actions";
@@ -26,6 +26,39 @@ import { KanbanBoard } from "./kanban-board";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListView } from "./task-list-view";
 import { ViewModeSwitch } from "./view-mode-switch";
+
+const hydrationStore = (() => {
+  let isHydrated = false;
+  const listeners = new Set<() => void>();
+
+  function notify() {
+    listeners.forEach((listener) => listener());
+  }
+
+  function subscribe(listener: () => void) {
+    listeners.add(listener);
+    if (!isHydrated && typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        if (isHydrated) return;
+        isHydrated = true;
+        notify();
+      });
+    }
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  function getSnapshot() {
+    return isHydrated;
+  }
+
+  function getServerSnapshot() {
+    return false;
+  }
+
+  return { subscribe, getSnapshot, getServerSnapshot };
+})();
 
 interface TasksViewProps {
   tasks: TaskWithOrchestrator[];
@@ -62,14 +95,15 @@ export function TasksView({
   const [nextCursor, setNextCursor] = useState<string | null>(
     initialNextCursor ?? null,
   );
+  const isMounted = useSyncExternalStore(
+    hydrationStore.subscribe,
+    hydrationStore.getSnapshot,
+    hydrationStore.getServerSnapshot,
+  );
   const [isPending, startTransition] = useTransition();
   const moveVersionRef = useRef(0);
-
-  useEffect(() => {
-    setItems(tasks);
-    setNextCursor(initialNextCursor ?? null);
-  }, [tasks, initialNextCursor]);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -168,26 +202,47 @@ export function TasksView({
       </div>
 
       <TabsContent value="tasks" className="flex flex-col gap-4">
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          {viewMode === "board" ? (
-            <KanbanBoard
-              tasks={items}
-              columns={columns}
-              labels={{
-                columns: labels.columns,
-                addTask: labels.addTask,
-              }}
-            />
-          ) : (
-            <TaskListView
-              tasks={items}
-              columns={columns}
-              labels={{
-                columns: labels.columns,
-              }}
-            />
-          )}
-        </DndContext>
+        {isMounted ? (
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            {viewMode === "board" ? (
+              <KanbanBoard
+                tasks={items}
+                columns={columns}
+                labels={{
+                  columns: labels.columns,
+                  addTask: labels.addTask,
+                }}
+              />
+            ) : (
+              <TaskListView
+                tasks={items}
+                columns={columns}
+                labels={{
+                  columns: labels.columns,
+                }}
+              />
+            )}
+          </DndContext>
+        ) : viewMode === "board" ? (
+          <KanbanBoard
+            tasks={items}
+            columns={columns}
+            labels={{
+              columns: labels.columns,
+              addTask: labels.addTask,
+            }}
+            isDragEnabled={false}
+          />
+        ) : (
+          <TaskListView
+            tasks={items}
+            columns={columns}
+            labels={{
+              columns: labels.columns,
+            }}
+            isDragEnabled={false}
+          />
+        )}
         {nextCursor ? (
           <div className="flex justify-center">
             <Button

@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { FileUploadButton } from "@/app/tasks/new/components/file-upload-button";
+// TODO: Add file attachment
+// import { FileUploadButton } from "@/app/tasks/new/components/file-upload-button";
 import { OrchestratorSelect } from "@/app/tasks/new/components/orchestrator-select";
 import { StatusSelect } from "@/app/tasks/new/components/status-select";
 import AgentIcon from "@/components/agents/agent-icon";
@@ -248,12 +249,13 @@ export function TaskForm({
           />
         </div>
 
-        <div className="flex w-full items-center justify-end gap-2">
+        {/* TODO: Add file attachment */}
+        {/* <div className="flex w-full items-center justify-end gap-2">
           <FileUploadButton
             label={labels.uploadFile}
             onClick={handleFileUpload}
           />
-        </div>
+        </div> */}
 
         <div className="flex w-full flex-col items-start gap-4 md:flex-row md:justify-between">
           <OrchestratorSelect

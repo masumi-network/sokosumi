@@ -14,16 +14,22 @@ interface TaskListViewProps {
   labels: {
     columns: Record<KanbanColumnId, string>;
   };
+  isDragEnabled?: boolean;
 }
 
-export function TaskListView({ tasks, columns, labels }: TaskListViewProps) {
+export function TaskListView({
+  tasks,
+  columns,
+  labels,
+  isDragEnabled = true,
+}: TaskListViewProps) {
   const orderedColumns = [...columns].reverse();
 
   return (
     <div className="bg-muted/40 rounded-xl py-4">
       {orderedColumns.map((column) => {
         const columnTasks = tasks.filter((task) => task.columnId === column.id);
-        const isDraggableColumn = isDnDColumn(column.id);
+        const isDraggableColumn = isDragEnabled && isDnDColumn(column.id);
 
         const sectionContent = (
           <TaskListSection

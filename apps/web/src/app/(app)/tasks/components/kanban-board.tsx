@@ -17,15 +17,21 @@ interface KanbanBoardProps {
     columns: Record<KanbanColumnId, string>;
     addTask: string;
   };
+  isDragEnabled?: boolean;
 }
 
-export function KanbanBoard({ tasks, columns, labels }: KanbanBoardProps) {
+export function KanbanBoard({
+  tasks,
+  columns,
+  labels,
+  isDragEnabled = true,
+}: KanbanBoardProps) {
   return (
     <div className="flex items-stretch gap-4 overflow-x-auto pb-2">
       {columns.map((column, index) => {
         const columnTasks = tasks.filter((task) => task.columnId === column.id);
         const isFirstColumn = index === 0;
-        const isDraggableColumn = isDnDColumn(column.id);
+        const isDraggableColumn = isDragEnabled && isDnDColumn(column.id);
 
         const columnContent = (
           <KanbanColumn

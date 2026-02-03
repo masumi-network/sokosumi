@@ -1,7 +1,6 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, Loader2, Paperclip } from "lucide-react";
+import { ArrowUp, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   type ReactNode,
@@ -16,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createTaskComment } from "@/lib/actions/task/action";
 import { TaskEvent } from "@/lib/types/task";
+import { formatShortDate } from "@/lib/utils/datetime";
 
 interface ActorInfo {
   name: string;
@@ -168,7 +168,8 @@ export function TaskActivitySection({
           onChange={(event) => setComment(event.target.value)}
         />
         <div className="mt-2 flex items-center justify-end gap-4">
-          <Button
+          {/* TODO: Add file attachment */}
+          {/* <Button
             variant="ghost"
             size="icon"
             className="rounded-full"
@@ -177,7 +178,7 @@ export function TaskActivitySection({
             disabled={isPending}
           >
             <Paperclip className="size-4" aria-hidden />
-          </Button>
+          </Button> */}
           <Button
             size="icon"
             variant="primary"
@@ -235,9 +236,7 @@ export function TaskActivitySection({
                     )}
                   </div>
                   <span className="text-muted-foreground text-xs">
-                    {formatDistanceToNow(new Date(event.createdAt), {
-                      addSuffix: true,
-                    })}
+                    {formatShortDate(event.createdAt)}
                   </span>
                 </div>
                 {event.comment ? (
