@@ -34,7 +34,6 @@ export const createJobRequestSchema = z.object({
 // Schema for credit information in responses
 export const jobCreditsSchema = z.object({
   credits: z.number(),
-  includedFee: z.number(),
 });
 
 // Main job response schema

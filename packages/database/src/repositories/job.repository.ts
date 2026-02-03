@@ -46,7 +46,6 @@ interface CreatePaidJobData extends CreateJobBase {
   identifierFromPurchaser: string;
   creditsPrice: {
     cents: bigint;
-    includedFee: bigint;
   };
   payByTime: Date;
   externalDisputeUnlockTime: Date;
@@ -341,7 +340,6 @@ export const jobRepository = {
             transaction: {
               create: {
                 amount: -data.creditsPrice.cents,
-                includedFee: data.creditsPrice.includedFee,
                 user: {
                   connect: {
                     id: data.userId,
@@ -405,7 +403,6 @@ export const jobRepository = {
     const amount = transaction.amount * BigInt(-1);
     const refundTransactionData: Prisma.TransactionCreateInput = {
       amount,
-      includedFee: transaction.includedFee,
       user: {
         connect: {
           id: transaction.userId,

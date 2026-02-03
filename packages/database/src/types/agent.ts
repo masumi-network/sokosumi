@@ -62,7 +62,6 @@ export type AgentWithCreditsPrice = Prisma.AgentGetPayload<{
 }> & {
   creditsPrice: {
     cents: bigint;
-    includedFee: bigint;
   };
 };
 

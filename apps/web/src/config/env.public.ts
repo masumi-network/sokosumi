@@ -23,7 +23,6 @@ const envPublicConfigSchema = z.object({
     .literal("Preprod")
     .or(z.literal("Mainnet"))
     .default("Preprod"),
-  NEXT_PUBLIC_FEE_PERCENTAGE_POINTS: z.coerce.number().min(0).default(5),
   NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD: z.coerce
     .number()
     .min(0)
@@ -50,8 +49,6 @@ function validateEnv() {
     NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
     NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
-    NEXT_PUBLIC_FEE_PERCENTAGE_POINTS:
-      process.env.NEXT_PUBLIC_FEE_PERCENTAGE_POINTS,
     NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD:
       process.env.NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
     NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG:
