@@ -40,7 +40,6 @@ export async function createTaskCompletionTransaction(
   const transaction = await input.tx.transaction.create({
     data: {
       amount: cents * BigInt(-1),
-      includedFee: 0,
       user: { connect: { id: input.userId } },
       creditConsumptions: {
         createMany: {
