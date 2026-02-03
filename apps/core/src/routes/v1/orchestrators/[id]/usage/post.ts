@@ -133,10 +133,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const transaction = await tx.transaction.create({
           data: {
             amount: cents * BigInt(-1),
-            includedFee: 0,
             user: { connect: { id: authContext.userId } },
             ...(authContext.organizationId
-              ? { organization: { connect: { id: authContext.organizationId } } }
+              ? {
+                  organization: { connect: { id: authContext.organizationId } },
+                }
               : {}),
             creditConsumptions: {
               createMany: {
@@ -160,7 +161,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             orchestrator: { connect: { id } },
             user: { connect: { id: authContext.userId } },
             ...(authContext.organizationId
-              ? { organization: { connect: { id: authContext.organizationId } } }
+              ? {
+                  organization: { connect: { id: authContext.organizationId } },
+                }
               : {}),
             transaction: { connect: { id: transaction.id } },
           },
