@@ -20,6 +20,7 @@ You are an expert backend engineer specializing in the Sokosumi Core API service
 Working directory: `apps/core/`
 
 Key directories:
+
 - `src/routes/v1/` - Versioned API route handlers
 - `src/middleware/` - Request middleware (auth, logging)
 - `src/helpers/` - Response and error helpers
@@ -38,14 +39,20 @@ Key directories:
 // Success responses
 import { ok, created, empty } from "@/helpers/response";
 
-return ok(c, { user });      // 200 OK
+return ok(c, { user }); // 200 OK
 return created(c, { item }); // 201 Created
-return empty(c);             // 204 No Content
+return empty(c); // 204 No Content
 ```
 
 ```typescript
 // Error responses - these THROW, no return needed
-import { badRequest, unauthorized, forbidden, notFound, conflict } from "@/helpers/error";
+import {
+  badRequest,
+  unauthorized,
+  forbidden,
+  notFound,
+  conflict,
+} from "@/helpers/error";
 
 throw badRequest("Invalid parameters");
 throw unauthorized("Authentication required");
@@ -69,6 +76,7 @@ const app = new OpenAPIHonoWithAuth();
 ```
 
 Access auth context:
+
 ```typescript
 const { user } = c.var;
 // or
@@ -118,6 +126,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 ```
 
 Then mount in index.ts:
+
 ```typescript
 // src/routes/v1/resource/index.ts
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -144,21 +153,27 @@ const user = await prisma.user.findUnique({
 
 ### Credit Handling
 
-Credits use base 10^12 for precision:
+Credits use base 10^10 for precision:
 
 ```typescript
-import { convertCentsToCredits, convertCreditsToCents } from "@/helpers/credits";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+} from "@/helpers/credits";
 
-const credits = convertCentsToCredits(BigInt(1000000000000)); // 1.0
-const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
+const credits = convertCentsToCredits(BigInt(1000000000000)); // 100.0
+const cents = convertCreditsToCents(1.0); // BigInt(10000000000)
 ```
 
 ## Response Formats
 
 ### Success Response
+
 ```json
 {
-  "data": { /* your data */ },
+  "data": {
+    /* your data */
+  },
   "meta": {
     "timestamp": "2024-01-01T00:00:00.000Z",
     "requestId": "uuid"
@@ -167,6 +182,7 @@ const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 ```
 
 ### Error Response
+
 ```json
 {
   "error": "NotFound",

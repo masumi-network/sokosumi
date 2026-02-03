@@ -13,9 +13,8 @@ import {
   Prisma,
 } from "@sokosumi/database";
 import {
-  convertCentsToCredits,
-  convertCreditsToCents,
   feeFromCentsBasedOnPercentagePoints,
+  roundUpCentsWithFee,
 } from "@sokosumi/database/helpers";
 import {
   agentListRepository,
@@ -27,7 +26,6 @@ import {
 } from "@sokosumi/database/repositories";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
@@ -182,25 +180,6 @@ export const agentService = (() => {
         ),
       );
     });
-  };
-
-  /**
-   * This function rounds up the total cents to show credits as integer.
-   * Adds the difference to the total fee.
-   * @param totalCents - The total cents to round up.
-   * @param totalFee - The total fee.
-   * @returns The rounded total cents with fee and the total fee which also includes difference.
-   */
-  const roundUpTotalCents = (
-    totalCents: bigint,
-    totalFee: bigint,
-  ): [bigint, bigint] => {
-    const totalCentsWithFee = totalCents + totalFee;
-    const roundedTotalCentsWithFee = convertCreditsToCents(
-      Math.ceil(convertCentsToCredits(totalCentsWithFee)),
-    );
-    const diff = roundedTotalCentsWithFee - totalCentsWithFee;
-    return [roundedTotalCentsWithFee, totalFee + diff];
   };
 
   // Public API
@@ -362,7 +341,6 @@ export const agentService = (() => {
      *
      * - Sums the cost of all fixed pricing units for the agent, using the current credit cost per unit.
      * - Applies a fee percentage (from NEXT_PUBLIC_FEE_PERCENTAGE) to the total cost.
-     * - Ensures the total fee is at least the minimum fee (MIN_FEE_CREDITS).
      * - Returns the agent object extended with a `creditsPrice` field containing the total price and included fee.
      *
      * @param agent - The agent with pricing and relations data.
@@ -398,9 +376,6 @@ export const agentService = (() => {
 
       let totalCents = BigInt(0);
       let totalFee = BigInt(0);
-      const minFeeCents = convertCreditsToCents(
-        getEnvSecrets().MIN_FEE_CREDITS,
-      );
       for (const amount of amountsParsed) {
         const creditCost = await creditCostRepository.getCreditCostByUnit(
           amount.unit,
@@ -414,24 +389,17 @@ export const agentService = (() => {
           cents,
           feePercentagePoints,
         );
-
-        // round up to the nearest integer
         totalCents += cents;
         totalFee += fee;
       }
-      if (totalFee < minFeeCents) {
-        totalFee = minFeeCents;
-      }
-      const [totalCentsWithFee, updatedTotalFee] = roundUpTotalCents(
-        totalCents,
-        totalFee,
-      );
+
+      const { cents, includedFee } = roundUpCentsWithFee(totalCents, totalFee);
 
       return {
         ...agent,
         creditsPrice: {
-          cents: totalCentsWithFee,
-          includedFee: updatedTotalFee,
+          cents: cents,
+          includedFee: includedFee,
         },
       };
     },
