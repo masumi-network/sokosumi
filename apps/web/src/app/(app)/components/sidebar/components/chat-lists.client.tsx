@@ -28,6 +28,32 @@ import { cn } from "@/lib/utils";
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
 import { useConversations } from "../../../chat/hooks/use-conversations";
 
+// Helper function to get model image URL
+function getModelImageUrl(
+  modelId: string,
+): { light: string; dark: string } | null {
+  // OpenAI models
+  if (
+    modelId === "gpt4" ||
+    modelId === "gpt4o" ||
+    modelId === "gpt-4o-mini" ||
+    modelId === "gpt-4o"
+  ) {
+    return {
+      light: "/images/models/openai-black.png",
+      dark: "/images/models/openai-white.png",
+    };
+  }
+  // Gemini models
+  if (modelId.startsWith("gemini")) {
+    return {
+      light: "/images/models/gemini.png",
+      dark: "/images/models/gemini.png",
+    };
+  }
+  return null;
+}
+
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const router = useRouter();
@@ -138,12 +164,17 @@ export default function ChatListsClient() {
                   const metadata = conversation.metadata as {
                     coworker_name?: string;
                     coworker_id?: string;
+                    model_id?: string;
+                    model_name?: string;
                   } | null;
                   const coworkerName = metadata?.coworker_name;
                   const coworkerId = metadata?.coworker_id;
+                  const modelId = metadata?.model_id;
+                  const modelName = metadata?.model_name;
                   const displayName =
                     conversation.title ||
                     coworkerName ||
+                    modelName ||
                     t("untitledChat", { default: "Untitled Chat" });
 
                   return (
@@ -166,9 +197,59 @@ export default function ChatListsClient() {
                             onClick={handleChatClick}
                           >
                             <div className="group/chat-menu flex w-full items-center justify-start gap-2 group-data-[collapsible=icon]:justify-center">
-                              <Avatar className="size-6 shrink-0">
-                                {coworkerId &&
-                                  (() => {
+                              <Avatar
+                                className={cn(
+                                  "size-6 shrink-0 overflow-hidden rounded-full",
+                                  modelId && "bg-white dark:bg-black",
+                                )}
+                              >
+                                {(() => {
+                                  // If it's a model conversation, show model logo
+                                  if (modelId) {
+                                    const modelImageUrls =
+                                      getModelImageUrl(modelId);
+                                    if (modelImageUrls) {
+                                      return (
+                                        <>
+                                          <img
+                                            src={modelImageUrls.light}
+                                            alt={modelName || "Model"}
+                                            className="block size-full object-contain p-0.5 dark:hidden"
+                                            onError={(e) => {
+                                              e.currentTarget.style.display =
+                                                "none";
+                                            }}
+                                          />
+                                          <img
+                                            src={modelImageUrls.dark}
+                                            alt={modelName || "Model"}
+                                            className="hidden size-full object-contain p-0.5 dark:block"
+                                            onError={(e) => {
+                                              e.currentTarget.style.display =
+                                                "none";
+                                            }}
+                                          />
+                                        </>
+                                      );
+                                    }
+                                    // Fallback to model name initial
+                                    return (
+                                      <AvatarFallback
+                                        className={cn(
+                                          "bg-primary text-primary-foreground text-xs",
+                                          isActive &&
+                                            "bg-primary-foreground text-primary",
+                                        )}
+                                      >
+                                        {modelName
+                                          ? modelName.charAt(0).toUpperCase()
+                                          : "M"}
+                                      </AvatarFallback>
+                                    );
+                                  }
+
+                                  // If it's a coworker conversation, show coworker image
+                                  if (coworkerId) {
                                     const imageMap: Record<string, string> = {
                                       hannah: "/images/coworkers/hannah.png",
                                       demosthenes:
@@ -190,16 +271,25 @@ export default function ChatListsClient() {
                                         }}
                                       />
                                     ) : null;
-                                  })()}
-                                <AvatarFallback
-                                  className={cn(
-                                    "bg-primary text-primary-foreground text-xs",
-                                    isActive &&
-                                      "bg-primary-foreground text-primary",
-                                  )}
-                                >
-                                  {coworkerName ? coworkerName.charAt(0) : "C"}
-                                </AvatarFallback>
+                                  }
+
+                                  // Default fallback
+                                  return (
+                                    <AvatarFallback
+                                      className={cn(
+                                        "bg-primary text-primary-foreground text-xs",
+                                        isActive &&
+                                          "bg-primary-foreground text-primary",
+                                      )}
+                                    >
+                                      {coworkerName
+                                        ? coworkerName.charAt(0)
+                                        : modelName
+                                          ? modelName.charAt(0).toUpperCase()
+                                          : "C"}
+                                    </AvatarFallback>
+                                  );
+                                })()}
                               </Avatar>
                               <span className="flex-1 truncate text-sm group-data-[collapsible=icon]:hidden">
                                 {displayName}

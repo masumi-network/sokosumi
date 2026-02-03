@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,6 +60,15 @@ export default function SelectCoworkerModal({
 
   const selectedCoworker = coworkers.find((c) => c.id === selectedCoworkerId);
 
+  // Helper function to get coworker image URL
+  const getCoworkerImageUrl = (coworkerId: string): string | null => {
+    const imageMap: Record<string, string> = {
+      hannah: "/images/coworkers/hannah.png",
+      demosthenes: "/images/coworkers/demosthenes.png",
+    };
+    return imageMap[coworkerId] || null;
+  };
+
   const handleConfirm = () => {
     if (selectedCoworker) {
       onSelect(selectedCoworker);
@@ -95,6 +104,15 @@ export default function SelectCoworkerModal({
                 <SelectItem key={coworker.id} value={coworker.id}>
                   <div className="flex items-center gap-2">
                     <Avatar className="size-6">
+                      {getCoworkerImageUrl(coworker.id) && (
+                        <AvatarImage
+                          src={getCoworkerImageUrl(coworker.id)!}
+                          alt={coworker.name}
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      )}
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                         {coworker.name.charAt(0)}
                       </AvatarFallback>

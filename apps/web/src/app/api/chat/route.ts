@@ -1,14 +1,17 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import * as Sentry from "@sentry/nextjs";
 import { convertToModelMessages, streamText } from "ai";
+import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   addConversationItem,
+  type Conversation,
   getConversationId,
 } from "@/lib/actions/conversation/core-api-actions";
 import { getSession } from "@/lib/auth/utils";
+import { buildAuthHeaders } from "@/lib/clients/core.client";
 
 const openrouter = createOpenRouter({
   apiKey: getEnvSecrets().OPENROUTER_CHAT_API_KEY || "",
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { messages, conversationId } = body;
+    const { messages, conversationId, model } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -32,6 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     let internalConversationId: string | null = null;
+    let selectedModel: string | null = model || null;
 
     // If conversationId is provided, validate ownership via Core API
     // This ensures users can only access their own conversations
@@ -49,6 +53,41 @@ export async function POST(req: NextRequest) {
 
       // Get internal conversation ID for use with Core API
       internalConversationId = validationResult.value.conversationId;
+
+      // If model is not provided in request body, fetch it from conversation metadata
+      if (!selectedModel && internalConversationId) {
+        try {
+          const coreApiUrl = getEnvSecrets().CORE_API_URL;
+          const requestHeaders = await headers();
+          const authHeaders = buildAuthHeaders(requestHeaders);
+
+          const convResponse = await fetch(
+            `${coreApiUrl}/v1/conversations/${internalConversationId}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                ...authHeaders,
+              },
+            },
+          );
+
+          if (convResponse.ok) {
+            const conversation = (await convResponse.json()) as Conversation;
+            const metadata = conversation.metadata as Record<
+              string,
+              unknown
+            > | null;
+            const modelId = metadata?.model_id as string | undefined;
+            if (modelId) {
+              selectedModel = modelId;
+            }
+          }
+        } catch (error) {
+          // If fetching conversation fails, continue with model from request or default
+          console.error("Failed to fetch conversation metadata:", error);
+        }
+      }
     }
 
     const modelMessages = await convertToModelMessages(messages);
@@ -115,8 +154,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Map model IDs to OpenRouter model identifiers
+    const getModelIdentifier = (modelId: string | null): string => {
+      if (!modelId) {
+        return "openai/gpt-4o-mini"; // Default model
+      }
+
+      const modelMap: Record<string, string> = {
+        // OpenAI models (top 2 newest)
+        gpt4o: "openai/gpt-4o",
+        "gpt-4o": "openai/gpt-4o",
+        "gpt-4o-mini": "openai/gpt-4o-mini",
+        gpt4: "openai/gpt-4",
+        "gpt-4": "openai/gpt-4",
+        // Google models (top 2 newest)
+        "gemini-2.0-flash": "google/gemini-2.0-flash-001",
+        "gemini-2.5-pro": "google/gemini-2.5-pro",
+        // MistralAI models (top 2 newest)
+        "mixtral-8x22b": "mistralai/mixtral-8x22b-instruct",
+        "mixtral-8x7b": "mistralai/mixtral-8x7b-instruct",
+      };
+
+      return modelMap[modelId] || "openai/gpt-4o-mini";
+    };
+
+    const modelIdentifier = getModelIdentifier(selectedModel);
+
     const result = await streamText({
-      model: openrouter("openai/gpt-4o-mini"),
+      model: openrouter(modelIdentifier),
       messages: modelMessages,
       maxOutputTokens: 4096,
     });

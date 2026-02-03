@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { MessageSquarePlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -35,7 +35,7 @@ export default function NewChatButton() {
                   aria-current={isActive ? "page" : undefined}
                   className="text-primary flex w-full items-center gap-2"
                 >
-                  <Plus className="size-4" aria-hidden />
+                  <MessageSquarePlus className="size-4" aria-hidden />
                   <span className="flex-1 truncate">{t("newChat")}</span>
                 </Link>
               </SheetClose>

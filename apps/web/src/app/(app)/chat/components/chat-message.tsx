@@ -14,6 +14,34 @@ interface ChatMessageProps {
   createdAt?: Date;
   coworkerName?: string;
   coworkerId?: string;
+  modelId?: string;
+  modelName?: string;
+}
+
+// Helper function to get model image URL
+function getModelImageUrl(
+  modelId: string,
+): { light: string; dark: string } | null {
+  // OpenAI models
+  if (
+    modelId === "gpt4" ||
+    modelId === "gpt4o" ||
+    modelId === "gpt-4o-mini" ||
+    modelId === "gpt-4o"
+  ) {
+    return {
+      light: "/images/models/openai-black.png",
+      dark: "/images/models/openai-white.png",
+    };
+  }
+  // Gemini models
+  if (modelId.startsWith("gemini")) {
+    return {
+      light: "/images/models/gemini.png",
+      dark: "/images/models/gemini.png",
+    };
+  }
+  return null;
 }
 
 export default function ChatMessage({
@@ -24,6 +52,8 @@ export default function ChatMessage({
   createdAt,
   coworkerName,
   coworkerId,
+  modelId,
+  modelName,
 }: ChatMessageProps) {
   const isUser = role === "user";
   const formatter = useFormatter();
@@ -36,6 +66,69 @@ export default function ChatMessage({
       })
     : null;
 
+  // Get avatar content for assistant messages
+  const getAssistantAvatar = () => {
+    // If it's a model conversation, show model logo
+    if (modelId) {
+      const modelImageUrls = getModelImageUrl(modelId);
+      if (modelImageUrls) {
+        return (
+          <>
+            <img
+              src={modelImageUrls.light}
+              alt={modelName || "Model"}
+              className="block size-full object-contain p-0.5 dark:hidden"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+            <img
+              src={modelImageUrls.dark}
+              alt={modelName || "Model"}
+              className="hidden size-full object-contain p-0.5 dark:block"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </>
+        );
+      }
+      // Fallback to model name initial
+      return (
+        <AvatarFallback className="bg-primary text-primary-foreground">
+          {modelName ? modelName.charAt(0).toUpperCase() : "M"}
+        </AvatarFallback>
+      );
+    }
+
+    // If it's a coworker conversation, show coworker image
+    if (coworkerId) {
+      const imageMap: Record<string, string> = {
+        hannah: "/images/coworkers/hannah.png",
+        demosthenes: "/images/coworkers/demosthenes.png",
+      };
+      const imageUrl = imageMap[coworkerId];
+      if (imageUrl) {
+        return (
+          <AvatarImage
+            src={imageUrl}
+            alt={coworkerName || "Coworker"}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        );
+      }
+    }
+
+    // Default fallback
+    return (
+      <AvatarFallback className="bg-primary text-primary-foreground">
+        {coworkerName ? coworkerName.charAt(0).toUpperCase() : "A"}
+      </AvatarFallback>
+    );
+  };
+
   return (
     <div
       className={cn(
@@ -44,27 +137,13 @@ export default function ChatMessage({
       )}
     >
       {!isUser && (
-        <Avatar className="size-8 shrink-0">
-          {coworkerId &&
-            (() => {
-              const imageMap: Record<string, string> = {
-                hannah: "/images/coworkers/hannah.png",
-                demosthenes: "/images/coworkers/demosthenes.png",
-              };
-              const imageUrl = imageMap[coworkerId];
-              return imageUrl ? (
-                <AvatarImage
-                  src={imageUrl}
-                  alt={coworkerName || "Coworker"}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-              ) : null;
-            })()}
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            {coworkerName ? coworkerName.charAt(0).toUpperCase() : "A"}
-          </AvatarFallback>
+        <Avatar
+          className={cn(
+            "size-8 shrink-0 overflow-hidden rounded-full",
+            modelId && "bg-white dark:bg-black",
+          )}
+        >
+          {getAssistantAvatar()}
         </Avatar>
       )}
       <div
@@ -81,10 +160,10 @@ export default function ChatMessage({
         >
           <div
             className={cn(
-              "min-h-[1.5rem] rounded-lg px-3 py-3",
+              "min-h-[1.5rem] rounded-lg px-3",
               isUser
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground",
+                ? "bg-gray-200 py-3 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
+                : "text-foreground bg-transparent pb-3",
             )}
           >
             <div

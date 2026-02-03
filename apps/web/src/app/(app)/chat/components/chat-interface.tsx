@@ -4,14 +4,13 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
   type SetStateAction,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -30,7 +29,7 @@ import { cn } from "@/lib/utils";
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
 import { useConversations } from "../hooks/use-conversations";
 import ChatMessage from "./chat-message";
-import ChatSidebar, { type ChatStatus, type Coworker } from "./chat-sidebar";
+import type { ChatStatus, Coworker } from "./chat-sidebar";
 import SelectCoworkerModal from "./select-coworker-modal";
 
 interface Chat {
@@ -42,6 +41,7 @@ interface Chat {
   lastMessageTime?: Date;
   status: ChatStatus;
   coworker?: Coworker;
+  model?: { id: string; name: string };
 }
 
 interface ChatInterfaceProps {
@@ -252,111 +252,13 @@ function WelcomeScreen({
   );
 }
 
-// Empty chat state component with suggestion buttons and centered input
-function EmptyChatState({
-  selectedChatId,
-  chats,
-  isLoading,
-  onSendMessage,
-  input,
-  onInputChange,
-  onInputSubmit,
-  attachments,
-  setAttachments,
-  messages,
-  setMessages,
-  sendMessage,
-  status,
-  stop,
-}: {
-  selectedChatId: string;
-  chats: Chat[];
-  isLoading: boolean;
-  onSendMessage: (message: string, coworker?: Coworker) => void;
-  input: string;
-  onInputChange: Dispatch<SetStateAction<string>>;
-  onInputSubmit: () => void;
-  attachments: Attachment[];
-  setAttachments: (
-    attachments: Attachment[] | ((prev: Attachment[]) => Attachment[]),
-  ) => void;
-  messages: UIMessage[];
-  setMessages: UseChatHelpers<UIMessage>["setMessages"];
-  sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
-  status: "ready" | "streaming" | "submitted" | "error";
-  stop: () => void;
-}) {
-  const t = useTranslations("App.Chat.Chat");
-  const selectedChat = chats.find((c) => c.id === selectedChatId);
-  const coworker = selectedChat?.coworker;
-  const suggestions = useMemo(
-    () => getCoworkerSuggestions(coworker?.id),
-    [coworker?.id],
-  );
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center">
-      <div className="mb-8">
-        <h2 className="mb-2 text-3xl font-semibold">
-          {coworker
-            ? t("emptyState.titleWithName", { name: coworker.name })
-            : t("emptyState.title")}
-        </h2>
-        {suggestions.length > 0 && (
-          <div className="mt-4 w-full max-w-[33.6rem]">
-            <p className="mb-3 text-sm font-medium">
-              {t("emptyState.suggestionTitle")}
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {suggestions.map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() => onSendMessage(suggestion)}
-                  disabled={isLoading}
-                  className="bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg border px-4 py-2 text-sm transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {coworker?.useCase && suggestions.length === 0 && (
-          <div className="bg-muted/50 mt-4 max-w-md rounded-lg p-4">
-            <p className="mb-2 text-sm font-medium">
-              {t("emptyState.suggestionTitle")}
-            </p>
-            <p className="text-muted-foreground text-sm">{coworker.useCase}</p>
-          </div>
-        )}
-      </div>
-      <div className="w-full max-w-[33.6rem]">
-        <MultimodalInput
-          chatId={selectedChatId}
-          input={input}
-          setInput={onInputChange as Dispatch<SetStateAction<string>>}
-          status={status}
-          stop={stop}
-          attachments={attachments}
-          setAttachments={setAttachments}
-          messages={messages}
-          setMessages={setMessages}
-          sendMessage={sendMessage}
-          onSendMessage={onSendMessage}
-          showSuggestedActions={false}
-          coworker={coworker}
-        />
-      </div>
-    </div>
-  );
-}
-
 export default function ChatInterface({
   userImageUrl,
   userName,
 }: ChatInterfaceProps) {
   const t = useTranslations("App.Chat.Chat");
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const urlConversationId = searchParams?.get("conversationId");
   const {
@@ -375,6 +277,12 @@ export default function ChatInterface({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  // Ref to track selected model for use in prepareSendMessagesRequest
+  const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
     useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -449,9 +357,11 @@ export default function ChatInterface({
       prepareSendMessagesRequest(request) {
         // Use ref for synchronous access to current chat ID
         const chatId = currentChatIdRef.current || selectedChatId;
+        const model = selectedModelRef.current;
         const body = {
           messages: request.messages,
           ...(chatId ? { conversationId: chatId } : {}),
+          ...(model ? { model: model.id } : {}),
           ...request.body,
         };
         return { body };
@@ -512,6 +422,84 @@ export default function ChatInterface({
 
   const isLoading = status === "streaming" || status === "submitted";
 
+  // Helper function to format date for day separators
+  const formatDaySeparator = useCallback((date: Date): string => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const messageDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
+
+    // Check if it's today
+    if (
+      messageDate.getTime() === today.getTime() &&
+      messageDate.getMonth() === today.getMonth() &&
+      messageDate.getFullYear() === today.getFullYear()
+    ) {
+      return "Today";
+    }
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Check if it's yesterday
+    if (
+      messageDate.getTime() === yesterday.getTime() &&
+      messageDate.getMonth() === yesterday.getMonth() &&
+      messageDate.getFullYear() === yesterday.getFullYear()
+    ) {
+      return "Yesterday";
+    }
+
+    // Check if it's within the last week
+    const daysDiff = Math.floor(
+      (today.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (daysDiff < 7) {
+      // Return day of the week
+      const daysOfWeek = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      return daysOfWeek[messageDate.getDay()];
+    }
+
+    // Format as dd/mm/yyyy
+    const day = String(messageDate.getDate()).padStart(2, "0");
+    const month = String(messageDate.getMonth() + 1).padStart(2, "0");
+    const year = messageDate.getFullYear();
+    return `${day}/${month}/${year}`;
+  }, []);
+
+  // Helper function to check if two dates are on different days
+  const isDifferentDay = useCallback(
+    (date1: Date | undefined, date2: Date | undefined): boolean => {
+      if (!date1 || !date2) return false;
+
+      const d1 = new Date(
+        date1.getFullYear(),
+        date1.getMonth(),
+        date1.getDate(),
+      );
+      const d2 = new Date(
+        date2.getFullYear(),
+        date2.getMonth(),
+        date2.getDate(),
+      );
+
+      return d1.getTime() !== d2.getTime();
+    },
+    [],
+  );
+
   // Add timestamps to messages that don't have them
   const messagesWithTimestamps = messages.map((message) => {
     if ("createdAt" in message && message.createdAt) {
@@ -525,15 +513,32 @@ export default function ChatInterface({
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messagesEndRef.current && scrollAreaRef.current) {
-      requestAnimationFrame(() => {
+    const scrollToBottom = () => {
+      if (scrollAreaRef.current) {
         const scrollContainer = scrollAreaRef.current?.querySelector(
           '[data-slot="scroll-area-viewport"]',
         ) as HTMLElement | null;
         if (scrollContainer) {
           scrollContainer.scrollTop = scrollContainer.scrollHeight;
         }
-      });
+      }
+    };
+
+    // Scroll immediately
+    scrollToBottom();
+
+    // Also use requestAnimationFrame for smooth scrolling
+    requestAnimationFrame(() => {
+      scrollToBottom();
+    });
+
+    // During streaming, continuously scroll to bottom
+    if (isLoading) {
+      const interval = setInterval(() => {
+        scrollToBottom();
+      }, 100); // Check every 100ms during streaming
+
+      return () => clearInterval(interval);
     }
   }, [messages, isLoading]);
 
@@ -630,6 +635,9 @@ export default function ChatInterface({
         const metadata = conv.metadata as Record<string, unknown> | null;
         const coworkerId = metadata?.coworker_id as string | undefined;
         const coworkerName = metadata?.coworker_name as string | undefined;
+        const modelId = metadata?.model_id as string | undefined;
+        const modelName = metadata?.model_name as string | undefined;
+        const conversationType = metadata?.type as string | undefined;
 
         // Find existing chat to preserve UI state (lastMessage, etc.)
         const existingChat = chats.find((c) => c.id === conv.id);
@@ -638,7 +646,11 @@ export default function ChatInterface({
         let coworker: Coworker | undefined;
         if (existingChat?.coworker) {
           coworker = existingChat.coworker;
-        } else if (coworkerId && coworkerName) {
+        } else if (
+          coworkerId &&
+          coworkerName &&
+          conversationType === "coworker"
+        ) {
           // For new conversations, we need to get full coworker info
           // For now, create a minimal coworker - the full info will be preserved from handleCoworkerSelected
           coworker = {
@@ -649,6 +661,30 @@ export default function ChatInterface({
           };
         }
 
+        // Load model info if this is a model conversation
+        if (
+          conversationType === "model" &&
+          modelId &&
+          modelName &&
+          conv.id === selectedChatId
+        ) {
+          setSelectedModel({ id: modelId, name: modelName });
+          selectedModelRef.current = { id: modelId, name: modelName };
+        } else if (
+          conversationType === "coworker" &&
+          conv.id === selectedChatId
+        ) {
+          // Clear model selection for coworker conversations
+          setSelectedModel(null);
+          selectedModelRef.current = null;
+        }
+
+        // Build model object from metadata
+        let model: { id: string; name: string } | undefined;
+        if (conversationType === "model" && modelId && modelName) {
+          model = { id: modelId, name: modelName };
+        }
+
         // Get lastMessage from existing chat (preserved from previous state)
         // Note: Last message will be updated when messages are loaded from DB
         const lastMessage = existingChat?.lastMessage;
@@ -656,11 +692,12 @@ export default function ChatInterface({
 
         return {
           id: conv.id,
-          title: conv.title || coworkerName || t("newChat"),
+          title: conv.title || coworkerName || modelName || t("newChat"),
           createdAt: new Date(conv.createdAt),
           updatedAt: new Date(conv.updatedAt),
           status: (existingChat?.status || "active") as ChatStatus,
           coworker,
+          model,
           lastMessage,
           lastMessageTime,
         };
@@ -780,8 +817,75 @@ export default function ChatInterface({
     setShowSelectCoworkerModal(true);
   }, []);
 
+  const handleModelSelected = useCallback(
+    async (model: { id: string; name: string } | null) => {
+      if (!model) {
+        setSelectedModel(null);
+        selectedModelRef.current = null;
+        return;
+      }
+      // Create conversation with model metadata
+      const conversation = await createNewConversation(
+        {
+          model_id: model.id,
+          model_name: model.name,
+          type: "model", // Mark as model conversation
+        },
+        model.name,
+      );
+
+      if (!conversation) {
+        return; // Error handling is done in the hook
+      }
+
+      // Initialize empty messages for new chat
+      chatMessagesRef.current.set(conversation.id, []);
+      previousChatIdRef.current = conversation.id;
+      messagesChatIdRef.current = conversation.id;
+      setMessages([]);
+      setInput("");
+
+      // Add to chats list
+      const tempChat: Chat = {
+        id: conversation.id,
+        title: conversation.title || model.name,
+        createdAt: new Date(conversation.createdAt),
+        updatedAt: new Date(conversation.updatedAt),
+        status: "active",
+        coworker: undefined, // No coworker for model conversations
+      };
+      setChats((prev) => {
+        if (prev.find((c) => c.id === conversation.id)) {
+          return prev.map((c) =>
+            c.id === conversation.id ? { ...c, ...tempChat } : c,
+          );
+        }
+        return [tempChat, ...prev];
+      });
+
+      setSelectedChatId(conversation.id);
+      currentChatIdRef.current = conversation.id;
+      selectedModelRef.current = model;
+      setSelectedModel(model);
+      isUpdatingUrlRef.current = true;
+      router.push(`/chat?conversationId=${conversation.id}`, { scroll: false });
+    },
+    [
+      createNewConversation,
+      setMessages,
+      setInput,
+      setChats,
+      setSelectedChatId,
+      router,
+    ],
+  );
+
   const handleCoworkerSelected = useCallback(
     async (coworker: Coworker) => {
+      // Clear model selection when selecting coworker
+      setSelectedModel(null);
+      selectedModelRef.current = null;
+
       // Create conversation and store in DB
       const conversation = await createNewConversation(
         {
@@ -789,6 +893,7 @@ export default function ChatInterface({
           coworker_name: coworker.name,
           coworker_description: coworker.description,
           coworker_useCase: coworker.useCase,
+          type: "coworker", // Mark as coworker conversation
         },
         coworker.name,
       );
@@ -1051,6 +1156,8 @@ export default function ChatInterface({
     if (!chatId) {
       setSelectedChatId(null);
       currentChatIdRef.current = null;
+      setSelectedModel(null);
+      selectedModelRef.current = null;
       isUpdatingUrlRef.current = true;
       router.push("/chat", { scroll: false });
       return;
@@ -1058,6 +1165,27 @@ export default function ChatInterface({
 
     // Load conversation from DB
     await selectConversation(chatId);
+
+    // Load model info from conversation metadata if it's a model conversation
+    // Use selectedConversation if available, otherwise find in conversations list
+    const conversation =
+      selectedConversation?.id === chatId
+        ? selectedConversation
+        : conversations.find((c) => c.id === chatId);
+    if (conversation) {
+      const metadata = conversation.metadata as Record<string, unknown> | null;
+      const conversationType = metadata?.type as string | undefined;
+      const modelId = metadata?.model_id as string | undefined;
+      const modelName = metadata?.model_name as string | undefined;
+
+      if (conversationType === "model" && modelId && modelName) {
+        setSelectedModel({ id: modelId, name: modelName });
+        selectedModelRef.current = { id: modelId, name: modelName };
+      } else {
+        setSelectedModel(null);
+        selectedModelRef.current = null;
+      }
+    }
 
     setSelectedChatId(chatId);
     // Update ref immediately for synchronous access in prepareSendMessagesRequest
@@ -1079,15 +1207,41 @@ export default function ChatInterface({
       return;
     }
 
-    // Only handle URL changes if they differ from current selection
-    // This prevents clearing selection when we update URL ourselves
-    if (urlConversationId && urlConversationId !== selectedChatId) {
-      handleSelectChat(urlConversationId);
+    // Only process if we're on the /chat route
+    if (pathname !== "/chat") {
+      return;
     }
-    // Don't clear selection if URL has no conversationId - user might be navigating
-    // Only clear if we explicitly want to show welcome view
+
+    // Get conversationId from URL (check both useSearchParams and window.location as fallback)
+    const currentUrlConversationId =
+      urlConversationId ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("conversationId")
+        : null);
+
+    // Handle URL changes
+    if (
+      currentUrlConversationId &&
+      currentUrlConversationId !== selectedChatId
+    ) {
+      // URL has a conversationId that differs from current selection - select it
+      handleSelectChat(currentUrlConversationId);
+    } else if (
+      !currentUrlConversationId &&
+      selectedChatId &&
+      pathname === "/chat"
+    ) {
+      // URL has no conversationId but we have a selected chat - clear selection to show welcome view
+      // Only clear if we're on /chat route to avoid clearing when navigating away
+      setSelectedChatId(null);
+      currentChatIdRef.current = null;
+      setSelectedModel(null);
+      selectedModelRef.current = null;
+      setMessages([]);
+      setInput("");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlConversationId]);
+  }, [urlConversationId, pathname, selectedChatId]);
 
   const handleDeleteChat = async (chatId: string) => {
     // Delete from DB (works for any conversation, not just the selected one)
@@ -1107,28 +1261,39 @@ export default function ChatInterface({
   };
 
   const handleSendMessage = useCallback(
-    async (messageText: string, coworker?: Coworker) => {
+    async (
+      messageText: string,
+      coworker?: Coworker,
+      model?: { id: string; name: string },
+    ) => {
       if (!messageText.trim() || isLoading) return;
 
       const trimmedMessage = messageText.trim();
 
-      // If no chat is selected, create one with the selected coworker or default to Hannah
+      // If no chat is selected, create one with the selected model or coworker
       if (!selectedChatId) {
         // Start transition animation
         setIsWelcomeTransitioning(true);
 
-        // Use provided coworker or default to Hannah
-        const selectedCoworker: Coworker = coworker || {
-          id: "hannah",
-          name: t("coworkers.hannah.name"),
-          description: t("coworkers.hannah.description"),
-          useCase: t("coworkers.hannah.useCase"),
-        };
-
         // Wait for welcome screen fade-out to complete before showing chat UI
         await new Promise((resolve) => setTimeout(resolve, 300));
 
-        await handleCoworkerSelected(selectedCoworker);
+        // Check if a model is selected, otherwise use coworker
+        if (model || selectedModel) {
+          const modelToUse = model || selectedModel;
+          if (modelToUse) {
+            await handleModelSelected(modelToUse);
+          }
+        } else {
+          // Use provided coworker or default to Hannah
+          const selectedCoworker: Coworker = coworker || {
+            id: "hannah",
+            name: t("coworkers.hannah.name"),
+            description: t("coworkers.hannah.description"),
+            useCase: t("coworkers.hannah.useCase"),
+          };
+          await handleCoworkerSelected(selectedCoworker);
+        }
 
         // Wait for state to update and ensure conversation ID is set
         const conversationId = currentChatIdRef.current;
@@ -1171,6 +1336,8 @@ export default function ChatInterface({
       setInput,
       handleCreateNewChat,
       handleCoworkerSelected,
+      handleModelSelected,
+      selectedModel,
       t,
     ],
   );
@@ -1183,31 +1350,6 @@ export default function ChatInterface({
     stop();
   };
 
-  // Show welcome screen when no chat is selected (always show by default)
-  if (!selectedChatId && !isWelcomeTransitioning) {
-    // Extract first name from userName
-    const firstName = userName?.split(" ")[0] ?? userName;
-    return (
-      <div className="flex h-full w-full overflow-hidden rounded-lg">
-        <WelcomeScreen
-          userName={firstName}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          isTransitioning={isWelcomeTransitioning}
-          input={input}
-          setInput={setInput}
-          attachments={attachments}
-          setAttachments={setAttachments}
-          messages={messages}
-          setMessages={setMessages}
-          sendMessage={sendMessage}
-          status={status}
-          stop={handleStop}
-        />
-      </div>
-    );
-  }
-
   // Hide sidebar when messages exist, show full-width chat interface
   const hasActiveChat = selectedChatId && messages.length > 0;
 
@@ -1217,88 +1359,55 @@ export default function ChatInterface({
 
   return (
     <div className="flex h-full w-full overflow-hidden rounded-lg">
-      {!hasActiveChat && (
-        <div
-          className={cn(
-            "w-96 shrink-0 transition-opacity duration-700",
-            chats.length > 0 &&
-              conversations.length > 0 &&
-              isWelcomeTransitioning
-              ? "animate-in fade-in slide-in-from-left-4 delay-200 duration-500"
-              : chats.length > 0 && conversations.length > 0
-                ? "opacity-100"
-                : "opacity-0",
-          )}
-        >
-          <ChatSidebar
-            chats={chats}
-            selectedChatId={selectedChatId}
-            onSelectChat={handleSelectChat}
-            onCreateNewChat={handleCreateNewChat}
-            onDeleteChat={handleDeleteChat}
-          />
-        </div>
-      )}
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col transition-opacity duration-700",
-          hasActiveChat
-            ? "w-full"
-            : chats.length > 0 &&
-                conversations.length > 0 &&
-                isWelcomeTransitioning
-              ? "animate-in fade-in slide-in-from-right-4 delay-300 duration-500"
-              : chats.length > 0 && conversations.length > 0
-                ? "opacity-100"
-                : "opacity-0",
-        )}
-      >
-        {selectedChatId && !hasActiveChat ? (
-          <>
-            <EmptyChatState
-              selectedChatId={selectedChatId}
-              chats={chats}
-              isLoading={status === "streaming" || status === "submitted"}
-              onSendMessage={handleSendMessage}
-              input={input}
-              onInputChange={setInput}
-              onInputSubmit={handleInputSubmit}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
-              status={status}
-              stop={handleStop}
-            />
-            <div className="bg-background/80 flex shrink-0 justify-center overflow-hidden border-t px-4 py-2 backdrop-blur-sm">
-              <div className="w-full max-w-[33.6rem]">
-                <MultimodalInput
-                  chatId={selectedChatId}
-                  input={input}
-                  setInput={setInput}
-                  status={status}
-                  stop={handleStop}
-                  attachments={attachments}
-                  setAttachments={setAttachments}
-                  messages={messages}
-                  setMessages={setMessages}
-                  sendMessage={sendMessage}
-                  onSendMessage={handleSendMessage}
-                  showSuggestedActions={false}
-                  coworker={selectedChatCoworker}
-                />
-              </div>
-            </div>
-          </>
-        ) : (
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+        {selectedChatId && hasActiveChat ? (
           <>
             {showMessagesAfterTransition && (
-              <ScrollArea ref={scrollAreaRef} className="min-h-0 flex-1">
+              <ScrollArea 
+                ref={scrollAreaRef} 
+                className="min-h-0 flex-1 overflow-hidden"
+              >
                 <div className="animate-in fade-in flex flex-col items-center pt-4 duration-500">
                   <div className="flex w-full max-w-4xl flex-col">
                     {messagesWithTimestamps.map((message, index) => {
                       const role = message.role as "user" | "assistant";
+
+                      // Get createdAt for current message
+                      let currentCreatedAt: Date | undefined;
+                      if ("createdAt" in message) {
+                        const createdAtValue = message.createdAt;
+                        if (createdAtValue instanceof Date) {
+                          currentCreatedAt = createdAtValue;
+                        } else if (
+                          typeof createdAtValue === "string" ||
+                          typeof createdAtValue === "number"
+                        ) {
+                          currentCreatedAt = new Date(createdAtValue);
+                        }
+                      }
+
+                      // Get createdAt for previous message
+                      let previousCreatedAt: Date | undefined;
+                      if (index > 0) {
+                        const prevMessage = messagesWithTimestamps[index - 1];
+                        if ("createdAt" in prevMessage) {
+                          const createdAtValue = prevMessage.createdAt;
+                          if (createdAtValue instanceof Date) {
+                            previousCreatedAt = createdAtValue;
+                          } else if (
+                            typeof createdAtValue === "string" ||
+                            typeof createdAtValue === "number"
+                          ) {
+                            previousCreatedAt = new Date(createdAtValue);
+                          }
+                        }
+                      }
+
+                      // Check if we need to show a day separator
+                      const showDaySeparator =
+                        index === 0 ||
+                        (currentCreatedAt &&
+                          isDifferentDay(currentCreatedAt, previousCreatedAt));
                       // Extract content from message - AI SDK v6 format
                       let content = "";
 
@@ -1427,24 +1536,36 @@ export default function ChatInterface({
                         (c) => c.id === selectedChatId,
                       );
                       const coworkerName = selectedChat?.coworker?.name;
+                      const modelName = selectedChat?.model?.name;
+                      const modelId = selectedChat?.model?.id;
 
                       return (
-                        <div
-                          key={message.id}
-                          className="animate-in fade-in slide-in-from-bottom-2 mb-1 duration-500"
-                          style={{
-                            animationDelay: `${index * 50}ms`,
-                          }}
-                        >
-                          <ChatMessage
-                            role={role}
-                            content={content}
-                            userImageUrl={userImageUrl}
-                            userName={userName}
-                            createdAt={createdAt}
-                            coworkerName={coworkerName}
-                            coworkerId={selectedChat?.coworker?.id}
-                          />
+                        <div key={message.id}>
+                          {showDaySeparator && currentCreatedAt && (
+                            <div className="flex items-center justify-center py-4">
+                              <span className="text-muted-foreground rounded-full bg-gray-200 px-3 py-1 text-xs font-medium dark:bg-gray-900">
+                                {formatDaySeparator(currentCreatedAt)}
+                              </span>
+                            </div>
+                          )}
+                          <div
+                            className="animate-in fade-in slide-in-from-bottom-2 mb-1 duration-500"
+                            style={{
+                              animationDelay: `${index * 50}ms`,
+                            }}
+                          >
+                            <ChatMessage
+                              role={role}
+                              content={content}
+                              userImageUrl={userImageUrl}
+                              userName={userName}
+                              createdAt={createdAt}
+                              coworkerName={coworkerName}
+                              coworkerId={selectedChat?.coworker?.id}
+                              modelName={modelName}
+                              modelId={modelId}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -1519,7 +1640,7 @@ export default function ChatInterface({
                 </div>
               </ScrollArea>
             )}
-            <div className="bg-background/80 flex shrink-0 justify-center overflow-hidden px-4 py-2 backdrop-blur-sm">
+            <div className="bg-background/80 flex shrink-0 justify-center px-4 py-2 backdrop-blur-sm">
               <div className="w-full max-w-[33.6rem]">
                 <MultimodalInput
                   chatId={selectedChatId || undefined}
@@ -1534,10 +1655,31 @@ export default function ChatInterface({
                   sendMessage={sendMessage}
                   onSendMessage={handleSendMessage}
                   showSuggestedActions={false}
+                  onSelectModel={handleModelSelected}
+                  selectedModel={selectedModel}
                 />
               </div>
             </div>
           </>
+        ) : (
+          // Show welcome screen when no chat is selected
+          !selectedChatId && (
+            <WelcomeScreen
+              userName={userName?.split(" ")[0] ?? userName}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              isTransitioning={isWelcomeTransitioning}
+              input={input}
+              setInput={setInput}
+              attachments={attachments}
+              setAttachments={setAttachments}
+              messages={messages}
+              setMessages={setMessages}
+              sendMessage={sendMessage}
+              status={status}
+              stop={handleStop}
+            />
+          )
         )}
       </div>
       <SelectCoworkerModal

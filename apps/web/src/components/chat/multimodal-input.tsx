@@ -2,7 +2,6 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type ChangeEvent,
@@ -27,8 +26,7 @@ import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
 import type { Coworker } from "../../app/(app)/chat/components/chat-sidebar";
-// eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
-import SelectCoworkerModal from "../../app/(app)/chat/components/select-coworker-modal";
+import CoworkerModelSelector from "./coworker-model-selector";
 import { ArrowUpIcon, StopIcon } from "./icons";
 import { type Attachment, PreviewAttachment } from "./preview-attachment";
 import {
@@ -50,7 +48,13 @@ interface MultimodalInputProps {
   messages: UIMessage[];
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
   sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
-  onSendMessage?: (message: string, coworker?: Coworker) => void;
+  onSendMessage?: (
+    message: string,
+    coworker?: Coworker,
+    model?: { id: string; name: string },
+  ) => void;
+  onSelectModel?: (model: { id: string; name: string } | null) => void;
+  selectedModel?: { id: string; name: string } | null;
   className?: string;
   showSuggestedActions?: boolean;
   coworker?: Coworker;
@@ -71,11 +75,12 @@ function PureMultimodalInput({
   className,
   showSuggestedActions: _showSuggestedActions,
   coworker: propCoworker,
+  onSelectModel,
+  selectedModel: propSelectedModel,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
-  const [showCoworkerModal, setShowCoworkerModal] = useState(false);
   const defaultCoworker: Coworker = {
     id: "hannah",
     name: t("coworkers.hannah.name"),
@@ -85,6 +90,10 @@ function PureMultimodalInput({
   const [selectedCoworker, setSelectedCoworker] = useState<Coworker>(
     propCoworker || defaultCoworker,
   );
+  const [selectedModel, setSelectedModel] = useState<{
+    id: string;
+    name: string;
+  } | null>(propSelectedModel || null);
 
   // Update selectedCoworker when propCoworker changes (for existing chats)
   useEffect(() => {
@@ -92,6 +101,13 @@ function PureMultimodalInput({
       setSelectedCoworker(propCoworker);
     }
   }, [propCoworker]);
+
+  // Update selectedModel when propSelectedModel changes
+  useEffect(() => {
+    if (propSelectedModel !== undefined) {
+      setSelectedModel(propSelectedModel);
+    }
+  }, [propSelectedModel]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -191,7 +207,7 @@ function PureMultimodalInput({
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
-      onSendMessage(input, selectedCoworker);
+      onSendMessage(input, selectedCoworker, selectedModel || undefined);
     } else {
       // For now, use text-only format (file attachments can be added later)
       // The sendMessage function from useChat accepts { text: string } format
@@ -360,10 +376,27 @@ function PureMultimodalInput({
     return imageMap[coworkerId] || null;
   };
 
-  const handleCoworkerSelect = useCallback((coworker: Coworker) => {
-    setSelectedCoworker(coworker);
-    setShowCoworkerModal(false);
-  }, []);
+  const handleCoworkerSelect = useCallback(
+    (coworker: Coworker) => {
+      setSelectedCoworker(coworker);
+      setSelectedModel(null); // Clear model when selecting coworker
+      onSelectModel?.(null);
+    },
+    [onSelectModel],
+  );
+
+  const handleModelSelect = useCallback(
+    (model: { id: string; name: string } | null) => {
+      if (model) {
+        setSelectedModel(model);
+        onSelectModel?.(model);
+      } else {
+        setSelectedModel(null);
+        onSelectModel?.(null);
+      }
+    },
+    [onSelectModel],
+  );
 
   return (
     <div className={cn("relative flex w-full flex-col gap-4", className)}>
@@ -504,40 +537,20 @@ function PureMultimodalInput({
         </div>
         <PromptInputToolbar className="border-top-0! border-t-0! p-0 shadow-none dark:border-0 dark:border-transparent!">
           <PromptInputTools className="gap-0 sm:gap-0.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCoworkerModal(true)}
+            <CoworkerModelSelector
+              selectedCoworker={selectedCoworker}
+              selectedModel={selectedModel}
+              onSelectCoworker={handleCoworkerSelect}
+              onSelectModel={handleModelSelect}
               disabled={!!chatId}
-              className="hover:bg-muted flex items-center gap-2 rounded-md px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Avatar className="size-5 shrink-0">
-                {getCoworkerImageUrl(selectedCoworker.id) && (
-                  <AvatarImage
-                    src={getCoworkerImageUrl(selectedCoworker.id)!}
-                    alt={selectedCoworker.name}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                )}
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  {selectedCoworker.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="hidden sm:inline">{selectedCoworker.name}</span>
-              {!chatId && (
-                <ChevronDown className="text-muted-foreground size-3 shrink-0" />
-              )}
-            </Button>
+            />
           </PromptInputTools>
 
           {status === "submitted" ? (
             <StopButton setMessages={setMessages} stop={stop} />
           ) : (
             <PromptInputSubmit
-              className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground size-8 rounded-md transition-colors duration-200"
+              className="disabled:bg-muted disabled:text-muted-foreground size-8 rounded-md bg-black text-white transition-colors duration-200 hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
               data-testid="send-button"
               disabled={!input.trim() || uploadQueue.length > 0}
               status={status}
@@ -547,11 +560,6 @@ function PureMultimodalInput({
           )}
         </PromptInputToolbar>
       </PromptInput>
-      <SelectCoworkerModal
-        open={showCoworkerModal}
-        onOpenChange={setShowCoworkerModal}
-        onSelect={handleCoworkerSelect}
-      />
     </div>
   );
 }
