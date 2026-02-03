@@ -91,15 +91,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
-        await tx.task.update({
+        const updateResult = await tx.task.updateMany({
           where: { id, status: task.status },
           data: {
             status,
             ...(transactionId && {
-              transaction: { connect: { id: transactionId } },
+              transactionId,
             }),
           },
         });
+        // Verify that exactly one row was updated to prevent race conditions
+        // If another transaction already completed the task, this will be 0
+        if (updateResult.count !== 1) {
+          throw conflict("Task status was changed by another request");
+        }
 
         return event;
       }
