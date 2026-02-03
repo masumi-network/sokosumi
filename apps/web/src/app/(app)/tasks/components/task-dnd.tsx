@@ -50,7 +50,7 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
 
 export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {
   const justDraggedRef = useRef(false);
-  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id,
@@ -62,7 +62,9 @@ export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {
         justDraggedRef.current = true;
         // Reset the flag after a brief delay to handle cases where the drop
         // occurs over a different element and the click event fires elsewhere
-        clearTimeout(resetTimeoutRef.current);
+        if (resetTimeoutRef.current) {
+          clearTimeout(resetTimeoutRef.current);
+        }
         resetTimeoutRef.current = setTimeout(() => {
           justDraggedRef.current = false;
         }, 100);
