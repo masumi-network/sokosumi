@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
@@ -19,12 +19,8 @@ export function useOSDetection(): OSInfo {
     os: "Unknown",
     isMobile: false,
   });
-  const hasMounted = useRef(false);
 
   useEffect(() => {
-    if (hasMounted.current) return;
-
-    hasMounted.current = true;
     const frame = requestAnimationFrame(() => {
       setOsInfo(getOSFromUserAgent());
     });

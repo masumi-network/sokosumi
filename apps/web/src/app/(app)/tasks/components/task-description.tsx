@@ -28,15 +28,13 @@ function renderDescription(
         </Fragment>,
       );
     }
-    const directName = agentNameById.get(match.id);
-    const resolvedId = directName !== undefined ? match.id : null;
-    const agentName = resolvedId ? agentNameById.get(resolvedId) : undefined;
+    const agentName = agentNameById.get(match.id);
 
-    if (resolvedId && agentName) {
+    if (agentName) {
       nodes.push(
         <Link
-          key={`${resolvedId}-${matchIndex}`}
-          href={`/agents/${resolvedId}/jobs`}
+          key={`${match.id}-${matchIndex}`}
+          href={`/agents/${match.id}/jobs`}
           className="text-primary font-medium hover:underline"
         >
           @{agentName}

@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadMoreTasks } from "@/app/tasks/actions";
@@ -64,6 +64,11 @@ export function TasksView({
   );
   const [isPending, startTransition] = useTransition();
   const moveVersionRef = useRef(0);
+
+  useEffect(() => {
+    setItems(tasks);
+    setNextCursor(initialNextCursor ?? null);
+  }, [tasks, initialNextCursor]);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const sensors = useSensors(
     useSensor(PointerSensor, {
