@@ -116,12 +116,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (existing) {
           const requestedCents = convertCreditsToCents(credits);
 
-          if (
-            existing.cents !== requestedCents ||
-            existing.referenceId !== (referenceId ?? null)
-          ) {
+          if (existing.cents !== requestedCents) {
             throw conflict(
               "Idempotency key already used with different parameters",
+            );
+          }
+          if (existing.referenceId !== (referenceId ?? null)) {
+            throw conflict(
+              "Idempotency key already used with different reference id",
             );
           }
 
