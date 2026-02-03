@@ -63,6 +63,7 @@ model User {
   // Tasks
   tasks      Task[]
   taskEvents TaskEvent[]
+  orchestratorUsages OrchestratorUsage[]
 
   // Credit Buckets
   creditBuckets CreditBucket[]
@@ -138,6 +139,7 @@ model Organization {
   jobSchedules      JobSchedule[]
   transactions      Transaction[]
   jobShares         JobShare[]
+  orchestratorUsages OrchestratorUsage[]
 
   stripeCustomerId String?
   invoiceEmail     String?
@@ -473,6 +475,7 @@ model Transaction {
   job         Job?  @relation("TransactionJob")
   refundedJob Job?  @relation("RefundedTransactionJob")
   task        Task? @relation("TransactionTask")
+  orchestratorUsage OrchestratorUsage? @relation("TransactionOrchestratorUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -1020,6 +1023,7 @@ model Orchestrator {
 
   tasks      Task[]
   taskEvents TaskEvent[]
+  orchestratorUsages OrchestratorUsage[]
 
   @@map("orchestrator")
 }
@@ -1076,4 +1080,31 @@ model TaskEvent {
   orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
   @@map("taskEvent")
+}
+
+model OrchestratorUsage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  idempotencyKey String
+  referenceId    String?
+
+  orchestratorId String
+  orchestrator   Orchestrator @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  cents BigInt
+
+  transactionId String      @unique
+  transaction   Transaction @relation("TransactionOrchestratorUsage", fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([orchestratorId, idempotencyKey])
+  @@index([userId, organizationId, createdAt])
+  @@map("orchestrator_usage")
 }

@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -7,12 +7,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { orchestratorSchema } from "@/schemas/task.schema";
 
-const paramsSchema = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    example: "orc_123",
-  }),
-});
+import { paramsSchema } from "./schema";
 
 const route = createRoute({
   method: "get",
