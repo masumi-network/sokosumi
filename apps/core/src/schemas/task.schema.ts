@@ -57,7 +57,12 @@ export const taskSchema = z
     description: z.string().nullish().openapi({ example: "Notes go here" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
     events: z.array(taskEventSchema).openapi({ example: [] }),
+    jobIds: z.array(z.string()).openapi({ example: [] }),
   })
   .openapi("Task");
 
 export const tasksSchema = z.array(taskSchema).openapi("Tasks");
+
+export const addTaskJobRequestSchema = z.object({
+  jobId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
+});
