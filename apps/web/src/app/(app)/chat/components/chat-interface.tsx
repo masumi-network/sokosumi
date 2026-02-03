@@ -205,19 +205,8 @@ function WelcomeScreen({
   const t = useTranslations("App.Chat.Chat");
 
   return (
-    <div
-      className={cn(
-        "relative flex h-full w-full flex-col items-center px-8 pt-8 pb-4 transition-opacity duration-500",
-        isTransitioning && "animate-out fade-out duration-500",
-      )}
-    >
-      <div
-        className={cn(
-          "flex flex-1 flex-col items-center justify-center text-center transition-all duration-500",
-          isTransitioning &&
-            "animate-out fade-out slide-out-to-top-4 duration-500",
-        )}
-      >
+    <div className="relative flex h-full w-full flex-col">
+      <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center px-8 text-center">
         <h1 className="mb-2 text-3xl font-medium">
           {userName
             ? t("welcomeScreen.greetingWithName", { name: userName })
@@ -227,26 +216,22 @@ function WelcomeScreen({
           {t("welcomeScreen.question")}
         </p>
       </div>
-      <div
-        className={cn(
-          "w-full max-w-[33.6rem] shrink-0 transition-all duration-500",
-          isTransitioning &&
-            "animate-out fade-out slide-out-to-bottom-4 duration-500",
-        )}
-      >
-        <MultimodalInput
-          input={input}
-          setInput={setInput}
-          status={status}
-          stop={stop}
-          attachments={attachments}
-          setAttachments={setAttachments}
-          messages={messages}
-          setMessages={setMessages}
-          sendMessage={sendMessage}
-          onSendMessage={onSendMessage}
-          showSuggestedActions={true}
-        />
+      <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 flex shrink-0 justify-center px-4 py-2 backdrop-blur-sm">
+        <div className="w-full max-w-[33.6rem]">
+          <MultimodalInput
+            input={input}
+            setInput={setInput}
+            status={status}
+            stop={stop}
+            attachments={attachments}
+            setAttachments={setAttachments}
+            messages={messages}
+            setMessages={setMessages}
+            sendMessage={sendMessage}
+            onSendMessage={onSendMessage}
+            showSuggestedActions={true}
+          />
+        </div>
       </div>
     </div>
   );
@@ -527,20 +512,47 @@ export default function ChatInterface({
     // Scroll immediately
     scrollToBottom();
 
-    // Also use requestAnimationFrame for smooth scrolling
+    // Use requestAnimationFrame for smooth scrolling
     requestAnimationFrame(() => {
       scrollToBottom();
     });
 
-    // During streaming, continuously scroll to bottom
+    // During streaming, continuously scroll to bottom more aggressively
     if (isLoading) {
       const interval = setInterval(() => {
         scrollToBottom();
-      }, 100); // Check every 100ms during streaming
+      }, 50); // Check every 50ms during streaming for smoother updates
 
       return () => clearInterval(interval);
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, selectedChatId]);
+
+  // Also use MutationObserver to catch DOM changes during streaming
+  useEffect(() => {
+    if (!scrollAreaRef.current || !isLoading) return;
+
+    const scrollContainer = scrollAreaRef.current?.querySelector(
+      '[data-slot="scroll-area-viewport"]',
+    ) as HTMLElement | null;
+
+    if (!scrollContainer) return;
+
+    const scrollToBottom = () => {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    };
+
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(scrollToBottom);
+    });
+
+    observer.observe(scrollContainer, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
+  }, [isLoading]);
 
   // Update chat preview when assistant messages are added/updated (during streaming)
   useEffect(() => {
@@ -1302,6 +1314,22 @@ export default function ChatInterface({
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
+        // Scroll to bottom before sending message to make room for response
+        const scrollToBottom = () => {
+          if (scrollAreaRef.current) {
+            const scrollContainer = scrollAreaRef.current?.querySelector(
+              '[data-slot="scroll-area-viewport"]',
+            ) as HTMLElement | null;
+            if (scrollContainer) {
+              scrollContainer.scrollTop = scrollContainer.scrollHeight;
+            }
+          }
+        };
+        scrollToBottom();
+        requestAnimationFrame(() => {
+          scrollToBottom();
+        });
+
         // Now send the message
         sendMessage({ text: trimmedMessage });
         setInput("");
@@ -1324,6 +1352,22 @@ export default function ChatInterface({
           ),
         );
       }
+
+      // Scroll to bottom before sending message to make room for response
+      const scrollToBottom = () => {
+        if (scrollAreaRef.current) {
+          const scrollContainer = scrollAreaRef.current?.querySelector(
+            '[data-slot="scroll-area-viewport"]',
+          ) as HTMLElement | null;
+          if (scrollContainer) {
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          }
+        }
+      };
+      scrollToBottom();
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
 
       sendMessage({ text: trimmedMessage });
       setInput("");
@@ -1358,289 +1402,290 @@ export default function ChatInterface({
   const selectedChatCoworker = selectedChat?.coworker;
 
   return (
-    <div className="flex h-full w-full overflow-hidden rounded-lg">
-      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
+      <div className="relative flex h-full min-h-0 w-full flex-col">
         {selectedChatId && hasActiveChat ? (
           <>
             {showMessagesAfterTransition && (
-              <ScrollArea 
-                ref={scrollAreaRef} 
-                className="min-h-0 flex-1 overflow-hidden"
-              >
-                <div className="animate-in fade-in flex flex-col items-center pt-4 duration-500">
-                  <div className="flex w-full max-w-4xl flex-col">
-                    {messagesWithTimestamps.map((message, index) => {
-                      const role = message.role as "user" | "assistant";
+              <div className="absolute inset-x-0 top-0 bottom-[100px] overflow-hidden">
+                <ScrollArea ref={scrollAreaRef} className="h-full w-full">
+                  <div className="flex flex-col items-center pt-4 pb-20">
+                    <div className="flex w-full max-w-4xl flex-col">
+                      {messagesWithTimestamps.map((message, index) => {
+                        const role = message.role as "user" | "assistant";
 
-                      // Get createdAt for current message
-                      let currentCreatedAt: Date | undefined;
-                      if ("createdAt" in message) {
-                        const createdAtValue = message.createdAt;
-                        if (createdAtValue instanceof Date) {
-                          currentCreatedAt = createdAtValue;
-                        } else if (
-                          typeof createdAtValue === "string" ||
-                          typeof createdAtValue === "number"
-                        ) {
-                          currentCreatedAt = new Date(createdAtValue);
-                        }
-                      }
-
-                      // Get createdAt for previous message
-                      let previousCreatedAt: Date | undefined;
-                      if (index > 0) {
-                        const prevMessage = messagesWithTimestamps[index - 1];
-                        if ("createdAt" in prevMessage) {
-                          const createdAtValue = prevMessage.createdAt;
+                        // Get createdAt for current message
+                        let currentCreatedAt: Date | undefined;
+                        if ("createdAt" in message) {
+                          const createdAtValue = message.createdAt;
                           if (createdAtValue instanceof Date) {
-                            previousCreatedAt = createdAtValue;
+                            currentCreatedAt = createdAtValue;
                           } else if (
                             typeof createdAtValue === "string" ||
                             typeof createdAtValue === "number"
                           ) {
-                            previousCreatedAt = new Date(createdAtValue);
+                            currentCreatedAt = new Date(createdAtValue);
                           }
                         }
-                      }
 
-                      // Check if we need to show a day separator
-                      const showDaySeparator =
-                        index === 0 ||
-                        (currentCreatedAt &&
-                          isDifferentDay(currentCreatedAt, previousCreatedAt));
-                      // Extract content from message - AI SDK v6 format
-                      let content = "";
+                        // Get createdAt for previous message
+                        let previousCreatedAt: Date | undefined;
+                        if (index > 0) {
+                          const prevMessage = messagesWithTimestamps[index - 1];
+                          if ("createdAt" in prevMessage) {
+                            const createdAtValue = prevMessage.createdAt;
+                            if (createdAtValue instanceof Date) {
+                              previousCreatedAt = createdAtValue;
+                            } else if (
+                              typeof createdAtValue === "string" ||
+                              typeof createdAtValue === "number"
+                            ) {
+                              previousCreatedAt = new Date(createdAtValue);
+                            }
+                          }
+                        }
 
-                      const messageAny = message as Record<string, unknown>;
+                        // Check if we need to show a day separator
+                        const showDaySeparator =
+                          index === 0 ||
+                          (currentCreatedAt &&
+                            isDifferentDay(
+                              currentCreatedAt,
+                              previousCreatedAt,
+                            ));
+                        // Extract content from message - AI SDK v6 format
+                        let content = "";
 
-                      // 1. Try content property (most common for AI SDK)
-                      if (
-                        "content" in messageAny &&
-                        messageAny.content !== undefined &&
-                        messageAny.content !== null
-                      ) {
-                        const msgContent = messageAny.content;
-                        if (typeof msgContent === "string") {
-                          content = msgContent;
-                        } else if (Array.isArray(msgContent)) {
-                          // Content is an array of parts - extract text from each part
-                          content = msgContent
+                        const messageAny = message as Record<string, unknown>;
+
+                        // 1. Try content property (most common for AI SDK)
+                        if (
+                          "content" in messageAny &&
+                          messageAny.content !== undefined &&
+                          messageAny.content !== null
+                        ) {
+                          const msgContent = messageAny.content;
+                          if (typeof msgContent === "string") {
+                            content = msgContent;
+                          } else if (Array.isArray(msgContent)) {
+                            // Content is an array of parts - extract text from each part
+                            content = msgContent
+                              .map((part: unknown) => {
+                                if (typeof part === "string") return part;
+                                if (part && typeof part === "object") {
+                                  const partObj = part as Record<
+                                    string,
+                                    unknown
+                                  >;
+                                  // Try text property first
+                                  if (
+                                    "text" in partObj &&
+                                    partObj.text !== null &&
+                                    partObj.text !== undefined
+                                  ) {
+                                    return String(partObj.text);
+                                  }
+                                  // Try type: "text" with text property
+                                  if (
+                                    "type" in partObj &&
+                                    partObj.type === "text" &&
+                                    "text" in partObj &&
+                                    partObj.text !== null &&
+                                    partObj.text !== undefined
+                                  ) {
+                                    return String(partObj.text);
+                                  }
+                                  // Try content property within part
+                                  if (
+                                    "content" in partObj &&
+                                    partObj.content !== null &&
+                                    partObj.content !== undefined
+                                  ) {
+                                    return String(partObj.content);
+                                  }
+                                }
+                                return "";
+                              })
+                              .filter(Boolean)
+                              .join("");
+                          } else if (
+                            msgContent &&
+                            typeof msgContent === "object"
+                          ) {
+                            const contentObj = msgContent as Record<
+                              string,
+                              unknown
+                            >;
+                            if ("text" in contentObj) {
+                              content = String(contentObj.text);
+                            } else {
+                              content = JSON.stringify(contentObj);
+                            }
+                          } else if (
+                            msgContent !== null &&
+                            msgContent !== undefined
+                          ) {
+                            content = String(msgContent);
+                          }
+                        }
+
+                        // 2. Try text property (for user messages sent via sendMessage)
+                        if (
+                          !content &&
+                          "text" in messageAny &&
+                          messageAny.text !== undefined &&
+                          messageAny.text !== null
+                        ) {
+                          content = String(messageAny.text);
+                        }
+
+                        // 3. Try parts array
+                        if (
+                          !content &&
+                          "parts" in messageAny &&
+                          Array.isArray(messageAny.parts)
+                        ) {
+                          content = (messageAny.parts as unknown[])
                             .map((part: unknown) => {
                               if (typeof part === "string") return part;
                               if (part && typeof part === "object") {
                                 const partObj = part as Record<string, unknown>;
-                                // Try text property first
-                                if (
-                                  "text" in partObj &&
-                                  partObj.text !== null &&
-                                  partObj.text !== undefined
-                                ) {
+                                if ("text" in partObj)
                                   return String(partObj.text);
-                                }
-                                // Try type: "text" with text property
-                                if (
-                                  "type" in partObj &&
-                                  partObj.type === "text" &&
-                                  "text" in partObj &&
-                                  partObj.text !== null &&
-                                  partObj.text !== undefined
-                                ) {
-                                  return String(partObj.text);
-                                }
-                                // Try content property within part
-                                if (
-                                  "content" in partObj &&
-                                  partObj.content !== null &&
-                                  partObj.content !== undefined
-                                ) {
-                                  return String(partObj.content);
-                                }
                               }
                               return "";
                             })
                             .filter(Boolean)
                             .join("");
-                        } else if (
-                          msgContent &&
-                          typeof msgContent === "object"
+                        }
+
+                        // 4. For user messages, check if the message itself is a string (edge case)
+                        if (
+                          !content &&
+                          role === "user" &&
+                          typeof message === "string"
                         ) {
-                          const contentObj = msgContent as Record<
-                            string,
-                            unknown
-                          >;
-                          if ("text" in contentObj) {
-                            content = String(contentObj.text);
-                          } else {
-                            content = JSON.stringify(contentObj);
+                          content = message;
+                        }
+
+                        let createdAt: Date | undefined;
+                        if ("createdAt" in message) {
+                          const createdAtValue = message.createdAt;
+                          if (createdAtValue instanceof Date) {
+                            createdAt = createdAtValue;
+                          } else if (
+                            typeof createdAtValue === "string" ||
+                            typeof createdAtValue === "number"
+                          ) {
+                            createdAt = new Date(createdAtValue);
                           }
-                        } else if (
-                          msgContent !== null &&
-                          msgContent !== undefined
-                        ) {
-                          content = String(msgContent);
                         }
-                      }
-
-                      // 2. Try text property (for user messages sent via sendMessage)
-                      if (
-                        !content &&
-                        "text" in messageAny &&
-                        messageAny.text !== undefined &&
-                        messageAny.text !== null
-                      ) {
-                        content = String(messageAny.text);
-                      }
-
-                      // 3. Try parts array
-                      if (
-                        !content &&
-                        "parts" in messageAny &&
-                        Array.isArray(messageAny.parts)
-                      ) {
-                        content = (messageAny.parts as unknown[])
-                          .map((part: unknown) => {
-                            if (typeof part === "string") return part;
-                            if (part && typeof part === "object") {
-                              const partObj = part as Record<string, unknown>;
-                              if ("text" in partObj)
-                                return String(partObj.text);
-                            }
-                            return "";
-                          })
-                          .filter(Boolean)
-                          .join("");
-                      }
-
-                      // 4. For user messages, check if the message itself is a string (edge case)
-                      if (
-                        !content &&
-                        role === "user" &&
-                        typeof message === "string"
-                      ) {
-                        content = message;
-                      }
-
-                      let createdAt: Date | undefined;
-                      if ("createdAt" in message) {
-                        const createdAtValue = message.createdAt;
-                        if (createdAtValue instanceof Date) {
-                          createdAt = createdAtValue;
-                        } else if (
-                          typeof createdAtValue === "string" ||
-                          typeof createdAtValue === "number"
-                        ) {
-                          createdAt = new Date(createdAtValue);
-                        }
-                      }
-                      const selectedChat = chats.find(
-                        (c) => c.id === selectedChatId,
-                      );
-                      const coworkerName = selectedChat?.coworker?.name;
-                      const modelName = selectedChat?.model?.name;
-                      const modelId = selectedChat?.model?.id;
-
-                      return (
-                        <div key={message.id}>
-                          {showDaySeparator && currentCreatedAt && (
-                            <div className="flex items-center justify-center py-4">
-                              <span className="text-muted-foreground rounded-full bg-gray-200 px-3 py-1 text-xs font-medium dark:bg-gray-900">
-                                {formatDaySeparator(currentCreatedAt)}
-                              </span>
-                            </div>
-                          )}
-                          <div
-                            className="animate-in fade-in slide-in-from-bottom-2 mb-1 duration-500"
-                            style={{
-                              animationDelay: `${index * 50}ms`,
-                            }}
-                          >
-                            <ChatMessage
-                              role={role}
-                              content={content}
-                              userImageUrl={userImageUrl}
-                              userName={userName}
-                              createdAt={createdAt}
-                              coworkerName={coworkerName}
-                              coworkerId={selectedChat?.coworker?.id}
-                              modelName={modelName}
-                              modelId={modelId}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {isLoading &&
-                      (() => {
-                        // Check if the last message is an assistant message being streamed
-                        // If it is, we're already rendering it, so hide the loading indicator
-                        const lastMessage =
-                          messagesWithTimestamps[
-                            messagesWithTimestamps.length - 1
-                          ];
-
-                        if (lastMessage && lastMessage.role === "assistant") {
-                          // The last message is an assistant message, so it's being streamed
-                          // Hide the loading indicator
-                          return null;
-                        }
+                        const selectedChat = chats.find(
+                          (c) => c.id === selectedChatId,
+                        );
+                        const coworkerName = selectedChat?.coworker?.name;
+                        const modelName = selectedChat?.model?.name;
+                        const modelId = selectedChat?.model?.id;
 
                         return (
-                          <div className="flex gap-3 px-4 py-0">
-                            <Avatar className="size-8 shrink-0">
-                              {(() => {
-                                const selectedChat = chats.find(
-                                  (c) => c.id === selectedChatId,
-                                );
-                                const coworkerId = selectedChat?.coworker?.id;
-                                const imageMap: Record<string, string> = {
-                                  hannah: "/images/coworkers/hannah.png",
-                                  demosthenes:
-                                    "/images/coworkers/demosthenes.png",
-                                };
-                                const imageUrl = coworkerId
-                                  ? imageMap[coworkerId]
-                                  : null;
-                                return imageUrl ? (
-                                  <AvatarImage
-                                    src={imageUrl}
-                                    alt={
-                                      selectedChat?.coworker?.name || "Coworker"
-                                    }
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = "none";
-                                    }}
-                                  />
-                                ) : null;
-                              })()}
-                              <AvatarFallback className="bg-primary text-primary-foreground">
+                          <div key={message.id}>
+                            {showDaySeparator && currentCreatedAt && (
+                              <div className="flex items-center justify-center py-4">
+                                <span className="text-muted-foreground rounded-full bg-gray-200 px-3 py-1 text-xs font-medium dark:bg-gray-900">
+                                  {formatDaySeparator(currentCreatedAt)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="mb-1">
+                              <ChatMessage
+                                role={role}
+                                content={content}
+                                userImageUrl={userImageUrl}
+                                userName={userName}
+                                createdAt={createdAt}
+                                coworkerName={coworkerName}
+                                coworkerId={selectedChat?.coworker?.id}
+                                modelName={modelName}
+                                modelId={modelId}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {isLoading &&
+                        (() => {
+                          // Check if the last message is an assistant message being streamed
+                          // If it is, we're already rendering it, so hide the loading indicator
+                          const lastMessage =
+                            messagesWithTimestamps[
+                              messagesWithTimestamps.length - 1
+                            ];
+
+                          if (lastMessage && lastMessage.role === "assistant") {
+                            // The last message is an assistant message, so it's being streamed
+                            // Hide the loading indicator
+                            return null;
+                          }
+
+                          return (
+                            <div className="flex gap-3 px-4 py-0">
+                              <Avatar className="size-8 shrink-0">
                                 {(() => {
                                   const selectedChat = chats.find(
                                     (c) => c.id === selectedChatId,
                                   );
-                                  return selectedChat?.coworker?.name
-                                    ? selectedChat.coworker.name
-                                        .charAt(0)
-                                        .toUpperCase()
-                                    : "A";
+                                  const coworkerId = selectedChat?.coworker?.id;
+                                  const imageMap: Record<string, string> = {
+                                    hannah: "/images/coworkers/hannah.png",
+                                    demosthenes:
+                                      "/images/coworkers/demosthenes.png",
+                                  };
+                                  const imageUrl = coworkerId
+                                    ? imageMap[coworkerId]
+                                    : null;
+                                  return imageUrl ? (
+                                    <AvatarImage
+                                      src={imageUrl}
+                                      alt={
+                                        selectedChat?.coworker?.name ||
+                                        "Coworker"
+                                      }
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = "none";
+                                      }}
+                                    />
+                                  ) : null;
                                 })()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex items-center">
-                              <div className="flex gap-1">
-                                <div className="bg-muted h-2 w-2 animate-pulse rounded-full" />
-                                <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-75" />
-                                <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-150" />
+                                <AvatarFallback className="bg-primary text-primary-foreground">
+                                  {(() => {
+                                    const selectedChat = chats.find(
+                                      (c) => c.id === selectedChatId,
+                                    );
+                                    return selectedChat?.coworker?.name
+                                      ? selectedChat.coworker.name
+                                          .charAt(0)
+                                          .toUpperCase()
+                                      : "A";
+                                  })()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex items-center">
+                                <div className="flex gap-1">
+                                  <div className="bg-muted h-2 w-2 animate-pulse rounded-full" />
+                                  <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-75" />
+                                  <div className="bg-muted h-2 w-2 animate-pulse rounded-full delay-150" />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })()}
-                    <div ref={messagesEndRef} />
+                          );
+                        })()}
+                      <div ref={messagesEndRef} />
+                    </div>
                   </div>
-                </div>
-              </ScrollArea>
+                </ScrollArea>
+              </div>
             )}
-            <div className="bg-background/80 flex shrink-0 justify-center px-4 py-2 backdrop-blur-sm">
+            <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 flex shrink-0 justify-center px-4 py-2 backdrop-blur-sm">
               <div className="w-full max-w-[33.6rem]">
                 <MultimodalInput
                   chatId={selectedChatId || undefined}
