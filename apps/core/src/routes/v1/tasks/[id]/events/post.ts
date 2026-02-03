@@ -2,13 +2,16 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
 import { requireTaskAccess } from "@/helpers/access-control";
-import { unprocessableEntity } from "@/helpers/error";
+import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { validateStatusTransition } from "@/helpers/task";
+import { createTaskCompletionTransaction } from "@/helpers/task-credits";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskEventSchema } from "@/schemas/task.schema";
+
+import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -16,22 +19,6 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
-
-export const createTaskEventRequestSchema = z
-  .object({
-    status: z
-      .enum(TaskStatus)
-      .optional()
-      .openapi({ example: TaskStatus.RUNNING }),
-    comment: z
-      .string()
-      .optional()
-      .openapi({ example: "Task Event is running" }),
-  })
-  .refine((data) => data.status !== undefined || data.comment !== undefined, {
-    message: "At least one of status or comment is required",
-    path: ["status", "comment"],
-  });
 
 const route = createRoute({
   method: "post",
@@ -54,6 +41,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -66,7 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const event = await prisma.$transaction(async (tx) => {
       const task = await requireTaskAccess(authContext, id, tx);
-      const { status, comment } = body;
+      const { status, comment, credits } = body;
 
       const isStatusEvent = status !== undefined;
       const isCommentOnlyEvent = !isStatusEvent && comment !== undefined;
@@ -74,6 +62,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Handle status event (status can include optional comment)
       if (isStatusEvent) {
         validateStatusTransition(authContext, task.status, status);
+
+        let transactionId: string | null = null;
+        if (status === TaskStatus.COMPLETED) {
+          if (task.transactionId) {
+            throw conflict("Task already charged");
+          }
+          if (credits === undefined) {
+            throw unprocessableEntity(
+              "Credits are required when completing a task",
+            );
+          }
+          transactionId = await createTaskCompletionTransaction({
+            userId: task.userId,
+            credits,
+            tx,
+          });
+        }
 
         // Create the status event (with optional comment)
         const event = await tx.taskEvent.create({
@@ -90,6 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           where: { id, status: task.status },
           data: {
             status,
+            ...(transactionId && { transactionId }),
           },
         });
 
