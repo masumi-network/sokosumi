@@ -25,38 +25,3 @@ export function convertCentsToCredits(cents: bigint): number {
 export function convertCreditsToCents(credits: number): bigint {
   return BigInt(new Decimal(credits).mul(CREDITS_BASE).toFixed(0).toString());
 }
-
-/**
- * Calculates the fee from cents based on percentage points.
- * @param cents - Credit amount in cents
- * @param percentagePoints - Fee percentage points default to 5%
- * @returns Fee in cents (rounded up to the nearest integer)
- */
-export function feeFromCentsBasedOnPercentagePoints(
-  cents: bigint,
-  percentagePoints: number = 5,
-): bigint {
-  const multiplier = percentagePoints / 100;
-  return BigInt(
-    new Decimal(cents.toString()).mul(multiplier).toFixed(0).toString(),
-  );
-}
-
-/**
- * This function rounds up the total cents to show credits as integer.
- * Adds the difference to the total fee.
- * @param totalCents - The total cents to round up.
- * @param totalFee - The total fee.
- * @returns The rounded total cents with fee and the total fee which also includes difference.
- */
-export function roundUpCentsWithFee(
-  cents: bigint,
-  fee: bigint,
-): { cents: bigint; includedFee: bigint } {
-  const centsWithFee = cents + fee;
-  const roundedCentsWithFee = convertCreditsToCents(
-    Math.ceil(convertCentsToCredits(centsWithFee)),
-  );
-  const diff = roundedCentsWithFee - centsWithFee;
-  return { cents: roundedCentsWithFee, includedFee: fee + diff };
-}

@@ -6,7 +6,6 @@ export type JobType = "FREE" | "PAID" | "DEMO";
 
 export type JobCredits = {
   credits: number;
-  includedFee: number;
 };
 
 export type JobResponse = {

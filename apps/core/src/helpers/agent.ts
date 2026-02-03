@@ -5,12 +5,8 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import {
-  feeFromCentsBasedOnPercentagePoints,
-  roundUpCentsWithFee,
-} from "@sokosumi/database/helpers";
 
-import { CREDIT, TIME } from "@/config/constants";
+import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { type RatingMetrics } from "@/schemas/agent.schema";
@@ -152,7 +148,6 @@ export const buildAgentAccessWhereClause = (
 
 export interface AgentCost {
   cents: bigint;
-  includedFee: bigint;
 }
 
 /**
@@ -192,7 +187,6 @@ const calculateAgentCost = (
       }));
 
       let totalCents = BigInt(0);
-      let totalFee = BigInt(0);
       for (const amount of pricing) {
         const creditCost = creditCosts.find(
           (creditCost) => creditCost.unit === amount.unit,
@@ -203,18 +197,13 @@ const calculateAgentCost = (
           );
         }
         const cents = amount.amount * creditCost.centsPerUnit;
-        const fee = feeFromCentsBasedOnPercentagePoints(
-          cents,
-          CREDIT.FEE_PERCENTAGE_POINTS,
-        );
         totalCents += cents;
-        totalFee += fee;
       }
 
-      return roundUpCentsWithFee(totalCents, totalFee);
+      return { cents: totalCents };
     }
     case PricingType.FREE: {
-      return { cents: BigInt(0), includedFee: BigInt(0) };
+      return { cents: BigInt(0) };
     }
     case PricingType.UNKNOWN: {
       throw unprocessableEntity("Agent has invalid or unknown pricing");

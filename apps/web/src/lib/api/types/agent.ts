@@ -5,8 +5,7 @@ export type AgentTag = {
 };
 
 export type AgentPrice = {
-  credits: number; // Total credits including fee
-  includedFee: number; // Fee credits included
+  credits: number; // Total credits
 };
 
 export type AgentResponse = {

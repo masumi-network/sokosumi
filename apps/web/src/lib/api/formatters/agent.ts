@@ -22,7 +22,6 @@ export function formatAgentResponse(
     isShown: agent.isShown,
     price: {
       credits: convertCentsToCredits(agent.creditsPrice.cents),
-      includedFee: convertCentsToCredits(agent.creditsPrice.includedFee),
     },
     tags: agent.tags.map((tag) => ({
       name: tag.name,
