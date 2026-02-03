@@ -49,6 +49,7 @@
       "**/src/app/**/route.ts": "${dirname}/route.ts",
       "**/src/app/**/layout.tsx": "${dirname}/layout.tsx",
     },
+    "npm.packageManager": "pnpm",
   },
   "extensions": {
     "recommendations": [
