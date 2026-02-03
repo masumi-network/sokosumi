@@ -22,7 +22,7 @@ export async function createTaskCompletionTransaction(
 
   const cents = convertCreditsToCents(input.credits);
 
-  let consumptions: Consumption[] | undefined;
+  let consumptions: Consumption[];
   try {
     consumptions = await creditBucketRepository.prepareConsumption(
       input.userId,
@@ -30,11 +30,11 @@ export async function createTaskCompletionTransaction(
       cents,
       input.tx,
     );
-  } catch {
-    consumptions = undefined;
-  }
-  if (consumptions === undefined) {
-    throw badRequest("Insufficient balance");
+  } catch (error) {
+    if (error instanceof Error) {
+      throw badRequest(error.message);
+    }
+    throw error;
   }
 
   const transaction = await input.tx.transaction.create({
