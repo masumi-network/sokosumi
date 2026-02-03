@@ -4,6 +4,8 @@ import mountDeleteTask from "./[id]/delete.js";
 import mountGetTaskEvents from "./[id]/events/get.js";
 import mountPostTaskEvents from "./[id]/events/post.js";
 import mountGetTaskById from "./[id]/get.js";
+import mountGetTaskJobs from "./[id]/jobs/get.js";
+import mountPostTaskJob from "./[id]/jobs/post.js";
 import mountPatchTask from "./[id]/patch.js";
 import mountGetTasks from "./get.js";
 import mountPostTask from "./post.js";
@@ -17,5 +19,7 @@ mountPatchTask(app);
 mountDeleteTask(app);
 mountGetTaskEvents(app);
 mountPostTaskEvents(app);
+mountGetTaskJobs(app);
+mountPostTaskJob(app);
 
 export default app;
