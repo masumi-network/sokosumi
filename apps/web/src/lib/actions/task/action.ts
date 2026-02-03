@@ -62,7 +62,7 @@ export const createTask = withAuthContext<
     const task = await taskService.createTask({
       name,
       description: trimmedDescription,
-      orchestratorId: orchestratorId?.trim() ? orchestratorId : null,
+      orchestratorId: orchestratorId ? orchestratorId : null,
     });
 
     if (status === TaskStatus.READY) {
