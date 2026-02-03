@@ -1,6 +1,6 @@
 import { type CreditBucket, Prisma } from "../generated/prisma/client.js";
 
-interface Consumption {
+export interface Consumption {
   bucketId: string;
   amount: bigint;
 }

@@ -4,7 +4,10 @@ import {
   feeFromCentsBasedOnPercentagePoints,
   roundUpCentsWithFee,
 } from "@sokosumi/database/helpers";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
+import {
+  type Consumption,
+  creditBucketRepository,
+} from "@sokosumi/database/repositories";
 
 import { CREDIT } from "@/config/constants";
 
@@ -25,14 +28,20 @@ export async function createTaskCompletionTransaction(
 
   const cents = convertCreditsToCents(input.credits);
 
-  await ensureCreditBalance(input.userId, cents, input.tx);
-
-  const consumptions = await creditBucketRepository.prepareConsumption(
-    input.userId,
-    null,
-    cents,
-    input.tx,
-  );
+  let consumptions: Consumption[] | undefined;
+  try {
+    consumptions = await creditBucketRepository.prepareConsumption(
+      input.userId,
+      null,
+      cents,
+      input.tx,
+    );
+  } catch {
+    consumptions = undefined;
+  }
+  if (consumptions === undefined) {
+    throw badRequest("Insufficient balance");
+  }
 
   const fee = feeFromCentsBasedOnPercentagePoints(
     cents,
@@ -60,20 +69,4 @@ export async function createTaskCompletionTransaction(
   });
 
   return transaction.id;
-}
-
-async function ensureCreditBalance(
-  userId: string,
-  cents: bigint,
-  tx: Prisma.TransactionClient,
-): Promise<void> {
-  if (cents <= 0n) {
-    return;
-  }
-
-  const balance = await creditBucketRepository.getBalance(userId, null, tx);
-
-  if (balance < cents) {
-    throw badRequest("Insufficient balance");
-  }
 }
