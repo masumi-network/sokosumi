@@ -61,8 +61,9 @@ export function validateStatusTransition(
 
 export function mapTask(task: TaskWithIncludes) {
   const jobIds = task.jobs.map((j) => j.id);
-  const tx = task.transaction as { amount: bigint } | undefined;
-  const credits = tx ? Math.abs(convertCentsToCredits(tx.amount)) : undefined;
+  const credits = task.transaction
+    ? Math.abs(convertCentsToCredits(task.transaction.amount))
+    : undefined;
   return {
     id: task.id,
     createdAt: task.createdAt,
