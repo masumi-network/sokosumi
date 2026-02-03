@@ -11,7 +11,7 @@ export const createTaskEventRequestSchema = z
       .string()
       .optional()
       .openapi({ example: "Task Event is running" }),
-    credits: z.number().min(0).finite().optional().openapi({ example: 5 }),
+    credits: z.number().min(0).optional().openapi({ example: 5 }),
   })
   .superRefine((data, ctx) => {
     if (data.status === undefined && data.comment === undefined) {
