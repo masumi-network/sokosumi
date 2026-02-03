@@ -52,10 +52,11 @@ export const taskSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     userId: z.string().openapi({ example: "user_123" }),
-    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+    orchestratorId: z.string().nullable().openapi({ example: "orc_123" }),
     name: z.string().openapi({ example: "Review onboarding" }),
-    description: z.string().nullish().openapi({ example: "Notes go here" }),
+    description: z.string().nullable().openapi({ example: "Notes go here" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+    credits: z.number().openapi({ example: 5 }),
     events: z.array(taskEventSchema).openapi({ example: [] }),
     jobIds: z.array(z.string()).openapi({ example: [] }),
   })
