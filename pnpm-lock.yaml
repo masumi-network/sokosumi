@@ -45,8 +45,8 @@ importers:
         specifier: 1.19.9
         version: 1.19.9(hono@4.11.7)
       '@hono/zod-openapi':
-        specifier: 1.2.0
-        version: 1.2.0(hono@4.11.7)(zod@4.3.6)
+        specifier: 1.2.1
+        version: 1.2.1(hono@4.11.7)(zod@4.3.6)
       '@openrouter/ai-sdk-provider':
         specifier: 2.1.1
         version: 2.1.1(ai@6.0.48(zod@4.3.6))(zod@4.3.6)
@@ -1167,8 +1167,8 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@hono/zod-openapi@1.2.0':
-    resolution: {integrity: sha512-KDfHqv/Wy4elVseZXgokbHxeWuqBL+AZfqsOMpEihBMUsk/fJ+bLIi3Sf70JFVpt1Ihui8RasYrInozt7ZBDIA==}
+  '@hono/zod-openapi@1.2.1':
+    resolution: {integrity: sha512-aZza4V8wkqpdHBWFNPiCeWd0cGOXbYuQW9AyezHs/jwQm5p67GkUyXwfthAooAwnG7thTpvOJkThZpCoY6us8w==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       hono: '>=4.3.6'
@@ -9424,7 +9424,7 @@ snapshots:
     dependencies:
       hono: 4.11.7
 
-  '@hono/zod-openapi@1.2.0(hono@4.11.7)(zod@4.3.6)':
+  '@hono/zod-openapi@1.2.1(hono@4.11.7)(zod@4.3.6)':
     dependencies:
       '@asteasolutions/zod-to-openapi': 8.4.0(zod@4.3.6)
       '@hono/zod-validator': 0.7.6(hono@4.11.7)(zod@4.3.6)
