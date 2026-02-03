@@ -471,8 +471,8 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job         Job? @relation("TransactionJob")
-  refundedJob Job? @relation("RefundedTransactionJob")
+  job         Job?  @relation("TransactionJob")
+  refundedJob Job?  @relation("RefundedTransactionJob")
   task        Task? @relation("TransactionTask")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
