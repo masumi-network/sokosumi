@@ -11,6 +11,10 @@ export const createTaskEventRequestSchema = z
       .string()
       .optional()
       .openapi({ example: "Task Event is running" }),
+    authenticationUrl: z
+      .httpUrl()
+      .optional()
+      .openapi({ example: "https://example.com/oauth/authorize" }),
     credits: z.number().min(0).optional().openapi({ example: 5 }),
   })
   .superRefine((data, ctx) => {
@@ -38,5 +42,28 @@ export const createTaskEventRequestSchema = z
           path: ["credits"],
         });
       }
+    }
+
+    if (data.status === TaskStatus.AUTHENTICATION_REQUIRED) {
+      if (!data.authenticationUrl) {
+        ctx.addIssue({
+          code: "custom",
+          message: "authenticationUrl is required for authentication requests",
+          path: ["authenticationUrl"],
+        });
+      } else if (!data.authenticationUrl.startsWith("https://")) {
+        ctx.addIssue({
+          code: "custom",
+          message: "authenticationUrl must be an https URL",
+          path: ["authenticationUrl"],
+        });
+      }
+    } else if (data.authenticationUrl !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "authenticationUrl is only allowed for authentication requests",
+        path: ["authenticationUrl"],
+      });
     }
   });

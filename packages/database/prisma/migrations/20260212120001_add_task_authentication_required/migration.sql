@@ -1,0 +1,3 @@
+ALTER TYPE "TaskStatus" ADD VALUE 'AUTHENTICATION_REQUIRED';
+
+ALTER TABLE "taskEvent" ADD COLUMN "authenticationUrl" TEXT;

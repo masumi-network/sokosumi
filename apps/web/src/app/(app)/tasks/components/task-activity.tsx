@@ -128,6 +128,7 @@ export function TaskActivitySection({
       taskId,
       status: null,
       comment: trimmedComment,
+      authenticationUrl: null,
       userId: currentUser?.id ?? null,
       orchestratorId: null,
     };

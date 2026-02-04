@@ -55,7 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const event = await prisma.$transaction(
       async (tx) => {
         const task = await requireTaskAccess(authContext, id, tx);
-        const { status, comment, credits } = body;
+        const { status, comment, credits, authenticationUrl } = body;
 
         const isStatusEvent = status !== undefined;
         const isCommentOnlyEvent = !isStatusEvent && comment !== undefined;
@@ -68,6 +68,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (status === TaskStatus.COMPLETED) {
             if (task.transactionId) {
               throw conflict("Task already charged");
+            }
+            if (credits === undefined) {
+              throw unprocessableEntity(
+                "Credits are required when completing a task",
+              );
             }
             transactionId = await createTaskCompletionTransaction({
               userId: task.userId,
@@ -82,6 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               taskId: id,
               status,
               comment,
+              authenticationUrl: authenticationUrl ?? null,
               userId: authContext.orchestratorId ? null : authContext.userId,
               orchestratorId: authContext.orchestratorId ?? null,
             },
