@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import Markdown from "@/components/markdown";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const LINE_CLAMP_CLASSES: Record<number, string> = {
@@ -96,7 +96,7 @@ export function ExpandableMarkdown({
               <Button
                 type="button"
                 variant="outline"
-                className="pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold bg-background/80 backdrop-blur hover:bg-background"
+                className="bg-background/80 hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
               >
                 {expandLabel}
               </Button>

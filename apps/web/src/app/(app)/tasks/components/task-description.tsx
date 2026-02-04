@@ -30,6 +30,7 @@ export function TaskDescription({
         className="prose-sm text-muted-foreground leading-6"
         expandLabel={expandLabel}
         collapseLabel={collapseLabel}
+        fadeClassName="to-transparent"
       />
     </div>
   );
