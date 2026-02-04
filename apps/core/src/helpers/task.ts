@@ -12,7 +12,10 @@ function getAllowedTransitions(
   if (authContext.orchestratorId) {
     return {
       [TaskStatus.DRAFT]: [],
-      [TaskStatus.READY]: [TaskStatus.RUNNING],
+      [TaskStatus.READY]: [
+        TaskStatus.RUNNING,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+      ],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.AUTHENTICATION_REQUIRED,
