@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
 
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -13,6 +14,11 @@ export const createTaskRequestSchema = z.object({
   name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
   description: z.string().nullish().openapi({ example: "Notes go here" }),
   orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+  status: z
+    .enum([TaskStatus.DRAFT, TaskStatus.READY])
+    .optional()
+    .default(TaskStatus.DRAFT)
+    .openapi({ example: TaskStatus.READY }),
 });
 
 const route = createRoute({
@@ -54,6 +60,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: body.name,
           description: body.description ?? null,
           orchestratorId: body.orchestratorId ?? null,
+          status: body.status,
+          events: {
+            create: {
+              status: body.status,
+              comment: null,
+              userId: authContext.userId,
+              orchestratorId: null,
+            },
+          },
         },
         include: taskInclude,
       });

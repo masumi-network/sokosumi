@@ -63,13 +63,8 @@ export const createTask = withAuthContext<
       name,
       description: trimmedDescription,
       orchestratorId: orchestratorId ? orchestratorId : null,
+      status,
     });
-
-    if (status === TaskStatus.READY) {
-      await taskService.createTaskEvent(task.id, {
-        status: TaskStatus.READY,
-      });
-    }
 
     revalidatePath("/tasks");
     return { taskId: task.id };

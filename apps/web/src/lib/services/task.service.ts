@@ -32,6 +32,7 @@ interface CreateTaskInput {
   name: string;
   description: string | null;
   orchestratorId: string | null;
+  status?: TaskStatus;
 }
 
 interface PatchTaskInput {
