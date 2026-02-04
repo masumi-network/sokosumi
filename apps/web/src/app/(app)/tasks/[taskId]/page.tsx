@@ -98,6 +98,7 @@ export default async function TaskDetailPage({
         attachLabel={t("attach")}
         submitLabel={t("submit")}
         events={task.events}
+        agentNameById={agentNameById}
         userById={userById}
         orchestratorById={orchestratorById}
         currentUser={currentUser}
