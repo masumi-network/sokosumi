@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
 
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -54,6 +55,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: body.name,
           description: body.description ?? null,
           orchestratorId: body.orchestratorId ?? null,
+          status: TaskStatus.DRAFT,
+          events: {
+            create: {
+              status: TaskStatus.DRAFT,
+              comment: null,
+              userId: authContext.userId,
+              orchestratorId: body.orchestratorId ?? null,
+            },
+          },
         },
         include: taskInclude,
       });
