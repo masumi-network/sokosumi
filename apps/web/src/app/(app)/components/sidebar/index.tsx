@@ -24,9 +24,13 @@ import NewChatButton from "./components/new-chat-button";
 
 interface SidebarProps {
   session: Session;
+  taskManagerMenuEnabled: boolean;
 }
 
-export default function Sidebar({ session }: SidebarProps) {
+export default function Sidebar({
+  session,
+  taskManagerMenuEnabled,
+}: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-[64px] border-b">
@@ -51,7 +55,7 @@ export default function Sidebar({ session }: SidebarProps) {
         {/* Top Section: Chats */}
         <NewChatButton />
         {/* Bottom Section: Agents */}
-        <MenuItems />
+        <MenuItems taskManagerMenuEnabled={taskManagerMenuEnabled} />
         {/* Divider */}
         <SidebarSeparator className="mx-0" />
         <ChatListsClient />

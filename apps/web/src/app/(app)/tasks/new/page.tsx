@@ -1,0 +1,51 @@
+import { getTranslations } from "next-intl/server";
+
+import { TaskForm } from "@/app/tasks/components/task-form";
+import { agentService } from "@/lib/services";
+import { orchestratorService } from "@/lib/services/orchestrator.service";
+
+export const metadata = {
+  title: "New Task",
+};
+
+export default async function NewTaskPage() {
+  const t = await getTranslations("App.Tasks.NewTask");
+  const [agents, orchestrators] = await Promise.all([
+    agentService.getAvailableAgents(),
+    orchestratorService.listOrchestrators(),
+  ]);
+  const orchestratorOptions = orchestrators.map((orchestrator) => ({
+    id: orchestrator.id,
+    name: orchestrator.name,
+    image: orchestrator.image ?? "",
+  }));
+
+  return (
+    <div className="w-full max-w-3xl space-y-6 px-2">
+      <TaskForm
+        mode="create"
+        labels={{
+          pageTitle: t("title"),
+          details: t("details"),
+          detailsDescription: t("detailsDescription"),
+          name: t("name"),
+          namePlaceholder: t("namePlaceholder"),
+          descriptionPlaceholder: t("descriptionPlaceholder"),
+          orchestrator: t("orchestrator"),
+          orchestratorDescription: t("orchestratorDescription"),
+          status: t("status"),
+          statusDescription: t("statusDescription"),
+          statusDraft: t("statusDraft"),
+          statusReady: t("statusReady"),
+          back: t("back"),
+          uploadFile: t("uploadFile"),
+          submit: t("saveDraft"),
+          cancel: t("cancel"),
+          ctrl: t("ctrl"),
+        }}
+        orchestratorOptions={orchestratorOptions}
+        agents={agents}
+      />
+    </div>
+  );
+}

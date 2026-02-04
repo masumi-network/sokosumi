@@ -6,6 +6,15 @@ export const taskInclude = {
       createdAt: "asc",
     },
   },
+  jobs: {
+    select: { id: true },
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
+  transaction: {
+    select: { amount: true },
+  },
 } as const;
 
 export type TaskWithIncludes = Prisma.TaskGetPayload<{

@@ -70,11 +70,3 @@ export const STORAGE = {
   /** Default directory for image uploads */
   IMAGES_UPLOAD_DIR: "images",
 } as const;
-
-export const CREDIT = {
-  /** Fee percentage points (5%) */
-  FEE_PERCENTAGE_POINTS: 5,
-
-  /** Minimum fee credits (1 credit) */
-  MIN_FEE_CREDITS: 1,
-} as const;

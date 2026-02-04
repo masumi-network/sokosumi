@@ -1,4 +1,5 @@
 import { TaskStatus } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWithIncludes } from "@/types/task";
@@ -59,6 +60,10 @@ export function validateStatusTransition(
 }
 
 export function mapTask(task: TaskWithIncludes) {
+  const jobIds = task.jobs.map((j) => j.id);
+  const credits = task.transaction
+    ? Math.abs(convertCentsToCredits(task.transaction.amount))
+    : 0;
   return {
     id: task.id,
     createdAt: task.createdAt,
@@ -69,5 +74,7 @@ export function mapTask(task: TaskWithIncludes) {
     description: task.description ?? null,
     status: task.status,
     events: task.events,
+    jobIds,
+    credits,
   };
 }

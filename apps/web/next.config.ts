@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "20mb",
     },
+    optimizePackageImports: ["lucide-react"],
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
 };

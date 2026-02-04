@@ -46,18 +46,12 @@ export function formatJobResponse(job: JobWithSokosumiStatus): JobResponse {
     price: job.transaction
       ? {
           credits: Math.abs(convertCentsToCredits(job.transaction.amount)),
-          includedFee: Math.abs(
-            convertCentsToCredits(job.transaction.includedFee),
-          ),
         }
       : null,
     refund: job.refundedTransaction
       ? {
           credits: Math.abs(
             convertCentsToCredits(job.refundedTransaction.amount),
-          ),
-          includedFee: Math.abs(
-            convertCentsToCredits(job.refundedTransaction.includedFee),
           ),
         }
       : null,

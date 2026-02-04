@@ -13,19 +13,19 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import { JobInputsFlatForm } from "@/components/create-job-modal/job-input/job-inputs-flat-form";
 import { FormFooterProps } from "@/components/create-job-modal/job-input/job-inputs-form-builder";
 import { JobInputsGroupedForm } from "@/components/create-job-modal/job-input/job-inputs-grouped-form";
 import { Button } from "@/components/ui/button";
 import { useInputs } from "@/hooks/use-inputs";
+import { useOSDetection } from "@/hooks/use-os-detection";
 import { useProvideJobInput } from "@/hooks/use-provide-job-input";
 import {
   flattenInputs,
   normalizeAndValidateInputSchema,
 } from "@/lib/schemas/job";
-import { getOSFromUserAgent, type OS } from "@/lib/utils";
 
 interface JobDetailsProvideInputProps {
   job: JobWithSokosumiStatus;
@@ -91,20 +91,7 @@ function ProvideInputForm({
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
   const tForm = useTranslations("Library.JobInput.Form");
   const inputs = useInputs({ inputSchema });
-
-  // Defer OS detection to client-side to avoid hydration mismatch
-  const [{ os, isMobile }, setOsInfo] = useState<{
-    os: OS;
-    isMobile: boolean;
-  }>({ os: "Unknown", isMobile: false });
-
-  useEffect(() => {
-    // Use requestAnimationFrame to defer the state update after hydration
-    const frame = requestAnimationFrame(() => {
-      setOsInfo(getOSFromUserAgent());
-    });
-    return () => cancelAnimationFrame(frame);
-  }, []);
+  const { os, isMobile } = useOSDetection();
 
   const { handleSubmit, isSubmitting } = useProvideJobInput({
     jobId,

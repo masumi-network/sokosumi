@@ -5,13 +5,8 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import {
-  convertCentsToCredits,
-  convertCreditsToCents,
-  feeFromCentsBasedOnPercentagePoints,
-} from "@sokosumi/database/helpers";
 
-import { CREDIT, TIME } from "@/config/constants";
+import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { type RatingMetrics } from "@/schemas/agent.schema";
@@ -153,7 +148,6 @@ export const buildAgentAccessWhereClause = (
 
 export interface AgentCost {
   cents: bigint;
-  includedFee: bigint;
 }
 
 /**
@@ -166,21 +160,18 @@ export const getAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
 ): AgentCost => {
-  const minFeeCents = convertCreditsToCents(CREDIT.MIN_FEE_CREDITS);
-  return calculateAgentCost(agent, creditCosts, minFeeCents);
+  return calculateAgentCost(agent, creditCosts);
 };
 
 /**
  * This function calculates the cost for an agent.
  * @param agent - The agent with pricing.
  * @param creditCosts - The credit costs.
- * @param minFeeCents - The minimum fee cents.
  * @returns The cost for the agent.
  */
 const calculateAgentCost = (
   agent: AgentWithPricing,
   creditCosts: CreditCost[],
-  minFeeCents: bigint,
 ): AgentCost => {
   switch (agent.pricing.pricingType) {
     case PricingType.FIXED: {
@@ -196,7 +187,6 @@ const calculateAgentCost = (
       }));
 
       let totalCents = BigInt(0);
-      let totalFee = BigInt(0);
       for (const amount of pricing) {
         const creditCost = creditCosts.find(
           (creditCost) => creditCost.unit === amount.unit,
@@ -207,49 +197,18 @@ const calculateAgentCost = (
           );
         }
         const cents = amount.amount * creditCost.centsPerUnit;
-        const fee = feeFromCentsBasedOnPercentagePoints(
-          cents,
-          CREDIT.FEE_PERCENTAGE_POINTS,
-        );
         totalCents += cents;
-        totalFee += fee;
       }
 
-      if (totalFee < minFeeCents) {
-        totalFee = minFeeCents;
-      }
-      const { cents: totalCentsWithFee } = roundUpCentsWithFee(
-        totalCents,
-        totalFee,
-      );
-      return { cents: totalCentsWithFee, includedFee: totalFee };
+      return { cents: totalCents };
     }
     case PricingType.FREE: {
-      return { cents: BigInt(0), includedFee: BigInt(0) };
+      return { cents: BigInt(0) };
     }
     case PricingType.UNKNOWN: {
       throw unprocessableEntity("Agent has invalid or unknown pricing");
     }
   }
-};
-
-/**
- * This function rounds up the total cents to show credits as integer.
- * Adds the difference to the total fee.
- * @param totalCents - The total cents to round up.
- * @param totalFee - The total fee.
- * @returns The rounded total cents with fee and the total fee which also includes difference.
- */
-const roundUpCentsWithFee = (
-  cents: bigint,
-  fee: bigint,
-): { cents: bigint; fee: bigint } => {
-  const centsWithFee = cents + fee;
-  const roundedCentsWithFee = convertCreditsToCents(
-    Math.ceil(convertCentsToCredits(centsWithFee)),
-  );
-  const diff = roundedCentsWithFee - centsWithFee;
-  return { cents: roundedCentsWithFee, fee: fee + diff };
 };
 
 /**

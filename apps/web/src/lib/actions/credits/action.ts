@@ -1,12 +1,11 @@
 "use server";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import {
   ActionError,
   CommonErrorCode,
   CreditsErrorCode,
 } from "@/lib/actions/errors";
-import { stripeClient } from "@/lib/clients/stripe.client";
+import { Price } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
@@ -18,14 +17,14 @@ import {
 
 interface PurchaseCreditsParameters extends AuthenticatedRequest {
   organizationId: string | null;
-  priceId: string;
+  price: Price;
   credits: number;
 }
 
 export const purchaseCredits = withAuthContext<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, priceId, credits, authContext }) => {
+>(async ({ organizationId, price, credits, authContext }) => {
   const { userId } = authContext;
 
   // Validate input
@@ -48,9 +47,6 @@ export const purchaseCredits = withAuthContext<
   }
 
   try {
-    // Fetch price server-side
-    const price = await stripeClient.getPriceById(priceId);
-
     // Create the checkout session
     const { url } = await stripeService.createStripeCheckoutSession(
       userId,
@@ -70,14 +66,14 @@ export const purchaseCredits = withAuthContext<
 
 interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   organizationId: string | null;
-  priceId?: string;
+  price: Price;
   couponId: string;
 }
 
 export const claimFreeCreditsWithCoupon = withAuthContext<
   ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, priceId, couponId, authContext }) => {
+>(async ({ organizationId, price, couponId, authContext }) => {
   const { userId } = authContext;
 
   // If organizationId is provided, verify user is a member
@@ -92,14 +88,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
   }
 
   try {
-    // Fetch price server-side (default to product price if not provided)
-    const price = priceId
-      ? await stripeClient.getPriceById(priceId)
-      : await stripeClient.getPriceByProductId(
-          getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID,
-        );
     const credits = await stripeService.getCreditsForCoupon(couponId);
-
     const promo = await stripeService.claimCoupon(couponId, 1, {
       userId,
       organizationId,

@@ -4,7 +4,6 @@ import * as z from "zod";
 // Schema for credit price with BigInt to string conversion
 export const creditsPriceSchema = z.object({
   credits: z.number(),
-  includedFee: z.number(),
 });
 
 // Schema for agent tag

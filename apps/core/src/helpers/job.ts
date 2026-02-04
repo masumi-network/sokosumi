@@ -95,7 +95,6 @@ export async function createJobWithPayment(
           transaction: {
             create: {
               amount: -cost.cents,
-              includedFee: cost.includedFee,
               user: { connect: { id: input.userId } },
               ...(input.organizationId && {
                 organization: { connect: { id: input.organizationId } },

@@ -241,7 +241,11 @@
       "api-docs": "API Documentation",
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Scheduled Agents",
+<<<<<<< HEAD
       "chat": "Chat"
+=======
+      "tasks": "Task Manager"
+>>>>>>> origin/main
     },
     "Jobs": {
       "StatusBadge": {
@@ -1125,6 +1129,102 @@
       "confirmDeleteDescription": "This cannot be undone. This will delete the schedule permanently.",
       "pausedReason": "Paused Reason",
       "loading": "Loading schedules..."
+    },
+    "Tasks": {
+      "Page": {
+        "title": "Task Manager",
+        "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
+      },
+      "Tabs": {
+        "tasks": "Tasks",
+        "jobs": "Jobs"
+      },
+      "Columns": {
+        "backlog": "Backlog",
+        "todo": "Todo",
+        "inProgress": "In Progress",
+        "inputRequired": "Input Required",
+        "complete": "Complete"
+      },
+      "Actions": {
+        "add": "Add",
+        "addTask": "Add Task",
+        "loadMore": "Load More"
+      },
+      "Errors": {
+        "updateStatus": "Failed to update task status"
+      },
+      "Card": {
+        "comments": "Comments",
+        "orchestrator": "Orchestrator",
+        "date": "Date"
+      },
+      "Display": {
+        "button": "Display",
+        "list": "List",
+        "board": "Board"
+      },
+      "List": {
+        "placeholder": "List view coming soon."
+      },
+      "Jobs": {
+        "placeholder": "Job view coming soon."
+      },
+      "Detail": {
+        "back": "Back to tasks",
+        "status": "Status",
+        "orchestrator": "Orchestrator",
+        "description": "Description",
+        "activity": "Activity",
+        "commentPlaceholder": "Write a comment...",
+        "attach": "Attach",
+        "submit": "Submit",
+        "actions": {
+          "edit": "Edit",
+          "delete": "Delete",
+          "confirmDelete": "Delete this task?",
+          "confirmDeleteDescription": "This cannot be undone. This will permanently delete the task.",
+          "deleteError": "Failed to delete task"
+        }
+      },
+      "NewTask": {
+        "title": "New Task",
+        "details": "Details",
+        "detailsDescription": "Briefly explain the task that needs to be done",
+        "name": "Task name",
+        "namePlaceholder": "Enter a short title",
+        "descriptionPlaceholder": "Enter task details...",
+        "orchestrator": "Orchestrator",
+        "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
+        "status": "Status",
+        "statusDescription": "Choose the initial status for this task",
+        "statusDraft": "Draft",
+        "statusReady": "Ready",
+        "back": "Back",
+        "uploadFile": "Upload File",
+        "saveDraft": "Save",
+        "cancel": "Cancel",
+        "ctrl": "Ctrl"
+      },
+      "EditTask": {
+        "title": "Edit Task",
+        "details": "Details",
+        "detailsDescription": "Update the task details before sending it",
+        "name": "Task name",
+        "namePlaceholder": "Enter a short title",
+        "descriptionPlaceholder": "Update task details...",
+        "orchestrator": "Orchestrator",
+        "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
+        "status": "Status",
+        "statusDescription": "Choose the status for this task",
+        "statusDraft": "Draft",
+        "statusReady": "Ready",
+        "back": "Back",
+        "uploadFile": "Upload File",
+        "save": "Save",
+        "cancel": "Cancel",
+        "ctrl": "Ctrl"
+      }
     },
     "Error": {
       "title": "Something went wrong",
