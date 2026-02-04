@@ -1,6 +1,14 @@
-import { AgentJobStatus, JobType, Prisma } from "@sokosumi/database";
+import * as Sentry from "@sentry/node";
+import {
+  AgentJobStatus,
+  JobType,
+  PricingType,
+  Prisma,
+} from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
+  jobPurchaseRepository,
   jobShareRepository,
 } from "@sokosumi/database/repositories";
 import {
@@ -11,18 +19,34 @@ import {
   type JobWithTransaction,
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
+import { createAgentClient } from "@sokosumi/masumi";
 import type {
   InputFieldSchemaType,
+  InputSchemaSchemaType,
+  InputSchemaType,
   StartFreeJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
+import { v4 as uuidv4 } from "uuid";
 
+import { paymentClient } from "@/clients/masumi-payment.client";
+import { openrouterClient } from "@/clients/openrouter.client";
+import {
+  buildAgentAccessWhereClause,
+  getAgentAccessContext,
+  getAgentCost,
+} from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
-import type { StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
+import {
+  flattenInputs,
+  type StartPaidJobResponseSchemaType,
+} from "@/schemas/job.schema";
+import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
-import { badRequest, forbidden, notFound } from "./error";
+import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
+import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";
 
 /**
@@ -56,6 +80,7 @@ export async function createJobWithPayment(
     inputData: Record<string, unknown>;
     inputSchema: InputFieldSchemaType[];
     name: string | null;
+    taskId?: string | null;
   },
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
@@ -78,6 +103,9 @@ export async function createJobWithPayment(
           user: { connect: { id: input.userId } },
           ...(input.organizationId && {
             organization: { connect: { id: input.organizationId } },
+          }),
+          ...(input.taskId && {
+            task: { connect: { id: input.taskId } },
           }),
           events: {
             create: {
@@ -144,6 +172,7 @@ export async function createFreeJob(
     inputData: Record<string, unknown>;
     inputSchema: InputFieldSchemaType[];
     name: string | null;
+    taskId?: string | null;
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient = prisma,
@@ -156,6 +185,9 @@ export async function createFreeJob(
       user: { connect: { id: input.userId } },
       ...(input.organizationId && {
         organization: { connect: { id: input.organizationId } },
+      }),
+      ...(input.taskId && {
+        task: { connect: { id: input.taskId } },
       }),
       events: {
         create: {
@@ -242,6 +274,180 @@ export async function shareJob(
     // Share publicly
     await jobShareRepository.upsertPublicShare(jobId, true, true, tx);
   }
+}
+
+export async function createAgentJobForUser(input: {
+  agentId: string;
+  userId: string;
+  organizationId: string | null;
+  inputData: InputSchemaType;
+  inputSchema: InputSchemaSchemaType;
+  maxCredits?: number;
+  name?: string;
+  taskId?: string | null;
+}): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+  const flatInputSchema = flattenInputs(input.inputSchema);
+  const maxCents = input.maxCredits
+    ? convertCreditsToCents(input.maxCredits)
+    : null;
+  const authContext: AuthenticationContext = {
+    userId: input.userId,
+    organizationId: input.organizationId,
+    orchestratorId: null,
+  };
+
+  const agent = await prisma.$transaction(async (tx) => {
+    const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
+      authContext,
+      tx,
+    );
+
+    const agent = await tx.agent.findFirst({
+      where: {
+        id: input.agentId,
+        ...buildAgentAccessWhereClause(
+          userOrganizationIds,
+          authContext.organizationId,
+          creditCosts,
+        ),
+      },
+      include: {
+        ...agentPricingInclude,
+      },
+    });
+
+    if (!agent) {
+      throw notFound("Agent not found");
+    }
+
+    const cost = getAgentCost(agent, creditCosts);
+
+    if (maxCents !== null && cost.cents > maxCents) {
+      throw badRequest("Credit cost exceeds maximum accepted credits");
+    }
+
+    await validateCreditBalance(
+      authContext.userId,
+      authContext.organizationId,
+      cost.cents,
+      tx,
+    );
+
+    return { ...agent, cost };
+  });
+
+  let jobName = input.name?.trim() || null;
+  if (!jobName) {
+    const generatedName = await openrouterClient.generateJobName(
+      {
+        name: agent.name,
+        description: agent.description,
+      },
+      input.inputData,
+    );
+    jobName = generatedName;
+  }
+
+  let job: JobWithEvents & JobWithTransaction & JobWithPurchase;
+  switch (agent.pricing.pricingType) {
+    case PricingType.FREE: {
+      const freeJobResult = await createAgentClient().startFreeAgentJob(
+        agent,
+        input.inputData,
+      );
+
+      if (freeJobResult.isErr()) {
+        throw unprocessableEntity(
+          `Free agent job start failed: ${freeJobResult.error}`,
+        );
+      }
+
+      job = await createFreeJob(
+        {
+          agentId: input.agentId,
+          userId: input.userId,
+          organizationId: input.organizationId,
+          inputData: input.inputData,
+          inputSchema: flatInputSchema,
+          name: jobName,
+          taskId: input.taskId,
+        },
+        freeJobResult.value,
+      );
+      break;
+    }
+    case PricingType.FIXED: {
+      const identifierFromPurchaser = uuidv4()
+        .replace(/-/g, "")
+        .substring(0, 20);
+
+      const paidJobResult = await createAgentClient().startPaidAgentJob(
+        {
+          id: agent.id,
+          name: agent.name,
+          blockchainIdentifier: agent.blockchainIdentifier,
+          apiBaseUrl: agent.apiBaseUrl,
+          overrideApiBaseUrl: agent.overrideApiBaseUrl,
+        },
+        identifierFromPurchaser,
+        input.inputData,
+      );
+
+      if (paidJobResult.isErr()) {
+        throw unprocessableEntity(
+          `Paid agent job start failed: ${paidJobResult.error}`,
+        );
+      }
+
+      job = await createJobWithPayment(
+        {
+          agentId: input.agentId,
+          userId: input.userId,
+          organizationId: input.organizationId,
+          inputData: input.inputData,
+          inputSchema: flatInputSchema,
+          name: jobName,
+          taskId: input.taskId,
+        },
+        agent.cost,
+        paidJobResult.value,
+        identifierFromPurchaser,
+      );
+
+      const createPurchaseResult = await paymentClient().createPurchase(
+        agent.blockchainIdentifier,
+        paidJobResult.value,
+        input.inputData,
+        identifierFromPurchaser,
+      );
+
+      createPurchaseResult.match(
+        (purchase) => {
+          const purchaseData = transformPurchaseToJobUpdate(purchase);
+          jobPurchaseRepository
+            .createJobPurchase(
+              {
+                jobId: job.id,
+                ...purchaseData,
+              },
+              prisma,
+            )
+            .catch((error) => {
+              Sentry.captureException(error);
+            });
+        },
+        (error) => {
+          Sentry.captureException(error);
+        },
+      );
+      break;
+    }
+    case PricingType.UNKNOWN:
+    default:
+      throw unprocessableEntity("Agent pricing type not supported");
+  }
+
+  return job;
 }
 
 /**
