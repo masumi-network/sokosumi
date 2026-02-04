@@ -56,6 +56,7 @@ export const taskSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     userId: z.string().openapi({ example: "user_123" }),
+    organizationId: z.string().nullable().openapi({ example: "org_123" }),
     orchestratorId: z.string().nullable().openapi({ example: "orc_123" }),
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullable().openapi({ example: "Notes go here" }),

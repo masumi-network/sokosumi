@@ -25,10 +25,14 @@ export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
   const cookie = requestHeaders.get("cookie");
   const apiKey = requestHeaders.get("x-api-key");
   const authorization = requestHeaders.get("authorization");
+  const organizationSlug = requestHeaders.get("x-organization-slug");
 
   if (cookie) authHeaders.cookie = cookie;
   if (apiKey) authHeaders["x-api-key"] = apiKey;
   if (authorization) authHeaders.authorization = authorization;
+  if (organizationSlug) {
+    authHeaders["x-organization-slug"] = organizationSlug;
+  }
 
   return authHeaders;
 }

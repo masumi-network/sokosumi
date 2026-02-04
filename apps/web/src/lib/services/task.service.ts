@@ -13,6 +13,7 @@ export interface TaskWithEvents {
   createdAt: string;
   updatedAt: string;
   userId: string;
+  organizationId: string | null;
   orchestratorId?: string | null;
   name: string;
   description?: string | null;

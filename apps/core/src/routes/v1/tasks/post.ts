@@ -6,7 +6,10 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
@@ -21,26 +24,28 @@ export const createTaskRequestSchema = z.object({
     .openapi({ example: TaskStatus.READY }),
 });
 
-const route = createRoute({
-  method: "post",
-  path: "/",
-  description: "Create task",
-  tags: ["Tasks"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: createTaskRequestSchema,
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/",
+    description: "Create task",
+    tags: ["Tasks"],
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: createTaskRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(taskSchema, "Create task"),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(taskSchema, "Create task"),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -57,6 +62,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return tx.task.create({
         data: {
           userId: authContext.userId,
+          organizationId: authContext.organizationId,
           name: body.name,
           description: body.description ?? null,
           orchestratorId: body.orchestratorId ?? null,
