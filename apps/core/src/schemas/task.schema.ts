@@ -26,6 +26,10 @@ export const taskEventSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     comment: z.string().nullish().openapi({ example: "Looks good." }),
+    authenticationUrl: z
+      .string()
+      .nullish()
+      .openapi({ example: "https://example.com/oauth/authorize" }),
     status: z
       .enum(TaskStatus)
       .nullish()
