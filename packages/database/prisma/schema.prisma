@@ -136,6 +136,7 @@ model Organization {
   agents            Agent[]
   blacklistedAgents Agent[]       @relation("AgentBlacklist")
   jobs              Job[]
+  tasks             Task[]
   jobSchedules      JobSchedule[]
   transactions      Transaction[]
   jobShares         JobShare[]
@@ -1036,6 +1037,9 @@ model Task {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
   name        String
   description String?
 
@@ -1050,6 +1054,9 @@ model Task {
   events TaskEvent[]
   jobs   Job[]
 
+  @@index([organizationId])
+  @@index([userId])
+  @@index([userId, organizationId])
   @@map("task")
 }
 
