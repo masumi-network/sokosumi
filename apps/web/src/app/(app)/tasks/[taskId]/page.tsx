@@ -73,6 +73,8 @@ export default async function TaskDetailPage({
             confirmDelete: t("actions.confirmDelete"),
             confirmDeleteDescription: t("actions.confirmDeleteDescription"),
             deleteError: t("actions.deleteError"),
+            markAsReady: t("actions.markAsReady"),
+            revertToDraft: t("actions.revertToDraft"),
           },
         }}
       />
@@ -89,6 +91,8 @@ export default async function TaskDetailPage({
         title={t("description")}
         description={task.description}
         agentNameById={agentNameById}
+        expandLabel={t("expand")}
+        collapseLabel={t("collapse")}
       />
 
       <TaskActivitySection
@@ -98,9 +102,12 @@ export default async function TaskDetailPage({
         attachLabel={t("attach")}
         submitLabel={t("submit")}
         events={task.events}
+        agentNameById={agentNameById}
         userById={userById}
         orchestratorById={orchestratorById}
         currentUser={currentUser}
+        expandLabel={t("expand")}
+        collapseLabel={t("collapse")}
       />
     </div>
   );

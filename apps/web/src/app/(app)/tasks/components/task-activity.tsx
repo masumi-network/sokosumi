@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { createTaskComment } from "@/lib/actions/task/action";
 import { TaskEvent } from "@/lib/types/task";
 import { formatShortDate } from "@/lib/utils/datetime";
+import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+
+import { ExpandableMarkdown } from "./expandable-markdown";
 
 interface ActorInfo {
   name: string;
@@ -29,9 +32,12 @@ interface TaskActivityProps {
   attachLabel: string;
   submitLabel: string;
   events: TaskEvent[];
+  agentNameById?: Map<string, string>;
   userById?: Record<string, ActorInfo>;
   orchestratorById?: Record<string, ActorInfo>;
   currentUser?: ({ id: string } & ActorInfo) | null;
+  expandLabel?: string;
+  collapseLabel?: string;
 }
 
 function getInitials(name: string) {
@@ -92,10 +98,14 @@ export function TaskActivitySection({
   attachLabel,
   submitLabel,
   events,
+  agentNameById,
   userById,
   orchestratorById,
   currentUser,
+  expandLabel = "Expand",
+  collapseLabel = "Show less",
 }: TaskActivityProps) {
+  const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
   const router = useRouter();
   const [comment, setComment] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -213,6 +223,12 @@ export function TaskActivitySection({
           const actorImage = actorInfo?.image ?? null;
           const action = event.comment ? "commented" : "updated status";
           const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
+          const formattedComment = event.comment
+            ? formatMentionsAsMarkdownLinks(
+                event.comment,
+                resolvedAgentNameById,
+              )
+            : null;
 
           const row = (
             <div
@@ -240,10 +256,14 @@ export function TaskActivitySection({
                     {formatShortDate(event.createdAt)}
                   </span>
                 </div>
-                {event.comment ? (
-                  <p className="text-muted-foreground text-sm">
-                    {event.comment}
-                  </p>
+                {formattedComment ? (
+                  <ExpandableMarkdown
+                    content={formattedComment}
+                    className="prose-sm text-muted-foreground"
+                    expandLabel={expandLabel}
+                    collapseLabel={collapseLabel}
+                    fadeClassName="to-transparent"
+                  />
                 ) : null}
               </div>
             </div>

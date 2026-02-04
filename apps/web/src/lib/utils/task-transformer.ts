@@ -8,6 +8,7 @@ import { TaskStatus } from "@sokosumi/database";
 import type { TaskWithEvents } from "@/lib/services/task.service";
 import type { TaskWithOrchestrator } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
+import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
 function getColumnId(status: TaskStatus): TaskWithOrchestrator["columnId"] {
   switch (status) {
@@ -99,10 +100,9 @@ export function mapTaskToTaskWithOrchestrator(
   const agents = agentIds
     .map((id) => agentsById.get(id))
     .filter((agent): agent is AgentWithCreditsPrice => Boolean(agent));
-  const descriptionPlain = replaceMentionsWithAgentNames(
-    task.description,
-    agentsById,
-  );
+  const descriptionPlain = stripMarkdownToText(
+    replaceMentionsWithAgentNames(task.description, agentsById),
+  )?.slice(0, 200);
 
   return {
     id: task.id,
