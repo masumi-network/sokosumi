@@ -10,7 +10,6 @@ import {
   useTransition,
 } from "react";
 
-import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +17,8 @@ import { createTaskComment } from "@/lib/actions/task/action";
 import { TaskEvent } from "@/lib/types/task";
 import { formatShortDate } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+
+import { ExpandableMarkdown } from "./expandable-markdown";
 
 interface ActorInfo {
   name: string;
@@ -35,6 +36,8 @@ interface TaskActivityProps {
   userById?: Record<string, ActorInfo>;
   orchestratorById?: Record<string, ActorInfo>;
   currentUser?: ({ id: string } & ActorInfo) | null;
+  expandLabel?: string;
+  collapseLabel?: string;
 }
 
 function getInitials(name: string) {
@@ -99,6 +102,8 @@ export function TaskActivitySection({
   userById,
   orchestratorById,
   currentUser,
+  expandLabel = "Expand",
+  collapseLabel = "Show less",
 }: TaskActivityProps) {
   const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
   const router = useRouter();
@@ -252,9 +257,13 @@ export function TaskActivitySection({
                   </span>
                 </div>
                 {formattedComment ? (
-                  <Markdown className="prose-sm text-muted-foreground">
-                    {formattedComment}
-                  </Markdown>
+                  <ExpandableMarkdown
+                    content={formattedComment}
+                    className="prose-sm text-muted-foreground"
+                    expandLabel={expandLabel}
+                    collapseLabel={collapseLabel}
+                    fadeClassName="to-transparent"
+                  />
                 ) : null}
               </div>
             </div>
