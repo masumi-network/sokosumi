@@ -13,37 +13,42 @@ import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
 import { orchestratorUsageSchema } from "@/schemas/orchestrator-usage.schema";
 
 import { paramsSchema } from "../schema";
 import { createOrchestratorUsageRequestSchema } from "./schema";
 
-const route = createRoute({
-  method: "post",
-  path: "/{id}/usage",
-  description: "Create orchestrator usage",
-  tags: ["Orchestrators"],
-  request: {
-    params: paramsSchema,
-    body: {
-      content: {
-        "application/json": {
-          schema: createOrchestratorUsageRequestSchema,
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/{id}/usage",
+    description: "Create orchestrator usage",
+    tags: ["Orchestrators"],
+    request: {
+      params: paramsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: createOrchestratorUsageRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(orchestratorUsageSchema, "Retrieve usage"),
-    201: jsonSuccessResponse(orchestratorUsageSchema, "Create usage"),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    409: jsonErrorResponse("Conflict"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
+    responses: {
+      200: jsonSuccessResponse(orchestratorUsageSchema, "Retrieve usage"),
+      201: jsonSuccessResponse(orchestratorUsageSchema, "Create usage"),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      409: jsonErrorResponse("Conflict"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+    },
+  }),
+);
 
 function serializeUsage(usage: {
   id: string;
