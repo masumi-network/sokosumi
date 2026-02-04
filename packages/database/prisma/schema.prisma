@@ -1057,6 +1057,7 @@ enum TaskStatus {
   DRAFT
   READY
   INPUT_REQUIRED
+  AUTHENTICATION_REQUIRED
   RUNNING
   COMPLETED
   FAILED
@@ -1072,6 +1073,7 @@ model TaskEvent {
 
   status  TaskStatus?
   comment String?
+  authenticationUrl String?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
