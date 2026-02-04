@@ -53,7 +53,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const taskStatus = body.status ?? TaskStatus.DRAFT;
     const task = await prisma.$transaction(async (tx) => {
       return tx.task.create({
         data: {
@@ -61,10 +60,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: body.name,
           description: body.description ?? null,
           orchestratorId: body.orchestratorId ?? null,
-          status: taskStatus,
+          status: body.status,
           events: {
             create: {
-              status: taskStatus,
+              status: body.status,
               comment: null,
               userId: authContext.userId,
               orchestratorId: body.orchestratorId ?? null,
