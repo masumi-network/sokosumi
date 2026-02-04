@@ -39,3 +39,37 @@ export function parseMentions(text: string): MentionMatch[] {
 
   return matches;
 }
+
+export function formatMentionsAsMarkdownLinks(
+  text: string,
+  agentNameById: Map<string, string>,
+): string {
+  const matches = parseMentions(text);
+  if (matches.length === 0) {
+    return text;
+  }
+
+  let formatted = "";
+  let lastIndex = 0;
+
+  for (const match of matches) {
+    if (match.start > lastIndex) {
+      formatted += text.slice(lastIndex, match.start);
+    }
+
+    const agentName = agentNameById.get(match.id);
+    if (agentName) {
+      formatted += `[@${agentName}](/agents/${match.id}/jobs)`;
+    } else {
+      formatted += text.slice(match.start, match.end);
+    }
+
+    lastIndex = match.end;
+  }
+
+  if (lastIndex < text.length) {
+    formatted += text.slice(lastIndex);
+  }
+
+  return formatted;
+}
