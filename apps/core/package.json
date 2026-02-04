@@ -12,8 +12,8 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsup",
+    "dev": "vite-node --watch src/index.ts",
+    "build": "vite build",
     "start": "node dist/index.js",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
     "lint": "eslint src",
@@ -48,10 +48,9 @@
   },
   "devDependencies": {
     "@types/node": "24.10.9",
-    "tsup": "8.5.1",
-    "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vite": "7.3.1",
+    "vite-node": "5.3.0",
     "vite-tsconfig-paths": "6.0.5",
     "vitest": "4.0.18"
   }

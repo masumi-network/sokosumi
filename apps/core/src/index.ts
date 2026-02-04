@@ -93,7 +93,7 @@ app.get("/llms.txt", async (c) => {
 // Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
 mainApp.route("/", app);
 
-serve(
+const server = serve(
   {
     fetch: mainApp.fetch,
     port: getEnv().PORT,
@@ -102,3 +102,18 @@ serve(
     console.log(`Server is running on http://localhost:${info.port}`);
   },
 );
+
+const hot = (
+  import.meta as ImportMeta & {
+    hot?: {
+      dispose: (callback: () => void) => void;
+      on: (event: string, callback: () => void) => void;
+    };
+  }
+).hot;
+
+if (hot) {
+  const closeServer = () => server.close();
+  hot.on("vite:beforeFullReload", closeServer);
+  hot.dispose(closeServer);
+}
