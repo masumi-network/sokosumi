@@ -14,6 +14,11 @@ export const createTaskRequestSchema = z.object({
   name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
   description: z.string().nullish().openapi({ example: "Notes go here" }),
   orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+  status: z
+    .enum([TaskStatus.DRAFT, TaskStatus.READY])
+    .optional()
+    .default(TaskStatus.DRAFT)
+    .openapi({ example: TaskStatus.READY }),
 });
 
 const route = createRoute({
@@ -48,6 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    const taskStatus = body.status ?? TaskStatus.DRAFT;
     const task = await prisma.$transaction(async (tx) => {
       return tx.task.create({
         data: {
@@ -55,10 +61,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: body.name,
           description: body.description ?? null,
           orchestratorId: body.orchestratorId ?? null,
-          status: TaskStatus.DRAFT,
+          status: taskStatus,
           events: {
             create: {
-              status: TaskStatus.DRAFT,
+              status: taskStatus,
               comment: null,
               userId: authContext.userId,
               orchestratorId: body.orchestratorId ?? null,
