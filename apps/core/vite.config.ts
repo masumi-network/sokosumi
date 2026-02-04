@@ -1,20 +1,18 @@
+import build from "@hono/vite-build/node";
+import devServer from "@hono/vite-dev-server";
+import nodeAdapter from "@hono/vite-dev-server/node";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
-  build: {
-    ssr: "src/index.ts",
-    outDir: "dist",
-    sourcemap: true,
-    target: "node24",
-    minify: "esbuild",
-    rollupOptions: {
-      output: {
-        format: "esm",
-        entryFileNames: "index.js",
-        inlineDynamicImports: true,
-      },
-    },
-  },
+  plugins: [
+    tsconfigPaths(),
+    devServer({
+      entry: "src/index.ts",
+      adapter: nodeAdapter,
+    }),
+    build({
+      entry: "src/index.ts",
+    }),
+  ],
 });

@@ -12,7 +12,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "vite-node --watch src/index.ts",
+    "dev": "vite",
     "build": "vite build",
     "start": "node dist/index.js",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
@@ -47,10 +47,11 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
+    "@hono/vite-build": "1.9.2",
+    "@hono/vite-dev-server": "0.25.0",
     "@types/node": "24.10.9",
     "typescript": "5.9.3",
     "vite": "7.3.1",
-    "vite-node": "5.3.0",
     "vite-tsconfig-paths": "6.0.5",
     "vitest": "4.0.18"
   }

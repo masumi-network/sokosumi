@@ -1,6 +1,5 @@
 import "dotenv/config";
 
-import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
@@ -9,7 +8,7 @@ import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
-import { getEnv, validateEnv } from "@/config/env";
+import { validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initI18next } from "@/lib/i18next";
@@ -93,27 +92,4 @@ app.get("/llms.txt", async (c) => {
 // Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
 mainApp.route("/", app);
 
-const server = serve(
-  {
-    fetch: mainApp.fetch,
-    port: getEnv().PORT,
-  },
-  (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
-  },
-);
-
-const hot = (
-  import.meta as ImportMeta & {
-    hot?: {
-      dispose: (callback: () => void) => void;
-      on: (event: string, callback: () => void) => void;
-    };
-  }
-).hot;
-
-if (hot) {
-  const closeServer = () => server.close();
-  hot.on("vite:beforeFullReload", closeServer);
-  hot.dispose(closeServer);
-}
+export default mainApp;
