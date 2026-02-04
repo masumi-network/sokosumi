@@ -66,7 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               status: body.status,
               comment: null,
               userId: authContext.userId,
-              orchestratorId: body.orchestratorId ?? null,
+              orchestratorId: null,
             },
           },
         },
