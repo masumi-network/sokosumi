@@ -283,7 +283,6 @@ export async function createAgentJobForUser(
     name?: string;
     taskId?: string | null;
   },
-  tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
   const flatInputSchema = flattenInputs(input.inputSchema);
   const maxCents = input.maxCredits
@@ -297,10 +296,9 @@ export async function createAgentJobForUser(
 
   const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
     authContext,
-    tx,
   );
 
-  const agentRecord = await tx.agent.findFirst({
+  const agentRecord = await prisma.agent.findFirst({
     where: {
       id: input.agentId,
       ...buildAgentAccessWhereClause(
@@ -328,13 +326,16 @@ export async function createAgentJobForUser(
     authContext.userId,
     authContext.organizationId,
     cost.cents,
-    tx,
   );
 
   const agent = { ...agentRecord, cost };
 
   let jobName = input.name?.trim() || null;
-  if (!jobName) {
+  const resolveJobName = async (): Promise<string | null> => {
+    if (jobName) {
+      return jobName;
+    }
+
     const generatedName = await openrouterClient.generateJobName(
       {
         name: agent.name,
@@ -343,7 +344,8 @@ export async function createAgentJobForUser(
       input.inputData,
     );
     jobName = generatedName;
-  }
+    return jobName;
+  };
 
   const jobInput = {
     agentId: input.agentId,
@@ -351,7 +353,6 @@ export async function createAgentJobForUser(
     organizationId: input.organizationId,
     inputData: input.inputData,
     inputSchema: flatInputSchema,
-    name: jobName,
     taskId: input.taskId,
   };
 
@@ -369,7 +370,19 @@ export async function createAgentJobForUser(
         );
       }
 
-      job = await createFreeJob(jobInput, freeJobResult.value, tx);
+      await resolveJobName();
+
+      job = await prisma.$transaction(
+        async (tx) =>
+          await createFreeJob(
+            { ...jobInput, name: jobName },
+            freeJobResult.value,
+            tx,
+          ),
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
       break;
     }
     case PricingType.FIXED: {
@@ -395,12 +408,20 @@ export async function createAgentJobForUser(
         );
       }
 
-      job = await createPaidJob(
-        jobInput,
-        agent.cost,
-        paidJobResult.value,
-        identifierFromPurchaser,
-        tx,
+      await resolveJobName();
+
+      job = await prisma.$transaction(
+        async (tx) =>
+          await createPaidJob(
+            { ...jobInput, name: jobName },
+            agent.cost,
+            paidJobResult.value,
+            identifierFromPurchaser,
+            tx,
+          ),
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
       );
 
       const createPurchaseResult = await paymentClient().createPurchase(
@@ -420,7 +441,7 @@ export async function createAgentJobForUser(
               jobId: job.id,
               ...purchaseData,
             },
-            tx,
+            prisma,
           )
           .catch((error) => {
             Sentry.captureException(error);

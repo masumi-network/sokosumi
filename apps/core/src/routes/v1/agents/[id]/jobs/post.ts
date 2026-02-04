@@ -1,11 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
 
 import { forbidden } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -53,28 +51,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
 
     if (authContext.orchestratorId) {
-      throw forbidden("Only the user is allowed to do this action");
+      throw forbidden("Only a user is allowed to do this action");
     }
 
-    const job = await prisma.$transaction(
-      async (tx) => {
-        return await createAgentJobForUser(
-          {
-            agentId,
-            userId: authContext.userId,
-            organizationId: authContext.organizationId,
-            inputData,
-            inputSchema,
-            maxCredits,
-            name,
-          },
-          tx,
-        );
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
+    const job = await createAgentJobForUser({
+      agentId,
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
+      inputData,
+      inputSchema,
+      maxCredits,
+      name,
+    });
 
     return created(c, jobSchema.parse(flattenJob(job)));
   });
