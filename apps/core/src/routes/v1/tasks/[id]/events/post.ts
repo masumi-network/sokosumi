@@ -76,6 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
             transactionId = await createTaskCompletionTransaction({
               userId: task.userId,
+              organizationId: task.organizationId,
               credits,
               tx,
             });
