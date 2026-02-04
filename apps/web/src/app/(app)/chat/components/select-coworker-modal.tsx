@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,8 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-import { type Coworker } from "./chat-sidebar";
 
 interface SelectCoworkerModalProps {
   open: boolean;
@@ -59,15 +59,6 @@ export default function SelectCoworkerModal({
   ];
 
   const selectedCoworker = coworkers.find((c) => c.id === selectedCoworkerId);
-
-  // Helper function to get coworker image URL
-  const getCoworkerImageUrl = (coworkerId: string): string | null => {
-    const imageMap: Record<string, string> = {
-      hannah: "/images/coworkers/hannah.png",
-      demosthenes: "/images/coworkers/demosthenes.png",
-    };
-    return imageMap[coworkerId] || null;
-  };
 
   const handleConfirm = () => {
     if (selectedCoworker) {

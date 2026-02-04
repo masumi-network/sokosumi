@@ -4,8 +4,18 @@ import { ChevronDown, MessageSquare, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +64,12 @@ function getModelImageUrl(
   return null;
 }
 
+// Helper function to truncate names longer than 12 characters
+function truncateName(name: string, maxLength: number = 12): string {
+  if (name.length <= maxLength) return name;
+  return name.slice(0, maxLength) + "...";
+}
+
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const router = useRouter();
@@ -62,19 +78,27 @@ export default function ChatListsClient() {
     useConversations();
   const searchParams = useSearchParams();
   const conversationId = searchParams?.get("conversationId");
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
-  // Refresh conversations periodically to pick up new ones created elsewhere
+  // Refresh conversations on mount and when conversations count changes
+  // Note: Further refreshes happen automatically via:
+  // - Visibility change handler in use-conversations hook
+  // - After user actions (create, delete, etc.) in use-conversations hook
   useEffect(() => {
-    // Refresh immediately on mount
     void refreshConversations();
-
-    // Set up interval to refresh every 2 seconds
-    const interval = setInterval(() => {
-      void refreshConversations();
-    }, 2000);
-
-    return () => clearInterval(interval);
   }, [refreshConversations]);
+
+  // Also refresh when URL conversationId changes (user navigates to a conversation or creates a new one)
+  // This ensures the sidebar is up-to-date when switching conversations or when a new conversation is created
+  // Add a small delay to ensure the server has processed the creation
+  useEffect(() => {
+    if (conversationId) {
+      const timeoutId = setTimeout(() => {
+        void refreshConversations();
+      }, 500); // Small delay to ensure server has processed the creation
+      return () => clearTimeout(timeoutId);
+    }
+  }, [conversationId, refreshConversations]);
 
   const handleChatClick = () => {
     // Auto-collapse sidebar on desktop if it's expanded
@@ -84,12 +108,20 @@ export default function ChatListsClient() {
     }
   };
 
-  const handleDeleteChat = async (
+  const handleDeleteClick = (
     e: React.MouseEvent<HTMLButtonElement>,
     deletedConversationId: string,
   ) => {
     e.preventDefault();
     e.stopPropagation();
+    setChatToDelete(deletedConversationId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!chatToDelete) return;
+
+    const deletedConversationId = chatToDelete;
+    setChatToDelete(null);
 
     // Check if the deleted chat is the currently active one
     const isActiveChat = conversationId === deletedConversationId;
@@ -171,11 +203,13 @@ export default function ChatListsClient() {
                   const coworkerId = metadata?.coworker_id;
                   const modelId = metadata?.model_id;
                   const modelName = metadata?.model_name;
-                  const displayName =
+                  const rawDisplayName =
                     conversation.title ||
                     coworkerName ||
                     modelName ||
                     t("untitledChat", { default: "Untitled Chat" });
+                  // Truncate display name to prevent sidebar overflow
+                  const displayName = truncateName(rawDisplayName, 20);
 
                   return (
                     <SidebarMenuItem key={conversation.id}>
@@ -291,7 +325,7 @@ export default function ChatListsClient() {
                                   );
                                 })()}
                               </Avatar>
-                              <span className="flex-1 truncate text-sm group-data-[collapsible=icon]:hidden">
+                              <span className="max-w-[140px] min-w-0 flex-1 truncate text-sm group-data-[collapsible=icon]:hidden">
                                 {displayName}
                               </span>
                               <Button
@@ -307,7 +341,7 @@ export default function ChatListsClient() {
                                   },
                                 )}
                                 onClick={(e) =>
-                                  handleDeleteChat(e, conversation.id)
+                                  handleDeleteClick(e, conversation.id)
                                 }
                                 aria-label="Delete chat"
                               >
@@ -329,6 +363,39 @@ export default function ChatListsClient() {
           </SidebarGroupContent>
         </CollapsibleContent>
       </SidebarGroup>
+      <AlertDialog
+        open={chatToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setChatToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("deleteDialog.title", { default: "Delete Chat" })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteDialog.description", {
+                default:
+                  "Are you sure you want to delete this chat? This action cannot be undone.",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setChatToDelete(null)}>
+              {t("deleteDialog.cancel", { default: "Cancel" })}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t("deleteDialog.delete", { default: "Delete" })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Collapsible>
   );
 }
