@@ -52,7 +52,7 @@ import { getCents } from "./user";
 /**
  * Validates that user or organization has sufficient credit balance
  */
-export async function validateCreditBalance(
+async function validateCreditBalance(
   userId: string,
   organizationId: string | null,
   costCents: bigint,
@@ -410,25 +410,24 @@ export async function createAgentJobForUser(
         identifierFromPurchaser,
       );
 
-      createPurchaseResult.match(
-        (purchase) => {
-          const purchaseData = transformPurchaseToJobUpdate(purchase);
-          jobPurchaseRepository
-            .createJobPurchase(
-              {
-                jobId: job.id,
-                ...purchaseData,
-              },
-              tx,
-            )
-            .catch((error) => {
-              Sentry.captureException(error);
-            });
-        },
-        (error) => {
-          Sentry.captureException(error);
-        },
-      );
+      if (createPurchaseResult.isOk()) {
+        const purchaseData = transformPurchaseToJobUpdate(
+          createPurchaseResult.value,
+        );
+        await jobPurchaseRepository
+          .createJobPurchase(
+            {
+              jobId: job.id,
+              ...purchaseData,
+            },
+            tx,
+          )
+          .catch((error) => {
+            Sentry.captureException(error);
+          });
+      } else {
+        Sentry.captureException(createPurchaseResult.error);
+      }
       break;
     }
     case PricingType.UNKNOWN:
