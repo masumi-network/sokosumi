@@ -164,7 +164,7 @@ export function useChatMessages({
                     id: string;
                     role: string;
                     content: Array<{ type: string; text?: string }> | string;
-                    created_at: number;
+                    createdAt: number;
                   }> | null = null;
 
                   if (
@@ -186,7 +186,7 @@ export function useChatMessages({
                         content:
                           | Array<{ type: string; text?: string }>
                           | string;
-                        created_at: number;
+                        createdAt: number;
                       }>;
                     }
                   }

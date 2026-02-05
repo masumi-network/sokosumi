@@ -167,7 +167,7 @@ export function useChatPreview({
                 id: string;
                 role: string;
                 content: Array<{ type: string; text?: string }> | string;
-                created_at: number;
+                createdAt: number;
               }>;
             }
           }
