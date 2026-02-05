@@ -17,9 +17,7 @@ function CoworkerAvatar({
 }: {
   coworker: TaskWithCoworker["coworker"];
 }) {
-  const image = coworker?.image
-    ? ipfsUrlResolver(coworker.image)
-    : null;
+  const image = coworker?.image ? ipfsUrlResolver(coworker.image) : null;
 
   return (
     <Avatar className="size-4 shrink-0">

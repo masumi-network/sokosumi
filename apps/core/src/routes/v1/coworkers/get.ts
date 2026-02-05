@@ -12,17 +12,13 @@ const route = createRoute({
   description: "List available coworkers",
   tags: ["Coworkers"],
   responses: {
-    200: jsonSuccessResponse(
-      z.array(coworkerSchema),
-      "Retrieve coworkers",
-      {
-        data: [],
-        meta: {
-          timestamp: "2025-01-01T00:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
+    200: jsonSuccessResponse(z.array(coworkerSchema), "Retrieve coworkers", {
+      data: [],
+      meta: {
+        timestamp: "2025-01-01T00:00:00.000Z",
+        requestId: "550e8400-e29b-41d4-a716-446655440000",
       },
-    ),
+    }),
     401: jsonErrorResponse("Unauthorized"),
   },
 });

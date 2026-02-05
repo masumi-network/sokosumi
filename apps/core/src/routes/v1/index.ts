@@ -4,8 +4,8 @@ import { cors } from "hono/cors";
 import { getEnv } from "@/config/env.js";
 
 import agentsRouter from "./agents/index.js";
-import jobsRouter from "./jobs/index.js";
 import coworkersRouter from "./coworkers/index.js";
+import jobsRouter from "./jobs/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
 

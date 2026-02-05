@@ -35,11 +35,7 @@ export default async function TaskDetailPage({
   for (const agent of agents) {
     agentNameById.set(agent.id, agent.name);
   }
-  const task = mapTaskToTaskWithCoworker(
-    taskResult,
-    coworkersById,
-    agentsById,
-  );
+  const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
   const session = await getSession();
   const currentUser = session?.user
     ? {

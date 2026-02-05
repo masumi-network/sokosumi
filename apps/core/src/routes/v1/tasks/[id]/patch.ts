@@ -34,8 +34,7 @@ export const patchTaskRequestSchema = z
       data.description !== undefined ||
       data.coworkerId !== undefined,
     {
-      message:
-        "At least one of name, description or coworkerId is required",
+      message: "At least one of name, description or coworkerId is required",
       path: ["name", "description", "coworkerId"],
     },
   );
