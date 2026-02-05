@@ -40,7 +40,7 @@ export const createTaskEventRequestSchema = z
       .openapi({
         example: TaskEventOrigin.SLACK,
         description:
-          "The origin of the task event. Defaults to SOKOSUMI if not provided.",
+          "The origin of the task event. Defaults to SOKOSUMI if undefined.",
       }),
   })
   .superRefine((data, ctx) => {
