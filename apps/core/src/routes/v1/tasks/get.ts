@@ -55,31 +55,6 @@ const route = withGlobalHeaderParameters(
       200: jsonPaginatedSuccessResponse(
         z.array(taskSchema),
         "Retrieve all tasks",
-        {
-          data: [
-            {
-              id: "tsk_123",
-              userId: "user_123",
-              name: "Review onboarding",
-              status: TaskStatus.READY,
-              coworkerId: "cow_123",
-              _count: {
-                comments: 2,
-              },
-              updatedAt: "2025-01-02T12:00:00.000Z",
-            },
-          ],
-          meta: {
-            timestamp: "2025-01-02T12:00:00.000Z",
-            requestId: "550e8400-e29b-41d4-a716-446655440000",
-            pagination: {
-              cursor: null,
-              limit: 20,
-              total: 200,
-              nextCursor: "tsk_124",
-            },
-          },
-        },
       ),
       401: jsonErrorResponse("Unauthorized"),
       500: jsonErrorResponse("Internal Server Error"),
