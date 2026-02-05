@@ -56,7 +56,7 @@ async function validateCreditBalance(
   userId: string,
   organizationId: string | null,
   costCents: bigint,
-  tx: Prisma.TransactionClient = prisma,
+  tx: Prisma.TransactionClient,
 ): Promise<void> {
   if (costCents <= 0) {
     return;
@@ -272,18 +272,16 @@ export async function shareJob(
   }
 }
 
-export async function createAgentJobForUser(
-  input: {
-    agentId: string;
-    userId: string;
-    organizationId: string | null;
-    inputData: InputSchemaType;
-    inputSchema: InputSchemaSchemaType;
-    maxCredits?: number;
-    name?: string;
-    taskId?: string | null;
-  },
-): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+export async function createAgentJobForUser(input: {
+  agentId: string;
+  userId: string;
+  organizationId: string | null;
+  inputData: InputSchemaType;
+  inputSchema: InputSchemaSchemaType;
+  maxCredits?: number;
+  name?: string;
+  taskId?: string | null;
+}): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
   const flatInputSchema = flattenInputs(input.inputSchema);
   const maxCents = input.maxCredits
     ? convertCreditsToCents(input.maxCredits)
@@ -294,9 +292,8 @@ export async function createAgentJobForUser(
     orchestratorId: null,
   };
 
-  const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
-    authContext,
-  );
+  const { userOrganizationIds, creditCosts } =
+    await getAgentAccessContext(authContext);
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
@@ -321,12 +318,6 @@ export async function createAgentJobForUser(
   if (maxCents !== null && cost.cents > maxCents) {
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
-
-  await validateCreditBalance(
-    authContext.userId,
-    authContext.organizationId,
-    cost.cents,
-  );
 
   const agent = { ...agentRecord, cost };
 
@@ -356,41 +347,31 @@ export async function createAgentJobForUser(
     taskId: input.taskId,
   };
 
-  let job: JobWithEvents & JobWithTransaction & JobWithPurchase;
+  let paidJobResult: StartPaidJobResponseSchemaType | null = null;
+  let freeJobResult: StartFreeJobResponseSchemaType | null = null;
+  let identifierFromPurchaser: string | null = null;
+
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
-      const freeJobResult = await createAgentClient().startFreeAgentJob(
+      const startFreeJobResult = await createAgentClient().startFreeAgentJob(
         agent,
         input.inputData,
       );
 
-      if (freeJobResult.isErr()) {
+      if (startFreeJobResult.isErr()) {
         throw unprocessableEntity(
-          `Free agent job start failed: ${freeJobResult.error}`,
+          `Free agent job start failed: ${startFreeJobResult.error}`,
         );
       }
 
       await resolveJobName();
-
-      job = await prisma.$transaction(
-        async (tx) =>
-          await createFreeJob(
-            { ...jobInput, name: jobName },
-            freeJobResult.value,
-            tx,
-          ),
-        {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        },
-      );
+      freeJobResult = startFreeJobResult.value;
       break;
     }
     case PricingType.FIXED: {
-      const identifierFromPurchaser = uuidv4()
-        .replace(/-/g, "")
-        .substring(0, 20);
+      identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
 
-      const paidJobResult = await createAgentClient().startPaidAgentJob(
+      const startPaidJobResult = await createAgentClient().startPaidAgentJob(
         {
           id: agent.id,
           name: agent.name,
@@ -402,58 +383,89 @@ export async function createAgentJobForUser(
         input.inputData,
       );
 
-      if (paidJobResult.isErr()) {
+      if (startPaidJobResult.isErr()) {
         throw unprocessableEntity(
-          `Paid agent job start failed: ${paidJobResult.error}`,
+          `Paid agent job start failed: ${startPaidJobResult.error}`,
         );
       }
 
       await resolveJobName();
-
-      job = await prisma.$transaction(
-        async (tx) =>
-          await createPaidJob(
-            { ...jobInput, name: jobName },
-            agent.cost,
-            paidJobResult.value,
-            identifierFromPurchaser,
-            tx,
-          ),
-        {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        },
-      );
-
-      const createPurchaseResult = await paymentClient().createPurchase(
-        agent.blockchainIdentifier,
-        paidJobResult.value,
-        input.inputData,
-        identifierFromPurchaser,
-      );
-
-      if (createPurchaseResult.isOk()) {
-        const purchaseData = transformPurchaseToJobUpdate(
-          createPurchaseResult.value,
-        );
-        await jobPurchaseRepository
-          .createJobPurchase(
-            {
-              jobId: job.id,
-              ...purchaseData,
-            },
-            prisma,
-          )
-          .catch((error) => {
-            Sentry.captureException(error);
-          });
-      } else {
-        Sentry.captureException(createPurchaseResult.error);
-      }
+      paidJobResult = startPaidJobResult.value;
       break;
     }
     case PricingType.UNKNOWN:
     default:
       throw unprocessableEntity("Agent pricing type not supported");
+  }
+
+  const job = await prisma.$transaction(
+    async (tx) => {
+      await validateCreditBalance(
+        authContext.userId,
+        authContext.organizationId,
+        cost.cents,
+        tx,
+      );
+
+      if (agent.pricing.pricingType === PricingType.FREE) {
+        if (!freeJobResult) {
+          throw unprocessableEntity("Free agent job start failed");
+        }
+
+        return await createFreeJob(
+          { ...jobInput, name: jobName },
+          freeJobResult,
+          tx,
+        );
+      }
+
+      if (!paidJobResult || !identifierFromPurchaser) {
+        throw unprocessableEntity("Paid agent job start failed");
+      }
+
+      return await createPaidJob(
+        { ...jobInput, name: jobName },
+        agent.cost,
+        paidJobResult,
+        identifierFromPurchaser,
+        tx,
+      );
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
+
+  if (
+    agent.pricing.pricingType === PricingType.FIXED &&
+    paidJobResult &&
+    identifierFromPurchaser
+  ) {
+    const createPurchaseResult = await paymentClient().createPurchase(
+      agent.blockchainIdentifier,
+      paidJobResult,
+      input.inputData,
+      identifierFromPurchaser,
+    );
+
+    if (createPurchaseResult.isOk()) {
+      const purchaseData = transformPurchaseToJobUpdate(
+        createPurchaseResult.value,
+      );
+      await jobPurchaseRepository
+        .createJobPurchase(
+          {
+            jobId: job.id,
+            ...purchaseData,
+          },
+          prisma,
+        )
+        .catch((error) => {
+          Sentry.captureException(error);
+        });
+    } else {
+      Sentry.captureException(createPurchaseResult.error);
+    }
   }
 
   return job;
