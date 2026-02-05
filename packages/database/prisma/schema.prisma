@@ -1070,6 +1070,19 @@ enum TaskStatus {
   FAILED
 }
 
+enum TaskEventOrigin {
+  SLACK
+  TEAMS
+  EMAIL
+  LINEAR
+  GITHUB
+  WHATSAPP
+  TELEGRAM
+  SIGNAL
+  CHAT
+  UNKNOWN
+}
+
 model TaskEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -1081,6 +1094,7 @@ model TaskEvent {
   status  TaskStatus?
   comment String?
   authenticationUrl String?
+  origin TaskEventOrigin?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
