@@ -23,7 +23,8 @@ export default async function OnboardingPage() {
   }
 
   if (session.user.onboardingCompleted) {
-    redirect("/chat");
+    const isChatEnabled = await chatUIEnabled();
+    redirect(isChatEnabled ? "/chat" : "/agents");
   }
 
   const t = await getTranslations("Onboarding.Metadata");

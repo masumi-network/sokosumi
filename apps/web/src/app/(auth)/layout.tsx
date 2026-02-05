@@ -39,7 +39,8 @@ export default async function AuthLayout({
       pathname.startsWith("/auth/callback/") || pathname.startsWith("/oauth");
 
     if (!shouldSkipRedirect) {
-      redirect("/chat");
+      const isChatEnabled = await chatUIEnabled();
+      redirect(isChatEnabled ? "/chat" : "/agents");
     }
   }
 

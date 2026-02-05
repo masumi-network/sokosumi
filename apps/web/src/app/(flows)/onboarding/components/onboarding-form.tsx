@@ -124,7 +124,7 @@ export default function OnboardingForm() {
         toast.success(
           t("Toast.organizationCreated", { count: uniqueEmails.length }),
         );
-        router.push(result.data.redirectUrl ?? "/chat");
+        router.push(result.data.redirectUrl ?? "/agents");
       } else {
         toast.error(result.error.message ?? t("Toast.failedToComplete"));
       }
@@ -142,7 +142,7 @@ export default function OnboardingForm() {
     try {
       const result = await skipOnboarding();
       if (result.ok) {
-        router.push(result.data.redirectUrl ?? "/chat");
+        router.push(result.data.redirectUrl ?? "/agents");
       } else {
         toast.error(result.error.message ?? t("Toast.failedToSkip"));
       }
