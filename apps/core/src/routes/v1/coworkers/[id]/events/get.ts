@@ -14,7 +14,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { taskEventWithTaskIdSchema } from "@/schemas/task.schema";
+import { taskEventSchema } from "@/schemas/task.schema";
 
 import { paramsSchema } from "../schema";
 
@@ -29,7 +29,7 @@ const route = createRoute({
   },
   responses: {
     200: jsonPaginatedSuccessResponse(
-      z.array(taskEventWithTaskIdSchema),
+      z.array(taskEventSchema),
       "Retrieve coworker task events",
       {
         data: [
@@ -38,12 +38,12 @@ const route = createRoute({
             taskId: "tsk_123",
             createdAt: "2025-01-01T00:00:00.000Z",
             updatedAt: "2025-01-01T00:00:00.000Z",
+            userId: "user_123",
+            coworkerId: "cow_123",
             comment: "Looks good.",
             authenticationUrl: null,
             origin: "SOKOSUMI",
             status: "RUNNING",
-            userId: "user_123",
-            coworkerId: "cow_123",
           },
         ],
         meta: {
@@ -105,10 +105,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursor,
     );
 
-    return ok(
-      c,
-      z.array(taskEventWithTaskIdSchema).parse(pagedEvents),
-      paginationMeta,
-    );
+    return ok(c, z.array(taskEventSchema).parse(pagedEvents), paginationMeta);
   });
 }
