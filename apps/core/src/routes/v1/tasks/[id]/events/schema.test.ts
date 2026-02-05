@@ -40,7 +40,7 @@ describe("createTaskEventRequestSchema", () => {
     }
   });
 
-  it("accepts null origin", () => {
+  it("defaults null origin to SOKOSUMI", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
       origin: null,
@@ -48,7 +48,18 @@ describe("createTaskEventRequestSchema", () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.origin).toBeNull();
+      expect(result.data.origin).toBe(TaskEventOrigin.SOKOSUMI);
+    }
+  });
+
+  it("defaults missing origin to SOKOSUMI", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.origin).toBe(TaskEventOrigin.SOKOSUMI);
     }
   });
 

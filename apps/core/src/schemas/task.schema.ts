@@ -31,8 +31,14 @@ export const taskEventSchema = z
       .nullish()
       .openapi({ example: "https://example.com/oauth/authorize" }),
     origin: z
-      .enum(TaskEventOrigin)
+      .enum(
+        Object.values(TaskEventOrigin) as [
+          TaskEventOrigin,
+          ...TaskEventOrigin[],
+        ],
+      )
       .nullish()
+      .transform((val) => val ?? TaskEventOrigin.SOKOSUMI)
       .openapi({ example: TaskEventOrigin.SLACK }),
     status: z
       .enum(TaskStatus)

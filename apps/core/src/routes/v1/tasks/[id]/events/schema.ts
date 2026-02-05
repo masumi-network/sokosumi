@@ -6,7 +6,7 @@ const TASK_EVENT_ORIGINS = Object.values(TaskEventOrigin) as TaskEventOrigin[];
 const taskEventOriginSchema = z.preprocess(
   (value) => {
     if (value === null || value === undefined) {
-      return null;
+      return TaskEventOrigin.SOKOSUMI;
     }
 
     if (typeof value === "string") {
@@ -18,9 +18,7 @@ const taskEventOriginSchema = z.preprocess(
 
     return TaskEventOrigin.UNKNOWN;
   },
-  z
-    .enum(TASK_EVENT_ORIGINS as [TaskEventOrigin, ...TaskEventOrigin[]])
-    .nullable(),
+  z.enum(TASK_EVENT_ORIGINS as [TaskEventOrigin, ...TaskEventOrigin[]]),
 );
 
 export const createTaskEventRequestSchema = z
@@ -38,11 +36,14 @@ export const createTaskEventRequestSchema = z
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
     credits: z.number().min(0).optional().openapi({ example: 5 }),
-    origin: taskEventOriginSchema.optional().openapi({
-      example: TaskEventOrigin.SLACK,
-      description:
-        "The origin of the task event is considered to be generated on Sokosumi if it is not provided.",
-    }),
+    origin: taskEventOriginSchema
+      .optional()
+      .default(TaskEventOrigin.SOKOSUMI)
+      .openapi({
+        example: TaskEventOrigin.SLACK,
+        description:
+          "The origin of the task event. Defaults to SOKOSUMI if not provided.",
+      }),
   })
   .superRefine((data, ctx) => {
     if (data.status === undefined && data.comment === undefined) {
