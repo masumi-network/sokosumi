@@ -71,7 +71,3 @@ export const created = <T>(
     201,
   );
 };
-
-export const empty = (c: Context) => {
-  return c.body(null, 204);
-};
