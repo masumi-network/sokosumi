@@ -73,7 +73,13 @@ export async function POST(req: NextRequest) {
           );
 
           if (convResponse.ok) {
-            const conversation = (await convResponse.json()) as Conversation;
+            const jsonResponse = await convResponse.json();
+            const conversation = (
+              jsonResponse as {
+                data: Conversation;
+                meta?: unknown;
+              }
+            ).data;
             const metadata = conversation.metadata as Record<
               string,
               unknown
@@ -97,8 +103,6 @@ export async function POST(req: NextRequest) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage.role === "user") {
         // Format content for Core API - Responses API format: [{"type": "input_text", "text": "..."}]
-        let formattedContent: Array<{ type: string; text: string }>;
-
         const msgAny = lastMessage as Record<string, unknown>;
         let extractedText = "";
 
@@ -135,9 +139,8 @@ export async function POST(req: NextRequest) {
         }
 
         // Format as Responses API input_text array
-        formattedContent = extractedText
-          ? [{ type: "input_text", text: extractedText }]
-          : [];
+        const formattedContent: Array<{ type: string; text: string }> =
+          extractedText ? [{ type: "input_text", text: extractedText }] : [];
 
         // Add user message to conversation via Core API (fire-and-forget)
         addConversationItem({

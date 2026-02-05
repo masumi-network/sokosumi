@@ -2,6 +2,7 @@
 
 import { useFormatter } from "next-intl";
 
+import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -16,32 +17,6 @@ interface ChatMessageProps {
   coworkerId?: string;
   modelId?: string;
   modelName?: string;
-}
-
-// Helper function to get model image URL
-function getModelImageUrl(
-  modelId: string,
-): { light: string; dark: string } | null {
-  // OpenAI models
-  if (
-    modelId === "gpt4" ||
-    modelId === "gpt4o" ||
-    modelId === "gpt-4o-mini" ||
-    modelId === "gpt-4o"
-  ) {
-    return {
-      light: "/images/models/openai-black.png",
-      dark: "/images/models/openai-white.png",
-    };
-  }
-  // Gemini models
-  if (modelId.startsWith("gemini")) {
-    return {
-      light: "/images/models/gemini.png",
-      dark: "/images/models/gemini.png",
-    };
-  }
-  return null;
 }
 
 export default function ChatMessage({

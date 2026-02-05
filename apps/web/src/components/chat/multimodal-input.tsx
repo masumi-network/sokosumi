@@ -24,8 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-// eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
-import type { Coworker } from "../../app/(app)/chat/utils/types";
+import type { Coworker } from "@/app/chat/utils/types";
 import CoworkerModelSelector from "./coworker-model-selector";
 import { ArrowUpIcon, StopIcon } from "./icons";
 import { type Attachment, PreviewAttachment } from "./preview-attachment";

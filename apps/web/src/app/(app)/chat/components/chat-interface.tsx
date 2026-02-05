@@ -42,7 +42,7 @@ export default function ChatInterface({
     selectedConversation,
     createNewConversation,
     selectConversation,
-    deleteConversationById,
+    deleteConversationById: _deleteConversationById,
   } = useConversations();
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -170,7 +170,7 @@ export default function ChatInterface({
     updateChatPreviewRef.current = updateChatPreview;
   }, [updateChatPreview]);
 
-  const { cacheMessages, clearMessages } = useChatMessages({
+  const { cacheMessages, clearMessages: _clearMessages } = useChatMessages({
     selectedChatId,
     selectedConversation,
     setMessages,
@@ -236,42 +236,28 @@ export default function ChatInterface({
     selectedChatId,
   });
 
-  const _handleCreateNewChat = useCallback(() => {
-    setShowSelectCoworkerModal(true);
-  }, []);
-
   const handleModelSelected = useCallback(
-    async (model: { id: string; name: string } | null) => {
+    async (
+      model: { id: string; name: string } | null,
+    ): Promise<string | null> => {
       if (!model) {
         setSelectedModel(null);
         selectedModelRef.current = null;
-        return;
+        return null;
       }
-      await createModelChat(model);
+      const conversation = await createModelChat(model);
+      return conversation?.id || null;
     },
     [createModelChat, setSelectedModel],
   );
 
   const handleCoworkerSelected = useCallback(
-    async (coworker: Coworker) => {
-      await createCoworkerChat(coworker);
+    async (coworker: Coworker): Promise<string | null> => {
+      const conversation = await createCoworkerChat(coworker);
+      return conversation?.id || null;
     },
     [createCoworkerChat],
   );
-
-  const _handleDeleteChat = async (chatId: string) => {
-    await deleteConversationById(chatId);
-
-    if (selectedChatId === chatId) {
-      setSelectedChatId(null);
-      currentChatIdRef.current = null;
-      setMessages([]);
-      setInput("");
-    }
-
-    setChats((prev) => prev.filter((chat) => chat.id !== chatId));
-    clearMessages(chatId);
-  };
 
   const handleSendMessage = useCallback(
     async (
@@ -286,10 +272,13 @@ export default function ChatInterface({
       if (!selectedChatId) {
         setIsWelcomeTransitioning(true);
         await new Promise((resolve) => setTimeout(resolve, 300));
+
+        let conversationId: string | null = null;
+
         if (model || selectedModel) {
           const modelToUse = model || selectedModel;
           if (modelToUse) {
-            await handleModelSelected(modelToUse);
+            conversationId = await handleModelSelected(modelToUse);
           }
         } else {
           // Use provided coworker or default to Hannah
@@ -299,12 +288,23 @@ export default function ChatInterface({
             description: t("coworkers.hannah.description"),
             useCase: t("coworkers.hannah.useCase"),
           };
-          await handleCoworkerSelected(selectedCoworker);
+          conversationId = await handleCoworkerSelected(selectedCoworker);
         }
 
-        const conversationId = currentChatIdRef.current;
+        // If conversation creation failed, don't send the message
         if (!conversationId) {
+          setIsWelcomeTransitioning(false);
+          return;
+        }
+
+        // Verify the conversation ID was set in the ref
+        if (!currentChatIdRef.current) {
+          // Wait a bit more for ref to be updated, then check again
           await new Promise((resolve) => setTimeout(resolve, 100));
+          if (!currentChatIdRef.current) {
+            setIsWelcomeTransitioning(false);
+            return;
+          }
         }
 
         scrollToBottom();

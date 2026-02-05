@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
 import { getConversationItems } from "@/lib/actions/conversation/core-api-actions";
@@ -41,16 +41,29 @@ export function useChatMessages({
   chatMessagesRef,
   updateChatPreview,
 }: UseChatMessagesProps) {
+  // Track retry timeout ID across effect runs so it can be cleaned up
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (selectedChatId) {
       const currentSelectedChatId = selectedChatId;
+
+      // Clear any existing retry timeout from previous effect run
+      if (retryTimeoutRef.current !== null) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
 
       messagesChatIdRef.current = null;
       setMessages([]);
       previousChatIdRef.current = currentSelectedChatId;
 
       const loadMessagesFromDB = async () => {
-        if (selectedChatId !== currentSelectedChatId) {
+        // Use ref-based check instead of closure values to detect chat changes
+        if (
+          previousChatIdRef.current !== currentSelectedChatId ||
+          messagesChatIdRef.current !== null
+        ) {
           return;
         }
 
@@ -135,8 +148,13 @@ export function useChatMessages({
               }
             }
           } else if (!cachedMessages) {
-            setTimeout(async () => {
-              if (selectedChatId === currentSelectedChatId) {
+            // Store retry timeout ID in ref so it can be cleared by cleanup
+            retryTimeoutRef.current = setTimeout(async () => {
+              // Use ref-based check to ensure we're still on the same chat
+              if (
+                previousChatIdRef.current === currentSelectedChatId &&
+                messagesChatIdRef.current === null
+              ) {
                 try {
                   const retryResult: unknown = await getConversationItems({
                     conversationId: currentSelectedChatId,
@@ -173,29 +191,41 @@ export function useChatMessages({
                     }
                   }
 
-                  if (retryItems && retryItems.length > 0) {
-                    const retryMessages = convertItemsToMessages(retryItems);
-                    messagesChatIdRef.current = currentSelectedChatId;
-                    setMessages(
-                      retryMessages as unknown as Parameters<
-                        typeof setMessages
-                      >[0],
-                    );
-                    chatMessagesRef.current.set(
-                      currentSelectedChatId,
-                      retryMessages,
-                    );
-                  } else {
-                    messagesChatIdRef.current = currentSelectedChatId;
-                    setMessages([]);
+                  // Double-check refs before updating state
+                  if (
+                    previousChatIdRef.current === currentSelectedChatId &&
+                    messagesChatIdRef.current === null
+                  ) {
+                    if (retryItems && retryItems.length > 0) {
+                      const retryMessages = convertItemsToMessages(retryItems);
+                      messagesChatIdRef.current = currentSelectedChatId;
+                      setMessages(
+                        retryMessages as unknown as Parameters<
+                          typeof setMessages
+                        >[0],
+                      );
+                      chatMessagesRef.current.set(
+                        currentSelectedChatId,
+                        retryMessages,
+                      );
+                    } else {
+                      messagesChatIdRef.current = currentSelectedChatId;
+                      setMessages([]);
+                    }
                   }
                 } catch (error) {
                   console.error(
                     "Failed to reload messages from database:",
                     error,
                   );
-                  messagesChatIdRef.current = currentSelectedChatId;
-                  setMessages([]);
+                  // Only update if still on the same chat
+                  if (
+                    previousChatIdRef.current === currentSelectedChatId &&
+                    messagesChatIdRef.current === null
+                  ) {
+                    messagesChatIdRef.current = currentSelectedChatId;
+                    setMessages([]);
+                  }
                 }
               }
             }, 500);
@@ -221,13 +251,26 @@ export function useChatMessages({
 
       return () => {
         clearTimeout(timeoutId);
+        // Clear the retry timeout if it exists
+        if (retryTimeoutRef.current !== null) {
+          clearTimeout(retryTimeoutRef.current);
+          retryTimeoutRef.current = null;
+        }
       };
     } else {
       previousChatIdRef.current = null;
       messagesChatIdRef.current = null;
       setMessages([]);
     }
-  }, [selectedChatId, setMessages, previousChatIdRef, updateChatPreview]);
+  }, [
+    selectedChatId,
+    setMessages,
+    previousChatIdRef,
+    messagesChatIdRef,
+    chatMessagesRef,
+    updateChatPreview,
+    retryTimeoutRef,
+  ]);
 
   useEffect(() => {
     if (
@@ -266,6 +309,8 @@ export function useChatMessages({
     selectedChatId,
     setMessages,
     previousChatIdRef,
+    messagesChatIdRef,
+    chatMessagesRef,
     updateChatPreview,
   ]);
 
@@ -280,12 +325,15 @@ export function useChatMessages({
         chatMessagesRef.current.set(chatId, messages);
       }
     },
-    [previousChatIdRef],
+    [previousChatIdRef, messagesChatIdRef, chatMessagesRef],
   );
 
-  const clearMessages = useCallback((chatId: string) => {
-    chatMessagesRef.current.delete(chatId);
-  }, []);
+  const clearMessages = useCallback(
+    (chatId: string) => {
+      chatMessagesRef.current.delete(chatId);
+    },
+    [chatMessagesRef],
+  );
 
   return {
     chatMessagesRef,

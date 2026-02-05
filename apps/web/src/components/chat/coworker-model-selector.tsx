@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-// eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
-import type { Coworker } from "../../app/(app)/chat/utils/types";
+import { getModelImageUrl } from "@/app/chat/utils/model-utils";
+import type { Coworker } from "@/app/chat/utils/types";
 
 interface Model {
   id: string;
@@ -77,31 +77,6 @@ export default function CoworkerModelSelector({
       demosthenes: "/images/coworkers/demosthenes.png",
     };
     return imageMap[coworkerId] || null;
-  };
-
-  // Helper function to get model image URL
-  const getModelImageUrl = (
-    modelId: string,
-  ): { light: string; dark: string } | null => {
-    // OpenAI models
-    if (
-      modelId === "gpt4" ||
-      modelId === "gpt4o" ||
-      modelId === "gpt-4o-mini"
-    ) {
-      return {
-        light: "/images/models/openai-black.png",
-        dark: "/images/models/openai-white.png",
-      };
-    }
-    // Gemini models
-    if (modelId.startsWith("gemini")) {
-      return {
-        light: "/images/models/gemini.png",
-        dark: "/images/models/gemini.png",
-      };
-    }
-    return null;
   };
 
   // Model icon component

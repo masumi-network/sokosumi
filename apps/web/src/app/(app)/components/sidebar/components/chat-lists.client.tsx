@@ -35,34 +35,8 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-// eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
-import { useConversations } from "../../../chat/hooks/use-conversations";
-
-// Helper function to get model image URL
-function getModelImageUrl(
-  modelId: string,
-): { light: string; dark: string } | null {
-  // OpenAI models
-  if (
-    modelId === "gpt4" ||
-    modelId === "gpt4o" ||
-    modelId === "gpt-4o-mini" ||
-    modelId === "gpt-4o"
-  ) {
-    return {
-      light: "/images/models/openai-black.png",
-      dark: "/images/models/openai-white.png",
-    };
-  }
-  // Gemini models
-  if (modelId.startsWith("gemini")) {
-    return {
-      light: "/images/models/gemini.png",
-      dark: "/images/models/gemini.png",
-    };
-  }
-  return null;
-}
+import { useConversations } from "@/app/chat/hooks/use-conversations";
+import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 
 // Helper function to truncate names longer than 12 characters
 function truncateName(name: string, maxLength: number = 12): string {
