@@ -51,11 +51,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");
 
+    if (!authContext.coworkerId) {
+      throw forbidden("Only the coworker can create jobs for a task");
+    }
+
     const job = await prisma.$transaction(async (tx) => {
       const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
-      if (!authContext.coworkerId) {
-        throw forbidden("Only the coworker can create jobs for a task");
-      }
       const job = await createAgentJobForUser({
         authContext: {
           userId: task.userId,
