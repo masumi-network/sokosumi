@@ -7,6 +7,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { validateStatusTransition } from "@/helpers/task";
 import { createTaskCompletionTransaction } from "@/helpers/task-credits";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -52,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const event = await prisma.$transaction(
+    const { event, taskOwnerId } = await prisma.$transaction(
       async (tx) => {
         const task = await requireTaskAccess(authContext, id, tx);
         const { status, comment, credits, authenticationUrl, origin } = body;
@@ -110,7 +111,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             throw conflict("Task status was changed by another request");
           }
 
-          return event;
+          return { event, taskOwnerId: task.userId };
         }
 
         // Handle comment-only event (no status change)
@@ -126,7 +127,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           });
 
-          return event;
+          return { event, taskOwnerId: task.userId };
         }
 
         throw unprocessableEntity("Either status or comment must be provided");
@@ -135,6 +136,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       },
     );
+
+    try {
+      if (event) {
+        const recipientUserId = event.userId ?? taskOwnerId;
+        await publishTaskEventData({
+          userId: recipientUserId,
+          taskId: id,
+          eventType: "task_event",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to publish task event update", error);
+    }
 
     return created(c, taskEventSchema.parse(event));
   });
