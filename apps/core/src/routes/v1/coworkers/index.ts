@@ -1,0 +1,13 @@
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+
+import mountGetCoworkerById from "./[id]/get.js";
+import mountPostCoworkerUsage from "./[id]/usage/post.js";
+import mountGetCoworkers from "./get.js";
+
+const app = new OpenAPIHonoWithAuth();
+
+mountGetCoworkers(app);
+mountGetCoworkerById(app);
+mountPostCoworkerUsage(app);
+
+export default app;

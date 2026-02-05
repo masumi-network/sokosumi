@@ -2,23 +2,23 @@ import { MessageSquare, UserCog } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ipfsUrlResolver } from "@/lib/ipfs";
-import { type TaskWithOrchestrator } from "@/lib/types/task";
+import { type TaskWithCoworker } from "@/lib/types/task";
 import { formatShortDate } from "@/lib/utils/datetime";
 
 interface TaskMetaDetailsProps {
-  orchestrator: TaskWithOrchestrator["orchestrator"];
-  commentsCount: TaskWithOrchestrator["commentsCount"];
-  createdAt: TaskWithOrchestrator["createdAt"];
+  coworker: TaskWithCoworker["coworker"];
+  commentsCount: TaskWithCoworker["commentsCount"];
+  createdAt: TaskWithCoworker["createdAt"];
   variant?: "card" | "list";
 }
 
-function OrchestratorAvatar({
-  orchestrator,
+function CoworkerAvatar({
+  coworker,
 }: {
-  orchestrator: TaskWithOrchestrator["orchestrator"];
+  coworker: TaskWithCoworker["coworker"];
 }) {
-  const image = orchestrator?.image
-    ? ipfsUrlResolver(orchestrator.image)
+  const image = coworker?.image
+    ? ipfsUrlResolver(coworker.image)
     : null;
 
   return (
@@ -26,7 +26,7 @@ function OrchestratorAvatar({
       {image ? (
         <AvatarImage
           src={image}
-          alt={orchestrator?.name ?? "Orchestrator"}
+          alt={coworker?.name ?? "Coworker"}
           onError={(event) => {
             event.currentTarget.style.display = "none";
           }}
@@ -40,7 +40,7 @@ function OrchestratorAvatar({
 }
 
 export function TaskMetaDetails({
-  orchestrator,
+  coworker,
   commentsCount,
   createdAt,
   variant = "card",
@@ -49,8 +49,8 @@ export function TaskMetaDetails({
     return (
       <>
         <div className="text-muted-foreground xs:w-auto flex w-24 items-center gap-1.5 truncate">
-          <OrchestratorAvatar orchestrator={orchestrator} />
-          <span className="truncate">{orchestrator?.name ?? "—"}</span>
+          <CoworkerAvatar coworker={coworker} />
+          <span className="truncate">{coworker?.name ?? "—"}</span>
         </div>
         <div className="text-muted-foreground flex items-center gap-1.5">
           <MessageSquare className="size-4" aria-hidden />
@@ -68,8 +68,8 @@ export function TaskMetaDetails({
   return (
     <div className="text-muted-foreground flex items-center justify-between gap-3 text-sm">
       <div className="flex items-center gap-1.5">
-        <OrchestratorAvatar orchestrator={orchestrator} />
-        <span>{orchestrator?.name ?? "—"}</span>
+        <CoworkerAvatar coworker={coworker} />
+        <span>{coworker?.name ?? "—"}</span>
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">

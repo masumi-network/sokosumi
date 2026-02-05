@@ -1,14 +1,14 @@
-import { TaskWithOrchestrator } from "@/lib/types/task";
+import { TaskWithCoworker } from "@/lib/types/task";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskMetadataLabels {
   status: string;
-  orchestrator: string;
+  coworker: string;
 }
 
 interface TaskMetadataProps {
-  task: TaskWithOrchestrator;
+  task: TaskWithCoworker;
   labels: TaskMetadataLabels;
 }
 
@@ -25,11 +25,11 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
       ),
     },
     {
-      key: "orchestrator",
-      label: labels.orchestrator,
+      key: "coworker",
+      label: labels.coworker,
       value: (
         <span className="text-sm font-medium">
-          {task.orchestrator?.name ?? "—"}
+          {task.coworker?.name ?? "—"}
         </span>
       ),
     },

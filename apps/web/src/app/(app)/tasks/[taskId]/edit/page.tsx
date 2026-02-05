@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { agentService } from "@/lib/services";
-import { orchestratorService } from "@/lib/services/orchestrator.service";
+import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
 export const metadata = {
@@ -17,10 +17,10 @@ export default async function EditTaskPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, agents, orchestrators] = await Promise.all([
+  const [taskResult, agents, coworkers] = await Promise.all([
     taskService.getTaskById(taskId),
     agentService.getAvailableAgents(),
-    orchestratorService.listOrchestrators(),
+    coworkerService.listCoworkers(),
   ]);
 
   if (!taskResult) {
@@ -34,10 +34,10 @@ export default async function EditTaskPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const orchestratorOptions = orchestrators.map((orchestrator) => ({
-    id: orchestrator.id,
-    name: orchestrator.name,
-    image: orchestrator.image ?? "",
+  const coworkerOptions = coworkers.map((coworker) => ({
+    id: coworker.id,
+    name: coworker.name,
+    image: coworker.image ?? "",
   }));
 
   const t = await getTranslations("App.Tasks.EditTask");
@@ -54,8 +54,8 @@ export default async function EditTaskPage({
           name: t("name"),
           namePlaceholder: t("namePlaceholder"),
           descriptionPlaceholder: t("descriptionPlaceholder"),
-          orchestrator: t("orchestrator"),
-          orchestratorDescription: t("orchestratorDescription"),
+          coworker: t("coworker"),
+          coworkerDescription: t("coworkerDescription"),
           status: t("status"),
           statusDescription: t("statusDescription"),
           statusDraft: t("statusDraft"),
@@ -66,12 +66,12 @@ export default async function EditTaskPage({
           cancel: t("cancel"),
           ctrl: t("ctrl"),
         }}
-        orchestratorOptions={orchestratorOptions}
+        coworkerOptions={coworkerOptions}
         agents={agents}
         initialValues={{
           name: taskResult.name,
           description: taskResult.description ?? "",
-          orchestratorId: taskResult.orchestratorId ?? "",
+          coworkerId: taskResult.coworkerId ?? "",
           status: taskResult.status,
         }}
       />

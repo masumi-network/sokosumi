@@ -4,17 +4,17 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { orchestratorSchema } from "@/schemas/task.schema";
+import { coworkerSchema } from "@/schemas/task.schema";
 
 const route = createRoute({
   method: "get",
   path: "/",
-  description: "List availableorchestrators",
-  tags: ["Orchestrators"],
+  description: "List available coworkers",
+  tags: ["Coworkers"],
   responses: {
     200: jsonSuccessResponse(
-      z.array(orchestratorSchema),
-      "Retrieve orchestrators",
+      z.array(coworkerSchema),
+      "Retrieve coworkers",
       {
         data: [],
         meta: {
@@ -29,12 +29,12 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const orchestrators = await prisma.orchestrator.findMany({
+    const coworkers = await prisma.coworker.findMany({
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    return ok(c, z.array(orchestratorSchema).parse(orchestrators));
+    return ok(c, z.array(coworkerSchema).parse(coworkers));
   });
 }

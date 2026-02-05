@@ -1,16 +1,16 @@
 import type {
   AgentWithCreditsPrice,
-  Orchestrator,
+  Coworker,
   TaskEvent,
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
 
 import type { TaskWithEvents } from "@/lib/services/task.service";
-import type { TaskWithOrchestrator } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
-function getColumnId(status: TaskStatus): TaskWithOrchestrator["columnId"] {
+function getColumnId(status: TaskStatus): TaskWithCoworker["columnId"] {
   switch (status) {
     case TaskStatus.DRAFT:
       return "backlog";
@@ -88,13 +88,13 @@ function replaceMentionsWithAgentNames(
   return result;
 }
 
-export function mapTaskToTaskWithOrchestrator(
+export function mapTaskToTaskWithCoworker(
   task: TaskWithEvents,
-  orchestratorsById: Map<string, Orchestrator>,
+  coworkersById: Map<string, Coworker>,
   agentsById: Map<string, AgentWithCreditsPrice>,
-): TaskWithOrchestrator {
-  const orchestrator = task.orchestratorId
-    ? (orchestratorsById.get(task.orchestratorId) ?? null)
+): TaskWithCoworker {
+  const coworker = task.coworkerId
+    ? (coworkersById.get(task.coworkerId) ?? null)
     : null;
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
@@ -111,7 +111,7 @@ export function mapTaskToTaskWithOrchestrator(
     userId: task.userId,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
-    orchestrator,
+    coworker,
     agents,
     commentsCount: getCommentsCount(task.events),
     columnId: getColumnId(task.status),

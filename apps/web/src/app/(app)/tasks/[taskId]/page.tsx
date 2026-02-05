@@ -7,9 +7,9 @@ import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
-import { orchestratorService } from "@/lib/services/orchestrator.service";
+import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
-import { mapTaskToTaskWithOrchestrator } from "@/lib/utils/task-transformer";
+import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 export default async function TaskDetailPage({
   params,
@@ -17,9 +17,9 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, orchestrators, agents] = await Promise.all([
+  const [taskResult, coworkers, agents] = await Promise.all([
     taskService.getTaskById(taskId),
-    orchestratorService.listOrchestrators(),
+    coworkerService.listCoworkers(),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
 
@@ -27,17 +27,17 @@ export default async function TaskDetailPage({
     return notFound();
   }
 
-  const orchestratorsById = new Map(
-    orchestrators.map((orchestrator) => [orchestrator.id, orchestrator]),
+  const coworkersById = new Map(
+    coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = new Map<string, string>();
   for (const agent of agents) {
     agentNameById.set(agent.id, agent.name);
   }
-  const task = mapTaskToTaskWithOrchestrator(
+  const task = mapTaskToTaskWithCoworker(
     taskResult,
-    orchestratorsById,
+    coworkersById,
     agentsById,
   );
   const session = await getSession();
@@ -49,12 +49,12 @@ export default async function TaskDetailPage({
       }
     : null;
   const userById = currentUser ? { [currentUser.id]: currentUser } : undefined;
-  const orchestratorById = Object.fromEntries(
-    orchestrators.map((orchestrator) => [
-      orchestrator.id,
+  const coworkerById = Object.fromEntries(
+    coworkers.map((coworker) => [
+      coworker.id,
       {
-        name: orchestrator.name,
-        image: orchestrator.image ?? null,
+        name: coworker.name,
+        image: coworker.image ?? null,
       },
     ]),
   );
@@ -83,7 +83,7 @@ export default async function TaskDetailPage({
         task={task}
         labels={{
           status: t("status"),
-          orchestrator: t("orchestrator"),
+          coworker: t("coworker"),
         }}
       />
 
@@ -101,10 +101,15 @@ export default async function TaskDetailPage({
         placeholder={t("commentPlaceholder")}
         attachLabel={t("attach")}
         submitLabel={t("submit")}
+        actorCoworkerLabel={t("actorCoworker")}
+        actorUserLabel={t("actorUser")}
+        actorSystemLabel={t("actorSystem")}
+        actionCommentedLabel={t("actionCommented")}
+        actionUpdatedStatusLabel={t("actionUpdatedStatus")}
         events={task.events}
         agentNameById={agentNameById}
         userById={userById}
-        orchestratorById={orchestratorById}
+        coworkerById={coworkerById}
         currentUser={currentUser}
         expandLabel={t("expand")}
         collapseLabel={t("collapse")}

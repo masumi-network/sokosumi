@@ -17,30 +17,30 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { orchestratorUsageSchema } from "@/schemas/orchestrator-usage.schema";
+import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
 
 import { paramsSchema } from "../schema";
-import { createOrchestratorUsageRequestSchema } from "./schema";
+import { createCoworkerUsageRequestSchema } from "./schema";
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/usage",
-    description: "Create orchestrator usage",
-    tags: ["Orchestrators"],
+    description: "Create coworker usage",
+    tags: ["Coworkers"],
     request: {
       params: paramsSchema,
       body: {
         content: {
           "application/json": {
-            schema: createOrchestratorUsageRequestSchema,
+            schema: createCoworkerUsageRequestSchema,
           },
         },
       },
     },
     responses: {
-      200: jsonSuccessResponse(orchestratorUsageSchema, "Retrieve usage"),
-      201: jsonSuccessResponse(orchestratorUsageSchema, "Create usage"),
+      200: jsonSuccessResponse(coworkerUsageSchema, "Retrieve usage"),
+      201: jsonSuccessResponse(coworkerUsageSchema, "Create usage"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -56,7 +56,7 @@ function serializeUsage(usage: {
   updatedAt: Date;
   idempotencyKey: string;
   referenceId: string | null;
-  orchestratorId: string;
+  coworkerId: string;
   userId: string;
   organizationId: string | null;
   cents: bigint;
@@ -99,20 +99,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { credits, idempotencyKey, referenceId } = c.req.valid("json");
 
-    if (!authContext.orchestratorId) {
-      throw forbidden("Orchestrator authentication required");
+    if (!authContext.coworkerId) {
+      throw forbidden("Coworker authentication required");
     }
 
-    if (authContext.orchestratorId !== id) {
-      throw forbidden("Orchestrator can only create usage for itself");
+    if (authContext.coworkerId !== id) {
+      throw forbidden("Coworker can only create usage for itself");
     }
 
     const result = await prisma.$transaction(
       async (tx) => {
-        const existing = await tx.orchestratorUsage.findUnique({
+        const existing = await tx.coworkerUsage.findUnique({
           where: {
-            orchestratorId_idempotencyKey: {
-              orchestratorId: id,
+            coworkerId_idempotencyKey: {
+              coworkerId: id,
               idempotencyKey,
             },
           },
@@ -166,12 +166,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
-        const usage = await tx.orchestratorUsage.create({
+        const usage = await tx.coworkerUsage.create({
           data: {
             idempotencyKey,
             referenceId: referenceId ?? null,
             cents,
-            orchestrator: { connect: { id } },
+            coworker: { connect: { id } },
             user: { connect: { id: authContext.userId } },
             ...(authContext.organizationId
               ? {
@@ -192,9 +192,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const response = serializeUsage(result.usage);
 
     if (result.created) {
-      return created(c, orchestratorUsageSchema.parse(response));
+      return created(c, coworkerUsageSchema.parse(response));
     }
 
-    return ok(c, orchestratorUsageSchema.parse(response));
+    return ok(c, coworkerUsageSchema.parse(response));
   });
 }

@@ -3,34 +3,34 @@ import { describe, expect, it } from "vitest";
 
 import { validateStatusTransition } from "./task";
 
-const orchestratorContext = {
+const coworkerContext = {
   userId: "user_123",
   organizationId: null,
-  orchestratorId: "orc_123",
+  coworkerId: "cow_123",
 };
 
 const userContext = {
   userId: "user_123",
   organizationId: null,
-  orchestratorId: null,
+  coworkerId: null,
 };
 
 describe("validateStatusTransition", () => {
   it("rejects same-status transition", () => {
     expect(() => {
       validateStatusTransition(
-        orchestratorContext,
+        coworkerContext,
         TaskStatus.RUNNING,
         TaskStatus.RUNNING,
       );
     }).toThrow("Invalid status transition: same status");
   });
 
-  describe("orchestrator allowed transitions", () => {
+  describe("coworker allowed transitions", () => {
     it("READY → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.READY,
           TaskStatus.RUNNING,
         ),
@@ -40,7 +40,7 @@ describe("validateStatusTransition", () => {
     it("READY → AUTHENTICATION_REQUIRED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.READY,
           TaskStatus.AUTHENTICATION_REQUIRED,
         ),
@@ -50,7 +50,7 @@ describe("validateStatusTransition", () => {
     it("INPUT_REQUIRED → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.INPUT_REQUIRED,
           TaskStatus.RUNNING,
         ),
@@ -60,7 +60,7 @@ describe("validateStatusTransition", () => {
     it("INPUT_REQUIRED → AUTHENTICATION_REQUIRED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.INPUT_REQUIRED,
           TaskStatus.AUTHENTICATION_REQUIRED,
         ),
@@ -70,7 +70,7 @@ describe("validateStatusTransition", () => {
     it("INPUT_REQUIRED → COMPLETED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.INPUT_REQUIRED,
           TaskStatus.COMPLETED,
         ),
@@ -80,7 +80,7 @@ describe("validateStatusTransition", () => {
     it("INPUT_REQUIRED → FAILED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.INPUT_REQUIRED,
           TaskStatus.FAILED,
         ),
@@ -90,7 +90,7 @@ describe("validateStatusTransition", () => {
     it("AUTHENTICATION_REQUIRED → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.AUTHENTICATION_REQUIRED,
           TaskStatus.RUNNING,
         ),
@@ -100,7 +100,7 @@ describe("validateStatusTransition", () => {
     it("AUTHENTICATION_REQUIRED → INPUT_REQUIRED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.AUTHENTICATION_REQUIRED,
           TaskStatus.INPUT_REQUIRED,
         ),
@@ -110,7 +110,7 @@ describe("validateStatusTransition", () => {
     it("AUTHENTICATION_REQUIRED → COMPLETED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.AUTHENTICATION_REQUIRED,
           TaskStatus.COMPLETED,
         ),
@@ -120,7 +120,7 @@ describe("validateStatusTransition", () => {
     it("AUTHENTICATION_REQUIRED → FAILED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.AUTHENTICATION_REQUIRED,
           TaskStatus.FAILED,
         ),
@@ -130,7 +130,7 @@ describe("validateStatusTransition", () => {
     it("RUNNING → INPUT_REQUIRED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.RUNNING,
           TaskStatus.INPUT_REQUIRED,
         ),
@@ -140,7 +140,7 @@ describe("validateStatusTransition", () => {
     it("RUNNING → AUTHENTICATION_REQUIRED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.RUNNING,
           TaskStatus.AUTHENTICATION_REQUIRED,
         ),
@@ -150,7 +150,7 @@ describe("validateStatusTransition", () => {
     it("RUNNING → COMPLETED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.RUNNING,
           TaskStatus.COMPLETED,
         ),
@@ -160,7 +160,7 @@ describe("validateStatusTransition", () => {
     it("RUNNING → FAILED", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.RUNNING,
           TaskStatus.FAILED,
         ),
@@ -168,11 +168,11 @@ describe("validateStatusTransition", () => {
     });
   });
 
-  describe("orchestrator disallowed transitions", () => {
+  describe("coworker disallowed transitions", () => {
     it("DRAFT has no outgoing transitions", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.DRAFT,
           TaskStatus.READY,
         ),
@@ -182,7 +182,7 @@ describe("validateStatusTransition", () => {
     it("COMPLETED has no outgoing transitions", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.COMPLETED,
           TaskStatus.RUNNING,
         ),
@@ -192,7 +192,7 @@ describe("validateStatusTransition", () => {
     it("FAILED has no outgoing transitions", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.FAILED,
           TaskStatus.RUNNING,
         ),
@@ -202,7 +202,7 @@ describe("validateStatusTransition", () => {
     it("READY → COMPLETED is invalid", () => {
       expect(() =>
         validateStatusTransition(
-          orchestratorContext,
+          coworkerContext,
           TaskStatus.READY,
           TaskStatus.COMPLETED,
         ),

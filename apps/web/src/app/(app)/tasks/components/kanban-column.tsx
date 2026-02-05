@@ -1,4 +1,4 @@
-import type { TaskWithOrchestrator } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";
 import { TaskCard } from "./task-card";
@@ -6,9 +6,9 @@ import { TaskCard } from "./task-card";
 interface KanbanColumnProps {
   title: string;
   statusColor: string;
-  tasks: TaskWithOrchestrator[];
+  tasks: TaskWithCoworker[];
   footer?: React.ReactNode;
-  renderTask?: (task: TaskWithOrchestrator) => React.ReactNode;
+  renderTask?: (task: TaskWithCoworker) => React.ReactNode;
 }
 
 export function KanbanColumn({

@@ -10,23 +10,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { OrchestratorOption } from "@/lib/types/orchestrator";
+import type { CoworkerOption } from "@/lib/types/coworker";
 
-interface OrchestratorSelectProps {
+interface CoworkerSelectProps {
   label: string;
   description: string;
   value?: string;
-  options: OrchestratorOption[];
+  options: CoworkerOption[];
   onChange: (value: string) => void;
 }
 
-export function OrchestratorSelect({
+export function CoworkerSelect({
   label,
   description,
   value,
   options,
   onChange,
-}: OrchestratorSelectProps) {
+}: CoworkerSelectProps) {
   const selectedOption = options.find((option) => option.id === value);
   const triggerOption = selectedOption ?? options[0];
 
@@ -52,7 +52,7 @@ export function OrchestratorSelect({
                     alt={triggerOption.name}
                   />
                   <AvatarFallback className="text-[10px]">
-                    {getOrchestratorInitials(triggerOption.name)}
+                    {getCoworkerInitials(triggerOption.name)}
                   </AvatarFallback>
                 </Avatar>
                 <span className="truncate">{triggerOption.name}</span>
@@ -75,7 +75,7 @@ export function OrchestratorSelect({
                 <Avatar className="size-8">
                   <AvatarImage src={option.image} alt={option.name} />
                   <AvatarFallback className="text-[10px]">
-                    {getOrchestratorInitials(option.name)}
+                    {getCoworkerInitials(option.name)}
                   </AvatarFallback>
                 </Avatar>
                 <span className="truncate">{option.name}</span>
@@ -91,7 +91,7 @@ export function OrchestratorSelect({
   );
 }
 
-function getOrchestratorInitials(name: string) {
+function getCoworkerInitials(name: string) {
   const parts = name
     .trim()
     .split(/\s+/)

@@ -16,7 +16,7 @@ import { taskInclude } from "@/types/task";
 export const createTaskRequestSchema = z.object({
   name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
   description: z.string().nullish().openapi({ example: "Notes go here" }),
-  orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+  coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
   status: z
     .enum([TaskStatus.DRAFT, TaskStatus.READY])
     .optional()
@@ -52,9 +52,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const body = c.req.valid("json");
 
-    if (authContext.orchestratorId) {
+    if (authContext.coworkerId) {
       throw forbidden(
-        "An orchestrator cannot create tasks. Please use the users authToken to create tasks.",
+        "A coworker cannot create tasks. Please use the users authToken to create tasks.",
       );
     }
 
@@ -65,14 +65,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           organizationId: authContext.organizationId,
           name: body.name,
           description: body.description ?? null,
-          orchestratorId: body.orchestratorId ?? null,
+          coworkerId: body.coworkerId ?? null,
           status: body.status,
           events: {
             create: {
               status: body.status,
               comment: null,
               userId: authContext.userId,
-              orchestratorId: null,
+              coworkerId: null,
             },
           },
         },

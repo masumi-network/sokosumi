@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 // TODO: Add file attachment
 // import { FileUploadButton } from "@/app/tasks/new/components/file-upload-button";
-import { OrchestratorSelect } from "@/app/tasks/new/components/orchestrator-select";
+import { CoworkerSelect } from "@/app/tasks/new/components/coworker-select";
 import { StatusSelect } from "@/app/tasks/new/components/status-select";
 import AgentIcon from "@/components/agents/agent-icon";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import type {
 import { MentionTextarea } from "@/components/ui/mention-textarea";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
-import type { OrchestratorOption } from "@/lib/types/orchestrator";
+import type { CoworkerOption } from "@/lib/types/coworker";
 
 export interface TaskFormLabels {
   pageTitle: string;
@@ -31,8 +31,8 @@ export interface TaskFormLabels {
   name: string;
   namePlaceholder: string;
   descriptionPlaceholder: string;
-  orchestrator: string;
-  orchestratorDescription: string;
+  coworker: string;
+  coworkerDescription: string;
   status: string;
   statusDescription: string;
   statusDraft: string;
@@ -47,14 +47,14 @@ export interface TaskFormLabels {
 interface TaskFormInitialValues {
   name?: string;
   description?: string;
-  orchestratorId?: string | null;
+  coworkerId?: string | null;
   status?: TaskStatus;
 }
 
 interface TaskFormProps {
   mode: "create" | "edit";
   labels: TaskFormLabels;
-  orchestratorOptions: OrchestratorOption[];
+  coworkerOptions: CoworkerOption[];
   agents: AgentWithRelations[];
   taskId?: string;
   initialValues?: TaskFormInitialValues;
@@ -63,7 +63,7 @@ interface TaskFormProps {
 export function TaskForm({
   mode,
   labels,
-  orchestratorOptions,
+  coworkerOptions,
   agents,
   taskId,
   initialValues,
@@ -74,8 +74,8 @@ export function TaskForm({
   const [description, setDescription] = useState(
     initialValues?.description ?? "",
   );
-  const [orchestratorId, setOrchestratorId] = useState<string>(
-    initialValues?.orchestratorId ?? orchestratorOptions[0]?.id ?? "",
+  const [coworkerId, setCoworkerId] = useState<string>(
+    initialValues?.coworkerId ?? coworkerOptions[0]?.id ?? "",
   );
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,7 +137,7 @@ export function TaskForm({
       if (mode === "create") {
         const result = await createTask({
           description: trimmedDescription,
-          orchestratorId,
+          coworkerId,
           status,
         });
         router.push(`/tasks/${result.taskId}`);
@@ -153,7 +153,7 @@ export function TaskForm({
         taskId,
         name: trimmedName,
         description: trimmedDescription,
-        orchestratorId,
+        coworkerId,
         currentStatus: originalStatus,
         desiredStatus: status,
       });
@@ -169,7 +169,7 @@ export function TaskForm({
     isSaveDisabled,
     mode,
     name,
-    orchestratorId,
+    coworkerId,
     originalStatus,
     router,
     status,
@@ -258,12 +258,12 @@ export function TaskForm({
         </div> */}
 
         <div className="flex w-full flex-col items-start gap-4 md:flex-row md:justify-between">
-          <OrchestratorSelect
-            label={labels.orchestrator}
-            description={labels.orchestratorDescription}
-            value={orchestratorId}
-            options={orchestratorOptions}
-            onChange={setOrchestratorId}
+          <CoworkerSelect
+            label={labels.coworker}
+            description={labels.coworkerDescription}
+            value={coworkerId}
+            options={coworkerOptions}
+            onChange={setCoworkerId}
           />
           <StatusSelect
             label={labels.status}

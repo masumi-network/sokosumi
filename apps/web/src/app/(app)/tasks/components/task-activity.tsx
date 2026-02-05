@@ -31,10 +31,15 @@ interface TaskActivityProps {
   placeholder: string;
   attachLabel: string;
   submitLabel: string;
+  actorCoworkerLabel: string;
+  actorUserLabel: string;
+  actorSystemLabel: string;
+  actionCommentedLabel: string;
+  actionUpdatedStatusLabel: string;
   events: TaskEvent[];
   agentNameById?: Map<string, string>;
   userById?: Record<string, ActorInfo>;
-  orchestratorById?: Record<string, ActorInfo>;
+  coworkerById?: Record<string, ActorInfo>;
   currentUser?: ({ id: string } & ActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
@@ -97,10 +102,15 @@ export function TaskActivitySection({
   placeholder,
   attachLabel,
   submitLabel,
+  actorCoworkerLabel,
+  actorUserLabel,
+  actorSystemLabel,
+  actionCommentedLabel,
+  actionUpdatedStatusLabel,
   events,
   agentNameById,
   userById,
-  orchestratorById,
+  coworkerById,
   currentUser,
   expandLabel = "Expand",
   collapseLabel = "Show less",
@@ -140,7 +150,7 @@ export function TaskActivitySection({
       comment: trimmedComment,
       authenticationUrl: null,
       userId: currentUser?.id ?? null,
-      orchestratorId: null,
+      coworkerId: null,
     };
 
     setLocalEvents((prev) => [optimisticEvent, ...prev]);
@@ -209,19 +219,21 @@ export function TaskActivitySection({
 
       <div className="space-y-4">
         {orderedEvents.map((event) => {
-          const actorLabel = event.orchestratorId
-            ? "Orchestrator"
+          const actorLabel = event.coworkerId
+            ? actorCoworkerLabel
             : event.userId
-              ? "User"
-              : "System";
-          const actorInfo = event.orchestratorId
-            ? orchestratorById?.[event.orchestratorId]
+              ? actorUserLabel
+              : actorSystemLabel;
+          const actorInfo = event.coworkerId
+            ? coworkerById?.[event.coworkerId]
             : event.userId
               ? userById?.[event.userId]
               : undefined;
           const actorName = actorInfo?.name ?? actorLabel;
           const actorImage = actorInfo?.image ?? null;
-          const action = event.comment ? "commented" : "updated status";
+          const action = event.comment
+            ? actionCommentedLabel
+            : actionUpdatedStatusLabel;
           const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
           const formattedComment = event.comment
             ? formatMentionsAsMarkdownLinks(
