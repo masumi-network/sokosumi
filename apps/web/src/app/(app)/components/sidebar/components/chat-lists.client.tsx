@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { useConversations } from "@/app/chat/hooks/use-conversations";
+import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,9 +36,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-
-import { useConversations } from "@/app/chat/hooks/use-conversations";
-import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 
 // Helper function to truncate names longer than 12 characters
 function truncateName(name: string, maxLength: number = 12): string {

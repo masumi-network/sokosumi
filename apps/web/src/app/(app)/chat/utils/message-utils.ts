@@ -112,11 +112,9 @@ export function convertItemsToMessages(
         ? item.content
         : item.content.map((c) => c.text || "").join("");
 
-    const validRole: "assistant" | "user" | "system" =
-      item.role === "assistant" ||
-      item.role === "user" ||
-      item.role === "system"
-        ? (item.role as "assistant" | "user" | "system")
+    const validRole: "assistant" | "user" =
+      item.role === "assistant" || item.role === "user"
+        ? (item.role as "assistant" | "user")
         : "user";
 
     return {

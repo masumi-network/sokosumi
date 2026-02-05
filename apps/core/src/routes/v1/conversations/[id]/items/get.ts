@@ -8,10 +8,7 @@ import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import {
-  type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
-} from "@/lib/hono";
+import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 
 const conversationItemSchema = z
   .object({
@@ -19,9 +16,7 @@ const conversationItemSchema = z
       description: "Conversation item ID",
       example: "item_abc123",
     }),
-    role: z
-      .enum(["user", "assistant", "system"])
-      .openapi({ description: "Item role" }),
+    role: z.enum(["user", "assistant"]).openapi({ description: "Item role" }),
     content: z
       .union([
         z.string(),
@@ -37,60 +32,58 @@ const conversationItemSchema = z
   })
   .openapi("ConversationItem");
 
-const route = withGlobalHeaderParameters(
-  createRoute({
-    method: "get",
-    path: "/{id}/items",
-    description: "Get all items (messages) for a conversation",
-    tags: ["Conversations"],
-    request: {
-      params: z.object({
-        id: z
-          .string()
-          .uuid()
-          .openapi({
-            param: {
-              name: "id",
-              in: "path",
-            },
-            description: "Internal database ID",
-            example: "550e8400-e29b-41d4-a716-446655440000",
-          }),
-      }),
-      query: z.object({
-        limit: z.coerce.number().optional().openapi({
-          description: "Maximum number of items to return",
-        }),
-        after: z.string().optional().openapi({
-          description: "Cursor for pagination (item ID)",
-        }),
-      }),
-    },
-    responses: {
-      200: jsonSuccessResponse(
-        z.array(conversationItemSchema),
-        "Conversation items retrieved successfully",
-        {
-          data: [
-            {
-              id: "item_abc123",
-              role: "user",
-              content: "Hello!",
-              created_at: 1706284800,
-            },
-          ],
-          meta: {
-            timestamp: "2025-01-21T12:00:00.000Z",
-            requestId: "550e8400-e29b-41d4-a716-446655440000",
+const route = createRoute({
+  method: "get",
+  path: "/{id}/items",
+  description: "Get all items (messages) for a conversation",
+  tags: ["Conversations"],
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .uuid()
+        .openapi({
+          param: {
+            name: "id",
+            in: "path",
           },
+          description: "Internal database ID",
+          example: "550e8400-e29b-41d4-a716-446655440000",
+        }),
+    }),
+    query: z.object({
+      limit: z.coerce.number().optional().openapi({
+        description: "Maximum number of items to return",
+      }),
+      after: z.string().optional().openapi({
+        description: "Cursor for pagination (item ID)",
+      }),
+    }),
+  },
+  responses: {
+    200: jsonSuccessResponse(
+      z.array(conversationItemSchema),
+      "Conversation items retrieved successfully",
+      {
+        data: [
+          {
+            id: "item_abc123",
+            role: "user",
+            content: "Hello!",
+            created_at: 1706284800,
+          },
+        ],
+        meta: {
+          timestamp: "2025-01-21T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
         },
-      ),
-      401: jsonErrorResponse("Unauthorized"),
-      404: jsonErrorResponse("Conversation not found"),
-      500: jsonErrorResponse("Internal Server Error"),
-    },
-  }),
-);
+      },
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Conversation not found"),
+    500: jsonErrorResponse("Internal Server Error"),
+  },
+});
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -120,7 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Map to response schema
       const response = items.map((item) => ({
         id: item.id,
-        role: item.role as "user" | "assistant" | "system",
+        role: item.role as "user" | "assistant",
         content: item.content as
           | string
           | Array<{ type: string; text?: string }>,

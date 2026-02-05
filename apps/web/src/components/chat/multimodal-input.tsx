@@ -15,6 +15,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import type { Coworker } from "@/app/chat/utils/types";
 import CoworkerModelSelector from "./coworker-model-selector";
 import { ArrowUpIcon, StopIcon } from "./icons";
 import { type Attachment, PreviewAttachment } from "./preview-attachment";

@@ -4,6 +4,8 @@ import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { getModelImageUrl } from "@/app/chat/utils/model-utils";
+import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +14,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-import { getModelImageUrl } from "@/app/chat/utils/model-utils";
-import type { Coworker } from "@/app/chat/utils/types";
 
 interface Model {
   id: string;

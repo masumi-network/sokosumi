@@ -15,7 +15,7 @@ export const conversationItemRepository = {
   createItem: async (
     data: {
       conversationId: string;
-      role: "user" | "assistant" | "system";
+      role: "user" | "assistant";
       content: string | Array<{ type: string; text?: string }>;
     },
     tx: Prisma.TransactionClient,

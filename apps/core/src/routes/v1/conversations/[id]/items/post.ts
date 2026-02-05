@@ -8,10 +8,7 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import {
-  type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
-} from "@/lib/hono";
+import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 
 const conversationItemSchema = z
   .object({
@@ -19,9 +16,7 @@ const conversationItemSchema = z
       description: "Conversation item ID",
       example: "item_abc123",
     }),
-    role: z
-      .enum(["user", "assistant", "system"])
-      .openapi({ description: "Item role" }),
+    role: z.enum(["user", "assistant"]).openapi({ description: "Item role" }),
     content: z
       .union([
         z.string(),
@@ -40,7 +35,7 @@ const conversationItemSchema = z
 
 const createConversationItemRequestSchema = z
   .object({
-    role: z.enum(["user", "assistant", "system"]).openapi({
+    role: z.enum(["user", "assistant"]).openapi({
       description: "Item role",
     }),
     content: z
@@ -57,58 +52,56 @@ const createConversationItemRequestSchema = z
   })
   .openapi("CreateConversationItemRequest");
 
-const route = withGlobalHeaderParameters(
-  createRoute({
-    method: "post",
-    path: "/{id}/items",
-    description: "Add an item to a conversation",
-    tags: ["Conversations"],
-    request: {
-      params: z.object({
-        id: z
-          .string()
-          .uuid()
-          .openapi({
-            param: {
-              name: "id",
-              in: "path",
-            },
-            description: "Internal database ID",
-            example: "550e8400-e29b-41d4-a716-446655440000",
-          }),
-      }),
-      body: {
-        content: {
-          "application/json": {
-            schema: createConversationItemRequestSchema,
+const route = createRoute({
+  method: "post",
+  path: "/{id}/items",
+  description: "Add an item to a conversation",
+  tags: ["Conversations"],
+  request: {
+    params: z.object({
+      id: z
+        .string()
+        .uuid()
+        .openapi({
+          param: {
+            name: "id",
+            in: "path",
           },
+          description: "Internal database ID",
+          example: "550e8400-e29b-41d4-a716-446655440000",
+        }),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: createConversationItemRequestSchema,
         },
       },
     },
-    responses: {
-      201: jsonSuccessResponse(
-        conversationItemSchema,
-        "Conversation item created successfully",
-        {
-          data: {
-            id: "item_abc123",
-            role: "user",
-            content: "Hello!",
-            status: "completed",
-            created_at: 1706284800,
-          },
-          meta: {
-            timestamp: "2025-01-21T12:00:00.000Z",
-            requestId: "550e8400-e29b-41d4-a716-446655440000",
-          },
+  },
+  responses: {
+    201: jsonSuccessResponse(
+      conversationItemSchema,
+      "Conversation item created successfully",
+      {
+        data: {
+          id: "item_abc123",
+          role: "user",
+          content: "Hello!",
+          status: "completed",
+          created_at: 1706284800,
         },
-      ),
-      401: jsonErrorResponse("Unauthorized"),
-      404: jsonErrorResponse("Conversation not found"),
-      500: jsonErrorResponse("Internal Server Error"),
-    },
-  }),
-);
+        meta: {
+          timestamp: "2025-01-21T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+      },
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Conversation not found"),
+    500: jsonErrorResponse("Internal Server Error"),
+  },
+});
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -148,7 +141,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Map to response schema
     const response = {
       id: item.id,
-      role: item.role as "user" | "assistant" | "system",
+      role: item.role as "user" | "assistant",
       content: item.content as string | Array<{ type: string; text?: string }>,
       status: "completed",
       created_at: Math.floor(item.createdAt.getTime() / 1000),
