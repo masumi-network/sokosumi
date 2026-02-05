@@ -1,18 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  jobWithEvents,
-  jobWithPurchase,
-  jobWithTransaction,
-} from "@sokosumi/database/types/job";
 
 import { requireCoworkerTaskAccess } from "@/helpers/access-control";
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import { forbidden } from "@/helpers/error";
+import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { jobSchema } from "@/schemas/job.schema";
-import { addTaskJobRequestSchema } from "@/schemas/task.schema";
+import { createTaskJobRequestSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
 
 const paramsSchema = z.object({
@@ -32,17 +28,19 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: addTaskJobRequestSchema,
+          schema: createTaskJobRequestSchema,
         },
       },
     },
   },
   responses: {
     201: jsonSuccessResponse(jobSchema, "Job added to task"),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
@@ -50,42 +48,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: taskId } = c.req.valid("param");
-    const { jobId } = c.req.valid("json");
+    const { agentId, inputData, inputSchema, maxCredits, name } =
+      c.req.valid("json");
 
     const job = await prisma.$transaction(async (tx) => {
       const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
-
-      const existingJob = await tx.job.findUnique({
-        where: { id: jobId },
-      });
-
-      if (!existingJob) {
-        throw notFound("Job not found");
+      if (!authContext.coworkerId) {
+        throw forbidden("Only the coworker can create jobs for a task");
       }
-
-      if (existingJob.userId !== task.userId) {
-        throw forbidden(
-          "You can only add jobs that belong to the task owner to this task",
-        );
-      }
-
-      if (existingJob.taskId !== null) {
-        throw conflict("Job is already linked to a task");
-      }
-
-      const updatedJob = await tx.job.update({
-        where: { id: jobId, taskId: null, userId: task.userId },
-        data: { taskId },
-        include: {
-          ...jobWithEvents,
-          ...jobWithTransaction,
-          ...jobWithPurchase,
+      const job = await createAgentJobForUser({
+        authContext: {
+          userId: task.userId,
+          organizationId: task.organizationId,
+          coworkerId: null,
+        },
+        agentInput: {
+          agentId,
+          inputData,
+          inputSchema,
+          maxCredits,
+          name,
+        },
+        taskContext: {
+          taskId,
         },
       });
 
-      return flattenJob(updatedJob);
+      return job;
     });
-
-    return created(c, jobSchema.parse(job));
+    return created(c, jobSchema.parse(flattenJob(job)));
   });
 }

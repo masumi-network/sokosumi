@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -22,6 +22,15 @@ export const createTaskRequestSchema = z.object({
     .optional()
     .default(TaskStatus.DRAFT)
     .openapi({ example: TaskStatus.READY }),
+  origin: z
+    .enum(TaskEventOrigin)
+    .optional()
+    .default(TaskEventOrigin.SOKOSUMI)
+    .openapi({
+      example: TaskEventOrigin.SLACK,
+      description:
+        "Origin of the initial task event. Defaults to SOKOSUMI if not provided.",
+    }),
 });
 
 const route = withGlobalHeaderParameters(
@@ -71,6 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             create: {
               status: body.status,
               comment: null,
+              origin: body.origin,
               userId: authContext.userId,
               coworkerId: null,
             },

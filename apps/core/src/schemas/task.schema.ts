@@ -1,7 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { createJobRequestSchema } from "@/schemas/job.schema";
 
 export const coworkerSchema = z
   .object({
@@ -30,6 +31,7 @@ export const taskEventSchema = z
       .string()
       .nullish()
       .openapi({ example: "https://example.com/oauth/authorize" }),
+    origin: z.enum(TaskEventOrigin).openapi({ example: TaskEventOrigin.SLACK }),
     status: z
       .enum(TaskStatus)
       .nullish()
@@ -69,6 +71,6 @@ export const taskSchema = z
 
 export const tasksSchema = z.array(taskSchema).openapi("Tasks");
 
-export const addTaskJobRequestSchema = z.object({
-  jobId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
+export const createTaskJobRequestSchema = createJobRequestSchema.extend({
+  agentId: z.string().openapi({ example: "agent_123" }),
 });

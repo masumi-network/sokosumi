@@ -55,7 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const event = await prisma.$transaction(
       async (tx) => {
         const task = await requireTaskAccess(authContext, id, tx);
-        const { status, comment, credits, authenticationUrl } = body;
+        const { status, comment, credits, authenticationUrl, origin } = body;
 
         const isStatusEvent = status !== undefined;
         const isCommentOnlyEvent = !isStatusEvent && comment !== undefined;
@@ -89,6 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               status,
               comment,
               authenticationUrl: authenticationUrl ?? null,
+              origin,
               userId: authContext.coworkerId ? null : authContext.userId,
               coworkerId: authContext.coworkerId ?? null,
             },
@@ -119,6 +120,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               taskId: id,
               status: null,
               comment,
+              origin,
               userId: authContext.coworkerId ? null : authContext.userId,
               coworkerId: authContext.coworkerId ?? null,
             },

@@ -60,9 +60,8 @@ model User {
   // Coworkers
   coworkers Coworker[]
 
-  // Tasks
-  tasks      Task[]
-  taskEvents TaskEvent[]
+  tasks          Task[]
+  taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
   // Credit Buckets
@@ -134,13 +133,13 @@ model Organization {
   members           Member[]
   invitations       Invitation[]
   agents            Agent[]
-  blacklistedAgents Agent[]       @relation("AgentBlacklist")
+  blacklistedAgents Agent[]         @relation("AgentBlacklist")
   jobs              Job[]
   tasks             Task[]
   jobSchedules      JobSchedule[]
   transactions      Transaction[]
   jobShares         JobShare[]
-  coworkerUsages CoworkerUsage[]
+  coworkerUsages    CoworkerUsage[]
 
   stripeCustomerId String?
   invoiceEmail     String?
@@ -473,9 +472,9 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job         Job?  @relation("TransactionJob")
-  refundedJob Job?  @relation("RefundedTransactionJob")
-  task        Task? @relation("TransactionTask")
+  job           Job?           @relation("TransactionJob")
+  refundedJob   Job?           @relation("RefundedTransactionJob")
+  task          Task?          @relation("TransactionTask")
   coworkerUsage CoworkerUsage? @relation("TransactionCoworkerUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
@@ -1022,8 +1021,8 @@ model Coworker {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tasks      Task[]
-  taskEvents TaskEvent[]
+  tasks          Task[]
+  taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
   @@map("coworker")
@@ -1070,6 +1069,20 @@ enum TaskStatus {
   FAILED
 }
 
+enum TaskEventOrigin {
+  SLACK
+  TEAMS
+  EMAIL
+  LINEAR
+  GITHUB
+  WHATSAPP
+  TELEGRAM
+  SIGNAL
+  CHAT
+  SOKOSUMI
+  UNKNOWN
+}
+
 model TaskEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -1078,9 +1091,10 @@ model TaskEvent {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  status  TaskStatus?
-  comment String?
+  status            TaskStatus?
+  comment           String?
   authenticationUrl String?
+  origin            TaskEventOrigin @default(SOKOSUMI)
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
