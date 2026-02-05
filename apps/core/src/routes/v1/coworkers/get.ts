@@ -4,37 +4,33 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { orchestratorSchema } from "@/schemas/task.schema";
+import { coworkerSchema } from "@/schemas/task.schema";
 
 const route = createRoute({
   method: "get",
   path: "/",
-  description: "List availableorchestrators",
-  tags: ["Orchestrators"],
+  description: "List available coworkers",
+  tags: ["Coworkers"],
   responses: {
-    200: jsonSuccessResponse(
-      z.array(orchestratorSchema),
-      "Retrieve orchestrators",
-      {
-        data: [],
-        meta: {
-          timestamp: "2025-01-01T00:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
+    200: jsonSuccessResponse(z.array(coworkerSchema), "Retrieve coworkers", {
+      data: [],
+      meta: {
+        timestamp: "2025-01-01T00:00:00.000Z",
+        requestId: "550e8400-e29b-41d4-a716-446655440000",
       },
-    ),
+    }),
     401: jsonErrorResponse("Unauthorized"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const orchestrators = await prisma.orchestrator.findMany({
+    const coworkers = await prisma.coworker.findMany({
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    return ok(c, z.array(orchestratorSchema).parse(orchestrators));
+    return ok(c, z.array(coworkerSchema).parse(coworkers));
   });
 }

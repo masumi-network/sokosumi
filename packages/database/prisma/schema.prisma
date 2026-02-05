@@ -57,13 +57,12 @@ model User {
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
-  // Orchestrators
-  orchestrators Orchestrator[]
+  // Coworkers
+  coworkers Coworker[]
 
-  // Tasks
-  tasks              Task[]
-  taskEvents         TaskEvent[]
-  orchestratorUsages OrchestratorUsage[]
+  tasks          Task[]
+  taskEvents     TaskEvent[]
+  coworkerUsages CoworkerUsage[]
 
   // Credit Buckets
   creditBuckets CreditBucket[]
@@ -131,16 +130,16 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members            Member[]
-  invitations        Invitation[]
-  agents             Agent[]
-  blacklistedAgents  Agent[]             @relation("AgentBlacklist")
-  jobs               Job[]
-  tasks              Task[]
-  jobSchedules       JobSchedule[]
-  transactions       Transaction[]
-  jobShares          JobShare[]
-  orchestratorUsages OrchestratorUsage[]
+  members           Member[]
+  invitations       Invitation[]
+  agents            Agent[]
+  blacklistedAgents Agent[]         @relation("AgentBlacklist")
+  jobs              Job[]
+  tasks             Task[]
+  jobSchedules      JobSchedule[]
+  transactions      Transaction[]
+  jobShares         JobShare[]
+  coworkerUsages    CoworkerUsage[]
 
   stripeCustomerId String?
   invoiceEmail     String?
@@ -473,10 +472,10 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job               Job?               @relation("TransactionJob")
-  refundedJob       Job?               @relation("RefundedTransactionJob")
-  task              Task?              @relation("TransactionTask")
-  orchestratorUsage OrchestratorUsage? @relation("TransactionOrchestratorUsage")
+  job           Job?           @relation("TransactionJob")
+  refundedJob   Job?           @relation("RefundedTransactionJob")
+  task          Task?          @relation("TransactionTask")
+  coworkerUsage CoworkerUsage? @relation("TransactionCoworkerUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -1007,7 +1006,7 @@ model Jwks {
   @@map("jwks")
 }
 
-model Orchestrator {
+model Coworker {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1022,11 +1021,11 @@ model Orchestrator {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tasks              Task[]
-  taskEvents         TaskEvent[]
-  orchestratorUsages OrchestratorUsage[]
+  tasks          Task[]
+  taskEvents     TaskEvent[]
+  coworkerUsages CoworkerUsage[]
 
-  @@map("orchestrator")
+  @@map("coworker")
 }
 
 model Task {
@@ -1048,8 +1047,8 @@ model Task {
   transactionId String?      @unique
   transaction   Transaction? @relation("TransactionTask", fields: [transactionId], references: [id])
 
-  orchestratorId String?
-  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+  coworkerId String?
+  coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
   events TaskEvent[]
   jobs   Job[]
@@ -1100,13 +1099,13 @@ model TaskEvent {
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  orchestratorId String?
-  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+  coworkerId String?
+  coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
   @@map("taskEvent")
 }
 
-model OrchestratorUsage {
+model CoworkerUsage {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1114,8 +1113,8 @@ model OrchestratorUsage {
   idempotencyKey String
   referenceId    String?
 
-  orchestratorId String
-  orchestrator   Orchestrator @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1126,9 +1125,9 @@ model OrchestratorUsage {
   cents BigInt
 
   transactionId String      @unique
-  transaction   Transaction @relation("TransactionOrchestratorUsage", fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation("TransactionCoworkerUsage", fields: [transactionId], references: [id], onDelete: Cascade)
 
-  @@unique([orchestratorId, idempotencyKey])
+  @@unique([coworkerId, idempotencyKey])
   @@index([userId, organizationId, createdAt])
-  @@map("orchestrator_usage")
+  @@map("coworker_usage")
 }

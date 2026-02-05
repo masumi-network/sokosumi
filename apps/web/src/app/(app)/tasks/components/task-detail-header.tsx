@@ -3,12 +3,12 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { type TaskWithOrchestrator } from "@/lib/types/task";
+import { type TaskWithCoworker } from "@/lib/types/task";
 
 import { TaskDetailActions } from "./task-detail-actions";
 
 interface TaskDetailHeaderProps {
-  task: TaskWithOrchestrator;
+  task: TaskWithCoworker;
   labels: {
     back: string;
     actions: {

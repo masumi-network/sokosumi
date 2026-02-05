@@ -5,22 +5,22 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { orchestratorSchema } from "@/schemas/task.schema";
+import { coworkerSchema } from "@/schemas/task.schema";
 
 import { paramsSchema } from "./schema";
 
 const route = createRoute({
   method: "get",
   path: "/{id}",
-  description: "Retrieve orchestrator by ID",
-  tags: ["Orchestrators"],
+  description: "Retrieve coworker by ID",
+  tags: ["Coworkers"],
   request: {
     params: paramsSchema,
   },
   responses: {
-    200: jsonSuccessResponse(orchestratorSchema, "Retrieve orchestrator", {
+    200: jsonSuccessResponse(coworkerSchema, "Retrieve coworker", {
       data: {
-        id: "orc_123",
+        id: "cow_123",
         slug: "ops-agent",
         name: "Ops Agent",
         url: "https://example.com",
@@ -44,14 +44,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const orchestrator = await prisma.orchestrator.findUnique({
+    const coworker = await prisma.coworker.findUnique({
       where: { id },
     });
 
-    if (!orchestrator) {
-      throw notFound("Orchestrator not found");
+    if (!coworker) {
+      throw notFound("Coworker not found");
     }
 
-    return ok(c, orchestratorSchema.parse(orchestrator));
+    return ok(c, coworkerSchema.parse(coworker));
   });
 }

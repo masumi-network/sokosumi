@@ -1,6 +1,6 @@
 import type {
   AgentWithCreditsPrice,
-  Orchestrator,
+  Coworker,
   TaskEvent,
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
@@ -14,14 +14,14 @@ export type KanbanColumnId =
   | "input-required"
   | "complete";
 
-export interface TaskWithOrchestrator {
+export interface TaskWithCoworker {
   id: string;
   name: string;
   status: TaskStatus;
   userId: string;
   createdAt: string;
   updatedAt: string;
-  orchestrator?: Orchestrator | null;
+  coworker?: Coworker | null;
   commentsCount: number;
   columnId: KanbanColumnId;
   description?: string | null;

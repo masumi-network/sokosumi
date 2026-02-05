@@ -1,10 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireOrchestratorTaskAccess } from "@/helpers/access-control";
+import { requireCoworkerTaskAccess } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { jobSchema } from "@/schemas/job.schema";
 import { createTaskJobRequestSchema } from "@/schemas/task.schema";
@@ -50,29 +51,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");
 
-    if (!authContext.orchestratorId) {
-      throw forbidden("Only the orchestrator can create jobs for a task");
+    if (!authContext.coworkerId) {
+      throw forbidden("Only the coworker can create jobs for a task");
     }
 
-    const task = await requireOrchestratorTaskAccess(authContext, taskId);
-    const job = await createAgentJobForUser({
-      authContext: {
-        userId: task.userId,
-        organizationId: task.organizationId,
-        orchestratorId: null,
-      },
-      agentInput: {
-        agentId,
-        inputData,
-        inputSchema,
-        maxCredits,
-        name,
-      },
-      taskContext: {
-        taskId,
-      },
-    });
+    const job = await prisma.$transaction(async (tx) => {
+      const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
+      const job = await createAgentJobForUser({
+        authContext: {
+          userId: task.userId,
+          organizationId: task.organizationId,
+          coworkerId: null,
+        },
+        agentInput: {
+          agentId,
+          inputData,
+          inputSchema,
+          maxCredits,
+          name,
+        },
+        taskContext: {
+          taskId,
+        },
+      });
 
+      return job;
+    });
     return created(c, jobSchema.parse(flattenJob(job)));
   });
 }

@@ -50,7 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
 
-    if (authContext.orchestratorId) {
+    if (authContext.coworkerId) {
       throw forbidden("Only a user is allowed to do this action");
     }
 

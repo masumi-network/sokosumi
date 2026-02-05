@@ -1076,7 +1076,7 @@
       },
       "Card": {
         "comments": "Comments",
-        "orchestrator": "Orchestrator",
+        "coworker": "Coworker",
         "date": "Date"
       },
       "Display": {
@@ -1093,7 +1093,7 @@
       "Detail": {
         "back": "Back to tasks",
         "status": "Status",
-        "orchestrator": "Orchestrator",
+        "coworker": "Coworker",
         "description": "Description",
         "activity": "Activity",
         "commentPlaceholder": "Write a comment...",
@@ -1101,6 +1101,11 @@
         "submit": "Submit",
         "expand": "Expand",
         "collapse": "Show less",
+        "actorCoworker": "Coworker",
+        "actorUser": "User",
+        "actorSystem": "System",
+        "actionCommented": "commented",
+        "actionUpdatedStatus": "updated status",
         "actions": {
           "edit": "Edit",
           "delete": "Delete",
@@ -1119,8 +1124,8 @@
         "name": "Task name",
         "namePlaceholder": "Enter a short title",
         "descriptionPlaceholder": "Enter task details...",
-        "orchestrator": "Orchestrator",
-        "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
+        "coworker": "Coworker",
+        "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
@@ -1138,8 +1143,8 @@
         "name": "Task name",
         "namePlaceholder": "Enter a short title",
         "descriptionPlaceholder": "Update task details...",
-        "orchestrator": "Orchestrator",
-        "orchestratorDescription": "Choose an Orchestrator LLM that will manage this task for you",
+        "coworker": "Coworker",
+        "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
         "status": "Status",
         "statusDescription": "Choose the status for this task",
         "statusDraft": "Draft",

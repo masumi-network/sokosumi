@@ -40,11 +40,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.$transaction(async (tx) => {
       await requireTaskAccess(authContext, id, tx);
-      if (authContext.orchestratorId) {
+      if (authContext.coworkerId) {
         return tx.task.findUnique({
           where: {
             id,
-            orchestratorId: authContext.orchestratorId,
+            coworkerId: authContext.coworkerId,
             status: { not: TaskStatus.DRAFT },
           },
           include: taskInclude,

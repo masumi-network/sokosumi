@@ -1,7 +1,7 @@
 import {
   type KanbanColumnDefinition,
   type KanbanColumnId,
-  type TaskWithOrchestrator,
+  type TaskWithCoworker,
 } from "@/lib/types/task";
 
 import { DraggableTask, DroppableColumn, isDnDColumn } from "./task-dnd";
@@ -9,7 +9,7 @@ import { TaskListItem } from "./task-list-item";
 import { TaskListSection } from "./task-list-section";
 
 interface TaskListViewProps {
-  tasks: TaskWithOrchestrator[];
+  tasks: TaskWithCoworker[];
   columns: KanbanColumnDefinition[];
   labels: {
     columns: Record<KanbanColumnId, string>;

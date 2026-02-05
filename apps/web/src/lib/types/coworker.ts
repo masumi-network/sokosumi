@@ -1,4 +1,4 @@
-export interface OrchestratorOption {
+export interface CoworkerOption {
   id: string;
   name: string;
   image: string;

@@ -8,7 +8,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "New Task",
       description: "Task description",
-      orchestratorId: null,
+      coworkerId: null,
     });
 
     expect(result.status).toBe(TaskStatus.DRAFT);
@@ -18,7 +18,7 @@ describe("createTaskRequestSchema", () => {
     const result = createTaskRequestSchema.parse({
       name: "Ready task",
       description: null,
-      orchestratorId: "orc_123",
+      coworkerId: "cow_123",
       status: TaskStatus.READY,
     });
 
@@ -32,7 +32,7 @@ describe("createTaskRequestSchema", () => {
           createTaskRequestSchema.parse({
             name: "Invalid task",
             description: null,
-            orchestratorId: null,
+            coworkerId: null,
             status,
           });
         }).toThrow();

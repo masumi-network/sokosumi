@@ -9,7 +9,7 @@ import { unprocessableEntity } from "./error";
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
-  if (authContext.orchestratorId) {
+  if (authContext.coworkerId) {
     return {
       [TaskStatus.DRAFT]: [],
       [TaskStatus.READY]: [
@@ -82,7 +82,7 @@ export function mapTask(task: TaskWithIncludes) {
     updatedAt: task.updatedAt,
     userId: task.userId,
     organizationId: task.organizationId,
-    orchestratorId: task.orchestratorId,
+    coworkerId: task.coworkerId,
     name: task.name,
     description: task.description,
     status: task.status,

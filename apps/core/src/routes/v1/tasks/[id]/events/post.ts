@@ -90,8 +90,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               comment,
               authenticationUrl: authenticationUrl ?? null,
               origin,
-              userId: authContext.orchestratorId ? null : authContext.userId,
-              orchestratorId: authContext.orchestratorId ?? null,
+              userId: authContext.coworkerId ? null : authContext.userId,
+              coworkerId: authContext.coworkerId ?? null,
             },
           });
 
@@ -121,8 +121,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               status: null,
               comment,
               origin,
-              userId: authContext.orchestratorId ? null : authContext.userId,
-              orchestratorId: authContext.orchestratorId ?? null,
+              userId: authContext.coworkerId ? null : authContext.userId,
+              coworkerId: authContext.coworkerId ?? null,
             },
           });
 
