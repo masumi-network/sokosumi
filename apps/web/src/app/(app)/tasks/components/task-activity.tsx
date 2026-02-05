@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskEventOrigin } from "@sokosumi/database";
 import { ArrowUp, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -139,7 +140,7 @@ export function TaskActivitySection({
       status: null,
       comment: trimmedComment,
       authenticationUrl: null,
-      origin: null,
+      origin: TaskEventOrigin.SOKOSUMI,
       userId: currentUser?.id ?? null,
       orchestratorId: null,
     };
