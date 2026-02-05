@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 export const createTaskEventRequestSchema = z
   .object({
@@ -16,6 +16,15 @@ export const createTaskEventRequestSchema = z
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
     credits: z.number().min(0).optional().openapi({ example: 5 }),
+    origin: z
+      .enum(TaskEventOrigin)
+      .optional()
+      .default(TaskEventOrigin.SOKOSUMI)
+      .openapi({
+        example: TaskEventOrigin.SLACK,
+        description:
+          "The origin of the task event. Defaults to SOKOSUMI if undefined.",
+      }),
   })
   .superRefine((data, ctx) => {
     if (data.status === undefined && data.comment === undefined) {

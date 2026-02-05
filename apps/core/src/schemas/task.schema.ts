@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { createJobRequestSchema } from "@/schemas/job.schema";
@@ -31,6 +31,7 @@ export const taskEventSchema = z
       .string()
       .nullish()
       .openapi({ example: "https://example.com/oauth/authorize" }),
+    origin: z.enum(TaskEventOrigin).openapi({ example: TaskEventOrigin.SLACK }),
     status: z
       .enum(TaskStatus)
       .nullish()
