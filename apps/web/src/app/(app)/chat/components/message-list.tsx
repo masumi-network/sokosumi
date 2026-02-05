@@ -22,7 +22,7 @@ interface MessageListProps {
   userImageUrl: string;
   userName?: string;
   isLoading: boolean;
-  scrollAreaRef: React.RefObject<HTMLDivElement>;
+  scrollAreaRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export default function MessageList({

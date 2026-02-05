@@ -2,6 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
+import type { Dispatch, SetStateAction } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
@@ -10,7 +11,7 @@ import type { Attachment } from "@/components/chat/preview-attachment";
 interface ChatInputContainerProps {
   selectedChatId: string | null;
   input: string;
-  setInput: (input: string) => void;
+  setInput: Dispatch<SetStateAction<string>>;
   status: UseChatHelpers<UIMessage>["status"];
   stop: () => void;
   attachments: Attachment[];

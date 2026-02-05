@@ -111,9 +111,18 @@ export function convertItemsToMessages(
       typeof item.content === "string"
         ? item.content
         : item.content.map((c) => c.text || "").join("");
+
+    // Validate and cast role to UIMessage role type
+    const validRole: "assistant" | "user" | "system" =
+      item.role === "assistant" ||
+      item.role === "user" ||
+      item.role === "system"
+        ? (item.role as "assistant" | "user" | "system")
+        : "user"; // Default to "user" if role is invalid
+
     return {
       id: item.id,
-      role: item.role,
+      role: validRole,
       parts: [{ type: "text", text: contentText }],
       content: contentText,
       createdAt: new Date(item.created_at * 1000),

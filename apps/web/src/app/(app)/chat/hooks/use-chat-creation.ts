@@ -5,7 +5,7 @@ import type { UIMessage } from "ai";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import type { Chat, Coworker } from "@/chat/utils/types";
+import type { Chat, Coworker } from "@/app/chat/utils/types";
 import type { Conversation } from "@/lib/actions/conversation";
 
 interface UseChatCreationProps {
