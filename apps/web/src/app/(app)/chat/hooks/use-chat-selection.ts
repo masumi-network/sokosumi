@@ -92,7 +92,8 @@ export function useChatSelection({
   // Only sync when URL changes externally (not when we update it ourselves)
   useEffect(() => {
     // Skip if we're updating the URL ourselves
-    if (isUpdatingUrlRef.current) {
+    const wasUpdatingUrl = isUpdatingUrlRef.current;
+    if (wasUpdatingUrl) {
       isUpdatingUrlRef.current = false;
       return;
     }
@@ -121,14 +122,22 @@ export function useChatSelection({
       selectedChatId &&
       pathname === "/chat"
     ) {
-      // URL has no conversationId but we have a selected chat - clear selection to show welcome view
-      // Only clear if we're on /chat route to avoid clearing when navigating away
-      setSelectedChatId(null);
-      currentChatIdRef.current = null;
-      setSelectedModel(null);
-      selectedModelRef.current = null;
-      setMessages([]);
-      setInput("");
+      const actualUrlConversationId =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("conversationId")
+          : null;
+
+      // Only clear if URL truly has no conversationId
+      // This prevents clearing when useSearchParams temporarily returns null during re-renders
+      if (!actualUrlConversationId) {
+        // Clear selection to show welcome view
+        setSelectedChatId(null);
+        currentChatIdRef.current = null;
+        setSelectedModel(null);
+        selectedModelRef.current = null;
+        setMessages([]);
+        setInput("");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlConversationId, pathname, selectedChatId]);

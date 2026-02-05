@@ -39,6 +39,12 @@ export function useChatSync({
         const metadata = conv.metadata as Record<string, unknown> | null;
         const coworkerId = metadata?.coworker_id as string | undefined;
         const coworkerName = metadata?.coworker_name as string | undefined;
+        const coworkerDescription = metadata?.coworker_description as
+          | string
+          | undefined;
+        const coworkerUseCase = metadata?.coworker_useCase as
+          | string
+          | undefined;
         const modelId = metadata?.model_id as string | undefined;
         const modelName = metadata?.model_name as string | undefined;
         const conversationType = metadata?.type as string | undefined;
@@ -55,13 +61,12 @@ export function useChatSync({
           coworkerName &&
           conversationType === "coworker"
         ) {
-          // For new conversations, we need to get full coworker info
-          // For now, create a minimal coworker - the full info will be preserved from handleCoworkerSelected
+          // Build full coworker object from metadata
           coworker = {
             id: coworkerId,
             name: coworkerName,
-            description: "", // Will be filled from existing chat if available
-            useCase: "", // Will be filled from existing chat if available
+            description: coworkerDescription || "",
+            useCase: coworkerUseCase || "",
           };
         }
 
@@ -83,9 +88,11 @@ export function useChatSync({
           selectedModelRef.current = null;
         }
 
-        // Build model object from metadata
+        // Build model object from metadata or existing chat
         let model: { id: string; name: string } | undefined;
-        if (conversationType === "model" && modelId && modelName) {
+        if (existingChat?.model) {
+          model = existingChat.model;
+        } else if (conversationType === "model" && modelId && modelName) {
           model = { id: modelId, name: modelName };
         }
 

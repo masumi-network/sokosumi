@@ -199,10 +199,6 @@ function PureMultimodalInput({
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
 
   const submitForm = useCallback(() => {
-    if (chatId) {
-      window.history.pushState({}, "", `/chat/${chatId}`);
-    }
-
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
@@ -229,7 +225,6 @@ function PureMultimodalInput({
     setAttachments,
     setLocalStorageValue,
     width,
-    chatId,
     resetHeight,
     selectedCoworker,
     selectedModel,

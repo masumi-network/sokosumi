@@ -2,6 +2,7 @@
 
 import { useFormatter } from "next-intl";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -78,11 +79,7 @@ export default function ChatMessage({
 
     // If it's a coworker conversation, show coworker image
     if (coworkerId) {
-      const imageMap: Record<string, string> = {
-        hannah: "/images/coworkers/hannah.png",
-        demosthenes: "/images/coworkers/demosthenes.png",
-      };
-      const imageUrl = imageMap[coworkerId];
+      const imageUrl = getCoworkerImageUrl(coworkerId);
       if (imageUrl) {
         return (
           <AvatarImage
