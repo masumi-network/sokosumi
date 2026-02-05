@@ -13,6 +13,7 @@ export interface TaskWithEvents {
   createdAt: string;
   updatedAt: string;
   userId: string;
+  organizationId: string | null;
   orchestratorId?: string | null;
   name: string;
   description?: string | null;
@@ -32,6 +33,7 @@ interface CreateTaskInput {
   name: string;
   description: string | null;
   orchestratorId: string | null;
+  status?: TaskStatus;
 }
 
 interface PatchTaskInput {

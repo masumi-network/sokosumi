@@ -12,14 +12,25 @@ function getAllowedTransitions(
   if (authContext.orchestratorId) {
     return {
       [TaskStatus.DRAFT]: [],
-      [TaskStatus.READY]: [TaskStatus.RUNNING],
+      [TaskStatus.READY]: [
+        TaskStatus.RUNNING,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+      ],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+      ],
+      [TaskStatus.AUTHENTICATION_REQUIRED]: [
+        TaskStatus.RUNNING,
+        TaskStatus.INPUT_REQUIRED,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
       ],
       [TaskStatus.RUNNING]: [
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
       ],
@@ -33,6 +44,7 @@ function getAllowedTransitions(
       [TaskStatus.DRAFT]: [TaskStatus.READY],
       [TaskStatus.READY]: [TaskStatus.DRAFT],
       [TaskStatus.INPUT_REQUIRED]: [],
+      [TaskStatus.AUTHENTICATION_REQUIRED]: [],
       [TaskStatus.RUNNING]: [],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
@@ -69,9 +81,10 @@ export function mapTask(task: TaskWithIncludes) {
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     userId: task.userId,
-    orchestratorId: task.orchestratorId ?? null,
+    organizationId: task.organizationId,
+    orchestratorId: task.orchestratorId,
     name: task.name,
-    description: task.description ?? null,
+    description: task.description,
     status: task.status,
     events: task.events,
     jobIds,

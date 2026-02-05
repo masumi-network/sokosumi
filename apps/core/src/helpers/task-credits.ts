@@ -9,6 +9,7 @@ import { badRequest } from "./error";
 
 interface CreateTaskCompletionTransactionInput {
   userId: string;
+  organizationId: string | null;
   credits: number;
   tx: Prisma.TransactionClient;
 }
@@ -26,7 +27,7 @@ export async function createTaskCompletionTransaction(
   try {
     consumptions = await creditBucketRepository.prepareConsumption(
       input.userId,
-      null,
+      input.organizationId,
       cents,
       input.tx,
     );
@@ -41,6 +42,9 @@ export async function createTaskCompletionTransaction(
     data: {
       amount: cents * BigInt(-1),
       user: { connect: { id: input.userId } },
+      ...(input.organizationId
+        ? { organization: { connect: { id: input.organizationId } } }
+        : {}),
       creditConsumptions: {
         createMany: {
           data: consumptions.map((consumption) => ({

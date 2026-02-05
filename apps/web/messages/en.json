@@ -1176,12 +1176,17 @@
         "commentPlaceholder": "Write a comment...",
         "attach": "Attach",
         "submit": "Submit",
+        "expand": "Expand",
+        "collapse": "Show less",
         "actions": {
           "edit": "Edit",
           "delete": "Delete",
           "confirmDelete": "Delete this task?",
           "confirmDeleteDescription": "This cannot be undone. This will permanently delete the task.",
-          "deleteError": "Failed to delete task"
+          "deleteError": "Failed to delete task",
+          "markAsReady": "Mark as Ready",
+          "revertToDraft": "Revert to Draft",
+          "updateStatusSuccess": "Task status updated"
         }
       },
       "NewTask": {
