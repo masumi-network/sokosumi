@@ -41,6 +41,12 @@ export const taskEventSchema = z
   })
   .openapi("TaskEvent");
 
+export const taskEventWithTaskIdSchema = taskEventSchema
+  .extend({
+    taskId: z.string().openapi({ example: "tsk_123" }),
+  })
+  .openapi("TaskEventWithTaskId");
+
 export const taskCommentSchema = z
   .object({
     id: z.string().openapi({ example: "com_123" }),

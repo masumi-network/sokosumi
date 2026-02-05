@@ -1,53 +1,38 @@
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { createTaskJobRequestSchema } from "./task.schema";
+import { taskEventWithTaskIdSchema } from "./task.schema";
 
-const validInputSchema = {
-  input_data: [
-    {
-      id: "prompt",
-      type: "string",
-      name: "Prompt",
-      data: null,
-      validations: null,
-    },
-  ],
-};
-
-describe("createTaskJobRequestSchema", () => {
-  it("accepts minimal valid payload", () => {
-    const result = createTaskJobRequestSchema.parse({
-      agentId: "agent_123",
-      inputSchema: validInputSchema,
-      inputData: { prompt: "Hello" },
+describe("taskEventWithTaskIdSchema", () => {
+  it("parses a valid event with taskId and Date fields", () => {
+    const result = taskEventWithTaskIdSchema.parse({
+      id: "evt_123",
+      taskId: "tsk_123",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      comment: "Looks good.",
+      authenticationUrl: null,
+      origin: TaskEventOrigin.SOKOSUMI,
+      status: TaskStatus.RUNNING,
+      userId: "user_123",
+      coworkerId: "cow_123",
     });
 
-    expect(result.agentId).toBe("agent_123");
+    expect(result.taskId).toBe("tsk_123");
+    expect(typeof result.createdAt).toBe("string");
+    expect(typeof result.updatedAt).toBe("string");
   });
 
-  it("rejects missing agentId", () => {
+  it("fails when taskId is missing", () => {
     expect(() => {
-      createTaskJobRequestSchema.parse({
-        inputSchema: validInputSchema,
-        inputData: { prompt: "Hello" },
-      });
-    }).toThrow();
-  });
-
-  it("rejects missing inputSchema", () => {
-    expect(() => {
-      createTaskJobRequestSchema.parse({
-        agentId: "agent_123",
-        inputData: { prompt: "Hello" },
-      });
-    }).toThrow();
-  });
-
-  it("rejects missing inputData", () => {
-    expect(() => {
-      createTaskJobRequestSchema.parse({
-        agentId: "agent_123",
-        inputSchema: validInputSchema,
+      taskEventWithTaskIdSchema.parse({
+        id: "evt_123",
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+        origin: TaskEventOrigin.SOKOSUMI,
+        status: TaskStatus.RUNNING,
+        userId: "user_123",
+        coworkerId: "cow_123",
       });
     }).toThrow();
   });
