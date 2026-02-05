@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { conversationRepository } from "@sokosumi/database/repositories";
 import { randomUUID } from "crypto";
 
 import { conflict, internalServerError } from "@/helpers/error";
@@ -61,34 +60,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Generate a unique ID for the internal conversation identifier
       const openaiId = randomUUID();
 
-      // Check if conversation with this ID already exists (shouldn't happen with UUID, but safety check)
-      const existing = await conversationRepository.getConversationByOpenaiId(
-        openaiId,
-        authContext.userId,
-        prisma,
-      );
+      const conversation = await prisma.$transaction(async (tx) => {
+        // Check if conversation with this ID already exists (shouldn't happen with UUID, but safety check)
+        const existing = await tx.conversation.findFirst({
+          where: {
+            openaiId,
+            userId: authContext.userId,
+            archivedAt: null,
+          },
+        });
 
-      if (existing) {
-        throw conflict("Conversation already exists");
-      }
+        if (existing) {
+          throw conflict("Conversation already exists");
+        }
 
-      // Create conversation in database with title and metadata
-      const conversationData = {
-        openaiId,
-        userId: authContext.userId,
-        title: body.title,
-        metadata: body.metadata
-          ? {
-              ...body.metadata,
-              userId: authContext.userId, // Store userId in metadata for reference
-            }
-          : { userId: authContext.userId },
-      };
+        // Create conversation in database with title and metadata
+        const conversationData = {
+          openaiId,
+          userId: authContext.userId,
+          title: body.title,
+          metadata: body.metadata
+            ? {
+                ...body.metadata,
+                userId: authContext.userId, // Store userId in metadata for reference
+              }
+            : { userId: authContext.userId },
+        };
 
-      const conversation = await conversationRepository.createConversation(
-        conversationData,
-        prisma,
-      );
+        return tx.conversation.create({ data: conversationData });
+      });
 
       // Map to response schema
       const response = {

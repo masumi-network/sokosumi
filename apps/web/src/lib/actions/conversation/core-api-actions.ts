@@ -34,7 +34,7 @@ interface ListConversationsParameters extends AuthenticatedRequest {
 
 interface AddConversationItemParameters extends AuthenticatedRequest {
   conversationId: string; // Internal database ID
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: Array<{ type: string; text?: string }> | string;
 }
 
@@ -55,10 +55,9 @@ export interface Conversation {
 
 export interface ConversationItem {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: Array<{ type: string; text?: string }> | string;
-  status: string;
-  created_at: number;
+  createdAt: number;
 }
 
 export interface ConversationWithItems extends Conversation {

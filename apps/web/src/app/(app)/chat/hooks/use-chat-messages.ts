@@ -15,7 +15,7 @@ interface UseChatMessagesProps {
       id: string;
       role: string;
       content: Array<{ type: string; text?: string }> | string;
-      created_at: number;
+      createdAt: number;
     }>;
   } | null;
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
@@ -74,7 +74,7 @@ export function useChatMessages({
                 id: string;
                 role: string;
                 content: Array<{ type: string; text?: string }> | string;
-                created_at: number;
+                createdAt: number;
               }>;
             }
           | { ok: false; error: unknown }
@@ -98,7 +98,7 @@ export function useChatMessages({
             id: string;
             role: string;
             content: Array<{ type: string; text?: string }> | string;
-            created_at: number;
+            createdAt: number;
           }> | null = null;
 
           if (
@@ -118,7 +118,7 @@ export function useChatMessages({
                 id: string;
                 role: string;
                 content: Array<{ type: string; text?: string }> | string;
-                created_at: number;
+                createdAt: number;
               }>;
             }
           }

@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { conversationRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -70,35 +69,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     // Database is the source of truth - validate ownership and update in DB
-    const conversation = await conversationRepository.getConversationById(
-      id,
-      authContext.userId,
-      prisma,
-    );
+    const updatedConversation = await prisma.$transaction(async (tx) => {
+      // First verify ownership (exclude deleted conversations)
+      const existing = await tx.conversation.findFirst({
+        where: { id, userId: authContext.userId, archivedAt: null },
+      });
 
-    if (!conversation) {
-      throw notFound("Conversation not found");
-    }
+      if (!existing) {
+        throw notFound("Conversation not found");
+      }
 
-    // Merge existing metadata with new metadata, preserving userId
-    const existingMetadata =
-      (conversation.metadata as Record<string, unknown> | null) || {};
-    const updatedMetadata = {
-      ...existingMetadata,
-      ...body.metadata,
-      userId: authContext.userId, // Ensure userId is preserved
-    };
+      // Merge existing metadata with new metadata, preserving userId
+      const existingMetadata =
+        (existing.metadata as Record<string, unknown> | null) || {};
+      const updatedMetadata = {
+        ...existingMetadata,
+        ...body.metadata,
+        userId: authContext.userId, // Ensure userId is preserved
+      };
 
-    // Update conversation in database
-    const updatedConversation = await conversationRepository.updateConversation(
-      id,
-      authContext.userId,
-      {
-        title: body.title,
-        metadata: updatedMetadata,
-      },
-      prisma,
-    );
+      // Update conversation in database
+      return tx.conversation.update({
+        where: { id },
+        data: {
+          title: body.title,
+          metadata: updatedMetadata,
+          updatedAt: new Date(),
+        },
+      });
+    });
 
     // Map to response schema (excludes internal conversation identifier)
     const response = {

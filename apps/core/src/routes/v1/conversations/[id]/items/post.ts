@@ -1,56 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  conversationItemRepository,
-  conversationRepository,
-} from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
-
-const conversationItemSchema = z
-  .object({
-    id: z.string().openapi({
-      description: "Conversation item ID",
-      example: "item_abc123",
-    }),
-    role: z.enum(["user", "assistant"]).openapi({ description: "Item role" }),
-    content: z
-      .union([
-        z.string(),
-        z.array(
-          z.object({
-            type: z.string(),
-            text: z.string().optional(),
-          }),
-        ),
-      ])
-      .openapi({ description: "Item content" }),
-    status: z.string().openapi({ description: "Item status" }),
-    created_at: z.number().openapi({ description: "Unix timestamp" }),
-  })
-  .openapi("ConversationItem");
-
-const createConversationItemRequestSchema = z
-  .object({
-    role: z.enum(["user", "assistant"]).openapi({
-      description: "Item role",
-    }),
-    content: z
-      .union([
-        z.string(),
-        z.array(
-          z.object({
-            type: z.string(),
-            text: z.string().optional(),
-          }),
-        ),
-      ])
-      .openapi({ description: "Item content" }),
-  })
-  .openapi("CreateConversationItemRequest");
+import {
+  conversationItemSchema,
+  createConversationItemRequestSchema,
+} from "@/schemas/conversation-item.schema";
 
 const route = createRoute({
   method: "post",
@@ -85,11 +43,10 @@ const route = createRoute({
       "Conversation item created successfully",
       {
         data: {
-          id: "item_abc123",
+          id: "550e8400-e29b-41d4-a716-446655440000",
           role: "user",
           content: "Hello!",
-          status: "completed",
-          created_at: 1706284800,
+          createdAt: 1706284800,
         },
         meta: {
           timestamp: "2025-01-21T12:00:00.000Z",
@@ -109,42 +66,70 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    // Database is the source of truth - validate ownership and create item
-    const conversation = await conversationRepository.getConversationById(
-      id,
-      authContext.userId,
-      prisma,
-    );
+    // Extract text and type from content
+    let contentText: string;
+    let contentType: string | null = null;
 
-    if (!conversation) {
-      throw notFound("Conversation not found");
+    if (typeof body.content === "string") {
+      contentText = body.content;
+    } else if (Array.isArray(body.content) && body.content.length > 0) {
+      // Extract text from array format
+      contentText =
+        body.content
+          .map((item) => item.text || "")
+          .filter(Boolean)
+          .join("") || "";
+      // Extract type from first element if available
+      contentType = body.content[0]?.type || null;
+    } else {
+      contentText = "";
     }
 
-    // Create conversation item in database
-    const item = await conversationItemRepository.createItem(
-      {
-        conversationId: conversation.id,
-        role: body.role,
-        content: body.content,
-      },
-      prisma,
-    );
+    // Database is the source of truth - validate ownership and create item
+    const item = await prisma.$transaction(async (tx) => {
+      // Validate ownership
+      const conversation = await tx.conversation.findFirst({
+        where: {
+          id,
+          userId: authContext.userId,
+          archivedAt: null,
+        },
+      });
 
-    // Update conversation updatedAt timestamp
-    await conversationRepository.updateConversation(
-      id,
-      authContext.userId,
-      {},
-      prisma,
-    );
+      if (!conversation) {
+        throw notFound("Conversation not found");
+      }
 
-    // Map to response schema
+      // Create conversation item in database
+      const item = await tx.conversationItem.create({
+        data: {
+          conversationId: conversation.id,
+          role: body.role,
+          contentType,
+          contentText,
+        },
+      });
+
+      // Update conversation updatedAt timestamp
+      await tx.conversation.update({
+        where: { id },
+        data: { updatedAt: new Date() },
+      });
+
+      return item;
+    });
+
+    // Map to response schema - reconstruct content format from normalized columns
+    const content: string | Array<{ type: string; text: string }> =
+      item.contentType && item.contentType !== ""
+        ? [{ type: item.contentType, text: item.contentText }]
+        : item.contentText;
+
     const response = {
       id: item.id,
       role: item.role as "user" | "assistant",
-      content: item.content as string | Array<{ type: string; text?: string }>,
-      status: "completed",
-      created_at: Math.floor(item.createdAt.getTime() / 1000),
+      content,
+      createdAt: Math.floor(item.createdAt.getTime() / 1000),
     };
 
     return created(c, response);

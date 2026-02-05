@@ -1136,20 +1136,20 @@ model CoworkerUsage {
 }
 
 model Conversation {
-  id        String             @id @default(uuid())
-  openaiId  String             @unique
-  userId    String
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String?
-  metadata  Json?
-  deletedAt DateTime?
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
-  items     ConversationItem[]
+  id         String             @id @default(uuid())
+  openaiId   String             @unique
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String?
+  metadata   Json?
+  archivedAt DateTime?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  items      ConversationItem[]
 
   @@index([userId])
   @@index([openaiId])
-  @@index([deletedAt])
+  @@index([archivedAt])
   @@map("conversation")
 }
 
@@ -1157,11 +1157,13 @@ model ConversationItem {
   id             String       @id @default(uuid())
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String       // "user" | "assistant" | "system"
-  content        Json         // String or Array<{type: string, text?: string}>
+  role           String // "user" | "assistant"
+  contentType    String? // "input_text", "output_text", etc. (optional)
+  contentText    String // The actual text content
   createdAt      DateTime     @default(now())
 
   @@index([conversationId])
   @@index([conversationId, createdAt])
+  @@index([contentText])
   @@map("conversationItem")
 }

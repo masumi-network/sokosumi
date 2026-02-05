@@ -103,7 +103,7 @@ export function convertItemsToMessages(
     id: string;
     role: string;
     content: Array<{ type: string; text?: string }> | string;
-    created_at: number;
+    createdAt: number;
   }>,
 ): UIMessage[] {
   return items.map((item) => {
@@ -122,7 +122,7 @@ export function convertItemsToMessages(
       role: validRole,
       parts: [{ type: "text", text: contentText }],
       content: contentText,
-      createdAt: new Date(item.created_at * 1000),
+      createdAt: new Date(item.createdAt * 1000),
     };
   });
 }

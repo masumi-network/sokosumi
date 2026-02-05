@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { conversationRepository } from "@sokosumi/database/repositories";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -45,10 +44,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const { authContext } = c.var;
 
       // Database is the source of truth - fetch conversations directly from DB
-      const conversations = await conversationRepository.getUserConversations(
-        authContext.userId,
-        prisma,
-      );
+      const conversations = await prisma.$transaction(async (tx) => {
+        return tx.conversation.findMany({
+          where: {
+            userId: authContext.userId,
+            archivedAt: null,
+          },
+          orderBy: { updatedAt: "desc" },
+        });
+      });
 
       // Map database conversations to response format
       const response = conversations.map((conv) => ({

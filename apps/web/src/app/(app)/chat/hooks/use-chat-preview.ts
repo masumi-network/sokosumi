@@ -136,7 +136,7 @@ export function useChatPreview({
                   id: string;
                   role: string;
                   content: Array<{ type: string; text?: string }> | string;
-                  created_at: number;
+                  createdAt: number;
                 }>;
               }
             | { ok: false; error: unknown }
@@ -146,7 +146,7 @@ export function useChatPreview({
             id: string;
             role: string;
             content: Array<{ type: string; text?: string }> | string;
-            created_at: number;
+            createdAt: number;
           }> | null = null;
 
           if (

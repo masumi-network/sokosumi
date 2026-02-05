@@ -1,36 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  conversationItemRepository,
-  conversationRepository,
-} from "@sokosumi/database/repositories";
 
 import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
-
-const conversationItemSchema = z
-  .object({
-    id: z.string().openapi({
-      description: "Conversation item ID",
-      example: "item_abc123",
-    }),
-    role: z.enum(["user", "assistant"]).openapi({ description: "Item role" }),
-    content: z
-      .union([
-        z.string(),
-        z.array(
-          z.object({
-            type: z.string(),
-            text: z.string().optional(),
-          }),
-        ),
-      ])
-      .openapi({ description: "Item content" }),
-    created_at: z.number().openapi({ description: "Unix timestamp" }),
-  })
-  .openapi("ConversationItem");
+import { conversationItemSchema } from "@/schemas/conversation-item.schema";
 
 const route = createRoute({
   method: "get",
@@ -67,10 +42,10 @@ const route = createRoute({
       {
         data: [
           {
-            id: "item_abc123",
+            id: "550e8400-e29b-41d4-a716-446655440000",
             role: "user",
             content: "Hello!",
-            created_at: 1706284800,
+            createdAt: 1706284800,
           },
         ],
         meta: {
@@ -92,33 +67,53 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const { id } = c.req.valid("param");
       const { limit, after } = c.req.valid("query");
 
-      // Database is the source of truth - validate ownership
-      const conversation = await conversationRepository.getConversationById(
-        id,
-        authContext.userId,
-        prisma,
-      );
+      // Database is the source of truth - validate ownership and get items
+      const { items } = await prisma.$transaction(async (tx) => {
+        // Validate ownership
+        const conversation = await tx.conversation.findFirst({
+          where: {
+            id,
+            userId: authContext.userId,
+            archivedAt: null,
+          },
+        });
 
-      if (!conversation) {
-        throw notFound("Conversation not found");
-      }
+        if (!conversation) {
+          throw notFound("Conversation not found");
+        }
 
-      // Get conversation items from database
-      const items = await conversationItemRepository.getItemsByConversationId(
-        conversation.id,
-        prisma,
-        { limit, after },
-      );
+        // Get conversation items from database
+        const items = await tx.conversationItem.findMany({
+          where: {
+            conversationId: conversation.id,
+          },
+          orderBy: { createdAt: "asc" },
+          ...(after
+            ? {
+                cursor: { id: after },
+                skip: 1,
+              }
+            : {}),
+          ...(limit ? { take: limit } : {}),
+        });
 
-      // Map to response schema
-      const response = items.map((item) => ({
-        id: item.id,
-        role: item.role as "user" | "assistant",
-        content: item.content as
-          | string
-          | Array<{ type: string; text?: string }>,
-        created_at: Math.floor(item.createdAt.getTime() / 1000),
-      }));
+        return { conversation, items };
+      });
+
+      // Map to response schema - reconstruct content format from normalized columns
+      const response = items.map((item) => {
+        const content: string | Array<{ type: string; text: string }> =
+          item.contentType && item.contentType !== ""
+            ? [{ type: item.contentType, text: item.contentText }]
+            : item.contentText;
+
+        return {
+          id: item.id,
+          role: item.role as "user" | "assistant",
+          content,
+          createdAt: Math.floor(item.createdAt.getTime() / 1000),
+        };
+      });
 
       return ok(c, response);
     } catch (error) {

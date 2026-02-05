@@ -29,8 +29,6 @@ export * from "./agentRating.repository.js";
 export * from "./attachment.repository.js";
 export * from "./blob.repository.js";
 export * from "./category.repository.js";
-export * from "./conversation.repository.js";
-export * from "./conversation-item.repository.js";
 export * from "./credit-bucket.repository.js";
 export * from "./creditCost.repository.js";
 export * from "./invitation.repository.js";
