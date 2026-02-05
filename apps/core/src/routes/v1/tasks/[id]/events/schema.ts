@@ -3,23 +3,20 @@ import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 const TASK_EVENT_ORIGINS = Object.values(TaskEventOrigin) as TaskEventOrigin[];
 
-const taskEventOriginSchema = z.preprocess(
-  (value) => {
-    if (value === null || value === undefined) {
-      return TaskEventOrigin.SOKOSUMI;
-    }
+const taskEventOriginSchema = z.preprocess((value) => {
+  if (value === null || value === undefined) {
+    return TaskEventOrigin.SOKOSUMI;
+  }
 
-    if (typeof value === "string") {
-      const normalized = value.trim().toUpperCase();
-      return TASK_EVENT_ORIGINS.includes(normalized as TaskEventOrigin)
-        ? (normalized as TaskEventOrigin)
-        : TaskEventOrigin.UNKNOWN;
-    }
+  if (typeof value === "string") {
+    const normalized = value.trim().toUpperCase();
+    return TASK_EVENT_ORIGINS.includes(normalized as TaskEventOrigin)
+      ? (normalized as TaskEventOrigin)
+      : TaskEventOrigin.UNKNOWN;
+  }
 
-    return TaskEventOrigin.UNKNOWN;
-  },
-  z.enum(TASK_EVENT_ORIGINS as [TaskEventOrigin, ...TaskEventOrigin[]]),
-);
+  return TaskEventOrigin.UNKNOWN;
+}, z.enum(TaskEventOrigin));
 
 export const createTaskEventRequestSchema = z
   .object({
@@ -36,7 +33,8 @@ export const createTaskEventRequestSchema = z
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
     credits: z.number().min(0).optional().openapi({ example: 5 }),
-    origin: taskEventOriginSchema
+    origin: z
+      .enum(TaskEventOrigin)
       .optional()
       .default(TaskEventOrigin.SOKOSUMI)
       .openapi({

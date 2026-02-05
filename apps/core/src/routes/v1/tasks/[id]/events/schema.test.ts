@@ -16,40 +16,22 @@ describe("createTaskEventRequestSchema", () => {
     }
   });
 
-  it("normalizes mixed-case origins", () => {
-    const result = createTaskEventRequestSchema.safeParse({
-      status: TaskStatus.RUNNING,
-      origin: "Slack",
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.SLACK);
-    }
+  it("throws an error for unsupported origins", () => {
+    expect(() => {
+      createTaskEventRequestSchema.parse({
+        status: TaskStatus.RUNNING,
+        origin: "Discord",
+      });
+    }).toThrow();
   });
 
-  it("coerces unsupported origins to UNKNOWN", () => {
-    const result = createTaskEventRequestSchema.safeParse({
-      status: TaskStatus.RUNNING,
-      origin: "Discord",
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.UNKNOWN);
-    }
-  });
-
-  it("defaults null origin to SOKOSUMI", () => {
-    const result = createTaskEventRequestSchema.safeParse({
-      status: TaskStatus.RUNNING,
-      origin: null,
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.origin).toBe(TaskEventOrigin.SOKOSUMI);
-    }
+  it("throws an error for null origin", () => {
+    expect(() => {
+      createTaskEventRequestSchema.parse({
+        status: TaskStatus.RUNNING,
+        origin: null,
+      });
+    }).toThrow();
   });
 
   it("defaults missing origin to SOKOSUMI", () => {
