@@ -24,8 +24,11 @@ export const coworkerSchema = z
 export const taskEventSchema = z
   .object({
     id: z.string().openapi({ example: "evt_123" }),
+    taskId: z.string().openapi({ example: "tsk_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
+    userId: z.string().nullish().openapi({ example: "user_123" }),
+    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
     comment: z.string().nullish().openapi({ example: "Looks good." }),
     authenticationUrl: z
       .string()
@@ -36,8 +39,6 @@ export const taskEventSchema = z
       .enum(TaskStatus)
       .nullish()
       .openapi({ example: TaskStatus.RUNNING }),
-    userId: z.string().nullish().openapi({ example: "user_123" }),
-    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
   })
   .openapi("TaskEvent");
 

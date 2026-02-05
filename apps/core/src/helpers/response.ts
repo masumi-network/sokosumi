@@ -24,7 +24,7 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
       requestId: z
         .string()
         .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
-      /** Optional pagination metadata */
+      /** Optional pagination metadata for list endpoints */
       pagination: cursorPaginationMetaSchema.optional(),
     }),
   });
