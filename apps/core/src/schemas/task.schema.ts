@@ -2,11 +2,11 @@ import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
-import { createJobRequestSchema } from "@/schemas/job.schema";
+import { createJobRequestSchema, jobsSchema } from "@/schemas/job.schema";
 
-export const orchestratorSchema = z
+export const coworkerSchema = z
   .object({
-    id: z.string().openapi({ example: "orc_123" }),
+    id: z.string().openapi({ example: "cow_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     slug: z.string().openapi({ example: "ops-agent" }),
@@ -19,13 +19,16 @@ export const orchestratorSchema = z
       .nullish()
       .openapi({ example: "https://example.com/logo" }),
   })
-  .openapi("Orchestrator");
+  .openapi("Coworker");
 
 export const taskEventSchema = z
   .object({
     id: z.string().openapi({ example: "evt_123" }),
+    taskId: z.string().openapi({ example: "tsk_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
+    userId: z.string().nullish().openapi({ example: "user_123" }),
+    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
     comment: z.string().nullish().openapi({ example: "Looks good." }),
     authenticationUrl: z
       .string()
@@ -36,8 +39,6 @@ export const taskEventSchema = z
       .enum(TaskStatus)
       .nullish()
       .openapi({ example: TaskStatus.RUNNING }),
-    userId: z.string().nullish().openapi({ example: "user_123" }),
-    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
   })
   .openapi("TaskEvent");
 
@@ -48,7 +49,7 @@ export const taskCommentSchema = z
     updatedAt: dateTimeSchema,
     text: z.string().openapi({ example: "Looks good." }),
     userId: z.string().nullish().openapi({ example: "user_123" }),
-    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
   })
   .openapi("TaskComment");
 
@@ -59,13 +60,13 @@ export const taskSchema = z
     updatedAt: dateTimeSchema,
     userId: z.string().openapi({ example: "user_123" }),
     organizationId: z.string().nullable().openapi({ example: "org_123" }),
-    orchestratorId: z.string().nullable().openapi({ example: "orc_123" }),
+    coworkerId: z.string().nullable().openapi({ example: "cow_123" }),
     name: z.string().openapi({ example: "Review onboarding" }),
     description: z.string().nullable().openapi({ example: "Notes go here" }),
     status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
     credits: z.number().openapi({ example: 5 }),
     events: z.array(taskEventSchema).openapi({ example: [] }),
-    jobIds: z.array(z.string()).openapi({ example: [] }),
+    jobs: jobsSchema.openapi({ example: [] }),
   })
   .openapi("Task");
 

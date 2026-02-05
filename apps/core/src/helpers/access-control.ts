@@ -123,7 +123,7 @@ export async function requireUserTaskAccess(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (authContext.orchestratorId) {
+  if (authContext.coworkerId) {
     throw forbidden("Only the user is allowed to do this operation");
   }
   const task = await tx.task.findUnique({
@@ -144,26 +144,26 @@ export async function requireUserTaskAccess(
 }
 
 /**
- * Validates access to a task based on orchestrator ownership and fetches the task record.
- * Throws 403 if the authenticated orchestrator does not have access to the task.
+ * Validates access to a task based on coworker ownership and fetches the task record.
+ * Throws 403 if the authenticated coworker does not have access to the task.
  *
- * @param authContext - The authenticated orchestrator context
+ * @param authContext - The authenticated coworker context
  * @param taskId - The task ID to fetch and validate
  * @param tx - Optional Prisma transaction client for transaction support
  * @returns The validated task if access is permitted
  * @throws {notFound} If the task does not exist
- * @throws {forbidden} If orchestrator does not have access to the task
+ * @throws {forbidden} If coworker does not have access to the task
  *
  * @example
- * const task = await requireOrchestratorTaskAccess(authContext, taskId);
+ * const task = await requireCoworkerTaskAccess(authContext, taskId);
  *
  * @example
  * await prisma.$transaction(async (tx) => {
- *   const task = await requireOrchestratorTaskAccess(authContext, taskId, tx);
+ *   const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
  *   // ... additional operations
  * });
  */
-export async function requireOrchestratorTaskAccess(
+export async function requireCoworkerTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -174,25 +174,25 @@ export async function requireOrchestratorTaskAccess(
   if (!task) {
     throw notFound("Task not found");
   }
-  if (task.orchestratorId !== authContext.orchestratorId) {
-    throw forbidden("You can only access tasks assigned to your orchestrator");
+  if (task.coworkerId !== authContext.coworkerId) {
+    throw forbidden("You can only access tasks assigned to your coworker");
   }
   return task;
 }
 
 /**
- * Validates access to a task based on the authentication context (user or orchestrator)
+ * Validates access to a task based on the authentication context (user or coworker)
  * and fetches the task record. Directs to the appropriate access control depending
- * on whether the request comes from a user or an orchestrator.
+ * on whether the request comes from a user or a coworker.
  *
- * Throws 403 if the authenticated user or orchestrator does not have access to the task.
+ * Throws 403 if the authenticated user or coworker does not have access to the task.
  *
- * @param authContext - The authentication context of the current user or orchestrator
+ * @param authContext - The authentication context of the current user or coworker
  * @param taskId - The ID of the task to fetch and validate
  * @param tx - Optional Prisma transaction client for transaction support (defaults to main Prisma client)
  * @returns The validated task if access is permitted
  * @throws {notFound} If the task does not exist
- * @throws {forbidden} If the user or orchestrator does not have access to the task
+ * @throws {forbidden} If the user or coworker does not have access to the task
  *
  * @example
  * const task = await requireTaskAccess(authContext, taskId);
@@ -208,8 +208,8 @@ export async function requireTaskAccess(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (authContext.orchestratorId) {
-    return await requireOrchestratorTaskAccess(authContext, taskId, tx);
+  if (authContext.coworkerId) {
+    return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
   return await requireUserTaskAccess(authContext, taskId, tx);
 }

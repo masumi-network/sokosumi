@@ -31,13 +31,13 @@ const query = z
         description: "Filter tasks by status",
         example: TaskStatus.READY,
       }),
-    orchestratorId: z
+    coworkerId: z
       .string()
       .optional()
       .openapi({
-        param: { name: "orchestratorId", in: "query" },
-        description: "Filter tasks by orchestrator ID",
-        example: "orc_123",
+        param: { name: "coworkerId", in: "query" },
+        description: "Filter tasks by coworker ID",
+        example: "cow_123",
       }),
   })
   .extend(cursorPaginationQuerySchema.shape);
@@ -55,31 +55,6 @@ const route = withGlobalHeaderParameters(
       200: jsonPaginatedSuccessResponse(
         z.array(taskSchema),
         "Retrieve all tasks",
-        {
-          data: [
-            {
-              id: "tsk_123",
-              userId: "user_123",
-              name: "Review onboarding",
-              status: TaskStatus.READY,
-              orchestratorId: "orc_123",
-              _count: {
-                comments: 2,
-              },
-              updatedAt: "2025-01-02T12:00:00.000Z",
-            },
-          ],
-          meta: {
-            timestamp: "2025-01-02T12:00:00.000Z",
-            requestId: "550e8400-e29b-41d4-a716-446655440000",
-            pagination: {
-              cursor: null,
-              limit: 20,
-              total: 200,
-              nextCursor: "tsk_124",
-            },
-          },
-        },
       ),
       401: jsonErrorResponse("Unauthorized"),
       500: jsonErrorResponse("Internal Server Error"),
@@ -91,18 +66,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { status, orchestratorId } = queryParams;
+    const { status, coworkerId } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     let where: Prisma.TaskWhereInput;
-    if (authContext.orchestratorId) {
+    if (authContext.coworkerId) {
       if (status === TaskStatus.DRAFT) {
         throw badRequest(
-          "Orchestrators cannot filter by DRAFT status. DRAFT tasks are not accessible to orchestrators.",
+          "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
         );
       }
       where = {
-        orchestratorId: authContext.orchestratorId,
+        coworkerId: authContext.coworkerId,
         ...(status ? { status } : {}),
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
@@ -110,7 +85,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where = {
         userId: authContext.userId,
         ...(status ? { status } : {}),
-        ...(orchestratorId ? { orchestratorId } : {}),
+        ...(coworkerId ? { coworkerId } : {}),
       };
     }
 

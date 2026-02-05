@@ -12,7 +12,7 @@ import {
 
 interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
-  orchestratorId: string | null;
+  coworkerId: string | null;
   status: TaskStatus;
 }
 
@@ -20,7 +20,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   taskId: string;
   name: string;
   description: string;
-  orchestratorId: string | null;
+  coworkerId: string | null;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
 }
@@ -48,7 +48,7 @@ function buildFallbackName(description: string): string {
 export const createTask = withAuthContext<
   CreateTaskParameters,
   { taskId: string }
->(async ({ description, orchestratorId, status }) => {
+>(async ({ description, coworkerId, status }) => {
   const trimmedDescription = description.trim();
   if (!trimmedDescription) {
     throw new Error("Description required");
@@ -62,7 +62,7 @@ export const createTask = withAuthContext<
     const task = await taskService.createTask({
       name,
       description: trimmedDescription,
-      orchestratorId: orchestratorId ? orchestratorId : null,
+      coworkerId: coworkerId ? coworkerId : null,
       status,
     });
 
@@ -82,7 +82,7 @@ export const updateTask = withAuthContext<
     taskId,
     name,
     description,
-    orchestratorId,
+    coworkerId,
     currentStatus,
     desiredStatus,
   }) => {
@@ -99,7 +99,7 @@ export const updateTask = withAuthContext<
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        orchestratorId: orchestratorId?.trim() ? orchestratorId : null,
+        coworkerId: coworkerId?.trim() ? coworkerId : null,
       });
 
       if (desiredStatus !== currentStatus) {

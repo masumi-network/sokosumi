@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { type TaskWithOrchestrator } from "@/lib/types/task";
+import { type TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
 import type { DragHandleProps } from "./task-dnd";
@@ -9,7 +9,7 @@ import { TaskMetaDetails } from "./task-meta";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskCardProps {
-  task: TaskWithOrchestrator;
+  task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
 }
 
@@ -49,7 +49,7 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
             </p>
 
             <TaskMetaDetails
-              orchestrator={task.orchestrator}
+              coworker={task.coworker}
               commentsCount={task.commentsCount}
               createdAt={task.createdAt}
               variant="card"

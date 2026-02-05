@@ -1,4 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
+import {
+  jobWithEvents,
+  jobWithPurchase,
+  jobWithTransaction,
+} from "@sokosumi/database/types/job";
 
 export const taskInclude = {
   events: {
@@ -7,7 +12,11 @@ export const taskInclude = {
     },
   },
   jobs: {
-    select: { id: true },
+    include: {
+      ...jobWithEvents,
+      ...jobWithTransaction,
+      ...jobWithPurchase,
+    },
     orderBy: {
       createdAt: "asc",
     },

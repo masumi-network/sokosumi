@@ -18,7 +18,7 @@ import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
   type KanbanColumnId,
-  type TaskWithOrchestrator,
+  type TaskWithCoworker,
 } from "@/lib/types/task";
 
 import { AddTaskButton } from "./add-task-button";
@@ -61,7 +61,7 @@ const hydrationStore = (() => {
 })();
 
 interface TasksViewProps {
-  tasks: TaskWithOrchestrator[];
+  tasks: TaskWithCoworker[];
   nextCursor?: string | null;
   columns?: KanbanColumnDefinition[];
   labels: {
@@ -91,7 +91,7 @@ export function TasksView({
   labels,
 }: TasksViewProps) {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
-  const [items, setItems] = useState<TaskWithOrchestrator[]>(tasks);
+  const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [nextCursor, setNextCursor] = useState<string | null>(
     initialNextCursor ?? null,
   );

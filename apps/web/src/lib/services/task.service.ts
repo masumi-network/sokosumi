@@ -14,7 +14,7 @@ export interface TaskWithEvents {
   updatedAt: string;
   userId: string;
   organizationId: string | null;
-  orchestratorId?: string | null;
+  coworkerId?: string | null;
   name: string;
   description?: string | null;
   status: TaskStatus;
@@ -24,7 +24,7 @@ export interface TaskWithEvents {
 
 interface ListTasksParams {
   status?: TaskStatus;
-  orchestratorId?: string;
+  coworkerId?: string;
   cursor?: string | null;
   limit?: number;
 }
@@ -32,14 +32,14 @@ interface ListTasksParams {
 interface CreateTaskInput {
   name: string;
   description: string | null;
-  orchestratorId: string | null;
+  coworkerId: string | null;
   status?: TaskStatus;
 }
 
 interface PatchTaskInput {
   name?: string;
   description?: string | null;
-  orchestratorId?: string | null;
+  coworkerId?: string | null;
 }
 
 interface CreateTaskEventInput {
@@ -50,7 +50,7 @@ interface CreateTaskEventInput {
 function buildQuery(params: ListTasksParams): string {
   const query = new URLSearchParams();
   if (params.status) query.set("status", params.status);
-  if (params.orchestratorId) query.set("orchestratorId", params.orchestratorId);
+  if (params.coworkerId) query.set("coworkerId", params.coworkerId);
   if (params.cursor) query.set("cursor", params.cursor);
   if (params.limit) query.set("limit", params.limit.toString());
   const queryString = query.toString();

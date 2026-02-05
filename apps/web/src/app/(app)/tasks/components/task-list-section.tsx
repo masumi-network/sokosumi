@@ -1,7 +1,7 @@
 import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnId,
-  type TaskWithOrchestrator,
+  type TaskWithCoworker,
 } from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";
@@ -10,8 +10,8 @@ import { TaskListItem } from "./task-list-item";
 interface TaskListSectionProps {
   columnId: KanbanColumnId;
   title: string;
-  tasks: TaskWithOrchestrator[];
-  renderTask?: (task: TaskWithOrchestrator) => React.ReactNode;
+  tasks: TaskWithCoworker[];
+  renderTask?: (task: TaskWithCoworker) => React.ReactNode;
 }
 
 export function TaskListSection({

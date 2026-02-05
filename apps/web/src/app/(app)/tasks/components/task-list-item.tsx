@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { type TaskWithOrchestrator } from "@/lib/types/task";
+import { type TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
 import type { DragHandleProps } from "./task-dnd";
@@ -8,7 +8,7 @@ import { TaskMetaDetails } from "./task-meta";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskListItemProps {
-  task: TaskWithOrchestrator;
+  task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
 }
 
@@ -54,7 +54,7 @@ export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
             className="rounded-full font-medium"
           />
           <TaskMetaDetails
-            orchestrator={task.orchestrator}
+            coworker={task.coworker}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
             variant="list"

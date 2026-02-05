@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { agentService } from "@/lib/services";
-import { orchestratorService } from "@/lib/services/orchestrator.service";
+import { coworkerService } from "@/lib/services/coworker.service";
 
 export const metadata = {
   title: "New Task",
@@ -10,14 +10,14 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [agents, orchestrators] = await Promise.all([
+  const [agents, coworkers] = await Promise.all([
     agentService.getAvailableAgents(),
-    orchestratorService.listOrchestrators(),
+    coworkerService.listCoworkers(),
   ]);
-  const orchestratorOptions = orchestrators.map((orchestrator) => ({
-    id: orchestrator.id,
-    name: orchestrator.name,
-    image: orchestrator.image ?? "",
+  const coworkerOptions = coworkers.map((coworker) => ({
+    id: coworker.id,
+    name: coworker.name,
+    image: coworker.image ?? "",
   }));
 
   return (
@@ -31,8 +31,8 @@ export default async function NewTaskPage() {
           name: t("name"),
           namePlaceholder: t("namePlaceholder"),
           descriptionPlaceholder: t("descriptionPlaceholder"),
-          orchestrator: t("orchestrator"),
-          orchestratorDescription: t("orchestratorDescription"),
+          coworker: t("coworker"),
+          coworkerDescription: t("coworkerDescription"),
           status: t("status"),
           statusDescription: t("statusDescription"),
           statusDraft: t("statusDraft"),
@@ -43,7 +43,7 @@ export default async function NewTaskPage() {
           cancel: t("cancel"),
           ctrl: t("ctrl"),
         }}
-        orchestratorOptions={orchestratorOptions}
+        coworkerOptions={coworkerOptions}
         agents={agents}
       />
     </div>

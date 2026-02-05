@@ -2,6 +2,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import type { AuthenticationContext } from "@/middleware/auth";
+import { flattenJob } from "@/types/job";
 import type { TaskWithIncludes } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
@@ -9,7 +10,7 @@ import { unprocessableEntity } from "./error";
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
-  if (authContext.orchestratorId) {
+  if (authContext.coworkerId) {
     return {
       [TaskStatus.DRAFT]: [],
       [TaskStatus.READY]: [
@@ -72,7 +73,7 @@ export function validateStatusTransition(
 }
 
 export function mapTask(task: TaskWithIncludes) {
-  const jobIds = task.jobs.map((j) => j.id);
+  const jobs = task.jobs.map((job) => flattenJob(job));
   const credits = task.transaction
     ? Math.abs(convertCentsToCredits(task.transaction.amount))
     : 0;
@@ -82,12 +83,12 @@ export function mapTask(task: TaskWithIncludes) {
     updatedAt: task.updatedAt,
     userId: task.userId,
     organizationId: task.organizationId,
-    orchestratorId: task.orchestratorId,
+    coworkerId: task.coworkerId,
     name: task.name,
     description: task.description,
     status: task.status,
     events: task.events,
-    jobIds,
+    jobs,
     credits,
   };
 }

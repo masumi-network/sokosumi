@@ -1,10 +1,10 @@
 import { getTranslations } from "next-intl/server";
 
 import { agentService } from "@/lib/services";
-import { orchestratorService } from "@/lib/services/orchestrator.service";
+import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
-import { mapTaskToTaskWithOrchestrator } from "@/lib/utils/task-transformer";
+import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 import { TasksView } from "./components/tasks-view";
 
@@ -16,18 +16,18 @@ export default async function TasksPage() {
   const t = await getTranslations("App.Tasks");
   const tColumns = await getTranslations("App.Tasks.Columns");
 
-  const [orchestrators, agents, tasksResult] = await Promise.all([
-    orchestratorService.listOrchestrators(),
+  const [coworkers, agents, tasksResult] = await Promise.all([
+    coworkerService.listCoworkers(),
     agentService.getAvailableAgentsWithCreditsPrice(),
     taskService.listTasks({ limit: 20 }),
   ]);
 
-  const orchestratorsById = new Map(
-    orchestrators.map((orchestrator) => [orchestrator.id, orchestrator]),
+  const coworkersById = new Map(
+    coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const tasks = tasksResult.tasks.map((task) =>
-    mapTaskToTaskWithOrchestrator(task, orchestratorsById, agentsById),
+    mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
   );
 
   const columnLabels: Record<KanbanColumnId, string> = {

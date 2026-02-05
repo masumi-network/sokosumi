@@ -2,7 +2,7 @@ import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnDefinition,
   type KanbanColumnId,
-  type TaskWithOrchestrator,
+  type TaskWithCoworker,
 } from "@/lib/types/task";
 
 import { AddTaskButton } from "./add-task-button";
@@ -11,7 +11,7 @@ import { TaskCard } from "./task-card";
 import { DraggableTask, DroppableColumn, isDnDColumn } from "./task-dnd";
 
 interface KanbanBoardProps {
-  tasks: TaskWithOrchestrator[];
+  tasks: TaskWithCoworker[];
   columns: KanbanColumnDefinition[];
   labels: {
     columns: Record<KanbanColumnId, string>;

@@ -26,17 +26,16 @@ export const patchTaskRequestSchema = z
     description: z.string().nullish().openapi({
       example: "Updated description",
     }),
-    orchestratorId: z.string().nullish().openapi({ example: "orc_123" }),
+    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
   })
   .refine(
     (data) =>
       data.name !== undefined ||
       data.description !== undefined ||
-      data.orchestratorId !== undefined,
+      data.coworkerId !== undefined,
     {
-      message:
-        "At least one of name, description or orchestratorId is required",
-      path: ["name", "description", "orchestratorId"],
+      message: "At least one of name, description or coworkerId is required",
+      path: ["name", "description", "coworkerId"],
     },
   );
 
@@ -88,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name: body.name,
           description: body.description,
-          orchestratorId: body.orchestratorId,
+          coworkerId: body.coworkerId,
         },
         include: taskInclude,
       });
