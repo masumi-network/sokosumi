@@ -61,8 +61,8 @@ model User {
   orchestrators Orchestrator[]
 
   // Tasks
-  tasks      Task[]
-  taskEvents TaskEvent[]
+  tasks              Task[]
+  taskEvents         TaskEvent[]
   orchestratorUsages OrchestratorUsage[]
 
   // Credit Buckets
@@ -131,15 +131,15 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members           Member[]
-  invitations       Invitation[]
-  agents            Agent[]
-  blacklistedAgents Agent[]       @relation("AgentBlacklist")
-  jobs              Job[]
-  tasks             Task[]
-  jobSchedules      JobSchedule[]
-  transactions      Transaction[]
-  jobShares         JobShare[]
+  members            Member[]
+  invitations        Invitation[]
+  agents             Agent[]
+  blacklistedAgents  Agent[]             @relation("AgentBlacklist")
+  jobs               Job[]
+  tasks              Task[]
+  jobSchedules       JobSchedule[]
+  transactions       Transaction[]
+  jobShares          JobShare[]
   orchestratorUsages OrchestratorUsage[]
 
   stripeCustomerId String?
@@ -473,9 +473,9 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job         Job?  @relation("TransactionJob")
-  refundedJob Job?  @relation("RefundedTransactionJob")
-  task        Task? @relation("TransactionTask")
+  job               Job?               @relation("TransactionJob")
+  refundedJob       Job?               @relation("RefundedTransactionJob")
+  task              Task?              @relation("TransactionTask")
   orchestratorUsage OrchestratorUsage? @relation("TransactionOrchestratorUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
@@ -1022,8 +1022,8 @@ model Orchestrator {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tasks      Task[]
-  taskEvents TaskEvent[]
+  tasks              Task[]
+  taskEvents         TaskEvent[]
   orchestratorUsages OrchestratorUsage[]
 
   @@map("orchestrator")
@@ -1080,6 +1080,7 @@ enum TaskEventOrigin {
   TELEGRAM
   SIGNAL
   CHAT
+  SOKOSUMI
   UNKNOWN
 }
 
@@ -1091,10 +1092,10 @@ model TaskEvent {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  status  TaskStatus?
-  comment String?
+  status            TaskStatus?
+  comment           String?
   authenticationUrl String?
-  origin TaskEventOrigin?
+  origin            TaskEventOrigin @default(SOKOSUMI)
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)

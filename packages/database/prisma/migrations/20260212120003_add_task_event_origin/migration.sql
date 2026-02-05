@@ -9,8 +9,9 @@ CREATE TYPE "TaskEventOrigin" AS ENUM (
   'TELEGRAM',
   'SIGNAL',
   'CHAT',
+  'SOKOSUMI',
   'UNKNOWN'
 );
 
--- Add origin column to task event
-ALTER TABLE "taskEvent" ADD COLUMN "origin" "TaskEventOrigin";
+-- Add origin column to task event (required, default SOKOSUMI per schema)
+ALTER TABLE "taskEvent" ADD COLUMN "origin" "TaskEventOrigin" NOT NULL DEFAULT 'SOKOSUMI';
