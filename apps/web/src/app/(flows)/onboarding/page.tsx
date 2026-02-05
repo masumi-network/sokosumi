@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { getSession } from "@/lib/auth/utils";
+import { chatUIEnabled } from "@/lib/flags/chat";
 
 import OnboardingForm from "./components/onboarding-form";
 
