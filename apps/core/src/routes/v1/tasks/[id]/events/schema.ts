@@ -1,23 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
-const TASK_EVENT_ORIGINS = Object.values(TaskEventOrigin) as TaskEventOrigin[];
-
-const taskEventOriginSchema = z.preprocess((value) => {
-  if (value === null || value === undefined) {
-    return TaskEventOrigin.SOKOSUMI;
-  }
-
-  if (typeof value === "string") {
-    const normalized = value.trim().toUpperCase();
-    return TASK_EVENT_ORIGINS.includes(normalized as TaskEventOrigin)
-      ? (normalized as TaskEventOrigin)
-      : TaskEventOrigin.UNKNOWN;
-  }
-
-  return TaskEventOrigin.UNKNOWN;
-}, z.enum(TaskEventOrigin));
-
 export const createTaskEventRequestSchema = z
   .object({
     status: z
