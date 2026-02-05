@@ -1,5 +1,27 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+
+const TASK_EVENT_ORIGINS = Object.values(TaskEventOrigin) as TaskEventOrigin[];
+
+const taskEventOriginSchema = z.preprocess(
+  (value) => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toUpperCase();
+      return TASK_EVENT_ORIGINS.includes(normalized as TaskEventOrigin)
+        ? (normalized as TaskEventOrigin)
+        : TaskEventOrigin.UNKNOWN;
+    }
+
+    return TaskEventOrigin.UNKNOWN;
+  },
+  z
+    .enum(TASK_EVENT_ORIGINS as [TaskEventOrigin, ...TaskEventOrigin[]])
+    .nullable(),
+);
 
 export const createTaskEventRequestSchema = z
   .object({
@@ -16,6 +38,11 @@ export const createTaskEventRequestSchema = z
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
     credits: z.number().min(0).optional().openapi({ example: 5 }),
+    origin: taskEventOriginSchema.optional().openapi({
+      example: TaskEventOrigin.SLACK,
+      description:
+        "The origin of the task event is considered to be generated on Sokosumi if it is not provided.",
+    }),
   })
   .superRefine((data, ctx) => {
     if (data.status === undefined && data.comment === undefined) {

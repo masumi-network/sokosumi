@@ -1,9 +1,57 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import { createTaskEventRequestSchema } from "./schema";
 
 describe("createTaskEventRequestSchema", () => {
+  it("accepts a valid origin", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      origin: TaskEventOrigin.SLACK,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.origin).toBe(TaskEventOrigin.SLACK);
+    }
+  });
+
+  it("normalizes mixed-case origins", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      origin: "Slack",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.origin).toBe(TaskEventOrigin.SLACK);
+    }
+  });
+
+  it("coerces unsupported origins to UNKNOWN", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      origin: "Discord",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.origin).toBe(TaskEventOrigin.UNKNOWN);
+    }
+  });
+
+  it("accepts null origin", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      origin: null,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.origin).toBeNull();
+    }
+  });
+
   it("accepts authentication required with https url", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.AUTHENTICATION_REQUIRED,
