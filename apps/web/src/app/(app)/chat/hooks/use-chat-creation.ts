@@ -54,35 +54,32 @@ export function useChatCreation({
 
   const createModelChat = useCallback(
     async (model: { id: string; name: string }) => {
-      // Create conversation with model metadata
       const conversation = await createNewConversation(
         {
           model_id: model.id,
           model_name: model.name,
-          type: "model", // Mark as model conversation
+          type: "model",
         },
         model.name,
       );
 
       if (!conversation) {
-        return null; // Error handling is done in the hook
+        return null;
       }
 
-      // Initialize empty messages for new chat
       chatMessagesRef.current.set(conversation.id, []);
       previousChatIdRef.current = conversation.id;
       messagesChatIdRef.current = conversation.id;
       setMessages([]);
       setInput("");
 
-      // Add to chats list
       const tempChat: Chat = {
         id: conversation.id,
         title: conversation.title || model.name,
         createdAt: new Date(conversation.createdAt),
         updatedAt: new Date(conversation.updatedAt),
         status: "active",
-        coworker: undefined, // No coworker for model conversations
+        coworker: undefined,
         model: { id: model.id, name: model.name },
       };
       setChats((prev) => {
@@ -121,35 +118,30 @@ export function useChatCreation({
 
   const createCoworkerChat = useCallback(
     async (coworker: Coworker) => {
-      // Clear model selection when selecting coworker
       setSelectedModel(null);
       selectedModelRef.current = null;
 
-      // Create conversation and store in DB
       const conversation = await createNewConversation(
         {
           coworker_id: coworker.id,
           coworker_name: coworker.name,
           coworker_description: coworker.description,
           coworker_useCase: coworker.useCase,
-          type: "coworker", // Mark as coworker conversation
+          type: "coworker",
         },
         coworker.name,
       );
 
       if (!conversation) {
-        return null; // Error handling is done in the hook
+        return null;
       }
 
-      // Initialize empty messages for new chat
       chatMessagesRef.current.set(conversation.id, []);
-      previousChatIdRef.current = conversation.id; // Set ref immediately to prevent preview updates
-      messagesChatIdRef.current = conversation.id; // Track that messages belong to this chat
+      previousChatIdRef.current = conversation.id;
+      messagesChatIdRef.current = conversation.id;
       setMessages([]);
       setInput("");
 
-      // Temporarily add to chats with full coworker info so sync effect can preserve it
-      // The sync effect will update it properly when conversations state updates
       const tempChat: Chat = {
         id: conversation.id,
         title: conversation.title || coworker.name,
@@ -159,7 +151,6 @@ export function useChatCreation({
         coworker,
       };
       setChats((prev) => {
-        // Check if already exists (from sync effect)
         if (prev.find((c) => c.id === conversation.id)) {
           return prev.map((c) =>
             c.id === conversation.id ? { ...c, coworker } : c,
@@ -169,9 +160,7 @@ export function useChatCreation({
       });
 
       setSelectedChatId(conversation.id);
-      // Update ref immediately for synchronous access in prepareSendMessagesRequest
       currentChatIdRef.current = conversation.id;
-      // Update URL to reflect selected conversation using router for consistency
       isUpdatingUrlRef.current = true;
       router.push(`/chat?conversationId=${conversation.id}`, { scroll: false });
 
@@ -193,22 +182,18 @@ export function useChatCreation({
     ],
   );
 
-  // Reset transition state when chats are loaded
   useEffect(() => {
     if (
       chats.length > 0 &&
       conversations.length > 0 &&
       isWelcomeTransitioning
     ) {
-      // Hide messages during transition to prevent layout shifts
       setShowMessagesAfterTransition(false);
 
-      // Show messages after animation completes (300ms delay + 500ms duration = 800ms)
       const showTimer = setTimeout(() => {
         setShowMessagesAfterTransition(true);
       }, 800);
 
-      // Reset transition state after animation completes
       const resetTimer = setTimeout(() => {
         setIsWelcomeTransitioning(false);
       }, 200);
@@ -218,7 +203,6 @@ export function useChatCreation({
         clearTimeout(resetTimer);
       };
     } else if (!isWelcomeTransitioning) {
-      // Ensure messages are shown when not transitioning
       setShowMessagesAfterTransition(true);
     }
   }, [chats.length, conversations.length, isWelcomeTransitioning]);

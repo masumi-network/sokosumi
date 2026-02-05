@@ -35,7 +35,6 @@ export function useChatPreview({
   const t = useTranslations("App.Chat.Chat");
   const fetchedPreviewConversationIds = useRef<Set<string>>(new Set());
 
-  // Function to update chat preview with assistant message
   const updateChatPreview = useCallback(
     (chatId: string, content: string, isFirstMessage = false) => {
       if (!content || !content.trim()) {
@@ -64,33 +63,22 @@ export function useChatPreview({
     [setChats, t],
   );
 
-  // Update chat preview when assistant messages are added/updated (during streaming)
   useEffect(() => {
     if (!selectedChatId || messages.length === 0) {
       return;
     }
 
-    // CRITICAL: Only update preview if messages belong to the currently selected chat
-    // This prevents updating the wrong chat's preview when switching between chats
     if (previousChatIdRef.current !== selectedChatId) {
-      // Messages don't belong to the selected chat yet, skip preview update
       return;
     }
 
-    // CRITICAL: Verify messages actually belong to this chat using messagesChatIdRef
-    // This prevents race conditions when switching chats quickly
     if (messagesChatIdRef.current !== selectedChatId) {
       return;
     }
 
-    // Verify messages belong to the selected chat by checking if the chat ID is tracked
-    // For new chats, chatMessagesRef will have an entry (even if empty array), so we check if the key exists
     if (!chatMessagesRef.current.has(selectedChatId)) {
-      // Chat not yet initialized in memory, skip preview update
       return;
     }
-
-    // Find the last assistant message
     const lastAssistantMessage = [...messages]
       .reverse()
       .find((msg) => msg.role === "assistant");

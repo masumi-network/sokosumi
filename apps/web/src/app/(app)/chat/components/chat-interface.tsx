@@ -57,7 +57,6 @@ export default function ChatInterface({
     urlConversationId || null,
   );
 
-  // Shared refs
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
   const messagesChatIdRef = useRef<string | null>(null);
@@ -68,21 +67,15 @@ export default function ChatInterface({
     ((chatId: string, content: string, isFirstMessage?: boolean) => void) | null
   >(null);
 
-  // Update selectedModelRef when selectedModel changes
   useEffect(() => {
     selectedModelRef.current = selectedModel;
   }, [selectedModel]);
 
-  // useChat hook - needs to be called early for setMessages
   const { messages, sendMessage, status, setMessages, stop } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest(request) {
-        // Use ref for synchronous access to current chat ID
-        // Note: Accessing refs.current in this callback is safe - it's called during request, not render
-        // eslint-disable-next-line react-compiler/react-compiler -- refs are accessed in callback, not render
         const chatId = currentChatIdRef.current || selectedChatId;
-        // eslint-disable-next-line react-compiler/react-compiler -- refs are accessed in callback, not render
         const model = selectedModelRef.current;
         const body = {
           messages: request.messages,
@@ -109,8 +102,6 @@ export default function ChatInterface({
       if (lastAssistantMessage) {
         const content = extractMessageContent(lastAssistantMessage);
         if (content) {
-          // Always save assistant message to database via Core API
-          // Format as Responses API output_text array: [{"type": "output_text", "text": "..."}]
           const formattedContent: Array<{ type: string; text: string }> =
             content ? [{ type: "output_text", text: content }] : [];
 
@@ -120,14 +111,11 @@ export default function ChatInterface({
             content: formattedContent,
           }).catch((error) => {
             console.error(
-              "Failed to add assistant message to conversation via Core API:",
+              "Failed to add assistant message to conversation:",
               error,
             );
           });
 
-          // CRITICAL: Only update preview if messages belong to the currently selected chat
-          // This prevents updating the wrong chat's preview when switching between chats
-          // But we still save to DB regardless of these checks
           if (
             previousChatIdRef.current === selectedChatId &&
             messagesChatIdRef.current === selectedChatId
@@ -135,7 +123,6 @@ export default function ChatInterface({
             const isFirstAssistantMessage =
               finishedMessages.filter((m) => m.role === "assistant").length ===
               1;
-            // Call updateChatPreview via ref
             if (updateChatPreviewRef.current) {
               updateChatPreviewRef.current(
                 selectedChatId,
@@ -151,7 +138,6 @@ export default function ChatInterface({
 
   const isLoading = status === "streaming" || status === "submitted";
 
-  // Chat selection hook - needs setMessages from useChat
   useChatSelection({
     urlConversationId,
     pathname,
@@ -169,7 +155,6 @@ export default function ChatInterface({
     isUpdatingUrlRef,
   });
 
-  // Chat preview hook
   const { updateChatPreview } = useChatPreview({
     conversations,
     chats,
@@ -181,12 +166,10 @@ export default function ChatInterface({
     chatMessagesRef,
   });
 
-  // Store updateChatPreview in ref for use in onFinish callback
   useEffect(() => {
     updateChatPreviewRef.current = updateChatPreview;
   }, [updateChatPreview]);
 
-  // Chat messages hook - needs updateChatPreview
   const { cacheMessages, clearMessages } = useChatMessages({
     selectedChatId,
     selectedConversation,
@@ -197,7 +180,6 @@ export default function ChatInterface({
     updateChatPreview,
   });
 
-  // Chat creation hook
   const {
     createModelChat,
     createCoworkerChat,
@@ -231,7 +213,6 @@ export default function ChatInterface({
     selectedModelRef,
   });
 
-  // Update cache whenever messages change for the current chat
   useEffect(() => {
     if (
       selectedChatId &&
@@ -249,14 +230,12 @@ export default function ChatInterface({
     messagesChatIdRef,
   ]);
 
-  // Chat scroll hook
   const { scrollAreaRef, scrollToBottom } = useChatScroll({
     messages,
     isLoading,
     selectedChatId,
   });
 
-  // Reserved for future use or parent component integration
   const _handleCreateNewChat = useCallback(() => {
     setShowSelectCoworkerModal(true);
   }, []);
@@ -280,12 +259,9 @@ export default function ChatInterface({
     [createCoworkerChat],
   );
 
-  // Reserved for future use or parent component integration
   const _handleDeleteChat = async (chatId: string) => {
-    // Delete from DB (works for any conversation, not just the selected one)
     await deleteConversationById(chatId);
 
-    // If this was the selected conversation, clear selection and messages
     if (selectedChatId === chatId) {
       setSelectedChatId(null);
       currentChatIdRef.current = null;
@@ -293,7 +269,6 @@ export default function ChatInterface({
       setInput("");
     }
 
-    // Remove from local state and cache
     setChats((prev) => prev.filter((chat) => chat.id !== chatId));
     clearMessages(chatId);
   };
@@ -308,15 +283,9 @@ export default function ChatInterface({
 
       const trimmedMessage = messageText.trim();
 
-      // If no chat is selected, create one with the selected model or coworker
       if (!selectedChatId) {
-        // Start transition animation
         setIsWelcomeTransitioning(true);
-
-        // Wait for welcome screen fade-out to complete before showing chat UI
         await new Promise((resolve) => setTimeout(resolve, 300));
-
-        // Check if a model is selected, otherwise use coworker
         if (model || selectedModel) {
           const modelToUse = model || selectedModel;
           if (modelToUse) {
@@ -333,27 +302,21 @@ export default function ChatInterface({
           await handleCoworkerSelected(selectedCoworker);
         }
 
-        // Wait for state to update and ensure conversation ID is set
         const conversationId = currentChatIdRef.current;
         if (!conversationId) {
-          // Wait a bit more and retry
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
-        // Scroll to bottom before sending message to make room for response
         scrollToBottom();
         requestAnimationFrame(() => {
           scrollToBottom();
         });
 
-        // Now send the message
         sendMessage({ text: trimmedMessage });
         setInput("");
         return;
       }
 
-      // Only update timestamp when user sends message, don't update lastMessage
-      // The lastMessage will be updated by useEffect or onFinish when assistant responds
       if (selectedChatId) {
         const now = new Date();
         setChats((prev) =>
@@ -369,7 +332,6 @@ export default function ChatInterface({
         );
       }
 
-      // Scroll to bottom before sending message to make room for response
       scrollToBottom();
       requestAnimationFrame(() => {
         scrollToBottom();
@@ -439,7 +401,6 @@ export default function ChatInterface({
             />
           </>
         ) : (
-          // Show welcome screen when no chat is selected
           !selectedChatId && (
             <WelcomeScreen
               userName={userName?.split(" ")[0] ?? userName}
