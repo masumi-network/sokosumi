@@ -1,11 +1,11 @@
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { taskEventWithTaskIdSchema } from "./task.schema";
+import { taskEventSchema } from "./task.schema";
 
 describe("taskEventWithTaskIdSchema", () => {
   it("parses a valid event with taskId and Date fields", () => {
-    const result = taskEventWithTaskIdSchema.parse({
+    const result = taskEventSchema.parse({
       id: "evt_123",
       taskId: "tsk_123",
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -25,7 +25,7 @@ describe("taskEventWithTaskIdSchema", () => {
 
   it("fails when taskId is missing", () => {
     expect(() => {
-      taskEventWithTaskIdSchema.parse({
+      taskEventSchema.parse({
         id: "evt_123",
         createdAt: new Date("2025-01-01T00:00:00.000Z"),
         updatedAt: new Date("2025-01-01T00:00:00.000Z"),
