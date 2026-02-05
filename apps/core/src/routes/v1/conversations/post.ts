@@ -57,11 +57,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const body = c.req.valid("json");
 
       // Database is the source of truth - create conversation directly in DB
-      // Generate a unique ID for the internal conversation identifier
-      const openaiId = randomUUID();
+      // Use provided openaiId or generate a unique ID for the internal conversation identifier
+      const openaiId = body.openaiId ?? randomUUID();
 
       const conversation = await prisma.$transaction(async (tx) => {
-        // Check if conversation with this ID already exists (shouldn't happen with UUID, but safety check)
+        // Check if conversation with this ID already exists
         const existing = await tx.conversation.findFirst({
           where: {
             openaiId,
