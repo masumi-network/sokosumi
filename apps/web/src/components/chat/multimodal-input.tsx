@@ -231,6 +231,8 @@ function PureMultimodalInput({
     width,
     chatId,
     resetHeight,
+    selectedCoworker,
+    selectedModel,
   ]);
 
   const uploadFile = useCallback(async (file: File) => {
