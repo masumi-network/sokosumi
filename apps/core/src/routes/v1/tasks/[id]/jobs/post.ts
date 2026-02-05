@@ -56,14 +56,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await requireOrchestratorTaskAccess(authContext, taskId);
     const job = await createAgentJobForUser({
-      agentId,
-      userId: task.userId,
-      organizationId: task.organizationId,
-      inputData,
-      inputSchema,
-      maxCredits,
-      name,
-      taskId,
+      authContext: {
+        userId: task.userId,
+        organizationId: task.organizationId,
+        orchestratorId: null,
+      },
+      agentInput: {
+        agentId,
+        inputData,
+        inputSchema,
+        maxCredits,
+        name,
+      },
+      taskContext: {
+        taskId,
+      },
     });
 
     return created(c, jobSchema.parse(flattenJob(job)));

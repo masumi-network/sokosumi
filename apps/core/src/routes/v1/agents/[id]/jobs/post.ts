@@ -55,13 +55,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const job = await createAgentJobForUser({
-      agentId,
-      userId: authContext.userId,
-      organizationId: authContext.organizationId,
-      inputData,
-      inputSchema,
-      maxCredits,
-      name,
+      authContext,
+      agentInput: {
+        agentId,
+        inputData,
+        inputSchema,
+        maxCredits,
+        name,
+      },
     });
 
     return created(c, jobSchema.parse(flattenJob(job)));

@@ -272,32 +272,35 @@ export async function shareJob(
   }
 }
 
-export async function createAgentJobForUser(input: {
-  agentId: string;
-  userId: string;
-  organizationId: string | null;
-  inputData: InputSchemaType;
-  inputSchema: InputSchemaSchemaType;
-  maxCredits?: number;
-  name?: string;
-  taskId?: string | null;
-}): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const flatInputSchema = flattenInputs(input.inputSchema);
-  const maxCents = input.maxCredits
-    ? convertCreditsToCents(input.maxCredits)
-    : null;
-  const authContext: AuthenticationContext = {
-    userId: input.userId,
-    organizationId: input.organizationId,
-    orchestratorId: null,
+interface CreateAgentJobInput {
+  authContext: AuthenticationContext;
+  agentInput: {
+    agentId: string;
+    inputData: InputSchemaType;
+    inputSchema: InputSchemaSchemaType;
+    maxCredits?: number;
+    name?: string;
   };
+  taskContext?: {
+    taskId: string;
+  };
+}
+
+export async function createAgentJobForUser(
+  input: CreateAgentJobInput,
+): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+  const flatInputSchema = flattenInputs(input.agentInput.inputSchema);
+  const maxCents = input.agentInput.maxCredits
+    ? convertCreditsToCents(input.agentInput.maxCredits)
+    : null;
+  const { authContext } = input;
 
   const { userOrganizationIds, creditCosts } =
     await getAgentAccessContext(authContext);
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
-      id: input.agentId,
+      id: input.agentInput.agentId,
       ...buildAgentAccessWhereClause(
         userOrganizationIds,
         authContext.organizationId,
@@ -321,7 +324,7 @@ export async function createAgentJobForUser(input: {
 
   const agent = { ...agentRecord, cost };
 
-  let jobName = input.name?.trim() || null;
+  let jobName = input.agentInput.name?.trim() || null;
   const resolveJobName = async (): Promise<string | null> => {
     if (jobName) {
       return jobName;
@@ -332,19 +335,19 @@ export async function createAgentJobForUser(input: {
         name: agent.name,
         description: agent.description,
       },
-      input.inputData,
+      input.agentInput.inputData,
     );
     jobName = generatedName;
     return jobName;
   };
 
   const jobInput = {
-    agentId: input.agentId,
-    userId: input.userId,
-    organizationId: input.organizationId,
-    inputData: input.inputData,
+    agentId: input.agentInput.agentId,
+    userId: authContext.userId,
+    organizationId: authContext.organizationId,
+    inputData: input.agentInput.inputData,
     inputSchema: flatInputSchema,
-    taskId: input.taskId,
+    taskId: input.taskContext?.taskId,
   };
 
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;
@@ -355,7 +358,7 @@ export async function createAgentJobForUser(input: {
     case PricingType.FREE: {
       const startFreeJobResult = await createAgentClient().startFreeAgentJob(
         agent,
-        input.inputData,
+        input.agentInput.inputData,
       );
 
       if (startFreeJobResult.isErr()) {
@@ -380,7 +383,7 @@ export async function createAgentJobForUser(input: {
           overrideApiBaseUrl: agent.overrideApiBaseUrl,
         },
         identifierFromPurchaser,
-        input.inputData,
+        input.agentInput.inputData,
       );
 
       if (startPaidJobResult.isErr()) {
@@ -444,7 +447,7 @@ export async function createAgentJobForUser(input: {
     const createPurchaseResult = await paymentClient().createPurchase(
       agent.blockchainIdentifier,
       paidJobResult,
-      input.inputData,
+      input.agentInput.inputData,
       identifierFromPurchaser,
     );
 
