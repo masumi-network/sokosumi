@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { createJobRequestSchema } from "@/schemas/job.schema";
 
 export const orchestratorSchema = z
   .object({
@@ -69,6 +70,6 @@ export const taskSchema = z
 
 export const tasksSchema = z.array(taskSchema).openapi("Tasks");
 
-export const addTaskJobRequestSchema = z.object({
-  jobId: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
+export const createTaskJobRequestSchema = createJobRequestSchema.extend({
+  agentId: z.string().openapi({ example: "agent_123" }),
 });
