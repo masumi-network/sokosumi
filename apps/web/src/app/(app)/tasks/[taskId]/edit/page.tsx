@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
+import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
@@ -32,31 +33,7 @@ export default async function EditTaskPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const coworkerDefaults: Record<
-    string,
-    { image: string; description: string }
-  > = {
-    soko: {
-      image: "/images/kanji/sokosumi-logo-kanji-black.svg",
-      description:
-        "Your default AI coworker. Great for general tasks, research, and getting things done.",
-    },
-    hannah: {
-      image: "/images/coworkers/hannah.png",
-      description:
-        "Creative strategist and communications expert. Ideal for content, marketing, and outreach.",
-    },
-  };
-  const coworkerOptions = coworkers.map((coworker) => {
-    const slug = coworker.slug?.toLowerCase() ?? coworker.name.toLowerCase();
-    const defaults = coworkerDefaults[slug];
-    return {
-      id: coworker.id,
-      name: coworker.name,
-      image: coworker.image || defaults?.image || "",
-      description: coworker.description || defaults?.description || undefined,
-    };
-  });
+  const coworkerOptions = getCoworkerOptions(coworkers);
 
   const [tEdit, tActions] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),

@@ -14,6 +14,7 @@ import {
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 import { TasksView } from "./components/tasks-view";
+import { getCoworkerOptions } from "./utils/coworker-options";
 
 export const metadata = {
   title: "Task Manager",
@@ -43,32 +44,7 @@ export default async function TasksPage() {
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
   );
 
-  const coworkerDefaults: Record<
-    string,
-    { image: string; description: string }
-  > = {
-    soko: {
-      image: "/images/kanji/sokosumi-logo-kanji-black.svg",
-      description:
-        "Your default AI coworker. Great for general tasks, research, and getting things done.",
-    },
-    hannah: {
-      image: "/images/coworkers/hannah.png",
-      description:
-        "Creative strategist and communications expert. Ideal for content, marketing, and outreach.",
-    },
-  };
-
-  const coworkerOptions: CoworkerOption[] = coworkers.map((coworker) => {
-    const slug = coworker.slug?.toLowerCase() ?? coworker.name.toLowerCase();
-    const defaults = coworkerDefaults[slug];
-    return {
-      id: coworker.id,
-      name: coworker.name,
-      image: coworker.image || defaults?.image || "",
-      description: coworker.description || defaults?.description || undefined,
-    };
-  });
+  const coworkerOptions: CoworkerOption[] = getCoworkerOptions(coworkers);
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),

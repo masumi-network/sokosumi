@@ -1,28 +1,9 @@
+import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ipfsUrlResolver } from "@/lib/ipfs";
 import { TaskWithCoworker } from "@/lib/types/task";
 import { formatShortDate } from "@/lib/utils/datetime";
 
 import { TaskStatusBadge } from "./task-status-badge";
-
-const COWORKER_FALLBACK_IMAGES: Record<string, string> = {
-  soko: "/images/kanji/sokosumi-logo-kanji-black.svg",
-  sumi: "/images/kanji/sokosumi-logo-kanji-black.svg",
-  hannah: "/images/coworkers/hannah.png",
-};
-
-function getCoworkerImage(
-  coworker: TaskWithCoworker["coworker"],
-): string | null {
-  if (coworker?.image) {
-    return ipfsUrlResolver(coworker.image);
-  }
-  const slug = coworker?.slug?.toLowerCase() ?? coworker?.name?.toLowerCase();
-  if (slug && COWORKER_FALLBACK_IMAGES[slug]) {
-    return COWORKER_FALLBACK_IMAGES[slug];
-  }
-  return null;
-}
 
 interface TaskMetadataLabels {
   propertiesTitle: string;
