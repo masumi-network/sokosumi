@@ -1,6 +1,5 @@
 import "server-only";
 
-import * as Sentry from "@sentry/nextjs";
 import {
   organizationRepository,
   userRepository,
@@ -347,53 +346,6 @@ export const stripeService = (() => {
       }
 
       return { personalCoupon, orgCoupon };
-    },
-    /**
-     * Claims a welcome coupon for a customer.
-     * @param userId - The ID of the user.
-     */
-    async claimWelcomeCoupon(
-      userId: string,
-    ): Promise<{ couponApplied: boolean; invoiceId: string | null }> {
-      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
-      try {
-        const user = await userRepository.getUserById(userId, prisma);
-        if (!user) {
-          throw new Error("User not found");
-        }
-        if (!user.stripeCustomerId) {
-          throw new Error("User does not have a stripe customer id");
-        }
-        const coupon = await this.getCoupon(welcomeCouponId);
-        const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
-          user.stripeCustomerId,
-          coupon.id,
-          {
-            redemption_type: "welcome_coupon",
-            welcome_source: "customer.created",
-            user_id: user.id,
-            user_email: user.email,
-          },
-        );
-        if (!invoice || !invoice?.id) {
-          throw new Error("Failed to apply welcome coupon");
-        }
-        return { couponApplied: true, invoiceId: invoice?.id ?? null };
-      } catch (error) {
-        Sentry.captureException(error, {
-          contexts: {
-            error_classification: {
-              severity: "error",
-              domain: "stripe_welcome_coupon",
-              category: "service_layer",
-            },
-            extra: {
-              userId,
-            },
-          },
-        });
-        return { couponApplied: false, invoiceId: null };
-      }
     },
   };
 })();

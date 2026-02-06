@@ -125,10 +125,6 @@ export function TaskForm({
   const isSaveDisabled =
     !description.trim() || (isNameRequired && !name.trim()) || isSubmitting;
 
-  const handleFileUpload = () => {
-    // TODO: implement file upload
-  };
-
   const handleSave = useCallback(async () => {
     if (isSaveDisabled) return;
     setIsSubmitting(true);
