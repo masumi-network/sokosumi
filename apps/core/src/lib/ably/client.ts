@@ -1,15 +1,13 @@
-import "server-only";
-
 import { Rest } from "ably";
 
-import { getEnvSecrets } from "@/config/env.secrets";
+import { getEnv } from "@/config/env";
 
-let restClient: Rest;
+let restClient: Rest | null = null;
 
 export function getRestClient() {
   if (!restClient) {
     restClient = new Rest({
-      key: getEnvSecrets().ABLY_PUBLISH_ONLY_KEY,
+      key: getEnv().ABLY_PUBLISH_ONLY_KEY,
     });
   }
   return restClient;
