@@ -1,5 +1,3 @@
-# They are default owners
-
 # Frontend
 /apps/web/        @francisluz
 
@@ -9,5 +7,5 @@
 # Packages
 /packages/        @mrgrauel @francisluz @VitoMelchionna
 
-# Everything else (fallback)
+# Default
 *                @mrgrauel @francisluz @VitoMelchionna
