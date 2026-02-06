@@ -1,3 +1,11 @@
-# They are default owners
+# Frontend
+/apps/web/        @francisluz
 
-*       @mrgrauel @francisluz @VitoMelchionna
+# Backend
+/apps/core/       @mrgrauel
+
+# Packages
+/packages/        @mrgrauel @francisluz @VitoMelchionna
+
+# Default
+*                @mrgrauel @francisluz @VitoMelchionna
