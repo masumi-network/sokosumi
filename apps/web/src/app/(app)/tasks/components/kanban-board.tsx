@@ -27,7 +27,7 @@ export function KanbanBoard({
   isDragEnabled = true,
 }: KanbanBoardProps) {
   return (
-    <div className="flex items-stretch gap-4 overflow-x-auto pb-2">
+    <div className="flex items-stretch gap-3 overflow-x-auto pb-4 -mx-2 px-2">
       {columns.map((column, index) => {
         const columnTasks = tasks.filter((task) => task.columnId === column.id);
         const isFirstColumn = index === 0;
@@ -36,6 +36,7 @@ export function KanbanBoard({
         const columnContent = (
           <KanbanColumn
             key={column.id}
+            columnId={column.id}
             title={labels.columns[column.id]}
             statusColor={COLUMN_STATUS_COLORS[column.id]}
             tasks={columnTasks}

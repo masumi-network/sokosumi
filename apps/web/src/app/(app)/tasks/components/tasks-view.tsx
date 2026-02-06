@@ -10,9 +10,10 @@ import {
 import { useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 
+import { Plus } from "lucide-react";
+
 import { loadMoreTasks } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
@@ -23,6 +24,17 @@ import {
 } from "@/lib/types/task";
 
 import { AddTaskButton } from "./add-task-button";
+import { useCreateTaskModal } from "./create-task-modal";
+
+function HeaderAddButton({ label }: { label: string }) {
+  const { handleOpen } = useCreateTaskModal();
+  return (
+    <Button size="sm" onClick={handleOpen} className="gap-1.5">
+      <Plus className="size-4" aria-hidden />
+      <span className="hidden sm:inline">{label}</span>
+    </Button>
+  );
+}
 import {
   CreateTaskModal,
   CreateTaskModalProvider,
@@ -191,28 +203,73 @@ export function TasksView({
     });
   };
 
+  const [activeTab, setActiveTab] = useState<"tasks" | "jobs">("tasks");
+
   return (
     <CreateTaskModalProvider>
-    <Tabs defaultValue="tasks" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <TabsList>
-            <TabsTrigger value="tasks">{labels.tabs.tasks}</TabsTrigger>
-            <TabsTrigger value="jobs">{labels.tabs.jobs}</TabsTrigger>
-          </TabsList>
-          <AddTaskButton label={labels.add} />
-        </div>
-        <ViewModeSwitch
-          value={viewMode}
-          onChange={setViewMode}
-          labels={labels.display}
-        />
-      </div>
+      <div className="flex flex-col gap-5">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg self-start">
+            <button
+              type="button"
+              onClick={() => setActiveTab("tasks")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === "tasks"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {labels.tabs.tasks}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("jobs")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === "jobs"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {labels.tabs.jobs}
+            </button>
+          </div>
 
-      <TabsContent value="tasks" className="flex flex-col gap-4">
-        {isMounted ? (
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            {viewMode === "board" ? (
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ViewModeSwitch
+              value={viewMode}
+              onChange={setViewMode}
+              labels={labels.display}
+            />
+            <HeaderAddButton label={labels.add} />
+          </div>
+        </div>
+
+        {/* Content */}
+        {activeTab === "tasks" ? (
+          <div className="flex flex-col gap-4">
+            {isMounted ? (
+              <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                {viewMode === "board" ? (
+                  <KanbanBoard
+                    tasks={items}
+                    columns={columns}
+                    labels={{
+                      columns: labels.columns,
+                      addTask: labels.addTask,
+                    }}
+                  />
+                ) : (
+                  <TaskListView
+                    tasks={items}
+                    columns={columns}
+                    labels={{
+                      columns: labels.columns,
+                    }}
+                  />
+                )}
+              </DndContext>
+            ) : viewMode === "board" ? (
               <KanbanBoard
                 tasks={items}
                 columns={columns}
@@ -220,6 +277,7 @@ export function TasksView({
                   columns: labels.columns,
                   addTask: labels.addTask,
                 }}
+                isDragEnabled={false}
               />
             ) : (
               <TaskListView
@@ -228,49 +286,28 @@ export function TasksView({
                 labels={{
                   columns: labels.columns,
                 }}
+                isDragEnabled={false}
               />
             )}
-          </DndContext>
-        ) : viewMode === "board" ? (
-          <KanbanBoard
-            tasks={items}
-            columns={columns}
-            labels={{
-              columns: labels.columns,
-              addTask: labels.addTask,
-            }}
-            isDragEnabled={false}
-          />
-        ) : (
-          <TaskListView
-            tasks={items}
-            columns={columns}
-            labels={{
-              columns: labels.columns,
-            }}
-            isDragEnabled={false}
-          />
-        )}
-        {nextCursor ? (
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
-              onClick={handleLoadMore}
-              disabled={isPending}
-            >
-              {isPending ? "Loading..." : labels.loadMore}
-            </Button>
+            {nextCursor ? (
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={isPending}
+                >
+                  {isPending ? "Loading..." : labels.loadMore}
+                </Button>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </TabsContent>
-
-      <TabsContent value="jobs">
-        <div className="text-muted-foreground rounded-xl border border-dashed p-6 text-sm">
-          {labels.jobsPlaceholder}
-        </div>
-      </TabsContent>
-    </Tabs>
-    <CreateTaskModal coworkerOptions={coworkerOptions} />
+        ) : (
+          <div className="text-muted-foreground rounded-xl border border-dashed p-8 text-center text-sm">
+            {labels.jobsPlaceholder}
+          </div>
+        )}
+      </div>
+      <CreateTaskModal coworkerOptions={coworkerOptions} />
     </CreateTaskModalProvider>
   );
 }

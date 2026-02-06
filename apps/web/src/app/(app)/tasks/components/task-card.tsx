@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { type TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
@@ -23,30 +22,35 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
 
   return (
     <div
-      className={cn(dragHandleProps?.isDragging ? "opacity-70" : null)}
+      className={cn(
+        "group",
+        dragHandleProps?.isDragging && "opacity-60 scale-[1.02]",
+      )}
       {...handleProps}
     >
       <Link href={`/tasks/${task.id}`} className="block">
-        <Card
+        <article
           className={cn(
-            "hover:bg-foreground/5 py-4",
-            dragHandleProps?.isDragging ? "ring-primary/20 ring-1" : null,
+            "bg-background rounded-lg p-3 transition-all duration-200",
+            "border border-border/50",
+            "hover:border-border hover:shadow-sm",
+            "active:scale-[0.99]",
+            dragHandleProps?.isDragging && "shadow-lg border-primary/30 ring-2 ring-primary/10",
           )}
         >
-          <CardContent className="space-y-2 px-4">
-            <div className="space-y-2">
-              <h3 className="line-clamp-2 text-lg leading-tight font-semibold">
+          <div className="space-y-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-foreground line-clamp-2 text-sm font-medium leading-snug">
                 {task.name}
               </h3>
-              <TaskStatusBadge
-                status={task.status}
-                className="rounded-full text-xs font-medium"
-              />
+              <TaskStatusBadge status={task.status} />
             </div>
 
-            <p className="text-muted-foreground line-clamp-2 text-sm">
-              {task.descriptionPlain ?? task.description ?? "—"}
-            </p>
+            {task.descriptionPlain || task.description ? (
+              <p className="text-muted-foreground/80 line-clamp-2 text-xs leading-relaxed break-all">
+                {task.descriptionPlain ?? task.description}
+              </p>
+            ) : null}
 
             <TaskMetaDetails
               coworker={task.coworker}
@@ -54,8 +58,8 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
               createdAt={task.createdAt}
               variant="card"
             />
-          </CardContent>
-        </Card>
+          </div>
+        </article>
       </Link>
     </div>
   );

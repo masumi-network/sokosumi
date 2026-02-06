@@ -58,58 +58,79 @@ export default async function TaskDetailPage({
   const t = await getTranslations("App.Tasks.Detail");
 
   return (
-    <div className="w-full max-w-3xl space-y-6 px-2">
-      <TaskDetailHeader
-        task={task}
-        labels={{
-          back: t("back"),
-          actions: {
-            edit: t("actions.edit"),
-            delete: t("actions.delete"),
-            confirmDelete: t("actions.confirmDelete"),
-            confirmDeleteDescription: t("actions.confirmDeleteDescription"),
-            deleteError: t("actions.deleteError"),
-            markAsReady: t("actions.markAsReady"),
-            revertToDraft: t("actions.revertToDraft"),
-          },
-        }}
-      />
+    <div className="w-full min-h-full pr-64">
+      {/* Centered content */}
+      <div className="max-w-4xl mx-auto px-4">
+        <TaskDetailHeader
+          task={task}
+          labels={{
+            back: t("back"),
+            actions: {
+              edit: t("actions.edit"),
+              delete: t("actions.delete"),
+              confirmDelete: t("actions.confirmDelete"),
+              confirmDeleteDescription: t("actions.confirmDeleteDescription"),
+              deleteError: t("actions.deleteError"),
+              markAsReady: t("actions.markAsReady"),
+              revertToDraft: t("actions.revertToDraft"),
+            },
+          }}
+        />
 
-      <TaskMetadata
-        task={task}
-        labels={{
-          status: t("status"),
-          coworker: t("coworker"),
-        }}
-      />
+        <div className="mt-6 space-y-8">
+          <TaskDescription
+            title={t("description")}
+            description={task.description}
+            agentNameById={agentNameById}
+            expandLabel={t("expand")}
+            collapseLabel={t("collapse")}
+          />
 
-      <TaskDescription
-        title={t("description")}
-        description={task.description}
-        agentNameById={agentNameById}
-        expandLabel={t("expand")}
-        collapseLabel={t("collapse")}
-      />
+          <TaskActivitySection
+            taskId={taskId}
+            title={t("activity")}
+            placeholder={t("commentPlaceholder")}
+            attachLabel={t("attach")}
+            submitLabel={t("submit")}
+            actorCoworkerLabel={t("actorCoworker")}
+            actorUserLabel={t("actorUser")}
+            actorSystemLabel={t("actorSystem")}
+            actionCommentedLabel={t("actionCommented")}
+            actionUpdatedStatusLabel={t("actionUpdatedStatus")}
+            events={task.events}
+            agentNameById={agentNameById}
+            userById={userById}
+            coworkerById={coworkerById}
+            currentUser={currentUser}
+            expandLabel={t("expand")}
+            collapseLabel={t("collapse")}
+          />
+        </div>
 
-      <TaskActivitySection
-        taskId={taskId}
-        title={t("activity")}
-        placeholder={t("commentPlaceholder")}
-        attachLabel={t("attach")}
-        submitLabel={t("submit")}
-        actorCoworkerLabel={t("actorCoworker")}
-        actorUserLabel={t("actorUser")}
-        actorSystemLabel={t("actorSystem")}
-        actionCommentedLabel={t("actionCommented")}
-        actionUpdatedStatusLabel={t("actionUpdatedStatus")}
-        events={task.events}
-        agentNameById={agentNameById}
-        userById={userById}
-        coworkerById={coworkerById}
-        currentUser={currentUser}
-        expandLabel={t("expand")}
-        collapseLabel={t("collapse")}
-      />
+        {/* Mobile properties */}
+        <div className="mt-6 md:hidden">
+          <TaskMetadata
+            task={task}
+            labels={{
+              status: t("status"),
+              coworker: t("coworker"),
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Properties sidebar - fixed on right edge as a panel */}
+      <aside className="fixed top-[57px] bottom-0 right-0 w-60 hidden md:block border-l border-border bg-background overflow-y-auto">
+        <div className="px-6 py-5">
+          <TaskMetadata
+            task={task}
+            labels={{
+              status: t("status"),
+              coworker: t("coworker"),
+            }}
+          />
+        </div>
+      </aside>
     </div>
   );
 }

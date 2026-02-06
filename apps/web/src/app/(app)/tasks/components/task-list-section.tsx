@@ -20,15 +20,19 @@ export function TaskListSection({
   tasks,
   renderTask,
 }: TaskListSectionProps) {
-  return (
-    <section className="flex flex-col gap-2 border-b px-4 py-2 last:border-b-0">
-      <ColumnHeader
-        title={title}
-        count={tasks.length}
-        statusColorClass={COLUMN_STATUS_COLORS[columnId]}
-      />
+  if (tasks.length === 0) return null;
 
-      <div className="space-y-2">
+  return (
+    <section className="flex flex-col gap-1">
+      <div className="px-4 py-2 sticky top-0 bg-muted/40 backdrop-blur-sm z-10">
+        <ColumnHeader
+          title={title}
+          count={tasks.length}
+          statusColorClass={COLUMN_STATUS_COLORS[columnId]}
+        />
+      </div>
+
+      <div className="flex flex-col divide-y divide-border/50">
         {tasks.map((task) =>
           renderTask ? (
             renderTask(task)

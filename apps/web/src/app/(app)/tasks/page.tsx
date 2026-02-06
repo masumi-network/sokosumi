@@ -62,12 +62,7 @@ export default async function TasksPage() {
   };
 
   return (
-    <div className="w-full space-y-6 px-2">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-light md:text-3xl">{t("Page.title")}</h1>
-        <p className="text-muted-foreground">{t("Page.description")}</p>
-      </div>
-
+    <div className="w-full px-2">
       <TasksView
         tasks={tasks}
         nextCursor={tasksResult.pagination?.nextCursor ?? null}
