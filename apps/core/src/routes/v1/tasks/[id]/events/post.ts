@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { Prisma, TaskStatus } from "@sokosumi/database";
 
 import { requireTaskAccess } from "@/helpers/access-control";
@@ -146,7 +147,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       }
     } catch (error) {
-      console.error("Failed to publish task event update", error);
+      Sentry.captureException(error, {
+        tags: {
+          error_type: "publish_task_event",
+        },
+      });
     }
 
     return created(c, taskEventSchema.parse(event));
