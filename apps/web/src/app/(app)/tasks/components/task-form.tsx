@@ -1,21 +1,15 @@
 "use client";
 
 import { TaskStatus } from "@sokosumi/database";
-import {
-  ArrowLeft,
-  Check,
-  Command,
-  CornerDownLeft,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 // TODO: Add file attachment
 // import { FileUploadButton } from "@/app/tasks/new/components/file-upload-button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -392,52 +386,5 @@ export function TaskForm({
         </div>
       </section>
     </div>
-  );
-}
-
-function CoworkerCard({
-  option,
-  isSelected,
-  onSelect,
-}: {
-  option: CoworkerOption;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        "relative flex items-start gap-3 rounded-xl border-2 p-3 text-left transition-all",
-        isSelected
-          ? "border-primary bg-primary/5"
-          : "bg-muted/40 hover:bg-muted/70 border-transparent",
-      )}
-    >
-      {isSelected ? (
-        <div className="bg-primary absolute top-2 right-2 flex size-5 items-center justify-center rounded-full">
-          <Check className="size-3 text-white" />
-        </div>
-      ) : null}
-      <Avatar className="size-10 shrink-0 rounded-lg">
-        <AvatarImage
-          src={option.image}
-          alt={option.name}
-          className="object-cover"
-        />
-        <AvatarFallback className="rounded-lg text-xs">
-          {option.name.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm leading-tight font-medium">{option.name}</p>
-        {option.description ? (
-          <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-snug">
-            {option.description}
-          </p>
-        ) : null}
-      </div>
-    </button>
   );
 }
