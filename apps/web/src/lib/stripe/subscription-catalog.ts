@@ -108,10 +108,7 @@ async function loadCatalog(stripe: Stripe): Promise<SubscriptionCatalog> {
 
       const price = parsePrice(product.default_price, rawPlan.name);
       const slug = parseSlug(product.metadata.slug, rawPlan.name);
-      const credits = parseCredits(
-        product.metadata.credits ?? price.metadata.credits,
-        rawPlan.name,
-      );
+      const credits = parseCredits(product.metadata.credits, rawPlan.name);
 
       return [
         rawPlan.name,

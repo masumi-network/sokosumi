@@ -18,7 +18,6 @@ interface MockProductParams {
   interval?: "day" | "month" | "week" | "year";
   intervalCount?: number;
   planName: "free" | "starter" | "standard" | "pro";
-  priceCredits?: number;
   priceId: string;
   productId: string;
   unitAmount: number;
@@ -35,10 +34,7 @@ function createMockProduct(params: MockProductParams): unknown {
       type: "recurring",
       unit_amount: params.unitAmount,
       currency: "eur",
-      metadata:
-        params.priceCredits === undefined
-          ? {}
-          : { credits: String(params.priceCredits) },
+      metadata: {},
     },
     metadata: {
       slug: params.planName,
@@ -52,10 +48,11 @@ function createMockProduct(params: MockProductParams): unknown {
 describe("subscription-catalog", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules();
     getEnvSecretsMock.mockReturnValue(ENV);
   });
 
-  it("builds catalog and falls back to default_price metadata credits", async () => {
+  it("builds catalog from product metadata credits", async () => {
     const retrieveMock = jest.fn(async (productId: string) => {
       switch (productId) {
         case ENV.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID:
@@ -63,7 +60,7 @@ describe("subscription-catalog", () => {
             planName: "free",
             priceId: "price_free",
             productId,
-            priceCredits: 250,
+            credits: 250,
             unitAmount: 0,
           });
         case ENV.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID:
@@ -133,5 +130,57 @@ describe("subscription-catalog", () => {
         priceId: "price_pro",
       },
     ]);
+  });
+
+  it("throws when product metadata credits are missing", async () => {
+    const retrieveMock = jest.fn(async (productId: string) => {
+      switch (productId) {
+        case ENV.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID:
+          return createMockProduct({
+            planName: "free",
+            priceId: "price_free",
+            productId,
+            unitAmount: 0,
+          });
+        case ENV.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID:
+          return createMockProduct({
+            planName: "starter",
+            priceId: "price_starter",
+            productId,
+            credits: 1750,
+            unitAmount: 2500,
+          });
+        case ENV.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID:
+          return createMockProduct({
+            planName: "standard",
+            priceId: "price_standard",
+            productId,
+            credits: 5250,
+            unitAmount: 7500,
+          });
+        case ENV.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID:
+          return createMockProduct({
+            planName: "pro",
+            priceId: "price_pro",
+            productId,
+            credits: 14000,
+            unitAmount: 20000,
+          });
+        default:
+          throw new Error(`Unexpected product id: ${productId}`);
+      }
+    });
+
+    const stripe = {
+      products: {
+        retrieve: retrieveMock,
+      },
+    };
+
+    const { getSubscriptionCatalog } = await import("../subscription-catalog");
+
+    await expect(getSubscriptionCatalog(stripe as never)).rejects.toThrow(
+      "Missing credits metadata for free plan",
+    );
   });
 });
