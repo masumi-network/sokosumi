@@ -58,7 +58,7 @@ export default async function TaskDetailPage({
   const t = await getTranslations("App.Tasks.Detail");
 
   return (
-    <div className="w-full min-h-full pr-64">
+    <div className="w-full min-h-full md:pr-64">
       {/* Centered content */}
       <div className="max-w-4xl mx-auto px-4">
         <TaskDetailHeader
