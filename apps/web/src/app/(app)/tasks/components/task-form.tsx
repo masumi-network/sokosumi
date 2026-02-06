@@ -88,6 +88,7 @@ export function TaskForm({
   );
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   useEffect(() => {
     onSubmittingChange?.(isSubmitting);
   }, [isSubmitting, onSubmittingChange]);
@@ -106,7 +107,11 @@ export function TaskForm({
   const handleSave = useCallback(
     async (overrideStatus?: TaskStatus) => {
       if (isSaveDisabled) return;
-      setIsSubmitting(true);
+      if (overrideStatus && overrideStatus === TaskStatus.DRAFT) {
+        setIsSubmittingDraft(true);
+      } else {
+        setIsSubmitting(true);
+      }
       try {
         const trimmedDescription = description.trim();
         const desiredStatus = overrideStatus ?? status;
@@ -147,6 +152,7 @@ export function TaskForm({
         toast.error("Failed to save task");
       } finally {
         setIsSubmitting(false);
+        setIsSubmittingDraft(false);
       }
     },
     [
@@ -293,7 +299,7 @@ export function TaskForm({
                   disabled={isSaveDisabled}
                   onClick={() => handleSave(TaskStatus.DRAFT)}
                 >
-                  {isSubmitting ? (
+                  {isSubmittingDraft ? (
                     <Loader2
                       className="mr-1.5 h-3.5 w-3.5 animate-spin"
                       aria-hidden
