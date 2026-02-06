@@ -37,14 +37,52 @@ export function MarkdownEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
 
+  function getBacktickFence(text: string): string {
+    const matches = text.match(/`+/g);
+    const maxRun = matches
+      ? matches.reduce((max, match) => Math.max(max, match.length), 0)
+      : 0;
+    const fenceLength = Math.max(3, maxRun + 1);
+    return "`".repeat(fenceLength);
+  }
+
   // Convert markdown to HTML (only on initial load or external value changes)
   const markdownToHtml = useCallback((text: string): string => {
     if (!text) return "";
 
-    return text
+    const escaped = text
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
+      .replace(/>/g, "&gt;");
+
+    // Extract fenced code blocks before other markdown transforms, so inline
+    // patterns don't accidentally rewrite code content.
+    const codeBlocks: Array<{
+      token: string;
+      html: string;
+    }> = [];
+
+    const withCodeBlockTokens = escaped.replace(
+      /(^|\n)(`{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g,
+      (
+        _match,
+        leadingNewline: string,
+        fence: string,
+        info: string,
+        code: string,
+      ) => {
+        const token = `@@CODEBLOCK_${codeBlocks.length}@@`;
+        const language = info.trim();
+        const html = `<pre><code${
+          language ? ` data-language="${language}"` : ""
+        }>${code}</code></pre>`;
+
+        codeBlocks.push({ token, html });
+        return `${leadingNewline}${token}`;
+      },
+    );
+
+    const html = withCodeBlockTokens
       .replace(/^### (.+)$/gm, "<h3>$1</h3>")
       .replace(/^## (.+)$/gm, "<h2>$1</h2>")
       .replace(/^# (.+)$/gm, "<h1>$1</h1>")
@@ -55,6 +93,10 @@ export function MarkdownEditor({
       .replace(/^[-*] (.+)$/gm, "<ul><li>$1</li></ul>")
       .replace(/^(\d+)\. (.+)$/gm, "<ol><li>$2</li></ol>")
       .replace(/\n/g, "<br>");
+
+    return codeBlocks.reduce((result, block) => {
+      return result.replace(block.token, block.html);
+    }, html);
   }, []);
 
   // Convert HTML to markdown (on every change)
@@ -69,6 +111,13 @@ export function MarkdownEditor({
       if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as HTMLElement;
         const tag = el.tagName.toLowerCase();
+
+        if (tag === "pre") {
+          const content = el.textContent || "";
+          const fence = getBacktickFence(content);
+          return `${fence}\n${content}\n${fence}`;
+        }
+
         let content = "";
 
         el.childNodes.forEach((child) => {
@@ -345,6 +394,8 @@ export function MarkdownEditor({
           "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",
           "[&_em]:italic [&_strong]:font-bold",
           "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
+          "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
+          "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
           "[&_a]:text-primary [&_a]:underline",
           "[&_h1]:mt-2 [&_h1]:mb-1 [&_h1]:text-xl [&_h1]:font-bold",
           "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
