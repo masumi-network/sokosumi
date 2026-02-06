@@ -102,7 +102,7 @@ export function TaskActivitySection({
   taskId,
   title,
   placeholder,
-  attachLabel,
+  attachLabel: _attachLabel,
   submitLabel,
   actorCoworkerLabel,
   actorUserLabel,

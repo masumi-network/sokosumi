@@ -10,16 +10,16 @@ export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Converts a plain object to InputSchemaType (Map), or returns null for invalid input.
+ * Converts a plain object to `InputSchemaType`, or returns null for invalid input.
  *
- * @param input - Plain object to convert to InputSchemaType Map
- * @returns InputSchemaType Map if conversion succeeds, null otherwise
+ * Note: `InputSchemaType` is a plain object record type (not a Map).
+ *
+ * @param input - Plain object to convert
+ * @returns InputSchemaType object if conversion succeeds, null otherwise
  */
 export function toInputSchema(input: unknown): InputSchemaType | null {
-  if (!input || typeof input !== "object") return null;
-  return new Map(
-    Object.entries(input as Record<string, unknown>),
-  ) as unknown as InputSchemaType;
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  return input as InputSchemaType;
 }
 
 /**

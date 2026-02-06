@@ -15,7 +15,7 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({
-  columnId,
+  columnId: _columnId,
   title,
   statusColor,
   tasks,

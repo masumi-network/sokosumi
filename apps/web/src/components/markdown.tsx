@@ -63,11 +63,10 @@ export default function Markdown({
         </table>
       </div>
     ),
-    code: ({ className, children, inline, ...props }) => {
+    code: ({ className, children, ...props }) => {
       const codeText = String(children ?? "");
       const isInline =
-        inline ??
-        (!className?.includes("language-") && !codeText.includes("\n"));
+        !className?.includes("language-") && !codeText.includes("\n");
 
       if (isInline) {
         return (
