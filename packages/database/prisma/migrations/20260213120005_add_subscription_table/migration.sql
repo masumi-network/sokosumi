@@ -1,7 +1,7 @@
 -- CreateTable
 CREATE TABLE "subscription" (
     "id" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "plan" TEXT NOT NULL,
     "referenceId" TEXT NOT NULL,
