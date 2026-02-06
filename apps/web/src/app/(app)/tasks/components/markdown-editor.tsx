@@ -17,6 +17,7 @@ import {
   formatHeading,
   formatInlineCodeSnippet,
   formatMarkdownLink,
+  getBacktickFence,
 } from "@/lib/utils/markdown-editor-utils";
 
 interface MarkdownEditorProps {
@@ -36,15 +37,6 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
-
-  function getBacktickFence(text: string): string {
-    const matches = text.match(/`+/g);
-    const maxRun = matches
-      ? matches.reduce((max, match) => Math.max(max, match.length), 0)
-      : 0;
-    const fenceLength = Math.max(3, maxRun + 1);
-    return "`".repeat(fenceLength);
-  }
 
   // Convert markdown to HTML (only on initial load or external value changes)
   const markdownToHtml = useCallback((text: string): string => {

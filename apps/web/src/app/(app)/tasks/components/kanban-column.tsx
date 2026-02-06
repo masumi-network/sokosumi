@@ -1,11 +1,10 @@
-import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";
+import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
 import { ColumnHeader } from "./column-header";
 import { TaskCard } from "./task-card";
 
 interface KanbanColumnProps {
-  columnId?: KanbanColumnId;
   title: string;
   statusColor: string;
   tasks: TaskWithCoworker[];
@@ -15,7 +14,6 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({
-  columnId: _columnId,
   title,
   statusColor,
   tasks,

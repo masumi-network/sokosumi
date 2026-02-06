@@ -11,7 +11,7 @@ function getNormalizedSelection(
   return selectionText;
 }
 
-function getBacktickFence(text: string): string {
+export function getBacktickFence(text: string): string {
   const matches = text.match(/`+/g);
   const maxRun = matches
     ? matches.reduce((max, match) => Math.max(max, match.length), 0)

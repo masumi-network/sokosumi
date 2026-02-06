@@ -89,15 +89,16 @@ export function TaskForm({
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
+  const isSubmittingAny = isSubmitting || isSubmittingDraft;
   useEffect(() => {
-    onSubmittingChange?.(isSubmitting);
-  }, [isSubmitting, onSubmittingChange]);
+    onSubmittingChange?.(isSubmittingAny);
+  }, [isSubmittingAny, onSubmittingChange]);
 
   const { os, isMobile } = useOSDetection();
 
   const isNameRequired = mode === "edit";
   const isSaveDisabled =
-    !description.trim() || (isNameRequired && !name.trim()) || isSubmitting;
+    !description.trim() || (isNameRequired && !name.trim()) || isSubmittingAny;
   const shouldShowEditToggle = mode === "edit";
   const statusToggleLabel =
     status === TaskStatus.DRAFT
