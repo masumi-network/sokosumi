@@ -13,7 +13,27 @@ import { verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
+
+const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+const EXISTING_PERSONAL_SUBSCRIPTION_STATUSES = new Set<
+  Stripe.Subscription.Status
+>(["active", "trialing", "past_due", "unpaid", "incomplete", "paused"]);
+
+export type EnsurePersonalFreeSubscriptionResult =
+  | {
+      status: "created";
+      subscriptionId: string;
+    }
+  | {
+      status: "skipped";
+      reason: string;
+    }
+  | {
+      status: "failed";
+      reason: string;
+    };
 
 export const stripeService = (() => {
   async function getStripeCustomerId(
@@ -173,6 +193,86 @@ export const stripeService = (() => {
         user.name,
         user.email,
       );
+    },
+
+    async ensurePersonalFreeSubscription(
+      userId: string,
+    ): Promise<EnsurePersonalFreeSubscriptionResult> {
+      try {
+        const user = await userRepository.getUserById(userId, prisma);
+        if (!user) {
+          return {
+            status: "failed",
+            reason: "USER_NOT_FOUND",
+          };
+        }
+
+        let stripeCustomerId = user.stripeCustomerId;
+        if (!stripeCustomerId) {
+          const customer = await this.createStripeCustomerForUser(userId);
+          if (!customer) {
+            return {
+              status: "failed",
+              reason: "CUSTOMER_CREATION_FAILED",
+            };
+          }
+          stripeCustomerId = customer.id;
+          await prisma.user.update({
+            where: { id: userId },
+            data: { stripeCustomerId },
+          });
+        }
+
+        const existingSubscriptions =
+          await stripeClient.listSubscriptions(stripeCustomerId);
+        const hasExistingPersonalSubscription = existingSubscriptions.some(
+          (subscription) =>
+            EXISTING_PERSONAL_SUBSCRIPTION_STATUSES.has(subscription.status),
+        );
+
+        if (hasExistingPersonalSubscription) {
+          return {
+            status: "skipped",
+            reason: "ALREADY_HAS_SUBSCRIPTION",
+          };
+        }
+
+        let freePlanPriceId: string;
+        try {
+          const subscriptionCatalog =
+            await getSubscriptionCatalog(stripeInstance);
+          freePlanPriceId = subscriptionCatalog.free.priceId;
+        } catch (error) {
+          console.error(
+            `Invalid free subscription plan configuration for user ${userId}:`,
+            error,
+          );
+          return {
+            status: "failed",
+            reason: "INVALID_FREE_PLAN_CONFIGURATION",
+          };
+        }
+
+        const subscription = await stripeClient.createSubscription(
+          stripeCustomerId,
+          freePlanPriceId,
+          `free-plan-user-${userId}`,
+        );
+
+        return {
+          status: "created",
+          subscriptionId: subscription.id,
+        };
+      } catch (error) {
+        console.error(
+          `Failed to ensure personal free subscription for user ${userId}:`,
+          error,
+        );
+        return {
+          status: "failed",
+          reason: "SUBSCRIPTION_ENROLLMENT_FAILED",
+        };
+      }
     },
 
     async createStripeCustomerForOrganization(

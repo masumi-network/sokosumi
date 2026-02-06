@@ -93,6 +93,31 @@ export const stripeClient = (() => {
       );
     },
 
+    async listSubscriptions(customerId: string): Promise<Stripe.Subscription[]> {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 100,
+      });
+      return subscriptions.data;
+    },
+
+    async createSubscription(
+      customerId: string,
+      priceId: string,
+      idempotencyKey?: string,
+    ): Promise<Stripe.Subscription> {
+      return await stripe.subscriptions.create(
+        {
+          customer: customerId,
+          items: [{ price: priceId }],
+        },
+        {
+          ...(idempotencyKey ? { idempotencyKey } : {}),
+        },
+      );
+    },
+
     async deleteCustomer(customerId: string): Promise<void> {
       await stripe.customers.del(customerId);
     },

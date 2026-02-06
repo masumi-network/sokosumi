@@ -14,6 +14,14 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
+import { stripeService } from "@/lib/services";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
+
+const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+const SUBSCRIPTION_CREDIT_BILLING_REASONS = new Set([
+  "subscription_create",
+  "subscription_cycle",
+]);
 
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
@@ -87,34 +95,99 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  // Get the allowed product ID and its default price
-  const allowedProductId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
+  const env = getEnvSecrets();
+  const creditProductId = env.STRIPE_CREDIT_PRODUCT_ID;
+  const subscriptionProductIds = new Set([
+    env.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID,
+    env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
+    env.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID,
+    env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
+  ]);
 
   // Ensure invoice has line items
   const lineItems = invoice.lines?.data;
   if (!lineItems || lineItems.length === 0) {
-    throw new Error(`No line items found for invoice ${invoiceId}`);
+    console.log(`Invoice ${invoiceId} has no line items to process`);
+    return;
   }
 
-  let totalCredits: number = 0;
+  const shouldGrantSubscriptionCredits =
+    invoice.billing_reason !== null &&
+    SUBSCRIPTION_CREDIT_BILLING_REASONS.has(invoice.billing_reason);
+  let oneTimeTopUpCredits = 0;
+  const matchedSubscriptionProducts = new Set<string>();
+
   for (const lineItem of lineItems) {
     if (lineItem.pricing && typeof lineItem.pricing === "object") {
       const productId = lineItem.pricing.price_details?.product;
-
-      if (productId !== allowedProductId) {
-        throw new Error(
-          `Invoice ${invoiceId} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`,
-        );
+      if (!productId || typeof productId !== "string") {
+        continue;
       }
 
-      totalCredits += lineItem.quantity ?? 0;
+      if (productId === creditProductId) {
+        oneTimeTopUpCredits += lineItem.quantity ?? 0;
+        continue;
+      }
+
+      if (
+        shouldGrantSubscriptionCredits &&
+        subscriptionProductIds.has(productId)
+      ) {
+        matchedSubscriptionProducts.add(productId);
+      }
     }
   }
 
-  if (totalCredits <= 0) {
-    throw new Error(
-      `Invalid total credits ${totalCredits} for invoice ${invoiceId}`,
+  if (!shouldGrantSubscriptionCredits && invoice.billing_reason) {
+    console.log(
+      `Skipping subscription credits for invoice ${invoiceId} due to billing reason ${invoice.billing_reason}`,
     );
+  }
+
+  let subscriptionCredits = 0;
+  if (matchedSubscriptionProducts.size > 0) {
+    const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
+    const creditsByProductId = new Map(
+      Object.values(subscriptionCatalog).map((plan) => [
+        plan.productId,
+        plan.credits,
+      ]),
+    );
+
+    for (const lineItem of lineItems) {
+      if (!lineItem.pricing || typeof lineItem.pricing !== "object") {
+        continue;
+      }
+      const productId = lineItem.pricing.price_details?.product;
+      if (!productId || typeof productId !== "string") {
+        continue;
+      }
+      if (!matchedSubscriptionProducts.has(productId)) {
+        continue;
+      }
+
+      const creditsPerPlan = creditsByProductId.get(productId);
+      if (!creditsPerPlan) {
+        throw new Error(
+          `No credits found in subscription catalog for product ${productId}`,
+        );
+      }
+
+      const quantity = lineItem.quantity ?? 1;
+      if (quantity <= 0) {
+        continue;
+      }
+
+      subscriptionCredits += creditsPerPlan * quantity;
+    }
+  }
+
+  const totalCredits = oneTimeTopUpCredits + subscriptionCredits;
+  if (totalCredits <= 0) {
+    console.log(
+      `Invoice ${invoiceId} has no grantable credits (billing reason: ${invoice.billing_reason})`,
+    );
+    return;
   }
 
   const cents = convertCreditsToCents(totalCredits);
@@ -179,6 +252,22 @@ export async function handleCustomerCreatedEvent(
         data: { stripeCustomerId: customer.id },
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
+
+      const freeSubscriptionResult =
+        await stripeService.ensurePersonalFreeSubscription(userId);
+      if (freeSubscriptionResult.status === "created") {
+        console.log(
+          `✅ Created free subscription for user ${userId} (${freeSubscriptionResult.subscriptionId})`,
+        );
+      } else if (freeSubscriptionResult.status === "skipped") {
+        console.log(
+          `ℹ️ Skipped free subscription for user ${userId}: ${freeSubscriptionResult.reason}`,
+        );
+      } else {
+        console.log(
+          `⚠️ Failed free subscription enrollment for user ${userId}: ${freeSubscriptionResult.reason}`,
+        );
+      }
       break;
     }
     case "organization": {
