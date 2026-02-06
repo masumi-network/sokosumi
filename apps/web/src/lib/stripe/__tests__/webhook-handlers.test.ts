@@ -75,7 +75,7 @@ function createInvoice(params: {
     | "subscription_cycle"
     | "subscription_update";
   id: string;
-  lines: Array<{ productId: string; quantity?: number }>;
+  lines: Array<{ periodEnd?: number | null; productId: string; quantity?: number }>;
 }) {
   return {
     amount_paid: 1000,
@@ -90,6 +90,14 @@ function createInvoice(params: {
           },
         },
         quantity: line.quantity ?? 1,
+        ...(line.periodEnd === null
+          ? {}
+          : {
+              period: {
+                end: line.periodEnd ?? 1_735_689_600,
+                start: (line.periodEnd ?? 1_735_689_600) - 2_592_000,
+              },
+            }),
       })),
     },
   };
@@ -148,6 +156,7 @@ describe("handleInvoicePaidEvent", () => {
         sourceCreditBucket: {
           create: {
             amount: bigint;
+            expiresAt: Date | null;
             referenceId: string;
           };
         };
@@ -155,6 +164,9 @@ describe("handleInvoicePaidEvent", () => {
     };
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
       "in_sub_cycle",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      new Date(1_735_689_600 * 1000),
     );
     // 1750 credits * quantity 2
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
@@ -181,13 +193,108 @@ describe("handleInvoicePaidEvent", () => {
         sourceCreditBucket: {
           create: {
             amount: bigint;
+            expiresAt: Date | null;
+            referenceId: string;
           };
         };
       };
     };
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe("in_topup");
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
     // quantity-based top-up credits: 3 credits
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("30000000000"),
     );
+  });
+
+  it("splits top-up and subscription credits into separate buckets when both are present", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, productId: "prod_free" },
+      pro: { credits: 14000, productId: "prod_pro" },
+      standard: { credits: 5250, productId: "prod_standard" },
+      starter: { credits: 1750, productId: "prod_starter" },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_mixed",
+        lines: [
+          { productId: "prod_credit", quantity: 3 },
+          { productId: "prod_starter", quantity: 1, periodEnd: 1_735_689_600 },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+
+    const firstCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            amount: bigint;
+            expiresAt: Date | null;
+            referenceId: string;
+          };
+        };
+      };
+    };
+    const secondCall = createTransactionMock.mock.calls[1][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            amount: bigint;
+            expiresAt: Date | null;
+            referenceId: string;
+          };
+        };
+      };
+    };
+
+    const callsByReference = new Map([
+      [firstCall.data.sourceCreditBucket.create.referenceId, firstCall],
+      [secondCall.data.sourceCreditBucket.create.referenceId, secondCall],
+    ]);
+
+    const topupCall = callsByReference.get("in_mixed:topup");
+    expect(topupCall).toBeDefined();
+    expect(topupCall?.data.amount).toBe(BigInt("30000000000"));
+    expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toBeNull();
+
+    const subscriptionCall = callsByReference.get("in_mixed:subscription");
+    expect(subscriptionCall).toBeDefined();
+    expect(subscriptionCall?.data.amount).toBe(BigInt("17500000000000"));
+    expect(subscriptionCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
+      new Date(1_735_689_600 * 1000),
+    );
+  });
+
+  it("fails when subscription period end is missing", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, productId: "prod_free" },
+      pro: { credits: 14000, productId: "prod_pro" },
+      standard: { credits: 5250, productId: "prod_standard" },
+      starter: { credits: 1750, productId: "prod_starter" },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await expect(
+      handleInvoicePaidEvent(
+        createInvoice({
+          billingReason: "subscription_cycle",
+          id: "in_missing_period",
+          lines: [{ productId: "prod_starter", quantity: 1, periodEnd: null }],
+        }) as never,
+      ),
+    ).rejects.toThrow(
+      "Missing subscription period end for invoice in_missing_period",
+    );
+
+    expect(createTransactionMock).not.toHaveBeenCalled();
   });
 });

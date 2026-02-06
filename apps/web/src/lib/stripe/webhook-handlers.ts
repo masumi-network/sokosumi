@@ -23,6 +23,12 @@ const SUBSCRIPTION_CREDIT_BILLING_REASONS = new Set([
   "subscription_cycle",
 ]);
 
+interface InvoiceCreditGrant {
+  credits: number;
+  expiresAt: Date | null;
+  referenceId: string;
+}
+
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
 ): Promise<void> {
@@ -145,6 +151,7 @@ export async function handleInvoicePaidEvent(
   }
 
   let subscriptionCredits = 0;
+  let subscriptionCreditsPeriodEndUnix: number | null = null;
   if (matchedSubscriptionProducts.size > 0) {
     const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
     const creditsByProductId = new Map(
@@ -179,41 +186,85 @@ export async function handleInvoicePaidEvent(
       }
 
       subscriptionCredits += creditsPerPlan * quantity;
+
+      const periodEnd = lineItem.period?.end;
+      if (typeof periodEnd === "number" && periodEnd > 0) {
+        subscriptionCreditsPeriodEndUnix = Math.max(
+          periodEnd,
+          subscriptionCreditsPeriodEndUnix ?? 0,
+        );
+      }
+    }
+
+    if (subscriptionCredits > 0 && subscriptionCreditsPeriodEndUnix === null) {
+      throw new Error(`Missing subscription period end for invoice ${invoiceId}`);
     }
   }
 
-  const totalCredits = oneTimeTopUpCredits + subscriptionCredits;
-  if (totalCredits <= 0) {
+  const creditGrants: InvoiceCreditGrant[] = [];
+  if (oneTimeTopUpCredits > 0) {
+    creditGrants.push({
+      credits: oneTimeTopUpCredits,
+      expiresAt: null,
+      referenceId:
+        subscriptionCredits > 0 ? `${invoiceId}:topup` : invoiceId,
+    });
+  }
+  if (subscriptionCredits > 0) {
+    creditGrants.push({
+      credits: subscriptionCredits,
+      expiresAt: new Date(subscriptionCreditsPeriodEndUnix! * 1000),
+      referenceId:
+        oneTimeTopUpCredits > 0 ? `${invoiceId}:subscription` : invoiceId,
+    });
+  }
+
+  if (creditGrants.length === 0) {
     console.log(
       `Invoice ${invoiceId} has no grantable credits (billing reason: ${invoice.billing_reason})`,
     );
     return;
   }
 
-  const cents = convertCreditsToCents(totalCredits);
-  const referenceId = invoiceId;
   const referenceType: CreditBucketReferenceType = "STRIPE_INVOICE";
 
-  // Check if bucket already exists (idempotent check)
   await prisma.$transaction(async (tx) => {
-    const existingBucket = await tx.creditBucket.findUnique({
-      where: {
-        referenceId_referenceType: {
-          referenceId,
-          referenceType,
+    if (creditGrants.length > 1) {
+      const legacyCombinedBucket = await tx.creditBucket.findUnique({
+        where: {
+          referenceId_referenceType: {
+            referenceId: invoiceId,
+            referenceType,
+          },
         },
-      },
-      include: {
-        sourceTransaction: true,
-      },
-    });
+      });
 
-    if (existingBucket) {
-      console.log(
-        `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
-      );
-    } else {
-      // Create new transaction and bucket
+      if (legacyCombinedBucket) {
+        console.log(
+          `✅ Legacy combined bucket already exists for invoice ${invoiceId}, skipping split credit grants`,
+        );
+        return;
+      }
+    }
+
+    for (const grant of creditGrants) {
+      const existingBucket = await tx.creditBucket.findUnique({
+        where: {
+          referenceId_referenceType: {
+            referenceId: grant.referenceId,
+            referenceType,
+          },
+        },
+      });
+
+      if (existingBucket) {
+        console.log(
+          `✅ Bucket already exists for invoice reference ${grant.referenceId}, skipping creation`,
+        );
+        continue;
+      }
+
+      const cents = convertCreditsToCents(grant.credits);
       await tx.transaction.create({
         data: {
           amount: cents,
@@ -224,8 +275,8 @@ export async function handleInvoicePaidEvent(
           sourceCreditBucket: {
             create: {
               amount: cents,
-              expiresAt: null,
-              referenceId,
+              expiresAt: grant.expiresAt,
+              referenceId: grant.referenceId,
               referenceType,
               userId,
               organizationId,
@@ -233,8 +284,9 @@ export async function handleInvoicePaidEvent(
           },
         },
       });
+
       console.log(
-        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
     }
   });
