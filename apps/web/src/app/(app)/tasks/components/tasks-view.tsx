@@ -7,12 +7,26 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { ChannelProvider, useChannel } from "ably/react";
+import { useRouter } from "next/navigation";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 
 import { loadMoreTasks } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import {
+  makeUserTasksChannelName,
+  type TaskEventData,
+  taskEventDataSchema,
+} from "@/lib/ably";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
   KANBAN_COLUMNS,
@@ -60,10 +74,36 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
+interface TasksRealtimeListenerProps {
+  userId: string;
+  onEvent: (data: TaskEventData) => void;
+}
+
+function TasksRealtimeListener({
+  userId,
+  onEvent,
+}: TasksRealtimeListenerProps) {
+  useChannel(makeUserTasksChannelName(userId), (message) => {
+    const parsedResult = taskEventDataSchema.safeParse(message.data);
+    if (parsedResult.success) {
+      onEvent(parsedResult.data);
+    } else {
+      console.error(
+        "Failed to parse TaskEventData from message",
+        message,
+        parsedResult.error,
+      );
+    }
+  });
+
+  return null;
+}
+
 interface TasksViewProps {
   tasks: TaskWithCoworker[];
   nextCursor?: string | null;
   columns?: KanbanColumnDefinition[];
+  userId?: string | null;
   labels: {
     tabs: {
       tasks: string;
@@ -88,8 +128,10 @@ export function TasksView({
   tasks,
   nextCursor: initialNextCursor,
   columns = KANBAN_COLUMNS,
+  userId,
   labels,
 }: TasksViewProps) {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [nextCursor, setNextCursor] = useState<string | null>(
@@ -103,6 +145,39 @@ export function TasksView({
   const [isPending, startTransition] = useTransition();
   const moveVersionRef = useRef(0);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
+  const itemsRef = useRef(items);
+  const handleEventUpdate = (_data: TaskEventData) => {
+    router.refresh();
+  };
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    const prev = itemsRef.current;
+    const prevById = new Map(prev.map((task) => [task.id, task]));
+    const next = tasks.map((task) => {
+      if (pendingMoveVersionByTaskIdRef.current.has(task.id)) {
+        const localTask = prevById.get(task.id);
+        if (localTask) return localTask;
+      }
+      return task;
+    });
+
+    const nextIds = new Set(tasks.map((task) => task.id));
+    prev.forEach((task) => {
+      if (!nextIds.has(task.id)) {
+        next.push(task);
+      }
+    });
+
+    setItems(next);
+
+    if (next.length <= tasks.length) {
+      setNextCursor(initialNextCursor ?? null);
+    }
+  }, [initialNextCursor, tasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -185,82 +260,94 @@ export function TasksView({
   };
 
   return (
-    <Tabs defaultValue="tasks" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <TabsList>
-            <TabsTrigger value="tasks">{labels.tabs.tasks}</TabsTrigger>
-            <TabsTrigger value="jobs">{labels.tabs.jobs}</TabsTrigger>
-          </TabsList>
-          <AddTaskButton label={labels.add} />
-        </div>
-        <ViewModeSwitch
-          value={viewMode}
-          onChange={setViewMode}
-          labels={labels.display}
-        />
-      </div>
-
-      <TabsContent value="tasks" className="flex flex-col gap-4">
-        {isMounted ? (
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-            {viewMode === "board" ? (
-              <KanbanBoard
-                tasks={items}
-                columns={columns}
-                labels={{
-                  columns: labels.columns,
-                  addTask: labels.addTask,
-                }}
-              />
-            ) : (
-              <TaskListView
-                tasks={items}
-                columns={columns}
-                labels={{
-                  columns: labels.columns,
-                }}
-              />
-            )}
-          </DndContext>
-        ) : viewMode === "board" ? (
-          <KanbanBoard
-            tasks={items}
-            columns={columns}
-            labels={{
-              columns: labels.columns,
-              addTask: labels.addTask,
-            }}
-            isDragEnabled={false}
-          />
-        ) : (
-          <TaskListView
-            tasks={items}
-            columns={columns}
-            labels={{
-              columns: labels.columns,
-            }}
-            isDragEnabled={false}
-          />
-        )}
-        {nextCursor ? (
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
-              onClick={handleLoadMore}
-              disabled={isPending}
-            >
-              {isPending ? "Loading..." : labels.loadMore}
-            </Button>
+    <>
+      {userId ? (
+        <DynamicAblyProvider>
+          <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
+            <TasksRealtimeListener
+              userId={userId}
+              onEvent={handleEventUpdate}
+            />
+          </ChannelProvider>
+        </DynamicAblyProvider>
+      ) : null}
+      <Tabs defaultValue="tasks" className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <TabsList>
+              <TabsTrigger value="tasks">{labels.tabs.tasks}</TabsTrigger>
+              <TabsTrigger value="jobs">{labels.tabs.jobs}</TabsTrigger>
+            </TabsList>
+            <AddTaskButton label={labels.add} />
           </div>
-        ) : null}
-      </TabsContent>
-
-      <TabsContent value="jobs">
-        <div className="text-muted-foreground rounded-xl border border-dashed p-6 text-sm">
-          {labels.jobsPlaceholder}
+          <ViewModeSwitch
+            value={viewMode}
+            onChange={setViewMode}
+            labels={labels.display}
+          />
         </div>
-      </TabsContent>
-    </Tabs>
+
+        <TabsContent value="tasks" className="flex flex-col gap-4">
+          {isMounted ? (
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              {viewMode === "board" ? (
+                <KanbanBoard
+                  tasks={items}
+                  columns={columns}
+                  labels={{
+                    columns: labels.columns,
+                    addTask: labels.addTask,
+                  }}
+                />
+              ) : (
+                <TaskListView
+                  tasks={items}
+                  columns={columns}
+                  labels={{
+                    columns: labels.columns,
+                  }}
+                />
+              )}
+            </DndContext>
+          ) : viewMode === "board" ? (
+            <KanbanBoard
+              tasks={items}
+              columns={columns}
+              labels={{
+                columns: labels.columns,
+                addTask: labels.addTask,
+              }}
+              isDragEnabled={false}
+            />
+          ) : (
+            <TaskListView
+              tasks={items}
+              columns={columns}
+              labels={{
+                columns: labels.columns,
+              }}
+              isDragEnabled={false}
+            />
+          )}
+          {nextCursor ? (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onClick={handleLoadMore}
+                disabled={isPending}
+              >
+                {isPending ? "Loading..." : labels.loadMore}
+              </Button>
+            </div>
+          ) : null}
+        </TabsContent>
+
+        <TabsContent value="jobs">
+          <div className="text-muted-foreground rounded-xl border border-dashed p-6 text-sm">
+            {labels.jobsPlaceholder}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }

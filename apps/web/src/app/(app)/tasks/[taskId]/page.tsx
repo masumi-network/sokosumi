@@ -5,6 +5,7 @@ import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -59,6 +60,9 @@ export default async function TaskDetailPage({
 
   return (
     <div className="w-full max-w-3xl space-y-6 px-2">
+      {session?.user.id ? (
+        <TaskStatusRealtimeListener userId={session.user.id} taskId={taskId} />
+      ) : null}
       <TaskDetailHeader
         task={task}
         labels={{

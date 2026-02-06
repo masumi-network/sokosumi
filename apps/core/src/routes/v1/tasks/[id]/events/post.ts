@@ -7,6 +7,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { validateStatusTransition } from "@/helpers/task";
 import { createTaskCompletionTransaction } from "@/helpers/task-credits";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -49,12 +50,12 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { id } = c.req.valid("param");
+    const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const event = await prisma.$transaction(
+    const { event, userId } = await prisma.$transaction(
       async (tx) => {
-        const task = await requireTaskAccess(authContext, id, tx);
+        const task = await requireTaskAccess(authContext, taskId, tx);
         const { status, comment, credits, authenticationUrl, origin } = body;
 
         const isStatusEvent = status !== undefined;
@@ -85,7 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // Create the status event (with optional comment)
           const event = await tx.taskEvent.create({
             data: {
-              taskId: id,
+              taskId: taskId,
               status,
               comment,
               authenticationUrl: authenticationUrl ?? null,
@@ -96,7 +97,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
 
           const updateResult = await tx.task.updateMany({
-            where: { id, status: task.status },
+            where: { id: taskId, status: task.status },
             data: {
               status,
               ...(transactionId && {
@@ -110,14 +111,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             throw conflict("Task status was changed by another request");
           }
 
-          return event;
+          return { event, userId: task.userId };
         }
 
         // Handle comment-only event (no status change)
         if (isCommentOnlyEvent) {
           const event = await tx.taskEvent.create({
             data: {
-              taskId: id,
+              taskId: taskId,
               status: null,
               comment,
               origin,
@@ -126,7 +127,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           });
 
-          return event;
+          return { event, userId: task.userId };
         }
 
         throw unprocessableEntity("Either status or comment must be provided");
@@ -135,6 +136,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       },
     );
+
+    try {
+      if (event) {
+        await publishTaskEventData({
+          userId: userId,
+          taskId: taskId,
+          eventType: "task_event",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to publish task event update", error);
+    }
 
     return created(c, taskEventSchema.parse(event));
   });

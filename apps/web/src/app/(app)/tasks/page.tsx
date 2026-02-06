@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
+import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -21,6 +22,8 @@ export default async function TasksPage() {
     agentService.getAvailableAgentsWithCreditsPrice(),
     taskService.listTasks({ limit: 20 }),
   ]);
+
+  const session = await getSession();
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -49,6 +52,7 @@ export default async function TasksPage() {
         tasks={tasks}
         nextCursor={tasksResult.pagination?.nextCursor ?? null}
         columns={KANBAN_COLUMNS}
+        userId={session?.user.id ?? null}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),

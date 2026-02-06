@@ -30,5 +30,6 @@
  * ```
  */
 
+export * from "./ably.js";
 export * from "./credit.js";
 export * from "./job.js";
