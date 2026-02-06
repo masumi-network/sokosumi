@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
-import { agentService } from "@/lib/services";
+import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { coworkerService } from "@/lib/services/coworker.service";
 
 export const metadata = {
@@ -10,15 +10,8 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [agents, coworkers] = await Promise.all([
-    agentService.getAvailableAgents(),
-    coworkerService.listCoworkers(),
-  ]);
-  const coworkerOptions = coworkers.map((coworker) => ({
-    id: coworker.id,
-    name: coworker.name,
-    image: coworker.image ?? "",
-  }));
+  const coworkers = await coworkerService.listCoworkers();
+  const coworkerOptions = getCoworkerOptions(coworkers);
 
   return (
     <div className="w-full max-w-3xl space-y-6 px-2">
@@ -40,11 +33,12 @@ export default async function NewTaskPage() {
           back: t("back"),
           uploadFile: t("uploadFile"),
           submit: t("saveDraft"),
+          saveAsDraft: t("saveAsDraft"),
+          createTask: t("createTask"),
           cancel: t("cancel"),
           ctrl: t("ctrl"),
         }}
         coworkerOptions={coworkerOptions}
-        agents={agents}
       />
     </div>
   );

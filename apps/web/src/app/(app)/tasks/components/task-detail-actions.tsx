@@ -84,32 +84,33 @@ export function TaskDetailActions({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <Button
+        variant="outline"
         size="sm"
         onClick={handleStatusToggle}
         disabled={isStatusPending}
-        className="gap-2"
+        className="h-7 gap-1.5 px-2.5 text-xs"
       >
-        {isStatusPending ? <Loader2 className="size-4 animate-spin" /> : null}
+        {isStatusPending ? <Loader2 className="size-3 animate-spin" /> : null}
         <span>{statusActionLabel}</span>
       </Button>
       <Link
         href={`/tasks/${taskId}/edit`}
         aria-disabled={isStatusPending}
         tabIndex={isStatusPending ? -1 : 0}
-        className={`inline-flex items-center gap-2 ${isStatusPending ? "pointer-events-none opacity-70" : ""}`}
+        className={`inline-flex items-center ${isStatusPending ? "pointer-events-none opacity-70" : ""}`}
       >
         <Button
           asChild
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="gap-2"
+          className="h-7 gap-1 px-2 text-xs"
           disabled={isStatusPending}
           tabIndex={-1}
         >
-          <span className="flex items-center gap-2">
-            <Pencil className="size-4" aria-hidden />
+          <span className="flex items-center gap-1">
+            <Pencil className="size-3" aria-hidden />
             <span>{labels.edit}</span>
           </span>
         </Button>
@@ -117,12 +118,12 @@ export function TaskDetailActions({
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
         <AlertDialogTrigger asChild>
           <Button
-            variant="destructive"
+            variant="ghost"
             size="sm"
-            className="gap-2"
+            className="text-muted-foreground hover:text-destructive h-7 gap-1 px-2 text-xs"
             disabled={isDeletePending || isStatusPending}
           >
-            <Trash className="size-4" aria-hidden />
+            <Trash className="size-3" aria-hidden />
             <span>{labels.delete}</span>
           </Button>
         </AlertDialogTrigger>

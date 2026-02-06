@@ -63,6 +63,32 @@ export default function Markdown({
         </table>
       </div>
     ),
+    code: ({ className, children, ...props }) => {
+      const codeText = String(children ?? "");
+      const isInline =
+        !className?.includes("language-") && !codeText.includes("\n");
+
+      if (isInline) {
+        return (
+          <code
+            {...props}
+            className={cn(
+              "bg-muted text-foreground rounded px-1 py-0.5 font-mono text-xs wrap-break-word",
+              "before:content-none after:content-none",
+              className,
+            )}
+          >
+            {children}
+          </code>
+        );
+      }
+
+      return (
+        <code {...props} className={className}>
+          {children}
+        </code>
+      );
+    },
   };
 
   return (

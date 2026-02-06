@@ -1069,6 +1069,7 @@
       "Actions": {
         "add": "Add",
         "addTask": "Add Task",
+        "loading": "Loading...",
         "loadMore": "Load More"
       },
       "Errors": {
@@ -1085,15 +1086,18 @@
         "board": "Board"
       },
       "List": {
-        "placeholder": "List view coming soon."
+        "placeholder": "No tasks"
       },
       "Jobs": {
         "placeholder": "Job view coming soon."
       },
       "Detail": {
         "back": "Back to tasks",
+        "properties": "Properties",
         "status": "Status",
         "coworker": "Coworker",
+        "created": "Created",
+        "updated": "Updated",
         "description": "Description",
         "activity": "Activity",
         "commentPlaceholder": "Write a comment...",
@@ -1133,6 +1137,8 @@
         "back": "Back",
         "uploadFile": "Upload File",
         "saveDraft": "Save",
+        "saveAsDraft": "Save as Draft",
+        "createTask": "Create Task",
         "cancel": "Cancel",
         "ctrl": "Ctrl"
       },
