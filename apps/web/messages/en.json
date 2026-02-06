@@ -1223,7 +1223,7 @@
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
       "upgrading": "Redirecting...",
       "currentPlanCta": "Current plan",
-      "freePlanDisabled": "Included by default",
+      "freePlanDisabled": "Choose plan",
       "upgradePlanCta": "Choose plan",
       "billingPortalTitle": "Billing Portal",
       "billingPortalDescription": "Open Stripe Billing Portal to manage your subscription and invoices.",
@@ -1234,7 +1234,7 @@
       "Plans": {
         "free": {
           "name": "Free",
-          "description": "Default plan for every account."
+          "description": "Free plan for every account."
         },
         "starter": {
           "name": "Starter",

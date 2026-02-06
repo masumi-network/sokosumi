@@ -80,10 +80,6 @@ export default function SubscriptionsPageContent({
 
   const handleUpgradePlan = useCallback(
     async (plan: SubscriptionPlanName) => {
-      if (plan === "free") {
-        return;
-      }
-
       setPendingPlan(plan);
       try {
         const result = await upgradePersonalSubscription({
@@ -177,7 +173,6 @@ export default function SubscriptionsPageContent({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const isPlanPending = pendingPlan === plan.name;
-          const isFreePlan = plan.name === "free";
           const translationKey = getPlanTranslationKey(plan.name);
 
           return (
@@ -215,8 +210,8 @@ export default function SubscriptionsPageContent({
               <CardFooter className="mt-auto">
                 <Button
                   className="w-full"
-                  variant={plan.isCurrent || isFreePlan ? "outline" : "default"}
-                  disabled={isPlanPending || plan.isCurrent || isFreePlan}
+                  variant={plan.isCurrent ? "outline" : "default"}
+                  disabled={isPlanPending || plan.isCurrent}
                   onClick={() => void handleUpgradePlan(plan.name)}
                 >
                   {isPlanPending ? (
@@ -226,8 +221,6 @@ export default function SubscriptionsPageContent({
                     </>
                   ) : plan.isCurrent ? (
                     t("currentPlanCta")
-                  ) : isFreePlan ? (
-                    t("freePlanDisabled")
                   ) : (
                     t("upgradePlanCta")
                   )}

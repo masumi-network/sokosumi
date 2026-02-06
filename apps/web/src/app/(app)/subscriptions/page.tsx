@@ -98,9 +98,9 @@ export default async function SubscriptionsPage({
     }),
   ]);
 
-  const currentPlan = resolveCurrentPlanName(
-    activeSubscriptions as ActiveSubscription[],
-  );
+  const currentPlan =
+    resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
+    "free";
   const plans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
     const plan = subscriptionCatalog[planName];
     return {

@@ -33,7 +33,7 @@ describe("subscription actions", () => {
         organizationId: null,
         userId: "user-1",
       },
-      plan: "free" as never,
+      plan: "enterprise" as never,
     });
 
     expect(result).toEqual({
@@ -70,6 +70,38 @@ describe("subscription actions", () => {
         customerType: "user",
         disableRedirect: true,
         plan: "starter",
+        returnUrl: "/subscriptions",
+        successUrl: "/subscriptions?status=success",
+      },
+      headers: new Headers(),
+    });
+  });
+
+  it("allows downgrading to free via better-auth upgradeSubscription", async () => {
+    upgradeSubscriptionMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/session/free",
+    });
+
+    const { upgradePersonalSubscription } = await import("../action");
+
+    const result = await upgradePersonalSubscription({
+      authContext: {
+        organizationId: null,
+        userId: "user-1",
+      },
+      plan: "free",
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://checkout.stripe.com/session/free" },
+      ok: true,
+    });
+    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
+      body: {
+        cancelUrl: "/subscriptions?status=cancel",
+        customerType: "user",
+        disableRedirect: true,
+        plan: "free",
         returnUrl: "/subscriptions",
         successUrl: "/subscriptions?status=success",
       },

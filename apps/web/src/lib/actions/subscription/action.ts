@@ -16,11 +16,11 @@ import {
 } from "@/middleware/auth-middleware";
 
 const upgradePersonalSubscriptionSchema = z.object({
-  plan: z.enum(["starter", "standard", "pro"]),
+  plan: z.enum(["free", "starter", "standard", "pro"]),
 });
 
 interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
-  plan: "starter" | "standard" | "pro";
+  plan: "free" | "starter" | "standard" | "pro";
 }
 
 export const upgradePersonalSubscription = withAuthContext<
