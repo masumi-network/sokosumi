@@ -7,7 +7,7 @@
 /apps/core/       @mrgrauel
 
 # Packages
-/packages/ 
+/packages/        @mrgrauel @francisluz @VitoMelchionna
 
 # Everything else (fallback)
 *                @mrgrauel @francisluz @VitoMelchionna
