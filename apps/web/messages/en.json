@@ -150,6 +150,7 @@
       "account": "Account",
       "organizations": "Organizations",
       "credits": "Credits",
+      "subscriptions": "Subscriptions",
       "mcp": "MCP",
       "support": "Support",
       "logout": "Log out"
@@ -236,6 +237,7 @@
       "jobs": "Jobs",
       "agents": "Gallery",
       "credits": "Credits",
+      "subscriptions": "Subscriptions",
       "account": "Account",
       "organizations": "Organizations",
       "api-docs": "API Documentation",
@@ -1209,6 +1211,54 @@
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
+      }
+    },
+    "Subscriptions": {
+      "title": "Subscriptions",
+      "description": "Manage your monthly plan and included credits.",
+      "statusSuccess": "Subscription updated successfully.",
+      "statusCancel": "Subscription checkout was canceled.",
+      "currentPlanBadge": "Current",
+      "pricePerMonth": "per month",
+      "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
+      "upgrading": "Redirecting...",
+      "currentPlanCta": "Current plan",
+      "freePlanDisabled": "Included by default",
+      "upgradePlanCta": "Choose plan",
+      "billingPortalTitle": "Billing Portal",
+      "billingPortalDescription": "Open Stripe Billing Portal to manage your subscription and invoices.",
+      "billingPortalDescriptionWithPlan": "You are currently on {plan}. Manage billing details and invoices in Stripe.",
+      "openingBillingPortal": "Opening...",
+      "billingPortalCta": "Open billing portal",
+      "freePrice": "Free",
+      "Plans": {
+        "free": {
+          "name": "Free",
+          "description": "Default plan for every account."
+        },
+        "starter": {
+          "name": "Starter",
+          "description": "For regular individual usage."
+        },
+        "standard": {
+          "name": "Standard",
+          "description": "For higher monthly workload."
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "For heavy and continuous usage."
+        }
+      },
+      "Errors": {
+        "unauthenticated": "Please sign in to continue",
+        "unauthenticatedAction": "Sign In",
+        "badInput": "Invalid plan selection",
+        "general": "Something went wrong. Please try again."
+      },
+      "Error": {
+        "title": "Something Went Wrong",
+        "message": "We encountered an issue loading subscriptions. Please try again later.",
+        "retryButton": "Try Again"
       }
     },
     "Credits": {
