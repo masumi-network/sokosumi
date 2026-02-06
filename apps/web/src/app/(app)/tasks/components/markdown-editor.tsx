@@ -18,6 +18,7 @@ import {
   formatInlineCodeSnippet,
   formatMarkdownLink,
   getBacktickFence,
+  normalizeUrl,
 } from "@/lib/utils/markdown-editor-utils";
 
 interface MarkdownEditorProps {
@@ -81,7 +82,13 @@ export function MarkdownEditor({
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/_(.+?)_/g, "<em>$1</em>")
       .replace(/`(.+?)`/g, "<code>$1</code>")
-      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2">$1</a>')
+      .replace(/\[(.+?)\]\((.+?)\)/g, (_match, label: string, url: string) => {
+        const normalizedUrl = normalizeUrl(url);
+        if (!normalizedUrl) {
+          return `[${label}](${url})`;
+        }
+        return `<a href="${normalizedUrl}">${label}</a>`;
+      })
       .replace(/^[-*] (.+)$/gm, "<ul><li>$1</li></ul>")
       .replace(/^(\d+)\. (.+)$/gm, "<ol><li>$2</li></ol>")
       .replace(/\n/g, "<br>");

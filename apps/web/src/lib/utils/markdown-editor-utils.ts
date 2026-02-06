@@ -20,7 +20,7 @@ export function getBacktickFence(text: string): string {
   return "`".repeat(fenceLength);
 }
 
-function normalizeUrl(input: string): string | null {
+export function normalizeUrl(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
