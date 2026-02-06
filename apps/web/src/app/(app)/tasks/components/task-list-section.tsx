@@ -11,6 +11,7 @@ interface TaskListSectionProps {
   columnId: KanbanColumnId;
   title: string;
   tasks: TaskWithCoworker[];
+  emptyLabel: string;
   renderTask?: (task: TaskWithCoworker) => React.ReactNode;
 }
 
@@ -18,13 +19,12 @@ export function TaskListSection({
   columnId,
   title,
   tasks,
+  emptyLabel,
   renderTask,
 }: TaskListSectionProps) {
-  if (tasks.length === 0) return null;
-
   return (
     <section className="flex flex-col gap-1">
-      <div className="px-4 py-2 sticky top-0 bg-muted/40 backdrop-blur-sm z-10">
+      <div className="bg-muted/40 sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
         <ColumnHeader
           title={title}
           count={tasks.length}
@@ -32,13 +32,19 @@ export function TaskListSection({
         />
       </div>
 
-      <div className="flex flex-col divide-y divide-border/50">
-        {tasks.map((task) =>
-          renderTask ? (
-            renderTask(task)
-          ) : (
-            <TaskListItem key={task.id} task={task} />
-          ),
+      <div className="divide-border/50 flex flex-col divide-y">
+        {tasks.length > 0 ? (
+          tasks.map((task) =>
+            renderTask ? (
+              renderTask(task)
+            ) : (
+              <TaskListItem key={task.id} task={task} />
+            ),
+          )
+        ) : (
+          <div className="text-muted-foreground px-4 py-3 text-sm">
+            {emptyLabel}
+          </div>
         )}
       </div>
     </section>

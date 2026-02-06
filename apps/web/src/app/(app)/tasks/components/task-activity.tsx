@@ -20,6 +20,7 @@ import { formatShortDate } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 
 import { ExpandableMarkdown } from "./expandable-markdown";
+import { TaskStatusBadge } from "./task-status-badge";
 
 interface ActorInfo {
   name: string;
@@ -178,22 +179,22 @@ export function TaskActivitySection({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xs font-medium text-muted-foreground/60">{title}</h2>
+      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-lg border border-border/50 p-3"
+        className="border-border/50 rounded-lg border p-3"
       >
         <Textarea
           placeholder={placeholder}
-          className="min-h-16 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-sm"
+          className="min-h-16 resize-none border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
           value={comment}
           onChange={(event) => setComment(event.target.value)}
         />
         <div className="mt-2 flex items-center justify-end">
           <Button
             size="icon"
-            className="rounded-full size-7"
+            className="size-7 rounded-full"
             aria-label={submitLabel}
             type="submit"
             disabled={isSubmitDisabled}
@@ -239,20 +240,20 @@ export function TaskActivitySection({
                   {actorImage ? (
                     <AvatarImage src={actorImage} alt={actorName} />
                   ) : null}
-                  <AvatarFallback className="text-[10px] bg-muted">
+                  <AvatarFallback className="bg-muted text-[10px]">
                     {getInitials(actorName)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-1 flex-col gap-0.5 min-w-0">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex flex-row items-baseline justify-between gap-2">
                     <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
-                      <span className="font-medium text-sm">{actorName}</span>
-                      <span className="text-muted-foreground/60 text-xs">{action}</span>
-                      {event.status && (
-                        <span className="text-xs font-medium text-foreground/70">
-                          {event.status}
-                        </span>
-                      )}
+                      <span className="text-sm font-medium">{actorName}</span>
+                      <span className="text-muted-foreground/60 text-xs">
+                        {action}
+                      </span>
+                      {event.status ? (
+                        <TaskStatusBadge status={event.status} />
+                      ) : null}
                     </div>
                     <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
                       {formatShortDate(event.createdAt)}

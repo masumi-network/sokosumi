@@ -9,6 +9,7 @@ interface KanbanColumnProps {
   title: string;
   statusColor: string;
   tasks: TaskWithCoworker[];
+  emptyLabel: string;
   footer?: React.ReactNode;
   renderTask?: (task: TaskWithCoworker) => React.ReactNode;
 }
@@ -18,6 +19,7 @@ export function KanbanColumn({
   title,
   statusColor,
   tasks,
+  emptyLabel,
   footer,
   renderTask,
 }: KanbanColumnProps) {
@@ -26,9 +28,9 @@ export function KanbanColumn({
   return (
     <section
       className={cn(
-        "flex min-w-[260px] sm:min-w-[280px] flex-1 flex-col rounded-xl transition-colors",
+        "flex min-w-[260px] flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px]",
         "bg-muted/30 border border-transparent",
-        isEmpty && "bg-transparent border-dashed border-muted-foreground/20",
+        isEmpty && "border-muted-foreground/20 border-dashed bg-transparent",
       )}
     >
       <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
@@ -50,7 +52,7 @@ export function KanbanColumn({
         {footer}
         {isEmpty && (
           <div className="flex flex-1 items-center justify-center py-8">
-            <p className="text-muted-foreground/50 text-sm">No tasks</p>
+            <p className="text-muted-foreground/50 text-sm">{emptyLabel}</p>
           </div>
         )}
       </div>

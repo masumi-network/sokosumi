@@ -22,17 +22,14 @@ export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
 
   return (
     <div
-      className={cn(
-        "group",
-        dragHandleProps?.isDragging && "opacity-60",
-      )}
+      className={cn("group", dragHandleProps?.isDragging && "opacity-60")}
       {...handleProps}
     >
       <Link
         href={`/tasks/${task.id}`}
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-          "px-4 py-3 -mx-2 rounded-lg transition-colors",
+          "-mx-2 rounded-lg px-4 py-3 transition-colors",
           "hover:bg-muted/50",
           "active:scale-[0.995]",
           dragHandleProps?.isDragging && "bg-muted/70 shadow-sm",
@@ -49,7 +46,7 @@ export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4 text-xs shrink-0">
+        <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
           <TaskStatusBadge status={task.status} />
           <TaskMetaDetails
             coworker={task.coworker}

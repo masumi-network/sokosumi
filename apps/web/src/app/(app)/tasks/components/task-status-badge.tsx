@@ -34,21 +34,16 @@ export function TaskStatusBadge({
   showLabel = true,
 }: TaskStatusBadgeProps) {
   return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-1.5 shrink-0",
-        className,
-      )}
-    >
+    <div className={cn("inline-flex shrink-0 items-center gap-1.5", className)}>
       <span
         className={cn(
-          "size-1.5 rounded-full shrink-0",
+          "size-1.5 shrink-0 rounded-full",
           STATUS_DOT_COLORS[status],
         )}
         aria-hidden
       />
       {showLabel && (
-        <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+        <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
           {STATUS_LABELS[status]}
         </span>
       )}

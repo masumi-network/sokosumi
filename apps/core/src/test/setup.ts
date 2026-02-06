@@ -10,6 +10,7 @@ const envDefaults: Record<string, string> = {
   PAYMENT_API_KEY: "test-payment-key",
   REGISTRY_API_URL: "https://example.com/registry",
   REGISTRY_API_KEY: "test-registry-key",
+  ABLY_PUBLISH_ONLY_KEY: "local-test",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {

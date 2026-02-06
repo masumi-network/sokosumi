@@ -24,7 +24,7 @@ export function TaskDescription({
 
   return (
     <section className="space-y-2">
-      <h2 className="text-xs font-medium text-muted-foreground/60">{title}</h2>
+      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
       {content ? (
         <ExpandableMarkdown
           content={content}

@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ipfsUrlResolver } from "@/lib/ipfs";
-import { formatShortDate } from "@/lib/utils/datetime";
 import { TaskWithCoworker } from "@/lib/types/task";
+import { formatShortDate } from "@/lib/utils/datetime";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
@@ -11,7 +11,9 @@ const COWORKER_FALLBACK_IMAGES: Record<string, string> = {
   hannah: "/images/coworkers/hannah.png",
 };
 
-function getCoworkerImage(coworker: TaskWithCoworker["coworker"]): string | null {
+function getCoworkerImage(
+  coworker: TaskWithCoworker["coworker"],
+): string | null {
   if (coworker?.image) {
     return ipfsUrlResolver(coworker.image);
   }
@@ -23,8 +25,11 @@ function getCoworkerImage(coworker: TaskWithCoworker["coworker"]): string | null
 }
 
 interface TaskMetadataLabels {
+  propertiesTitle: string;
   status: string;
   coworker: string;
+  created: string;
+  updated: string;
 }
 
 interface TaskMetadataProps {
@@ -37,18 +42,22 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Properties</h3>
+      <h3 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+        {labels.propertiesTitle}
+      </h3>
 
       <div className="space-y-3">
         {/* Status */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">{labels.status}</span>
+          <span className="text-muted-foreground text-sm">{labels.status}</span>
           <TaskStatusBadge status={task.status} showLabel />
         </div>
 
         {/* Coworker */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">{labels.coworker}</span>
+          <span className="text-muted-foreground text-sm">
+            {labels.coworker}
+          </span>
           <div className="flex items-center gap-2">
             <Avatar className="size-5">
               {coworkerImage ? (
@@ -58,7 +67,7 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
                   className="object-cover"
                 />
               ) : null}
-              <AvatarFallback className="text-[10px] bg-muted">
+              <AvatarFallback className="bg-muted text-[10px]">
                 {task.coworker?.name?.slice(0, 1).toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
@@ -68,18 +77,26 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
           </div>
         </div>
 
-        <div className="border-t border-border/50 my-3" />
+        <div className="border-border/50 my-3 border-t" />
 
         {/* Created */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Created</span>
-          <span className="text-sm tabular-nums text-muted-foreground">{formatShortDate(task.createdAt)}</span>
+          <span className="text-muted-foreground text-sm">
+            {labels.created}
+          </span>
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {formatShortDate(task.createdAt)}
+          </span>
         </div>
 
         {/* Updated */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Updated</span>
-          <span className="text-sm tabular-nums text-muted-foreground">{formatShortDate(task.updatedAt)}</span>
+          <span className="text-muted-foreground text-sm">
+            {labels.updated}
+          </span>
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {formatShortDate(task.updatedAt)}
+          </span>
         </div>
       </div>
     </div>

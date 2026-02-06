@@ -16,6 +16,7 @@ interface KanbanBoardProps {
   labels: {
     columns: Record<KanbanColumnId, string>;
     addTask: string;
+    emptyColumn: string;
   };
   isDragEnabled?: boolean;
 }
@@ -27,7 +28,7 @@ export function KanbanBoard({
   isDragEnabled = true,
 }: KanbanBoardProps) {
   return (
-    <div className="flex items-stretch gap-3 overflow-x-auto pb-4 -mx-2 px-2">
+    <div className="-mx-2 flex items-stretch gap-3 overflow-x-auto px-2 pb-4">
       {columns.map((column, index) => {
         const columnTasks = tasks.filter((task) => task.columnId === column.id);
         const isFirstColumn = index === 0;
@@ -40,6 +41,7 @@ export function KanbanBoard({
             title={labels.columns[column.id]}
             statusColor={COLUMN_STATUS_COLORS[column.id]}
             tasks={columnTasks}
+            emptyLabel={labels.emptyColumn}
             footer={
               isFirstColumn ? (
                 <AddTaskButton label={labels.addTask} />

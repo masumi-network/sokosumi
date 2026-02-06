@@ -32,7 +32,7 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
       <div className="flex items-center justify-between">
         <Link
           href="/tasks"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
         >
           <ArrowLeft className="size-4" />
           <span>{labels.back}</span>
@@ -48,7 +48,7 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
       </div>
 
       {/* Title */}
-      <h1 className="text-xl font-semibold leading-tight tracking-tight">
+      <h1 className="text-xl leading-tight font-semibold tracking-tight">
         {task.name}
       </h1>
     </div>

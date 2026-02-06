@@ -90,7 +90,7 @@ export function TaskDetailActions({
         size="sm"
         onClick={handleStatusToggle}
         disabled={isStatusPending}
-        className="h-7 px-2.5 text-xs gap-1.5"
+        className="h-7 gap-1.5 px-2.5 text-xs"
       >
         {isStatusPending ? <Loader2 className="size-3 animate-spin" /> : null}
         <span>{statusActionLabel}</span>
@@ -105,7 +105,7 @@ export function TaskDetailActions({
           asChild
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-xs gap-1"
+          className="h-7 gap-1 px-2 text-xs"
           disabled={isStatusPending}
           tabIndex={-1}
         >
@@ -120,7 +120,7 @@ export function TaskDetailActions({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive h-7 gap-1 px-2 text-xs"
             disabled={isDeletePending || isStatusPending}
           >
             <Trash className="size-3" aria-hidden />

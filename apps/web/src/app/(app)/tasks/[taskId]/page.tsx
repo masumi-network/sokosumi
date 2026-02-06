@@ -5,6 +5,7 @@ import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -58,9 +59,15 @@ export default async function TaskDetailPage({
   const t = await getTranslations("App.Tasks.Detail");
 
   return (
-    <div className="w-full min-h-full md:pr-64">
+    <div className="min-h-full w-full md:pr-60">
       {/* Centered content */}
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="mx-auto max-w-4xl px-4">
+        {session?.user.id ? (
+          <TaskStatusRealtimeListener
+            userId={session.user.id}
+            taskId={taskId}
+          />
+        ) : null}
         <TaskDetailHeader
           task={task}
           labels={{
@@ -112,21 +119,27 @@ export default async function TaskDetailPage({
           <TaskMetadata
             task={task}
             labels={{
+              propertiesTitle: t("properties"),
               status: t("status"),
               coworker: t("coworker"),
+              created: t("created"),
+              updated: t("updated"),
             }}
           />
         </div>
       </div>
 
       {/* Properties sidebar - fixed on right edge as a panel */}
-      <aside className="fixed top-[57px] bottom-0 right-0 w-60 hidden md:block border-l border-border bg-background overflow-y-auto">
+      <aside className="border-border bg-background fixed top-16 right-0 bottom-0 hidden w-60 overflow-y-auto border-l md:block">
         <div className="px-6 py-5">
           <TaskMetadata
             task={task}
             labels={{
+              propertiesTitle: t("properties"),
               status: t("status"),
               coworker: t("coworker"),
+              created: t("created"),
+              updated: t("updated"),
             }}
           />
         </div>

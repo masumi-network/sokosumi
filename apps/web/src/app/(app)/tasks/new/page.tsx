@@ -1,7 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
-import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
 export const metadata = {
@@ -10,18 +9,20 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [agents, coworkers] = await Promise.all([
-    agentService.getAvailableAgents(),
-    coworkerService.listCoworkers(),
-  ]);
-  const coworkerDefaults: Record<string, { image: string; description: string }> = {
+  const coworkers = await coworkerService.listCoworkers();
+  const coworkerDefaults: Record<
+    string,
+    { image: string; description: string }
+  > = {
     soko: {
       image: "/images/kanji/sokosumi-logo-kanji-black.svg",
-      description: "Your default AI coworker. Great for general tasks, research, and getting things done.",
+      description:
+        "Your default AI coworker. Great for general tasks, research, and getting things done.",
     },
     hannah: {
       image: "/images/coworkers/hannah.png",
-      description: "Creative strategist and communications expert. Ideal for content, marketing, and outreach.",
+      description:
+        "Creative strategist and communications expert. Ideal for content, marketing, and outreach.",
     },
   };
 
@@ -60,7 +61,6 @@ export default async function NewTaskPage() {
           ctrl: t("ctrl"),
         }}
         coworkerOptions={coworkerOptions}
-        agents={agents}
       />
     </div>
   );

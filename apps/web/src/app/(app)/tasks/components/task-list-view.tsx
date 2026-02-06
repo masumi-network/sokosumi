@@ -13,6 +13,8 @@ interface TaskListViewProps {
   columns: KanbanColumnDefinition[];
   labels: {
     columns: Record<KanbanColumnId, string>;
+    emptyList: string;
+    emptySection: string;
   };
   isDragEnabled?: boolean;
 }
@@ -27,11 +29,13 @@ export function TaskListView({
   const hasAnyTasks = tasks.length > 0;
 
   return (
-    <div className="bg-muted/30 rounded-xl border border-border/50 overflow-hidden">
+    <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
       {hasAnyTasks ? (
-        <div className="divide-y divide-border/50">
+        <div className="divide-border/50 divide-y">
           {orderedColumns.map((column) => {
-            const columnTasks = tasks.filter((task) => task.columnId === column.id);
+            const columnTasks = tasks.filter(
+              (task) => task.columnId === column.id,
+            );
             const isDraggableColumn = isDragEnabled && isDnDColumn(column.id);
 
             const sectionContent = (
@@ -40,6 +44,7 @@ export function TaskListView({
                 columnId={column.id}
                 title={labels.columns[column.id]}
                 tasks={columnTasks}
+                emptyLabel={labels.emptySection}
                 renderTask={(task) =>
                   isDraggableColumn ? (
                     <DraggableTask
@@ -71,8 +76,8 @@ export function TaskListView({
           })}
         </div>
       ) : (
-        <div className="flex items-center justify-center py-16 text-muted-foreground/50 text-sm">
-          No tasks yet
+        <div className="text-muted-foreground/50 flex items-center justify-center py-16 text-sm">
+          {labels.emptyList}
         </div>
       )}
     </div>

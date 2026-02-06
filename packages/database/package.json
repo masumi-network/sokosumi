@@ -71,7 +71,7 @@
   "devDependencies": {
     "@types/node": "24.10.10",
     "@types/pg": "8.16.0",
-    "dotenv": "17.2.3",
+    "dotenv": "17.2.4",
     "prisma": "7.3.0",
     "tsx": "4.21.0",
     "typescript": "5.9.3"

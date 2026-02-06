@@ -18,7 +18,9 @@ interface TaskMetaDetailsProps {
   variant?: "card" | "list";
 }
 
-function getCoworkerImage(coworker: TaskWithCoworker["coworker"]): string | null {
+function getCoworkerImage(
+  coworker: TaskWithCoworker["coworker"],
+): string | null {
   if (coworker?.image) {
     return ipfsUrlResolver(coworker.image);
   }
@@ -40,7 +42,7 @@ function CoworkerAvatar({
   const sizeClass = size === "sm" ? "size-5" : "size-6";
 
   return (
-    <Avatar className={`${sizeClass} shrink-0 ring-2 ring-background`}>
+    <Avatar className={`${sizeClass} ring-background shrink-0 ring-2`}>
       {image ? (
         <AvatarImage
           src={image}
@@ -52,7 +54,9 @@ function CoworkerAvatar({
         />
       ) : null}
       <AvatarFallback className="bg-muted text-[10px] font-medium">
-        {coworker?.name?.slice(0, 1).toUpperCase() ?? <UserCog className="size-3" aria-hidden />}
+        {coworker?.name?.slice(0, 1).toUpperCase() ?? (
+          <UserCog className="size-3" aria-hidden />
+        )}
       </AvatarFallback>
     </Avatar>
   );
@@ -85,14 +89,14 @@ export function TaskMetaDetails({
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+    <div className="border-border/50 flex items-center justify-between gap-2 border-t pt-1">
       <div className="flex items-center gap-1.5">
         <CoworkerAvatar coworker={coworker} />
-        <span className="text-muted-foreground text-xs truncate max-w-[80px]">
+        <span className="text-muted-foreground max-w-[80px] truncate text-xs">
           {coworker?.name ?? "—"}
         </span>
       </div>
-      <div className="flex items-center gap-2 text-muted-foreground/60">
+      <div className="text-muted-foreground/60 flex items-center gap-2">
         {commentsCount > 0 && (
           <div className="flex items-center gap-1">
             <MessageSquare className="size-3" aria-hidden />

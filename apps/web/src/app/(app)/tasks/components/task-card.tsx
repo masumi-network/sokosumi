@@ -24,7 +24,7 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
     <div
       className={cn(
         "group",
-        dragHandleProps?.isDragging && "opacity-60 scale-[1.02]",
+        dragHandleProps?.isDragging && "scale-[1.02] opacity-60",
       )}
       {...handleProps}
     >
@@ -32,15 +32,16 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
         <article
           className={cn(
             "bg-background rounded-lg p-3 transition-all duration-200",
-            "border border-border/50",
+            "border-border/50 border",
             "hover:border-border hover:shadow-sm",
             "active:scale-[0.99]",
-            dragHandleProps?.isDragging && "shadow-lg border-primary/30 ring-2 ring-primary/10",
+            dragHandleProps?.isDragging &&
+              "border-primary/30 ring-primary/10 shadow-lg ring-2",
           )}
         >
           <div className="space-y-2.5">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="text-foreground line-clamp-2 text-sm font-medium leading-snug">
+              <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>
               <TaskStatusBadge status={task.status} />
