@@ -18,15 +18,17 @@ import { stripeService } from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-const SUBSCRIPTION_CREDIT_BILLING_REASONS = new Set([
+const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
   "subscription_create",
   "subscription_cycle",
 ]);
+const SUBSCRIPTION_UPDATE_BILLING_REASON = "subscription_update";
 
 interface InvoiceCreditGrant {
   credits: number;
   expiresAt: Date | null;
   referenceId: string;
+  referenceType: CreditBucketReferenceType;
 }
 
 export async function handleInvoicePaidEvent(
@@ -117,9 +119,13 @@ export async function handleInvoicePaidEvent(
     return;
   }
 
+  const isPaidSubscriptionUpdate =
+    invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
+    invoice.amount_paid > 0;
   const shouldGrantSubscriptionCredits =
     invoice.billing_reason !== null &&
-    SUBSCRIPTION_CREDIT_BILLING_REASONS.has(invoice.billing_reason);
+    (SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS.has(invoice.billing_reason) ||
+      isPaidSubscriptionUpdate);
   let oneTimeTopUpCredits = 0;
   const matchedSubscriptionProducts = new Set<string>();
 
@@ -139,6 +145,12 @@ export async function handleInvoicePaidEvent(
         shouldGrantSubscriptionCredits &&
         subscriptionProductIds.has(productId)
       ) {
+        if (
+          invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
+          (lineItem.amount ?? 0) <= 0
+        ) {
+          continue;
+        }
         matchedSubscriptionProducts.add(productId);
       }
     }
@@ -197,7 +209,9 @@ export async function handleInvoicePaidEvent(
     }
 
     if (subscriptionCredits > 0 && subscriptionCreditsPeriodEndUnix === null) {
-      throw new Error(`Missing subscription period end for invoice ${invoiceId}`);
+      throw new Error(
+        `Missing subscription period end for invoice ${invoiceId}`,
+      );
     }
   }
 
@@ -206,8 +220,8 @@ export async function handleInvoicePaidEvent(
     creditGrants.push({
       credits: oneTimeTopUpCredits,
       expiresAt: null,
-      referenceId:
-        subscriptionCredits > 0 ? `${invoiceId}:topup` : invoiceId,
+      referenceId: subscriptionCredits > 0 ? `${invoiceId}:topup` : invoiceId,
+      referenceType: "STRIPE_TOPUP",
     });
   }
   if (subscriptionCredits > 0) {
@@ -216,6 +230,7 @@ export async function handleInvoicePaidEvent(
       expiresAt: new Date(subscriptionCreditsPeriodEndUnix! * 1000),
       referenceId:
         oneTimeTopUpCredits > 0 ? `${invoiceId}:subscription` : invoiceId,
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
     });
   }
 
@@ -226,15 +241,15 @@ export async function handleInvoicePaidEvent(
     return;
   }
 
-  const referenceType: CreditBucketReferenceType = "STRIPE_INVOICE";
-
   await prisma.$transaction(async (tx) => {
+    const grantsToCreate: InvoiceCreditGrant[] = [];
+
     if (creditGrants.length > 1) {
       const legacyCombinedBucket = await tx.creditBucket.findUnique({
         where: {
           referenceId_referenceType: {
             referenceId: invoiceId,
-            referenceType,
+            referenceType: "STRIPE_TOPUP",
           },
         },
       });
@@ -252,7 +267,7 @@ export async function handleInvoicePaidEvent(
         where: {
           referenceId_referenceType: {
             referenceId: grant.referenceId,
-            referenceType,
+            referenceType: grant.referenceType,
           },
         },
       });
@@ -264,6 +279,66 @@ export async function handleInvoicePaidEvent(
         continue;
       }
 
+      if (grant.referenceType === "STRIPE_SUBSCRIPTION_PERIOD") {
+        const migratedLegacyBucket = await tx.creditBucket.findUnique({
+          where: {
+            referenceId_referenceType: {
+              referenceId: grant.referenceId,
+              referenceType: "STRIPE_TOPUP",
+            },
+          },
+        });
+
+        if (migratedLegacyBucket && migratedLegacyBucket.expiresAt !== null) {
+          console.log(
+            `✅ Legacy migrated subscription bucket already exists for invoice reference ${grant.referenceId}, skipping creation`,
+          );
+          continue;
+        }
+      }
+
+      grantsToCreate.push(grant);
+    }
+
+    if (grantsToCreate.length === 0) {
+      return;
+    }
+
+    if (
+      isPaidSubscriptionUpdate &&
+      grantsToCreate.some(
+        (grant) => grant.referenceType === "STRIPE_SUBSCRIPTION_PERIOD",
+      )
+    ) {
+      const now = new Date();
+      const expiredBucketsResult = await tx.creditBucket.updateMany({
+        where: {
+          userId,
+          organizationId,
+          expiresAt: { gt: now },
+          OR: [
+            { referenceType: "STRIPE_SUBSCRIPTION_PERIOD" },
+            {
+              AND: [
+                { referenceType: "STRIPE_TOPUP" },
+                { expiresAt: { not: null } },
+              ],
+            },
+          ],
+        },
+        data: {
+          expiresAt: now,
+        },
+      });
+
+      if (expiredBucketsResult.count > 0) {
+        console.log(
+          `✅ Expired ${expiredBucketsResult.count} active subscription credit bucket(s) before applying upgrade invoice ${invoiceId}`,
+        );
+      }
+    }
+
+    for (const grant of grantsToCreate) {
       const cents = convertCreditsToCents(grant.credits);
       await tx.transaction.create({
         data: {
@@ -277,7 +352,7 @@ export async function handleInvoicePaidEvent(
               amount: cents,
               expiresAt: grant.expiresAt,
               referenceId: grant.referenceId,
-              referenceType,
+              referenceType: grant.referenceType,
               userId,
               organizationId,
             },

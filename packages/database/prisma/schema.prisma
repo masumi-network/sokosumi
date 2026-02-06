@@ -541,7 +541,8 @@ model CreditBucket {
 }
 
 enum CreditBucketReferenceType {
-  STRIPE_INVOICE
+  STRIPE_TOPUP
+  STRIPE_SUBSCRIPTION_PERIOD
   JOB_REFUND
 }
 

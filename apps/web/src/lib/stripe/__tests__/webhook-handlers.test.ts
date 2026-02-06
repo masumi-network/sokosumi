@@ -4,12 +4,14 @@ const getUserByStripeCustomerIdMock = jest.fn();
 const getOrganizationByStripeCustomerIdMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
+const expireCreditBucketsMock = jest.fn();
 const createTransactionMock = jest.fn();
 
 const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     creditBucket: {
       findUnique: (...args: unknown[]) => findExistingBucketMock(...args),
+      updateMany: (...args: unknown[]) => expireCreditBucketsMock(...args),
     },
     transaction: {
       create: (...args: unknown[]) => createTransactionMock(...args),
@@ -69,21 +71,28 @@ jest.mock("@/lib/stripe/subscription-catalog", () => ({
 }));
 
 function createInvoice(params: {
+  amountPaid?: number;
   billingReason:
     | "manual"
     | "subscription_create"
     | "subscription_cycle"
     | "subscription_update";
   id: string;
-  lines: Array<{ periodEnd?: number | null; productId: string; quantity?: number }>;
+  lines: Array<{
+    amount?: number;
+    periodEnd?: number | null;
+    productId: string;
+    quantity?: number;
+  }>;
 }) {
   return {
-    amount_paid: 1000,
+    amount_paid: params.amountPaid ?? 1000,
     billing_reason: params.billingReason,
     customer: "cus_1",
     id: params.id,
     lines: {
       data: params.lines.map((line) => ({
+        amount: line.amount ?? 1000,
         pricing: {
           price_details: {
             product: line.productId,
@@ -111,14 +120,16 @@ describe("handleInvoicePaidEvent", () => {
     });
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
     findExistingBucketMock.mockResolvedValue(null);
+    expireCreditBucketsMock.mockResolvedValue({ count: 0 });
     createTransactionMock.mockResolvedValue({});
   });
 
-  it("does not grant subscription credits for subscription_update invoices", async () => {
+  it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
     await handleInvoicePaidEvent(
       createInvoice({
+        amountPaid: 0,
         billingReason: "subscription_update",
         id: "in_sub_update",
         lines: [{ productId: "prod_starter", quantity: 1 }],
@@ -127,6 +138,69 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
     expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("grants subscription credits and expires active recurring buckets for paid subscription_update invoices", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, productId: "prod_free" },
+      pro: { credits: 14000, productId: "prod_pro" },
+      standard: { credits: 5250, productId: "prod_standard" },
+      starter: { credits: 1750, productId: "prod_starter" },
+    });
+    expireCreditBucketsMock.mockResolvedValue({ count: 2 });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 1250,
+        billingReason: "subscription_update",
+        id: "in_sub_upgrade",
+        lines: [{ amount: 1250, productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(getSubscriptionCatalogMock).toHaveBeenCalledTimes(1);
+    expect(expireCreditBucketsMock).toHaveBeenCalledTimes(1);
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const expireCall = expireCreditBucketsMock.mock.calls[0][0] as {
+      where: {
+        OR: unknown[];
+      };
+    };
+    expect(expireCall.where.OR).toEqual([
+      { referenceType: "STRIPE_SUBSCRIPTION_PERIOD" },
+      {
+        AND: [{ referenceType: "STRIPE_TOPUP" }, { expiresAt: { not: null } }],
+      },
+    ]);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            amount: bigint;
+            expiresAt: Date | null;
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_sub_upgrade",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      new Date(1_735_689_600 * 1000),
+    );
+    expect(createCall.data.sourceCreditBucket.create.amount).toBe(
+      BigInt("17500000000000"),
+    );
   });
 
   it("grants subscription credits for subscription_cycle invoices", async () => {
@@ -158,12 +232,16 @@ describe("handleInvoicePaidEvent", () => {
             amount: bigint;
             expiresAt: Date | null;
             referenceId: string;
+            referenceType: string;
           };
         };
       };
     };
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
       "in_sub_cycle",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
       new Date(1_735_689_600 * 1000),
@@ -195,11 +273,17 @@ describe("handleInvoicePaidEvent", () => {
             amount: bigint;
             expiresAt: Date | null;
             referenceId: string;
+            referenceType: string;
           };
         };
       };
     };
-    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe("in_topup");
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_topup",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_TOPUP",
+    );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
     // quantity-based top-up credits: 3 credits
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
@@ -238,6 +322,7 @@ describe("handleInvoicePaidEvent", () => {
             amount: bigint;
             expiresAt: Date | null;
             referenceId: string;
+            referenceType: string;
           };
         };
       };
@@ -250,6 +335,7 @@ describe("handleInvoicePaidEvent", () => {
             amount: bigint;
             expiresAt: Date | null;
             referenceId: string;
+            referenceType: string;
           };
         };
       };
@@ -263,11 +349,17 @@ describe("handleInvoicePaidEvent", () => {
     const topupCall = callsByReference.get("in_mixed:topup");
     expect(topupCall).toBeDefined();
     expect(topupCall?.data.amount).toBe(BigInt("30000000000"));
+    expect(topupCall?.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_TOPUP",
+    );
     expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toBeNull();
 
     const subscriptionCall = callsByReference.get("in_mixed:subscription");
     expect(subscriptionCall).toBeDefined();
     expect(subscriptionCall?.data.amount).toBe(BigInt("17500000000000"));
+    expect(subscriptionCall?.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
     expect(subscriptionCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
       new Date(1_735_689_600 * 1000),
     );
