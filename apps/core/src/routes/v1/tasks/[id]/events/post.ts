@@ -139,9 +139,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     try {
       if (event) {
-        const recipientUserId = event.userId ?? taskOwnerId;
         await publishTaskEventData({
-          userId: recipientUserId,
+          userId: taskOwnerId,
           taskId: id,
           eventType: "task_event",
         });
