@@ -36,11 +36,7 @@ export function StatusSelect({
   const selectedOption = options.find((option) => option.value === value);
 
   return (
-    <div className="flex w-full flex-col gap-4 md:w-auto">
-      <div>
-        <h2 className="text-lg font-semibold">{label}</h2>
-        <p className="text-muted-foreground text-sm">{description}</p>
-      </div>
+    <div className="flex w-full flex-col gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild disabled={disabled}>
           <Button

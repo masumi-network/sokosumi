@@ -14,6 +14,7 @@ import { loadMoreTasks } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
+import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
@@ -22,6 +23,10 @@ import {
 } from "@/lib/types/task";
 
 import { AddTaskButton } from "./add-task-button";
+import {
+  CreateTaskModal,
+  CreateTaskModalProvider,
+} from "./create-task-modal";
 import { KanbanBoard } from "./kanban-board";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListView } from "./task-list-view";
@@ -64,6 +69,7 @@ interface TasksViewProps {
   tasks: TaskWithCoworker[];
   nextCursor?: string | null;
   columns?: KanbanColumnDefinition[];
+  coworkerOptions: CoworkerOption[];
   labels: {
     tabs: {
       tasks: string;
@@ -88,6 +94,7 @@ export function TasksView({
   tasks,
   nextCursor: initialNextCursor,
   columns = KANBAN_COLUMNS,
+  coworkerOptions,
   labels,
 }: TasksViewProps) {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
@@ -185,6 +192,7 @@ export function TasksView({
   };
 
   return (
+    <CreateTaskModalProvider>
     <Tabs defaultValue="tasks" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -262,5 +270,7 @@ export function TasksView({
         </div>
       </TabsContent>
     </Tabs>
+    <CreateTaskModal coworkerOptions={coworkerOptions} />
+    </CreateTaskModalProvider>
   );
 }

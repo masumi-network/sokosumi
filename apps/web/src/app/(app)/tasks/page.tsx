@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
+import type { CoworkerOption } from "@/lib/types/coworker";
 import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
@@ -30,6 +31,28 @@ export default async function TasksPage() {
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
   );
 
+  const coworkerDefaults: Record<string, { image: string; description: string }> = {
+    soko: {
+      image: "/images/kanji/sokosumi-logo-kanji-black.svg",
+      description: "Your default AI coworker. Great for general tasks, research, and getting things done.",
+    },
+    hannah: {
+      image: "/images/coworkers/hannah.png",
+      description: "Creative strategist and communications expert. Ideal for content, marketing, and outreach.",
+    },
+  };
+
+  const coworkerOptions: CoworkerOption[] = coworkers.map((coworker) => {
+    const slug = coworker.slug?.toLowerCase() ?? coworker.name.toLowerCase();
+    const defaults = coworkerDefaults[slug];
+    return {
+      id: coworker.id,
+      name: coworker.name,
+      image: coworker.image || defaults?.image || "",
+      description: coworker.description || defaults?.description || undefined,
+    };
+  });
+
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
     todo: tColumns("todo"),
@@ -49,6 +72,7 @@ export default async function TasksPage() {
         tasks={tasks}
         nextCursor={tasksResult.pagination?.nextCursor ?? null}
         columns={KANBAN_COLUMNS}
+        coworkerOptions={coworkerOptions}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),

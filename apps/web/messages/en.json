@@ -1133,6 +1133,8 @@
         "back": "Back",
         "uploadFile": "Upload File",
         "saveDraft": "Save",
+        "saveAsDraft": "Save as Draft",
+        "createTask": "Create Task",
         "cancel": "Cancel",
         "ctrl": "Ctrl"
       },

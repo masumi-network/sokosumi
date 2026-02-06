@@ -217,93 +217,104 @@ export function TaskForm({
         <h1 className="text-2xl font-light md:text-3xl">{labels.pageTitle}</h1>
       </header>
 
-      <section className="space-y-4">
-        <div className="space-y-1">
+      <section className="border rounded-xl">
+        <div className="p-6 space-y-1">
           <h2 className="text-lg font-semibold">{labels.details}</h2>
           <p className="text-muted-foreground text-sm">
             {labels.detailsDescription}
           </p>
         </div>
 
-        {mode === "edit" ? (
+        <div className="border-t px-6 py-6 space-y-4">
+          {mode === "edit" ? (
+            <div className="space-y-2">
+              <Label htmlFor="task-name">{labels.name}</Label>
+              <Input
+                id="task-name"
+                placeholder={labels.namePlaceholder}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+          ) : null}
+
           <div className="space-y-2">
-            <Label htmlFor="task-name">{labels.name}</Label>
-            <Input
-              id="task-name"
-              placeholder={labels.namePlaceholder}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
+            <Label htmlFor="task-description">{labels.details}</Label>
+            <MentionTextarea<AgentWithRelations>
+              id="task-description"
+              placeholder={labels.descriptionPlaceholder}
+              value={description}
+              onChange={setDescription}
+              mentions={agentMentions}
+              renderItem={renderMentionItem}
+              className="min-h-48"
             />
           </div>
-        ) : null}
 
-        <div className="space-y-2">
-          <MentionTextarea<AgentWithRelations>
-            id="task-description"
-            placeholder={labels.descriptionPlaceholder}
-            value={description}
-            onChange={setDescription}
-            mentions={agentMentions}
-            renderItem={renderMentionItem}
-            className="min-h-48"
-          />
+          {/* TODO: Add file attachment */}
+          {/* <div className="flex w-full items-center justify-end gap-2">
+            <FileUploadButton
+              label={labels.uploadFile}
+              onClick={handleFileUpload}
+            />
+          </div> */}
         </div>
 
-        {/* TODO: Add file attachment */}
-        {/* <div className="flex w-full items-center justify-end gap-2">
-          <FileUploadButton
-            label={labels.uploadFile}
-            onClick={handleFileUpload}
-          />
-        </div> */}
+        <div className="border-t px-6 py-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label>{labels.coworker}</Label>
+              <CoworkerSelect
+                label={labels.coworker}
+                description={labels.coworkerDescription}
+                value={coworkerId}
+                options={coworkerOptions}
+                onChange={setCoworkerId}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{labels.status}</Label>
+              <StatusSelect
+                label={labels.status}
+                description={labels.statusDescription}
+                value={status}
+                options={statusOptions}
+                onChange={setStatus}
+              />
+            </div>
+          </div>
+        </div>
 
-        <div className="flex w-full flex-col items-start gap-4 md:flex-row md:justify-between">
-          <CoworkerSelect
-            label={labels.coworker}
-            description={labels.coworkerDescription}
-            value={coworkerId}
-            options={coworkerOptions}
-            onChange={setCoworkerId}
-          />
-          <StatusSelect
-            label={labels.status}
-            description={labels.statusDescription}
-            value={status}
-            options={statusOptions}
-            onChange={setStatus}
-          />
+        <div className="border-t px-6 py-4 flex items-center justify-end gap-3">
+          <Button
+            type="button"
+            className="min-w-28 items-center justify-between gap-1"
+            disabled={isSaveDisabled}
+            onClick={handleSave}
+          >
+            <div className="flex items-center gap-2">
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : null}
+              {labels.submit}
+              {!isMobile ? (
+                <div className="flex items-center gap-1">
+                  {os === "MacOS" ? <Command /> : labels.ctrl}
+                  <CornerDownLeft />
+                </div>
+              ) : null}
+            </div>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-w-24"
+            onClick={handleCancel}
+          >
+            {labels.cancel}
+          </Button>
         </div>
       </section>
-
-      <div className="flex items-center justify-end gap-3 pt-4">
-        <Button
-          type="button"
-          className="min-w-28 items-center justify-between gap-1"
-          disabled={isSaveDisabled}
-          onClick={handleSave}
-        >
-          <div className="flex items-center gap-2">
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : null}
-            {labels.submit}
-            {!isMobile ? (
-              <div className="flex items-center gap-1">
-                {os === "MacOS" ? <Command /> : labels.ctrl}
-                <CornerDownLeft />
-              </div>
-            ) : null}
-          </div>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-w-24"
-          onClick={handleCancel}
-        >
-          {labels.cancel}
-        </Button>
-      </div>
     </div>
   );
 }

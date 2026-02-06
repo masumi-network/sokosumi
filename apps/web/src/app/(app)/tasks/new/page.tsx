@@ -14,11 +14,27 @@ export default async function NewTaskPage() {
     agentService.getAvailableAgents(),
     coworkerService.listCoworkers(),
   ]);
-  const coworkerOptions = coworkers.map((coworker) => ({
-    id: coworker.id,
-    name: coworker.name,
-    image: coworker.image ?? "",
-  }));
+  const coworkerDefaults: Record<string, { image: string; description: string }> = {
+    soko: {
+      image: "/images/kanji/sokosumi-logo-kanji-black.svg",
+      description: "Your default AI coworker. Great for general tasks, research, and getting things done.",
+    },
+    hannah: {
+      image: "/images/coworkers/hannah.png",
+      description: "Creative strategist and communications expert. Ideal for content, marketing, and outreach.",
+    },
+  };
+
+  const coworkerOptions = coworkers.map((coworker) => {
+    const slug = coworker.slug?.toLowerCase() ?? coworker.name.toLowerCase();
+    const defaults = coworkerDefaults[slug];
+    return {
+      id: coworker.id,
+      name: coworker.name,
+      image: coworker.image || defaults?.image || "",
+      description: coworker.description || defaults?.description || undefined,
+    };
+  });
 
   return (
     <div className="w-full max-w-3xl space-y-6 px-2">
