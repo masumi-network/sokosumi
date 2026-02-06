@@ -1,6 +1,5 @@
 /**
- * Channel for task status updates scoped to a user.
+ * Re-export Ably channel name helpers from shared package.
+ * This ensures consistent channel naming between publisher (core) and subscriber (web).
  */
-export function makeUserTasksChannelName(userId: string): string {
-  return `tasks:all:user_${userId}`;
-}
+export { makeUserTasksChannelName } from "@sokosumi/database/helpers";
