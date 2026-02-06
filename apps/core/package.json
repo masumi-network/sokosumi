@@ -19,9 +19,9 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "lint:report": "eslint src --report",
-    "test": "ABLY_PUBLISH_ONLY_KEY=local-test vitest run",
-    "test:ci": "ABLY_PUBLISH_ONLY_KEY=local-test vitest run",
-    "test:watch": "ABLY_PUBLISH_ONLY_KEY=local-test vitest"
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.18",
