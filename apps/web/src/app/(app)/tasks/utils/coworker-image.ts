@@ -1,11 +1,7 @@
 import { ipfsUrlResolver } from "@/lib/ipfs";
 import type { TaskWithCoworker } from "@/lib/types/task";
 
-const COWORKER_FALLBACK_IMAGES: Record<string, string> = {
-  soko: "/images/kanji/sokosumi-logo-kanji-black.svg",
-  sumi: "/images/kanji/sokosumi-logo-kanji-black.svg",
-  hannah: "/images/coworkers/hannah.png",
-};
+import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
 export function getCoworkerImage(
   coworker: TaskWithCoworker["coworker"],

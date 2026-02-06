@@ -2,17 +2,19 @@ import type { Coworker } from "@sokosumi/database";
 
 import type { CoworkerOption } from "@/lib/types/coworker";
 
+import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
+
 const COWORKER_DEFAULTS: Record<
   string,
   { image: string; description: string }
 > = {
   soko: {
-    image: "/images/kanji/sokosumi-logo-kanji-black.svg",
+    image: COWORKER_FALLBACK_IMAGES.soko,
     description:
       "Your default AI coworker. Great for general tasks, research, and getting things done.",
   },
   hannah: {
-    image: "/images/coworkers/hannah.png",
+    image: COWORKER_FALLBACK_IMAGES.hannah,
     description:
       "Creative strategist and communications expert. Ideal for content, marketing, and outreach.",
   },
