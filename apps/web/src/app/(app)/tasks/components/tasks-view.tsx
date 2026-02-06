@@ -9,7 +9,13 @@ import {
 } from "@dnd-kit/core";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useSyncExternalStore, useTransition } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 
 import { loadMoreTasks } from "@/app/tasks/actions";
@@ -139,9 +145,39 @@ export function TasksView({
   const [isPending, startTransition] = useTransition();
   const moveVersionRef = useRef(0);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
+  const itemsRef = useRef(items);
   const handleEventUpdate = (_data: TaskEventData) => {
     router.refresh();
   };
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    const prev = itemsRef.current;
+    const prevById = new Map(prev.map((task) => [task.id, task]));
+    const next = tasks.map((task) => {
+      if (pendingMoveVersionByTaskIdRef.current.has(task.id)) {
+        const localTask = prevById.get(task.id);
+        if (localTask) return localTask;
+      }
+      return task;
+    });
+
+    const nextIds = new Set(tasks.map((task) => task.id));
+    prev.forEach((task) => {
+      if (!nextIds.has(task.id)) {
+        next.push(task);
+      }
+    });
+
+    setItems(next);
+
+    if (next.length <= tasks.length) {
+      setNextCursor(initialNextCursor ?? null);
+    }
+  }, [initialNextCursor, tasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -228,7 +264,10 @@ export function TasksView({
       {userId ? (
         <DynamicAblyProvider>
           <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
-            <TasksRealtimeListener userId={userId} onEvent={handleEventUpdate} />
+            <TasksRealtimeListener
+              userId={userId}
+              onEvent={handleEventUpdate}
+            />
           </ChannelProvider>
         </DynamicAblyProvider>
       ) : null}
