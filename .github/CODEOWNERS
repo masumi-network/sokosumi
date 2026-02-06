@@ -1,3 +1,13 @@
 # They are default owners
 
-*       @mrgrauel @francisluz @VitoMelchionna
+# Frontend
+/apps/web/        @francisluz
+
+# Backend
+/apps/core/       @mrgrauel
+
+# Packages
+/packages/ 
+
+# Everything else (fallback)
+*                @mrgrauel @francisluz @VitoMelchionna
