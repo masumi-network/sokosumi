@@ -2,8 +2,8 @@ import { TaskStatus } from "@sokosumi/database";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { TaskForm } from "@/app/tasks/components/task-form";
-import { agentService } from "@/lib/services";
+import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
+import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
@@ -17,9 +17,8 @@ export default async function EditTaskPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, agents, coworkers] = await Promise.all([
+  const [taskResult, coworkers] = await Promise.all([
     taskService.getTaskById(taskId),
-    agentService.getAvailableAgents(),
     coworkerService.listCoworkers(),
   ]);
 
@@ -34,47 +33,44 @@ export default async function EditTaskPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const coworkerOptions = coworkers.map((coworker) => ({
-    id: coworker.id,
-    name: coworker.name,
-    image: coworker.image ?? "",
-  }));
+  const coworkerOptions = getCoworkerOptions(coworkers);
 
-  const t = await getTranslations("App.Tasks.EditTask");
+  const [tEdit, tActions] = await Promise.all([
+    getTranslations("App.Tasks.EditTask"),
+    getTranslations("App.Tasks.Detail.actions"),
+  ]);
 
   return (
-    <div className="w-full max-w-3xl space-y-6 px-2">
-      <TaskForm
-        mode="edit"
-        taskId={taskId}
-        labels={{
-          pageTitle: t("title"),
-          details: t("details"),
-          detailsDescription: t("detailsDescription"),
-          name: t("name"),
-          namePlaceholder: t("namePlaceholder"),
-          descriptionPlaceholder: t("descriptionPlaceholder"),
-          coworker: t("coworker"),
-          coworkerDescription: t("coworkerDescription"),
-          status: t("status"),
-          statusDescription: t("statusDescription"),
-          statusDraft: t("statusDraft"),
-          statusReady: t("statusReady"),
-          back: t("back"),
-          uploadFile: t("uploadFile"),
-          submit: t("save"),
-          cancel: t("cancel"),
-          ctrl: t("ctrl"),
-        }}
-        coworkerOptions={coworkerOptions}
-        agents={agents}
-        initialValues={{
-          name: taskResult.name,
-          description: taskResult.description ?? "",
-          coworkerId: taskResult.coworkerId ?? "",
-          status: taskResult.status,
-        }}
-      />
-    </div>
+    <TaskEditModal
+      taskId={taskId}
+      labels={{
+        pageTitle: tEdit("title"),
+        details: tEdit("details"),
+        detailsDescription: tEdit("detailsDescription"),
+        name: tEdit("name"),
+        namePlaceholder: tEdit("namePlaceholder"),
+        descriptionPlaceholder: tEdit("descriptionPlaceholder"),
+        coworker: tEdit("coworker"),
+        coworkerDescription: tEdit("coworkerDescription"),
+        status: tEdit("status"),
+        statusDescription: tEdit("statusDescription"),
+        statusDraft: tEdit("statusDraft"),
+        statusReady: tEdit("statusReady"),
+        markAsReady: tActions("markAsReady"),
+        revertToDraft: tActions("revertToDraft"),
+        back: tEdit("back"),
+        uploadFile: tEdit("uploadFile"),
+        submit: tEdit("save"),
+        cancel: tEdit("cancel"),
+        ctrl: tEdit("ctrl"),
+      }}
+      coworkerOptions={coworkerOptions}
+      initialValues={{
+        name: taskResult.name,
+        description: taskResult.description ?? "",
+        coworkerId: taskResult.coworkerId ?? "",
+        status: taskResult.status,
+      }}
+    />
   );
 }

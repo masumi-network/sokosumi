@@ -20,18 +20,22 @@ export function TaskDescription({
 }: TaskDescriptionProps) {
   const content = description
     ? formatMentionsAsMarkdownLinks(description, agentNameById)
-    : "—";
+    : null;
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <ExpandableMarkdown
-        content={content}
-        className="prose-sm text-muted-foreground leading-6"
-        expandLabel={expandLabel}
-        collapseLabel={collapseLabel}
-        fadeClassName="to-transparent"
-      />
-    </div>
+    <section className="space-y-2">
+      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
+      {content ? (
+        <ExpandableMarkdown
+          content={content}
+          className="prose-sm text-foreground/80 leading-relaxed"
+          expandLabel={expandLabel}
+          collapseLabel={collapseLabel}
+          fadeClassName="to-background"
+        />
+      ) : (
+        <p className="text-muted-foreground/40 text-sm">—</p>
+      )}
+    </section>
   );
 }

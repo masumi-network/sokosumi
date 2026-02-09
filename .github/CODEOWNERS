@@ -1,3 +1,12 @@
-# They are default owners
+# Global Owners
+* @mrgrauel @francisluz @VitoMelchionna
 
-*       @mrgrauel @francisluz @VitoMelchionna
+# Frontend
+apps/web/ @francisluz
+
+# Backend
+apps/core/ @mrgrauel
+
+# Packages
+packages/ @mrgrauel @francisluz @VitoMelchionna
+

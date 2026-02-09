@@ -42,6 +42,9 @@ const envSchema = z.object({
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+
+  // Ably
+  ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

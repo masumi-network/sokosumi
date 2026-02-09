@@ -5,6 +5,7 @@ import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -58,58 +59,91 @@ export default async function TaskDetailPage({
   const t = await getTranslations("App.Tasks.Detail");
 
   return (
-    <div className="w-full max-w-3xl space-y-6 px-2">
-      <TaskDetailHeader
-        task={task}
-        labels={{
-          back: t("back"),
-          actions: {
-            edit: t("actions.edit"),
-            delete: t("actions.delete"),
-            confirmDelete: t("actions.confirmDelete"),
-            confirmDeleteDescription: t("actions.confirmDeleteDescription"),
-            deleteError: t("actions.deleteError"),
-            markAsReady: t("actions.markAsReady"),
-            revertToDraft: t("actions.revertToDraft"),
-          },
-        }}
-      />
+    <div className="min-h-full w-full md:pr-60">
+      {/* Centered content */}
+      <div className="mx-auto max-w-4xl px-4">
+        {session?.user.id ? (
+          <TaskStatusRealtimeListener
+            userId={session.user.id}
+            taskId={taskId}
+          />
+        ) : null}
+        <TaskDetailHeader
+          task={task}
+          labels={{
+            back: t("back"),
+            actions: {
+              edit: t("actions.edit"),
+              delete: t("actions.delete"),
+              confirmDelete: t("actions.confirmDelete"),
+              confirmDeleteDescription: t("actions.confirmDeleteDescription"),
+              deleteError: t("actions.deleteError"),
+              markAsReady: t("actions.markAsReady"),
+              revertToDraft: t("actions.revertToDraft"),
+            },
+          }}
+        />
 
-      <TaskMetadata
-        task={task}
-        labels={{
-          status: t("status"),
-          coworker: t("coworker"),
-        }}
-      />
+        <div className="mt-6 space-y-8">
+          <TaskDescription
+            title={t("description")}
+            description={task.description}
+            agentNameById={agentNameById}
+            expandLabel={t("expand")}
+            collapseLabel={t("collapse")}
+          />
 
-      <TaskDescription
-        title={t("description")}
-        description={task.description}
-        agentNameById={agentNameById}
-        expandLabel={t("expand")}
-        collapseLabel={t("collapse")}
-      />
+          <TaskActivitySection
+            taskId={taskId}
+            title={t("activity")}
+            placeholder={t("commentPlaceholder")}
+            attachLabel={t("attach")}
+            submitLabel={t("submit")}
+            actorCoworkerLabel={t("actorCoworker")}
+            actorUserLabel={t("actorUser")}
+            actorSystemLabel={t("actorSystem")}
+            actionCommentedLabel={t("actionCommented")}
+            actionUpdatedStatusLabel={t("actionUpdatedStatus")}
+            events={task.events}
+            agentNameById={agentNameById}
+            userById={userById}
+            coworkerById={coworkerById}
+            currentUser={currentUser}
+            expandLabel={t("expand")}
+            collapseLabel={t("collapse")}
+          />
+        </div>
 
-      <TaskActivitySection
-        taskId={taskId}
-        title={t("activity")}
-        placeholder={t("commentPlaceholder")}
-        attachLabel={t("attach")}
-        submitLabel={t("submit")}
-        actorCoworkerLabel={t("actorCoworker")}
-        actorUserLabel={t("actorUser")}
-        actorSystemLabel={t("actorSystem")}
-        actionCommentedLabel={t("actionCommented")}
-        actionUpdatedStatusLabel={t("actionUpdatedStatus")}
-        events={task.events}
-        agentNameById={agentNameById}
-        userById={userById}
-        coworkerById={coworkerById}
-        currentUser={currentUser}
-        expandLabel={t("expand")}
-        collapseLabel={t("collapse")}
-      />
+        {/* Mobile properties */}
+        <div className="mt-6 md:hidden">
+          <TaskMetadata
+            task={task}
+            labels={{
+              propertiesTitle: t("properties"),
+              status: t("status"),
+              coworker: t("coworker"),
+              created: t("created"),
+              updated: t("updated"),
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Properties sidebar - fixed on right edge as a panel */}
+      <aside className="border-border bg-background fixed top-16 right-0 bottom-0 hidden w-60 overflow-y-auto border-l md:block">
+        <div className="px-6 py-5">
+          <TaskMetadata
+            task={task}
+            labels={{
+              propertiesTitle: t("properties"),
+              status: t("status"),
+              coworker: t("coworker"),
+              created: t("created"),
+              updated: t("updated"),
+            }}
+          />
+        </div>
+      </aside>
     </div>
   );
 }

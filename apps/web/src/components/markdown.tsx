@@ -64,36 +64,32 @@ export default function Markdown({
         </table>
       </div>
     ),
-    // Ensure bold text stays as bold, not headings - prevent it from being styled like headings
-    strong: ({ children, ...props }) => (
-      <strong {...props} className="font-semibold text-inherit">
-        {children}
-      </strong>
-    ),
-    // Prevent headings from being too large - limit their size
-    h1: ({ children, ...props }) => (
-      <h1 {...props} className="my-2 text-base font-semibold first:mt-0">
-        {children}
-      </h1>
-    ),
-    h2: ({ children, ...props }) => (
-      <h2 {...props} className="my-2 text-base font-semibold first:mt-0">
-        {children}
-      </h2>
-    ),
-    h3: ({ children, ...props }) => (
-      <h3 {...props} className="my-2 text-sm font-semibold first:mt-0">
-        {children}
-      </h3>
-    ),
-    // Handle line breaks with proper spacing
-    br: () => <br className="block h-3" />,
-    // Ensure paragraphs have proper spacing
-    p: ({ children, ...props }) => (
-      <p {...props} className="my-2 leading-relaxed first:mt-0 last:mb-0">
-        {children}
-      </p>
-    ),
+    code: ({ className, children, ...props }) => {
+      const codeText = String(children ?? "");
+      const isInline =
+        !className?.includes("language-") && !codeText.includes("\n");
+
+      if (isInline) {
+        return (
+          <code
+            {...props}
+            className={cn(
+              "bg-muted text-foreground rounded px-1 py-0.5 font-mono text-xs wrap-break-word",
+              "before:content-none after:content-none",
+              className,
+            )}
+          >
+            {children}
+          </code>
+        );
+      }
+
+      return (
+        <code {...props} className={className}>
+          {children}
+        </code>
+      );
+    },
   };
 
   return (

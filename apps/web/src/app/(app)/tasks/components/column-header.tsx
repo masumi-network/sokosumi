@@ -12,15 +12,19 @@ export function ColumnHeader({
   statusColorClass,
 }: ColumnHeaderProps) {
   return (
-    <header className="flex items-center gap-2">
-      <span
-        className={cn("size-2.5 shrink-0 rounded-full", statusColorClass)}
-        aria-hidden
-      />
-      <h2 className="text-muted-foreground flex items-center gap-2 text-sm font-semibold uppercase">
-        <span>{title}</span>
-        <span className="text-muted-foreground/80 text-xs">{count}</span>
-      </h2>
+    <header className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn("size-2 shrink-0 rounded-full", statusColorClass)}
+          aria-hidden
+        />
+        <h2 className="text-foreground/70 text-xs font-semibold tracking-wide uppercase">
+          {title}
+        </h2>
+      </div>
+      <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium tabular-nums">
+        {count}
+      </span>
     </header>
   );
 }

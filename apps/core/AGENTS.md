@@ -398,6 +398,10 @@ const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 - `@/routes/*` → `src/routes/*`
 - `@/schemas/*` → `src/schemas/*`
 
+### Testing (Vitest)
+
+Environment variables required by Vitest (or by code under test) must be set in **`src/test/setup.ts`**. Add new keys to the `envDefaults` object there so tests run with predictable values and without relying on `.env`. Do not add test-only env vars to `.env.example`; keep them in the test setup.
+
 ## Core API Gotchas
 
 ### Authentication
