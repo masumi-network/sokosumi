@@ -2,8 +2,6 @@ import "./globals.css";
 
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -11,6 +9,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { ClientAnalytics } from "@/components/analytics/client-analytics";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { Toaster } from "@/components/ui/sonner";
@@ -46,8 +45,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getLocale();
-  const messages = await getMessages();
+  const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
   const ucDataSettingsId = getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID;
@@ -98,8 +96,7 @@ export default async function RootLayout({
             </ThemeProvider>
           </NuqsAdapter>
         </UsersnapProvider>
-        <Analytics />
-        <SpeedInsights />
+        <ClientAnalytics />
       </body>
     </html>
   );
