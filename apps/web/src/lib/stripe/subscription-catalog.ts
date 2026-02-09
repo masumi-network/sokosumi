@@ -17,7 +17,10 @@ interface SubscriptionCatalogPlan {
   slug: string;
 }
 
-type SubscriptionCatalog = Record<SubscriptionPlanName, SubscriptionCatalogPlan>;
+type SubscriptionCatalog = Record<
+  SubscriptionPlanName,
+  SubscriptionCatalogPlan
+>;
 
 interface RawPlanConfig {
   name: SubscriptionPlanName;
@@ -132,7 +135,10 @@ export async function getSubscriptionCatalog(
   stripe: Stripe,
 ): Promise<SubscriptionCatalog> {
   if (!catalogCache) {
-    catalogCache = loadCatalog(stripe);
+    catalogCache = loadCatalog(stripe).catch((err) => {
+      catalogCache = null;
+      throw err;
+    });
   }
   return await catalogCache;
 }

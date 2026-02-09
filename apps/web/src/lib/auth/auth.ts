@@ -376,8 +376,7 @@ export const auth = betterAuth({
       createCustomerOnSignUp: false,
       subscription: {
         enabled: true,
-        plans: async () =>
-          await getBetterAuthSubscriptionPlans(stripeInstance),
+        plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
       },
       organization: {
         enabled: true,

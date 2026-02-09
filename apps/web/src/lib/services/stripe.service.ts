@@ -17,9 +17,15 @@ import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-const EXISTING_PERSONAL_SUBSCRIPTION_STATUSES = new Set<
-  Stripe.Subscription.Status
->(["active", "trialing", "past_due", "unpaid", "incomplete", "paused"]);
+const EXISTING_PERSONAL_SUBSCRIPTION_STATUSES =
+  new Set<Stripe.Subscription.Status>([
+    "active",
+    "trialing",
+    "past_due",
+    "unpaid",
+    "incomplete",
+    "paused",
+  ]);
 
 export type EnsurePersonalFreeSubscriptionResult =
   | {
