@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Check, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
@@ -156,6 +156,16 @@ export default function SubscriptionsPageContent({
     });
   }
 
+  function getPlanFeatureItems(translationKey: string): string[] {
+    const rawItems = t.raw(`Plans.${translationKey}.features.items`);
+
+    if (!Array.isArray(rawItems)) {
+      return [];
+    }
+
+    return rawItems.filter((item) => typeof item === "string");
+  }
+
   return (
     <div className="space-y-8">
       {statusMessage ? (
@@ -165,11 +175,12 @@ export default function SubscriptionsPageContent({
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         {plans.map((plan) => {
           const isPlanPending = pendingPlan === plan.name;
           const isAnyPlanPending = pendingPlan !== null;
           const translationKey = getPlanTranslationKey(plan.name);
+          const featureItems = getPlanFeatureItems(translationKey);
 
           return (
             <Card
@@ -192,8 +203,8 @@ export default function SubscriptionsPageContent({
                   {t(`Plans.${translationKey}.description`)}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-2xl font-light">
+              <CardContent className="space-y-3">
+                <p className="text-2xl font-medium md:text-3xl">
                   {formatPrice(plan.monthlyAmount, plan.currency)}
                 </p>
                 <p className="text-muted-foreground text-sm">
@@ -202,6 +213,19 @@ export default function SubscriptionsPageContent({
                 <p className="text-sm">
                   {t("includedCredits", { credits: plan.credits })}
                 </p>
+                <div className="space-y-2 pt-2">
+                  <p className="text-muted-foreground text-xs font-semibold">
+                    {t(`Plans.${translationKey}.features.title`)}
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    {featureItems.map((item) => (
+                      <li key={item} className="flex gap-2">
+                        <Check className="text-primary mt-0.5 size-4" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </CardContent>
               <CardFooter className="mt-auto">
                 <Button

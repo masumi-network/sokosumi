@@ -1235,19 +1235,53 @@
       "Plans": {
         "free": {
           "name": "Free",
-          "description": "Free plan for every account."
+          "description": "Getting started to work with Marketing Agents.",
+          "features": {
+            "title": "Free Includes:",
+            "items": [
+              "Limited Access to one Agentic Co-Worker",
+              "Email and WhatsApp Access to Agents",
+              "Latest Generation of Claude Models",
+              "Access to 100+ Marketing Agents"
+            ]
+          }
         },
         "starter": {
           "name": "Starter",
-          "description": "For regular individual usage."
+          "description": "For freelancers and micro companies.",
+          "features": {
+            "title": "Everything in Free, plus:",
+            "items": [
+              "Full Access to all Agentic Co-Workers",
+              "Full access to Web Search for Agents",
+              "Read & Create Office Documents",
+              "Integrate with Microsoft Teams"
+            ]
+          }
         },
         "standard": {
           "name": "Standard",
-          "description": "For higher monthly workload."
+          "description": "Full set of marketing agents for small companies.",
+          "features": {
+            "title": "Everything in Starter, plus:",
+            "items": [
+              "3x more Credits for Agents",
+              "Schedule recurring Co-worker tasks",
+              "20+ Marketing Tool Integrations"
+            ]
+          }
         },
         "pro": {
           "name": "Pro",
-          "description": "For heavy and continuous usage."
+          "description": "Get more access to our Marketing Agents and Services",
+          "features": {
+            "title": "Everything in Standard, plus:",
+            "items": [
+              "Massive Amount of Credits for Agents",
+              "Custom Templates for Office Docs",
+              "Early Access to new Agents & Features"
+            ]
+          }
         }
       },
       "Errors": {
