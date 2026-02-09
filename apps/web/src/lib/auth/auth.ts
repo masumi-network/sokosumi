@@ -31,6 +31,7 @@ import {
   callUserUpdatedWebHook,
   stripeService,
 } from "@/lib/services";
+import { getBetterAuthSubscriptionPlans } from "@/lib/stripe/subscription-catalog";
 import {
   handleCustomerCreatedEvent,
   handleCustomerUpdatedEvent,
@@ -374,7 +375,8 @@ export const auth = betterAuth({
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {
-        enabled: false,
+        enabled: true,
+        plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
       },
       organization: {
         enabled: true,

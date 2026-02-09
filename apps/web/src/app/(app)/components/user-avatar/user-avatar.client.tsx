@@ -9,6 +9,7 @@ import {
   CreditCardIcon,
   LogOut,
   User as UserIcon,
+  WalletCards,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -127,6 +128,13 @@ export default function UserAvatarClient({
             >
               <CreditCardIcon className="text-muted-foreground" />
               {t("credits")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2"
+              onClick={(e) => handleClick(e, "/subscriptions")}
+            >
+              <WalletCards className="text-muted-foreground" />
+              {t("subscriptions")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
