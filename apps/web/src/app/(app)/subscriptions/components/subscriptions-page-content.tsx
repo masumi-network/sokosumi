@@ -173,6 +173,7 @@ export default function SubscriptionsPageContent({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const isPlanPending = pendingPlan === plan.name;
+          const isAnyPlanPending = pendingPlan !== null;
           const translationKey = getPlanTranslationKey(plan.name);
 
           return (
@@ -211,7 +212,7 @@ export default function SubscriptionsPageContent({
                 <Button
                   className="w-full"
                   variant={plan.isCurrent ? "outline" : "default"}
-                  disabled={isPlanPending || plan.isCurrent}
+                  disabled={isAnyPlanPending || plan.isCurrent}
                   onClick={() => void handleUpgradePlan(plan.name)}
                 >
                   {isPlanPending ? (
