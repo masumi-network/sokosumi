@@ -72,7 +72,6 @@ export function CreateTaskModal({ coworkerOptions }: CreateTaskModalProps) {
         mode="create"
         showCancel={false}
         labels={{
-          pageTitle: t("title"),
           details: t("details"),
           detailsDescription: t("detailsDescription"),
           name: t("name"),

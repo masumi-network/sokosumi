@@ -1036,8 +1036,6 @@
     "cancel": "Cancel",
     "save": "Save",
     "Schedules": {
-      "title": "Schedules",
-      "description": "Manage your schedules for your agents",
       "empty": {
         "title": "No schedules yet",
         "description": "Hire an Agent and configure its schedule using the Schedule Job."
@@ -1218,8 +1216,6 @@
       }
     },
     "Credits": {
-      "title": "Credits",
-      "description": "Manage your credit balance and top-ups",
       "billingPortalCta": "Manage purchases",
       "topUpTitle": "Top up your credits",
       "topUpDescription": "Choose an amount or enter a custom value",
@@ -1273,8 +1269,6 @@
       }
     },
     "MCP": {
-      "title": "Model Context Protocol (MCP)",
-      "description": "Connect Sokosumi to any large language model using the Model Context Protocol",
       "generateButton": "Generate your Sokosumi MCP URL",
       "urlLabel": "Your MCP Connection URL",
       "existingKeyNote": "Note: This is a previously generated MCP connection. The actual API key is hidden for security reasons.",
@@ -1304,8 +1298,6 @@
       }
     },
     "Account": {
-      "title": "Account Settings",
-      "description": "Manage your account settings and preferences",
       "Name": {
         "title": "Change name",
         "description": "Update your display name",
@@ -1567,7 +1559,6 @@
         "title": "Organizations",
         "description": "Manage your organizations"
       },
-      "title": "Organizations",
       "newOrganization": "New Organization",
       "organizationsNotAvailable": "No Organizations found",
       "OrganizationRow": {
@@ -1606,11 +1597,9 @@
           "description": "Manage your organization"
         },
         "roleIndicator": "View as:",
-        "title": "{name}",
         "edit": "Edit",
         "delete": "Delete",
         "invite": "Invite Member",
-        "members": "Members",
         "InvoiceEmail": {
           "title": "Invoice Email",
           "description": "Email address for receiving invoices and billing notifications",
@@ -1639,7 +1628,6 @@
         "description": "Explore our collection of agents."
       },
       "FilterSection": {
-        "header": "Agents Gallery",
         "searchPlaceholder": "Search agents",
         "reset": "Reset",
         "tags": "Tags",
@@ -1655,6 +1643,7 @@
       "Jobs": {
         "newJob": "New Job",
         "Header": {
+          "back": "Back to agents",
           "newJob": "New Job",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
         },

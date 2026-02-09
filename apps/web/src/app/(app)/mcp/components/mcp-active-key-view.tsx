@@ -2,7 +2,6 @@ import { ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { McpSetupInstructions } from "@/app/components/MCP/mcp-setup-instructions";
 import { McpUrlDisplay } from "@/app/components/MCP/mcp-url-display";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +53,6 @@ export function McpActiveKeyView({
           </Button>
         </div>
       )}
-      <McpSetupInstructions />
     </>
   );
 }

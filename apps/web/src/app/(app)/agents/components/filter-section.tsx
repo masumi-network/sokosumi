@@ -44,8 +44,6 @@ function FilterSectionInner({ categories }: FilterSectionProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-light md:text-3xl">{t("header")}</h1>
-
       <div className="flex flex-col gap-4 sm:flex-row">
         <Input
           className="max-w-full min-w-36 shrink-0 md:max-w-64"

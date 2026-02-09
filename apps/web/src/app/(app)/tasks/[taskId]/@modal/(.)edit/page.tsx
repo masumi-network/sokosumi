@@ -39,8 +39,8 @@ export default async function TaskEditModalPage({
   return (
     <TaskEditModal
       taskId={taskId}
+      title={tEdit("title")}
       labels={{
-        pageTitle: tEdit("title"),
         details: tEdit("details"),
         detailsDescription: tEdit("detailsDescription"),
         name: tEdit("name"),

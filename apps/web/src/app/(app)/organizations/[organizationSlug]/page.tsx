@@ -84,24 +84,31 @@ export default async function OrganizationPage({
   );
 
   return (
-    <div className="w-full max-w-full space-y-12 px-2 2xl:max-w-5xl">
-      <div className="flex items-center gap-2">
-        <p className="text-muted-foreground">{t("roleIndicator")}</p>
-        <OrganizationRoleBadge role={member.role} />
+    <div className="min-h-full w-full">
+      <div className="mx-auto max-w-4xl space-y-12 px-4">
+        <div className="flex items-center gap-2">
+          <p className="text-muted-foreground">{t("roleIndicator")}</p>
+          <OrganizationRoleBadge role={member.role} />
+        </div>
+        <OrganizationInformation organization={organization} member={member} />
+        <OrganizationInvoiceEmail organization={organization} member={member} />
+        {isOwnerOrAdmin ? (
+          <div className="flex items-center justify-between">
+            <div />
+            <div className="flex items-center gap-1.5">
+              <OrganizationInviteButton
+                organizationId={organization.id}
+                className="h-7 px-2.5 text-xs"
+              />
+            </div>
+          </div>
+        ) : null}
+        <MembersTable
+          me={member}
+          members={members}
+          pendingInvitations={pendingInvitations}
+        />
       </div>
-      <OrganizationInformation organization={organization} member={member} />
-      <OrganizationInvoiceEmail organization={organization} member={member} />
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-light">{t("members")}</h1>
-        {isOwnerOrAdmin && (
-          <OrganizationInviteButton organizationId={organization.id} />
-        )}
-      </div>
-      <MembersTable
-        me={member}
-        members={members}
-        pendingInvitations={pendingInvitations}
-      />
     </div>
   );
 }

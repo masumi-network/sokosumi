@@ -12,6 +12,7 @@ import { TaskFormModal } from "./task-form-modal";
 
 interface TaskEditModalProps {
   taskId: string;
+  title: string;
   initialValues: {
     name: string;
     description: string;
@@ -24,6 +25,7 @@ interface TaskEditModalProps {
 
 export function TaskEditModal({
   taskId,
+  title,
   initialValues,
   coworkerOptions,
   labels,
@@ -43,7 +45,7 @@ export function TaskEditModal({
       onOpenChange={(nextOpen) => {
         if (!nextOpen) handleClose();
       }}
-      title={labels.pageTitle}
+      title={title}
       cancelLabel={labels.cancel}
       isDismissDisabled={isDismissDisabled}
     >
