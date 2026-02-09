@@ -69,8 +69,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/masumi
       '@vercel/blob':
-        specifier: 2.1.0
-        version: 2.1.0
+        specifier: 2.2.0
+        version: 2.2.0
       ably:
         specifier: 2.17.1
         version: 2.17.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -211,8 +211,8 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(next@16.1.6(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(vue@3.5.27(typescript@5.9.3))
       '@vercel/blob':
-        specifier: 2.1.0
-        version: 2.1.0
+        specifier: 2.2.0
+        version: 2.2.0
       '@vercel/speed-insights':
         specifier: 1.3.1
         version: 1.3.1(next@16.1.6(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(vue@3.5.27(typescript@5.9.3))
@@ -4035,8 +4035,8 @@ packages:
       vue-router:
         optional: true
 
-  '@vercel/blob@2.1.0':
-    resolution: {integrity: sha512-nNYlMJb1LrUyP9bx0ApLorsoRDSzluHq2wlkGCWtGIHHdjCq5pD4i2IY3dnsmTX0WS7G/1aTtyGMb4DF8VrUWg==}
+  '@vercel/blob@2.2.0':
+    resolution: {integrity: sha512-h9ruqqTyAlLrmLIT55NUDnfc889feZnQXWOBxpXrAiAzWKmHqIokLchuMBKFsT9MDV/jM0HRQlvlTyubMHrOKA==}
     engines: {node: '>=20.0.0'}
 
   '@vercel/oidc@3.1.0':
@@ -12772,7 +12772,7 @@ snapshots:
       react: 19.2.4
       vue: 3.5.27(typescript@5.9.3)
 
-  '@vercel/blob@2.1.0':
+  '@vercel/blob@2.2.0':
     dependencies:
       async-retry: 1.3.3
       is-buffer: 2.0.5
