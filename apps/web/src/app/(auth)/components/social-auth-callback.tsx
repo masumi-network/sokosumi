@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -14,10 +14,11 @@ export default function SocialAuthCallback({
   eventType,
 }: SocialAuthCallbackProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const provider = searchParams.get("provider");
+    const provider = new URLSearchParams(window.location.search).get(
+      "provider",
+    );
     const validationResult = socialProviderIdSchema.safeParse(provider);
 
     if (validationResult.success && validationResult.data !== "credential") {
@@ -34,7 +35,7 @@ export default function SocialAuthCallback({
 
     // Immediately redirect to root so the app handles routing
     router.replace("/");
-  }, [router, searchParams, eventType]);
+  }, [router, eventType]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

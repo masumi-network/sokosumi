@@ -43,10 +43,13 @@
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
-    "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio"
+    "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio",
+    "perf:report": "lighthouse http://localhost:3000/ --only-categories=performance --output=html --output=json --output-path=./.cursor/sokosumi-perf --chrome-flags='--headless --no-sandbox --disable-gpu'"
   },
   "devDependencies": {
+    "chrome-launcher": "0.15.2",
     "eslint": "9.39.2",
+    "lighthouse": "^12.0.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-simple-import-sort": "12.1.1",

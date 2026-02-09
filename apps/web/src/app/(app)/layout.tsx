@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
+import type { Session } from "@/lib/auth/auth";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { taskManagerMenuEnabled } from "@/lib/flags/task-manager";
 import { userService } from "@/lib/services";
@@ -16,6 +18,23 @@ import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
+}
+
+async function OnboardingRedirectGuard({ session }: { session: Session }) {
+  const [pendingInvitationId, shouldShowOnboarding] = await Promise.all([
+    userService.getFirstPendingInvitationId(),
+    userService.showOnboarding(session),
+  ]);
+
+  if (pendingInvitationId) {
+    return redirect(`/accept-invitation/${pendingInvitationId}`);
+  }
+
+  if (shouldShowOnboarding) {
+    return redirect("/onboarding");
+  }
+
+  return null;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -31,24 +50,20 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AppLayout({ children }: AppLayoutProps) {
-  const cookieStore = await cookies();
-  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-
+  const cookieStorePromise = cookies();
   const session = await getSessionOrRedirect();
-  const isTaskManagerMenuEnabled = await taskManagerMenuEnabled();
 
-  const pendingInvitationId = await userService.getFirstPendingInvitationId();
-  if (pendingInvitationId) {
-    return redirect(`/accept-invitation/${pendingInvitationId}`);
-  }
-
-  const shouldShowOnboarding = await userService.showOnboarding(session);
-  if (shouldShowOnboarding) {
-    return redirect("/onboarding");
-  }
+  const [cookieStore, isTaskManagerMenuEnabled] = await Promise.all([
+    cookieStorePromise,
+    taskManagerMenuEnabled(),
+  ]);
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   return (
     <QueryProvider>
+      <Suspense fallback={null}>
+        <OnboardingRedirectGuard session={session} />
+      </Suspense>
       <SidebarProvider
         defaultOpen={defaultOpen}
         className="flex max-w-svw overflow-clip"

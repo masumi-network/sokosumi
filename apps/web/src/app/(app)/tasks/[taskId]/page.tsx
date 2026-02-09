@@ -18,6 +18,8 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
+  const sessionPromise = getSession();
+  const translationsPromise = getTranslations("App.Tasks.Detail");
   const [taskResult, coworkers, agents] = await Promise.all([
     taskService.getTaskById(taskId),
     coworkerService.listCoworkers(),
@@ -37,7 +39,7 @@ export default async function TaskDetailPage({
     agentNameById.set(agent.id, agent.name);
   }
   const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
-  const session = await getSession();
+  const session = await sessionPromise;
   const currentUser = session?.user
     ? {
         id: session.user.id,
@@ -56,7 +58,7 @@ export default async function TaskDetailPage({
     ]),
   );
 
-  const t = await getTranslations("App.Tasks.Detail");
+  const t = await translationsPromise;
 
   return (
     <div className="min-h-full w-full md:pr-60">
