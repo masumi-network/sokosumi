@@ -1238,12 +1238,12 @@
           "description": "Getting started to work with Marketing Agents.",
           "features": {
             "title": "Free Includes:",
-            "items": [
-              "Limited Access to one Agentic Co-Worker",
-              "Email and WhatsApp Access to Agents",
-              "Latest Generation of Claude Models",
-              "Access to 100+ Marketing Agents"
-            ]
+            "items": {
+              "item1": "Limited Access to one Agentic Co-Worker",
+              "item2": "Email and WhatsApp Access to Agents",
+              "item3": "Latest Generation of Claude Models",
+              "item4": "Access to 100+ Marketing Agents"
+            }
           }
         },
         "starter": {
@@ -1251,12 +1251,12 @@
           "description": "For freelancers and micro companies.",
           "features": {
             "title": "Everything in Free, plus:",
-            "items": [
-              "Full Access to all Agentic Co-Workers",
-              "Full access to Web Search for Agents",
-              "Read & Create Office Documents",
-              "Integrate with Microsoft Teams"
-            ]
+            "items": {
+              "item1": "Full Access to all Agentic Co-Workers",
+              "item2": "Full access to Web Search for Agents",
+              "item3": "Read & Create Office Documents",
+              "item4": "Integrate with Microsoft Teams"
+            }
           }
         },
         "standard": {
@@ -1264,11 +1264,11 @@
           "description": "Full set of marketing agents for small companies.",
           "features": {
             "title": "Everything in Starter, plus:",
-            "items": [
-              "3x more Credits for Agents",
-              "Schedule recurring Co-worker tasks",
-              "20+ Marketing Tool Integrations"
-            ]
+            "items": {
+              "item1": "3x more Credits for Agents",
+              "item2": "Schedule recurring Co-worker tasks",
+              "item3": "20+ Marketing Tool Integrations"
+            }
           }
         },
         "pro": {
@@ -1276,11 +1276,11 @@
           "description": "Get more access to our Marketing Agents and Services",
           "features": {
             "title": "Everything in Standard, plus:",
-            "items": [
-              "Massive Amount of Credits for Agents",
-              "Custom Templates for Office Docs",
-              "Early Access to new Agents & Features"
-            ]
+            "items": {
+              "item1": "Massive Amount of Credits for Agents",
+              "item2": "Custom Templates for Office Docs",
+              "item3": "Early Access to new Agents & Features"
+            }
           }
         }
       },

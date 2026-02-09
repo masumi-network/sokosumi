@@ -159,11 +159,17 @@ export default function SubscriptionsPageContent({
   function getPlanFeatureItems(translationKey: string): string[] {
     const rawItems = t.raw(`Plans.${translationKey}.features.items`);
 
-    if (!Array.isArray(rawItems)) {
+    if (
+      rawItems === null ||
+      typeof rawItems !== "object" ||
+      Array.isArray(rawItems)
+    ) {
       return [];
     }
 
-    return rawItems.filter((item) => typeof item === "string");
+    return Object.values(rawItems).filter(
+      (item): item is string => typeof item === "string",
+    );
   }
 
   return (
