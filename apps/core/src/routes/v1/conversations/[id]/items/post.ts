@@ -132,6 +132,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       createdAt: Math.floor(item.createdAt.getTime() / 1000),
     };
 
-    return created(c, response);
+    return created(c, conversationItemSchema.parse(response));
   });
 }

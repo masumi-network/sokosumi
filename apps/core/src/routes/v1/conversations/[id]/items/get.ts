@@ -115,7 +115,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       });
 
-      return ok(c, response);
+      return ok(c, z.array(conversationItemSchema).parse(response));
     } catch (error) {
       // Re-throw HTTPException as-is, wrap other errors
       if (

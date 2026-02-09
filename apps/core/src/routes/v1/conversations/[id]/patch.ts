@@ -111,6 +111,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       updatedAt: updatedConversation.updatedAt.toISOString(),
     };
 
-    return ok(c, response);
+    return ok(c, conversationSchema.parse(response));
   });
 }

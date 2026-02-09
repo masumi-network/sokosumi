@@ -64,7 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         updatedAt: conv.updatedAt.toISOString(),
       }));
 
-      return ok(c, response);
+      return ok(c, conversationListResponseSchema.parse(response));
     } catch (error) {
       // Re-throw HTTPException as-is, wrap other errors
       if (
