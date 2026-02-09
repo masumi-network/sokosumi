@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { Prisma, TaskStatus } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
 
 import { requireTaskAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
@@ -14,6 +14,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
+import { isChargeableTaskStatus } from "./helper";
 import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
@@ -55,10 +56,6 @@ const taskEventTransactionInclude = {
   },
 } as const;
 
-function isChargeableStatus(status: TaskStatus): boolean {
-  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
-}
-
 function getActorData(authContext: AuthenticationContext) {
   if (authContext.coworkerId) {
     return {
@@ -88,7 +85,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           validateStatusTransition(authContext, task.status, status);
 
           let transactionId: string | null = null;
-          if (isChargeableStatus(status) && credits !== undefined) {
+          if (isChargeableTaskStatus(status) && credits !== undefined) {
             transactionId = await createTaskEventTransaction({
               userId: task.userId,
               organizationId: task.organizationId,
