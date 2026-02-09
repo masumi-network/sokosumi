@@ -31,8 +31,17 @@ interface InvoiceCreditGrant {
   referenceType: CreditBucketReferenceType;
 }
 
-function getUpgradeCreditExpiry(periodDurationSeconds: number): Date {
-  return new Date(Date.now() + periodDurationSeconds * 1000);
+function getUpgradeCreditExpiry(
+  invoice: Stripe.Invoice,
+  periodDurationSeconds: number,
+): Date {
+  if (typeof invoice.created !== "number" || invoice.created <= 0) {
+    throw new Error(
+      `Missing invoice created timestamp for upgrade invoice ${invoice.id ?? "unknown"}`,
+    );
+  }
+
+  return new Date((invoice.created + periodDurationSeconds) * 1000);
 }
 
 function getSubscriptionCreditExpiry(params: {
@@ -48,7 +57,10 @@ function getSubscriptionCreditExpiry(params: {
       );
     }
 
-    return getUpgradeCreditExpiry(params.maxPeriodDurationSeconds);
+    return getUpgradeCreditExpiry(
+      params.invoice,
+      params.maxPeriodDurationSeconds,
+    );
   }
 
   if (params.maxPeriodEndUnix === null) {
