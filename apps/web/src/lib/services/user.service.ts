@@ -258,7 +258,9 @@ export const userService = (() => {
       });
     } catch (error) {
       console.error("Failed to check/update onboarding status", error);
-      return false;
+      // Return true (show onboarding) on error as a safe default - better to show
+      // onboarding than to silently skip it due to a transient DB error
+      return true;
     }
   }
 
