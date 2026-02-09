@@ -79,23 +79,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Conversation not found");
       }
 
-      // Merge existing metadata with new metadata, preserving userId
-      const existingMetadata =
-        (existing.metadata as Record<string, unknown> | null) || {};
-      const updatedMetadata = {
-        ...existingMetadata,
-        ...body.metadata,
-        userId: authContext.userId, // Ensure userId is preserved
+      // Build update data - only include fields that were explicitly provided
+      const updateData: {
+        title?: string;
+        metadata?: Record<string, unknown>;
+        updatedAt: Date;
+      } = {
+        title: body.title,
+        updatedAt: new Date(),
       };
+
+      // Only update metadata if explicitly provided in the request
+      if (body.metadata !== undefined) {
+        const existingMetadata =
+          (existing.metadata as Record<string, unknown> | null) || {};
+        updateData.metadata = {
+          ...existingMetadata,
+          ...body.metadata,
+          userId: authContext.userId, // Ensure userId is preserved
+        };
+      }
 
       // Update conversation in database
       return tx.conversation.update({
         where: { id },
-        data: {
-          title: body.title,
-          metadata: updatedMetadata,
-          updatedAt: new Date(),
-        },
+        data: updateData,
       });
     });
 

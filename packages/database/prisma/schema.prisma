@@ -1164,6 +1164,5 @@ model ConversationItem {
 
   @@index([conversationId])
   @@index([conversationId, createdAt])
-  @@index([contentText])
   @@map("conversationItem")
 }
