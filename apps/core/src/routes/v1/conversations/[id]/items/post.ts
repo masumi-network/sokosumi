@@ -121,7 +121,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const response = {
       id: item.id,
-      role: item.role as "user" | "assistant",
+      role: item.role as "user" | "assistant" | "system",
       content,
       createdAt: Math.floor(item.createdAt.getTime() / 1000),
     };

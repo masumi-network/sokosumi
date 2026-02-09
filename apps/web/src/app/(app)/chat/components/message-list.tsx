@@ -58,7 +58,7 @@ export default function MessageList({
         <div className="flex flex-col items-center pt-4 pb-20">
           <div className="flex w-full max-w-4xl flex-col">
             {messagesWithTimestamps.map((message, index) => {
-              const role = message.role as "user" | "assistant";
+              const role = message.role as "user" | "assistant" | "system";
 
               // Get createdAt for current message
               let currentCreatedAt: Date | undefined;

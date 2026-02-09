@@ -11,7 +11,7 @@ export const conversationItemSchema = z
       description: "Conversation item ID",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
-    role: z.enum(["user", "assistant"]).openapi({
+    role: z.enum(["user", "assistant", "system"]).openapi({
       description: "Item role",
       example: "user",
     }),
@@ -44,7 +44,7 @@ export type ConversationItem = z.infer<typeof conversationItemSchema>;
  */
 export const createConversationItemRequestSchema = z
   .object({
-    role: z.enum(["user", "assistant"]).openapi({
+    role: z.enum(["user", "assistant", "system"]).openapi({
       description: "Item role",
       example: "user",
     }),

@@ -343,7 +343,7 @@ export function useConversations(): UseConversationsReturn {
       const rawResult = await deleteConversation({
         id: selectedConversation.id,
       });
-      const result = parseServerActionResult<{ success: boolean }, ActionError>(
+      const result = parseServerActionResult<Conversation, ActionError>(
         rawResult,
       );
 
@@ -404,10 +404,9 @@ export function useConversations(): UseConversationsReturn {
 
       try {
         const rawResult = await deleteConversation({ id });
-        const result = parseServerActionResult<
-          { success: boolean },
-          ActionError
-        >(rawResult);
+        const result = parseServerActionResult<Conversation, ActionError>(
+          rawResult,
+        );
 
         if (result.isErr) {
           const error = result.error;

@@ -111,10 +111,11 @@ export async function PATCH(
 }
 
 /**
- * Delete conversation
- * @description Deletes a conversation
+ * Archive conversation
+ * @description Archives or unarchives a conversation
  * @pathParams ConversationParams
- * @response void
+ * @body ArchiveConversationRequest
+ * @response ConversationSuccessResponse
  * @responseSet public
  * @tag Conversations
  * @auth session
@@ -132,33 +133,33 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Forward request to Core API
+    // Forward request to Core API archive endpoint
     const coreApiUrl = getEnvSecrets().CORE_API_URL;
     const cookieHeader = request.headers.get("cookie");
 
-    const response = await fetch(`${coreApiUrl}/v1/conversations/${id}`, {
-      method: "DELETE",
-      headers: {
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    const response = await fetch(
+      `${coreApiUrl}/v1/conversations/${id}/archive`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+        },
+        body: JSON.stringify({ archived: true }),
       },
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
-        errorData || { error: "Failed to delete conversation" },
+        errorData || { error: "Failed to archive conversation" },
         { status: response.status },
       );
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return new NextResponse(null, { status: 204 });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    return handleApiError(error, "delete conversation");
+    return handleApiError(error, "archive conversation");
   }
 }

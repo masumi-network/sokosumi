@@ -1,7 +1,8 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { generateText } from "ai";
+import { generateText, streamText } from "ai";
 
 import { getEnv } from "@/config/env";
+import { getModelIdentifier } from "@/helpers/model-mapping";
 
 export type AgentInfo = {
   name: string;
@@ -9,24 +10,26 @@ export type AgentInfo = {
 };
 
 export const openrouterClient = (() => {
-  const apiKey = getEnv().OPENROUTER_DEFAULT_API_KEY;
-  if (!apiKey) {
-    return {
-      async generateJobName(): Promise<string | null> {
-        return null;
-      },
-    };
-  }
+  const defaultApiKey = getEnv().OPENROUTER_DEFAULT_API_KEY;
+  const chatApiKey = getEnv().OPENROUTER_CHAT_API_KEY || defaultApiKey;
 
-  const openrouter = createOpenRouter({
-    apiKey,
-  });
+  const defaultOpenrouter = defaultApiKey
+    ? createOpenRouter({ apiKey: defaultApiKey })
+    : null;
+
+  const chatOpenrouter = chatApiKey
+    ? createOpenRouter({ apiKey: chatApiKey })
+    : null;
 
   return {
     async generateJobName(
       agent: AgentInfo,
       inputData: Record<string, unknown>,
     ): Promise<string | null> {
+      if (!defaultOpenrouter) {
+        return null;
+      }
+
       const inputSummary = Object.entries(inputData)
         .map(([key, value]) => `${key} => ${JSON.stringify(value)}`)
         .join(", ");
@@ -41,7 +44,7 @@ export const openrouterClient = (() => {
 
       try {
         const { text } = await generateText({
-          model: openrouter("anthropic/claude-haiku-4.5"),
+          model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
           system: systemPrompt,
           prompt: userPrompt,
           temperature: 0.9,
@@ -53,6 +56,20 @@ export const openrouterClient = (() => {
         console.error("OpenRouter job name generation failed:", error);
         return null;
       }
+    },
+
+    async streamChatResponse(messages: unknown[], modelId: string | null) {
+      if (!chatOpenrouter) {
+        throw new Error("OpenRouter chat API key not configured");
+      }
+
+      const modelIdentifier = getModelIdentifier(modelId);
+
+      return streamText({
+        model: chatOpenrouter(modelIdentifier),
+        messages,
+        maxOutputTokens: 4096,
+      });
     },
   };
 })();
