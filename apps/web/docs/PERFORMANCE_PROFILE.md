@@ -199,6 +199,7 @@ Ensure `getSessionOrRedirect` and any flag that calls `getSession()` use this ca
 - Removed `useSearchParams` subscriptions where only needed in callbacks.
 
 **Perf report (local dev, `http://localhost:3000/signin?returnUrl=%2F`):**
+
 - Performance score: 0.96
 - FCP: 1.2 s
 - LCP: 2.6 s
@@ -218,3 +219,48 @@ Ensure `getSessionOrRedirect` and any flag that calls `getSession()` use this ca
 6. **Optionally audit** useSearchParams and client setState/transitions for the patterns above.
 
 After each step, re-run the Lighthouse performance report (`pnpm run perf:report`) and compare scores and LCP/FCP to the baseline (e.g. performance ~66, LCP ~10.7s on the sign-in page).
+
+### Authenticated performance report
+
+To profile **authenticated** pages (e.g. `/agents` after login):
+
+```bash
+pnpm run perf:report:auth
+```
+
+This script launches Chrome (visible), opens the login page, and waits for you to sign in and navigate to the page to audit. When you press Enter, it runs Lighthouse with the same session (cookies preserved) and writes `.cursor/sokosumi-perf.report.html` and `.cursor/sokosumi-perf.report.json`.
+
+Optional env vars:
+
+- `BASE_URL` — base URL (default: preprod URL from `perf:report`)
+- `AUDIT_PATH` — single path to audit (default: `/agents`)
+- `AUDIT_PATHS` — comma-separated paths to audit in one run (agents, agent detail, tasks, jobs, job detail). Use `{{agentId}}` and `{{jobId}}`; set `AGENT_ID` and `JOB_ID` to substitute.
+- `AGENT_ID`, `JOB_ID` — optional; substituted into `AUDIT_PATHS` for agent/job detail URLs.
+- `THROTTLE=high-latency` — run with **DevTools network throttling** to simulate a distant user (e.g. Canada): ~400 ms RTT, 1 Mbps down. Report is written to `.cursor/sokosumi-perf-high-latency.report.{html,json}`.
+
+Example (single): `BASE_URL=https://app.example.com AUDIT_PATH=/tasks pnpm run perf:report:auth`
+
+Example (multiple pages — agents, agent detail, tasks, jobs, job detail): set `AUDIT_PATHS` and `AGENT_ID` / `JOB_ID`; sign in once and press Enter to get one report per path (e.g. `sokosumi-perf.report-agents.html`, `sokosumi-perf.report-tasks.html`).
+
+```bash
+AUDIT_PATHS="/agents,/agents/{{agentId}},/tasks,/agents/{{agentId}}/jobs,/agents/{{agentId}}/jobs/{{jobId}}" \
+  AGENT_ID=cmiyuwmmf000304l18efjfg5o JOB_ID=cmig62ajh000h7hmleefbax5a \
+  pnpm run perf:report:auth
+```
+
+### Simulating high-latency (e.g. Canada, ~8 s page load)
+
+To reproduce slow page loads reported by users in distant regions:
+
+```bash
+THROTTLE=high-latency pnpm run perf:report:auth
+```
+
+1. Sign in and navigate to the page to audit (e.g. `/agents`).
+2. Press Enter; Lighthouse runs with **real** network throttling (DevTools): 200 ms one-way latency (~400 ms RTT), 1 Mbps down, 0.5 Mbps up, 4× CPU slowdown.
+3. Open `.cursor/sokosumi-perf-high-latency.report.html` and compare to the unthrottled report. Focus on:
+   - **TTFB** and **LCP** — impact of RTT and throughput
+   - **Network waterfall** — many round-trips or large payloads
+   - **Main-thread work** — blocking time and long tasks
+
+Use the high-latency report to prioritize: reduce round-trips (e.g. parallel data, caching), shrink critical payloads, and defer non-critical JS.
