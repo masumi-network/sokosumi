@@ -20,6 +20,7 @@ import { formatShortDate } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 
 import { ExpandableMarkdown } from "./expandable-markdown";
+import { TaskStatusBadge } from "./task-status-badge";
 
 interface ActorInfo {
   name: string;
@@ -177,119 +178,108 @@ export function TaskActivitySection({
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-primary text-lg font-semibold">{title}</h2>
+    <section className="space-y-4">
+      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-muted/40 rounded-xl border p-3"
+        className="border-border/50 rounded-lg border p-3"
       >
         <Textarea
           placeholder={placeholder}
-          className="min-h-24 resize-none"
+          className="min-h-16 resize-none border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
           value={comment}
           onChange={(event) => setComment(event.target.value)}
         />
-        <div className="mt-2 flex items-center justify-end gap-4">
-          {/* TODO: Add file attachment */}
-          {/* <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full"
-            aria-label={attachLabel}
-            type="button"
-            disabled={isPending}
-          >
-            <Paperclip className="size-4" aria-hidden />
-          </Button> */}
+        <div className="mt-2 flex items-center justify-end">
           <Button
             size="icon"
-            variant="primary"
-            className="rounded-full"
+            className="size-7 rounded-full"
             aria-label={submitLabel}
             type="submit"
             disabled={isSubmitDisabled}
           >
             {isPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
             ) : (
-              <ArrowUp className="size-4" aria-hidden />
+              <ArrowUp className="size-3.5" aria-hidden />
             )}
           </Button>
         </div>
       </form>
 
-      <div className="space-y-4">
-        {orderedEvents.map((event) => {
-          const actorLabel = event.coworkerId
-            ? actorCoworkerLabel
-            : event.userId
-              ? actorUserLabel
-              : actorSystemLabel;
-          const actorInfo = event.coworkerId
-            ? coworkerById?.[event.coworkerId]
-            : event.userId
-              ? userById?.[event.userId]
-              : undefined;
-          const actorName = actorInfo?.name ?? actorLabel;
-          const actorImage = actorInfo?.image ?? null;
-          const action = event.comment
-            ? actionCommentedLabel
-            : actionUpdatedStatusLabel;
-          const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
-          const formattedComment = event.comment
-            ? formatMentionsAsMarkdownLinks(
-                event.comment,
-                resolvedAgentNameById,
-              )
-            : null;
+      {orderedEvents.length > 0 ? (
+        <div className="space-y-3">
+          {orderedEvents.map((event) => {
+            const actorLabel = event.coworkerId
+              ? actorCoworkerLabel
+              : event.userId
+                ? actorUserLabel
+                : actorSystemLabel;
+            const actorInfo = event.coworkerId
+              ? coworkerById?.[event.coworkerId]
+              : event.userId
+                ? userById?.[event.userId]
+                : undefined;
+            const actorName = actorInfo?.name ?? actorLabel;
+            const actorImage = actorInfo?.image ?? null;
+            const action = event.comment
+              ? actionCommentedLabel
+              : actionUpdatedStatusLabel;
+            const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
+            const formattedComment = event.comment
+              ? formatMentionsAsMarkdownLinks(
+                  event.comment,
+                  resolvedAgentNameById,
+                )
+              : null;
 
-          const row = (
-            <div
-              key={event.id}
-              className="bg-muted/30 flex items-start gap-3 rounded-lg px-3 py-2"
-            >
-              <Avatar className="size-9">
-                {actorImage ? (
-                  <AvatarImage src={actorImage} alt={actorName} />
-                ) : null}
-                <AvatarFallback>{getInitials(actorName)}</AvatarFallback>
-              </Avatar>
-              <div className="flex w-full flex-col gap-1">
-                <div className="flex flex-row items-center justify-between">
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-semibold">{actorName}</span>
-                    <span className="text-muted-foreground">{action}</span>
-                    {event.status && (
-                      <span className="text-primary font-semibold">
-                        {event.status}
+            const row = (
+              <div key={event.id} className="flex items-start gap-3">
+                <Avatar className="size-6 shrink-0">
+                  {actorImage ? (
+                    <AvatarImage src={actorImage} alt={actorName} />
+                  ) : null}
+                  <AvatarFallback className="bg-muted text-[10px]">
+                    {getInitials(actorName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex flex-row items-baseline justify-between gap-2">
+                    <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
+                      <span className="text-sm font-medium">{actorName}</span>
+                      <span className="text-muted-foreground/60 text-xs">
+                        {action}
                       </span>
-                    )}
+                      {event.status ? (
+                        <TaskStatusBadge status={event.status} />
+                      ) : null}
+                    </div>
+                    <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
+                      {formatShortDate(event.createdAt)}
+                    </span>
                   </div>
-                  <span className="text-muted-foreground text-xs">
-                    {formatShortDate(event.createdAt)}
-                  </span>
+                  {formattedComment ? (
+                    <ExpandableMarkdown
+                      content={formattedComment}
+                      className="prose-sm text-foreground/70 text-sm"
+                      expandLabel={expandLabel}
+                      collapseLabel={collapseLabel}
+                      fadeClassName="to-background"
+                    />
+                  ) : null}
                 </div>
-                {formattedComment ? (
-                  <ExpandableMarkdown
-                    content={formattedComment}
-                    className="prose-sm text-muted-foreground"
-                    expandLabel={expandLabel}
-                    collapseLabel={collapseLabel}
-                    fadeClassName="to-transparent"
-                  />
-                ) : null}
               </div>
-            </div>
-          );
+            );
 
-          return isNewOptimisticEvent ? (
-            <AnimatedNewRow key={event.id}>{row}</AnimatedNewRow>
-          ) : (
-            row
-          );
-        })}
-      </div>
-    </div>
+            return isNewOptimisticEvent ? (
+              <AnimatedNewRow key={event.id}>{row}</AnimatedNewRow>
+            ) : (
+              row
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
   );
 }

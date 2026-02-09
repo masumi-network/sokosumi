@@ -17,6 +17,7 @@ function createMockCategory(slug: string, name: string) {
     slug,
     description: null,
     image: null,
+    icon: null,
     styles: null,
     priority: 0,
   };

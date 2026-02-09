@@ -22,37 +22,32 @@ export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
 
   return (
     <div
-      className={cn(
-        "flex items-start gap-2",
-        dragHandleProps?.isDragging ? "opacity-70" : null,
-      )}
+      className={cn("group", dragHandleProps?.isDragging && "opacity-60")}
       {...handleProps}
     >
       <Link
         href={`/tasks/${task.id}`}
         className={cn(
-          "bg-card/70 hover:bg-foreground/5 flex flex-1 flex-col gap-2 rounded-lg border px-3 py-3 transition sm:flex-row sm:items-center sm:gap-3",
-          dragHandleProps?.isDragging ? "ring-primary/20 ring-1" : null,
+          "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
+          "-mx-2 rounded-lg px-4 py-3 transition-colors",
+          "hover:bg-muted/50",
+          "active:scale-[0.995]",
+          dragHandleProps?.isDragging && "bg-muted/70 shadow-sm",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="line-clamp-1 text-sm font-semibold">
-                {task.name}
-              </span>
-            </div>
-            <p className="text-muted-foreground line-clamp-1 text-xs">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-foreground line-clamp-1 text-sm font-medium">
+              {task.name}
+            </span>
+            <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
               {task.descriptionPlain ?? task.description ?? "—"}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-4 text-xs">
-          <TaskStatusBadge
-            status={task.status}
-            className="rounded-full font-medium"
-          />
+        <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
+          <TaskStatusBadge status={task.status} />
           <TaskMetaDetails
             coworker={task.coworker}
             commentsCount={task.commentsCount}

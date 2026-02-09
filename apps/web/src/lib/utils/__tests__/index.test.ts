@@ -72,10 +72,10 @@ describe("toInputSchema", () => {
       field3: true,
     };
     const result = toInputSchema(plainObject);
-    expect(result).toBeInstanceOf(Map);
-    expect(result?.get("field1")).toBe("value1");
-    expect(result?.get("field2")).toBe(123);
-    expect(result?.get("field3")).toBe(true);
+    expect(result).toEqual(plainObject);
+    expect(result?.field1).toBe("value1");
+    expect(result?.field2).toBe(123);
+    expect(result?.field3).toBe(true);
   });
 
   it("should return null for null input", () => {
@@ -99,8 +99,7 @@ describe("toInputSchema", () => {
 
   it("should handle empty object", () => {
     const result = toInputSchema({});
-    expect(result).toBeInstanceOf(Map);
-    expect(result?.size).toBe(0);
+    expect(result).toEqual({});
   });
 
   it("should handle nested objects", () => {
@@ -115,14 +114,14 @@ describe("toInputSchema", () => {
       field3: [1, 2, 3],
     };
     const result = toInputSchema(nestedObject);
-    expect(result).toBeInstanceOf(Map);
-    expect(result?.get("field1")).toBe("value1");
-    expect(result?.get("field2")).toEqual({
+    expect(result).toEqual(nestedObject);
+    expect(result?.field1).toBe("value1");
+    expect(result?.field2).toEqual({
       nested: "value",
       deep: {
         level: 3,
       },
     });
-    expect(result?.get("field3")).toEqual([1, 2, 3]);
+    expect(result?.field3).toEqual([1, 2, 3]);
   });
 });

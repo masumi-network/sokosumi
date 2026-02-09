@@ -1,19 +1,24 @@
-import { Plus } from "lucide-react";
-import Link from "next/link";
+"use client";
 
-import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+
+import { useCreateTaskModal } from "./create-task-modal";
 
 interface AddTaskButtonProps {
   label: string;
 }
 
 export function AddTaskButton({ label }: AddTaskButtonProps) {
+  const { handleOpen } = useCreateTaskModal();
+
   return (
-    <Button variant="outline" size="sm" className="gap-2" asChild>
-      <Link href="/tasks/new">
-        <Plus className="size-4" aria-hidden />
-        {label}
-      </Link>
-    </Button>
+    <button
+      type="button"
+      onClick={handleOpen}
+      className="text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/40 flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors"
+    >
+      <Plus className="size-3.5" aria-hidden />
+      {label}
+    </button>
   );
 }

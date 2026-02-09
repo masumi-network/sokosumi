@@ -7,11 +7,7 @@ import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
-export const metadata = {
-  title: "Edit Task",
-};
-
-export default async function EditTaskPage({
+export default async function TaskEditModalPage({
   params,
 }: {
   params: Promise<{ taskId: string }>;
