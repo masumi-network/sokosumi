@@ -124,7 +124,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         if (comment === undefined) {
-          throw unprocessableEntity("Either status or comment must be provided");
+          throw unprocessableEntity(
+            "Either status or comment must be provided",
+          );
         }
 
         const event = await tx.taskEvent.create({
