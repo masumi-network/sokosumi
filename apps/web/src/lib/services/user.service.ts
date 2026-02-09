@@ -232,55 +232,34 @@ export const userService = (() => {
       return false;
     }
 
-    let membershipOrgIds: string[] = [];
     try {
-      membershipOrgIds =
-        await memberRepository.getMembersOrganizationIdsByUserId(
-          user.id,
-          prisma,
-        );
+      return await prisma.$transaction(async (tx) => {
+        const membershipOrgIds =
+          await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
+
+        let shouldComplete = false;
+        if (membershipOrgIds.length > 0) {
+          shouldComplete = true;
+        } else {
+          const hasPendingInvitation =
+            await invitationRepository.hasPendingInvitationByEmail(
+              user.email,
+              tx,
+            );
+          shouldComplete = hasPendingInvitation;
+        }
+
+        if (shouldComplete) {
+          await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
+          return false;
+        }
+
+        return true;
+      });
     } catch (error) {
-      console.error("Failed to fetch memberships for showOnboarding", error);
+      console.error("Failed to check/update onboarding status", error);
       return false;
     }
-
-    let shouldComplete = false;
-    if (membershipOrgIds.length > 0) {
-      shouldComplete = true;
-    } else {
-      try {
-        const hasPendingInvitation =
-          await invitationRepository.hasPendingInvitationByEmail(
-            user.email,
-            prisma,
-          );
-        shouldComplete = hasPendingInvitation;
-      } catch (error) {
-        console.error(
-          "Failed to fetch pending invitations for showOnboarding",
-          error,
-        );
-        return false;
-      }
-    }
-
-    if (shouldComplete) {
-      try {
-        await userRepository.updateUserOnboardingCompleted(
-          user.id,
-          true,
-          prisma,
-        );
-      } catch (error) {
-        console.error(
-          "Failed to update onboardingCompleted for showOnboarding",
-          error,
-        );
-      }
-      return false;
-    }
-
-    return true;
   }
 
   /**
