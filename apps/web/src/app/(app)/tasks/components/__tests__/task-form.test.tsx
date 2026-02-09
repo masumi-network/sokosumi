@@ -47,7 +47,6 @@ jest.mock("../markdown-editor", () => ({
 }));
 
 const baseLabels = {
-  pageTitle: "Task",
   details: "Details",
   detailsDescription: "Describe the task",
   name: "Task name",

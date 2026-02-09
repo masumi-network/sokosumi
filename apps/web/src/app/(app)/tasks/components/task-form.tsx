@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { MarkdownEditor } from "./markdown-editor";
 
 export interface TaskFormLabels {
-  pageTitle: string;
   details: string;
   detailsDescription: string;
   name: string;
@@ -214,9 +213,6 @@ export function TaskForm({
               <span className="sr-only">{labels.back}</span>
             </Button>
           </Link>
-          <h1 className="text-2xl font-light md:text-3xl">
-            {labels.pageTitle}
-          </h1>
         </header>
       ) : null}
 

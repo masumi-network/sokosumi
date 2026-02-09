@@ -10,10 +10,12 @@ import useModal from "@/hooks/use-modal";
 
 interface OrganizationRemoveButtonProps {
   organization: Organization;
+  className?: string | undefined;
 }
 
 export default function OrganizationRemoveButton({
   organization,
+  className,
 }: OrganizationRemoveButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
@@ -27,7 +29,7 @@ export default function OrganizationRemoveButton({
   return (
     <>
       {Component}
-      <Button variant="destructive" onClick={showModal}>
+      <Button variant="destructive" onClick={showModal} className={className}>
         <Trash size={16} />
         {t("delete")}
       </Button>

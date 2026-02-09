@@ -15,21 +15,23 @@ export default async function CreditsCancelPage() {
   const t = await getTranslations("App.Credits.Cancel");
 
   return (
-    <div className="mx-auto max-w-xl p-6">
-      <Card className="text-center">
-        <CardHeader>
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900">
-            <XCircle className="size-6 text-red-600 dark:text-red-400" />
-          </div>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("description")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link href="/credits">{t("backToCredits")}</Link>
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="min-h-full w-full">
+      <div className="mx-auto max-w-4xl px-4 py-6">
+        <Card className="text-center">
+          <CardHeader>
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900">
+              <XCircle className="size-6 text-red-600 dark:text-red-400" />
+            </div>
+            <CardTitle>{t("title")}</CardTitle>
+            <CardDescription>{t("description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/credits">{t("backToCredits")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

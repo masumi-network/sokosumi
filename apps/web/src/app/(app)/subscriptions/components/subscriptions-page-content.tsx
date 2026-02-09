@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Check, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
@@ -156,13 +156,24 @@ export default function SubscriptionsPageContent({
     });
   }
 
-  return (
-    <div className="w-full space-y-8 px-2">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("description")}</p>
-      </div>
+  function getPlanFeatureItems(translationKey: string): string[] {
+    const rawItems = t.raw(`Plans.${translationKey}.features.items`);
 
+    if (
+      rawItems === null ||
+      typeof rawItems !== "object" ||
+      Array.isArray(rawItems)
+    ) {
+      return [];
+    }
+
+    return Object.values(rawItems).filter(
+      (item): item is string => typeof item === "string",
+    );
+  }
+
+  return (
+    <div className="space-y-8">
       {statusMessage ? (
         <div className="bg-muted text-muted-foreground flex items-center gap-2 rounded-md px-4 py-3 text-sm">
           <CheckCircle2 className="size-4" />
@@ -170,11 +181,12 @@ export default function SubscriptionsPageContent({
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         {plans.map((plan) => {
           const isPlanPending = pendingPlan === plan.name;
           const isAnyPlanPending = pendingPlan !== null;
           const translationKey = getPlanTranslationKey(plan.name);
+          const featureItems = getPlanFeatureItems(translationKey);
 
           return (
             <Card
@@ -197,8 +209,8 @@ export default function SubscriptionsPageContent({
                   {t(`Plans.${translationKey}.description`)}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-2xl font-light">
+              <CardContent className="space-y-3">
+                <p className="text-2xl font-medium md:text-3xl">
                   {formatPrice(plan.monthlyAmount, plan.currency)}
                 </p>
                 <p className="text-muted-foreground text-sm">
@@ -207,6 +219,19 @@ export default function SubscriptionsPageContent({
                 <p className="text-sm">
                   {t("includedCredits", { credits: plan.credits })}
                 </p>
+                <div className="space-y-2 pt-2">
+                  <p className="text-muted-foreground text-xs font-semibold">
+                    {t(`Plans.${translationKey}.features.title`)}
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    {featureItems.map((item) => (
+                      <li key={item} className="flex gap-2">
+                        <Check className="text-primary mt-0.5 size-4" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </CardContent>
               <CardFooter className="mt-auto">
                 <Button
@@ -232,22 +257,24 @@ export default function SubscriptionsPageContent({
         })}
       </div>
 
-      <div className="max-w-md">
+      <div className="w-full">
         <Card>
-          <CardHeader>
-            <CardTitle>{t("billingPortalTitle")}</CardTitle>
-            <CardDescription>
-              {currentPlan
-                ? t("billingPortalDescriptionWithPlan", {
-                    plan: t(`Plans.${getPlanTranslationKey(currentPlan)}.name`),
-                  })
-                : t("billingPortalDescription")}
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
+          <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-1.5">
+              <CardTitle>{t("billingPortalTitle")}</CardTitle>
+              <CardDescription>
+                {currentPlan
+                  ? t("billingPortalDescriptionWithPlan", {
+                      plan: t(
+                        `Plans.${getPlanTranslationKey(currentPlan)}.name`,
+                      ),
+                    })
+                  : t("billingPortalDescription")}
+              </CardDescription>
+            </div>
             <Button
               variant="outline"
-              className="w-full"
+              className="self-start md:self-center"
               disabled={isBillingPortalPending}
               onClick={() => void handleOpenBillingPortal()}
             >
@@ -260,7 +287,7 @@ export default function SubscriptionsPageContent({
                 t("billingPortalCta")
               )}
             </Button>
-          </CardFooter>
+          </CardHeader>
         </Card>
       </div>
     </div>

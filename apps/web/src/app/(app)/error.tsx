@@ -24,28 +24,32 @@ export default function Error({
   const { renderIfAuthenticated } = useUnAuthenticatedErrorHandler(error);
 
   return renderIfAuthenticated(
-    <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">{t("description")}</p>
-          {error.digest && (
-            <p className="text-muted-foreground text-xs">
-              {t("errorId", { errorId: error.digest })}
-            </p>
-          )}
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button onClick={reset} variant="primary" className="w-full">
-            {t("tryAgain")}
-          </Button>
-          <Button asChild variant="secondary" className="w-full">
-            <Link href="/">{t("goApp")}</Link>
-          </Button>
-        </CardFooter>
-      </Card>
+    <div className="min-h-full w-full">
+      <div className="mx-auto max-w-4xl px-4 py-6">
+        <div className="flex min-h-[80vh] items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>{t("title")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">{t("description")}</p>
+              {error.digest && (
+                <p className="text-muted-foreground text-xs">
+                  {t("errorId", { errorId: error.digest })}
+                </p>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4">
+              <Button onClick={reset} variant="primary" className="w-full">
+                {t("tryAgain")}
+              </Button>
+              <Button asChild variant="secondary" className="w-full">
+                <Link href="/">{t("goApp")}</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
     </div>,
   );
 }

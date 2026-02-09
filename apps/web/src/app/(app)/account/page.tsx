@@ -16,12 +16,14 @@ export default async function Page() {
   ]);
 
   return (
-    <div>
-      <AccountSettings
-        accounts={accounts}
-        notificationsOptIn={session?.user.notificationsOptIn ?? true}
-        marketingOptIn={session?.user.marketingOptIn ?? false}
-      />
+    <div className="min-h-full w-full">
+      <div className="mx-auto max-w-4xl px-4">
+        <AccountSettings
+          accounts={accounts}
+          notificationsOptIn={session?.user.notificationsOptIn ?? true}
+          marketingOptIn={session?.user.marketingOptIn ?? false}
+        />
+      </div>
     </div>
   );
 }

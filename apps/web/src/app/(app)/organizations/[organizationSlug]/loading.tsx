@@ -1,12 +1,11 @@
 import DefaultLoading from "@/components/default-loading";
 
-import { OrganizationInformationSkeleton } from "./components/organization-information";
-
 export default function OrganizationLoadingPage() {
   return (
-    <div className="container flex flex-col gap-8 p-8">
-      <OrganizationInformationSkeleton />
-      <DefaultLoading className="h-[300px] w-full border-none p-8" />
+    <div className="min-h-full w-full">
+      <div className="mx-auto max-w-4xl space-y-12 px-4">
+        <DefaultLoading className="h-[300px] w-full border-none p-8" />
+      </div>
     </div>
   );
 }

@@ -1038,8 +1038,6 @@
     "cancel": "Cancel",
     "save": "Save",
     "Schedules": {
-      "title": "Schedules",
-      "description": "Manage your schedules for your agents",
       "empty": {
         "title": "No schedules yet",
         "description": "Hire an Agent and configure its schedule using the Schedule Job."
@@ -1221,8 +1219,6 @@
       }
     },
     "Subscriptions": {
-      "title": "Subscriptions",
-      "description": "Manage your monthly plan and included credits.",
       "statusSuccess": "Subscription updated successfully.",
       "statusCancel": "Subscription checkout was canceled.",
       "currentPlanBadge": "Current",
@@ -1240,19 +1236,53 @@
       "Plans": {
         "free": {
           "name": "Free",
-          "description": "Free plan for every account."
+          "description": "Getting started to work with Marketing Agents.",
+          "features": {
+            "title": "Free Includes:",
+            "items": {
+              "item1": "Limited Access to one Agentic Co-Worker",
+              "item2": "Email and WhatsApp Access to Agents",
+              "item3": "Latest Generation of Claude Models",
+              "item4": "Access to 100+ Marketing Agents"
+            }
+          }
         },
         "starter": {
           "name": "Starter",
-          "description": "For regular individual usage."
+          "description": "For freelancers and micro companies.",
+          "features": {
+            "title": "Everything in Free, plus:",
+            "items": {
+              "item1": "Full Access to all Agentic Co-Workers",
+              "item2": "Full access to Web Search for Agents",
+              "item3": "Read & Create Office Documents",
+              "item4": "Integrate with Microsoft Teams"
+            }
+          }
         },
         "standard": {
           "name": "Standard",
-          "description": "For higher monthly workload."
+          "description": "Full set of marketing agents for small companies.",
+          "features": {
+            "title": "Everything in Starter, plus:",
+            "items": {
+              "item1": "3x more Credits for Agents",
+              "item2": "Schedule recurring Co-worker tasks",
+              "item3": "20+ Marketing Tool Integrations"
+            }
+          }
         },
         "pro": {
           "name": "Pro",
-          "description": "For heavy and continuous usage."
+          "description": "Get more access to our Marketing Agents and Services",
+          "features": {
+            "title": "Everything in Standard, plus:",
+            "items": {
+              "item1": "Massive Amount of Credits for Agents",
+              "item2": "Custom Templates for Office Docs",
+              "item3": "Early Access to new Agents & Features"
+            }
+          }
         }
       },
       "Errors": {
@@ -1268,8 +1298,6 @@
       }
     },
     "Credits": {
-      "title": "Credits",
-      "description": "Manage your credit balance and top-ups",
       "billingPortalCta": "Manage purchases",
       "topUpTitle": "Top up your credits",
       "topUpDescription": "Choose an amount or enter a custom value",
@@ -1323,8 +1351,6 @@
       }
     },
     "MCP": {
-      "title": "Model Context Protocol (MCP)",
-      "description": "Connect Sokosumi to any large language model using the Model Context Protocol",
       "generateButton": "Generate your Sokosumi MCP URL",
       "urlLabel": "Your MCP Connection URL",
       "existingKeyNote": "Note: This is a previously generated MCP connection. The actual API key is hidden for security reasons.",
@@ -1354,8 +1380,6 @@
       }
     },
     "Account": {
-      "title": "Account Settings",
-      "description": "Manage your account settings and preferences",
       "Name": {
         "title": "Change name",
         "description": "Update your display name",
@@ -1617,7 +1641,6 @@
         "title": "Organizations",
         "description": "Manage your organizations"
       },
-      "title": "Organizations",
       "newOrganization": "New Organization",
       "organizationsNotAvailable": "No Organizations found",
       "OrganizationRow": {
@@ -1656,11 +1679,9 @@
           "description": "Manage your organization"
         },
         "roleIndicator": "View as:",
-        "title": "{name}",
         "edit": "Edit",
         "delete": "Delete",
         "invite": "Invite Member",
-        "members": "Members",
         "InvoiceEmail": {
           "title": "Invoice Email",
           "description": "Email address for receiving invoices and billing notifications",
@@ -1689,7 +1710,6 @@
         "description": "Explore our collection of agents."
       },
       "FilterSection": {
-        "header": "Agents Gallery",
         "searchPlaceholder": "Search agents",
         "reset": "Reset",
         "tags": "Tags",
@@ -1705,6 +1725,7 @@
       "Jobs": {
         "newJob": "New Job",
         "Header": {
+          "back": "Back to agents",
           "newJob": "New Job",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
         },

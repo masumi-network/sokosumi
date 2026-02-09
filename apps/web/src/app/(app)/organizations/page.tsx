@@ -15,18 +15,20 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function OrganizationsPage() {
-  const t = await getTranslations("App.Organizations");
-
   const members = await userService.getMyMembersWithOrganizations();
   const invitations = await userService.getMyValidPendingInvitations();
 
   return (
-    <div className="w-full space-y-12 px-2">
-      <div className="flex w-full items-center justify-between">
-        <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
-        <OrganizationCreateButton />
+    <div className="min-h-full w-full">
+      <div className="mx-auto max-w-4xl space-y-12 px-4">
+        <div className="flex w-full items-center justify-between">
+          <div />
+          <div className="flex items-center gap-1.5">
+            <OrganizationCreateButton className="h-7 gap-1.5 px-2.5 text-xs" />
+          </div>
+        </div>
+        <Organizations members={members} invitations={invitations} />
       </div>
-      <Organizations members={members} invitations={invitations} />
     </div>
   );
 }
