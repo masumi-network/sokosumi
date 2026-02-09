@@ -83,10 +83,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updateData: {
         title?: string;
         metadata?: Record<string, unknown>;
-        updatedAt: Date;
       } = {
         title: body.title,
-        updatedAt: new Date(),
       };
 
       // Only update metadata if explicitly provided in the request
@@ -115,8 +113,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       metadata:
         (updatedConversation.metadata as Record<string, unknown> | null) ||
         null,
-      createdAt: updatedConversation.createdAt.toISOString(),
-      updatedAt: updatedConversation.updatedAt.toISOString(),
+      createdAt: updatedConversation.createdAt,
+      updatedAt: updatedConversation.updatedAt,
     };
 
     return ok(c, conversationSchema.parse(response));

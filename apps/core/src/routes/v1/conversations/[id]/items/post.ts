@@ -110,12 +110,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      // Update conversation updatedAt timestamp
-      await tx.conversation.update({
-        where: { id },
-        data: { updatedAt: new Date() },
-      });
-
       return item;
     });
 

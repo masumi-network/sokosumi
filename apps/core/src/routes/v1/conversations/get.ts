@@ -60,8 +60,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: conv.userId,
         title: conv.title,
         metadata: (conv.metadata as Record<string, unknown> | null) || null,
-        createdAt: conv.createdAt.toISOString(),
-        updatedAt: conv.updatedAt.toISOString(),
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
       }));
 
       return ok(c, conversationListResponseSchema.parse(response));

@@ -58,7 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // This will set archivedAt even if it's already set (idempotent operation)
         await tx.conversation.update({
           where: { id },
-          data: { archivedAt: new Date(), updatedAt: new Date() },
+          data: { archivedAt: new Date() },
         });
       });
 

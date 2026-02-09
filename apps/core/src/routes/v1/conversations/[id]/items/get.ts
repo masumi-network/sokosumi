@@ -1,16 +1,24 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { internalServerError, notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { conversationItemSchema } from "@/schemas/conversation-item.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 const route = createRoute({
   method: "get",
   path: "/{id}/items",
-  description: "Get all items (messages) for a conversation",
+  description: "Get all items (messages) for a conversation (paginated)",
   tags: ["Conversations"],
   request: {
     params: z.object({
@@ -26,17 +34,10 @@ const route = createRoute({
           example: "550e8400-e29b-41d4-a716-446655440000",
         }),
     }),
-    query: z.object({
-      limit: z.coerce.number().optional().openapi({
-        description: "Maximum number of items to return",
-      }),
-      after: z.string().optional().openapi({
-        description: "Cursor for pagination (item ID)",
-      }),
-    }),
+    query: cursorPaginationQuerySchema,
   },
   responses: {
-    200: jsonSuccessResponse(
+    200: jsonPaginatedSuccessResponse(
       z.array(conversationItemSchema),
       "Conversation items retrieved successfully",
       {
@@ -51,6 +52,12 @@ const route = createRoute({
         meta: {
           timestamp: "2025-01-21T12:00:00.000Z",
           requestId: "550e8400-e29b-41d4-a716-446655440000",
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: 100,
+            nextCursor: "550e8400-e29b-41d4-a716-446655440001",
+          },
         },
       },
     ),
@@ -65,10 +72,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     try {
       const { authContext } = c.var;
       const { id } = c.req.valid("param");
-      const { limit, after } = c.req.valid("query");
+      const queryParams = c.req.valid("query");
+
+      const { cursor, take, skip } = parseCursorPagination(queryParams);
+      const takePlusOne = take + 1;
 
       // Database is the source of truth - validate ownership and get items
-      const { items } = await prisma.$transaction(async (tx) => {
+      const { items, count } = await prisma.$transaction(async (tx) => {
         // Validate ownership
         const conversation = await tx.conversation.findFirst({
           where: {
@@ -82,26 +92,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw notFound("Conversation not found");
         }
 
-        // Get conversation items from database
-        const items = await tx.conversationItem.findMany({
-          where: {
-            conversationId: conversation.id,
-          },
-          orderBy: { createdAt: "asc" },
-          ...(after
-            ? {
-                cursor: { id: after },
-                skip: 1,
-              }
-            : {}),
-          ...(limit ? { take: limit } : {}),
-        });
+        const where = {
+          conversationId: conversation.id,
+        };
 
-        return { conversation, items };
+        const [items, count] = await Promise.all([
+          tx.conversationItem.findMany({
+            where,
+            take: takePlusOne,
+            skip,
+            cursor: cursor ? { id: cursor } : undefined,
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          }),
+          tx.conversationItem.count({ where }),
+        ]);
+
+        return { items, count };
       });
 
+      const hasMore = items.length === takePlusOne;
+      const pagedItems = items.slice(0, take);
+
       // Map to response schema - reconstruct content format from normalized columns
-      const response = items.map((item) => {
+      const response = pagedItems.map((item) => {
         const content: string | Array<{ type: string; text: string }> =
           item.contentType && item.contentType !== ""
             ? [{ type: item.contentType, text: item.contentText }]
@@ -115,7 +128,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       });
 
-      return ok(c, z.array(conversationItemSchema).parse(response));
+      const paginationMeta = createPaginationMeta(
+        pagedItems,
+        count,
+        take,
+        hasMore,
+        cursor,
+      );
+
+      return ok(
+        c,
+        z.array(conversationItemSchema).parse(response),
+        paginationMeta,
+      );
     } catch (error) {
       // Re-throw HTTPException as-is, wrap other errors
       if (

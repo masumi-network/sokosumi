@@ -132,12 +132,20 @@ export function useChatPreview({
           type SerializedResult =
             | {
                 ok: true;
-                data: Array<{
-                  id: string;
-                  role: string;
-                  content: Array<{ type: string; text?: string }> | string;
-                  createdAt: number;
-                }>;
+                data: {
+                  items: Array<{
+                    id: string;
+                    role: string;
+                    content: Array<{ type: string; text?: string }> | string;
+                    createdAt: number;
+                  }>;
+                  pagination: {
+                    cursor: string | null;
+                    limit: number;
+                    total: number;
+                    nextCursor: string | null;
+                  } | null;
+                };
               }
             | { ok: false; error: unknown }
             | { isOk: () => boolean; value?: unknown };
@@ -153,9 +161,12 @@ export function useChatPreview({
             resultAny &&
             "ok" in resultAny &&
             resultAny.ok === true &&
-            "data" in resultAny
+            "data" in resultAny &&
+            resultAny.data &&
+            typeof resultAny.data === "object" &&
+            "items" in resultAny.data
           ) {
-            items = resultAny.data;
+            items = resultAny.data.items;
           } else if (
             resultAny &&
             "isOk" in resultAny &&
@@ -163,12 +174,15 @@ export function useChatPreview({
           ) {
             // It's a proper neverthrow Result (shouldn't happen after serialization, but handle it)
             if (resultAny.isOk() && "value" in resultAny) {
-              items = resultAny.value as Array<{
-                id: string;
-                role: string;
-                content: Array<{ type: string; text?: string }> | string;
-                createdAt: number;
-              }>;
+              const value = resultAny.value as {
+                items: Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  createdAt: number;
+                }>;
+              };
+              items = value.items;
             }
           }
 

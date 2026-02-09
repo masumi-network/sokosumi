@@ -5,7 +5,12 @@ import { headers } from "next/headers";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { buildAuthHeaders } from "@/lib/clients/core.client";
+import {
+  buildAuthHeaders,
+  type CoreApiPagination,
+  type CoreApiResponse,
+  coreClient,
+} from "@/lib/clients/core.client";
 import {
   AuthenticatedRequest,
   withAuthContext,
@@ -34,14 +39,14 @@ interface ListConversationsParameters extends AuthenticatedRequest {
 
 interface AddConversationItemParameters extends AuthenticatedRequest {
   conversationId: string; // Internal database ID
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: Array<{ type: string; text?: string }> | string;
 }
 
 interface GetConversationItemsParameters extends AuthenticatedRequest {
   conversationId: string; // Internal database ID
   limit?: number;
-  after?: string;
+  cursor?: string | null;
 }
 
 export interface Conversation {
@@ -55,7 +60,7 @@ export interface Conversation {
 
 export interface ConversationItem {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: Array<{ type: string; text?: string }> | string;
   createdAt: number;
 }
@@ -196,38 +201,70 @@ export const listConversations = withAuthContext<
 /**
  * Gets conversation items (messages) by conversation ID via Core API
  * CRITICAL: Validates ownership before returning.
+ * Returns items and pagination metadata for cursor-based pagination.
  */
 export const getConversationItems = withAuthContext<
   GetConversationItemsParameters,
-  Result<ConversationItem[], ActionError>
->(async ({ conversationId, limit, after }) => {
+  Result<
+    { items: ConversationItem[]; pagination: CoreApiPagination | null },
+    ActionError
+  >
+>(async ({ conversationId, limit, cursor }) => {
   const queryParams = new URLSearchParams();
   if (limit !== undefined) {
     queryParams.append("limit", limit.toString());
   }
-  if (after) {
-    queryParams.append("after", after);
+  if (cursor) {
+    queryParams.append("cursor", cursor);
   }
   const queryString = queryParams.toString();
   const path = `/v1/conversations/${conversationId}/items${
     queryString ? `?${queryString}` : ""
   }`;
 
-  const result = await makeCoreApiRequest<ConversationItem[]>(path, {
-    method: "GET",
-  });
+  try {
+    const json: CoreApiResponse<ConversationItem[]> = await coreClient.request(
+      path,
+      {
+        method: "GET",
+        cache: "no-store",
+      },
+    );
 
-  if (result.isErr()) {
+    return {
+      ok: true,
+      data: {
+        items: json.data ?? [],
+        pagination: json.meta?.pagination ?? null,
+      },
+    } as unknown as Result<
+      { items: ConversationItem[]; pagination: CoreApiPagination | null },
+      ActionError
+    >;
+  } catch (error) {
+    // Handle errors similar to makeCoreApiRequest pattern
+    let errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Failed to communicate with Core API";
+    const errorCode = CommonErrorCode.INTERNAL_SERVER_ERROR;
+
+    // Check if it's a service unavailable error
+    if (errorMessage.includes("Failed to fetch from Core API")) {
+      errorMessage = "The conversation service is currently unavailable.";
+    }
+
     return {
       ok: false,
-      error: result.error,
-    } as unknown as Result<ConversationItem[], ActionError>;
+      error: {
+        message: errorMessage,
+        code: errorCode,
+      } as ActionError,
+    } as unknown as Result<
+      { items: ConversationItem[]; pagination: CoreApiPagination | null },
+      ActionError
+    >;
   }
-
-  return {
-    ok: true,
-    data: result.value,
-  } as unknown as Result<ConversationItem[], ActionError>;
 });
 
 /**
@@ -280,8 +317,11 @@ export const getConversation = withAuthContext<
     typeof itemsResult === "object" &&
     "ok" in itemsResult &&
     itemsResult.ok === true &&
-    "data" in itemsResult
-      ? itemsResult.data
+    "data" in itemsResult &&
+    itemsResult.data &&
+    typeof itemsResult.data === "object" &&
+    "items" in itemsResult.data
+      ? (itemsResult.data.items as ConversationItem[])
       : [];
 
   return {
@@ -356,28 +396,32 @@ export const updateConversation = withAuthContext<
 });
 
 /**
- * Soft deletes a conversation via Core API
- * CRITICAL: Validates ownership before deleting.
+ * Archives a conversation via Core API
+ * CRITICAL: Validates ownership before archiving.
  */
 export const deleteConversation = withAuthContext<
   GetConversationParameters,
-  Result<{ success: boolean }, ActionError>
+  Result<Conversation, ActionError>
 >(async ({ id }) => {
-  const result = await makeCoreApiRequest<void>(`/v1/conversations/${id}`, {
-    method: "DELETE",
-  });
+  const result = await makeCoreApiRequest<Conversation>(
+    `/v1/conversations/${id}/archive`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ archived: true }),
+    },
+  );
 
   if (result.isErr()) {
     return {
       ok: false,
       error: result.error,
-    } as unknown as Result<{ success: boolean }, ActionError>;
+    } as unknown as Result<Conversation, ActionError>;
   }
 
   return {
     ok: true,
-    data: { success: true },
-  } as unknown as Result<{ success: boolean }, ActionError>;
+    data: result.value,
+  } as unknown as Result<Conversation, ActionError>;
 });
 
 /**

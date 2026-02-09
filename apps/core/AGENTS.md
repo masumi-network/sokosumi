@@ -346,6 +346,140 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 }
 ```
 
+### Cursor-Based Pagination
+
+**Always use cursor-based pagination for list endpoints** that may return large datasets. This ensures consistent performance and a better user experience.
+
+#### Required Imports
+
+```typescript
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
+import { jsonPaginatedSuccessResponse } from "@/helpers/openapi";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { ok } from "@/helpers/response";
+```
+
+#### Route Definition
+
+Use `cursorPaginationQuerySchema` for query parameters and `jsonPaginatedSuccessResponse` for the response:
+
+```typescript
+const route = createRoute({
+  method: "get",
+  path: "/{id}/items",
+  description: "Get items (paginated)",
+  tags: ["Resources"],
+  request: {
+    params: paramsSchema,
+    query: cursorPaginationQuerySchema, // Standard pagination query params
+  },
+  responses: {
+    200: jsonPaginatedSuccessResponse(
+      z.array(itemSchema),
+      "Items retrieved successfully",
+      {
+        data: [/* example items */],
+        meta: {
+          timestamp: "2025-01-21T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: 100,
+            nextCursor: "item_id_123",
+          },
+        },
+      },
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+```
+
+#### Implementation Pattern
+
+Follow this exact pattern for consistent pagination:
+
+```typescript
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const { authContext } = c.var;
+    const { id } = c.req.valid("param");
+    const queryParams = c.req.valid("query");
+
+    // Parse pagination parameters
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const takePlusOne = take + 1; // Fetch one extra to detect hasMore
+
+    // Build where clause
+    const where = {
+      resourceId: id,
+      // Add other filters as needed
+    };
+
+    // Fetch items and count in parallel
+    const [items, count] = await prisma.$transaction([
+      prisma.resourceItem.findMany({
+        where,
+        take: takePlusOne,
+        skip,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }], // Always include id for stable pagination
+      }),
+      prisma.resourceItem.count({ where }),
+    ]);
+
+    // Determine if there are more items
+    const hasMore = items.length === takePlusOne;
+    const pagedItems = items.slice(0, take); // Remove the extra item
+
+    // Create pagination metadata
+    const paginationMeta = createPaginationMeta(
+      pagedItems,
+      count,
+      take,
+      hasMore,
+      cursor,
+    );
+
+    // Return response with pagination metadata
+    return ok(c, z.array(itemSchema).parse(pagedItems), paginationMeta);
+  });
+}
+```
+
+#### Key Requirements
+
+1. **Query Schema**: Always use `cursorPaginationQuerySchema` - it provides `cursor` (optional string) and `limit` (number, defaults to 20, max 100)
+
+2. **Response Schema**: Use `jsonPaginatedSuccessResponse` instead of `jsonSuccessResponse` for paginated endpoints
+
+3. **Take + 1 Pattern**: Always fetch `take + 1` items to detect if there are more pages without an extra count query
+
+4. **Ordering**: Always include `id` as a secondary sort field for stable pagination:
+   ```typescript
+   orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+   ```
+
+5. **Pagination Metadata**: Use `createPaginationMeta()` helper which automatically:
+   - Sets `cursor` (current cursor or null)
+   - Sets `limit` (items per page)
+   - Sets `total` (total count)
+   - Sets `nextCursor` (ID of last item if hasMore, otherwise null)
+
+6. **Response Helper**: Pass pagination metadata as the third parameter to `ok()`:
+   ```typescript
+   return ok(c, data, paginationMeta);
+   ```
+
+#### Example: Reference Implementation
+
+See `apps/core/src/routes/v1/coworkers/[id]/events/get.ts` and `apps/core/src/routes/v1/conversations/[id]/items/get.ts` for complete reference implementations.
+
 ### Accessing Job-Related Resources
 
 Jobs have associated files (blobs) and links that can be accessed through Prisma queries:

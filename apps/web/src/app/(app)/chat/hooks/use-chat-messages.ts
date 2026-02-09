@@ -70,12 +70,20 @@ export function useChatMessages({
         type SerializedResult =
           | {
               ok: true;
-              data: Array<{
-                id: string;
-                role: string;
-                content: Array<{ type: string; text?: string }> | string;
-                createdAt: number;
-              }>;
+              data: {
+                items: Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  createdAt: number;
+                }>;
+                pagination: {
+                  cursor: string | null;
+                  limit: number;
+                  total: number;
+                  nextCursor: string | null;
+                } | null;
+              };
             }
           | { ok: false; error: unknown }
           | { isOk: () => boolean; value?: unknown };
@@ -105,21 +113,27 @@ export function useChatMessages({
             resultAny &&
             "ok" in resultAny &&
             resultAny.ok === true &&
-            "data" in resultAny
+            "data" in resultAny &&
+            resultAny.data &&
+            typeof resultAny.data === "object" &&
+            "items" in resultAny.data
           ) {
-            items = resultAny.data;
+            items = resultAny.data.items;
           } else if (
             resultAny &&
             "isOk" in resultAny &&
             typeof resultAny.isOk === "function"
           ) {
             if (resultAny.isOk() && "value" in resultAny) {
-              items = resultAny.value as Array<{
-                id: string;
-                role: string;
-                content: Array<{ type: string; text?: string }> | string;
-                createdAt: number;
-              }>;
+              const value = resultAny.value as {
+                items: Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  createdAt: number;
+                }>;
+              };
+              items = value.items;
             }
           }
 
@@ -171,23 +185,29 @@ export function useChatMessages({
                     retryResultAny &&
                     "ok" in retryResultAny &&
                     retryResultAny.ok === true &&
-                    "data" in retryResultAny
+                    "data" in retryResultAny &&
+                    retryResultAny.data &&
+                    typeof retryResultAny.data === "object" &&
+                    "items" in retryResultAny.data
                   ) {
-                    retryItems = retryResultAny.data;
+                    retryItems = retryResultAny.data.items;
                   } else if (
                     retryResultAny &&
                     "isOk" in retryResultAny &&
                     typeof retryResultAny.isOk === "function"
                   ) {
                     if (retryResultAny.isOk() && "value" in retryResultAny) {
-                      retryItems = retryResultAny.value as Array<{
-                        id: string;
-                        role: string;
-                        content:
-                          | Array<{ type: string; text?: string }>
-                          | string;
-                        createdAt: number;
-                      }>;
+                      const value = retryResultAny.value as {
+                        items: Array<{
+                          id: string;
+                          role: string;
+                          content:
+                            | Array<{ type: string; text?: string }>
+                            | string;
+                          createdAt: number;
+                        }>;
+                      };
+                      retryItems = value.items;
                     }
                   }
 
