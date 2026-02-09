@@ -19,19 +19,13 @@ export function HeaderSkeleton() {
 
   return (
     <div className="flex flex-col gap-4 pt-14 md:pt-0 lg:gap-6 xl:gap-8">
-      <div className="bg-background/95 fixed top-[64px] z-50 flex w-full items-center justify-between gap-4 p-4 md:hidden">
-        <Button variant="secondary" size="icon" disabled>
-          <ArrowLeft className="animate-pulse" />
-        </Button>
+      <div className="bg-background/95 fixed top-[64px] left-0 z-50 flex w-full items-center justify-between p-4 md:hidden md:gap-4">
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="icon" disabled>
-            <Bookmark className="animate-pulse" />
-          </Button>
-          <Button className="h-7 gap-2 px-2.5 text-xs" disabled>
-            <Plus />
-            {t("newJob")}
+            <ArrowLeft className="animate-pulse" />
           </Button>
         </div>
+        <div className="flex items-center gap-2" />
       </div>
       <div className="hidden w-full items-center justify-between md:flex">
         <div className="flex items-center gap-2">
@@ -82,7 +76,7 @@ export default function Header({
 
   return (
     <div className="flex flex-col gap-4 pt-14 md:pt-0 lg:gap-6 xl:gap-8">
-      <div className="bg-background/95 fixed top-[64px] z-50 flex w-full flex-row items-center justify-between gap-4 p-4 md:hidden">
+      <div className="bg-background/95 fixed top-[64px] left-0 z-50 flex w-full flex-row items-center justify-between gap-4 p-4 md:hidden">
         <AgentActionButtons
           agent={agent}
           showBackButton={true}

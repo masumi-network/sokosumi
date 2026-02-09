@@ -1218,8 +1218,6 @@
       }
     },
     "Subscriptions": {
-      "title": "Subscriptions",
-      "description": "Manage your monthly plan and included credits.",
       "statusSuccess": "Subscription updated successfully.",
       "statusCancel": "Subscription checkout was canceled.",
       "currentPlanBadge": "Current",

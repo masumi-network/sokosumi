@@ -157,12 +157,7 @@ export default function SubscriptionsPageContent({
   }
 
   return (
-    <div className="w-full space-y-8 px-2">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("description")}</p>
-      </div>
-
+    <div className="space-y-8">
       {statusMessage ? (
         <div className="bg-muted text-muted-foreground flex items-center gap-2 rounded-md px-4 py-3 text-sm">
           <CheckCircle2 className="size-4" />
@@ -232,22 +227,24 @@ export default function SubscriptionsPageContent({
         })}
       </div>
 
-      <div className="max-w-md">
+      <div className="w-full">
         <Card>
-          <CardHeader>
-            <CardTitle>{t("billingPortalTitle")}</CardTitle>
-            <CardDescription>
-              {currentPlan
-                ? t("billingPortalDescriptionWithPlan", {
-                    plan: t(`Plans.${getPlanTranslationKey(currentPlan)}.name`),
-                  })
-                : t("billingPortalDescription")}
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
+          <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-1.5">
+              <CardTitle>{t("billingPortalTitle")}</CardTitle>
+              <CardDescription>
+                {currentPlan
+                  ? t("billingPortalDescriptionWithPlan", {
+                      plan: t(
+                        `Plans.${getPlanTranslationKey(currentPlan)}.name`,
+                      ),
+                    })
+                  : t("billingPortalDescription")}
+              </CardDescription>
+            </div>
             <Button
               variant="outline"
-              className="w-full"
+              className="self-start md:self-center"
               disabled={isBillingPortalPending}
               onClick={() => void handleOpenBillingPortal()}
             >
@@ -260,7 +257,7 @@ export default function SubscriptionsPageContent({
                 t("billingPortalCta")
               )}
             </Button>
-          </CardFooter>
+          </CardHeader>
         </Card>
       </div>
     </div>
