@@ -68,6 +68,9 @@ jest.mock("@/lib/stripe/subscription-catalog", () => ({
     getSubscriptionCatalogMock(...args),
 }));
 
+const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
+const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
+
 function createInvoice(params: {
   amountPaid?: number;
   billingReason:
@@ -75,9 +78,11 @@ function createInvoice(params: {
     | "subscription_create"
     | "subscription_cycle"
     | "subscription_update";
+  created?: number;
   id: string;
   lines: Array<{
     amount?: number;
+    periodStart?: number | null;
     periodEnd?: number | null;
     productId: string;
     quantity?: number;
@@ -86,6 +91,7 @@ function createInvoice(params: {
   return {
     amount_paid: params.amountPaid ?? 1000,
     billing_reason: params.billingReason,
+    created: params.created ?? 1_735_689_600,
     customer: "cus_1",
     id: params.id,
     lines: {
@@ -99,12 +105,21 @@ function createInvoice(params: {
         quantity: line.quantity ?? 1,
         ...(line.periodEnd === null
           ? {}
-          : {
-              period: {
-                end: line.periodEnd ?? 1_735_689_600,
-                start: (line.periodEnd ?? 1_735_689_600) - 2_592_000,
-              },
-            }),
+          : (() => {
+              const periodEnd = line.periodEnd ?? DEFAULT_PERIOD_END_UNIX;
+              const period = {
+                end: periodEnd,
+                ...(line.periodStart === null
+                  ? {}
+                  : {
+                      start:
+                        line.periodStart ??
+                        periodEnd - DEFAULT_PERIOD_DURATION_SECONDS,
+                    }),
+              };
+
+              return { period };
+            })()),
       })),
     },
   };
@@ -151,8 +166,17 @@ describe("handleInvoicePaidEvent", () => {
       createInvoice({
         amountPaid: 1250,
         billingReason: "subscription_update",
+        created: 1_735_689_600,
         id: "in_sub_upgrade",
-        lines: [{ amount: 1250, productId: "prod_starter", quantity: 1 }],
+        lines: [
+          {
+            amount: 1250,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 1,
+          },
+        ],
       }) as never,
     );
 
@@ -179,10 +203,66 @@ describe("handleInvoicePaidEvent", () => {
       "STRIPE_SUBSCRIPTION_PERIOD",
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      new Date(1_735_689_600 * 1000),
+      new Date(1_736_294_400 * 1000),
     );
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("17500000000000"),
+    );
+  });
+
+  it("fails paid subscription_update invoices when created timestamp is missing", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, productId: "prod_free" },
+      pro: { credits: 14000, productId: "prod_pro" },
+      standard: { credits: 5250, productId: "prod_standard" },
+      starter: { credits: 1750, productId: "prod_starter" },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    const invoice = createInvoice({
+      amountPaid: 1250,
+      billingReason: "subscription_update",
+      id: "in_sub_upgrade_missing_created",
+      lines: [{ amount: 1250, productId: "prod_starter", quantity: 1 }],
+    }) as Record<string, unknown>;
+    delete invoice.created;
+
+    await expect(handleInvoicePaidEvent(invoice as never)).rejects.toThrow(
+      "Missing invoice created timestamp for upgrade invoice in_sub_upgrade_missing_created",
+    );
+  });
+
+  it("fails paid subscription_update invoices when period duration is missing", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, productId: "prod_free" },
+      pro: { credits: 14000, productId: "prod_pro" },
+      standard: { credits: 5250, productId: "prod_standard" },
+      starter: { credits: 1750, productId: "prod_starter" },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await expect(
+      handleInvoicePaidEvent(
+        createInvoice({
+          amountPaid: 1250,
+          billingReason: "subscription_update",
+          created: 1_735_689_600,
+          id: "in_sub_upgrade_missing_duration",
+          lines: [
+            {
+              amount: 1250,
+              periodEnd: 1_735_689_600,
+              periodStart: null,
+              productId: "prod_starter",
+              quantity: 1,
+            },
+          ],
+        }) as never,
+      ),
+    ).rejects.toThrow(
+      "Missing subscription period duration for upgrade invoice in_sub_upgrade_missing_duration",
     );
   });
 

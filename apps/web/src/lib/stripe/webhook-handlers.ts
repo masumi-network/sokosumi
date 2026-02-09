@@ -31,6 +31,44 @@ interface InvoiceCreditGrant {
   referenceType: CreditBucketReferenceType;
 }
 
+function getUpgradeCreditExpiry(
+  invoice: Stripe.Invoice,
+  periodDurationSeconds: number,
+): Date {
+  if (typeof invoice.created !== "number" || invoice.created <= 0) {
+    throw new Error(
+      `Missing invoice created timestamp for upgrade invoice ${invoice.id ?? "unknown"}`,
+    );
+  }
+
+  return new Date((invoice.created + periodDurationSeconds) * 1000);
+}
+
+function getSubscriptionCreditExpiry(params: {
+  invoice: Stripe.Invoice;
+  invoiceId: string;
+  maxPeriodDurationSeconds: number | null;
+  maxPeriodEndUnix: number | null;
+}): Date {
+  if (params.invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
+    if (params.maxPeriodDurationSeconds === null) {
+      throw new Error(
+        `Missing subscription period duration for upgrade invoice ${params.invoiceId}`,
+      );
+    }
+
+    return getUpgradeCreditExpiry(params.invoice, params.maxPeriodDurationSeconds);
+  }
+
+  if (params.maxPeriodEndUnix === null) {
+    throw new Error(
+      `Missing subscription period end for invoice ${params.invoiceId}`,
+    );
+  }
+
+  return new Date(params.maxPeriodEndUnix * 1000);
+}
+
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
 ): Promise<void> {
@@ -163,7 +201,8 @@ export async function handleInvoicePaidEvent(
   }
 
   let subscriptionCredits = 0;
-  let subscriptionCreditsPeriodEndUnix: number | null = null;
+  let maxSubscriptionPeriodEndUnix: number | null = null;
+  let maxSubscriptionPeriodDurationSeconds: number | null = null;
   if (matchedSubscriptionProducts.size > 0) {
     const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
     const creditsByProductId = new Map(
@@ -199,21 +238,38 @@ export async function handleInvoicePaidEvent(
 
       subscriptionCredits += creditsPerPlan * quantity;
 
+      const periodStart = lineItem.period?.start;
       const periodEnd = lineItem.period?.end;
       if (typeof periodEnd === "number" && periodEnd > 0) {
-        subscriptionCreditsPeriodEndUnix = Math.max(
+        maxSubscriptionPeriodEndUnix = Math.max(
           periodEnd,
-          subscriptionCreditsPeriodEndUnix ?? 0,
+          maxSubscriptionPeriodEndUnix ?? 0,
+        );
+      }
+      if (
+        typeof periodStart === "number" &&
+        periodStart > 0 &&
+        typeof periodEnd === "number" &&
+        periodEnd > periodStart
+      ) {
+        const periodDurationSeconds = periodEnd - periodStart;
+        maxSubscriptionPeriodDurationSeconds = Math.max(
+          periodDurationSeconds,
+          maxSubscriptionPeriodDurationSeconds ?? 0,
         );
       }
     }
-
-    if (subscriptionCredits > 0 && subscriptionCreditsPeriodEndUnix === null) {
-      throw new Error(
-        `Missing subscription period end for invoice ${invoiceId}`,
-      );
-    }
   }
+
+  const subscriptionCreditsExpiry =
+    subscriptionCredits > 0
+      ? getSubscriptionCreditExpiry({
+          invoice,
+          invoiceId,
+          maxPeriodDurationSeconds: maxSubscriptionPeriodDurationSeconds,
+          maxPeriodEndUnix: maxSubscriptionPeriodEndUnix,
+        })
+      : null;
 
   const creditGrants: InvoiceCreditGrant[] = [];
   if (oneTimeTopUpCredits > 0) {
@@ -227,7 +283,7 @@ export async function handleInvoicePaidEvent(
   if (subscriptionCredits > 0) {
     creditGrants.push({
       credits: subscriptionCredits,
-      expiresAt: new Date(subscriptionCreditsPeriodEndUnix! * 1000),
+      expiresAt: subscriptionCreditsExpiry,
       referenceId:
         oneTimeTopUpCredits > 0 ? `${invoiceId}:subscription` : invoiceId,
       referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
