@@ -67,6 +67,9 @@ model User {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
+  // Conversations
+  conversations Conversation[]
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")

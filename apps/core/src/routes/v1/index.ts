@@ -72,6 +72,7 @@ app.use(
 
 // Mount Routes
 app.route("/agents", agentsRouter);
+app.route("/conversations", conversationsRouter);
 app.route("/users", usersRouter);
 app.route("/jobs", jobsRouter);
 app.route("/coworkers", coworkersRouter);
