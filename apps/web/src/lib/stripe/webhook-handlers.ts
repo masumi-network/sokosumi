@@ -31,17 +31,8 @@ interface InvoiceCreditGrant {
   referenceType: CreditBucketReferenceType;
 }
 
-function getUpgradeCreditExpiry(
-  invoice: Stripe.Invoice,
-  periodDurationSeconds: number,
-): Date {
-  if (typeof invoice.created !== "number" || invoice.created <= 0) {
-    throw new Error(
-      `Missing invoice created timestamp for upgrade invoice ${invoice.id ?? "unknown"}`,
-    );
-  }
-
-  return new Date((invoice.created + periodDurationSeconds) * 1000);
+function getUpgradeCreditExpiry(periodDurationSeconds: number): Date {
+  return new Date(Date.now() + periodDurationSeconds * 1000);
 }
 
 function getSubscriptionCreditExpiry(params: {
@@ -57,7 +48,7 @@ function getSubscriptionCreditExpiry(params: {
       );
     }
 
-    return getUpgradeCreditExpiry(params.invoice, params.maxPeriodDurationSeconds);
+    return getUpgradeCreditExpiry(params.maxPeriodDurationSeconds);
   }
 
   if (params.maxPeriodEndUnix === null) {
@@ -67,6 +58,28 @@ function getSubscriptionCreditExpiry(params: {
   }
 
   return new Date(params.maxPeriodEndUnix * 1000);
+}
+
+function calculateProratedSubscriptionCredits(params: {
+  invoiceId: string;
+  lineAmount: number;
+  monthlyAmount: number;
+  planCredits: number;
+  productId: string;
+}): number {
+  if (params.lineAmount <= 0) {
+    return 0;
+  }
+
+  if (params.monthlyAmount <= 0) {
+    throw new Error(
+      `Invalid monthly amount for subscription product ${params.productId} on invoice ${params.invoiceId}`,
+    );
+  }
+
+  return Math.floor(
+    (params.lineAmount * params.planCredits) / params.monthlyAmount,
+  );
 }
 
 export async function handleInvoicePaidEvent(
@@ -205,10 +218,13 @@ export async function handleInvoicePaidEvent(
   let maxSubscriptionPeriodDurationSeconds: number | null = null;
   if (matchedSubscriptionProducts.size > 0) {
     const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
-    const creditsByProductId = new Map(
+    const catalogByProductId = new Map(
       Object.values(subscriptionCatalog).map((plan) => [
         plan.productId,
-        plan.credits,
+        {
+          credits: plan.credits,
+          monthlyAmount: plan.monthlyAmount,
+        },
       ]),
     );
 
@@ -224,19 +240,40 @@ export async function handleInvoicePaidEvent(
         continue;
       }
 
-      const creditsPerPlan = creditsByProductId.get(productId);
-      if (!creditsPerPlan) {
+      const catalogPlan = catalogByProductId.get(productId);
+      if (!catalogPlan) {
         throw new Error(
           `No credits found in subscription catalog for product ${productId}`,
         );
       }
 
-      const quantity = lineItem.quantity ?? 1;
-      if (quantity <= 0) {
+      const lineAmount = lineItem.amount ?? 0;
+      if (
+        invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
+        lineAmount <= 0
+      ) {
         continue;
       }
 
-      subscriptionCredits += creditsPerPlan * quantity;
+      const quantity = lineItem.quantity ?? 1;
+      if (
+        quantity <= 0 &&
+        invoice.billing_reason !== SUBSCRIPTION_UPDATE_BILLING_REASON
+      ) {
+        continue;
+      }
+
+      if (invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
+        subscriptionCredits += calculateProratedSubscriptionCredits({
+          invoiceId,
+          lineAmount,
+          monthlyAmount: catalogPlan.monthlyAmount,
+          planCredits: catalogPlan.credits,
+          productId,
+        });
+      } else {
+        subscriptionCredits += catalogPlan.credits * quantity;
+      }
 
       const periodStart = lineItem.period?.start;
       const periodEnd = lineItem.period?.end;

@@ -127,6 +127,8 @@ function createInvoice(params: {
 
 describe("handleInvoicePaidEvent", () => {
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-02-01T00:00:00.000Z"));
     jest.clearAllMocks();
     getUserByStripeCustomerIdMock.mockResolvedValue({
       id: "user-1",
@@ -134,6 +136,10 @@ describe("handleInvoicePaidEvent", () => {
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
     findExistingBucketMock.mockResolvedValue(null);
     createTransactionMock.mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
@@ -152,12 +158,20 @@ describe("handleInvoicePaidEvent", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("grants subscription credits for paid subscription_update invoices without expiring existing buckets", async () => {
+  it("grants positive prorated credits for paid subscription_update invoices", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, productId: "prod_free" },
-      pro: { credits: 14000, productId: "prod_pro" },
-      standard: { credits: 5250, productId: "prod_standard" },
-      starter: { credits: 1750, productId: "prod_starter" },
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
     });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -203,42 +217,27 @@ describe("handleInvoicePaidEvent", () => {
       "STRIPE_SUBSCRIPTION_PERIOD",
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      new Date(1_736_294_400 * 1000),
+      new Date("2026-02-08T00:00:00.000Z"),
     );
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
-      BigInt("17500000000000"),
-    );
-  });
-
-  it("fails paid subscription_update invoices when created timestamp is missing", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, productId: "prod_free" },
-      pro: { credits: 14000, productId: "prod_pro" },
-      standard: { credits: 5250, productId: "prod_standard" },
-      starter: { credits: 1750, productId: "prod_starter" },
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    const invoice = createInvoice({
-      amountPaid: 1250,
-      billingReason: "subscription_update",
-      id: "in_sub_upgrade_missing_created",
-      lines: [{ amount: 1250, productId: "prod_starter", quantity: 1 }],
-    }) as Record<string, unknown>;
-    delete invoice.created;
-
-    await expect(handleInvoicePaidEvent(invoice as never)).rejects.toThrow(
-      "Missing invoice created timestamp for upgrade invoice in_sub_upgrade_missing_created",
+      BigInt("8750000000000"),
     );
   });
 
   it("fails paid subscription_update invoices when period duration is missing", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, productId: "prod_free" },
-      pro: { credits: 14000, productId: "prod_pro" },
-      standard: { credits: 5250, productId: "prod_standard" },
-      starter: { credits: 1750, productId: "prod_starter" },
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
     });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -268,10 +267,18 @@ describe("handleInvoicePaidEvent", () => {
 
   it("grants subscription credits for subscription_cycle invoices", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, productId: "prod_free" },
-      pro: { credits: 14000, productId: "prod_pro" },
-      standard: { credits: 5250, productId: "prod_standard" },
-      starter: { credits: 1750, productId: "prod_starter" },
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
     });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -356,10 +363,18 @@ describe("handleInvoicePaidEvent", () => {
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, productId: "prod_free" },
-      pro: { credits: 14000, productId: "prod_pro" },
-      standard: { credits: 5250, productId: "prod_standard" },
-      starter: { credits: 1750, productId: "prod_starter" },
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
     });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -430,10 +445,18 @@ describe("handleInvoicePaidEvent", () => {
 
   it("fails when subscription period end is missing", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, productId: "prod_free" },
-      pro: { credits: 14000, productId: "prod_pro" },
-      standard: { credits: 5250, productId: "prod_standard" },
-      starter: { credits: 1750, productId: "prod_starter" },
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
     });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
