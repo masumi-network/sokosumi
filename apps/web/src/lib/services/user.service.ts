@@ -219,49 +219,68 @@ export const userService = (() => {
    * - Otherwise → returns true (show onboarding)
    */
   async function showOnboarding(session: Session): Promise<boolean> {
-    return await prisma.$transaction(async (tx) => {
-      if (!session) {
-        return false;
-      }
+    if (!session) {
+      return false;
+    }
 
-      const user = session.user;
-      if (!user) {
-        return false;
-      }
+    const user = session.user;
+    if (!user) {
+      return false;
+    }
 
-      if (user.onboardingCompleted) {
-        return false;
-      }
+    if (user.onboardingCompleted) {
+      return false;
+    }
 
-      const membershipOrgIds =
-        await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
+    let membershipOrgIds: string[] = [];
+    try {
+      membershipOrgIds =
+        await memberRepository.getMembersOrganizationIdsByUserId(
+          user.id,
+          prisma,
+        );
+    } catch (error) {
+      console.error("Failed to fetch memberships for showOnboarding", error);
+      return false;
+    }
 
-      let shouldComplete = false;
-      if (membershipOrgIds.length > 0) {
-        shouldComplete = true;
-      } else {
-        try {
-          const hasPendingInvitation =
-            await invitationRepository.hasPendingInvitationByEmail(
-              user.email,
-              tx,
-            );
-          shouldComplete = hasPendingInvitation;
-        } catch (error) {
-          console.error(
-            "Failed to fetch pending invitations for showOnboarding",
-            error,
+    let shouldComplete = false;
+    if (membershipOrgIds.length > 0) {
+      shouldComplete = true;
+    } else {
+      try {
+        const hasPendingInvitation =
+          await invitationRepository.hasPendingInvitationByEmail(
+            user.email,
+            prisma,
           );
-        }
-      }
-
-      if (shouldComplete) {
-        await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
+        shouldComplete = hasPendingInvitation;
+      } catch (error) {
+        console.error(
+          "Failed to fetch pending invitations for showOnboarding",
+          error,
+        );
         return false;
       }
+    }
 
-      return true;
-    });
+    if (shouldComplete) {
+      try {
+        await userRepository.updateUserOnboardingCompleted(
+          user.id,
+          true,
+          prisma,
+        );
+      } catch (error) {
+        console.error(
+          "Failed to update onboardingCompleted for showOnboarding",
+          error,
+        );
+      }
+      return false;
+    }
+
+    return true;
   }
 
   /**

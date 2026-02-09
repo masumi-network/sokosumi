@@ -2,13 +2,11 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
 
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
-import type { Session } from "@/lib/auth/auth";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { taskManagerMenuEnabled } from "@/lib/flags/task-manager";
 import { userService } from "@/lib/services";
@@ -18,23 +16,6 @@ import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
-}
-
-async function OnboardingRedirectGuard({ session }: { session: Session }) {
-  const [pendingInvitationId, shouldShowOnboarding] = await Promise.all([
-    userService.getFirstPendingInvitationId(),
-    userService.showOnboarding(session),
-  ]);
-
-  if (pendingInvitationId) {
-    return redirect(`/accept-invitation/${pendingInvitationId}`);
-  }
-
-  if (shouldShowOnboarding) {
-    return redirect("/onboarding");
-  }
-
-  return null;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -53,17 +34,29 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStorePromise = cookies();
   const session = await getSessionOrRedirect();
 
-  const [cookieStore, isTaskManagerMenuEnabled] = await Promise.all([
+  const [
+    cookieStore,
+    isTaskManagerMenuEnabled,
+    pendingInvitationId,
+    shouldShowOnboarding,
+  ] = await Promise.all([
     cookieStorePromise,
     taskManagerMenuEnabled(),
+    userService.getFirstPendingInvitationId(),
+    userService.showOnboarding(session),
   ]);
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
+  if (pendingInvitationId) {
+    return redirect(`/accept-invitation/${pendingInvitationId}`);
+  }
+
+  if (shouldShowOnboarding) {
+    return redirect("/onboarding");
+  }
+
   return (
     <QueryProvider>
-      <Suspense fallback={null}>
-        <OnboardingRedirectGuard session={session} />
-      </Suspense>
       <SidebarProvider
         defaultOpen={defaultOpen}
         className="flex max-w-svw overflow-clip"
