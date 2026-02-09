@@ -21,7 +21,7 @@ export const authClient = createAuthClient({
     oauthProviderClient(),
     jwtClient(),
     stripeClient({
-      subscription: false,
+      subscription: true,
     }),
   ],
 });

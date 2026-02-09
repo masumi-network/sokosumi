@@ -6,8 +6,10 @@ import { getSession } from "@/lib/auth/utils";
 import { McpPageContent } from "./components/mcp-page-content";
 
 export default async function McpPage() {
-  const session = await getSession();
-  const t = await getTranslations("App.MCP");
+  const [session, t] = await Promise.all([
+    getSession(),
+    getTranslations("App.MCP"),
+  ]);
 
   if (!session?.user) {
     return null;
