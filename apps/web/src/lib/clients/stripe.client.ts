@@ -43,7 +43,7 @@ export const stripeClient = (() => {
       }
     }
 
-    return prices.find(isValidCreditPrice) ?? null;
+    return null;
   }
 
   function validatePrice(price: Stripe.Price): Price {

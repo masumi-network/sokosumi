@@ -57,7 +57,10 @@ function getSubscriptionCreditExpiry(params: {
       );
     }
 
-    return getUpgradeCreditExpiry(params.invoice, params.maxPeriodDurationSeconds);
+    return getUpgradeCreditExpiry(
+      params.invoice,
+      params.maxPeriodDurationSeconds,
+    );
   }
 
   if (params.maxPeriodEndUnix === null) {
