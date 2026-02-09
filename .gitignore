@@ -33,3 +33,4 @@ yarn-error.log*
 
 # reports
 lint-report.json
+.cursor/sokosumi-perf*

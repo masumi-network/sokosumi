@@ -90,6 +90,7 @@ export async function completeOnboarding(
       true,
       prisma,
     );
+    await userService.markOnboardingCompleteForMe();
 
     revalidatePath("/");
     return Ok({ redirectUrl: "/agents" });

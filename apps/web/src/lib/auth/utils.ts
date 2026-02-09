@@ -2,6 +2,7 @@ import "server-only";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth, Session } from "@/lib/auth/auth";
@@ -94,13 +95,13 @@ export async function getAuthContext(): Promise<AuthContext | null> {
  * @returns Promise resolving to the user's session if valid, null otherwise
  *
  */
-export async function getSession(): Promise<Session | null> {
+export const getSession = cache(async (): Promise<Session | null> => {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   return session;
-}
+});
 
 /**
  * Gets the current user's session or redirects to the login page if no valid session is found.
