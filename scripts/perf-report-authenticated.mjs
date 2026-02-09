@@ -23,8 +23,7 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
 
-const DEFAULT_BASE_URL =
-  "https://sokosumi-app-preprod-git-dev-831-performance-impr-86caf7-masumi.vercel.app";
+const DEFAULT_BASE_URL = "https://sokosumi-app-preprod.vercel.app";
 const DEFAULT_AUDIT_PATH = "/agents";
 const DEBUG_PORT = 9222;
 const OUTPUT_DIR = join(ROOT_DIR, ".cursor");
