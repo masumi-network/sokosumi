@@ -304,40 +304,6 @@ export async function handleInvoicePaidEvent(
       return;
     }
 
-    if (
-      isPaidSubscriptionUpdate &&
-      grantsToCreate.some(
-        (grant) => grant.referenceType === "STRIPE_SUBSCRIPTION_PERIOD",
-      )
-    ) {
-      const now = new Date();
-      const expiredBucketsResult = await tx.creditBucket.updateMany({
-        where: {
-          userId,
-          organizationId,
-          expiresAt: { gt: now },
-          OR: [
-            { referenceType: "STRIPE_SUBSCRIPTION_PERIOD" },
-            {
-              AND: [
-                { referenceType: "STRIPE_TOPUP" },
-                { expiresAt: { not: null } },
-              ],
-            },
-          ],
-        },
-        data: {
-          expiresAt: now,
-        },
-      });
-
-      if (expiredBucketsResult.count > 0) {
-        console.log(
-          `✅ Expired ${expiredBucketsResult.count} active subscription credit bucket(s) before applying upgrade invoice ${invoiceId}`,
-        );
-      }
-    }
-
     for (const grant of grantsToCreate) {
       const cents = convertCreditsToCents(grant.credits);
       await tx.transaction.create({

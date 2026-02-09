@@ -4,14 +4,12 @@ const getUserByStripeCustomerIdMock = jest.fn();
 const getOrganizationByStripeCustomerIdMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
-const expireCreditBucketsMock = jest.fn();
 const createTransactionMock = jest.fn();
 
 const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     creditBucket: {
       findUnique: (...args: unknown[]) => findExistingBucketMock(...args),
-      updateMany: (...args: unknown[]) => expireCreditBucketsMock(...args),
     },
     transaction: {
       create: (...args: unknown[]) => createTransactionMock(...args),
@@ -120,7 +118,6 @@ describe("handleInvoicePaidEvent", () => {
     });
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
     findExistingBucketMock.mockResolvedValue(null);
-    expireCreditBucketsMock.mockResolvedValue({ count: 0 });
     createTransactionMock.mockResolvedValue({});
   });
 
@@ -140,14 +137,13 @@ describe("handleInvoicePaidEvent", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("grants subscription credits and expires active recurring buckets for paid subscription_update invoices", async () => {
+  it("grants subscription credits for paid subscription_update invoices without expiring existing buckets", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       free: { credits: 250, productId: "prod_free" },
       pro: { credits: 14000, productId: "prod_pro" },
       standard: { credits: 5250, productId: "prod_standard" },
       starter: { credits: 1750, productId: "prod_starter" },
     });
-    expireCreditBucketsMock.mockResolvedValue({ count: 2 });
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -161,20 +157,7 @@ describe("handleInvoicePaidEvent", () => {
     );
 
     expect(getSubscriptionCatalogMock).toHaveBeenCalledTimes(1);
-    expect(expireCreditBucketsMock).toHaveBeenCalledTimes(1);
     expect(createTransactionMock).toHaveBeenCalledTimes(1);
-
-    const expireCall = expireCreditBucketsMock.mock.calls[0][0] as {
-      where: {
-        OR: unknown[];
-      };
-    };
-    expect(expireCall.where.OR).toEqual([
-      { referenceType: "STRIPE_SUBSCRIPTION_PERIOD" },
-      {
-        AND: [{ referenceType: "STRIPE_TOPUP" }, { expiresAt: { not: null } }],
-      },
-    ]);
 
     const createCall = createTransactionMock.mock.calls[0][0] as {
       data: {
