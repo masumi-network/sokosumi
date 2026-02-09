@@ -1,8 +1,10 @@
-import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 const querySchema = z.object({
   email: z.email().openapi({
@@ -27,8 +29,7 @@ const route = createRoute({
   method: "get",
   path: "/registered",
   tags: ["Users"],
-  security: [],
-  description: "User registered and email verified status",
+  description: "User registered and email verified status (coworker only)",
   request: {
     query: querySchema,
   },
@@ -48,12 +49,19 @@ const route = createRoute({
       },
     ),
     400: jsonErrorResponse("Bad Request - Invalid email format"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
   },
 });
 
-export default function mount(app: OpenAPIHono) {
+export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const { authContext } = c.var;
     const { email } = c.req.valid("query");
+
+    if (!authContext.coworkerId) {
+      throw forbidden("Only coworkers can access the registered user lookup");
+    }
 
     const user = await prisma.user.findUnique({
       where: { email },
