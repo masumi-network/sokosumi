@@ -49,17 +49,31 @@ export function TaskDetailActions({
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
 
-  const statusActionLabel =
-    status === TaskStatus.DRAFT ? labels.markAsReady : labels.revertToDraft;
-  const statusActionTarget =
-    status === TaskStatus.DRAFT ? TaskStatus.READY : TaskStatus.DRAFT;
+  const statusActions =
+    status === TaskStatus.CANCELED
+      ? [
+          { label: labels.revertToDraft, target: TaskStatus.DRAFT },
+          { label: labels.markAsReady, target: TaskStatus.READY },
+        ]
+      : [
+          {
+            label:
+              status === TaskStatus.DRAFT
+                ? labels.markAsReady
+                : labels.revertToDraft,
+            target:
+              status === TaskStatus.DRAFT ? TaskStatus.READY : TaskStatus.DRAFT,
+          },
+        ];
+  const canEditOrDelete =
+    status === TaskStatus.DRAFT || status === TaskStatus.READY;
 
-  const handleStatusToggle = () => {
+  const handleStatusToggle = (desiredStatus: TaskStatus) => {
     startStatusTransition(async () => {
       try {
         await setTaskStatusFromDrag({
           taskId,
-          desiredStatus: statusActionTarget,
+          desiredStatus,
         });
         router.refresh();
         toast.success(t("Tasks.Detail.actions.updateStatusSuccess"));
@@ -85,69 +99,76 @@ export function TaskDetailActions({
 
   return (
     <div className="flex items-center gap-1.5">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleStatusToggle}
-        disabled={isStatusPending}
-        className="h-7 gap-1.5 px-2.5 text-xs"
-      >
-        {isStatusPending ? <Loader2 className="size-3 animate-spin" /> : null}
-        <span>{statusActionLabel}</span>
-      </Button>
-      <Link
-        href={`/tasks/${taskId}/edit`}
-        aria-disabled={isStatusPending}
-        tabIndex={isStatusPending ? -1 : 0}
-        className={`inline-flex items-center ${isStatusPending ? "pointer-events-none opacity-70" : ""}`}
-      >
+      {statusActions.map((action) => (
         <Button
-          asChild
-          variant="ghost"
+          key={action.target}
+          variant="outline"
           size="sm"
-          className="h-7 gap-1 px-2 text-xs"
+          onClick={() => handleStatusToggle(action.target)}
           disabled={isStatusPending}
-          tabIndex={-1}
+          className="h-7 gap-1.5 px-2.5 text-xs"
         >
-          <span className="flex items-center gap-1">
-            <Pencil className="size-3" aria-hidden />
-            <span>{labels.edit}</span>
-          </span>
+          {isStatusPending ? <Loader2 className="size-3 animate-spin" /> : null}
+          <span>{action.label}</span>
         </Button>
-      </Link>
-      <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive h-7 gap-1 px-2 text-xs"
-            disabled={isDeletePending || isStatusPending}
+      ))}
+      {canEditOrDelete ? (
+        <>
+          <Link
+            href={`/tasks/${taskId}/edit`}
+            aria-disabled={isStatusPending}
+            tabIndex={isStatusPending ? -1 : 0}
+            className={`inline-flex items-center ${isStatusPending ? "pointer-events-none opacity-70" : ""}`}
           >
-            <Trash className="size-3" aria-hidden />
-            <span>{labels.delete}</span>
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{labels.confirmDelete}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {labels.confirmDeleteDescription}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletePending}>
-              {t("cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeletePending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs"
+              disabled={isStatusPending}
+              tabIndex={-1}
             >
-              {labels.delete}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <span className="flex items-center gap-1">
+                <Pencil className="size-3" aria-hidden />
+                <span>{labels.edit}</span>
+              </span>
+            </Button>
+          </Link>
+          <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive h-7 gap-1 px-2 text-xs"
+                disabled={isDeletePending || isStatusPending}
+              >
+                <Trash className="size-3" aria-hidden />
+                <span>{labels.delete}</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{labels.confirmDelete}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {labels.confirmDeleteDescription}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeletePending}>
+                  {t("cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={isDeletePending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {labels.delete}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      ) : null}
     </div>
   );
 }

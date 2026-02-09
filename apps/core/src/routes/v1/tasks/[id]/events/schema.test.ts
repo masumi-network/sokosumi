@@ -88,4 +88,39 @@ describe("createTaskEventRequestSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts credits for canceled tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.CANCELED,
+      credits: 3,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts completed tasks without credits", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts zero credits for completed tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      credits: 0,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects credits for non-chargeable statuses", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      credits: 2,
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

@@ -1,12 +1,8 @@
-import type {
-  AgentWithCreditsPrice,
-  Coworker,
-  TaskEvent,
-} from "@sokosumi/database";
+import type { AgentWithCreditsPrice, Coworker } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
 
 import type { TaskWithEvents } from "@/lib/services/task.service";
-import type { TaskWithCoworker } from "@/lib/types/task";
+import type { TaskEvent, TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
@@ -22,6 +18,7 @@ function getColumnId(status: TaskStatus): TaskWithCoworker["columnId"] {
       return "input-required";
     case TaskStatus.COMPLETED:
     case TaskStatus.FAILED:
+    case TaskStatus.CANCELED:
       return "complete";
     default:
       return "todo";

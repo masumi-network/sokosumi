@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
+import { isChargeableTaskStatus } from "./helper";
+
 export const createTaskEventRequestSchema = z
   .object({
     status: z
@@ -35,22 +37,12 @@ export const createTaskEventRequestSchema = z
       });
     }
 
-    if (data.status === TaskStatus.COMPLETED) {
-      if (data.credits === undefined) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Credits are required when completing a task",
-          path: ["credits"],
-        });
-      }
-    } else {
-      if (data.credits !== undefined) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Credits can only be set when completing a task",
-          path: ["credits"],
-        });
-      }
+    if (!isChargeableTaskStatus(data.status) && data.credits !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Credits can only be set when completing or canceling a task",
+        path: ["credits"],
+      });
     }
 
     if (data.status === TaskStatus.AUTHENTICATION_REQUIRED) {
