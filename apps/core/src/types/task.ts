@@ -7,6 +7,11 @@ import {
 
 export const taskInclude = {
   events: {
+    include: {
+      transaction: {
+        select: { amount: true },
+      },
+    },
     orderBy: {
       createdAt: "asc",
     },
@@ -20,9 +25,6 @@ export const taskInclude = {
     orderBy: {
       createdAt: "asc",
     },
-  },
-  transaction: {
-    select: { amount: true },
   },
 } as const;
 

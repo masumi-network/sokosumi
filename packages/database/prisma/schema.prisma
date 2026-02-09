@@ -474,7 +474,7 @@ model Transaction {
 
   job           Job?           @relation("TransactionJob")
   refundedJob   Job?           @relation("RefundedTransactionJob")
-  task          Task?          @relation("TransactionTask")
+  taskEvents    TaskEvent[]    @relation("TransactionTaskEvent")
   coworkerUsage CoworkerUsage? @relation("TransactionCoworkerUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
@@ -1044,9 +1044,6 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
-  transactionId String?      @unique
-  transaction   Transaction? @relation("TransactionTask", fields: [transactionId], references: [id])
-
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
@@ -1067,6 +1064,7 @@ enum TaskStatus {
   RUNNING
   COMPLETED
   FAILED
+  CANCELED
 }
 
 enum TaskEventOrigin {
@@ -1092,6 +1090,7 @@ model TaskEvent {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   status            TaskStatus?
+  transactionId     String?
   comment           String?
   authenticationUrl String?
   origin            TaskEventOrigin @default(SOKOSUMI)
@@ -1102,6 +1101,9 @@ model TaskEvent {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
+  transaction Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([transactionId])
   @@map("taskEvent")
 }
 

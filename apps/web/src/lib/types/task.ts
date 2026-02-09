@@ -1,11 +1,13 @@
 import type {
   AgentWithCreditsPrice,
   Coworker,
-  TaskEvent,
+  TaskEvent as DatabaseTaskEvent,
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
 
-export type { TaskEvent };
+export type TaskEvent = DatabaseTaskEvent & {
+  credits?: number | null;
+};
 
 export type KanbanColumnId =
   | "backlog"

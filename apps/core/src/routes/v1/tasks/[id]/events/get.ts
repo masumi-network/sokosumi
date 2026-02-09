@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { requireTaskAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapTaskEvent } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -40,9 +41,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return tx.taskEvent.findMany({
         where: { taskId: id },
         orderBy: { createdAt: "asc" },
+        include: {
+          transaction: {
+            select: { amount: true },
+          },
+        },
       });
     });
 
-    return ok(c, z.array(taskEventSchema).parse(events));
+    return ok(c, z.array(taskEventSchema).parse(events.map(mapTaskEvent)));
   });
 }

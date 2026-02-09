@@ -29,6 +29,8 @@ export const taskEventSchema = z
     updatedAt: dateTimeSchema,
     userId: z.string().nullish().openapi({ example: "user_123" }),
     coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
+    transactionId: z.string().nullish().openapi({ example: "txn_123" }),
+    credits: z.number().nullish().openapi({ example: 2.5 }),
     comment: z.string().nullish().openapi({ example: "Looks good." }),
     authenticationUrl: z
       .string()

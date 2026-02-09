@@ -35,22 +35,16 @@ export const createTaskEventRequestSchema = z
       });
     }
 
-    if (data.status === TaskStatus.COMPLETED) {
-      if (data.credits === undefined) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Credits are required when completing a task",
-          path: ["credits"],
-        });
-      }
-    } else {
-      if (data.credits !== undefined) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Credits can only be set when completing a task",
-          path: ["credits"],
-        });
-      }
+    const canChargeStatus =
+      data.status === TaskStatus.COMPLETED ||
+      data.status === TaskStatus.CANCELED;
+
+    if (!canChargeStatus && data.credits !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Credits can only be set when completing or canceling a task",
+        path: ["credits"],
+      });
     }
 
     if (data.status === TaskStatus.AUTHENTICATION_REQUIRED) {

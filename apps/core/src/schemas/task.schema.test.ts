@@ -16,11 +16,15 @@ describe("taskEventWithTaskIdSchema", () => {
       status: TaskStatus.RUNNING,
       userId: "user_123",
       coworkerId: "cow_123",
+      transactionId: "txn_123",
+      credits: 2.5,
     });
 
     expect(result.taskId).toBe("tsk_123");
     expect(typeof result.createdAt).toBe("string");
     expect(typeof result.updatedAt).toBe("string");
+    expect(result.transactionId).toBe("txn_123");
+    expect(result.credits).toBe(2.5);
   });
 
   it("fails when taskId is missing", () => {

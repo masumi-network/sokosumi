@@ -6,11 +6,12 @@ import { requireTaskAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { validateStatusTransition } from "@/helpers/task";
-import { createTaskCompletionTransaction } from "@/helpers/task-credits";
+import { mapTaskEvent, validateStatusTransition } from "@/helpers/task";
+import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
 import { createTaskEventRequestSchema } from "./schema";
@@ -48,6 +49,30 @@ const route = createRoute({
   },
 });
 
+const taskEventTransactionInclude = {
+  transaction: {
+    select: { amount: true },
+  },
+} as const;
+
+function isChargeableStatus(status: TaskStatus): boolean {
+  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
+}
+
+function getActorData(authContext: AuthenticationContext) {
+  if (authContext.coworkerId) {
+    return {
+      userId: null,
+      coworkerId: authContext.coworkerId,
+    };
+  } else {
+    return {
+      userId: authContext.userId,
+      coworkerId: null,
+    };
+  }
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
@@ -59,24 +84,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const task = await requireTaskAccess(authContext, taskId, tx);
         const { status, comment, credits, authenticationUrl, origin } = body;
 
-        const isStatusEvent = status !== undefined;
-        const isCommentOnlyEvent = !isStatusEvent && comment !== undefined;
-
-        // Handle status event (status can include optional comment)
-        if (isStatusEvent) {
+        if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
 
           let transactionId: string | null = null;
-          if (status === TaskStatus.COMPLETED) {
-            if (task.transactionId) {
-              throw conflict("Task already charged");
-            }
-            if (credits === undefined) {
-              throw unprocessableEntity(
-                "Credits are required when completing a task",
-              );
-            }
-            transactionId = await createTaskCompletionTransaction({
+          if (isChargeableStatus(status) && credits !== undefined) {
+            transactionId = await createTaskEventTransaction({
               userId: task.userId,
               organizationId: task.organizationId,
               credits,
@@ -84,27 +97,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           }
 
-          // Create the status event (with optional comment)
           const event = await tx.taskEvent.create({
             data: {
-              taskId: taskId,
+              taskId,
               status,
               comment,
               authenticationUrl: authenticationUrl ?? null,
               origin,
-              userId: authContext.coworkerId ? null : authContext.userId,
-              coworkerId: authContext.coworkerId ?? null,
+              ...getActorData(authContext),
+              transactionId,
             },
+            include: taskEventTransactionInclude,
           });
 
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
-            data: {
-              status,
-              ...(transactionId && {
-                transactionId,
-              }),
-            },
+            data: { status },
           });
           // Verify that exactly one row was updated to prevent race conditions
           // If another transaction already completed the task, this will be 0
@@ -112,26 +120,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             throw conflict("Task status was changed by another request");
           }
 
-          return { event, userId: task.userId };
+          return { event: mapTaskEvent(event), userId: task.userId };
         }
 
-        // Handle comment-only event (no status change)
-        if (isCommentOnlyEvent) {
-          const event = await tx.taskEvent.create({
-            data: {
-              taskId: taskId,
-              status: null,
-              comment,
-              origin,
-              userId: authContext.coworkerId ? null : authContext.userId,
-              coworkerId: authContext.coworkerId ?? null,
-            },
-          });
-
-          return { event, userId: task.userId };
+        if (comment === undefined) {
+          throw unprocessableEntity("Either status or comment must be provided");
         }
 
-        throw unprocessableEntity("Either status or comment must be provided");
+        const event = await tx.taskEvent.create({
+          data: {
+            taskId,
+            status: null,
+            comment,
+            origin,
+            ...getActorData(authContext),
+          },
+        });
+
+        return { event: mapTaskEvent(event), userId: task.userId };
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -139,13 +145,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     try {
-      if (event) {
-        await publishTaskEventData({
-          userId: userId,
-          taskId: taskId,
-          eventType: "task_event",
-        });
-      }
+      await publishTaskEventData({
+        userId,
+        taskId,
+        eventType: "task_event",
+      });
     } catch (error) {
       Sentry.captureException(error, {
         tags: {

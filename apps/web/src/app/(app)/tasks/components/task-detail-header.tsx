@@ -23,8 +23,10 @@ interface TaskDetailHeaderProps {
 }
 
 export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
-  const canEdit =
-    task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
+  const canManage =
+    task.status === TaskStatus.DRAFT ||
+    task.status === TaskStatus.READY ||
+    task.status === TaskStatus.CANCELED;
 
   return (
     <div className="space-y-4">
@@ -38,7 +40,7 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
           <span>{labels.back}</span>
         </Link>
 
-        {canEdit ? (
+        {canManage ? (
           <TaskDetailActions
             taskId={task.id}
             status={task.status}
