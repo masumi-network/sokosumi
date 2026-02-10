@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type SyntheticEvent, useState } from "react";
 
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Coworker } from "@/app/chat/utils/types";
@@ -82,19 +83,23 @@ function ModelIcon({
         className,
       )}
     >
-      <img
+      <Image
         src={imageUrls.light}
         alt=""
+        width={24}
+        height={24}
         className="block size-full object-contain dark:hidden"
-        onError={(e) => {
+        onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
           e.currentTarget.style.display = "none";
         }}
       />
-      <img
+      <Image
         src={imageUrls.dark}
         alt=""
+        width={24}
+        height={24}
         className="hidden size-full object-contain dark:block"
-        onError={(e) => {
+        onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
           e.currentTarget.style.display = "none";
         }}
       />
