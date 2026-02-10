@@ -39,18 +39,13 @@ export default function CoworkerModelSelector({
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
 
+  // John temporarily removed; Demosthenes shown as disabled (Coming Soon)
   const coworkers: Coworker[] = [
     {
       id: "hannah",
       name: t("coworkers.hannah.name"),
       description: t("coworkers.hannah.description"),
       useCase: t("coworkers.hannah.useCase"),
-    },
-    {
-      id: "john",
-      name: t("coworkers.john.name"),
-      description: t("coworkers.john.description"),
-      useCase: t("coworkers.john.useCase"),
     },
     {
       id: "demosthenes",
@@ -60,13 +55,15 @@ export default function CoworkerModelSelector({
     },
   ];
 
+  const COMING_SOON_COWORKER_ID = "demosthenes";
+
   const models: Model[] = [
-    { id: "gpt-4o-mini", name: "GPT-4o Mini" },
-    { id: "gpt4o", name: "GPT-4o" },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-    { id: "mixtral-8x22b", name: "Mixtral 8x22B" },
-    { id: "mixtral-8x7b", name: "Mixtral 8x7B" },
+    { id: "gpt-4o-mini", name: t("modelNames.gpt4oMini") },
+    { id: "gpt4o", name: t("modelNames.gpt4o") },
+    { id: "gemini-2.0-flash", name: t("modelNames.gemini20Flash") },
+    { id: "gemini-2.5-pro", name: t("modelNames.gemini25Pro") },
+    { id: "mixtral-8x22b", name: t("modelNames.mixtral8x22b") },
+    { id: "mixtral-8x7b", name: t("modelNames.mixtral8x7b") },
   ];
 
   // Helper function to get coworker image URL
@@ -184,17 +181,15 @@ export default function CoworkerModelSelector({
           ) : (
             <>
               <Avatar className="size-5 shrink-0">
-                {getCoworkerImageUrl(selectedCoworker.id) && (
-                  <AvatarImage
-                    src={getCoworkerImageUrl(selectedCoworker.id)!}
-                    alt={selectedCoworker.name}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                )}
+                <AvatarImage
+                  src={getCoworkerImageUrl(selectedCoworker.id) ?? undefined}
+                  alt={selectedCoworker.name}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  {selectedCoworker.name.charAt(0)}
+                  {selectedCoworker.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <span className="hidden sm:inline">{selectedCoworker.name}</span>
@@ -213,42 +208,55 @@ export default function CoworkerModelSelector({
           {/* Agentic Coworkers Section */}
           <div className="px-3 pt-3 pb-2">
             <h3 className="text-foreground text-xs font-semibold">
-              Agentic Coworkers
+              {t("agenticCoworkers")}
             </h3>
           </div>
           <div className="px-1 pb-2">
-            {coworkers.map((coworker) => (
-              <button
-                key={coworker.id}
-                type="button"
-                onClick={() => handleCoworkerSelect(coworker)}
-                className={cn(
-                  "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                  selectedCoworker.id === coworker.id && "bg-accent",
-                )}
-              >
-                <Avatar className="size-6 shrink-0">
-                  {getCoworkerImageUrl(coworker.id) && (
+            {coworkers.map((coworker) => {
+              const isComingSoon = coworker.id === COMING_SOON_COWORKER_ID;
+              return (
+                <button
+                  key={coworker.id}
+                  type="button"
+                  disabled={isComingSoon}
+                  onClick={() =>
+                    !isComingSoon && handleCoworkerSelect(coworker)
+                  }
+                  className={cn(
+                    "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
+                    selectedCoworker.id === coworker.id && "bg-accent",
+                    isComingSoon &&
+                      "cursor-not-allowed opacity-60 hover:bg-transparent hover:opacity-60",
+                  )}
+                >
+                  <Avatar className="size-6 shrink-0">
                     <AvatarImage
-                      src={getCoworkerImageUrl(coworker.id)!}
+                      src={getCoworkerImageUrl(coworker.id) ?? undefined}
                       alt={coworker.name}
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
                     />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {coworker.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="flex-1 text-left">{coworker.name}</span>
+                  {isComingSoon && (
+                    <span className="text-muted-foreground text-xs">
+                      ({t("comingSoon")})
+                    </span>
                   )}
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {coworker.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="flex-1 text-left">{coworker.name}</span>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
 
           {/* Models Section */}
           <div className="border-t px-3 pt-3 pb-2">
-            <h3 className="text-foreground text-xs font-semibold">Models</h3>
+            <h3 className="text-foreground text-xs font-semibold">
+              {t("models")}
+            </h3>
           </div>
           <div className="px-1 pb-2">
             {models.map((model) => (

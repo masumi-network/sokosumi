@@ -37,6 +37,7 @@ export default function SelectCoworkerModal({
   const t = useTranslations("App.Chat.Chat");
   const [selectedCoworkerId, setSelectedCoworkerId] = useState<string>("");
 
+  // John temporarily removed; Demosthenes shown as disabled (Coming Soon)
   const coworkers: Coworker[] = [
     {
       id: "hannah",
@@ -45,18 +46,14 @@ export default function SelectCoworkerModal({
       useCase: t("coworkers.hannah.useCase"),
     },
     {
-      id: "john",
-      name: t("coworkers.john.name"),
-      description: t("coworkers.john.description"),
-      useCase: t("coworkers.john.useCase"),
-    },
-    {
       id: "demosthenes",
       name: t("coworkers.demosthenes.name"),
       description: t("coworkers.demosthenes.description"),
       useCase: t("coworkers.demosthenes.useCase"),
     },
   ];
+
+  const COMING_SOON_COWORKER_ID = "demosthenes";
 
   const selectedCoworker = coworkers.find((c) => c.id === selectedCoworkerId);
 
@@ -91,27 +88,37 @@ export default function SelectCoworkerModal({
               <SelectValue placeholder={t("selectCoworker.placeholder")} />
             </SelectTrigger>
             <SelectContent>
-              {coworkers.map((coworker) => (
-                <SelectItem key={coworker.id} value={coworker.id}>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="size-6">
-                      {getCoworkerImageUrl(coworker.id) && (
+              {coworkers.map((coworker) => {
+                const isComingSoon = coworker.id === COMING_SOON_COWORKER_ID;
+                return (
+                  <SelectItem
+                    key={coworker.id}
+                    value={coworker.id}
+                    disabled={isComingSoon}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar className="size-6">
                         <AvatarImage
-                          src={getCoworkerImageUrl(coworker.id)!}
+                          src={getCoworkerImageUrl(coworker.id) ?? undefined}
                           alt={coworker.name}
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
                           }}
                         />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          {coworker.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{coworker.name}</span>
+                      {isComingSoon && (
+                        <span className="text-muted-foreground">
+                          ({t("comingSoon")})
+                        </span>
                       )}
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {coworker.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{coworker.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           {selectedCoworker && (

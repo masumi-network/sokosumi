@@ -6,7 +6,6 @@ import type { Dispatch, SetStateAction } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
-import type { Attachment } from "@/components/chat/preview-attachment";
 
 interface ChatInputContainerProps {
   selectedChatId: string | null;
@@ -14,10 +13,6 @@ interface ChatInputContainerProps {
   setInput: Dispatch<SetStateAction<string>>;
   status: UseChatHelpers<UIMessage>["status"];
   stop: () => void;
-  attachments: Attachment[];
-  setAttachments: (
-    attachments: Attachment[] | ((prev: Attachment[]) => Attachment[]),
-  ) => void;
   messages: UIMessage[];
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
   sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
@@ -37,8 +32,6 @@ export default function ChatInputContainer({
   setInput,
   status,
   stop,
-  attachments,
-  setAttachments,
   messages,
   setMessages,
   sendMessage,
@@ -56,8 +49,6 @@ export default function ChatInputContainer({
           setInput={setInput}
           status={status}
           stop={stop}
-          attachments={attachments}
-          setAttachments={setAttachments}
           messages={messages}
           setMessages={setMessages}
           sendMessage={sendMessage}

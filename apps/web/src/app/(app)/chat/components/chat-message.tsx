@@ -52,7 +52,7 @@ export default function ChatMessage({
           <>
             <img
               src={modelImageUrls.light}
-              alt={modelName || "Model"}
+              alt={modelName || t("modelAlt")}
               className="block size-full object-contain p-0.5 dark:hidden"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -60,7 +60,7 @@ export default function ChatMessage({
             />
             <img
               src={modelImageUrls.dark}
-              alt={modelName || "Model"}
+              alt={modelName || t("modelAlt")}
               className="hidden size-full object-contain p-0.5 dark:block"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -84,7 +84,7 @@ export default function ChatMessage({
         return (
           <AvatarImage
             src={imageUrl}
-            alt={coworkerName || "Coworker"}
+            alt={coworkerName || t("coworkerAlt")}
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}
@@ -182,7 +182,7 @@ export default function ChatMessage({
           {userImageUrl ? (
             <AvatarImage
               src={userImageUrl}
-              alt={userName ?? "User avatar"}
+              alt={userName ?? t("userAvatarAlt")}
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}

@@ -15,7 +15,6 @@ import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { useConversations } from "@/app/chat/hooks/use-conversations";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
-import type { Attachment } from "@/components/chat/preview-attachment";
 import { addConversationItem } from "@/lib/actions/conversation/core-api-actions";
 
 import ChatInputContainer from "./chat-input-container";
@@ -47,7 +46,6 @@ export default function ChatInterface({
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [input, setInput] = useState<string>("");
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState<{
     id: string;
@@ -142,7 +140,6 @@ export default function ChatInterface({
     urlConversationId,
     pathname,
     conversations,
-    selectedConversation,
     selectConversation,
     selectedChatId,
     setSelectedChatId,
@@ -389,8 +386,6 @@ export default function ChatInterface({
               setInput={setInput}
               status={status}
               stop={handleStop}
-              attachments={attachments}
-              setAttachments={setAttachments}
               messages={messages}
               setMessages={setMessages}
               sendMessage={sendMessage}
@@ -409,8 +404,6 @@ export default function ChatInterface({
               isTransitioning={isWelcomeTransitioning}
               input={input}
               setInput={setInput}
-              attachments={attachments}
-              setAttachments={setAttachments}
               messages={messages}
               setMessages={setMessages}
               sendMessage={sendMessage}

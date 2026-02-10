@@ -7,7 +7,6 @@ import type { Dispatch, SetStateAction } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
-import type { Attachment } from "@/components/chat/preview-attachment";
 
 interface WelcomeScreenProps {
   userName?: string;
@@ -16,10 +15,6 @@ interface WelcomeScreenProps {
   isTransitioning: boolean;
   input: string;
   setInput: Dispatch<SetStateAction<string>>;
-  attachments: Attachment[];
-  setAttachments: (
-    attachments: Attachment[] | ((prev: Attachment[]) => Attachment[]),
-  ) => void;
   messages: UIMessage[];
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
   sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
@@ -33,8 +28,6 @@ export default function WelcomeScreen({
   isLoading,
   input,
   setInput,
-  attachments,
-  setAttachments,
   messages,
   setMessages,
   sendMessage,
@@ -62,8 +55,6 @@ export default function WelcomeScreen({
             setInput={setInput}
             status={status}
             stop={stop}
-            attachments={attachments}
-            setAttachments={setAttachments}
             messages={messages}
             setMessages={setMessages}
             sendMessage={sendMessage}

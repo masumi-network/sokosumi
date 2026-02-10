@@ -2,6 +2,7 @@
 
 import type { ChatStatus } from "ai";
 import { Loader2Icon, SendIcon, SquareIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type {
   ComponentProps,
   HTMLAttributes,
@@ -34,13 +35,16 @@ export type PromptInputTextareaProps = ComponentProps<typeof Textarea> & {
 export const PromptInputTextarea = ({
   onChange,
   className,
-  placeholder = "What would you like to know?",
+  placeholder,
   minHeight = 48,
   maxHeight = 164,
   disableAutoResize = false,
   resizeOnNewLinesOnly = false,
   ...props
 }: PromptInputTextareaProps) => {
+  const t = useTranslations("App.Chat.Chat");
+  const resolvedPlaceholder = placeholder ?? t("promptPlaceholder");
+
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === "Enter") {
       if (e.nativeEvent.isComposing) {
@@ -81,7 +85,7 @@ export const PromptInputTextarea = ({
       name="message"
       onChange={onChange}
       onKeyDown={handleKeyDown}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       {...props}
     />
   );

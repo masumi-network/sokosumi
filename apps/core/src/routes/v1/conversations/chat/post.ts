@@ -14,7 +14,6 @@ const chatRequestSchema = z.object({
   messages: z.array(
     z.object({
       role: z.enum(["user", "assistant", "system"]),
-      // Accept UIMessage format (parts) or CoreMessage format (content)
       parts: z
         .array(
           z.object({
@@ -73,13 +72,10 @@ const _route = createRoute({
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  // Use regular route handler for streaming (OpenAPI validation interferes with streams)
-  // Register route definition separately for OpenAPI documentation
   app.post("/chat", async (c) => {
     try {
       const { authContext } = c.var;
 
-      // Manually parse and validate request body
       const body = await c.req.json();
       const parsedBody = chatRequestSchema.safeParse(body);
 
@@ -91,14 +87,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const { messages, conversationId, model } = parsedBody.data;
 
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        throw badRequest("Invalid messages format");
-      }
-
       let internalConversationId: string | null = null;
       let selectedModel: string | null = model || null;
 
-      // If conversationId is provided, validate ownership
       if (conversationId) {
         const conversation = await prisma.conversation.findFirst({
           where: {
@@ -114,7 +105,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         internalConversationId = conversation.id;
 
-        // If model is not provided in request body, fetch it from conversation metadata
         if (!selectedModel) {
           const metadata = conversation.metadata as Record<
             string,
@@ -127,13 +117,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      // Transform messages to CoreMessage format for streamText
-      // Messages can come in UIMessage format (with parts) or CoreMessage format (with content)
-      // streamText accepts CoreMessage format directly (role + content)
       const modelMessages = messages.map((msg) => {
         let contentText = "";
 
-        // Handle UIMessage format (parts)
         if ("parts" in msg && Array.isArray(msg.parts)) {
           contentText = msg.parts
             .map((part: { type?: string; text?: string }) => {
@@ -144,13 +130,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             })
             .filter(Boolean)
             .join("");
-        }
-        // Handle CoreMessage format (content as string)
-        else if (typeof msg.content === "string") {
+        } else if (typeof msg.content === "string") {
           contentText = msg.content;
-        }
-        // Handle CoreMessage format (content as array)
-        else if (Array.isArray(msg.content)) {
+        } else if (Array.isArray(msg.content)) {
           contentText = (msg.content as Array<{ text?: string }>)
             .map((part) => part?.text || "")
             .filter(Boolean)
@@ -163,11 +145,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       });
 
-      // Add the latest user message to conversation if we have a conversation ID
       if (internalConversationId && messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.role === "user" || lastMessage.role === "system") {
-          // Extract text from either parts (UIMessage) or content (CoreMessage)
           let extractedText = "";
           if ("parts" in lastMessage && Array.isArray(lastMessage.parts)) {
             extractedText = lastMessage.parts
@@ -187,7 +167,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const formattedContent =
             formatMessageContentForConversation(extractedText);
 
-          // Add message to conversation (fire-and-forget)
           prisma.conversationItem
             .create({
               data: {
@@ -198,24 +177,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               },
             })
             .catch((error) => {
-              // Log error but don't fail the request
               console.error("Failed to add message to conversation:", error);
             });
         }
       }
 
-      // Stream response from OpenRouter Responses API
       const result = await openrouterClient.streamChatResponse(
         modelMessages,
         selectedModel,
       );
 
-      // Return the streaming response directly
-      // Hono supports returning streaming responses directly
-      // Using app.post() instead of app.openapi() to avoid response validation issues with streaming
       return result;
     } catch (error) {
-      // Re-throw HTTPException as-is, wrap other errors
       if (
         error &&
         typeof error === "object" &&

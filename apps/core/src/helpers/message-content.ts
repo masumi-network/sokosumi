@@ -1,14 +1,8 @@
-/**
- * Extracts text content from various message formats
- * Supports multiple message formats from AI SDK and other sources
- */
 export function extractMessageText(message: Record<string, unknown>): string {
-  // Check if content exists and is a string
   if ("content" in message && typeof message.content === "string") {
     return message.content;
   }
 
-  // Check if content exists and is an array
   if ("content" in message && Array.isArray(message.content)) {
     return message.content
       .map((c: unknown): string => {
@@ -20,7 +14,6 @@ export function extractMessageText(message: Record<string, unknown>): string {
       .join("");
   }
 
-  // Check if parts exists (AI SDK v6 format)
   if ("parts" in message && Array.isArray(message.parts)) {
     return message.parts
       .map((part: unknown): string => {
@@ -32,14 +25,9 @@ export function extractMessageText(message: Record<string, unknown>): string {
       .join("");
   }
 
-  // Fallback: return empty string
   return "";
 }
 
-/**
- * Formats message content for Core API conversation items
- * Returns format: [{"type": "input_text", "text": "..."}]
- */
 export function formatMessageContentForConversation(
   text: string,
 ): Array<{ type: string; text: string }> {

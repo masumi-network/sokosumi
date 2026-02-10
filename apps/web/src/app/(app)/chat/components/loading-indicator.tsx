@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Chat } from "@/app/chat/utils/types";
@@ -14,6 +16,7 @@ export default function LoadingIndicator({
   selectedChatId,
   chats,
 }: LoadingIndicatorProps) {
+  const t = useTranslations("App.Chat.Chat");
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const coworkerId = selectedChat?.coworker?.id;
   const modelId = selectedChat?.model?.id;
@@ -30,7 +33,7 @@ export default function LoadingIndicator({
           <>
             <img
               src={modelImageUrls.light}
-              alt={modelName || "Model"}
+              alt={modelName || t("modelAlt")}
               className="block size-full object-contain p-0.5 dark:hidden"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -38,7 +41,7 @@ export default function LoadingIndicator({
             />
             <img
               src={modelImageUrls.dark}
-              alt={modelName || "Model"}
+              alt={modelName || t("modelAlt")}
               className="hidden size-full object-contain p-0.5 dark:block"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -62,7 +65,7 @@ export default function LoadingIndicator({
         return (
           <AvatarImage
             src={imageUrl}
-            alt={coworkerName || "Coworker"}
+            alt={coworkerName || t("coworkerAlt")}
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}

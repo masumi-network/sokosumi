@@ -22,21 +22,16 @@ export function ChatErrorFallback() {
     <div className="flex min-h-[400px] w-full items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-red-600">
-            {t("errorTitle", { default: "Chat Error" })}
-          </CardTitle>
+          <CardTitle className="text-red-600">{t("chatErrorTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            {t("errorDescription", {
-              default:
-                "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",
-            })}
+            {t("errorFallbackDescription")}
           </p>
         </CardContent>
         <CardFooter>
           <Button onClick={handleRetry} variant="primary" className="w-full">
-            {t("tryAgain", { default: "Try Again" })}
+            {t("tryAgain")}
           </Button>
         </CardFooter>
       </Card>

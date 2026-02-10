@@ -11,8 +11,7 @@ interface UseChatSelectionProps {
   urlConversationId: string | null;
   pathname: string;
   conversations: Conversation[];
-  selectedConversation: Conversation | null;
-  selectConversation: (id: string) => Promise<void>;
+  selectConversation: (id: string) => Promise<Conversation | null>;
   selectedChatId: string | null;
   setSelectedChatId: (id: string | null) => void;
   setSelectedModel: (model: { id: string; name: string } | null) => void;
@@ -31,7 +30,6 @@ export function useChatSelection({
   urlConversationId,
   pathname,
   conversations,
-  selectedConversation,
   selectConversation,
   selectedChatId,
   setSelectedChatId,
@@ -56,15 +54,12 @@ export function useChatSelection({
       return;
     }
 
-    // Load conversation from DB
-    await selectConversation(chatId);
+    // Load conversation from DB; use returned value — state update is async
+    const loadedConversation = await selectConversation(chatId);
 
-    // Load model info from conversation metadata if it's a model conversation
-    // Use selectedConversation if available, otherwise find in conversations list
+    // Use freshly loaded conversation for metadata; fallback to list if load failed
     const conversation =
-      selectedConversation?.id === chatId
-        ? selectedConversation
-        : conversations.find((c) => c.id === chatId);
+      loadedConversation ?? conversations.find((c) => c.id === chatId);
     if (conversation) {
       const metadata = conversation.metadata as Record<string, unknown> | null;
       const conversationType = metadata?.type as string | undefined;

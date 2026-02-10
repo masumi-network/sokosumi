@@ -23,7 +23,7 @@ interface UseConversationsReturn {
     metadata?: Record<string, unknown>,
     title?: string,
   ) => Promise<Conversation | null>;
-  selectConversation: (id: string) => Promise<void>;
+  selectConversation: (id: string) => Promise<ConversationWithItems | null>;
   updateSelectedConversation: (
     metadata?: Record<string, unknown>,
     title?: string,
@@ -214,7 +214,7 @@ export function useConversations(): UseConversationsReturn {
    * Selects and loads a conversation by internal database ID
    */
   const selectConversation = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<ConversationWithItems | null> => {
       setIsLoading(true);
       setError(null);
 
@@ -228,11 +228,13 @@ export function useConversations(): UseConversationsReturn {
         if (result.isErr) {
           setError(result.error);
           setIsLoading(false);
-          return;
+          return null;
         }
 
-        setSelectedConversation(result.value);
+        const conversation = result.value;
+        setSelectedConversation(conversation);
         setIsLoading(false);
+        return conversation;
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -250,6 +252,7 @@ export function useConversations(): UseConversationsReturn {
         });
 
         setIsLoading(false);
+        return null;
       }
     },
     [parseServerActionResult],

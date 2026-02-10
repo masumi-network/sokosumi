@@ -220,7 +220,7 @@ export default function ChatListsClient() {
                                         <>
                                           <img
                                             src={modelImageUrls.light}
-                                            alt={modelName || "Model"}
+                                            alt={modelName || t("modelAlt")}
                                             className="block size-full object-contain p-0.5 dark:hidden"
                                             onError={(e) => {
                                               e.currentTarget.style.display =
@@ -229,7 +229,7 @@ export default function ChatListsClient() {
                                           />
                                           <img
                                             src={modelImageUrls.dark}
-                                            alt={modelName || "Model"}
+                                            alt={modelName || t("modelAlt")}
                                             className="hidden size-full object-contain p-0.5 dark:block"
                                             onError={(e) => {
                                               e.currentTarget.style.display =
@@ -255,7 +255,7 @@ export default function ChatListsClient() {
                                     );
                                   }
 
-                                  // If it's a coworker conversation, show coworker image
+                                  // If it's a coworker conversation, show coworker image or initial
                                   if (coworkerId) {
                                     const imageMap: Record<string, string> = {
                                       hannah: "/images/coworkers/hannah.png",
@@ -263,21 +263,37 @@ export default function ChatListsClient() {
                                         "/images/coworkers/demosthenes.png",
                                     };
                                     const imageUrl = imageMap[coworkerId];
-                                    return imageUrl ? (
-                                      <AvatarImage
-                                        src={imageUrl}
-                                        alt={coworkerName || "Coworker"}
-                                        onError={(
-                                          e: React.SyntheticEvent<
-                                            HTMLImageElement,
-                                            Event
-                                          >,
-                                        ) => {
-                                          e.currentTarget.style.display =
-                                            "none";
-                                        }}
-                                      />
-                                    ) : null;
+                                    if (imageUrl) {
+                                      return (
+                                        <AvatarImage
+                                          src={imageUrl}
+                                          alt={coworkerName || t("coworkerAlt")}
+                                          onError={(
+                                            e: React.SyntheticEvent<
+                                              HTMLImageElement,
+                                              Event
+                                            >,
+                                          ) => {
+                                            e.currentTarget.style.display =
+                                              "none";
+                                          }}
+                                        />
+                                      );
+                                    }
+                                    // No image for this coworker (e.g. John) – show initial
+                                    return (
+                                      <AvatarFallback
+                                        className={cn(
+                                          "bg-primary text-primary-foreground text-xs",
+                                          isActive &&
+                                            "bg-primary-foreground text-primary",
+                                        )}
+                                      >
+                                        {coworkerName
+                                          ? coworkerName.charAt(0).toUpperCase()
+                                          : coworkerId.charAt(0).toUpperCase()}
+                                      </AvatarFallback>
+                                    );
                                   }
 
                                   // Default fallback
@@ -316,7 +332,7 @@ export default function ChatListsClient() {
                                 onClick={(e) =>
                                   handleDeleteClick(e, conversation.id)
                                 }
-                                aria-label="Delete chat"
+                                aria-label={t("deleteChatAriaLabel")}
                               >
                                 <Trash2 className="size-3.5" />
                               </Button>

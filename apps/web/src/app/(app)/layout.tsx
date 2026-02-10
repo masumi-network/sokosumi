@@ -35,19 +35,19 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStorePromise = cookies();
   const session = await getSessionOrRedirect();
 
-  const [cookieStore, isTaskManagerMenuEnabled, pendingInvitationId] =
-    await Promise.all([
-      cookieStorePromise,
-      taskManagerMenuEnabled(),
-      userService.getFirstPendingInvitationId(),
-    ]);
+  const [
+    cookieStore,
+    isTaskManagerMenuEnabled,
+    pendingInvitationId,
+    isChatUIEnabled,
+  ] = await Promise.all([
+    cookieStorePromise,
+    taskManagerMenuEnabled(),
+    userService.getFirstPendingInvitationId(),
+    chatUIEnabled(),
+  ]);
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
-  const session = await getSessionOrRedirect();
-  const isTaskManagerMenuEnabled = await taskManagerMenuEnabled();
-  const isChatUIEnabled = await chatUIEnabled();
-
-  const pendingInvitationId = await userService.getFirstPendingInvitationId();
   if (pendingInvitationId) {
     return redirect(`/accept-invitation/${pendingInvitationId}`);
   }

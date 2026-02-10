@@ -9,17 +9,14 @@ export type AgentInfo = {
   description?: string | null;
 };
 
-// OpenRouter Responses API event types
 const RESPONSES_API_EVENTS = {
   OUTPUT_TEXT_DELTA: "response.output_text.delta",
   COMPLETED: "response.completed",
 } as const;
 
-// SSE stream markers
 const SSE_DONE_MARKER = "[DONE]";
 const SSE_DATA_PREFIX = "data: ";
 
-// UIMessage stream event types
 const UI_MESSAGE_EVENTS = {
   START: "start",
   TEXT_START: "text-start",
@@ -73,10 +70,6 @@ export const openrouterClient = (() => {
       }
     },
 
-    /**
-     * Stream chat response using OpenRouter Responses API
-     * Converts Responses API format to UIMessage stream format for compatibility
-     */
     async streamChatResponse(messages: unknown[], modelId: string | null) {
       const chatApiKey = getEnv().OPENROUTER_CHAT_API_KEY;
       if (!chatApiKey) {
@@ -84,8 +77,6 @@ export const openrouterClient = (() => {
       }
 
       const modelIdentifier = getModelIdentifier(modelId);
-      // Transform messages to Responses API input format
-      // Responses API uses 'input' field with structured message array format
       const responsesInput = messages.map((msg: unknown) => {
         const m = msg as { role: string; content: string };
         return {
@@ -100,7 +91,6 @@ export const openrouterClient = (() => {
         };
       });
 
-      // Call OpenRouter Responses API directly
       const requestBody = {
         model: modelIdentifier,
         input: responsesInput,
@@ -129,10 +119,8 @@ export const openrouterClient = (() => {
         throw new Error("No response body from OpenRouter Responses API");
       }
 
-      // Convert Responses API SSE stream to UIMessage stream format
       const stream = createUIMessageStream(response.body);
 
-      // Return Response with proper headers for UIMessage stream
       return new Response(stream, {
         headers: {
           "Content-Type": "text/event-stream",
@@ -145,10 +133,6 @@ export const openrouterClient = (() => {
   };
 })();
 
-/**
- * Creates a ReadableStream that converts OpenRouter Responses API SSE format
- * to Vercel AI SDK UIMessage stream format
- */
 function createUIMessageStream(
   body: ReadableStream<Uint8Array>,
 ): ReadableStream<Uint8Array> {
@@ -161,9 +145,6 @@ function createUIMessageStream(
   let textStarted = false;
   let streamClosed = false;
 
-  /**
-   * Closes the stream with proper cleanup events
-   */
   function closeStream(controller: ReadableStreamDefaultController) {
     if (streamClosed) return;
     streamClosed = true;
@@ -183,16 +164,12 @@ function createUIMessageStream(
     controller.close();
   }
 
-  /**
-   * Handles a text delta chunk from the Responses API
-   */
   function handleTextDelta(
     delta: string,
     controller: ReadableStreamDefaultController,
   ) {
     if (streamClosed) return;
 
-    // Send text-start event on first delta
     if (!textStarted) {
       const startEvent = {
         type: UI_MESSAGE_EVENTS.TEXT_START,
@@ -204,7 +181,6 @@ function createUIMessageStream(
       textStarted = true;
     }
 
-    // Send text-delta event
     const deltaEvent = {
       type: UI_MESSAGE_EVENTS.TEXT_DELTA,
       delta,
@@ -215,71 +191,57 @@ function createUIMessageStream(
     );
   }
 
-  /**
-   * Processes a single SSE data line
-   */
   function processSSELine(
     data: string,
     controller: ReadableStreamDefaultController,
   ): boolean {
-    // Handle [DONE] marker
     if (data === SSE_DONE_MARKER) {
       closeStream(controller);
-      return true; // Signal to stop processing
+      return true;
     }
 
-    // Parse JSON chunk
     try {
       const chunk = JSON.parse(data) as { type: string; delta?: string };
 
-      // Handle text delta events
       if (
         chunk.type === RESPONSES_API_EVENTS.OUTPUT_TEXT_DELTA &&
         chunk.delta &&
         typeof chunk.delta === "string"
       ) {
         handleTextDelta(chunk.delta, controller);
-        return false; // Continue processing
+        return false;
       }
 
-      // Handle completion event
       if (chunk.type === RESPONSES_API_EVENTS.COMPLETED) {
         closeStream(controller);
-        return true; // Signal to stop processing
+        return true;
       }
     } catch (parseError) {
-      // Skip invalid JSON chunks (non-fatal)
       console.warn("Failed to parse Responses API chunk:", parseError);
     }
 
-    return false; // Continue processing
+    return false;
   }
 
   return new ReadableStream({
     async start(controller) {
-      // Send initial start event
       const startEvent = { type: UI_MESSAGE_EVENTS.START };
       controller.enqueue(
         encoder.encode(`data: ${JSON.stringify(startEvent)}\n\n`),
       );
 
       try {
-        // Process stream chunks until done or closed
         while (!streamClosed) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          // Decode and buffer incoming data
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
-          // Process each complete line
           for (const line of lines) {
-            // Skip SSE comments and empty lines
             if (!line.trim() || line.startsWith(":")) continue;
 
-            // Process data lines
             if (line.startsWith(SSE_DATA_PREFIX)) {
               const data = line.slice(SSE_DATA_PREFIX.length);
               const shouldStop = processSSELine(data, controller);
@@ -288,12 +250,10 @@ function createUIMessageStream(
           }
         }
 
-        // Ensure stream is properly closed if loop exits naturally
         if (!streamClosed) {
           closeStream(controller);
         }
       } catch (error) {
-        // Handle errors gracefully
         const errorMessage =
           error instanceof Error ? error.message : String(error);
 
