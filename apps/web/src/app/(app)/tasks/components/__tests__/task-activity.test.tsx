@@ -187,4 +187,25 @@ describe("TaskActivitySection", () => {
       screen.queryByRole("img", { name: "Alice" }),
     ).not.toBeInTheDocument();
   });
+
+  it("renders extracted file and link sources for markdown comments", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-comment-with-sources", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment:
+          "Please check [Report](https://example.com/report.pdf) and [Docs](https://docs.example.com/article).",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByRole("link", { name: /report\.pdf/i })).toHaveAttribute(
+      "href",
+      "https://example.com/report.pdf",
+    );
+    expect(
+      screen.getByRole("link", { name: /docs\.example\.com/i }),
+    ).toHaveAttribute("href", "https://docs.example.com/article");
+  });
 });

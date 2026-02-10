@@ -4,10 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
+import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { getSession } from "@/lib/auth/utils";
+import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -36,8 +38,17 @@ export default async function TaskDetailPage({
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = new Map<string, string>();
+  const agentPreviewById = new Map<
+    string,
+    { name: string; icon: string | null }
+  >();
   for (const agent of agents) {
-    agentNameById.set(agent.id, agent.name);
+    const name = getAgentName(agent);
+    agentNameById.set(agent.id, name);
+    agentPreviewById.set(agent.id, {
+      name,
+      icon: getAgentResolvedIcon(agent),
+    });
   }
   const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
   const currentUser = session?.user
@@ -91,6 +102,15 @@ export default async function TaskDetailPage({
             agentNameById={agentNameById}
             expandLabel={t("expand")}
             collapseLabel={t("collapse")}
+          />
+
+          <TaskJobs
+            title={t("jobs")}
+            jobs={taskResult.jobs}
+            agentPreviewById={agentPreviewById}
+            emptyLabel={t("jobsEmpty")}
+            untitledLabel={t("jobsUntitled")}
+            unknownAgentLabel={t("jobsUnknownAgent")}
           />
 
           <TaskActivitySection

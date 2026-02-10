@@ -1,0 +1,96 @@
+import "@testing-library/jest-dom";
+import { JobType, SokosumiJobStatus } from "@sokosumi/database";
+import { render, screen } from "@testing-library/react";
+
+import { TaskJobs } from "@/app/tasks/components/task-jobs";
+import type { TaskWithEvents } from "@/lib/services/task.service";
+
+jest.mock("@/components/jobs/job-status-badge", () => ({
+  JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
+}));
+
+jest.mock("@/lib/utils/datetime", () => ({
+  formatTimeAgo: (value: string | Date) => `ago:${String(value)}`,
+}));
+
+function createJob(
+  overrides: Partial<TaskWithEvents["jobs"][number]>,
+): TaskWithEvents["jobs"][number] {
+  return {
+    id: "job-1",
+    agentId: "agent-1",
+    name: "Job name",
+    createdAt: "2026-02-09T10:00:00.000Z",
+    status: SokosumiJobStatus.PROCESSING,
+    jobType: JobType.FREE,
+    ...overrides,
+  } as unknown as TaskWithEvents["jobs"][number];
+}
+
+const baseProps = {
+  title: "Jobs",
+  emptyLabel: "No jobs yet.",
+  untitledLabel: "Untitled job",
+  unknownAgentLabel: "Unknown agent",
+};
+
+describe("TaskJobsSection", () => {
+  it("renders empty state when there are no jobs", () => {
+    render(
+      <TaskJobs
+        {...baseProps}
+        jobs={[]}
+        agentPreviewById={
+          new Map<string, { name: string; icon: string | null }>()
+        }
+      />,
+    );
+
+    expect(screen.getByText("No jobs yet.")).toBeInTheDocument();
+  });
+
+  it("renders jobs newest first, links to agent job detail, and uses fallbacks", () => {
+    const jobs: TaskWithEvents["jobs"] = [
+      createJob({
+        id: "job-older",
+        agentId: "agent-1",
+        name: "Older job",
+        createdAt: new Date("2026-02-09T10:00:00.000Z"),
+        status: SokosumiJobStatus.COMPLETED,
+      }),
+      createJob({
+        id: "job-newer",
+        agentId: "agent-2",
+        name: "   ",
+        createdAt: new Date("2026-02-10T10:00:00.000Z"),
+        status: SokosumiJobStatus.PROCESSING,
+      }),
+    ];
+
+    render(
+      <TaskJobs
+        {...baseProps}
+        jobs={jobs}
+        agentPreviewById={
+          new Map([["agent-1", { name: "Known agent", icon: null }]])
+        }
+      />,
+    );
+
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute("href", "/agents/agent-2/jobs/job-newer");
+    expect(links[1]).toHaveAttribute("href", "/agents/agent-1/jobs/job-older");
+
+    expect(screen.getByText("Untitled job")).toBeInTheDocument();
+    expect(screen.getByText("Unknown agent")).toBeInTheDocument();
+    expect(screen.getByText("Known agent")).toBeInTheDocument();
+
+    expect(
+      screen.getByText("ago:2026-02-10T10:00:00.000Z"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("ago:2026-02-09T10:00:00.000Z"),
+    ).toBeInTheDocument();
+  });
+});
