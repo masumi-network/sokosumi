@@ -72,7 +72,6 @@ export default function ChatInterface({
   }, [selectedModel]);
 
   const { messages, sendMessage, status, setMessages, stop } = useChat({
-    /* eslint-disable react-hooks/refs */
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest(request) {
