@@ -52,9 +52,10 @@ export function useChatScroll({
 
   // Also use MutationObserver to catch DOM changes during streaming
   useEffect(() => {
-    if (!scrollAreaRef.current || !isLoading) return;
+    if (!selectedChatId || messages.length === 0) return;
+    if (!scrollAreaRef.current) return;
 
-    const scrollContainer = scrollAreaRef.current?.querySelector(
+    const scrollContainer = scrollAreaRef.current.querySelector(
       '[data-slot="scroll-area-viewport"]',
     ) as HTMLElement | null;
 
@@ -75,7 +76,7 @@ export function useChatScroll({
     });
 
     return () => observer.disconnect();
-  }, [isLoading]);
+  }, [selectedChatId, messages.length]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {

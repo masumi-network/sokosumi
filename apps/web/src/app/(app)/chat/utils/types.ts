@@ -13,8 +13,6 @@ export interface Chat {
   title: string;
   createdAt: Date;
   updatedAt: Date;
-  lastMessage?: string;
-  lastMessageTime?: Date;
   status: ChatStatus;
   coworker?: Coworker;
   model?: { id: string; name: string };

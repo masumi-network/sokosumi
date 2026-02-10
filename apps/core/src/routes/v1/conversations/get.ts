@@ -43,15 +43,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     try {
       const { authContext } = c.var;
 
-      // Database is the source of truth - fetch conversations directly from DB
-      const conversations = await prisma.$transaction(async (tx) => {
-        return tx.conversation.findMany({
-          where: {
-            userId: authContext.userId,
-            archivedAt: null,
-          },
-          orderBy: { updatedAt: "desc" },
-        });
+      // Database is the source of truth - fetch conversations
+      const conversations = await prisma.conversation.findMany({
+        where: {
+          userId: authContext.userId,
+          archivedAt: null,
+        },
+        orderBy: { updatedAt: "desc" },
       });
 
       // Map database conversations to response format

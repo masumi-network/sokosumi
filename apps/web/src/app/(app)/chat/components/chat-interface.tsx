@@ -157,16 +157,7 @@ export default function ChatInterface({
     stopStreaming: stop,
   });
 
-  const { updateChatPreview } = useChatPreview({
-    conversations,
-    chats,
-    setChats,
-    selectedChatId,
-    messages,
-    previousChatIdRef,
-    messagesChatIdRef,
-    chatMessagesRef,
-  });
+  const { updateChatPreview } = useChatPreview({ setChats });
 
   useEffect(() => {
     updateChatPreviewRef.current = updateChatPreview;
@@ -179,7 +170,6 @@ export default function ChatInterface({
     previousChatIdRef,
     messagesChatIdRef,
     chatMessagesRef,
-    updateChatPreview,
   });
 
   const {

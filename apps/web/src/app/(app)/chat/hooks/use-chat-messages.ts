@@ -22,11 +22,6 @@ interface UseChatMessagesProps {
   previousChatIdRef: React.MutableRefObject<string | null>;
   messagesChatIdRef: React.MutableRefObject<string | null>;
   chatMessagesRef: React.MutableRefObject<Map<string, unknown[]>>;
-  updateChatPreview: (
-    chatId: string,
-    content: string,
-    isFirstMessage?: boolean,
-  ) => void;
 }
 
 /**
@@ -39,7 +34,6 @@ export function useChatMessages({
   previousChatIdRef,
   messagesChatIdRef,
   chatMessagesRef,
-  updateChatPreview,
 }: UseChatMessagesProps) {
   // Track retry timeout ID across effect runs so it can be cleaned up
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -144,23 +138,6 @@ export function useChatMessages({
               dbMessages as unknown as Parameters<typeof setMessages>[0],
             );
             chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
-            const lastAssistantItem = items
-              .slice()
-              .reverse()
-              .find((item) => item.role === "assistant");
-            if (lastAssistantItem) {
-              const lastMessageContent =
-                typeof lastAssistantItem.content === "string"
-                  ? lastAssistantItem.content
-                  : lastAssistantItem.content.map((c) => c.text || "").join("");
-              if (lastMessageContent) {
-                updateChatPreview(
-                  currentSelectedChatId,
-                  lastMessageContent,
-                  false,
-                );
-              }
-            }
           } else if (!cachedMessages) {
             // Store retry timeout ID in ref so it can be cleared by cleanup
             retryTimeoutRef.current = setTimeout(async () => {
@@ -288,7 +265,6 @@ export function useChatMessages({
     previousChatIdRef,
     messagesChatIdRef,
     chatMessagesRef,
-    updateChatPreview,
     retryTimeoutRef,
   ]);
 
@@ -308,19 +284,6 @@ export function useChatMessages({
       messagesChatIdRef.current = selectedChatId;
       setMessages(dbMessages as unknown as Parameters<typeof setMessages>[0]);
       chatMessagesRef.current.set(selectedChatId, dbMessages);
-      const lastAssistantItem = selectedConversation.items
-        .slice()
-        .reverse()
-        .find((item) => item.role === "assistant");
-      if (lastAssistantItem) {
-        const lastMessageContent =
-          typeof lastAssistantItem.content === "string"
-            ? lastAssistantItem.content
-            : lastAssistantItem.content.map((c) => c.text || "").join("");
-        if (lastMessageContent) {
-          updateChatPreview(selectedChatId, lastMessageContent, false);
-        }
-      }
 
       previousChatIdRef.current = selectedChatId;
     }
@@ -331,7 +294,6 @@ export function useChatMessages({
     previousChatIdRef,
     messagesChatIdRef,
     chatMessagesRef,
-    updateChatPreview,
   ]);
 
   const cacheMessages = useCallback(

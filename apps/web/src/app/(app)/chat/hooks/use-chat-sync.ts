@@ -49,7 +49,7 @@ export function useChatSync({
         const modelName = metadata?.model_name as string | undefined;
         const conversationType = metadata?.type as string | undefined;
 
-        // Find existing chat to preserve UI state (lastMessage, etc.)
+        // Find existing chat to preserve UI state
         const existingChat = chats.find((c) => c.id === conv.id);
 
         // Build coworker object from metadata or existing chat
@@ -96,11 +96,6 @@ export function useChatSync({
           model = { id: modelId, name: modelName };
         }
 
-        // Get lastMessage from existing chat (preserved from previous state)
-        // Note: Last message will be updated when messages are loaded from DB
-        const lastMessage = existingChat?.lastMessage;
-        const lastMessageTime = existingChat?.lastMessageTime;
-
         return {
           id: conv.id,
           title: conv.title || coworkerName || modelName || t("newChat"),
@@ -109,8 +104,6 @@ export function useChatSync({
           status: (existingChat?.status || "active") as Chat["status"],
           coworker,
           model,
-          lastMessage,
-          lastMessageTime,
         };
       });
 

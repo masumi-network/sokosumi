@@ -172,16 +172,19 @@ export default function ChatMessage({
               )}
             </div>
           </div>
-          {timestamp && (
-            <div
-              className={cn(
-                "text-muted-foreground text-xs",
-                isUser ? "text-right" : "text-left",
-              )}
-            >
-              {timestamp}
-            </div>
-          )}
+          {timestamp &&
+            (isUser ||
+              (content.length > 0 &&
+                displayContent.length === content.length)) && (
+              <div
+                className={cn(
+                  "text-muted-foreground text-xs",
+                  isUser ? "text-right" : "text-left",
+                )}
+              >
+                {timestamp}
+              </div>
+            )}
         </div>
       </div>
       {isUser && (
