@@ -56,7 +56,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const credits = await getCredits(user.id, null, tx);
       const subscription = await tx.subscription.findFirst({
         where: { referenceId: user.id },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updatedAt: "desc" },
       });
 
       return userSchema.parse({
