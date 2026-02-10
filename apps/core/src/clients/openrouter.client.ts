@@ -144,6 +144,7 @@ function createUIMessageStream(
   let buffer = "";
   let textStarted = false;
   let streamClosed = false;
+  let cancelled = false;
 
   function closeStream(controller: ReadableStreamDefaultController) {
     if (streamClosed) return;
@@ -254,6 +255,10 @@ function createUIMessageStream(
           closeStream(controller);
         }
       } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
         const errorMessage =
           error instanceof Error ? error.message : String(error);
 
@@ -271,6 +276,10 @@ function createUIMessageStream(
 
         throw error;
       }
+    },
+    cancel(reason) {
+      cancelled = true;
+      return reader.cancel(reason);
     },
   });
 }
