@@ -110,10 +110,5 @@ async function syncAllStripeSubscriptions(): Promise<void> {
     );
   }
 
-  try {
-    await Promise.allSettled(runningUpdates);
-  } catch (error) {
-    console.error("Error in subscription sync operation:", error);
-    throw error;
-  }
+  await Promise.allSettled(runningUpdates);
 }
