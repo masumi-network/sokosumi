@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useFormatter, useTranslations } from "next-intl";
 import { type SyntheticEvent } from "react";
+
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
