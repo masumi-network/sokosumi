@@ -1,4 +1,8 @@
-import { formatRelative, FormatRelativeToken } from "date-fns";
+import {
+  formatDistanceToNow,
+  formatRelative,
+  FormatRelativeToken,
+} from "date-fns";
 import { enUS } from "date-fns/locale";
 
 const formatRelativeLocale: Record<FormatRelativeToken, string> = {
@@ -20,6 +24,37 @@ export function formatShortDate(date: string | Date): string {
       month: "short",
       day: "numeric",
     }).format(dateObj);
+  } catch {
+    return "—";
+  }
+}
+
+export function formatShortDateTime(date: string | Date): string {
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return "—";
+    }
+
+    return new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(dateObj);
+  } catch {
+    return "—";
+  }
+}
+
+export function formatTimeAgo(date: string | Date): string {
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return "—";
+    }
+
+    return formatDistanceToNow(dateObj, { addSuffix: true });
   } catch {
     return "—";
   }

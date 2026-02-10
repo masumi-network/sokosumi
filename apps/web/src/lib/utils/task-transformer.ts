@@ -13,13 +13,15 @@ function getColumnId(status: TaskStatus): TaskWithCoworker["columnId"] {
     case TaskStatus.READY:
       return "todo";
     case TaskStatus.RUNNING:
+    case TaskStatus.AUTHENTICATION_REQUIRED:
       return "in-progress";
     case TaskStatus.INPUT_REQUIRED:
       return "input-required";
     case TaskStatus.COMPLETED:
     case TaskStatus.FAILED:
-    case TaskStatus.CANCELED:
       return "complete";
+    case TaskStatus.CANCELED:
+      return "backlog";
     default:
       return "todo";
   }

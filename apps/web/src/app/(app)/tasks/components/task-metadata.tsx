@@ -1,7 +1,7 @@
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TaskWithCoworker } from "@/lib/types/task";
-import { formatShortDate } from "@/lib/utils/datetime";
+import { formatShortDateTime } from "@/lib/utils/datetime";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
@@ -65,8 +65,8 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
           <span className="text-muted-foreground text-sm">
             {labels.created}
           </span>
-          <span className="text-muted-foreground text-sm tabular-nums">
-            {formatShortDate(task.createdAt)}
+          <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
+            {formatShortDateTime(task.createdAt)}
           </span>
         </div>
 
@@ -75,8 +75,8 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
           <span className="text-muted-foreground text-sm">
             {labels.updated}
           </span>
-          <span className="text-muted-foreground text-sm tabular-nums">
-            {formatShortDate(task.updatedAt)}
+          <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
+            {formatShortDateTime(task.updatedAt)}
           </span>
         </div>
       </div>
