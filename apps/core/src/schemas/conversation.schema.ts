@@ -13,9 +13,9 @@ export const conversationSchema = z
       description: "Internal database ID",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
-    userId: z.string().uuid().openapi({
+    userId: z.string().openapi({
       description: "User ID who owns this conversation",
-      example: "550e8400-e29b-41d4-a716-446655440000",
+      example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
     }),
     title: z.string().nullable().openapi({
       description: "Conversation title",
