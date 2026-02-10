@@ -15,7 +15,7 @@ function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl bg-neutral-950">
+    <section className="overflow-hidden rounded-xl bg-neutral-950 dark:border dark:bg-card-background">
       <div className="grid gap-6 p-6 md:grid-cols-[320px_1fr] md:gap-0 md:p-0">
         {/* Content — left column */}
         <div className="flex flex-col justify-between md:border-r md:border-white/10 md:p-8">
@@ -46,16 +46,16 @@ function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
           </div>
 
           <Image
-            src="/images/logos/serviceplan-logo.png"
+            src="/images/logos/serviceplan-logo-white.png"
             alt="Serviceplan Group"
             width={120}
             height={19}
-            className="mt-6 hidden brightness-0 invert md:block"
+            className="mt-6"
           />
         </div>
 
         {/* Cards — right */}
-        <div className="flex items-center gap-5 overflow-x-auto pb-6 pl-1 snap-x snap-mandatory md:py-8 md:pr-8 md:pb-8 md:pl-8 md:snap-none">
+        <div className="flex items-center gap-5 overflow-x-auto px-6 pb-6 snap-x snap-mandatory md:py-8 md:pr-8 md:pb-8 md:pl-8 md:snap-none">
           {coworkers.map((coworker) => (
             <div key={coworker.id} className="shrink-0 snap-start">
               <CoworkerGalleryCard
@@ -70,7 +70,7 @@ function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
 
           {/* Coming soon */}
           <div className="flex shrink-0 items-center px-4">
-            <p className="whitespace-nowrap text-xs text-white/30">
+            <p className="whitespace-nowrap text-sm text-white/30">
               + More coming soon
             </p>
           </div>
