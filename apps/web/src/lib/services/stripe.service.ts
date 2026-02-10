@@ -41,6 +41,12 @@ export type EnsurePersonalFreeSubscriptionResult =
       reason: string;
     };
 
+export interface SyncSubscriptionRowsResult {
+  created: number;
+  skipped: number;
+  updated: number;
+}
+
 export const stripeService = (() => {
   async function getStripeCustomerId(
     userId: string,
@@ -262,6 +268,7 @@ export const stripeService = (() => {
         const subscription = await stripeClient.createSubscription(
           stripeCustomerId,
           freePlanPriceId,
+          { referenceId: userId, userId },
           `free-plan-user-${userId}`,
         );
 
@@ -279,6 +286,120 @@ export const stripeService = (() => {
           reason: "SUBSCRIPTION_ENROLLMENT_FAILED",
         };
       }
+    },
+
+    async syncSubscriptionRowsForReference(
+      referenceId: string,
+      stripeCustomerId: string,
+    ): Promise<SyncSubscriptionRowsResult> {
+      const [stripeSubscriptions, subscriptionCatalog] = await Promise.all([
+        stripeClient.listSubscriptions(stripeCustomerId),
+        getSubscriptionCatalog(stripeInstance),
+      ]);
+
+      const planByPriceId = new Map(
+        Object.values(subscriptionCatalog).map((plan) => [plan.priceId, plan]),
+      );
+
+      const syncResult: SyncSubscriptionRowsResult = {
+        created: 0,
+        skipped: 0,
+        updated: 0,
+      };
+
+      for (const stripeSubscription of stripeSubscriptions) {
+        const subscriptionItem = stripeSubscription.items.data[0];
+        if (!subscriptionItem) {
+          syncResult.skipped += 1;
+          continue;
+        }
+
+        const plan = planByPriceId.get(subscriptionItem.price.id);
+        if (!plan) {
+          syncResult.skipped += 1;
+          continue;
+        }
+
+        const subscriptionData = {
+          cancelAt:
+            stripeSubscription.cancel_at !== null
+              ? new Date(stripeSubscription.cancel_at * 1000)
+              : null,
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+          canceledAt:
+            stripeSubscription.canceled_at !== null
+              ? new Date(stripeSubscription.canceled_at * 1000)
+              : null,
+          endedAt:
+            stripeSubscription.ended_at !== null
+              ? new Date(stripeSubscription.ended_at * 1000)
+              : null,
+          periodEnd: new Date(subscriptionItem.current_period_end * 1000),
+          periodStart: new Date(subscriptionItem.current_period_start * 1000),
+          plan: plan.name.toLowerCase(),
+          referenceId,
+          seats: subscriptionItem.quantity ?? null,
+          status: stripeSubscription.status,
+          stripeCustomerId,
+          stripeSubscriptionId: stripeSubscription.id,
+          trialEnd:
+            stripeSubscription.trial_end !== null
+              ? new Date(stripeSubscription.trial_end * 1000)
+              : null,
+          trialStart:
+            stripeSubscription.trial_start !== null
+              ? new Date(stripeSubscription.trial_start * 1000)
+              : null,
+        };
+
+        const existingSubscription = await prisma.subscription.findUnique({
+          select: { id: true },
+          where: { stripeSubscriptionId: stripeSubscription.id },
+        });
+
+        if (existingSubscription) {
+          await prisma.subscription.update({
+            data: subscriptionData,
+            where: { id: existingSubscription.id },
+          });
+          syncResult.updated += 1;
+          continue;
+        }
+
+        const pendingLocalSubscription = await prisma.subscription.findFirst({
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: { id: true },
+          where: {
+            referenceId,
+            status: "incomplete",
+            stripeCustomerId,
+            stripeSubscriptionId: null,
+          },
+        });
+
+        if (pendingLocalSubscription) {
+          await prisma.subscription.update({
+            data: subscriptionData,
+            where: {
+              id: pendingLocalSubscription.id,
+            },
+          });
+          syncResult.updated += 1;
+          continue;
+        }
+
+        await prisma.subscription.create({
+          data: {
+            ...subscriptionData,
+            id: crypto.randomUUID(),
+          },
+        });
+        syncResult.created += 1;
+      }
+
+      return syncResult;
     },
 
     async createStripeCustomerForOrganization(
