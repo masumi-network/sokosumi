@@ -48,7 +48,7 @@
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs"
   },
   "devDependencies": {
-    "chrome-launcher": "0.15.2",
+    "chrome-launcher": "1.2.1",
     "eslint": "9.39.2",
     "lighthouse": "^13.0.2",
     "eslint-config-prettier": "10.1.8",
