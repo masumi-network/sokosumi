@@ -393,7 +393,6 @@ export default function ChatInterface({
           <WelcomeScreen
             userName={userName?.split(" ")[0] ?? userName}
             onSendMessage={handleSendMessage}
-            isLoading={isLoading}
             isTransitioning={isWelcomeTransitioning}
             input={input}
             setInput={setInput}
