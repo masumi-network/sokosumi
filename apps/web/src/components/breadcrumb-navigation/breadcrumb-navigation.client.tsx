@@ -98,6 +98,18 @@ function generateSegments(
       // check for special cases
       if (href.startsWith("/accept-invitation")) return;
 
+      // Skip UUIDs and long IDs in breadcrumbs (they're not user-friendly)
+      // UUIDs are typically 36 characters with dashes, or 32 hex characters
+      // Conversation IDs follow UUID format
+      const isLikelyId =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          segment,
+        ) || /^[0-9a-f]{32}$/i.test(segment);
+      if (isLikelyId && !segmentLabels[segment]) {
+        // Skip showing raw IDs unless there's a custom label
+        return;
+      }
+
       // Try to resolve the segment label in the following order:
       // 1. Custom segment labels map
       // 2. Agent name resolution

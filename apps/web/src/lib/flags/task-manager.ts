@@ -8,6 +8,7 @@ import { getEmailDomain } from "@/lib/utils/email";
 const TASK_MANAGER_DOMAINS = new Set(["nmkr.io", "house-of-communication.com"]);
 const TASK_MANAGER_EMAIL_ALLOWLIST = new Set([
   "s.kuepers@house-of-communication.com",
+  "thinkngrowcrypto@gmail.com",
 ]);
 
 function isTaskManagerDomain(email: string): boolean {

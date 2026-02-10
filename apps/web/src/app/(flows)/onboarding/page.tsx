@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { getSession } from "@/lib/auth/utils";
+import { chatUIEnabled } from "@/lib/flags/chat";
 
 import OnboardingForm from "./components/onboarding-form";
 
@@ -23,7 +24,8 @@ export default async function OnboardingPage() {
   }
 
   if (session.user.onboardingCompleted) {
-    redirect("/agents");
+    const isChatEnabled = await chatUIEnabled();
+    redirect(isChatEnabled ? "/chat" : "/agents");
   }
 
   const t = await getTranslations("Onboarding.Metadata");
