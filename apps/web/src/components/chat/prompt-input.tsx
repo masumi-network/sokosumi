@@ -36,8 +36,8 @@ export const PromptInputTextarea = ({
   onChange,
   className,
   placeholder,
-  minHeight = 48,
-  maxHeight = 164,
+  minHeight: _minHeight = 48,
+  maxHeight: _maxHeight = 164,
   disableAutoResize = false,
   resizeOnNewLinesOnly = false,
   ...props

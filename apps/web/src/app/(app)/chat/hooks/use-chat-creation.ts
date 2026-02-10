@@ -106,6 +106,7 @@ export function useChatCreation({
       setInput,
       setChats,
       setSelectedChatId,
+      setSelectedModel,
       router,
       chatMessagesRef,
       previousChatIdRef,
@@ -172,6 +173,7 @@ export function useChatCreation({
       setInput,
       setChats,
       setSelectedChatId,
+      setSelectedModel,
       router,
       chatMessagesRef,
       previousChatIdRef,
@@ -188,7 +190,9 @@ export function useChatCreation({
       conversations.length > 0 &&
       isWelcomeTransitioning
     ) {
-      setShowMessagesAfterTransition(false);
+      const immediateId = setTimeout(() => {
+        setShowMessagesAfterTransition(false);
+      }, 0);
 
       const showTimer = setTimeout(() => {
         setShowMessagesAfterTransition(true);
@@ -199,11 +203,13 @@ export function useChatCreation({
       }, 200);
 
       return () => {
+        clearTimeout(immediateId);
         clearTimeout(showTimer);
         clearTimeout(resetTimer);
       };
     } else if (!isWelcomeTransitioning) {
-      setShowMessagesAfterTransition(true);
+      const id = setTimeout(() => setShowMessagesAfterTransition(true), 0);
+      return () => clearTimeout(id);
     }
   }, [chats.length, conversations.length, isWelcomeTransitioning]);
 

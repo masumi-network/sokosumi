@@ -51,18 +51,29 @@ export function useConversations(): UseConversationsReturn {
     <T, E extends ActionError>(
       rawResult: unknown,
     ): { isErr: boolean; value: T | null; error: E | null } => {
-      const resultAny = rawResult as any;
+      const raw = rawResult as
+        | {
+            ok?: boolean;
+            data?: T;
+            error?: E;
+            isErr?: () => boolean;
+            value?: T;
+          }
+        | null
+        | undefined;
 
-      if (resultAny?.ok === true && resultAny?.data) {
-        return { isErr: false, value: resultAny.data, error: null };
-      } else if (resultAny?.ok === false && resultAny?.error) {
-        return { isErr: true, value: null, error: resultAny.error };
-      } else if (typeof resultAny?.isErr === "function") {
+      if (raw?.ok === true && raw?.data !== undefined) {
+        return { isErr: false, value: raw.data, error: null };
+      }
+      if (raw?.ok === false && raw?.error) {
+        return { isErr: true, value: null, error: raw.error };
+      }
+      if (typeof raw?.isErr === "function") {
         // It's a proper neverthrow Result (shouldn't happen after serialization)
         return {
-          isErr: resultAny.isErr(),
-          value: resultAny.isErr() ? null : resultAny.value,
-          error: resultAny.isErr() ? resultAny.error : null,
+          isErr: raw.isErr(),
+          value: raw.isErr() ? null : (raw.value ?? null),
+          error: (raw.isErr() ? (raw as { error?: E }).error : null) ?? null,
         };
       }
 
@@ -207,7 +218,7 @@ export function useConversations(): UseConversationsReturn {
         return null;
       }
     },
-    [refreshConversations],
+    [parseServerActionResult, refreshConversations],
   );
 
   /**
@@ -463,9 +474,12 @@ export function useConversations(): UseConversationsReturn {
     [parseServerActionResult, refreshConversations, selectedConversation],
   );
 
-  // Load conversations on mount
+  // Load conversations on mount (defer to avoid synchronous setState in effect)
   useEffect(() => {
-    void refreshConversations();
+    const timeoutId = setTimeout(() => {
+      void refreshConversations();
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [refreshConversations]);
 
   // Refresh conversations when page becomes visible (user navigates back)

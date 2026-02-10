@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
@@ -29,19 +30,24 @@ export default function LoadingIndicator({
     if (modelId) {
       const modelImageUrls = getModelImageUrl(modelId);
       if (modelImageUrls) {
+        const alt = modelName || t("modelAlt");
         return (
           <>
-            <img
+            <Image
               src={modelImageUrls.light}
-              alt={modelName || t("modelAlt")}
+              alt={alt}
+              width={32}
+              height={32}
               className="block size-full object-contain p-0.5 dark:hidden"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
             />
-            <img
+            <Image
               src={modelImageUrls.dark}
-              alt={modelName || t("modelAlt")}
+              alt={alt}
+              width={32}
+              height={32}
               className="hidden size-full object-contain p-0.5 dark:block"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
