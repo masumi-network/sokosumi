@@ -57,7 +57,7 @@ export default function MenuItems({ taskManagerMenuEnabled }: MenuItemsProps) {
   ];
 
   return (
-    <SidebarGroup className="w-full">
+    <SidebarGroup className="w-full pt-0">
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map(({ key, href, label, Icon, hasIndicator }) => {

@@ -102,9 +102,10 @@ export default function SignInForm({
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
 
-    // Redirect to the original URL if provided, otherwise go to /agents
+    // Redirect to the original URL if provided, otherwise go to root
+    // Root page will handle flag-based redirect (chat for nmkr.io, agents for others)
     // Validate returnUrl to prevent open redirect attacks
-    let redirectUrl = "/agents";
+    let redirectUrl = "/";
     if (returnUrl) {
       try {
         // Only allow relative URLs or URLs from the same origin
@@ -113,7 +114,7 @@ export default function SignInForm({
           redirectUrl = returnUrl;
         }
       } catch {
-        // Invalid URL, fallback to /agents
+        // Invalid URL, fallback to root
       }
     }
 
