@@ -66,6 +66,37 @@ export const userRepository = {
   },
 
   /**
+   * Retrieves a page of user IDs ordered by ID, starting after an optional cursor.
+   *
+   * @param cursorId - The last processed user ID, or null to start from the beginning.
+   * @param limit - The maximum number of users to return.
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to an array of users containing only IDs.
+   */
+  getUsersBatchAfterCursor: async (
+    cursorId: string | null,
+    limit: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<Array<Pick<User, "id">>> => {
+    return tx.user.findMany({
+      where: cursorId
+        ? {
+            id: {
+              gt: cursorId,
+            },
+          }
+        : undefined,
+      orderBy: {
+        id: "asc",
+      },
+      select: {
+        id: true,
+      },
+      take: limit,
+    });
+  },
+
+  /**
    * Updates the termsAccepted status for a user.
    *
    * @param userId - The unique identifier of the user.
