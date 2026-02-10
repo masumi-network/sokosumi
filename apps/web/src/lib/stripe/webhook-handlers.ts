@@ -476,6 +476,24 @@ export async function handleCustomerCreatedEvent(
       console.log(
         `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
       );
+
+      const freeSubscriptionResult =
+        await stripeService.ensureOrganizationFreeSubscription(
+          metadata.organizationId,
+        );
+      if (freeSubscriptionResult.status === "created") {
+        console.log(
+          `✅ Created free subscription for organization ${metadata.organizationId} (${freeSubscriptionResult.subscriptionId})`,
+        );
+      } else if (freeSubscriptionResult.status === "skipped") {
+        console.log(
+          `ℹ️ Skipped free subscription for organization ${metadata.organizationId}: ${freeSubscriptionResult.reason}`,
+        );
+      } else {
+        console.log(
+          `⚠️ Failed free subscription enrollment for organization ${metadata.organizationId}: ${freeSubscriptionResult.reason}`,
+        );
+      }
       break;
     }
     default: {

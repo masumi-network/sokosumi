@@ -1,17 +1,84 @@
 import { Invitation, MemberRole } from "@sokosumi/database";
 import { organizationRepository } from "@sokosumi/database/repositories";
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import Stripe from "stripe";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { auth } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 import { organizationService, userService } from "@/lib/services";
+import {
+  getSubscriptionCatalog,
+  SubscriptionPlanName,
+} from "@/lib/stripe/subscription-catalog";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
 import OrganizationInvoiceEmail from "./components/organization-invoice-email";
+import OrganizationSubscription from "./components/organization-subscription";
+
+const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+const PLAN_ORDER: SubscriptionPlanName[] = [
+  "free",
+  "starter",
+  "standard",
+  "pro",
+];
+
+interface ActiveOrganizationSubscription {
+  plan?: string | null;
+  periodEnd?: Date | string | null;
+  seats?: number | null;
+}
+
+function parsePlanName(
+  value: string | null | undefined,
+): SubscriptionPlanName | null {
+  if (!value) {
+    return null;
+  }
+
+  switch (value.toLowerCase()) {
+    case "free":
+    case "starter":
+    case "standard":
+    case "pro":
+      return value.toLowerCase() as SubscriptionPlanName;
+    default:
+      return null;
+  }
+}
+
+function getDateValue(value: Date | string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  return Number.isNaN(Date.parse(value)) ? 0 : Date.parse(value);
+}
+
+function resolveLatestOrganizationSubscription(
+  subscriptions: ActiveOrganizationSubscription[],
+): ActiveOrganizationSubscription | null {
+  if (subscriptions.length === 0) {
+    return null;
+  }
+
+  const sortedSubscriptions = [...subscriptions].sort((a, b) => {
+    return getDateValue(b.periodEnd) - getDateValue(a.periodEnd);
+  });
+
+  return sortedSubscriptions[0] ?? null;
+}
 
 interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
@@ -69,6 +136,21 @@ export default async function OrganizationPage({
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: Invitation[] = [];
+  let organizationSubscriptionProps: {
+    currentPlan: SubscriptionPlanName | null;
+    currentSeats: number;
+    memberCount: number;
+    organizationId: string;
+    plans: Array<{
+      credits: number;
+      currency: string;
+      isCurrent: boolean;
+      monthlyAmount: number;
+      name: SubscriptionPlanName;
+    }>;
+    returnPath: string;
+  } | null = null;
+
   if (isOwnerOrAdmin) {
     try {
       pendingInvitations = await organizationService.getPendingInvitations(
@@ -76,6 +158,49 @@ export default async function OrganizationPage({
       );
     } catch (error) {
       console.error("Failed to get pending invitations", error);
+    }
+
+    try {
+      const requestHeaders = await headers();
+      const [subscriptionCatalog, activeSubscriptions] = await Promise.all([
+        getSubscriptionCatalog(stripeInstance),
+        auth.api.listActiveSubscriptions({
+          headers: requestHeaders,
+          query: {
+            customerType: "organization",
+            referenceId: organization.id,
+          },
+        }),
+      ]);
+
+      const latestSubscription = resolveLatestOrganizationSubscription(
+        activeSubscriptions as ActiveOrganizationSubscription[],
+      );
+      const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
+      const currentSeats = Math.max(
+        latestSubscription?.seats ?? 1,
+        organization._count.members,
+      );
+
+      organizationSubscriptionProps = {
+        currentPlan,
+        currentSeats,
+        memberCount: organization._count.members,
+        organizationId: organization.id,
+        plans: PLAN_ORDER.map((planName) => {
+          const plan = subscriptionCatalog[planName];
+          return {
+            credits: plan.credits,
+            currency: plan.currency,
+            isCurrent: currentPlan === planName,
+            monthlyAmount: plan.monthlyAmount,
+            name: planName,
+          };
+        }),
+        returnPath: `/organizations/${encodeURIComponent(organization.slug)}`,
+      };
+    } catch (error) {
+      console.error("Failed to get organization subscription data", error);
     }
   }
 
@@ -91,6 +216,9 @@ export default async function OrganizationPage({
           <OrganizationRoleBadge role={member.role} />
         </div>
         <OrganizationInformation organization={organization} member={member} />
+        {isOwnerOrAdmin && organizationSubscriptionProps ? (
+          <OrganizationSubscription {...organizationSubscriptionProps} />
+        ) : null}
         <OrganizationInvoiceEmail organization={organization} member={member} />
         {isOwnerOrAdmin ? (
           <div className="flex items-center justify-between">

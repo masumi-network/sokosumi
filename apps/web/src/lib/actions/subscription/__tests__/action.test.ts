@@ -165,4 +165,97 @@ describe("subscription actions", () => {
       headers: new Headers(),
     });
   });
+
+  it("returns BAD_INPUT for invalid organization seats", async () => {
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { upgradeOrganizationSubscription } = await import("../action");
+
+    const result = await upgradeOrganizationSubscription({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      plan: "starter",
+      returnPath: "/organizations/org-1",
+      seats: 0,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+      },
+      ok: false,
+    });
+    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns checkout url for organization subscription upgrade", async () => {
+    upgradeSubscriptionMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/session/org-test",
+    });
+
+    const { upgradeOrganizationSubscription } = await import("../action");
+
+    const result = await upgradeOrganizationSubscription({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      plan: "pro",
+      returnPath: "/organizations/acme",
+      seats: 7,
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://checkout.stripe.com/session/org-test" },
+      ok: true,
+    });
+
+    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
+      body: {
+        cancelUrl: "/organizations/acme",
+        customerType: "organization",
+        disableRedirect: true,
+        plan: "pro",
+        referenceId: "org-1",
+        returnUrl: "/organizations/acme",
+        seats: 7,
+        successUrl: "/organizations/acme",
+      },
+      headers: new Headers(),
+    });
+  });
+
+  it("returns billing portal url for organization", async () => {
+    createBillingPortalMock.mockResolvedValue({
+      url: "https://billing.stripe.com/session/org-test",
+    });
+
+    const { openOrganizationBillingPortal } = await import("../action");
+
+    const result = await openOrganizationBillingPortal({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      returnPath: "/organizations/acme",
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://billing.stripe.com/session/org-test" },
+      ok: true,
+    });
+    expect(createBillingPortalMock).toHaveBeenCalledWith({
+      body: {
+        customerType: "organization",
+        disableRedirect: true,
+        referenceId: "org-1",
+        returnUrl: "/organizations/acme",
+      },
+      headers: new Headers(),
+    });
+  });
 });

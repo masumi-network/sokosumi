@@ -5,6 +5,10 @@ const getOrganizationByStripeCustomerIdMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
 const createTransactionMock = jest.fn();
+const ensurePersonalFreeSubscriptionMock = jest.fn();
+const ensureOrganizationFreeSubscriptionMock = jest.fn();
+const prismaOrganizationUpdateMock = jest.fn();
+const prismaUserUpdateMock = jest.fn();
 
 const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
@@ -49,17 +53,20 @@ jest.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
     organization: {
-      update: jest.fn(),
+      update: (...args: unknown[]) => prismaOrganizationUpdateMock(...args),
     },
     user: {
-      update: jest.fn(),
+      update: (...args: unknown[]) => prismaUserUpdateMock(...args),
     },
   },
 }));
 
 jest.mock("@/lib/services", () => ({
   stripeService: {
-    ensurePersonalFreeSubscription: jest.fn(),
+    ensurePersonalFreeSubscription: (...args: unknown[]) =>
+      ensurePersonalFreeSubscriptionMock(...args),
+    ensureOrganizationFreeSubscription: (...args: unknown[]) =>
+      ensureOrganizationFreeSubscriptionMock(...args),
   },
 }));
 
@@ -499,5 +506,61 @@ describe("handleInvoicePaidEvent", () => {
     );
 
     expect(createTransactionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleCustomerCreatedEvent", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    ensurePersonalFreeSubscriptionMock.mockResolvedValue({
+      status: "skipped",
+      reason: "ALREADY_HAS_SUBSCRIPTION",
+    });
+    ensureOrganizationFreeSubscriptionMock.mockResolvedValue({
+      status: "skipped",
+      reason: "ALREADY_HAS_SUBSCRIPTION",
+    });
+    prismaUserUpdateMock.mockResolvedValue(undefined);
+    prismaOrganizationUpdateMock.mockResolvedValue(undefined);
+  });
+
+  it("ensures a free subscription for newly created organization customers", async () => {
+    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
+
+    await handleCustomerCreatedEvent({
+      id: "cus_org_1",
+      metadata: {
+        customerType: "organization",
+        organizationId: "org-1",
+      },
+    } as never);
+
+    expect(prismaOrganizationUpdateMock).toHaveBeenCalledWith({
+      where: { id: "org-1" },
+      data: { stripeCustomerId: "cus_org_1" },
+    });
+    expect(ensureOrganizationFreeSubscriptionMock).toHaveBeenCalledWith(
+      "org-1",
+    );
+    expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps personal free subscription enrollment for user customers", async () => {
+    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
+
+    await handleCustomerCreatedEvent({
+      id: "cus_user_1",
+      metadata: {
+        customerType: "user",
+        userId: "user-1",
+      },
+    } as never);
+
+    expect(prismaUserUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { stripeCustomerId: "cus_user_1" },
+    });
+    expect(ensurePersonalFreeSubscriptionMock).toHaveBeenCalledWith("user-1");
+    expect(ensureOrganizationFreeSubscriptionMock).not.toHaveBeenCalled();
   });
 });

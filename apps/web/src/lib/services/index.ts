@@ -5,6 +5,7 @@ export * from "./job.service";
 export * from "./job-schedule.service";
 export * from "./lock.service";
 export * from "./organization.service";
+export * from "./organization-subscription.service";
 export * from "./stripe.service";
 export * from "./user.service";
 export * from "./utm.service";

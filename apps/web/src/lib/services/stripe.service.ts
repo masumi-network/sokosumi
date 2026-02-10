@@ -17,17 +17,11 @@ import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-const EXISTING_PERSONAL_SUBSCRIPTION_STATUSES =
-  new Set<Stripe.Subscription.Status>([
-    "active",
-    "trialing",
-    "past_due",
-    "unpaid",
-    "incomplete",
-    "paused",
-  ]);
+const EXISTING_FREE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>(
+  ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"],
+);
 
-export type EnsurePersonalFreeSubscriptionResult =
+export type EnsureFreeSubscriptionResult =
   | {
       status: "created";
       subscriptionId: string;
@@ -40,6 +34,10 @@ export type EnsurePersonalFreeSubscriptionResult =
       status: "failed";
       reason: string;
     };
+
+export type EnsurePersonalFreeSubscriptionResult = EnsureFreeSubscriptionResult;
+export type EnsureOrganizationFreeSubscriptionResult =
+  EnsureFreeSubscriptionResult;
 
 export const stripeService = (() => {
   async function getStripeCustomerId(
@@ -233,7 +231,7 @@ export const stripeService = (() => {
           await stripeClient.listSubscriptions(stripeCustomerId);
         const hasExistingPersonalSubscription = existingSubscriptions.some(
           (subscription) =>
-            EXISTING_PERSONAL_SUBSCRIPTION_STATUSES.has(subscription.status),
+            EXISTING_FREE_SUBSCRIPTION_STATUSES.has(subscription.status),
         );
 
         if (hasExistingPersonalSubscription) {
@@ -273,6 +271,92 @@ export const stripeService = (() => {
       } catch (error) {
         console.error(
           `Failed to ensure personal free subscription for user ${userId}:`,
+          error,
+        );
+        return {
+          status: "failed",
+          reason: "SUBSCRIPTION_ENROLLMENT_FAILED",
+        };
+      }
+    },
+
+    async ensureOrganizationFreeSubscription(
+      organizationId: string,
+    ): Promise<EnsureOrganizationFreeSubscriptionResult> {
+      try {
+        const organization =
+          await organizationRepository.getOrganizationWithRelationsById(
+            organizationId,
+            prisma,
+          );
+        if (!organization) {
+          return {
+            status: "failed",
+            reason: "ORGANIZATION_NOT_FOUND",
+          };
+        }
+
+        let stripeCustomerId = organization.stripeCustomerId;
+        if (!stripeCustomerId) {
+          const customer =
+            await this.createStripeCustomerForOrganization(organizationId);
+          if (!customer) {
+            return {
+              status: "failed",
+              reason: "CUSTOMER_CREATION_FAILED",
+            };
+          }
+          stripeCustomerId = customer.id;
+          await prisma.organization.update({
+            where: { id: organizationId },
+            data: { stripeCustomerId },
+          });
+        }
+
+        const existingSubscriptions =
+          await stripeClient.listSubscriptions(stripeCustomerId);
+        const hasExistingOrganizationSubscription = existingSubscriptions.some(
+          (subscription) =>
+            EXISTING_FREE_SUBSCRIPTION_STATUSES.has(subscription.status),
+        );
+
+        if (hasExistingOrganizationSubscription) {
+          return {
+            status: "skipped",
+            reason: "ALREADY_HAS_SUBSCRIPTION",
+          };
+        }
+
+        let freePlanPriceId: string;
+        try {
+          const subscriptionCatalog =
+            await getSubscriptionCatalog(stripeInstance);
+          freePlanPriceId = subscriptionCatalog.free.priceId;
+        } catch (error) {
+          console.error(
+            `Invalid free subscription plan configuration for organization ${organizationId}:`,
+            error,
+          );
+          return {
+            status: "failed",
+            reason: "INVALID_FREE_PLAN_CONFIGURATION",
+          };
+        }
+
+        const subscription = await stripeClient.createSubscription(
+          stripeCustomerId,
+          freePlanPriceId,
+          { referenceId: organizationId, organizationId },
+          `free-plan-organization-${organizationId}`,
+        );
+
+        return {
+          status: "created",
+          subscriptionId: subscription.id,
+        };
+      } catch (error) {
+        console.error(
+          `Failed to ensure organization free subscription for organization ${organizationId}:`,
           error,
         );
         return {
