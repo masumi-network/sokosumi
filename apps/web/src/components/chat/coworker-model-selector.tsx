@@ -29,6 +29,79 @@ interface CoworkerModelSelectorProps {
   disabled?: boolean;
 }
 
+function ModelIcon({
+  modelId,
+  className,
+}: {
+  modelId: string;
+  className?: string;
+}) {
+  const imageUrls = getModelImageUrl(modelId);
+
+  if (!imageUrls) {
+    return (
+      <div
+        className={cn(
+          "flex size-6 items-center justify-center rounded-full bg-teal-500/20",
+          className,
+        )}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="text-teal-600"
+        >
+          <path
+            d="M8 2C4.7 2 2 4.7 2 8C2 11.3 4.7 14 8 14C11.3 14 14 11.3 14 8C14 4.7 11.3 2 8 2ZM8 12.5C5.5 12.5 3.5 10.5 3.5 8C3.5 5.5 5.5 3.5 8 3.5C10.5 3.5 12.5 5.5 12.5 8C12.5 10.5 10.5 12.5 8 12.5Z"
+            fill="currentColor"
+          />
+          <path
+            d="M6 6C6.5 5.5 7.2 5.2 8 5.2C8.8 5.2 9.5 5.5 10 6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M6 10C6.5 10.5 7.2 10.8 8 10.8C8.8 10.8 9.5 10.5 10 10"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex size-6 items-center justify-center overflow-hidden rounded-full",
+        className,
+      )}
+    >
+      <img
+        src={imageUrls.light}
+        alt=""
+        className="block size-full object-contain dark:hidden"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+      <img
+        src={imageUrls.dark}
+        alt=""
+        className="hidden size-full object-contain dark:block"
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+    </div>
+  );
+}
+
 export default function CoworkerModelSelector({
   selectedCoworker,
   selectedModel,
@@ -73,81 +146,6 @@ export default function CoworkerModelSelector({
       demosthenes: "/images/coworkers/demosthenes.png",
     };
     return imageMap[coworkerId] || null;
-  };
-
-  // Model icon component
-  const ModelIcon = ({
-    modelId,
-    className,
-  }: {
-    modelId: string;
-    className?: string;
-  }) => {
-    const imageUrls = getModelImageUrl(modelId);
-
-    if (!imageUrls) {
-      // Fallback to generic icon for models without logos
-      return (
-        <div
-          className={cn(
-            "flex size-6 items-center justify-center rounded-full bg-teal-500/20",
-            className,
-          )}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="text-teal-600"
-          >
-            <path
-              d="M8 2C4.7 2 2 4.7 2 8C2 11.3 4.7 14 8 14C11.3 14 14 11.3 14 8C14 4.7 11.3 2 8 2ZM8 12.5C5.5 12.5 3.5 10.5 3.5 8C3.5 5.5 5.5 3.5 8 3.5C10.5 3.5 12.5 5.5 12.5 8C12.5 10.5 10.5 12.5 8 12.5Z"
-              fill="currentColor"
-            />
-            <path
-              d="M6 6C6.5 5.5 7.2 5.2 8 5.2C8.8 5.2 9.5 5.5 10 6"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-            <path
-              d="M6 10C6.5 10.5 7.2 10.8 8 10.8C8.8 10.8 9.5 10.5 10 10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className={cn(
-          "flex size-6 items-center justify-center overflow-hidden rounded-full",
-          className,
-        )}
-      >
-        <img
-          src={imageUrls.light}
-          alt=""
-          className="block size-full object-contain dark:hidden"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        <img
-          src={imageUrls.dark}
-          alt=""
-          className="hidden size-full object-contain dark:block"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-      </div>
-    );
   };
 
   const handleCoworkerSelect = (coworker: Coworker) => {
