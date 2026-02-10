@@ -16,8 +16,5 @@ CREATE INDEX "conversationItem_conversationId_idx" ON "conversationItem"("conver
 -- CreateIndex
 CREATE INDEX "conversationItem_conversationId_createdAt_idx" ON "conversationItem"("conversationId", "createdAt");
 
--- CreateIndex
-CREATE INDEX "conversationItem_contentText_idx" ON "conversationItem"("contentText");
-
 -- AddForeignKey
 ALTER TABLE "conversationItem" ADD CONSTRAINT "conversationItem_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
