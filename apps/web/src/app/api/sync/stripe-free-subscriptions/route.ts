@@ -34,16 +34,23 @@ export async function GET(request: Request) {
 
 async function stripeFreeSubscriptionsSync(): Promise<Response> {
   let lock: Lock;
+  const syncStartedAt = Date.now();
+  console.info(`[${LOCK_KEY}] Starting free subscription sync run`);
 
   try {
     lock = await lockService.acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
+    console.info(
+      `[${LOCK_KEY}] Lock acquired by ${getEnvSecrets().INSTANCE_ID}`,
+    );
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
+      console.info(`[${LOCK_KEY}] Sync already in progress, skipping run`);
       return NextResponse.json(
         { message: "Syncing already in progress" },
         { status: 409 },
       );
     }
+    console.error(`[${LOCK_KEY}] Failed to acquire lock`, error);
     return NextResponse.json(
       { message: "Failed to acquire lock" },
       { status: 500 },
@@ -52,9 +59,13 @@ async function stripeFreeSubscriptionsSync(): Promise<Response> {
 
   try {
     const summary = await syncUsersBatchToFreeSubscription();
+    console.info(
+      `[${LOCK_KEY}] Sync finished in ${(Date.now() - syncStartedAt) / 1000}s`,
+      summary,
+    );
     return NextResponse.json(summary, { status: 200 });
   } catch (error) {
-    console.error("Error syncing free subscriptions:", error);
+    console.error(`[${LOCK_KEY}] Error syncing free subscriptions`, error);
     return NextResponse.json(
       { message: "Failed to sync free subscriptions" },
       { status: 500 },
@@ -62,8 +73,9 @@ async function stripeFreeSubscriptionsSync(): Promise<Response> {
   } finally {
     try {
       await lockRepository.unlockByKey(lock.key, prisma);
+      console.info(`[${LOCK_KEY}] Lock released`);
     } catch (error) {
-      console.error("Failed to unlock lock:", error);
+      console.error(`[${LOCK_KEY}] Failed to unlock lock`, error);
     }
   }
 }
@@ -73,11 +85,16 @@ async function syncUsersBatchToFreeSubscription(): Promise<StripeFreeSubscriptio
     SYNC_METADATA_KEY,
     prisma,
   );
+  console.info(`[${LOCK_KEY}] Loaded sync metadata`, {
+    cursorId: metadata.cursorId,
+    lastSyncedAt: metadata.lastSyncedAt.toISOString(),
+  });
 
   const isCompletedOnePass =
     metadata.cursorId === null &&
     metadata.lastSyncedAt.getTime() > INITIAL_SYNC_DATE.getTime();
   if (isCompletedOnePass) {
+    console.info(`[${LOCK_KEY}] One-pass sync already completed, skipping`);
     return {
       created: 0,
       completed: true,
@@ -93,14 +110,23 @@ async function syncUsersBatchToFreeSubscription(): Promise<StripeFreeSubscriptio
     BATCH_SIZE,
     prisma,
   );
+  console.info(`[${LOCK_KEY}] Loaded batch`, {
+    batchSize: users.length,
+    fromCursorId: metadata.cursorId,
+    limit: BATCH_SIZE,
+  });
 
   if (users.length === 0) {
+    const completedAt = new Date();
     await syncMetadataRepository.setSyncMetadataByKey(
       SYNC_METADATA_KEY,
       null,
-      new Date(),
+      completedAt,
       prisma,
     );
+    console.info(`[${LOCK_KEY}] One-pass sync completed`, {
+      completedAt: completedAt.toISOString(),
+    });
     return {
       created: 0,
       completed: true,
@@ -150,6 +176,10 @@ async function syncUsersBatchToFreeSubscription(): Promise<StripeFreeSubscriptio
     metadata.lastSyncedAt,
     prisma,
   );
+  console.info(`[${LOCK_KEY}] Batch processed`, {
+    ...summary,
+    nextCursorId,
+  });
 
   return summary;
 }
