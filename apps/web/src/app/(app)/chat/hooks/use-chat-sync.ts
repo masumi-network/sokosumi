@@ -35,42 +35,12 @@ export function useChatSync({
     }
 
     requestAnimationFrame(() => {
-      const mappedChats: Chat[] = conversations.map((conv: Conversation) => {
+      // Update selected model from conversations (does not depend on chats)
+      for (const conv of conversations) {
         const metadata = conv.metadata as Record<string, unknown> | null;
-        const coworkerId = metadata?.coworker_id as string | undefined;
-        const coworkerName = metadata?.coworker_name as string | undefined;
-        const coworkerDescription = metadata?.coworker_description as
-          | string
-          | undefined;
-        const coworkerUseCase = metadata?.coworker_useCase as
-          | string
-          | undefined;
         const modelId = metadata?.model_id as string | undefined;
         const modelName = metadata?.model_name as string | undefined;
         const conversationType = metadata?.type as string | undefined;
-
-        // Find existing chat to preserve UI state
-        const existingChat = chats.find((c) => c.id === conv.id);
-
-        // Build coworker object from metadata or existing chat
-        let coworker: Coworker | undefined;
-        if (existingChat?.coworker) {
-          coworker = existingChat.coworker;
-        } else if (
-          coworkerId &&
-          coworkerName &&
-          conversationType === "coworker"
-        ) {
-          // Build full coworker object from metadata
-          coworker = {
-            id: coworkerId,
-            name: coworkerName,
-            description: coworkerDescription || "",
-            useCase: coworkerUseCase || "",
-          };
-        }
-
-        // Load model info if this is a model conversation
         if (
           conversationType === "model" &&
           modelId &&
@@ -79,46 +49,85 @@ export function useChatSync({
         ) {
           setSelectedModel({ id: modelId, name: modelName });
           selectedModelRef.current = { id: modelId, name: modelName };
-        } else if (
-          conversationType === "coworker" &&
-          conv.id === selectedChatId
-        ) {
-          // Clear model selection for coworker conversations
+          break;
+        }
+        if (conversationType === "coworker" && conv.id === selectedChatId) {
           setSelectedModel(null);
           selectedModelRef.current = null;
+          break;
         }
-
-        // Build model object from metadata or existing chat
-        let model: { id: string; name: string } | undefined;
-        if (existingChat?.model) {
-          model = existingChat.model;
-        } else if (conversationType === "model" && modelId && modelName) {
-          model = { id: modelId, name: modelName };
-        }
-
-        return {
-          id: conv.id,
-          title: conv.title || coworkerName || modelName || t("newChat"),
-          createdAt: new Date(conv.createdAt),
-          updatedAt: new Date(conv.updatedAt),
-          status: (existingChat?.status || "active") as Chat["status"],
-          coworker,
-          model,
-        };
-      });
-
-      // Check if we need to update (avoid infinite loops)
-      const needsUpdate =
-        mappedChats.length !== chats.length ||
-        mappedChats.some(
-          (chat, index) =>
-            chat.id !== chats[index]?.id ||
-            chat.updatedAt.getTime() !== chats[index]?.updatedAt.getTime(),
-        );
-
-      if (needsUpdate) {
-        setChats(mappedChats);
       }
+
+      // Use functional update so we read latest chats and don't overwrite concurrent updates (e.g. from useChatPreview)
+      setChats((latestChats) => {
+        const mappedChats: Chat[] = conversations.map((conv: Conversation) => {
+          const metadata = conv.metadata as Record<string, unknown> | null;
+          const coworkerId = metadata?.coworker_id as string | undefined;
+          const coworkerName = metadata?.coworker_name as string | undefined;
+          const coworkerDescription = metadata?.coworker_description as
+            | string
+            | undefined;
+          const coworkerUseCase = metadata?.coworker_useCase as
+            | string
+            | undefined;
+          const modelId = metadata?.model_id as string | undefined;
+          const modelName = metadata?.model_name as string | undefined;
+          const conversationType = metadata?.type as string | undefined;
+
+          // Find existing chat from latest state to preserve UI state (title, status, etc.)
+          const existingChat = latestChats.find((c) => c.id === conv.id);
+
+          // Build coworker object from metadata or existing chat
+          let coworker: Coworker | undefined;
+          if (existingChat?.coworker) {
+            coworker = existingChat.coworker;
+          } else if (
+            coworkerId &&
+            coworkerName &&
+            conversationType === "coworker"
+          ) {
+            coworker = {
+              id: coworkerId,
+              name: coworkerName,
+              description: coworkerDescription || "",
+              useCase: coworkerUseCase || "",
+            };
+          }
+
+          // Build model object from metadata or existing chat
+          let model: { id: string; name: string } | undefined;
+          if (existingChat?.model) {
+            model = existingChat.model;
+          } else if (conversationType === "model" && modelId && modelName) {
+            model = { id: modelId, name: modelName };
+          }
+
+          return {
+            id: conv.id,
+            title:
+              (existingChat?.title ?? conv.title) ||
+              coworkerName ||
+              modelName ||
+              t("newChat"),
+            createdAt: new Date(conv.createdAt),
+            updatedAt: existingChat?.updatedAt ?? new Date(conv.updatedAt),
+            status: (existingChat?.status || "active") as Chat["status"],
+            coworker,
+            model,
+          };
+        });
+
+        const needsUpdate =
+          mappedChats.length !== latestChats.length ||
+          mappedChats.some(
+            (chat, index) =>
+              chat.id !== latestChats[index]?.id ||
+              chat.updatedAt.getTime() !==
+                latestChats[index]?.updatedAt.getTime(),
+          );
+
+        return needsUpdate ? mappedChats : latestChats;
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, t]); // Don't include chats in deps to avoid infinite loop
