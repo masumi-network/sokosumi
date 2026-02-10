@@ -262,8 +262,15 @@ export const stripeService = (() => {
         const subscription = await stripeClient.createSubscription(
           stripeCustomerId,
           freePlanPriceId,
+          {
+            plan: "free",
+            referenceId: userId,
+            referenceType: "user",
+          },
           `free-plan-user-${userId}`,
         );
+
+        await this.upsertSubscriptionFromStripe(subscription, userId, "free");
 
         return {
           status: "created",
@@ -279,6 +286,50 @@ export const stripeService = (() => {
           reason: "SUBSCRIPTION_ENROLLMENT_FAILED",
         };
       }
+    },
+
+    async upsertSubscriptionFromStripe(
+      stripeSubscription: Stripe.Subscription,
+      referenceId: string,
+      plan: string,
+    ): Promise<void> {
+      const stripeCustomerId =
+        typeof stripeSubscription.customer === "string"
+          ? stripeSubscription.customer
+          : (stripeSubscription.customer?.id ?? null);
+      const firstItem = stripeSubscription.items?.data?.[0];
+      const periodStart =
+        firstItem?.current_period_start != null
+          ? new Date(firstItem.current_period_start * 1000)
+          : null;
+      const periodEnd =
+        firstItem?.current_period_end != null
+          ? new Date(firstItem.current_period_end * 1000)
+          : null;
+      const cancelAtPeriodEnd =
+        stripeSubscription.cancel_at_period_end ?? false;
+      const status = stripeSubscription.status;
+
+      await prisma.subscription.upsert({
+        where: { stripeSubscriptionId: stripeSubscription.id },
+        create: {
+          cancelAtPeriodEnd,
+          id: stripeSubscription.id,
+          periodEnd,
+          periodStart,
+          plan,
+          referenceId,
+          status,
+          stripeCustomerId,
+          stripeSubscriptionId: stripeSubscription.id,
+        },
+        update: {
+          cancelAtPeriodEnd,
+          periodEnd,
+          periodStart,
+          status,
+        },
+      });
     },
 
     async createStripeCustomerForOrganization(
