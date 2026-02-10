@@ -147,6 +147,8 @@ interface TasksViewProps {
   };
 }
 
+type TasksTabValue = "tasks" | "jobs";
+
 export function TasksView({
   tasks,
   nextCursor: initialNextCursor,
@@ -160,6 +162,7 @@ export function TasksView({
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
   );
+  const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [nextCursor, setNextCursor] = useState<string | null>(
     initialNextCursor ?? null,
@@ -303,7 +306,11 @@ export function TasksView({
           </ChannelProvider>
         </DynamicAblyProvider>
       ) : null}
-      <Tabs defaultValue="tasks" className="flex flex-col gap-5">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
+        className="flex flex-col gap-5"
+      >
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="">
@@ -329,7 +336,9 @@ export function TasksView({
               onChange={handleViewModeChange}
               labels={labels.display}
             />
-            <HeaderAddButton label={labels.add} />
+            {activeTab === "tasks" ? (
+              <HeaderAddButton label={labels.add} />
+            ) : null}
           </div>
         </div>
 
