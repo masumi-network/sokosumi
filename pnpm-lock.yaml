@@ -17004,7 +17004,7 @@ snapshots:
       js-library-detector: 6.7.0
       lighthouse-logger: 2.0.2
       lighthouse-stack-packs: 1.12.3
-      lodash-es: 4.17.23
+      lodash-es: 4.17.22
       lookup-closest-locale: 6.2.0
       open: 8.4.2
       puppeteer-core: 24.34.0
