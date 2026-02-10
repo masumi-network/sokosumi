@@ -244,7 +244,7 @@ export default function OrganizationSubscription({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm">
-                    {tSubscriptions("includedCredits", {
+                    {t("includedCreditsPerSeat", {
                       credits: plan.credits,
                     })}
                   </p>

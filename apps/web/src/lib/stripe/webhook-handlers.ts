@@ -23,6 +23,12 @@ const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
   "subscription_cycle",
 ]);
 const SUBSCRIPTION_UPDATE_BILLING_REASON = "subscription_update";
+const ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES = [
+  "active",
+  "trialing",
+  "past_due",
+  "unpaid",
+] as const;
 
 interface InvoiceCreditGrant {
   credits: number;
@@ -92,6 +98,33 @@ function calculateProratedSubscriptionCredits(params: {
   return Math.floor(
     (params.lineAmount * params.planCredits) / params.monthlyAmount,
   );
+}
+
+async function resolveOrganizationSeatCount(
+  organizationId: string,
+): Promise<number> {
+  const latestSubscription = await prisma.subscription.findFirst({
+    where: {
+      referenceId: organizationId,
+      status: {
+        in: [...ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES],
+      },
+    },
+    orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+    select: {
+      seats: true,
+    },
+  });
+
+  if (
+    latestSubscription?.seats &&
+    Number.isFinite(latestSubscription.seats) &&
+    latestSubscription.seats > 0
+  ) {
+    return latestSubscription.seats;
+  }
+
+  return 1;
 }
 
 export async function handleInvoicePaidEvent(
@@ -228,6 +261,7 @@ export async function handleInvoicePaidEvent(
   let subscriptionCredits = 0;
   let maxSubscriptionPeriodEndUnix: number | null = null;
   let maxSubscriptionPeriodDurationSeconds: number | null = null;
+  let organizationSeatCount: number | null = null;
   if (matchedSubscriptionProducts.size > 0) {
     const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
     const catalogByProductId = new Map(
@@ -267,14 +301,6 @@ export async function handleInvoicePaidEvent(
         continue;
       }
 
-      const quantity = lineItem.quantity ?? 1;
-      if (
-        quantity <= 0 &&
-        invoice.billing_reason !== SUBSCRIPTION_UPDATE_BILLING_REASON
-      ) {
-        continue;
-      }
-
       if (invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
         subscriptionCredits += calculateProratedSubscriptionCredits({
           invoiceId,
@@ -284,6 +310,23 @@ export async function handleInvoicePaidEvent(
           productId,
         });
       } else {
+        let quantity = lineItem.quantity ?? 0;
+        if (quantity <= 0) {
+          if (organizationId) {
+            if (organizationSeatCount === null) {
+              organizationSeatCount =
+                await resolveOrganizationSeatCount(organizationId);
+            }
+            quantity = organizationSeatCount;
+          } else {
+            quantity = 1;
+          }
+        }
+
+        if (quantity <= 0) {
+          continue;
+        }
+
         subscriptionCredits += catalogPlan.credits * quantity;
       }
 

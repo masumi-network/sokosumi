@@ -1713,6 +1713,7 @@
           "membersLabel": "Active members",
           "seatsInputLabel": "Target seats",
           "seatsInputHint": "Minimum seats is {minimum} to cover all active members.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "updating": "Redirecting...",
           "currentPlanCta": "Curernt plan",

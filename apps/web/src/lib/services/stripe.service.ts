@@ -260,6 +260,7 @@ export const stripeService = (() => {
         const subscription = await stripeClient.createSubscription(
           stripeCustomerId,
           freePlanPriceId,
+          1,
           { referenceId: userId, userId },
           `free-plan-user-${userId}`,
         );
@@ -343,9 +344,17 @@ export const stripeService = (() => {
           };
         }
 
+        const organizationMemberCount = await prisma.member.count({
+          where: {
+            organizationId,
+          },
+        });
+        const seats = Math.max(organizationMemberCount, 1);
+
         const subscription = await stripeClient.createSubscription(
           stripeCustomerId,
           freePlanPriceId,
+          seats,
           { referenceId: organizationId, organizationId },
           `free-plan-organization-${organizationId}`,
         );

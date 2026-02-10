@@ -115,8 +115,7 @@ export const openPersonalBillingPortal = withAuthContext<
   }
 });
 
-interface UpgradeOrganizationSubscriptionParameters
-  extends AuthenticatedRequest {
+interface UpgradeOrganizationSubscriptionParameters extends AuthenticatedRequest {
   organizationId: string;
   plan: "free" | "starter" | "standard" | "pro";
   returnPath: string;
