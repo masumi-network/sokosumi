@@ -291,9 +291,12 @@ export const stripeService = (() => {
     async syncSubscriptionRowsForReference(
       referenceId: string,
       stripeCustomerId: string,
+      stripeSubscriptions?: Stripe.Subscription[],
     ): Promise<SyncSubscriptionRowsResult> {
-      const [stripeSubscriptions, subscriptionCatalog] = await Promise.all([
-        stripeClient.listSubscriptions(stripeCustomerId),
+      const [subscriptions, subscriptionCatalog] = await Promise.all([
+        stripeSubscriptions
+          ? Promise.resolve(stripeSubscriptions)
+          : stripeClient.listSubscriptions(stripeCustomerId),
         getSubscriptionCatalog(stripeInstance),
       ]);
 
@@ -307,7 +310,7 @@ export const stripeService = (() => {
         updated: 0,
       };
 
-      for (const stripeSubscription of stripeSubscriptions) {
+      for (const stripeSubscription of subscriptions) {
         const subscriptionItem = stripeSubscription.items.data[0];
         if (!subscriptionItem) {
           syncResult.skipped += 1;

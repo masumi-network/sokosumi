@@ -1,11 +1,16 @@
 import { Lock } from "@sokosumi/database";
-import { lockRepository } from "@sokosumi/database/repositories";
+import {
+  lockRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pLimit from "p-limit";
 import pTimeout from "p-timeout";
+import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { lockService, stripeService } from "@/lib/services";
 
@@ -62,47 +67,72 @@ async function stripeSubscriptionsSync(): Promise<Response> {
 }
 
 async function syncAllStripeSubscriptions(): Promise<void> {
-  const usersWithStripeCustomer = await prisma.user.findMany({
-    where: {
-      stripeCustomerId: {
-        not: null,
-      },
-    },
-    select: {
-      id: true,
-      stripeCustomerId: true,
-    },
-  });
+  const [usersWithStripeCustomer, stripeSubscriptions] = await Promise.all([
+    userRepository.getUsersWithStripeCustomerId(prisma),
+    stripeClient.listAllSubscriptions(),
+  ]);
 
   console.info(
     "Syncing subscriptions for",
-    usersWithStripeCustomer.length,
-    "users with Stripe customers",
+    stripeSubscriptions.length,
+    "Stripe subscriptions",
   );
+
+  const userReferenceByStripeCustomerId = new Map<string, string>();
+  for (const user of usersWithStripeCustomer) {
+    if (!user.stripeCustomerId) {
+      continue;
+    }
+    userReferenceByStripeCustomerId.set(user.stripeCustomerId, user.id);
+  }
+
+  const subscriptionsByStripeCustomerId = new Map<
+    string,
+    Stripe.Subscription[]
+  >();
+  for (const subscription of stripeSubscriptions) {
+    const stripeCustomerId =
+      typeof subscription.customer === "string"
+        ? subscription.customer
+        : subscription.customer?.id;
+    if (!stripeCustomerId) {
+      continue;
+    }
+    const currentSubscriptions =
+      subscriptionsByStripeCustomerId.get(stripeCustomerId) ?? [];
+    currentSubscriptions.push(subscription);
+    subscriptionsByStripeCustomerId.set(stripeCustomerId, currentSubscriptions);
+  }
 
   const runningUpdates: Promise<void>[] = [];
   const limit = pLimit(5);
 
-  for (const user of usersWithStripeCustomer) {
-    const stripeCustomerId = user.stripeCustomerId;
-    if (!stripeCustomerId) {
+  for (const [
+    stripeCustomerId,
+    customerSubscriptions,
+  ] of subscriptionsByStripeCustomerId.entries()) {
+    const userReferenceId =
+      userReferenceByStripeCustomerId.get(stripeCustomerId);
+    if (!userReferenceId) {
       continue;
     }
+
     runningUpdates.push(
       limit(async () => {
         try {
           const result = await stripeService.syncSubscriptionRowsForReference(
-            user.id,
+            userReferenceId,
             stripeCustomerId,
+            customerSubscriptions,
           );
           if (result.created > 0 || result.updated > 0) {
             console.info(
-              `Synced subscriptions for user ${user.id} (created=${result.created}, updated=${result.updated}, skipped=${result.skipped})`,
+              `Synced subscriptions for user ${userReferenceId} (created=${result.created}, updated=${result.updated}, skipped=${result.skipped})`,
             );
           }
         } catch (error) {
           console.error(
-            `Failed to sync subscriptions for user ${user.id}:`,
+            `Failed to sync subscriptions for user ${userReferenceId}:`,
             error,
           );
         }

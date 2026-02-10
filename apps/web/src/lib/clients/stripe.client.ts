@@ -135,6 +135,29 @@ export const stripeClient = (() => {
       return subscriptions.data;
     },
 
+    async listAllSubscriptions(): Promise<Stripe.Subscription[]> {
+      const subscriptions: Stripe.Subscription[] = [];
+      let startingAfter: string | undefined;
+
+      while (true) {
+        const page = await stripe.subscriptions.list({
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+          limit: 100,
+          status: "all",
+        });
+
+        subscriptions.push(...page.data);
+
+        if (!page.has_more || page.data.length === 0) {
+          break;
+        }
+
+        startingAfter = page.data[page.data.length - 1]?.id;
+      }
+
+      return subscriptions;
+    },
+
     async createSubscription(
       customerId: string,
       priceId: string,
