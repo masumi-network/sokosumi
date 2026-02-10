@@ -3,8 +3,7 @@ import { JobEventWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-
-import { SourcesGrid } from "./sources-grid";
+import { SourcesGrid } from "@/components/sources/sources-grid";
 
 interface JobOutputSourcesProps {
   event: JobEventWithRelations;
