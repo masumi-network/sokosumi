@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
@@ -31,6 +31,7 @@ export default function ChatMessage({
   modelId,
   modelName,
 }: ChatMessageProps) {
+  const t = useTranslations("App.Chat.Chat");
   const isUser = role === "user";
   const formatter = useFormatter();
 
