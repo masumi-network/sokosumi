@@ -139,10 +139,6 @@ export function TaskActivitySection({
     );
   }, [localEvents]);
 
-  const latestStatusEvent = useMemo(() => {
-    return orderedEvents.find((event) => event.status != null) ?? null;
-  }, [orderedEvents]);
-
   const trimmedComment = comment.trim();
   const isSubmitDisabled =
     isPending || trimmedComment.length === 0 || !currentUser?.id;
@@ -257,7 +253,7 @@ export function TaskActivitySection({
 
       {orderedEvents.length > 0 ? (
         <div className="space-y-3">
-          {orderedEvents.map((event) => {
+          {orderedEvents.map((event, index) => {
             const actorLabel = event.coworkerId
               ? actorCoworkerLabel
               : event.userId
@@ -285,12 +281,12 @@ export function TaskActivitySection({
                 ? t("actionChargedCredits", { credits: event.credits })
                 : null;
             const shouldShowAuthenticateButton =
-              latestStatusEvent?.id === event.id &&
+              index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
               Boolean(event.authenticationUrl);
 
             const row = (
-              <div key={event.id} className="flex items-start gap-3">
+              <div key={event.id} className="flex items-start gap-4 py-1.5">
                 <Avatar className="size-6 shrink-0">
                   {actorImage ? (
                     <AvatarImage src={actorImage} alt={actorName} />
@@ -299,7 +295,7 @@ export function TaskActivitySection({
                     {getInitials(actorName)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <div className="flex flex-row items-baseline justify-between gap-2">
                     <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
                       <span className="text-sm font-medium">{actorName}</span>

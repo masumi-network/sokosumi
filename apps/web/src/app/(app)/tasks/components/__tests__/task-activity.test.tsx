@@ -108,17 +108,17 @@ describe("TaskActivitySection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows auth button only for latest AUTHENTICATION_REQUIRED status event", () => {
+  it("shows auth button when latest event is AUTHENTICATION_REQUIRED", () => {
     const events: TaskEvent[] = [
-      createEvent("latest-comment", {
-        createdAt: "2026-01-01T12:00:00.000Z",
-        status: null,
-        comment: "Looks good",
-      }),
       createEvent("latest-status-auth", {
-        createdAt: "2026-01-01T11:00:00.000Z",
+        createdAt: "2026-01-01T12:00:00.000Z",
         status: TaskStatus.AUTHENTICATION_REQUIRED,
         authenticationUrl: "https://example.com/oauth/authorize",
+      }),
+      createEvent("older-comment", {
+        createdAt: "2026-01-01T11:00:00.000Z",
+        status: null,
+        comment: "Looks good",
       }),
       createEvent("older-status-running", {
         createdAt: "2026-01-01T10:00:00.000Z",
@@ -136,5 +136,26 @@ describe("TaskActivitySection", () => {
     expect(screen.getAllByRole("link", { name: "Authenticate" })).toHaveLength(
       1,
     );
+  });
+
+  it("does not show auth button when latest event is a comment", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Looks good",
+      }),
+      createEvent("older-status-auth", {
+        createdAt: "2026-01-01T11:00:00.000Z",
+        status: TaskStatus.AUTHENTICATION_REQUIRED,
+        authenticationUrl: "https://example.com/oauth/authorize",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(
+      screen.queryByRole("link", { name: "Authenticate" }),
+    ).not.toBeInTheDocument();
   });
 });
