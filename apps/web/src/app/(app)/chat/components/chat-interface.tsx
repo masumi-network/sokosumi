@@ -352,9 +352,6 @@ export default function ChatInterface({
     stop();
   };
 
-  // Hide sidebar when messages exist, show full-width chat interface
-  const hasActiveChat = selectedChatId && messages.length > 0;
-
   // Get the selected chat's coworker for MultimodalInput
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedChatCoworker = selectedChat?.coworker;
@@ -362,7 +359,7 @@ export default function ChatInterface({
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
       <div className="relative flex h-full min-h-0 w-full flex-col">
-        {selectedChatId && hasActiveChat ? (
+        {selectedChatId ? (
           <>
             {showMessagesAfterTransition && (
               <MessageList
@@ -391,21 +388,19 @@ export default function ChatInterface({
             />
           </>
         ) : (
-          !selectedChatId && (
-            <WelcomeScreen
-              userName={userName?.split(" ")[0] ?? userName}
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              isTransitioning={isWelcomeTransitioning}
-              input={input}
-              setInput={setInput}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
-              status={status}
-              stop={handleStop}
-            />
-          )
+          <WelcomeScreen
+            userName={userName?.split(" ")[0] ?? userName}
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            isTransitioning={isWelcomeTransitioning}
+            input={input}
+            setInput={setInput}
+            messages={messages}
+            setMessages={setMessages}
+            sendMessage={sendMessage}
+            status={status}
+            stop={handleStop}
+          />
         )}
       </div>
       <SelectCoworkerModal
