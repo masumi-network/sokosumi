@@ -1,7 +1,7 @@
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTaskCompletionTransaction } from "./task-credits";
+import { createTaskEventTransaction } from "./task-credits";
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
@@ -9,7 +9,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-describe("createTaskCompletionTransaction", () => {
+describe("createTaskEventTransaction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -27,12 +27,12 @@ describe("createTaskCompletionTransaction", () => {
       },
     } as const;
 
-    const result = await createTaskCompletionTransaction({
+    const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: null,
       credits: 5,
       tx: tx as unknown as Parameters<
-        typeof createTaskCompletionTransaction
+        typeof createTaskEventTransaction
       >[0]["tx"],
     });
 
@@ -62,12 +62,12 @@ describe("createTaskCompletionTransaction", () => {
       },
     } as const;
 
-    const result = await createTaskCompletionTransaction({
+    const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: "org_1",
       credits: 5,
       tx: tx as unknown as Parameters<
-        typeof createTaskCompletionTransaction
+        typeof createTaskEventTransaction
       >[0]["tx"],
     });
 
@@ -98,12 +98,12 @@ describe("createTaskCompletionTransaction", () => {
       },
     } as const;
 
-    const result = await createTaskCompletionTransaction({
+    const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: null,
       credits: 0,
       tx: tx as unknown as Parameters<
-        typeof createTaskCompletionTransaction
+        typeof createTaskEventTransaction
       >[0]["tx"],
     });
 

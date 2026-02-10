@@ -7,15 +7,15 @@ import {
 
 import { badRequest } from "./error";
 
-interface CreateTaskCompletionTransactionInput {
+interface CreateTaskEventTransactionInput {
   userId: string;
   organizationId: string | null;
   credits: number;
   tx: Prisma.TransactionClient;
 }
 
-export async function createTaskCompletionTransaction(
-  input: CreateTaskCompletionTransactionInput,
+export async function createTaskEventTransaction(
+  input: CreateTaskEventTransactionInput,
 ): Promise<string | null> {
   if (input.credits === 0) {
     return null;

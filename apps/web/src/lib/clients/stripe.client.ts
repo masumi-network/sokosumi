@@ -14,10 +14,41 @@ export interface Price {
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
   const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
+  const SUPPORTED_CREDIT_PRICE_CURRENCIES = ["eur", "usd"] as const;
+  const SUPPORTED_CREDIT_PRICE_CURRENCY_SET = new Set<string>(
+    SUPPORTED_CREDIT_PRICE_CURRENCIES,
+  );
+
+  function isSupportedCreditPriceCurrency(currency: string): boolean {
+    return SUPPORTED_CREDIT_PRICE_CURRENCY_SET.has(currency);
+  }
+
+  function isValidCreditPrice(price: Stripe.Price): boolean {
+    return (
+      isSupportedCreditPriceCurrency(price.currency) &&
+      price.unit_amount !== null &&
+      price.unit_amount > 0
+    );
+  }
+
+  function selectPreferredCreditPrice(
+    prices: Stripe.Price[],
+  ): Stripe.Price | null {
+    for (const currency of SUPPORTED_CREDIT_PRICE_CURRENCIES) {
+      const matchedPrice = prices.find(
+        (price) => price.currency === currency && isValidCreditPrice(price),
+      );
+      if (matchedPrice) {
+        return matchedPrice;
+      }
+    }
+
+    return null;
+  }
 
   function validatePrice(price: Stripe.Price): Price {
-    if (price.currency !== "usd") {
-      throw new Error("Price is not in USD");
+    if (!isSupportedCreditPriceCurrency(price.currency)) {
+      throw new Error(`Unsupported credit price currency: ${price.currency}`);
     }
     if (price.unit_amount === null) {
       throw new Error("Price unit_amount is null");
@@ -89,6 +120,33 @@ export const stripeClient = (() => {
         },
         {
           idempotencyKey: `${customerId}-${email ?? "null"}`,
+        },
+      );
+    },
+
+    async listSubscriptions(
+      customerId: string,
+    ): Promise<Stripe.Subscription[]> {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 100,
+      });
+      return subscriptions.data;
+    },
+
+    async createSubscription(
+      customerId: string,
+      priceId: string,
+      idempotencyKey?: string,
+    ): Promise<Stripe.Subscription> {
+      return await stripe.subscriptions.create(
+        {
+          customer: customerId,
+          items: [{ price: priceId }],
+        },
+        {
+          ...(idempotencyKey ? { idempotencyKey } : {}),
         },
       );
     },
@@ -181,13 +239,28 @@ export const stripeClient = (() => {
         const product = await stripe.products.retrieve(productId, {
           expand: ["default_price"],
         });
+
         if (
-          typeof product.default_price !== "object" ||
-          product.default_price === null
+          typeof product.default_price === "object" &&
+          product.default_price !== null &&
+          isValidCreditPrice(product.default_price)
         ) {
-          throw new Error("Product default price is not expanded");
+          return validatePrice(product.default_price);
         }
-        return validatePrice(product.default_price);
+
+        const productPrices = await stripe.prices.list({
+          product: productId,
+          active: true,
+          limit: 100,
+        });
+        const fallbackPrice = selectPreferredCreditPrice(productPrices.data);
+        if (!fallbackPrice) {
+          throw new Error(
+            `No valid credit price found for product ${productId}. Expected currencies: ${SUPPORTED_CREDIT_PRICE_CURRENCIES.join(", ")}`,
+          );
+        }
+
+        return validatePrice(fallbackPrice);
       } catch (error) {
         console.error("Error retrieving price", error);
         throw error;

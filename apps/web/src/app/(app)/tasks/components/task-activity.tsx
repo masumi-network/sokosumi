@@ -3,6 +3,7 @@
 import { TaskEventOrigin } from "@sokosumi/database";
 import { ArrowUp, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   useEffect,
@@ -15,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createTaskComment } from "@/lib/actions/task/action";
-import { TaskEvent } from "@/lib/types/task";
+import type { TaskEvent } from "@/lib/types/task";
 import { formatShortDate } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 
@@ -117,6 +118,7 @@ export function TaskActivitySection({
   expandLabel = "Expand",
   collapseLabel = "Show less",
 }: TaskActivityProps) {
+  const t = useTranslations("App.Tasks.Detail");
   const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
   const router = useRouter();
   const [comment, setComment] = useState("");
@@ -154,6 +156,7 @@ export function TaskActivitySection({
       origin: TaskEventOrigin.SOKOSUMI,
       userId: currentUser?.id ?? null,
       coworkerId: null,
+      transactionId: null,
     };
 
     setLocalEvents((prev) => [optimisticEvent, ...prev]);
@@ -233,6 +236,10 @@ export function TaskActivitySection({
                   resolvedAgentNameById,
                 )
               : null;
+            const chargedLabel =
+              event.credits != null
+                ? t("actionChargedCredits", { credits: event.credits })
+                : null;
 
             const row = (
               <div key={event.id} className="flex items-start gap-3">
@@ -267,6 +274,11 @@ export function TaskActivitySection({
                       collapseLabel={collapseLabel}
                       fadeClassName="to-background"
                     />
+                  ) : null}
+                  {chargedLabel ? (
+                    <div className="text-muted-foreground/60 text-xs">
+                      {chargedLabel}
+                    </div>
                   ) : null}
                 </div>
               </div>

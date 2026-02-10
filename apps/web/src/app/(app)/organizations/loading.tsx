@@ -4,12 +4,14 @@ import { OrganizationsSkeleton } from "./components/organizations";
 
 export default function OrganizationsLoadingPage() {
   return (
-    <div className="w-full space-y-12 px-2">
-      <div className="flex w-full items-center justify-between">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-8 w-32" />
+    <div className="min-h-full w-full">
+      <div className="mx-auto max-w-4xl space-y-12 px-4">
+        <div className="flex w-full items-center justify-between">
+          <div />
+          <Skeleton className="h-7 w-28" />
+        </div>
+        <OrganizationsSkeleton />
       </div>
-      <OrganizationsSkeleton />
     </div>
   );
 }

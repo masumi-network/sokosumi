@@ -7,6 +7,15 @@ import type { TaskWithIncludes } from "@/types/task";
 
 import { unprocessableEntity } from "./error";
 
+type TaskEventWithOptionalTransaction = Omit<
+  TaskWithIncludes["events"][number],
+  "transaction"
+> & {
+  transaction?: {
+    amount: bigint;
+  } | null;
+};
+
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
@@ -16,27 +25,32 @@ function getAllowedTransitions(
       [TaskStatus.READY]: [
         TaskStatus.RUNNING,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.CANCELED,
       ],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
+        TaskStatus.CANCELED,
       ],
       [TaskStatus.AUTHENTICATION_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
+        TaskStatus.CANCELED,
       ],
       [TaskStatus.RUNNING]: [
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
+        TaskStatus.CANCELED,
       ],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
+      [TaskStatus.CANCELED]: [],
     };
   }
 
@@ -49,6 +63,7 @@ function getAllowedTransitions(
       [TaskStatus.RUNNING]: [],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
+      [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
     };
   }
 
@@ -72,11 +87,22 @@ export function validateStatusTransition(
   }
 }
 
+export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
+  const { transaction, ...rest } = event;
+  return {
+    ...rest,
+    credits: transaction
+      ? Math.abs(convertCentsToCredits(transaction.amount))
+      : null,
+  };
+}
+
 export function mapTask(task: TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
-  const credits = task.transaction
-    ? Math.abs(convertCentsToCredits(task.transaction.amount))
-    : 0;
+  const events = task.events.map((event) => mapTaskEvent(event));
+  const credits = events.reduce((total, event) => {
+    return total + (event.credits ?? 0);
+  }, 0);
   return {
     id: task.id,
     createdAt: task.createdAt,
@@ -87,7 +113,7 @@ export function mapTask(task: TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
-    events: task.events,
+    events,
     jobs,
     credits,
   };

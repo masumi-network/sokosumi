@@ -4,6 +4,7 @@ import type { AgentRatingStats } from "@sokosumi/database";
 import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { AgentBookmarkButton } from "@/components/agents";
@@ -12,41 +13,37 @@ import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAgentName } from "@/lib/helpers/agent";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
 
   return (
-    <div className="md:justify-initial flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
-      <div className="md:justify-initial flex w-full flex-row items-center justify-between gap-4 md:w-auto md:flex-initial">
-        <Button
-          variant="secondary"
-          size="icon"
-          disabled
-          className="flex md:hidden"
-        >
-          <ArrowLeft className="animate-pulse" />
-        </Button>
-        <Skeleton className="hidden h-8 w-60 md:flex xl:h-9" />
-        <Skeleton className="h-6 w-16" />
-        <Button
-          variant="secondary"
-          size="icon"
-          disabled
-          className="hidden md:flex"
-        >
-          <Bookmark className="animate-pulse" />
-        </Button>
-      </div>
-      <div className="hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
-        <div className="w-full text-end text-sm font-semibold">
-          <Skeleton className="ml-auto h-5 w-24" />
+    <div className="flex flex-col gap-4 pt-14 md:pt-0 lg:gap-6 xl:gap-8">
+      <div className="bg-background/95 fixed top-[64px] left-0 z-50 flex w-full items-center justify-between p-4 md:hidden md:gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="icon" disabled>
+            <ArrowLeft className="animate-pulse" />
+          </Button>
         </div>
-        <Button className="gap-2" disabled>
-          <Plus />
-          {t("newJob")}
-        </Button>
+        <div className="flex items-center gap-2" />
+      </div>
+      <div className="hidden w-full items-center justify-between md:flex">
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="icon" disabled>
+            <ArrowLeft className="animate-pulse" />
+          </Button>
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="h-5 w-20" />
+          <Button variant="secondary" size="icon" disabled>
+            <Bookmark className="animate-pulse" />
+          </Button>
+          <Button className="h-7 gap-2 px-2.5 text-xs" disabled>
+            <Plus />
+            {t("newJob")}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -78,8 +75,8 @@ export default function Header({
   );
 
   return (
-    <div className="flex flex-col items-center gap-4 pt-14 md:pt-0 lg:flex-row lg:gap-6 xl:gap-8">
-      <div className="bg-background/95 fixed top-[64px] z-50 flex w-full flex-row items-center justify-between gap-4 p-4 md:hidden">
+    <div className="flex flex-col gap-4 pt-14 md:pt-0 lg:gap-6 xl:gap-8">
+      <div className="bg-background/95 fixed top-[64px] left-0 z-50 flex w-full flex-row items-center justify-between gap-4 p-4 md:hidden">
         <AgentActionButtons
           agent={agent}
           showBackButton={true}
@@ -87,33 +84,41 @@ export default function Header({
           showCloseButton={false}
         />
       </div>
-      <div className="flex w-full flex-row items-center justify-between gap-4 md:w-auto md:justify-center">
-        <h1 className="text-2xl leading-none font-light tracking-tighter text-nowrap md:text-3xl">
-          {getAgentName(agent)}
-        </h1>
-        <div className="hidden gap-2 md:flex">
+      <div className="hidden w-full items-center justify-between md:flex">
+        <Link
+          href="/agents"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+        >
+          <ArrowLeft className="size-4" />
+          <span>{t("back")}</span>
+        </Link>
+        <div className="flex items-center gap-1.5">
+          <div className="text-sm font-semibold">
+            {t("price", {
+              price: convertCentsToCredits(agent.creditsPrice.cents),
+            })}
+          </div>
           {canRate && (
             <AgentRatingCTA
               agentId={agent.id}
               ratingStats={ratingStats}
               existingRating={existingRating}
               disabled={disabled}
+              className="size-7"
             />
           )}
           <AgentBookmarkButton
             agentId={agent.id}
             isFavorite={isFavorite}
             disabled={disabled}
+            className="size-7"
+          />
+          <CreateJobModalTrigger
+            agentId={agent.id}
+            disabled={disabled}
+            className="h-7 gap-1.5 px-2.5 text-xs"
           />
         </div>
-      </div>
-      <div className="hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
-        <div className="w-full text-end text-sm font-semibold">
-          {t("price", {
-            price: convertCentsToCredits(agent.creditsPrice.cents),
-          })}
-        </div>
-        <CreateJobModalTrigger agentId={agent.id} disabled={disabled} />
       </div>
     </div>
   );

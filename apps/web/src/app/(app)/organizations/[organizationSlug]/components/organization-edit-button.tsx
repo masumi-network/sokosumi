@@ -10,10 +10,12 @@ import useModal from "@/hooks/use-modal";
 
 interface OrganizationEditButtonProps {
   organization: Organization;
+  className?: string | undefined;
 }
 
 export default function OrganizationEditButton({
   organization,
+  className,
 }: OrganizationEditButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
@@ -27,7 +29,7 @@ export default function OrganizationEditButton({
   return (
     <>
       {Component}
-      <Button onClick={showModal}>
+      <Button onClick={showModal} className={className}>
         <Pencil size={16} />
         {t("edit")}
       </Button>

@@ -3,11 +3,8 @@ import {
   MemberRole,
   OrganizationWithRelations,
 } from "@sokosumi/database";
-import { Building2 } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { OrganizationLogo } from "@/components/organizations";
-import { Skeleton } from "@/components/ui/skeleton";
 
 import OrganizationEditButton from "./organization-edit-button";
 import OrganizationRemoveButton from "./organization-remove-button";
@@ -21,44 +18,25 @@ export default function OrganizationInformation({
   organization,
   member,
 }: OrganizationInformationProps) {
-  const t = useTranslations("App.Organizations.OrganizationDetail");
-
-  const { name } = organization;
   const { role } = member;
   const isOwnerOrAdmin = role === MemberRole.OWNER || role === MemberRole.ADMIN;
 
   return (
     <div className="flex items-center gap-8 lg:gap-12">
-      <OrganizationLogo organization={organization} size={96} />
-      <div className="flex flex-1 flex-col justify-between self-stretch">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-light">{t("title", { name })}</h1>
-        </div>
-      </div>
+      <OrganizationLogo organization={organization} />
+      <div className="flex-1" />
       {isOwnerOrAdmin && (
-        <div className="flex items-start gap-2 self-stretch">
-          <OrganizationEditButton organization={organization} />
-          <OrganizationRemoveButton organization={organization} />
+        <div className="flex items-center gap-1.5 self-start">
+          <OrganizationEditButton
+            organization={organization}
+            className="h-7 gap-1.5 px-2 text-xs"
+          />
+          <OrganizationRemoveButton
+            organization={organization}
+            className="h-7 gap-1.5 px-2 text-xs"
+          />
         </div>
       )}
-    </div>
-  );
-}
-
-export function OrganizationInformationSkeleton() {
-  return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-4 w-20" />
-      </div>
-      <div className="flex items-center gap-8 lg:gap-12">
-        <Building2 size={96} />
-        <div className="flex flex-1 flex-col justify-between self-stretch">
-          <Skeleton className="h-6 w-64" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-      </div>
-      <Skeleton className="h-4 w-20" />
     </div>
   );
 }

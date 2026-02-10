@@ -10,6 +10,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   [TaskStatus.RUNNING]: "Running",
   [TaskStatus.COMPLETED]: "Done",
   [TaskStatus.FAILED]: "Failed",
+  [TaskStatus.CANCELED]: "Canceled",
 };
 
 const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
@@ -20,6 +21,7 @@ const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
   [TaskStatus.RUNNING]: "bg-amber-500",
   [TaskStatus.COMPLETED]: "bg-emerald-500",
   [TaskStatus.FAILED]: "bg-red-500",
+  [TaskStatus.CANCELED]: "bg-muted-foreground",
 };
 
 interface TaskStatusBadgeProps {

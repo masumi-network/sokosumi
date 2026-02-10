@@ -8,10 +8,12 @@ import useModal from "@/hooks/use-modal";
 
 interface OrganizationInviteButtonProps {
   organizationId: string;
+  className?: string | undefined;
 }
 
 export default function OrganizationInviteButton({
   organizationId,
+  className,
 }: OrganizationInviteButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
@@ -25,7 +27,9 @@ export default function OrganizationInviteButton({
   return (
     <>
       {Component}
-      <Button onClick={showModal}>{t("invite")}</Button>
+      <Button onClick={showModal} className={className}>
+        {t("invite")}
+      </Button>
     </>
   );
 }

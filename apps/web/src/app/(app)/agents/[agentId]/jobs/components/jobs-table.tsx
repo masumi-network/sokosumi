@@ -2,7 +2,7 @@
 
 import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { ChannelProvider } from "ably/react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
@@ -24,7 +24,6 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const t = useTranslations("Components.Jobs.JobsTable");
   const dateFormatter = useFormatter();
   const params = useParams<{ agentId: string; jobId?: string | undefined }>();
-  const searchParams = useSearchParams();
 
   const router = useRouter();
   const [routerLoading, setRouterLoading] = useState(false);
@@ -36,7 +35,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
 
   const handleRowClick = async (row: JobWithSokosumiStatus) => {
     setRouterLoading(true);
-    const qs = searchParams?.toString();
+    const qs = new URLSearchParams(window.location.search).toString();
     const base = `/agents/${row.agent.id}/jobs/${row.id}`;
     const href = qs ? `${base}?${qs}` : base;
     router.push(href);

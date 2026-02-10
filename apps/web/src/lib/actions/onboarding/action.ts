@@ -91,6 +91,7 @@ export async function completeOnboarding(
       true,
       prisma,
     );
+    await userService.markOnboardingCompleteForMe();
 
     revalidatePath("/");
     const isChatEnabled = await chatUIEnabled();

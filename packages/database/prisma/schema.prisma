@@ -108,8 +108,8 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-  createdAt             DateTime
-  updatedAt             DateTime
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@map("account")
 }
@@ -123,6 +123,31 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model Subscription {
+  id                   String    @id
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  plan                 String
+  referenceId          String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  status               String    @default("incomplete")
+  periodStart          DateTime?
+  periodEnd            DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  cancelAtPeriodEnd    Boolean?  @default(false)
+  cancelAt             DateTime?
+  canceledAt           DateTime?
+  endedAt              DateTime?
+  seats                Int?
+
+  @@unique([stripeSubscriptionId])
+  @@index([referenceId])
+  @@index([stripeCustomerId])
+  @@map("subscription")
 }
 
 model Organization {
@@ -477,7 +502,7 @@ model Transaction {
 
   job           Job?           @relation("TransactionJob")
   refundedJob   Job?           @relation("RefundedTransactionJob")
-  task          Task?          @relation("TransactionTask")
+  taskEvents    TaskEvent[]    @relation("TransactionTaskEvent")
   coworkerUsage CoworkerUsage? @relation("TransactionCoworkerUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
@@ -519,7 +544,8 @@ model CreditBucket {
 }
 
 enum CreditBucketReferenceType {
-  STRIPE_INVOICE
+  STRIPE_TOPUP
+  STRIPE_SUBSCRIPTION_PERIOD
   JOB_REFUND
 }
 
@@ -1047,9 +1073,6 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
-  transactionId String?      @unique
-  transaction   Transaction? @relation("TransactionTask", fields: [transactionId], references: [id])
-
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
@@ -1070,6 +1093,7 @@ enum TaskStatus {
   RUNNING
   COMPLETED
   FAILED
+  CANCELED
 }
 
 enum TaskEventOrigin {
@@ -1095,6 +1119,7 @@ model TaskEvent {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   status            TaskStatus?
+  transactionId     String?
   comment           String?
   authenticationUrl String?
   origin            TaskEventOrigin @default(SOKOSUMI)
@@ -1105,6 +1130,9 @@ model TaskEvent {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
+  transaction Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([transactionId])
   @@map("taskEvent")
 }
 

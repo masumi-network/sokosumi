@@ -219,49 +219,49 @@ export const userService = (() => {
    * - Otherwise → returns true (show onboarding)
    */
   async function showOnboarding(session: Session): Promise<boolean> {
-    return await prisma.$transaction(async (tx) => {
-      if (!session) {
-        return false;
-      }
+    if (!session) {
+      return false;
+    }
 
-      const user = session.user;
-      if (!user) {
-        return false;
-      }
+    const user = session.user;
+    if (!user) {
+      return false;
+    }
 
-      if (user.onboardingCompleted) {
-        return false;
-      }
+    if (user.onboardingCompleted) {
+      return false;
+    }
 
-      const membershipOrgIds =
-        await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const membershipOrgIds =
+          await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
 
-      let shouldComplete = false;
-      if (membershipOrgIds.length > 0) {
-        shouldComplete = true;
-      } else {
-        try {
+        let shouldComplete = false;
+        if (membershipOrgIds.length > 0) {
+          shouldComplete = true;
+        } else {
           const hasPendingInvitation =
             await invitationRepository.hasPendingInvitationByEmail(
               user.email,
               tx,
             );
           shouldComplete = hasPendingInvitation;
-        } catch (error) {
-          console.error(
-            "Failed to fetch pending invitations for showOnboarding",
-            error,
-          );
         }
-      }
 
-      if (shouldComplete) {
-        await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
-        return false;
-      }
+        if (shouldComplete) {
+          await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
+          return false;
+        }
 
+        return true;
+      });
+    } catch (error) {
+      console.error("Failed to check/update onboarding status", error);
+      // Return true (show onboarding) on error as a safe default - better to show
+      // onboarding than to silently skip it due to a transient DB error
       return true;
-    });
+    }
   }
 
   /**

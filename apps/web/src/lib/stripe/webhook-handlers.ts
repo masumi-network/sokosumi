@@ -15,6 +15,84 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services";
+import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
+
+const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
+  "subscription_create",
+  "subscription_cycle",
+]);
+const SUBSCRIPTION_UPDATE_BILLING_REASON = "subscription_update";
+
+interface InvoiceCreditGrant {
+  credits: number;
+  expiresAt: Date | null;
+  referenceId: string;
+  referenceType: CreditBucketReferenceType;
+}
+
+function getUpgradeCreditExpiry(
+  invoice: Stripe.Invoice,
+  periodDurationSeconds: number,
+): Date {
+  if (typeof invoice.created !== "number" || invoice.created <= 0) {
+    throw new Error(
+      `Missing invoice created timestamp for upgrade invoice ${invoice.id ?? "unknown"}`,
+    );
+  }
+
+  return new Date((invoice.created + periodDurationSeconds) * 1000);
+}
+
+function getSubscriptionCreditExpiry(params: {
+  invoice: Stripe.Invoice;
+  invoiceId: string;
+  maxPeriodDurationSeconds: number | null;
+  maxPeriodEndUnix: number | null;
+}): Date {
+  if (params.invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
+    if (params.maxPeriodDurationSeconds === null) {
+      throw new Error(
+        `Missing subscription period duration for upgrade invoice ${params.invoiceId}`,
+      );
+    }
+
+    return getUpgradeCreditExpiry(
+      params.invoice,
+      params.maxPeriodDurationSeconds,
+    );
+  }
+
+  if (params.maxPeriodEndUnix === null) {
+    throw new Error(
+      `Missing subscription period end for invoice ${params.invoiceId}`,
+    );
+  }
+
+  return new Date(params.maxPeriodEndUnix * 1000);
+}
+
+function calculateProratedSubscriptionCredits(params: {
+  invoiceId: string;
+  lineAmount: number;
+  monthlyAmount: number;
+  planCredits: number;
+  productId: string;
+}): number {
+  if (params.lineAmount <= 0) {
+    return 0;
+  }
+
+  if (params.monthlyAmount <= 0) {
+    throw new Error(
+      `Invalid monthly amount for subscription product ${params.productId} on invoice ${params.invoiceId}`,
+    );
+  }
+
+  return Math.floor(
+    (params.lineAmount * params.planCredits) / params.monthlyAmount,
+  );
+}
 
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
@@ -88,60 +166,251 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  // Get the allowed product ID and its default price
-  const allowedProductId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
+  const env = getEnvSecrets();
+  const creditProductId = env.STRIPE_CREDIT_PRODUCT_ID;
+  const subscriptionProductIds = new Set([
+    env.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID,
+    env.STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID,
+    env.STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID,
+    env.STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID,
+  ]);
 
   // Ensure invoice has line items
   const lineItems = invoice.lines?.data;
   if (!lineItems || lineItems.length === 0) {
-    throw new Error(`No line items found for invoice ${invoiceId}`);
+    console.log(`Invoice ${invoiceId} has no line items to process`);
+    return;
   }
 
-  let totalCredits: number = 0;
+  const isPaidSubscriptionUpdate =
+    invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
+    invoice.amount_paid > 0;
+  const shouldGrantSubscriptionCredits =
+    invoice.billing_reason !== null &&
+    (SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS.has(invoice.billing_reason) ||
+      isPaidSubscriptionUpdate);
+  let oneTimeTopUpCredits = 0;
+  const matchedSubscriptionProducts = new Set<string>();
+
   for (const lineItem of lineItems) {
     if (lineItem.pricing && typeof lineItem.pricing === "object") {
       const productId = lineItem.pricing.price_details?.product;
-
-      if (productId !== allowedProductId) {
-        throw new Error(
-          `Invoice ${invoiceId} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`,
-        );
+      if (!productId || typeof productId !== "string") {
+        continue;
       }
 
-      totalCredits += lineItem.quantity ?? 0;
+      if (productId === creditProductId) {
+        oneTimeTopUpCredits += lineItem.quantity ?? 0;
+        continue;
+      }
+
+      if (
+        shouldGrantSubscriptionCredits &&
+        subscriptionProductIds.has(productId)
+      ) {
+        if (
+          invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
+          (lineItem.amount ?? 0) <= 0
+        ) {
+          continue;
+        }
+        matchedSubscriptionProducts.add(productId);
+      }
     }
   }
 
-  if (totalCredits <= 0) {
-    throw new Error(
-      `Invalid total credits ${totalCredits} for invoice ${invoiceId}`,
+  if (!shouldGrantSubscriptionCredits && invoice.billing_reason) {
+    console.log(
+      `Skipping subscription credits for invoice ${invoiceId} due to billing reason ${invoice.billing_reason}`,
     );
   }
 
-  const cents = convertCreditsToCents(totalCredits);
-  const referenceId = invoiceId;
-  const referenceType: CreditBucketReferenceType = "STRIPE_INVOICE";
-
-  // Check if bucket already exists (idempotent check)
-  await prisma.$transaction(async (tx) => {
-    const existingBucket = await tx.creditBucket.findUnique({
-      where: {
-        referenceId_referenceType: {
-          referenceId,
-          referenceType,
+  let subscriptionCredits = 0;
+  let maxSubscriptionPeriodEndUnix: number | null = null;
+  let maxSubscriptionPeriodDurationSeconds: number | null = null;
+  if (matchedSubscriptionProducts.size > 0) {
+    const subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
+    const catalogByProductId = new Map(
+      Object.values(subscriptionCatalog).map((plan) => [
+        plan.productId,
+        {
+          credits: plan.credits,
+          monthlyAmount: plan.monthlyAmount,
         },
-      },
-      include: {
-        sourceTransaction: true,
-      },
-    });
+      ]),
+    );
 
-    if (existingBucket) {
-      console.log(
-        `✅ Bucket already exists for invoice ${invoiceId}, skipping creation`,
-      );
-    } else {
-      // Create new transaction and bucket
+    for (const lineItem of lineItems) {
+      if (!lineItem.pricing || typeof lineItem.pricing !== "object") {
+        continue;
+      }
+      const productId = lineItem.pricing.price_details?.product;
+      if (!productId || typeof productId !== "string") {
+        continue;
+      }
+      if (!matchedSubscriptionProducts.has(productId)) {
+        continue;
+      }
+
+      const catalogPlan = catalogByProductId.get(productId);
+      if (!catalogPlan) {
+        throw new Error(
+          `No credits found in subscription catalog for product ${productId}`,
+        );
+      }
+
+      const lineAmount = lineItem.amount ?? 0;
+      if (
+        invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
+        lineAmount <= 0
+      ) {
+        continue;
+      }
+
+      const quantity = lineItem.quantity ?? 1;
+      if (
+        quantity <= 0 &&
+        invoice.billing_reason !== SUBSCRIPTION_UPDATE_BILLING_REASON
+      ) {
+        continue;
+      }
+
+      if (invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
+        subscriptionCredits += calculateProratedSubscriptionCredits({
+          invoiceId,
+          lineAmount,
+          monthlyAmount: catalogPlan.monthlyAmount,
+          planCredits: catalogPlan.credits,
+          productId,
+        });
+      } else {
+        subscriptionCredits += catalogPlan.credits * quantity;
+      }
+
+      const periodStart = lineItem.period?.start;
+      const periodEnd = lineItem.period?.end;
+      if (typeof periodEnd === "number" && periodEnd > 0) {
+        maxSubscriptionPeriodEndUnix = Math.max(
+          periodEnd,
+          maxSubscriptionPeriodEndUnix ?? 0,
+        );
+      }
+      if (
+        typeof periodStart === "number" &&
+        periodStart > 0 &&
+        typeof periodEnd === "number" &&
+        periodEnd > periodStart
+      ) {
+        const periodDurationSeconds = periodEnd - periodStart;
+        maxSubscriptionPeriodDurationSeconds = Math.max(
+          periodDurationSeconds,
+          maxSubscriptionPeriodDurationSeconds ?? 0,
+        );
+      }
+    }
+  }
+
+  const subscriptionCreditsExpiry =
+    subscriptionCredits > 0
+      ? getSubscriptionCreditExpiry({
+          invoice,
+          invoiceId,
+          maxPeriodDurationSeconds: maxSubscriptionPeriodDurationSeconds,
+          maxPeriodEndUnix: maxSubscriptionPeriodEndUnix,
+        })
+      : null;
+
+  const creditGrants: InvoiceCreditGrant[] = [];
+  if (oneTimeTopUpCredits > 0) {
+    creditGrants.push({
+      credits: oneTimeTopUpCredits,
+      expiresAt: null,
+      referenceId: subscriptionCredits > 0 ? `${invoiceId}:topup` : invoiceId,
+      referenceType: "STRIPE_TOPUP",
+    });
+  }
+  if (subscriptionCredits > 0) {
+    creditGrants.push({
+      credits: subscriptionCredits,
+      expiresAt: subscriptionCreditsExpiry,
+      referenceId:
+        oneTimeTopUpCredits > 0 ? `${invoiceId}:subscription` : invoiceId,
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+    });
+  }
+
+  if (creditGrants.length === 0) {
+    console.log(
+      `Invoice ${invoiceId} has no grantable credits (billing reason: ${invoice.billing_reason})`,
+    );
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const grantsToCreate: InvoiceCreditGrant[] = [];
+
+    if (creditGrants.length > 1) {
+      const legacyCombinedBucket = await tx.creditBucket.findUnique({
+        where: {
+          referenceId_referenceType: {
+            referenceId: invoiceId,
+            referenceType: "STRIPE_TOPUP",
+          },
+        },
+      });
+
+      if (legacyCombinedBucket) {
+        console.log(
+          `✅ Legacy combined bucket already exists for invoice ${invoiceId}, skipping split credit grants`,
+        );
+        return;
+      }
+    }
+
+    for (const grant of creditGrants) {
+      const existingBucket = await tx.creditBucket.findUnique({
+        where: {
+          referenceId_referenceType: {
+            referenceId: grant.referenceId,
+            referenceType: grant.referenceType,
+          },
+        },
+      });
+
+      if (existingBucket) {
+        console.log(
+          `✅ Bucket already exists for invoice reference ${grant.referenceId}, skipping creation`,
+        );
+        continue;
+      }
+
+      if (grant.referenceType === "STRIPE_SUBSCRIPTION_PERIOD") {
+        const migratedLegacyBucket = await tx.creditBucket.findUnique({
+          where: {
+            referenceId_referenceType: {
+              referenceId: grant.referenceId,
+              referenceType: "STRIPE_TOPUP",
+            },
+          },
+        });
+
+        if (migratedLegacyBucket && migratedLegacyBucket.expiresAt !== null) {
+          console.log(
+            `✅ Legacy migrated subscription bucket already exists for invoice reference ${grant.referenceId}, skipping creation`,
+          );
+          continue;
+        }
+      }
+
+      grantsToCreate.push(grant);
+    }
+
+    if (grantsToCreate.length === 0) {
+      return;
+    }
+
+    for (const grant of grantsToCreate) {
+      const cents = convertCreditsToCents(grant.credits);
       await tx.transaction.create({
         data: {
           amount: cents,
@@ -152,17 +421,18 @@ export async function handleInvoicePaidEvent(
           sourceCreditBucket: {
             create: {
               amount: cents,
-              expiresAt: null,
-              referenceId,
-              referenceType,
+              expiresAt: grant.expiresAt,
+              referenceId: grant.referenceId,
+              referenceType: grant.referenceType,
               userId,
               organizationId,
             },
           },
         },
       });
+
       console.log(
-        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
     }
   });
@@ -181,15 +451,20 @@ export async function handleCustomerCreatedEvent(
       });
       console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
 
-      // Claim welcome coupon for new user
-      const { couponApplied, invoiceId } =
-        await stripeService.claimWelcomeCoupon(userId);
-      if (couponApplied && invoiceId) {
+      const freeSubscriptionResult =
+        await stripeService.ensurePersonalFreeSubscription(userId);
+      if (freeSubscriptionResult.status === "created") {
         console.log(
-          `✅ Claimed welcome coupon for user ${userId}, invoice: ${invoiceId}`,
+          `✅ Created free subscription for user ${userId} (${freeSubscriptionResult.subscriptionId})`,
+        );
+      } else if (freeSubscriptionResult.status === "skipped") {
+        console.log(
+          `ℹ️ Skipped free subscription for user ${userId}: ${freeSubscriptionResult.reason}`,
         );
       } else {
-        console.log(`⚠️ Failed to claim welcome coupon for user ${userId}`);
+        console.log(
+          `⚠️ Failed free subscription enrollment for user ${userId}: ${freeSubscriptionResult.reason}`,
+        );
       }
       break;
     }

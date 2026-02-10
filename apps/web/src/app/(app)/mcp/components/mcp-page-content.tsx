@@ -1,5 +1,6 @@
 "use client";
 
+import { McpSetupInstructions } from "@/app/components/MCP/mcp-setup-instructions";
 import { useMcpApiKey } from "@/app/components/MCP/use-mcp-api-key";
 
 import { McpActiveKeyView } from "./mcp-active-key-view";
@@ -50,6 +51,8 @@ export function McpPageContent({
       {!isLoading && !error && !isKeyDisabled && !mcpUrl && (
         <McpEmptyState onGenerate={generateMcpUrl} isLoading={isLoading} />
       )}
+
+      <McpSetupInstructions />
     </div>
   );
 }
