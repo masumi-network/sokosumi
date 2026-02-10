@@ -158,4 +158,33 @@ describe("TaskActivitySection", () => {
       screen.queryByRole("link", { name: "Authenticate" }),
     ).not.toBeInTheDocument();
   });
+
+  it("renders a status dot instead of avatar for status-only events", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-running", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.RUNNING,
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        userById={{
+          "user-1": {
+            name: "Alice",
+            image: "https://example.com/alice.png",
+          },
+        }}
+      />,
+    );
+
+    const dot = screen.getByTestId("status-dot-latest-running");
+    expect(dot).toHaveClass("size-1.5");
+    expect(dot).toHaveClass("bg-amber-500");
+    expect(
+      screen.queryByRole("img", { name: "Alice" }),
+    ).not.toBeInTheDocument();
+  });
 });

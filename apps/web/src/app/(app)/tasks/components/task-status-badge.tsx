@@ -24,26 +24,34 @@ const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
   [TaskStatus.CANCELED]: "bg-muted-foreground",
 };
 
+export function getTaskStatusDotColorClass(status: TaskStatus): string {
+  return STATUS_DOT_COLORS[status];
+}
+
 interface TaskStatusBadgeProps {
   status: TaskStatus;
   className?: string;
+  showDot?: boolean;
   showLabel?: boolean;
 }
 
 export function TaskStatusBadge({
   status,
   className,
+  showDot = true,
   showLabel = true,
 }: TaskStatusBadgeProps) {
   return (
     <div className={cn("inline-flex shrink-0 items-center gap-1.5", className)}>
-      <span
-        className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          STATUS_DOT_COLORS[status],
-        )}
-        aria-hidden
-      />
+      {showDot ? (
+        <span
+          className={cn(
+            "size-1.5 shrink-0 rounded-full",
+            getTaskStatusDotColorClass(status),
+          )}
+          aria-hidden
+        />
+      ) : null}
       {showLabel && (
         <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
           {STATUS_LABELS[status]}

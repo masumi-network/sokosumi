@@ -19,11 +19,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
 import type { TaskEvent } from "@/lib/types/task";
+import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 
 import { ExpandableMarkdown } from "./expandable-markdown";
-import { TaskStatusBadge } from "./task-status-badge";
+import {
+  getTaskStatusDotColorClass,
+  TaskStatusBadge,
+} from "./task-status-badge";
 
 interface ActorInfo {
   name: string;
@@ -284,59 +288,92 @@ export function TaskActivitySection({
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
               Boolean(event.authenticationUrl);
+            const isCommentEvent = Boolean(formattedComment);
+            const isAuthEvent = shouldShowAuthenticateButton;
+            const isCardEvent = isCommentEvent || isAuthEvent;
+            const isStatusOnlyEvent = !isCardEvent && Boolean(event.status);
 
             const row = (
-              <div key={event.id} className="flex items-start gap-4 py-1">
-                <Avatar className="size-6 shrink-0">
-                  {actorImage ? (
-                    <AvatarImage src={actorImage} alt={actorName} />
-                  ) : null}
-                  <AvatarFallback className="bg-muted text-[10px]">
-                    {getInitials(actorName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <div className="flex flex-row items-baseline justify-between gap-2">
-                    <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
-                      <span className="text-sm font-medium">{actorName}</span>
-                      <span className="text-muted-foreground/60 text-xs">
-                        {action}
-                      </span>
-                      {event.status ? (
-                        <TaskStatusBadge status={event.status} />
+              <div
+                key={event.id}
+                className={cn(
+                  "rounded-lg pr-3 pl-3",
+                  isCardEvent && "bg-muted/20 border-border/50 border",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex items-center gap-4",
+                    isCardEvent && "py-3",
+                  )}
+                >
+                  {isStatusOnlyEvent && event.status ? (
+                    <div className="flex size-6 shrink-0 items-center justify-center">
+                      <span
+                        data-testid={`status-dot-${event.id}`}
+                        className={cn(
+                          "size-1.5 shrink-0 rounded-full",
+                          getTaskStatusDotColorClass(event.status),
+                        )}
+                        aria-hidden
+                      />
+                    </div>
+                  ) : (
+                    <Avatar className="size-6 shrink-0 self-start">
+                      {actorImage ? (
+                        <AvatarImage src={actorImage} alt={actorName} />
                       ) : null}
+                      <AvatarFallback className="bg-muted text-[10px]">
+                        {getInitials(actorName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex flex-row items-baseline justify-between gap-2">
+                      <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
+                        <span className="text-sm font-medium">{actorName}</span>
+                        <span className="text-muted-foreground/60 text-xs">
+                          {action}
+                        </span>
+                        {event.status ? (
+                          <TaskStatusBadge
+                            status={event.status}
+                            showDot={!isStatusOnlyEvent}
+                          />
+                        ) : null}
+                      </div>
+                      <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
+                        {formatTimeAgo(event.createdAt)}
+                      </span>
                     </div>
-                    <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
-                      {formatTimeAgo(event.createdAt)}
-                    </span>
+                    {formattedComment ? (
+                      <ExpandableMarkdown
+                        content={formattedComment}
+                        className="prose-sm text-foreground/70 text-sm"
+                        expandLabel={expandLabel}
+                        collapseLabel={collapseLabel}
+                        fadeClassName="to-background"
+                      />
+                    ) : null}
+                    {shouldShowAuthenticateButton ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <Button asChild size="sm" variant="default">
+                          <a
+                            href={event.authenticationUrl ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {t("authenticate")}
+                          </a>
+                        </Button>
+                      </div>
+                    ) : null}
+                    {chargedLabel ? (
+                      <div className="text-muted-foreground/60 text-xs">
+                        {chargedLabel}
+                      </div>
+                    ) : null}
                   </div>
-                  {formattedComment ? (
-                    <ExpandableMarkdown
-                      content={formattedComment}
-                      className="prose-sm text-foreground/70 text-sm"
-                      expandLabel={expandLabel}
-                      collapseLabel={collapseLabel}
-                      fadeClassName="to-background"
-                    />
-                  ) : null}
-                  {shouldShowAuthenticateButton ? (
-                    <div className="flex items-center justify-end gap-2">
-                      <Button asChild size="sm" variant="default">
-                        <a
-                          href={event.authenticationUrl ?? undefined}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {t("authenticate")}
-                        </a>
-                      </Button>
-                    </div>
-                  ) : null}
-                  {chargedLabel ? (
-                    <div className="text-muted-foreground/60 text-xs">
-                      {chargedLabel}
-                    </div>
-                  ) : null}
                 </div>
               </div>
             );

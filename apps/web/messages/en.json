@@ -1112,7 +1112,7 @@
         "actorUser": "User",
         "actorSystem": "System",
         "actionCommented": "commented",
-        "actionUpdatedStatus": "updated status",
+        "actionUpdatedStatus": "changed status to",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
         "actions": {
           "edit": "Edit",
