@@ -21,6 +21,7 @@ interface UseChatSelectionProps {
   currentChatIdRef: React.MutableRefObject<string | null>;
   previousChatIdRef: React.MutableRefObject<string | null>;
   isUpdatingUrlRef: React.MutableRefObject<boolean>;
+  stopStreaming: () => void;
 }
 
 /**
@@ -38,12 +39,17 @@ export function useChatSelection({
   setMessages,
   setInput,
   currentChatIdRef,
-  previousChatIdRef,
+  previousChatIdRef: _previousChatIdRef,
   isUpdatingUrlRef,
+  stopStreaming,
 }: UseChatSelectionProps) {
   const router = useRouter();
 
   const handleSelectChat = async (chatId: string | null) => {
+    if (chatId !== selectedChatId) {
+      stopStreaming();
+    }
+
     if (!chatId) {
       setSelectedChatId(null);
       currentChatIdRef.current = null;

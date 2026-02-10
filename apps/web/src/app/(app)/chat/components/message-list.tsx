@@ -118,6 +118,10 @@ export default function MessageList({
               const modelName = selectedChat?.model?.name;
               const modelId = selectedChat?.model?.id;
 
+              const isLastMessage = index === messagesWithTimestamps.length - 1;
+              const isStreaming =
+                isLoading && isLastMessage && role === "assistant";
+
               return (
                 <div key={message.id}>
                   {showDaySeparator && currentCreatedAt && (
@@ -137,6 +141,7 @@ export default function MessageList({
                       coworkerId={selectedChat?.coworker?.id}
                       modelName={modelName}
                       modelId={modelId}
+                      isStreaming={isStreaming}
                     />
                   </div>
                 </div>

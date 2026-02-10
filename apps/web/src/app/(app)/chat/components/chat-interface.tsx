@@ -60,6 +60,8 @@ export default function ChatInterface({
   const messagesChatIdRef = useRef<string | null>(null);
   const previousChatIdRef = useRef<string | null>(null);
   const currentChatIdRef = useRef<string | null>(null);
+  /** Conversation ID the current stream belongs to; set when request is prepared so onFinish persists to the correct conversation. */
+  const streamingConversationIdRef = useRef<string | null>(null);
   const isUpdatingUrlRef = useRef(false);
   const updateChatPreviewRef = useRef<
     ((chatId: string, content: string, isFirstMessage?: boolean) => void) | null
@@ -74,6 +76,7 @@ export default function ChatInterface({
       api: "/api/chat",
       prepareSendMessagesRequest(request) {
         const chatId = currentChatIdRef.current || selectedChatId;
+        streamingConversationIdRef.current = chatId;
         const model = selectedModelRef.current;
         const body = {
           messages: request.messages,
@@ -88,7 +91,8 @@ export default function ChatInterface({
       console.error("Chat API error:", error);
     },
     onFinish: ({ messages: finishedMessages }) => {
-      if (!selectedChatId || finishedMessages.length === 0) {
+      const conversationId = streamingConversationIdRef.current;
+      if (!conversationId || finishedMessages.length === 0) {
         return;
       }
 
@@ -104,7 +108,7 @@ export default function ChatInterface({
             content ? [{ type: "output_text", text: content }] : [];
 
           addConversationItem({
-            conversationId: selectedChatId,
+            conversationId,
             role: "assistant",
             content: formattedContent,
           }).catch((error) => {
@@ -115,15 +119,15 @@ export default function ChatInterface({
           });
 
           if (
-            previousChatIdRef.current === selectedChatId &&
-            messagesChatIdRef.current === selectedChatId
+            previousChatIdRef.current === conversationId &&
+            messagesChatIdRef.current === conversationId
           ) {
             const isFirstAssistantMessage =
               finishedMessages.filter((m) => m.role === "assistant").length ===
               1;
             if (updateChatPreviewRef.current) {
               updateChatPreviewRef.current(
-                selectedChatId,
+                conversationId,
                 content,
                 isFirstAssistantMessage,
               );
@@ -150,6 +154,7 @@ export default function ChatInterface({
     currentChatIdRef,
     previousChatIdRef,
     isUpdatingUrlRef,
+    stopStreaming: stop,
   });
 
   const { updateChatPreview } = useChatPreview({

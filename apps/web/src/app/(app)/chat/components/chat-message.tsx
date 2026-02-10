@@ -2,6 +2,7 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 
+import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import Markdown from "@/components/markdown";
@@ -18,6 +19,7 @@ interface ChatMessageProps {
   coworkerId?: string;
   modelId?: string;
   modelName?: string;
+  isStreaming?: boolean;
 }
 
 export default function ChatMessage({
@@ -30,10 +32,13 @@ export default function ChatMessage({
   coworkerId,
   modelId,
   modelName,
+  isStreaming = false,
 }: ChatMessageProps) {
   const t = useTranslations("App.Chat.Chat");
   const isUser = role === "user";
   const formatter = useFormatter();
+  const isAssistantStreaming = !isUser && isStreaming;
+  const displayContent = useStreamingContent(content, isAssistantStreaming);
 
   const timestamp = createdAt
     ? formatter.dateTime(createdAt, {
@@ -142,6 +147,7 @@ export default function ChatMessage({
             <div
               className={cn(
                 "prose prose-sm dark:prose-invert max-w-none",
+                isAssistantStreaming && "contain-layout",
                 // Allow proper spacing for paragraphs and line breaks
                 "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
                 // Ensure proper line height for readability
@@ -157,8 +163,8 @@ export default function ChatMessage({
               )}
               style={{ fontSize: "0.875rem" }}
             >
-              {content && content.trim() ? (
-                <Markdown>{content}</Markdown>
+              {displayContent && displayContent.trim() ? (
+                <Markdown>{displayContent}</Markdown>
               ) : (
                 <span className="text-muted-foreground italic">
                   {isUser ? "(Empty message)" : "(No response yet)"}
