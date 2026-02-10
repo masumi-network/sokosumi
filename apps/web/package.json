@@ -75,7 +75,7 @@
     "fake-indexeddb": "6.2.5",
     "flags": "^4.0.2",
     "gravatar-url": "4.0.1",
-    "happy-dom": "20.5.3",
+    "happy-dom": "20.6.0",
     "humanize-duration": "3.33.2",
     "input-otp": "1.4.2",
     "json-canonicalize": "2.0.0",
@@ -130,7 +130,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.3",
-    "@happy-dom/jest-environment": "20.5.3",
+    "@happy-dom/jest-environment": "20.6.0",
     "@hey-api/openapi-ts": "0.92.3",
     "@noble/hashes": "2.0.1",
     "@swc/core": "1.15.11",
