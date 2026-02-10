@@ -1,5 +1,9 @@
 import { Lock } from "@sokosumi/database";
-import { lockRepository } from "@sokosumi/database/repositories";
+import {
+  lockRepository,
+  syncMetadataRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
 import { NextResponse } from "next/server";
 import pLimit from "p-limit";
 
@@ -9,10 +13,15 @@ import prisma from "@/lib/db/prisma";
 import { lockService, stripeService } from "@/lib/services";
 
 const LOCK_KEY = "stripe-free-subscriptions-sync";
+const SYNC_METADATA_KEY = "stripe-free-subscriptions-sync";
+const BATCH_SIZE = 100;
+const INITIAL_SYNC_DATE = new Date(0);
 
 interface StripeFreeSubscriptionSyncSummary {
   created: number;
+  completed: boolean;
   failed: number;
+  nextCursorId: string | null;
   scanned: number;
   skipped: number;
 }
@@ -42,7 +51,7 @@ async function stripeFreeSubscriptionsSync(): Promise<Response> {
   }
 
   try {
-    const summary = await syncAllUsersToFreeSubscription();
+    const summary = await syncUsersBatchToFreeSubscription();
     return NextResponse.json(summary, { status: 200 });
   } catch (error) {
     console.error("Error syncing free subscriptions:", error);
@@ -59,16 +68,56 @@ async function stripeFreeSubscriptionsSync(): Promise<Response> {
   }
 }
 
-async function syncAllUsersToFreeSubscription(): Promise<StripeFreeSubscriptionSyncSummary> {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-    },
-  });
+async function syncUsersBatchToFreeSubscription(): Promise<StripeFreeSubscriptionSyncSummary> {
+  const metadata = await syncMetadataRepository.getSyncMetadataByKey(
+    SYNC_METADATA_KEY,
+    prisma,
+  );
+
+  const isCompletedOnePass =
+    metadata.cursorId === null &&
+    metadata.lastSyncedAt.getTime() > INITIAL_SYNC_DATE.getTime();
+  if (isCompletedOnePass) {
+    return {
+      created: 0,
+      completed: true,
+      failed: 0,
+      nextCursorId: null,
+      scanned: 0,
+      skipped: 0,
+    };
+  }
+
+  const users = await userRepository.getUsersBatchAfterCursor(
+    metadata.cursorId,
+    BATCH_SIZE,
+    prisma,
+  );
+
+  if (users.length === 0) {
+    await syncMetadataRepository.setSyncMetadataByKey(
+      SYNC_METADATA_KEY,
+      null,
+      new Date(),
+      prisma,
+    );
+    return {
+      created: 0,
+      completed: true,
+      failed: 0,
+      nextCursorId: null,
+      scanned: 0,
+      skipped: 0,
+    };
+  }
+
+  const nextCursorId = users[users.length - 1]?.id ?? null;
 
   const summary: StripeFreeSubscriptionSyncSummary = {
     created: 0,
+    completed: false,
     failed: 0,
+    nextCursorId,
     scanned: users.length,
     skipped: 0,
   };
@@ -93,6 +142,13 @@ async function syncAllUsersToFreeSubscription(): Promise<StripeFreeSubscriptionS
         }
       }),
     ),
+  );
+
+  await syncMetadataRepository.setSyncMetadataByKey(
+    SYNC_METADATA_KEY,
+    nextCursorId,
+    metadata.lastSyncedAt,
+    prisma,
   );
 
   return summary;

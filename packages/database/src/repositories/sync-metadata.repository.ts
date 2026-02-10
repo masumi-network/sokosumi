@@ -36,7 +36,7 @@ export const syncMetadataRepository = {
    */
   async setSyncMetadataByKey(
     key: string,
-    cursorId: string,
+    cursorId: string | null,
     timestamp: Date,
     tx: Prisma.TransactionClient,
   ): Promise<SyncMetadata> {
