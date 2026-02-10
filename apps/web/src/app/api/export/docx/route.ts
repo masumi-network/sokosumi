@@ -29,6 +29,7 @@ import { hasHtmlContent } from "@/lib/utils/html-detection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
 
 interface GenerateDocxRequest {
   markdown?: string;

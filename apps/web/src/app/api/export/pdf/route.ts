@@ -5,6 +5,7 @@ import { sanitizeFileName } from "@/lib/utils/file";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
 
 interface GeneratePdfRequest {
   html?: string;

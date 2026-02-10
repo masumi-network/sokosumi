@@ -15,6 +15,9 @@ import {
 import { auth } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 
+export const runtime = "edge";
+export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
+
 // Helper function for updating user via Better Auth and fetching result
 async function updateUserAndFetch(
   userId: string,

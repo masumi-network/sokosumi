@@ -8,6 +8,9 @@ import {
 } from "@/lib/api";
 import { agentService } from "@/lib/services";
 
+export const runtime = "edge";
+export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
+
 /**
  * List agents
  * @description Retrieves all available agents with credit pricing
