@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 
@@ -20,6 +23,7 @@ export const PreviewAttachment = ({
   isUploading?: boolean;
   onRemove?: () => void;
 }) => {
+  const t = useTranslations("App.Chat.Chat");
   const { name, url, contentType } = attachment;
 
   return (
@@ -29,7 +33,7 @@ export const PreviewAttachment = ({
     >
       {contentType?.startsWith("image") ? (
         <Image
-          alt={name ?? "An image attachment"}
+          alt={name ?? t("imageAttachment")}
           className="size-full object-cover"
           height={64}
           src={url}
@@ -37,7 +41,7 @@ export const PreviewAttachment = ({
         />
       ) : (
         <div className="text-muted-foreground flex size-full items-center justify-center text-xs">
-          File
+          {t("fileLabel")}
         </div>
       )}
 

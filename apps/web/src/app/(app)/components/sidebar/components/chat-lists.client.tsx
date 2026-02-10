@@ -1,10 +1,11 @@
 "use client";
 
 import { ChevronDown, MessageSquare, Trash2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { type SyntheticEvent, useEffect, useMemo, useState } from "react";
 
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import {
@@ -216,22 +217,37 @@ export default function ChatListsClient() {
                                     const modelImageUrls =
                                       getModelImageUrl(modelId);
                                     if (modelImageUrls) {
+                                      const alt = modelName || t("modelAlt");
                                       return (
                                         <>
-                                          <img
+                                          <Image
                                             src={modelImageUrls.light}
-                                            alt={modelName || t("modelAlt")}
+                                            alt={alt}
+                                            width={32}
+                                            height={32}
                                             className="block size-full object-contain p-0.5 dark:hidden"
-                                            onError={(e) => {
+                                            onError={(
+                                              e: SyntheticEvent<
+                                                HTMLImageElement,
+                                                Event
+                                              >,
+                                            ) => {
                                               e.currentTarget.style.display =
                                                 "none";
                                             }}
                                           />
-                                          <img
+                                          <Image
                                             src={modelImageUrls.dark}
-                                            alt={modelName || t("modelAlt")}
+                                            alt={alt}
+                                            width={32}
+                                            height={32}
                                             className="hidden size-full object-contain p-0.5 dark:block"
-                                            onError={(e) => {
+                                            onError={(
+                                              e: SyntheticEvent<
+                                                HTMLImageElement,
+                                                Event
+                                              >,
+                                            ) => {
                                               e.currentTarget.style.display =
                                                 "none";
                                             }}

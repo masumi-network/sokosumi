@@ -66,18 +66,31 @@ export default function ChatInterface({
   const updateChatPreviewRef = useRef<
     ((chatId: string, content: string, isFirstMessage?: boolean) => void) | null
   >(null);
+  /** Synced in effect so prepareSendMessagesRequest does not read refs during render */
+  const sendParamsRef = useRef<{
+    chatId: string | null;
+    model: { id: string; name: string } | null;
+  }>({ chatId: null, model: null });
 
   useEffect(() => {
     selectedModelRef.current = selectedModel;
   }, [selectedModel]);
 
+  useEffect(() => {
+    sendParamsRef.current = {
+      chatId: currentChatIdRef.current || selectedChatId,
+      model: selectedModelRef.current,
+    };
+  }, [selectedChatId, selectedModel]);
+
   const { messages, sendMessage, status, setMessages, stop } = useChat({
+    // prepareSendMessagesRequest runs on send, not during render; refs are read only then
+    /* eslint-disable react-hooks/refs */
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest(request) {
-        const chatId = currentChatIdRef.current || selectedChatId;
+        const { chatId, model } = sendParamsRef.current;
         streamingConversationIdRef.current = chatId;
-        const model = selectedModelRef.current;
         const body = {
           messages: request.messages,
           ...(chatId ? { conversationId: chatId } : {}),
@@ -87,6 +100,7 @@ export default function ChatInterface({
         return { body };
       },
     }),
+    /* eslint-enable react-hooks/refs */
     onError: (error: unknown) => {
       console.error("Chat API error:", error);
     },
