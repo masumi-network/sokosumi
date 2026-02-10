@@ -215,9 +215,10 @@ export async function handleInvoicePaidEvent(
     return;
   }
 
+  const isSubscriptionUpdate =
+    invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON;
   const isPaidSubscriptionUpdate =
-    invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
-    invoice.amount_paid > 0;
+    isSubscriptionUpdate && invoice.amount_paid > 0;
   const shouldGrantSubscriptionCredits =
     invoice.billing_reason !== null &&
     (SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS.has(invoice.billing_reason) ||
@@ -241,10 +242,7 @@ export async function handleInvoicePaidEvent(
         shouldGrantSubscriptionCredits &&
         subscriptionProductIds.has(productId)
       ) {
-        if (
-          invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
-          (lineItem.amount ?? 0) === 0
-        ) {
+        if (isSubscriptionUpdate && (lineItem.amount ?? 0) === 0) {
           continue;
         }
         matchedSubscriptionProducts.add(productId);
@@ -295,7 +293,7 @@ export async function handleInvoicePaidEvent(
 
       const lineAmount = lineItem.amount ?? 0;
 
-      if (invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
+      if (isSubscriptionUpdate) {
         subscriptionCredits += calculateProratedSubscriptionCredits({
           invoiceId,
           lineAmount,
@@ -347,10 +345,7 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  if (
-    invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
-    subscriptionCredits < 0
-  ) {
+  if (isSubscriptionUpdate && subscriptionCredits < 0) {
     subscriptionCredits = 0;
   }
 

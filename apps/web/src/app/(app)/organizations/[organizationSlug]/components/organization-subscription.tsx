@@ -87,6 +87,24 @@ export default function OrganizationSubscription({
     router.push("/login");
   }, [router]);
 
+  const getSubscriptionActionErrorMessage = useCallback(
+    (error: { code: string; message?: string | null }): string => {
+      if (error.message) {
+        return error.message;
+      }
+
+      switch (error.code) {
+        case CommonErrorCode.BAD_INPUT:
+          return t("Errors.badInput");
+        case CommonErrorCode.UNAUTHORIZED:
+          return t("Errors.unauthorized");
+        default:
+          return t("Errors.general");
+      }
+    },
+    [t],
+  );
+
   const handleSubscriptionActionError = useCallback(
     (error: { code: string; message?: string | null }) => {
       if (error.code === CommonErrorCode.UNAUTHENTICATED) {
@@ -99,17 +117,24 @@ export default function OrganizationSubscription({
         return;
       }
 
-      toast.error(
-        error.message
-          ? error.message
-          : error.code === CommonErrorCode.BAD_INPUT
-            ? t("Errors.badInput")
-            : error.code === CommonErrorCode.UNAUTHORIZED
-              ? t("Errors.unauthorized")
-              : t("Errors.general"),
-      );
+      toast.error(getSubscriptionActionErrorMessage(error));
     },
-    [handleOpenLogin, t],
+    [getSubscriptionActionErrorMessage, handleOpenLogin, t],
+  );
+
+  const getPlanActionLabel = useCallback(
+    (plan: OrganizationSubscriptionPlanView, hasSamePlanAndSeats: boolean) => {
+      if (hasSamePlanAndSeats) {
+        return t("currentPlanCta");
+      }
+
+      if (plan.isCurrent) {
+        return t("updateSeatsCta");
+      }
+
+      return t("choosePlanCta");
+    },
+    [t],
   );
 
   const handleUpgradePlan = useCallback(
@@ -280,12 +305,8 @@ export default function OrganizationSubscription({
                         <Loader2 className="mr-2 size-4 animate-spin" />
                         {t("updating")}
                       </>
-                    ) : hasSamePlanAndSeats ? (
-                      t("currentPlanCta")
-                    ) : plan.isCurrent ? (
-                      t("updateSeatsCta")
                     ) : (
-                      t("choosePlanCta")
+                      getPlanActionLabel(plan, hasSamePlanAndSeats)
                     )}
                   </Button>
                 </CardContent>

@@ -319,7 +319,10 @@ describe("subscription actions", () => {
 
   it("maps unauthorized immediate seat update errors", async () => {
     updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
-      new Error("Only organization owners and admins can manage subscriptions"),
+      Object.assign(
+        new Error("Only organization owners and admins can manage subscriptions"),
+        { status: "FORBIDDEN" },
+      ),
     );
 
     const { CommonErrorCode } = await import("@/lib/actions/errors");
@@ -338,6 +341,38 @@ describe("subscription actions", () => {
       error: {
         code: CommonErrorCode.UNAUTHORIZED,
         message: "Only organization owners and admins can manage subscriptions",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps bad request immediate seat update errors", async () => {
+    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          "An active organization subscription is required before updating seats.",
+        ),
+        { status: "BAD_REQUEST" },
+      ),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        message:
+          "An active organization subscription is required before updating seats.",
       },
       ok: false,
     });

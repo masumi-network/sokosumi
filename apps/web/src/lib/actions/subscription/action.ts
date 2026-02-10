@@ -53,6 +53,39 @@ function parseBetterAuthActionError(error: unknown): ActionError {
   };
 }
 
+function getErrorStatus(error: unknown): string | null {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  const errorWithStatus = error as Error & { status?: unknown };
+  return typeof errorWithStatus.status === "string"
+    ? errorWithStatus.status
+    : null;
+}
+
+function parseOrganizationSeatUpdateError(error: unknown): ActionError {
+  const status = getErrorStatus(error);
+  if (status === "FORBIDDEN") {
+    return {
+      code: CommonErrorCode.UNAUTHORIZED,
+      ...(error instanceof Error ? { message: error.message } : {}),
+    };
+  }
+
+  if (status === "BAD_REQUEST") {
+    return {
+      code: CommonErrorCode.BAD_INPUT,
+      ...(error instanceof Error ? { message: error.message } : {}),
+    };
+  }
+
+  return {
+    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    ...(error instanceof Error ? { message: error.message } : {}),
+  };
+}
+
 interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
   plan: "free" | "starter" | "standard" | "pro";
 }
@@ -243,32 +276,6 @@ export const updateOrganizationSubscriptionSeats = withAuthContext<
 
     return Ok(result);
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message ===
-        "Only organization owners and admins can manage subscriptions"
-    ) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: error.message,
-      });
-    }
-
-    if (
-      error instanceof Error &&
-      (error.message === "Please provide valid plan and seat values" ||
-        error.message ===
-          "An active organization subscription is required before updating seats.")
-    ) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: error.message,
-      });
-    }
-
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      ...(error instanceof Error ? { message: error.message } : {}),
-    });
+    return Err(parseOrganizationSeatUpdateError(error));
   }
 });
