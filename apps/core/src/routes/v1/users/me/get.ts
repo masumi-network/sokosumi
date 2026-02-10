@@ -23,6 +23,14 @@ const route = createRoute({
         email: "john.doe@example.com",
         image: "https://example.com/image.png",
         credits: 100.0,
+        subscription: {
+          id: "sub_123",
+          plan: "starter",
+          status: "active",
+          periodStart: "2025-01-01T00:00:00.000Z",
+          periodEnd: "2025-02-01T00:00:00.000Z",
+          cancelAtPeriodEnd: false,
+        },
       },
       meta: {
         timestamp: "2025-01-01T00:00:00.000Z",
@@ -46,9 +54,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw internalServerError("Failed to retrieve user");
       }
       const credits = await getCredits(user.id, null, tx);
+      const subscription = await tx.subscription.findFirst({
+        where: { referenceId: user.id },
+        orderBy: { createdAt: "desc" },
+      });
+
       return userSchema.parse({
         ...user,
         credits,
+        subscription: subscription
+          ? {
+              id: subscription.id,
+              plan: subscription.plan,
+              status: subscription.status,
+              periodStart: subscription.periodStart,
+              periodEnd: subscription.periodEnd,
+              cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+            }
+          : null,
       });
     });
 
