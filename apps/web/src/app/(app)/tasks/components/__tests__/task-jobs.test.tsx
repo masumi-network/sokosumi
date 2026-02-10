@@ -10,7 +10,8 @@ jest.mock("@/components/jobs/job-status-badge", () => ({
 }));
 
 jest.mock("@/lib/utils/datetime", () => ({
-  formatTimeAgo: (value: string | Date) => `ago:${String(value)}`,
+  formatTimeAgo: (value: string | Date) =>
+    `ago:${value instanceof Date ? value.toISOString() : value}`,
 }));
 
 function createJob(
