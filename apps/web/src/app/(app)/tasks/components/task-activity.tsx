@@ -1,13 +1,14 @@
 "use client";
 
-import { TaskEventOrigin } from "@sokosumi/database";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -15,13 +16,18 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
 import type { TaskEvent } from "@/lib/types/task";
-import { formatShortDate } from "@/lib/utils/datetime";
+import { cn } from "@/lib/utils";
+import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 
 import { ExpandableMarkdown } from "./expandable-markdown";
-import { TaskStatusBadge } from "./task-status-badge";
+import {
+  getTaskStatusDotColorClass,
+  TaskStatusBadge,
+} from "./task-status-badge";
 
 interface ActorInfo {
   name: string;
@@ -121,9 +127,11 @@ export function TaskActivitySection({
   const t = useTranslations("App.Tasks.Detail");
   const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [comment, setComment] = useState("");
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
+  const { os, isMobile } = useOSDetection();
 
   useEffect(() => {
     setLocalEvents(events);
@@ -138,6 +146,27 @@ export function TaskActivitySection({
   const trimmedComment = comment.trim();
   const isSubmitDisabled =
     isPending || trimmedComment.length === 0 || !currentUser?.id;
+
+  function handleTextareaKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    const isSubmitCombo = event.metaKey || event.ctrlKey;
+    if (!isSubmitCombo || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (isSubmitDisabled) {
+      return;
+    }
+
+    formRef.current?.requestSubmit();
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -185,6 +214,7 @@ export function TaskActivitySection({
       <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
 
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
         className="border-border/50 rounded-lg border p-3"
       >
@@ -193,11 +223,25 @@ export function TaskActivitySection({
           className="min-h-16 resize-none border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
           value={comment}
           onChange={(event) => setComment(event.target.value)}
+          onKeyDown={handleTextareaKeyDown}
         />
-        <div className="mt-2 flex items-center justify-end">
+        <div className="mt-2 flex items-center gap-3">
+          {!isMobile ? (
+            <div className="text-muted-foreground flex items-center gap-2 text-xs">
+              <span>{t("sendWith")}</span>
+              <div className="flex items-center gap-0.5 opacity-60">
+                {os === "MacOS" ? (
+                  <Command className="size-3" aria-hidden />
+                ) : (
+                  <span className="text-xs">{t("ctrl")}</span>
+                )}
+                <CornerDownLeft className="size-3" aria-hidden />
+              </div>
+            </div>
+          ) : null}
           <Button
             size="icon"
-            className="size-7 rounded-full"
+            className="ml-auto size-7 rounded-full"
             aria-label={submitLabel}
             type="submit"
             disabled={isSubmitDisabled}
@@ -213,7 +257,7 @@ export function TaskActivitySection({
 
       {orderedEvents.length > 0 ? (
         <div className="space-y-3">
-          {orderedEvents.map((event) => {
+          {orderedEvents.map((event, index) => {
             const actorLabel = event.coworkerId
               ? actorCoworkerLabel
               : event.userId
@@ -240,46 +284,96 @@ export function TaskActivitySection({
               event.credits != null
                 ? t("actionChargedCredits", { credits: event.credits })
                 : null;
+            const shouldShowAuthenticateButton =
+              index === 0 &&
+              event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
+              Boolean(event.authenticationUrl);
+            const isCommentEvent = Boolean(formattedComment);
+            const isAuthEvent = shouldShowAuthenticateButton;
+            const isCardEvent = isCommentEvent || isAuthEvent;
+            const isStatusOnlyEvent = !isCardEvent && Boolean(event.status);
 
             const row = (
-              <div key={event.id} className="flex items-start gap-3">
-                <Avatar className="size-6 shrink-0">
-                  {actorImage ? (
-                    <AvatarImage src={actorImage} alt={actorName} />
-                  ) : null}
-                  <AvatarFallback className="bg-muted text-[10px]">
-                    {getInitials(actorName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div className="flex flex-row items-baseline justify-between gap-2">
-                    <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
-                      <span className="text-sm font-medium">{actorName}</span>
-                      <span className="text-muted-foreground/60 text-xs">
-                        {action}
-                      </span>
-                      {event.status ? (
-                        <TaskStatusBadge status={event.status} />
+              <div
+                key={event.id}
+                className={cn(
+                  "rounded-lg pr-3 pl-3",
+                  isCardEvent && "bg-muted/20 border-border/50 border",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex items-center gap-4",
+                    isCardEvent && "py-3",
+                  )}
+                >
+                  {isStatusOnlyEvent && event.status ? (
+                    <div className="flex size-6 shrink-0 items-center justify-center">
+                      <span
+                        data-testid={`status-dot-${event.id}`}
+                        className={cn(
+                          "size-1.5 shrink-0 rounded-full",
+                          getTaskStatusDotColorClass(event.status),
+                        )}
+                        aria-hidden
+                      />
+                    </div>
+                  ) : (
+                    <Avatar className="size-6 shrink-0 self-start">
+                      {actorImage ? (
+                        <AvatarImage src={actorImage} alt={actorName} />
                       ) : null}
+                      <AvatarFallback className="bg-muted text-[10px]">
+                        {getInitials(actorName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex flex-row items-baseline justify-between gap-2">
+                      <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
+                        <span className="text-sm font-medium">{actorName}</span>
+                        <span className="text-muted-foreground/60 text-xs">
+                          {action}
+                        </span>
+                        {event.status ? (
+                          <TaskStatusBadge
+                            status={event.status}
+                            showDot={!isStatusOnlyEvent}
+                          />
+                        ) : null}
+                      </div>
+                      <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
+                        {formatTimeAgo(event.createdAt)}
+                      </span>
                     </div>
-                    <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
-                      {formatShortDate(event.createdAt)}
-                    </span>
+                    {formattedComment ? (
+                      <ExpandableMarkdown
+                        content={formattedComment}
+                        className="prose-sm text-foreground/70 text-sm"
+                        expandLabel={expandLabel}
+                        collapseLabel={collapseLabel}
+                        fadeClassName="to-background"
+                      />
+                    ) : null}
+                    {shouldShowAuthenticateButton ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <Button asChild size="sm" variant="default">
+                          <a
+                            href={event.authenticationUrl ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {t("authenticate")}
+                          </a>
+                        </Button>
+                      </div>
+                    ) : null}
+                    {chargedLabel ? (
+                      <div className="text-muted-foreground/60 text-xs">
+                        {chargedLabel}
+                      </div>
+                    ) : null}
                   </div>
-                  {formattedComment ? (
-                    <ExpandableMarkdown
-                      content={formattedComment}
-                      className="prose-sm text-foreground/70 text-sm"
-                      expandLabel={expandLabel}
-                      collapseLabel={collapseLabel}
-                      fadeClassName="to-background"
-                    />
-                  ) : null}
-                  {chargedLabel ? (
-                    <div className="text-muted-foreground/60 text-xs">
-                      {chargedLabel}
-                    </div>
-                  ) : null}
                 </div>
               </div>
             );

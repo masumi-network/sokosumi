@@ -87,9 +87,9 @@ export default function AgentListsClient({
               defaultOpen={agents.length > 0}
               className="group/collapsible"
             >
-              <SidebarGroup key={groupKey} className="w-72 md:w-64">
+              <SidebarGroup key={groupKey}>
                 <SidebarGroupLabel
-                  className="text-primary text-sm group-data-[collapsible=icon]:hidden"
+                  className="text-primary text-sm text-nowrap group-data-[collapsible=icon]:hidden"
                   asChild
                 >
                   <CollapsibleTrigger>

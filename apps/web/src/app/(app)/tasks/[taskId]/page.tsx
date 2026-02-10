@@ -6,6 +6,7 @@ import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
+import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -52,7 +53,7 @@ export default async function TaskDetailPage({
       coworker.id,
       {
         name: coworker.name,
-        image: coworker.image ?? null,
+        image: getCoworkerImage(coworker),
       },
     ]),
   );
