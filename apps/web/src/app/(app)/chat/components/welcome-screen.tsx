@@ -25,7 +25,7 @@ interface WelcomeScreenProps {
 export default function WelcomeScreen({
   userName,
   onSendMessage,
-  isLoading,
+  isLoading: _isLoading,
   input,
   setInput,
   messages,

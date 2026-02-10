@@ -14,6 +14,11 @@ jest.mock("remark-gfm", () => ({
   default: () => null,
 }));
 
+jest.mock("remark-breaks", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 jest.mock("react-markdown", () => ({
   __esModule: true,
   default: ({

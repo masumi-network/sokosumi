@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useFormatter, useTranslations } from "next-intl";
+import { type SyntheticEvent } from "react";
 
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
@@ -54,21 +56,26 @@ export default function ChatMessage({
     if (modelId) {
       const modelImageUrls = getModelImageUrl(modelId);
       if (modelImageUrls) {
+        const alt = modelName || t("modelAlt");
         return (
           <>
-            <img
+            <Image
               src={modelImageUrls.light}
-              alt={modelName || t("modelAlt")}
+              alt={alt}
+              width={32}
+              height={32}
               className="block size-full object-contain p-0.5 dark:hidden"
-              onError={(e) => {
+              onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
                 e.currentTarget.style.display = "none";
               }}
             />
-            <img
+            <Image
               src={modelImageUrls.dark}
-              alt={modelName || t("modelAlt")}
+              alt={alt}
+              width={32}
+              height={32}
               className="hidden size-full object-contain p-0.5 dark:block"
-              onError={(e) => {
+              onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
                 e.currentTarget.style.display = "none";
               }}
             />
@@ -138,7 +145,7 @@ export default function ChatMessage({
         >
           <div
             className={cn(
-              "min-h-[1.5rem] rounded-lg px-3",
+              "min-h-6 rounded-lg px-3",
               isUser
                 ? "bg-gray-200 py-3 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
                 : "text-foreground bg-transparent pb-3",
@@ -151,7 +158,7 @@ export default function ChatMessage({
                 // Allow proper spacing for paragraphs and line breaks
                 "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
                 // Ensure proper line height for readability
-                "[&_*]:leading-relaxed",
+                "**:leading-relaxed",
                 // Prevent headings from being too large (keep them as regular text size)
                 "[&_h1]:text-base [&_h2]:text-base [&_h3]:text-base [&_h4]:text-base [&_h5]:text-base [&_h6]:text-base",
                 "[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold",

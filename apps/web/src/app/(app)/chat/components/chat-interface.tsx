@@ -72,12 +72,13 @@ export default function ChatInterface({
   }, [selectedModel]);
 
   const { messages, sendMessage, status, setMessages, stop } = useChat({
+    /* eslint-disable react-hooks/refs */
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest(request) {
-        const chatId = currentChatIdRef.current || selectedChatId;
-        streamingConversationIdRef.current = chatId;
+        const chatId = currentChatIdRef.current ?? selectedChatId;
         const model = selectedModelRef.current;
+        streamingConversationIdRef.current = chatId;
         const body = {
           messages: request.messages,
           ...(chatId ? { conversationId: chatId } : {}),
@@ -87,6 +88,7 @@ export default function ChatInterface({
         return { body };
       },
     }),
+    /* eslint-enable react-hooks/refs */
     onError: (error: unknown) => {
       console.error("Chat API error:", error);
     },
