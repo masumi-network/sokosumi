@@ -107,6 +107,7 @@ export default async function TaskDetailPage({
           <TaskJobs
             title={t("jobs")}
             jobs={taskResult.jobs}
+            userId={session?.user.id ?? null}
             agentPreviewById={agentPreviewById}
             emptyLabel={t("jobsEmpty")}
             untitledLabel={t("jobsUntitled")}

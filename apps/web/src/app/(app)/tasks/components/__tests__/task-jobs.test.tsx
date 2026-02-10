@@ -1,12 +1,32 @@
 import "@testing-library/jest-dom";
 import { JobType, SokosumiJobStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import type { TaskWithEvents } from "@/lib/services/task.service";
 
 jest.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
+}));
+
+jest.mock("../task-job-status-badge.client", () => ({
+  TaskJobStatusBadge: ({
+    initialStatus,
+    jobId,
+  }: {
+    initialStatus: string;
+    jobId: string;
+  }) => <span>{`realtime:${jobId}:${initialStatus}`}</span>,
+}));
+
+jest.mock("../task-jobs-realtime-provider.client", () => ({
+  TaskJobsRealtimeProvider: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  TaskJobStatusChannelProvider: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 jest.mock("@/lib/utils/datetime", () => ({
@@ -30,6 +50,7 @@ function createJob(
 
 const baseProps = {
   title: "Jobs",
+  userId: "user-1",
   emptyLabel: "No jobs yet.",
   untitledLabel: "Untitled job",
   unknownAgentLabel: "Unknown agent",
@@ -92,6 +113,12 @@ describe("TaskJobsSection", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText("ago:2026-02-09T10:00:00.000Z"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("realtime:job-newer:processing"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("realtime:job-older:completed"),
     ).toBeInTheDocument();
   });
 });
