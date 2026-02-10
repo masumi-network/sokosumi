@@ -286,7 +286,7 @@ export function TaskActivitySection({
               Boolean(event.authenticationUrl);
 
             const row = (
-              <div key={event.id} className="flex items-start gap-4 py-1.5">
+              <div key={event.id} className="flex items-start gap-4 py-1">
                 <Avatar className="size-6 shrink-0">
                   {actorImage ? (
                     <AvatarImage src={actorImage} alt={actorName} />
