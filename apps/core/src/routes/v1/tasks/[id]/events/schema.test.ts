@@ -1,17 +1,9 @@
-<<<<<<< Updated upstream
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
-=======
-import assert from "node:assert/strict";
-import { describe, test } from "node:test";
-
-import { TaskStatus } from "@sokosumi/database";
->>>>>>> Stashed changes
 
 import { createTaskEventRequestSchema } from "./schema";
 
 describe("createTaskEventRequestSchema", () => {
-<<<<<<< Updated upstream
   it("accepts a valid origin", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
@@ -54,78 +46,46 @@ describe("createTaskEventRequestSchema", () => {
   });
 
   it("accepts authentication required with https url", () => {
-=======
-  test("accepts authentication required with https url", () => {
->>>>>>> Stashed changes
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.AUTHENTICATION_REQUIRED,
       authenticationUrl: "https://example.com/oauth/authorize",
     });
 
-<<<<<<< Updated upstream
     expect(result.success).toBe(true);
   });
 
   it("rejects authentication required without auth url", () => {
-=======
-    assert.equal(result.success, true);
-  });
-
-  test("rejects authentication required without auth url", () => {
->>>>>>> Stashed changes
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.AUTHENTICATION_REQUIRED,
     });
 
-<<<<<<< Updated upstream
     expect(result.success).toBe(false);
   });
 
   it("rejects non-https auth url", () => {
-=======
-    assert.equal(result.success, false);
-  });
-
-  test("rejects non-https auth url", () => {
->>>>>>> Stashed changes
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.AUTHENTICATION_REQUIRED,
       authenticationUrl: "http://example.com/oauth/authorize",
     });
 
-<<<<<<< Updated upstream
     expect(result.success).toBe(false);
   });
 
   it("rejects auth url for non-auth status", () => {
-=======
-    assert.equal(result.success, false);
-  });
-
-  test("rejects auth url for non-auth status", () => {
->>>>>>> Stashed changes
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
       authenticationUrl: "https://example.com/oauth/authorize",
     });
 
-<<<<<<< Updated upstream
     expect(result.success).toBe(false);
   });
 
   it("rejects auth url for comment-only events", () => {
-=======
-    assert.equal(result.success, false);
-  });
-
-  test("rejects auth url for comment-only events", () => {
->>>>>>> Stashed changes
     const result = createTaskEventRequestSchema.safeParse({
       comment: "Needs attention",
       authenticationUrl: "https://example.com/oauth/authorize",
     });
 
-<<<<<<< Updated upstream
     expect(result.success).toBe(false);
   });
 
@@ -162,8 +122,5 @@ describe("createTaskEventRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
-=======
-    assert.equal(result.success, false);
->>>>>>> Stashed changes
   });
 });
