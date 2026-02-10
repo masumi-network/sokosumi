@@ -66,20 +66,33 @@ export const userRepository = {
   },
 
   /**
-   * Retrieves all users that have a Stripe customer ID.
+   * Retrieves a page of user IDs ordered by ID, starting after an optional cursor.
    *
+   * @param cursorId - The last processed user ID, or null to start from the beginning.
+   * @param limit - The maximum number of users to return.
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to an array of User objects with Stripe customer IDs.
+   * @returns A promise that resolves to an array of users containing only IDs.
    */
-  getUsersWithStripeCustomerId: async (
+  getUsersBatchAfterCursor: async (
+    cursorId: string | null,
+    limit: number,
     tx: Prisma.TransactionClient,
-  ): Promise<User[]> => {
+  ): Promise<Array<Pick<User, "id">>> => {
     return tx.user.findMany({
-      where: {
-        stripeCustomerId: {
-          not: null,
-        },
+      where: cursorId
+        ? {
+            id: {
+              gt: cursorId,
+            },
+          }
+        : undefined,
+      orderBy: {
+        id: "asc",
       },
+      select: {
+        id: true,
+      },
+      take: limit,
     });
   },
 

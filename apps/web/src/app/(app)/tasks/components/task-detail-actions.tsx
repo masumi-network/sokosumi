@@ -48,6 +48,8 @@ export function TaskDetailActions({
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingStatusTarget, setPendingStatusTarget] =
+    useState<TaskStatus | null>(null);
 
   const statusActions =
     status === TaskStatus.CANCELED
@@ -69,6 +71,8 @@ export function TaskDetailActions({
     status === TaskStatus.DRAFT || status === TaskStatus.READY;
 
   const handleStatusToggle = (desiredStatus: TaskStatus) => {
+    setPendingStatusTarget(desiredStatus);
+
     startStatusTransition(async () => {
       try {
         await setTaskStatusFromDrag({
@@ -80,6 +84,8 @@ export function TaskDetailActions({
       } catch (error) {
         console.error("Failed to update task status", error);
         toast.error(t("Tasks.Errors.updateStatus"));
+      } finally {
+        setPendingStatusTarget(null);
       }
     });
   };
@@ -108,7 +114,9 @@ export function TaskDetailActions({
           disabled={isStatusPending}
           className="h-7 gap-1.5 px-2.5 text-xs"
         >
-          {isStatusPending ? <Loader2 className="size-3 animate-spin" /> : null}
+          {isStatusPending && pendingStatusTarget === action.target ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : null}
           <span>{action.label}</span>
         </Button>
       ))}
