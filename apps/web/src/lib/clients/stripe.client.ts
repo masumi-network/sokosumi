@@ -135,15 +135,43 @@ export const stripeClient = (() => {
       return subscriptions.data;
     },
 
+    async listAllSubscriptions(): Promise<Stripe.Subscription[]> {
+      const subscriptions: Stripe.Subscription[] = [];
+      let startingAfter: string | undefined;
+
+      while (true) {
+        const page = await stripe.subscriptions.list({
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+          limit: 100,
+          status: "all",
+        });
+
+        subscriptions.push(...page.data);
+
+        if (!page.has_more || page.data.length === 0) {
+          break;
+        }
+
+        startingAfter = page.data[page.data.length - 1]?.id;
+      }
+
+      return subscriptions;
+    },
+
     async createSubscription(
       customerId: string,
       priceId: string,
+      metadata: { referenceId: string; userId: string },
       idempotencyKey?: string,
     ): Promise<Stripe.Subscription> {
       return await stripe.subscriptions.create(
         {
           customer: customerId,
           items: [{ price: priceId }],
+          metadata: {
+            referenceId: metadata.referenceId,
+            userId: metadata.userId,
+          },
         },
         {
           ...(idempotencyKey ? { idempotencyKey } : {}),

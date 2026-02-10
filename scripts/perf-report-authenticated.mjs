@@ -13,7 +13,7 @@
  *   AUDIT_PATHS=/agents,/agents/ID,/tasks,/agents/ID/jobs,/agents/ID/jobs/JOB_ID AGENT_ID=... JOB_ID=... pnpm run perf:report:auth
  */
 
-import chromeLauncher from "chrome-launcher";
+import * as chromeLauncher from "chrome-launcher";
 import { createWriteStream, mkdir } from "fs";
 import lighthouse from "lighthouse";
 import { dirname, join } from "path";
