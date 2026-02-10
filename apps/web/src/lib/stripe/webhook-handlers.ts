@@ -85,7 +85,7 @@ function calculateProratedSubscriptionCredits(params: {
   planCredits: number;
   productId: string;
 }): number {
-  if (params.lineAmount <= 0) {
+  if (params.lineAmount === 0) {
     return 0;
   }
 
@@ -95,7 +95,7 @@ function calculateProratedSubscriptionCredits(params: {
     );
   }
 
-  return Math.floor(
+  return Math.trunc(
     (params.lineAmount * params.planCredits) / params.monthlyAmount,
   );
 }
@@ -243,7 +243,7 @@ export async function handleInvoicePaidEvent(
       ) {
         if (
           invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
-          (lineItem.amount ?? 0) <= 0
+          (lineItem.amount ?? 0) === 0
         ) {
           continue;
         }
@@ -294,12 +294,6 @@ export async function handleInvoicePaidEvent(
       }
 
       const lineAmount = lineItem.amount ?? 0;
-      if (
-        invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
-        lineAmount <= 0
-      ) {
-        continue;
-      }
 
       if (invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
         subscriptionCredits += calculateProratedSubscriptionCredits({
@@ -351,6 +345,13 @@ export async function handleInvoicePaidEvent(
         );
       }
     }
+  }
+
+  if (
+    invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON &&
+    subscriptionCredits < 0
+  ) {
+    subscriptionCredits = 0;
   }
 
   const subscriptionCreditsExpiry =

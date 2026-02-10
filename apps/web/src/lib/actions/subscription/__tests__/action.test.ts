@@ -3,6 +3,7 @@ jest.mock("server-only", () => ({}));
 const headersMock = jest.fn(async () => new Headers());
 const upgradeSubscriptionMock = jest.fn();
 const createBillingPortalMock = jest.fn();
+const updateOrganizationSeatsImmediatelyMock = jest.fn();
 
 jest.mock("next/headers", () => ({
   headers: (...args: unknown[]) => headersMock(...args),
@@ -16,6 +17,13 @@ jest.mock("@/lib/auth/auth", () => ({
       upgradeSubscription: (...args: unknown[]) =>
         upgradeSubscriptionMock(...args),
     },
+  },
+}));
+
+jest.mock("@/lib/services", () => ({
+  organizationSubscriptionService: {
+    updateOrganizationSeatsImmediately: (...args: unknown[]) =>
+      updateOrganizationSeatsImmediatelyMock(...args),
   },
 }));
 
@@ -256,6 +264,82 @@ describe("subscription actions", () => {
         returnUrl: "/organizations/acme",
       },
       headers: new Headers(),
+    });
+  });
+
+  it("returns BAD_INPUT for invalid immediate organization seat update", async () => {
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 0,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+      },
+      ok: false,
+    });
+    expect(updateOrganizationSeatsImmediatelyMock).not.toHaveBeenCalled();
+  });
+
+  it("updates organization seats immediately without redirect flow", async () => {
+    updateOrganizationSeatsImmediatelyMock.mockResolvedValue({
+      seats: 9,
+    });
+
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 9,
+    });
+
+    expect(result).toEqual({
+      data: { seats: 9 },
+      ok: true,
+    });
+    expect(updateOrganizationSeatsImmediatelyMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      9,
+    );
+    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("maps unauthorized immediate seat update errors", async () => {
+    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
+      new Error("Only organization owners and admins can manage subscriptions"),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can manage subscriptions",
+      },
+      ok: false,
     });
   });
 });

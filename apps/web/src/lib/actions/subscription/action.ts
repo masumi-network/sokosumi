@@ -9,6 +9,7 @@ import {
   CommonErrorCode,
 } from "@/lib/actions/errors";
 import { auth } from "@/lib/auth/auth";
+import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -31,6 +32,11 @@ const upgradeOrganizationSubscriptionSchema = z.object({
 const openOrganizationBillingPortalSchema = z.object({
   organizationId: z.string().min(1),
   returnPath: z.string().startsWith("/"),
+});
+
+const updateOrganizationSubscriptionSeatsSchema = z.object({
+  organizationId: z.string().min(1),
+  seats: z.number().int().min(1),
 });
 
 function parseBetterAuthActionError(error: unknown): ActionError {
@@ -204,5 +210,65 @@ export const openOrganizationBillingPortal = withAuthContext<
     return Ok({ url: result.url });
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
+  }
+});
+
+interface UpdateOrganizationSubscriptionSeatsParameters
+  extends AuthenticatedRequest {
+  organizationId: string;
+  seats: number;
+}
+
+export const updateOrganizationSubscriptionSeats = withAuthContext<
+  UpdateOrganizationSubscriptionSeatsParameters,
+  Result<{ seats: number }, ActionError>
+>(async ({ authContext, organizationId, seats }) => {
+  const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
+    organizationId,
+    seats,
+  });
+  if (!parsed.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+
+  try {
+    const result =
+      await organizationSubscriptionService.updateOrganizationSeatsImmediately(
+        authContext.userId,
+        parsed.data.organizationId,
+        parsed.data.seats,
+      );
+
+    return Ok(result);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message ===
+        "Only organization owners and admins can manage subscriptions"
+    ) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: error.message,
+      });
+    }
+
+    if (
+      error instanceof Error &&
+      (error.message === "Please provide valid plan and seat values" ||
+        error.message ===
+          "An active organization subscription is required before updating seats.")
+    ) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: error.message,
+      });
+    }
+
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      ...(error instanceof Error ? { message: error.message } : {}),
+    });
   }
 });

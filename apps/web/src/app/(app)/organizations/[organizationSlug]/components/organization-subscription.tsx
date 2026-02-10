@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { CommonErrorCode } from "@/lib/actions";
 import {
   openOrganizationBillingPortal,
+  updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
 import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
@@ -86,42 +87,66 @@ export default function OrganizationSubscription({
     router.push("/login");
   }, [router]);
 
+  const handleSubscriptionActionError = useCallback(
+    (error: { code: string; message?: string | null }) => {
+      if (error.code === CommonErrorCode.UNAUTHENTICATED) {
+        toast.error(t("Errors.unauthenticated"), {
+          action: {
+            label: t("Errors.unauthenticatedAction"),
+            onClick: handleOpenLogin,
+          },
+        });
+        return;
+      }
+
+      toast.error(
+        error.message
+          ? error.message
+          : error.code === CommonErrorCode.BAD_INPUT
+            ? t("Errors.badInput")
+            : error.code === CommonErrorCode.UNAUTHORIZED
+              ? t("Errors.unauthorized")
+              : t("Errors.general"),
+      );
+    },
+    [handleOpenLogin, t],
+  );
+
   const handleUpgradePlan = useCallback(
-    async (plan: SubscriptionPlanName) => {
+    async (planName: SubscriptionPlanName) => {
       if (!Number.isInteger(targetSeats) || targetSeats < minimumSeats) {
         toast.error(t("Errors.badInput"));
         return;
       }
 
-      setPendingPlan(plan);
+      setPendingPlan(planName);
       try {
-        const result = await upgradeOrganizationSubscription({
-          organizationId,
-          plan,
-          returnPath,
-          seats: targetSeats,
-        });
+        const isCurrentPlan = currentPlan === planName;
+        const isSeatOnlyUpdate = isCurrentPlan && currentSeats !== targetSeats;
 
-        if (!result.ok) {
-          if (result.error.code === CommonErrorCode.UNAUTHENTICATED) {
-            toast.error(t("Errors.unauthenticated"), {
-              action: {
-                label: t("Errors.unauthenticatedAction"),
-                onClick: handleOpenLogin,
-              },
-            });
+        if (isSeatOnlyUpdate) {
+          const seatUpdateResult = await updateOrganizationSubscriptionSeats({
+            organizationId,
+            seats: targetSeats,
+          });
+          if (!seatUpdateResult.ok) {
+            handleSubscriptionActionError(seatUpdateResult.error);
             return;
           }
 
-          toast.error(
-            result.error.message
-              ? result.error.message
-              : result.error.code === CommonErrorCode.BAD_INPUT
-                ? t("Errors.badInput")
-                : result.error.code === CommonErrorCode.UNAUTHORIZED
-                  ? t("Errors.unauthorized")
-                  : t("Errors.general"),
-          );
+          toast.success(t("seatsUpdatedSuccess"));
+          router.refresh();
+          return;
+        }
+
+        const result = await upgradeOrganizationSubscription({
+          organizationId,
+          plan: planName,
+          returnPath,
+          seats: targetSeats,
+        });
+        if (!result.ok) {
+          handleSubscriptionActionError(result.error);
           return;
         }
 
@@ -130,7 +155,17 @@ export default function OrganizationSubscription({
         setPendingPlan(null);
       }
     },
-    [handleOpenLogin, minimumSeats, organizationId, returnPath, t, targetSeats],
+    [
+      currentPlan,
+      currentSeats,
+      handleSubscriptionActionError,
+      minimumSeats,
+      organizationId,
+      returnPath,
+      router,
+      t,
+      targetSeats,
+    ],
   );
 
   const handleOpenBillingPortal = useCallback(async () => {
@@ -141,25 +176,7 @@ export default function OrganizationSubscription({
         returnPath,
       });
       if (!result.ok) {
-        if (result.error.code === CommonErrorCode.UNAUTHENTICATED) {
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: handleOpenLogin,
-            },
-          });
-          return;
-        }
-
-        toast.error(
-          result.error.message
-            ? result.error.message
-            : result.error.code === CommonErrorCode.BAD_INPUT
-              ? t("Errors.badInput")
-              : result.error.code === CommonErrorCode.UNAUTHORIZED
-                ? t("Errors.unauthorized")
-                : t("Errors.general"),
-        );
+        handleSubscriptionActionError(result.error);
         return;
       }
 
@@ -167,7 +184,7 @@ export default function OrganizationSubscription({
     } finally {
       setIsBillingPortalPending(false);
     }
-  }, [handleOpenLogin, organizationId, returnPath, t]);
+  }, [handleSubscriptionActionError, organizationId, returnPath]);
 
   function formatPrice(monthlyAmount: number, currency: string): string {
     return formatter.number(monthlyAmount / 100, {

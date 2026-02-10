@@ -1715,6 +1715,7 @@
           "seatsInputHint": "Minimum seats is {minimum} to cover all active members.",
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
+          "seatsUpdatedSuccess": "Seats updated successfully.",
           "updating": "Redirecting...",
           "currentPlanCta": "Curernt plan",
           "updateSeatsCta": "Update seats",

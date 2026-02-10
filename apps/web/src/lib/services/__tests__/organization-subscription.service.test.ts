@@ -139,6 +139,8 @@ describe("organizationSubscriptionService", () => {
         "sub_stripe_1",
         {
           items: [{ id: "si_1", quantity: 5 }],
+          payment_behavior: "error_if_incomplete",
+          proration_behavior: "always_invoice",
         },
         {
           idempotencyKey: "sub_stripe_1:seats:5",
@@ -168,6 +170,122 @@ describe("organizationSubscriptionService", () => {
       expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateOrganizationSeatsImmediately", () => {
+    it("throws when the user is not owner or admin", async () => {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+        role: "member",
+      });
+
+      const { organizationSubscriptionService } =
+        await import("../organization-subscription.service");
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          3,
+        ),
+      ).rejects.toThrow(
+        "Only organization owners and admins can manage subscriptions",
+      );
+    });
+
+    it("throws when no active organization subscription exists", async () => {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+        role: "owner",
+      });
+      findSubscriptionMock.mockResolvedValue(null);
+
+      const { organizationSubscriptionService } =
+        await import("../organization-subscription.service");
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          3,
+        ),
+      ).rejects.toThrow(
+        "An active organization subscription is required before updating seats.",
+      );
+    });
+
+    it("returns current seats without calling Stripe when seats are unchanged", async () => {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+        role: "owner",
+      });
+      findSubscriptionMock.mockResolvedValue({
+        id: "sub-row-1",
+        seats: 4,
+        stripeSubscriptionId: "sub_stripe_1",
+      });
+
+      const { organizationSubscriptionService } =
+        await import("../organization-subscription.service");
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          4,
+        ),
+      ).resolves.toEqual({
+        seats: 4,
+      });
+
+      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
+    });
+
+    it("updates Stripe and local seats immediately", async () => {
+      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+        role: "admin",
+      });
+      findSubscriptionMock.mockResolvedValue({
+        id: "sub-row-1",
+        seats: 2,
+        stripeSubscriptionId: "sub_stripe_1",
+      });
+      retrieveStripeSubscriptionMock.mockResolvedValue({
+        items: {
+          data: [{ id: "si_1" }],
+        },
+      });
+      updateStripeSubscriptionMock.mockResolvedValue({});
+      updateSubscriptionRecordMock.mockResolvedValue({});
+
+      const { organizationSubscriptionService } =
+        await import("../organization-subscription.service");
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          6,
+        ),
+      ).resolves.toEqual({
+        seats: 6,
+      });
+
+      expect(updateStripeSubscriptionMock).toHaveBeenCalledWith(
+        "sub_stripe_1",
+        {
+          items: [{ id: "si_1", quantity: 6 }],
+          payment_behavior: "error_if_incomplete",
+          proration_behavior: "always_invoice",
+        },
+        {
+          idempotencyKey: "sub_stripe_1:seats:6",
+        },
+      );
+      expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
+        where: { id: "sub-row-1" },
+        data: { seats: 6 },
+      });
     });
   });
 });

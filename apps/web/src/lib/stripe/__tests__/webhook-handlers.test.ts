@@ -225,6 +225,93 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("uses net proration amount for subscription_update invoices with negative lines", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 7491,
+        billingReason: "subscription_update",
+        created: 1_735_689_600,
+        id: "in_sub_update_net",
+        lines: [
+          {
+            amount: 7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: 7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: 7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: -7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: -7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_sub_update_net",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
+    expect(createCall.data.amount).toBe(BigInt("52430000000000"));
+  });
+
   it("fails paid subscription_update invoices when created timestamp is missing", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },

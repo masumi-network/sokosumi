@@ -71,11 +71,17 @@ async function increaseSubscriptionSeats(
           quantity: seats,
         },
       ],
+      payment_behavior: "error_if_incomplete",
+      proration_behavior: "always_invoice",
     },
     {
       idempotencyKey: `${stripeSubscriptionId}:seats:${seats}`,
     },
   );
+}
+
+function resolveCurrentSeats(seats: number | null | undefined): number {
+  return seats && seats > 0 ? seats : 1;
 }
 
 export const organizationSubscriptionService = (() => {
@@ -95,6 +101,61 @@ export const organizationSubscriptionService = (() => {
       }
 
       return isOwnerOrAdmin(member.role);
+    },
+
+    async updateOrganizationSeatsImmediately(
+      userId: string,
+      organizationId: string,
+      seats: number,
+    ): Promise<{ seats: number }> {
+      if (!Number.isInteger(seats) || seats < 1) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Please provide valid plan and seat values",
+        });
+      }
+
+      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+        userId,
+        organizationId,
+        prisma,
+      );
+      if (!member || !isOwnerOrAdmin(member.role)) {
+        throw new APIError("FORBIDDEN", {
+          message: "Only organization owners and admins can manage subscriptions",
+        });
+      }
+
+      const activeSubscription =
+        await getLatestActiveOrganizationSubscription(organizationId);
+      if (!activeSubscription) {
+        throw new APIError("BAD_REQUEST", {
+          message:
+            "An active organization subscription is required before updating seats.",
+        });
+      }
+
+      const currentSeats = resolveCurrentSeats(activeSubscription.seats);
+      if (currentSeats === seats) {
+        return { seats: currentSeats };
+      }
+
+      if (!activeSubscription.stripeSubscriptionId) {
+        throw new APIError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Organization subscription is missing its Stripe reference. Please contact support.",
+        });
+      }
+
+      await increaseSubscriptionSeats(activeSubscription.stripeSubscriptionId, seats);
+
+      await prisma.subscription.update({
+        where: { id: activeSubscription.id },
+        data: {
+          seats,
+        },
+      });
+
+      return { seats };
     },
 
     async ensureCanInviteOrAcceptMember(organizationId: string): Promise<void> {
@@ -117,7 +178,7 @@ export const organizationSubscriptionService = (() => {
         });
       }
 
-      const currentSeats = activeSubscription.seats ?? 1;
+      const currentSeats = resolveCurrentSeats(activeSubscription.seats);
       if (currentSeats >= requiredSeats) {
         return;
       }
