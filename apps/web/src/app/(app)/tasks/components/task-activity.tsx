@@ -139,6 +139,10 @@ export function TaskActivitySection({
     );
   }, [localEvents]);
 
+  const latestStatusEvent = useMemo(() => {
+    return orderedEvents.find((event) => event.status != null) ?? null;
+  }, [orderedEvents]);
+
   const trimmedComment = comment.trim();
   const isSubmitDisabled =
     isPending || trimmedComment.length === 0 || !currentUser?.id;
@@ -253,7 +257,7 @@ export function TaskActivitySection({
 
       {orderedEvents.length > 0 ? (
         <div className="space-y-3">
-          {orderedEvents.map((event, index) => {
+          {orderedEvents.map((event) => {
             const actorLabel = event.coworkerId
               ? actorCoworkerLabel
               : event.userId
@@ -281,7 +285,7 @@ export function TaskActivitySection({
                 ? t("actionChargedCredits", { credits: event.credits })
                 : null;
             const shouldShowAuthenticateButton =
-              index === 0 &&
+              latestStatusEvent?.id === event.id &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
               Boolean(event.authenticationUrl);
 
