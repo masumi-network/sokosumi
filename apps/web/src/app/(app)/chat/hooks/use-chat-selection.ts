@@ -1,0 +1,149 @@
+"use client";
+
+import type { UseChatHelpers } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+import type { Conversation } from "@/lib/actions/conversation";
+
+interface UseChatSelectionProps {
+  urlConversationId: string | null;
+  pathname: string;
+  conversations: Conversation[];
+  selectConversation: (id: string) => Promise<Conversation | null>;
+  selectedChatId: string | null;
+  setSelectedChatId: (id: string | null) => void;
+  setSelectedModel: (model: { id: string; name: string } | null) => void;
+  selectedModelRef: React.MutableRefObject<{ id: string; name: string } | null>;
+  setMessages: UseChatHelpers<UIMessage>["setMessages"];
+  setInput: (input: string) => void;
+  currentChatIdRef: React.MutableRefObject<string | null>;
+  previousChatIdRef: React.MutableRefObject<string | null>;
+  isUpdatingUrlRef: React.MutableRefObject<boolean>;
+  stopStreaming: () => void;
+}
+
+/**
+ * Hook to handle chat selection logic and URL synchronization
+ */
+export function useChatSelection({
+  urlConversationId,
+  pathname,
+  conversations,
+  selectConversation,
+  selectedChatId,
+  setSelectedChatId,
+  setSelectedModel,
+  selectedModelRef,
+  setMessages,
+  setInput,
+  currentChatIdRef,
+  previousChatIdRef: _previousChatIdRef,
+  isUpdatingUrlRef,
+  stopStreaming,
+}: UseChatSelectionProps) {
+  const router = useRouter();
+
+  const handleSelectChat = async (chatId: string | null) => {
+    if (chatId !== selectedChatId) {
+      stopStreaming();
+    }
+
+    if (!chatId) {
+      setSelectedChatId(null);
+      currentChatIdRef.current = null;
+      setSelectedModel(null);
+      selectedModelRef.current = null;
+      isUpdatingUrlRef.current = true;
+      router.push("/chat", { scroll: false });
+      return;
+    }
+
+    // Load conversation from DB; use returned value — state update is async
+    const loadedConversation = await selectConversation(chatId);
+
+    // Use freshly loaded conversation for metadata; fallback to list if load failed
+    const conversation =
+      loadedConversation ?? conversations.find((c) => c.id === chatId);
+    if (conversation) {
+      const metadata = conversation.metadata as Record<string, unknown> | null;
+      const conversationType = metadata?.type as string | undefined;
+      const modelId = metadata?.model_id as string | undefined;
+      const modelName = metadata?.model_name as string | undefined;
+
+      if (conversationType === "model" && modelId && modelName) {
+        setSelectedModel({ id: modelId, name: modelName });
+        selectedModelRef.current = { id: modelId, name: modelName };
+      } else {
+        setSelectedModel(null);
+        selectedModelRef.current = null;
+      }
+    }
+
+    setSelectedChatId(chatId);
+    // Update ref immediately for synchronous access in prepareSendMessagesRequest
+    currentChatIdRef.current = chatId;
+    // Update URL to reflect selected conversation using router for consistency
+    isUpdatingUrlRef.current = true;
+    router.push(`/chat?conversationId=${chatId}`, { scroll: false });
+  };
+
+  // Sync URL parameter with selectedChatId on mount and when URL changes
+  // Only sync when URL changes externally (not when we update it ourselves)
+  useEffect(() => {
+    // Skip if we're updating the URL ourselves
+    const wasUpdatingUrl = isUpdatingUrlRef.current;
+    if (wasUpdatingUrl) {
+      isUpdatingUrlRef.current = false;
+      return;
+    }
+
+    // Only process if we're on the /chat route
+    if (pathname !== "/chat") {
+      return;
+    }
+
+    // Get conversationId from URL (check both useSearchParams and window.location as fallback)
+    const currentUrlConversationId =
+      urlConversationId ||
+      (typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("conversationId")
+        : null);
+
+    // Handle URL changes
+    if (
+      currentUrlConversationId &&
+      currentUrlConversationId !== selectedChatId
+    ) {
+      // URL has a conversationId that differs from current selection - select it
+      handleSelectChat(currentUrlConversationId);
+    } else if (
+      !currentUrlConversationId &&
+      selectedChatId &&
+      pathname === "/chat"
+    ) {
+      const actualUrlConversationId =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("conversationId")
+          : null;
+
+      // Only clear if URL truly has no conversationId
+      // This prevents clearing when useSearchParams temporarily returns null during re-renders
+      if (!actualUrlConversationId) {
+        // Clear selection to show welcome view
+        setSelectedChatId(null);
+        currentChatIdRef.current = null;
+        setSelectedModel(null);
+        selectedModelRef.current = null;
+        setMessages([]);
+        setInput("");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlConversationId, pathname, selectedChatId]);
+
+  return {
+    selectChat: handleSelectChat,
+  };
+}
