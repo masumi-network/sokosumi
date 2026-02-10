@@ -3,8 +3,10 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
+import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
 import prisma from "@/lib/db/prisma";
 import { agentService, categoryService } from "@/lib/services";
+import { coworkerService } from "@/lib/services/coworker.service";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
@@ -26,9 +28,11 @@ export default async function GalleryPage() {
     return <AgentsNotAvailable />;
   }
 
-  const categoryMap = await categoryService.getValidCategories();
-
-  const favoriteAgents = await agentService.getFavoriteAgents();
+  const [categoryMap, favoriteAgents, coworkers] = await Promise.all([
+    categoryService.getValidCategories(),
+    agentService.getFavoriteAgents(),
+    coworkerService.listCoworkers(),
+  ]);
 
   // Fetch rating stats for all agents
   const agentIds = agentsWithPrice.map((agent) => agent.id);
@@ -41,13 +45,17 @@ export default async function GalleryPage() {
     <div className="w-full">
       <div className="space-y-12 px-2">
         <FilterSection categories={categoryMap} />
-        {/* Agent Cards Grid */}
-        <FilteredAgents
-          agents={agentsWithPrice}
-          favoriteAgents={favoriteAgents}
-          ratingStatsMap={ratingStatsMap}
-          categories={categoryMap}
-        />
+
+        <CoworkerGallerySection coworkers={coworkers} />
+
+        <div className="space-y-6">
+          <FilteredAgents
+            agents={agentsWithPrice}
+            favoriteAgents={favoriteAgents}
+            ratingStatsMap={ratingStatsMap}
+            categories={categoryMap}
+          />
+        </div>
       </div>
     </div>
   );
