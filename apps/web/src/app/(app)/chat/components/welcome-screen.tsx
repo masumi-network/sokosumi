@@ -11,7 +11,6 @@ import { MultimodalInput } from "@/components/chat/multimodal-input";
 interface WelcomeScreenProps {
   userName?: string;
   onSendMessage: (message: string, coworker?: Coworker) => void;
-  isLoading: boolean;
   isTransitioning: boolean;
   input: string;
   setInput: Dispatch<SetStateAction<string>>;
@@ -25,7 +24,6 @@ interface WelcomeScreenProps {
 export default function WelcomeScreen({
   userName,
   onSendMessage,
-  isLoading: _isLoading,
   input,
   setInput,
   messages,

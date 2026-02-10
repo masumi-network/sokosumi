@@ -18,7 +18,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ChatPage() {
-  const _t = await getTranslations("App.Chat");
   const session = await getSession();
 
   if (!session) {
