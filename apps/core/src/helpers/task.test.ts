@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { describe, expect, it } from "vitest";
@@ -11,25 +10,11 @@ const coworkerContext = {
   userId: "user_123",
   organizationId: null,
   coworkerId: "cow_123",
-=======
-import assert from "node:assert/strict";
-import { describe, test } from "node:test";
-
-import { TaskStatus } from "@sokosumi/database";
-
-import { validateStatusTransition } from "./task";
-
-const orchestratorContext = {
-  userId: "user_123",
-  organizationId: null,
-  orchestratorId: "orc_123",
->>>>>>> Stashed changes
 };
 
 const userContext = {
   userId: "user_123",
   organizationId: null,
-<<<<<<< Updated upstream
   coworkerId: null,
 };
 
@@ -445,57 +430,3 @@ describe("mapTask", () => {
     expect(result.events[2]?.credits).toBe(3);
   });
 });
-=======
-  orchestratorId: null,
-};
-
-describe("validateStatusTransition", () => {
-  test("allows orchestrator to set authentication required from running", () => {
-    assert.doesNotThrow(() => {
-      validateStatusTransition(
-        orchestratorContext,
-        TaskStatus.RUNNING,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-      );
-    });
-  });
-
-  test("allows orchestrator to set authentication required from input required", () => {
-    assert.doesNotThrow(() => {
-      validateStatusTransition(
-        orchestratorContext,
-        TaskStatus.INPUT_REQUIRED,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-      );
-    });
-  });
-
-  test("allows orchestrator to move back to running", () => {
-    assert.doesNotThrow(() => {
-      validateStatusTransition(
-        orchestratorContext,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.RUNNING,
-      );
-    });
-  });
-
-  test("rejects user transitions involving authentication required", () => {
-    assert.throws(() => {
-      validateStatusTransition(
-        userContext,
-        TaskStatus.READY,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-      );
-    });
-
-    assert.throws(() => {
-      validateStatusTransition(
-        userContext,
-        TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.RUNNING,
-      );
-    });
-  });
-});
->>>>>>> Stashed changes
