@@ -12,9 +12,9 @@ import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatScroll } from "@/app/chat/hooks/use-chat-scroll";
 import { useChatSelection } from "@/app/chat/hooks/use-chat-selection";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
-import { useConversations } from "@/app/chat/hooks/use-conversations";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
+import { useConversationsContext } from "@/contexts/conversations-context";
 import { addConversationItem } from "@/lib/actions/conversation/core-api-actions";
 
 import ChatInputContainer from "./chat-input-container";
@@ -42,7 +42,7 @@ export default function ChatInterface({
     createNewConversation,
     selectConversation,
     deleteConversationById: _deleteConversationById,
-  } = useConversations();
+  } = useConversationsContext();
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [input, setInput] = useState<string>("");

@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { ConversationsProvider } from "@/contexts/conversations-context";
 import QueryProvider from "@/contexts/query-provider";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { chatUIEnabled } from "@/lib/flags/chat";
@@ -57,28 +58,36 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     return redirect("/onboarding");
   }
 
+  const content = (
+    <SidebarProvider
+      defaultOpen={defaultOpen}
+      className="flex max-w-svw overflow-clip"
+    >
+      <Sidebar
+        session={session}
+        taskManagerMenuEnabled={isTaskManagerMenuEnabled}
+        chatUIEnabled={isChatUIEnabled}
+      />
+      <div className="flex min-w-0 flex-1 flex-col overflow-clip">
+        <Header session={session} className="h-16 p-4" />
+        <main className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4">
+          <EmergencyDialog />
+          <div className="flex h-full flex-1 flex-col overflow-hidden">
+            {children}
+          </div>
+        </main>
+        <FooterSections className="p-4" />
+      </div>
+    </SidebarProvider>
+  );
+
   return (
     <QueryProvider>
-      <SidebarProvider
-        defaultOpen={defaultOpen}
-        className="flex max-w-svw overflow-clip"
-      >
-        <Sidebar
-          session={session}
-          taskManagerMenuEnabled={isTaskManagerMenuEnabled}
-          chatUIEnabled={isChatUIEnabled}
-        />
-        <div className="flex min-w-0 flex-1 flex-col overflow-clip">
-          <Header session={session} className="h-16 p-4" />
-          <main className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4">
-            <EmergencyDialog />
-            <div className="flex h-full flex-1 flex-col overflow-hidden">
-              {children}
-            </div>
-          </main>
-          <FooterSections className="p-4" />
-        </div>
-      </SidebarProvider>
+      {isChatUIEnabled ? (
+        <ConversationsProvider>{content}</ConversationsProvider>
+      ) : (
+        content
+      )}
     </QueryProvider>
   );
 }
