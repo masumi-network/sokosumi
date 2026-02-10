@@ -124,6 +124,7 @@ describe("stripeService.ensurePersonalFreeSubscription", () => {
     expect(createSubscriptionMock).toHaveBeenCalledWith(
       "cus_new",
       "price_free",
+      { referenceId: "user-1", userId: "user-1" },
       "free-plan-user-user-1",
     );
   });

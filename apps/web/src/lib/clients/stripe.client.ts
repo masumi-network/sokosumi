@@ -138,12 +138,17 @@ export const stripeClient = (() => {
     async createSubscription(
       customerId: string,
       priceId: string,
+      metadata: { referenceId: string; userId: string },
       idempotencyKey?: string,
     ): Promise<Stripe.Subscription> {
       return await stripe.subscriptions.create(
         {
           customer: customerId,
           items: [{ price: priceId }],
+          metadata: {
+            referenceId: metadata.referenceId,
+            userId: metadata.userId,
+          },
         },
         {
           ...(idempotencyKey ? { idempotencyKey } : {}),

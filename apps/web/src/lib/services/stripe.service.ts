@@ -262,6 +262,7 @@ export const stripeService = (() => {
         const subscription = await stripeClient.createSubscription(
           stripeCustomerId,
           freePlanPriceId,
+          { referenceId: userId, userId },
           `free-plan-user-${userId}`,
         );
 
