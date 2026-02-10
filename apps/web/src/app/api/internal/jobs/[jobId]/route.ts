@@ -9,7 +9,6 @@ import {
 } from "@/lib/api";
 import prisma from "@/lib/db/prisma";
 
-export const runtime = "edge";
 export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
 
 interface RouteParams {

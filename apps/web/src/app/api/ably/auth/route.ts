@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import createAuthTokenRequest from "@/lib/ably/auth";
 import { getSession } from "@/lib/auth/utils";
 
-export const runtime = "edge";
 export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
 
 export async function POST() {

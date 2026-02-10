@@ -8,7 +8,6 @@ import {
 } from "@/lib/api";
 import { jobService } from "@/lib/services/job.service";
 
-export const runtime = "edge";
 export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
 
 interface RouteParams {

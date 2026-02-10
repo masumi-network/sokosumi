@@ -22,7 +22,6 @@ import prisma from "@/lib/db/prisma";
 import { flattenInputs } from "@/lib/schemas/job";
 import { agentService } from "@/lib/services";
 
-export const runtime = "edge";
 export const preferredRegion = ["fra1", "dub1"]; // Frankfurt and Dublin
 
 interface RouteParams {
