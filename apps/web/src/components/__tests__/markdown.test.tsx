@@ -29,7 +29,7 @@ jest.mock("react-markdown", () => ({
       return (
         <pre>
           {components.code({
-            inline: false,
+            inline: "false",
             className: "language-js",
             children: "const value = 1;",
           })}
@@ -40,7 +40,7 @@ jest.mock("react-markdown", () => ({
     return (
       <div>
         {components.code({
-          inline: true,
+          inline: "true",
           children: "code",
         })}
       </div>
