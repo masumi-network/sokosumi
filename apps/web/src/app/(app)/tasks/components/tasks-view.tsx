@@ -299,10 +299,7 @@ export function TasksView({
       {userId ? (
         <DynamicAblyProvider>
           <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
-            <TasksRealtimeListener
-              userId={userId}
-              onEvent={handleEventUpdate}
-            />
+            <TasksRealtimeListener userId={userId} onEvent={handleEventUpdate} />
           </ChannelProvider>
         </DynamicAblyProvider>
       ) : null}
