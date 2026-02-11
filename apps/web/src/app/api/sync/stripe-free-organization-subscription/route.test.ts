@@ -2,11 +2,11 @@ jest.mock("server-only", () => ({}));
 
 const authenticateCronSecretMock = jest.fn();
 const acquireLockMock = jest.fn();
-const ensurePersonalFreeSubscriptionMock = jest.fn();
+const ensureOrganizationFreeSubscriptionMock = jest.fn();
 const unlockByKeyMock = jest.fn();
 const getSyncMetadataByKeyMock = jest.fn();
 const setSyncMetadataByKeyMock = jest.fn();
-const getUsersBatchAfterCursorMock = jest.fn();
+const getOrganizationsBatchAfterCursorMock = jest.fn();
 
 jest.mock("@/lib/auth/utils", () => ({
   authenticateCronSecret: (...args: unknown[]) =>
@@ -24,8 +24,8 @@ jest.mock("@/lib/services", () => ({
     acquireLock: (...args: unknown[]) => acquireLockMock(...args),
   },
   stripeService: {
-    ensurePersonalFreeSubscription: (...args: unknown[]) =>
-      ensurePersonalFreeSubscriptionMock(...args),
+    ensureOrganizationFreeSubscription: (...args: unknown[]) =>
+      ensureOrganizationFreeSubscriptionMock(...args),
   },
 }));
 
@@ -33,15 +33,15 @@ jest.mock("@sokosumi/database/repositories", () => ({
   lockRepository: {
     unlockByKey: (...args: unknown[]) => unlockByKeyMock(...args),
   },
+  organizationRepository: {
+    getOrganizationsBatchAfterCursor: (...args: unknown[]) =>
+      getOrganizationsBatchAfterCursorMock(...args),
+  },
   syncMetadataRepository: {
     getSyncMetadataByKey: (...args: unknown[]) =>
       getSyncMetadataByKeyMock(...args),
     setSyncMetadataByKey: (...args: unknown[]) =>
       setSyncMetadataByKeyMock(...args),
-  },
-  userRepository: {
-    getUsersBatchAfterCursor: (...args: unknown[]) =>
-      getUsersBatchAfterCursorMock(...args),
   },
 }));
 
@@ -57,7 +57,7 @@ jest.mock("p-limit", () => ({
   default: () => (fn: () => Promise<unknown>) => fn(),
 }));
 
-describe("GET /api/sync/stripe-free-subscriptions", () => {
+describe("GET /api/sync/stripe-free-organization-subscription", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     authenticateCronSecretMock.mockReturnValue({ ok: true });
@@ -66,7 +66,7 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
       cursorId: null,
       lastSyncedAt: new Date(0),
     });
-    getUsersBatchAfterCursorMock.mockResolvedValue([]);
+    getOrganizationsBatchAfterCursorMock.mockResolvedValue([]);
     setSyncMetadataByKeyMock.mockResolvedValue(undefined);
     unlockByKeyMock.mockResolvedValue(undefined);
   });
@@ -102,13 +102,13 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
     });
   });
 
-  it("returns summary counts for created/skipped/failed users", async () => {
-    getUsersBatchAfterCursorMock.mockResolvedValue([
-      { id: "user-1" },
-      { id: "user-2" },
-      { id: "user-3" },
+  it("returns summary counts for created/skipped/failed organizations", async () => {
+    getOrganizationsBatchAfterCursorMock.mockResolvedValue([
+      { id: "org-1" },
+      { id: "org-2" },
+      { id: "org-3" },
     ]);
-    ensurePersonalFreeSubscriptionMock
+    ensureOrganizationFreeSubscriptionMock
       .mockResolvedValueOnce({
         status: "created",
         subscriptionId: "sub_1",
@@ -130,19 +130,19 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
       created: 1,
       completed: false,
       failed: 1,
-      nextCursorId: "user-3",
+      nextCursorId: "org-3",
       scanned: 3,
       skipped: 1,
     });
-    expect(ensurePersonalFreeSubscriptionMock).toHaveBeenCalledTimes(3);
-    expect(getUsersBatchAfterCursorMock).toHaveBeenCalledWith(
+    expect(ensureOrganizationFreeSubscriptionMock).toHaveBeenCalledTimes(3);
+    expect(getOrganizationsBatchAfterCursorMock).toHaveBeenCalledWith(
       null,
       100,
       expect.any(Object),
     );
     expect(setSyncMetadataByKeyMock).toHaveBeenCalledWith(
-      "stripe-free-subscriptions-sync",
-      "user-3",
+      "stripe-free-organization-subscription-sync",
+      "org-3",
       new Date(0),
       expect.any(Object),
     );
@@ -154,11 +154,11 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
 
   it("resumes from an existing cursor", async () => {
     getSyncMetadataByKeyMock.mockResolvedValue({
-      cursorId: "user-3",
+      cursorId: "org-3",
       lastSyncedAt: new Date(0),
     });
-    getUsersBatchAfterCursorMock.mockResolvedValue([{ id: "user-4" }]);
-    ensurePersonalFreeSubscriptionMock.mockResolvedValue({
+    getOrganizationsBatchAfterCursorMock.mockResolvedValue([{ id: "org-4" }]);
+    ensureOrganizationFreeSubscriptionMock.mockResolvedValue({
       status: "skipped",
       reason: "ALREADY_HAS_SUBSCRIPTION",
     });
@@ -171,29 +171,29 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
       created: 0,
       completed: false,
       failed: 0,
-      nextCursorId: "user-4",
+      nextCursorId: "org-4",
       scanned: 1,
       skipped: 1,
     });
-    expect(getUsersBatchAfterCursorMock).toHaveBeenCalledWith(
-      "user-3",
+    expect(getOrganizationsBatchAfterCursorMock).toHaveBeenCalledWith(
+      "org-3",
       100,
       expect.any(Object),
     );
     expect(setSyncMetadataByKeyMock).toHaveBeenCalledWith(
-      "stripe-free-subscriptions-sync",
-      "user-4",
+      "stripe-free-organization-subscription-sync",
+      "org-4",
       new Date(0),
       expect.any(Object),
     );
   });
 
-  it("marks the one-pass sync as completed when there are no more users", async () => {
+  it("marks the one-pass sync as completed when there are no more organizations", async () => {
     getSyncMetadataByKeyMock.mockResolvedValue({
-      cursorId: "user-10",
+      cursorId: "org-10",
       lastSyncedAt: new Date(0),
     });
-    getUsersBatchAfterCursorMock.mockResolvedValue([]);
+    getOrganizationsBatchAfterCursorMock.mockResolvedValue([]);
 
     const { GET } = await import("./route");
     const response = await GET(new Request("http://localhost/test"));
@@ -207,16 +207,16 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
       scanned: 0,
       skipped: 0,
     });
-    expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
+    expect(ensureOrganizationFreeSubscriptionMock).not.toHaveBeenCalled();
     expect(setSyncMetadataByKeyMock).toHaveBeenCalledWith(
-      "stripe-free-subscriptions-sync",
+      "stripe-free-organization-subscription-sync",
       null,
       expect.any(Date),
       expect.any(Object),
     );
   });
 
-  it("does not reprocess users after completion", async () => {
+  it("does not reprocess organizations after completion", async () => {
     getSyncMetadataByKeyMock.mockResolvedValue({
       cursorId: null,
       lastSyncedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -234,9 +234,9 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
       scanned: 0,
       skipped: 0,
     });
-    expect(getUsersBatchAfterCursorMock).not.toHaveBeenCalled();
+    expect(getOrganizationsBatchAfterCursorMock).not.toHaveBeenCalled();
     expect(setSyncMetadataByKeyMock).not.toHaveBeenCalled();
-    expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
+    expect(ensureOrganizationFreeSubscriptionMock).not.toHaveBeenCalled();
   });
 
   it("always unlocks when sync fails", async () => {
@@ -247,7 +247,7 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
-      message: "Failed to sync free subscriptions",
+      message: "Failed to sync free organization subscriptions",
     });
     expect(unlockByKeyMock).toHaveBeenCalledWith(
       "lock-key",

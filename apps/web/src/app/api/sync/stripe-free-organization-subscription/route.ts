@@ -1,8 +1,8 @@
 import { Lock } from "@sokosumi/database";
 import {
   lockRepository,
+  organizationRepository,
   syncMetadataRepository,
-  userRepository,
 } from "@sokosumi/database/repositories";
 import { NextResponse } from "next/server";
 import pLimit from "p-limit";
@@ -12,12 +12,12 @@ import { authenticateCronSecret } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { lockService, stripeService } from "@/lib/services";
 
-const LOCK_KEY = "stripe-free-subscriptions-sync";
-const SYNC_METADATA_KEY = "stripe-free-subscriptions-sync";
+const LOCK_KEY = "stripe-free-organization-subscription-sync";
+const SYNC_METADATA_KEY = "stripe-free-organization-subscription-sync";
 const BATCH_SIZE = 100;
 const INITIAL_SYNC_DATE = new Date(0);
 
-interface StripeFreeSubscriptionSyncSummary {
+interface StripeFreeOrganizationSubscriptionSyncSummary {
   created: number;
   completed: boolean;
   failed: number;
@@ -29,13 +29,15 @@ interface StripeFreeSubscriptionSyncSummary {
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
   if (!authResult.ok) return authResult.response;
-  return await stripeFreeSubscriptionsSync();
+  return await stripeFreeOrganizationSubscriptionSync();
 }
 
-async function stripeFreeSubscriptionsSync(): Promise<Response> {
+async function stripeFreeOrganizationSubscriptionSync(): Promise<Response> {
   let lock: Lock;
   const syncStartedAt = Date.now();
-  console.info(`[${LOCK_KEY}] Starting free subscription sync run`);
+  console.info(
+    `[${LOCK_KEY}] Starting free organization subscription sync run`,
+  );
 
   try {
     lock = await lockService.acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
@@ -58,16 +60,19 @@ async function stripeFreeSubscriptionsSync(): Promise<Response> {
   }
 
   try {
-    const summary = await syncUsersBatchToFreeSubscription();
+    const summary = await syncOrganizationsBatchToFreeSubscription();
     console.info(
       `[${LOCK_KEY}] Sync finished in ${(Date.now() - syncStartedAt) / 1000}s`,
       summary,
     );
     return NextResponse.json(summary, { status: 200 });
   } catch (error) {
-    console.error(`[${LOCK_KEY}] Error syncing free subscriptions`, error);
+    console.error(
+      `[${LOCK_KEY}] Error syncing free organization subscriptions`,
+      error,
+    );
     return NextResponse.json(
-      { message: "Failed to sync free subscriptions" },
+      { message: "Failed to sync free organization subscriptions" },
       { status: 500 },
     );
   } finally {
@@ -80,7 +85,7 @@ async function stripeFreeSubscriptionsSync(): Promise<Response> {
   }
 }
 
-async function syncUsersBatchToFreeSubscription(): Promise<StripeFreeSubscriptionSyncSummary> {
+async function syncOrganizationsBatchToFreeSubscription(): Promise<StripeFreeOrganizationSubscriptionSyncSummary> {
   const metadata = await syncMetadataRepository.getSyncMetadataByKey(
     SYNC_METADATA_KEY,
     prisma,
@@ -105,18 +110,19 @@ async function syncUsersBatchToFreeSubscription(): Promise<StripeFreeSubscriptio
     };
   }
 
-  const users = await userRepository.getUsersBatchAfterCursor(
-    metadata.cursorId,
-    BATCH_SIZE,
-    prisma,
-  );
+  const organizations =
+    await organizationRepository.getOrganizationsBatchAfterCursor(
+      metadata.cursorId,
+      BATCH_SIZE,
+      prisma,
+    );
   console.info(`[${LOCK_KEY}] Loaded batch`, {
-    batchSize: users.length,
+    batchSize: organizations.length,
     fromCursorId: metadata.cursorId,
     limit: BATCH_SIZE,
   });
 
-  if (users.length === 0) {
+  if (organizations.length === 0) {
     const completedAt = new Date();
     await syncMetadataRepository.setSyncMetadataByKey(
       SYNC_METADATA_KEY,
@@ -137,23 +143,23 @@ async function syncUsersBatchToFreeSubscription(): Promise<StripeFreeSubscriptio
     };
   }
 
-  const nextCursorId = users[users.length - 1]?.id ?? null;
+  const nextCursorId = organizations[organizations.length - 1]?.id ?? null;
 
-  const summary: StripeFreeSubscriptionSyncSummary = {
+  const summary: StripeFreeOrganizationSubscriptionSyncSummary = {
     created: 0,
     completed: false,
     failed: 0,
     nextCursorId,
-    scanned: users.length,
+    scanned: organizations.length,
     skipped: 0,
   };
 
   const limit = pLimit(5);
   await Promise.allSettled(
-    users.map((user) =>
+    organizations.map((organization) =>
       limit(async () => {
-        const result = await stripeService.ensurePersonalFreeSubscription(
-          user.id,
+        const result = await stripeService.ensureOrganizationFreeSubscription(
+          organization.id,
         );
         switch (result.status) {
           case "created":
