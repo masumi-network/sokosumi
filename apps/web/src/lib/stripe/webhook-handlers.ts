@@ -16,10 +16,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
-import {
-  ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES,
-  getLatestActiveOrganizationSubscription,
-} from "@/lib/stripe/subscription-utils";
+import { getLatestActiveOrganizationSubscription } from "@/lib/stripe/subscription-utils";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
