@@ -3,11 +3,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { mapSubscription } from "@/helpers/subscription";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { organizationWithRoleSchema } from "@/schemas/organization.schema";
+import { creditsResponseSchema } from "@/schemas/user.schema";
 
 const params = z.object({
   id: z.string().openapi({
@@ -19,32 +18,19 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/organizations/{id}",
-  description: "Get organization details by ID or slug",
+  path: "/organizations/{id}/credits",
+  description: "Get organization credit balance by ID or slug",
   tags: ["Users"],
   request: {
     params,
   },
   responses: {
     200: jsonSuccessResponse(
-      organizationWithRoleSchema,
-      "Retrieve organization by ID or slug",
+      creditsResponseSchema,
+      "Retrieve organization credits",
       {
         data: {
-          id: "org_123",
-          name: "My Organization",
-          slug: "my-org",
-          createdAt: "2025-01-01T00:00:00.000Z",
-          role: "member",
           credits: 100.0,
-          subscription: {
-            id: "sub_123",
-            plan: "starter",
-            status: "active",
-            periodStart: "2025-01-01T00:00:00.000Z",
-            periodEnd: "2025-02-01T00:00:00.000Z",
-            cancelAtPeriodEnd: false,
-          },
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -66,28 +52,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
-    const organization = await prisma.$transaction(async (tx) => {
-      const { organization, role } = await resolveMemberOrganizationByIdOrSlug({
+    const credits = await prisma.$transaction(async (tx) => {
+      const { organization } = await resolveMemberOrganizationByIdOrSlug({
         idOrSlug: id,
         userId: authContext.userId,
         tx,
       });
 
-      // Get organization credits
-      const credits = await getCredits(authContext.userId, organization.id, tx);
-      const subscription = await tx.subscription.findFirst({
-        where: { referenceId: organization.id },
-        orderBy: { updatedAt: "desc" },
-      });
-
-      return {
-        ...organization,
-        role,
-        credits,
-        subscription: mapSubscription(subscription),
-      };
+      return await getCredits(authContext.userId, organization.id, tx);
     });
 
-    return ok(c, organizationWithRoleSchema.parse(organization));
+    return ok(c, creditsResponseSchema.parse({ credits }));
   });
 }
