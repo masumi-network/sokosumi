@@ -18,6 +18,14 @@ import {
 
 import { SokosumiIcon } from "@/components/masumi-logos";
 
+function SokosumiOriginIcon(
+  props: Omit<React.SVGProps<SVGSVGElement>, "width" | "height"> & {
+    size?: number;
+  },
+) {
+  return <SokosumiIcon {...props} animated={false} />;
+}
+
 export interface TaskEventOriginIconProps extends Omit<
   LucideProps,
   "ref" | "size"
@@ -41,7 +49,7 @@ export const ORIGIN_ICON_MAP: Record<
   [TaskEventOrigin.TELEGRAM]: SiTelegram,
   [TaskEventOrigin.SIGNAL]: SiSignal,
   [TaskEventOrigin.CHAT]: MessageSquare,
-  [TaskEventOrigin.SOKOSUMI]: SokosumiIcon,
+  [TaskEventOrigin.SOKOSUMI]: SokosumiOriginIcon,
   [TaskEventOrigin.UNKNOWN]: CircleHelp,
 };
 

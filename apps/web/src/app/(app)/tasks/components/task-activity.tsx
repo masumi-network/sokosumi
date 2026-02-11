@@ -378,19 +378,34 @@ export function TaskActivitySection({
                         <span className="text-sm font-medium">{actorName}</span>
                         <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                           <span>{action}</span>
-                          <span>{originFromLabel}</span>
-                          <OriginIcon
-                            className="text-muted-foreground/50 size-3.5 shrink-0"
-                            role="img"
-                            aria-label={originFromLabel}
-                            data-testid={`origin-icon-${event.id}`}
-                          />
+                          {!event.status ? (
+                            <>
+                              <span>{originFromLabel}</span>
+                              <OriginIcon
+                                className="text-muted-foreground/50 size-3.5 shrink-0"
+                                role="img"
+                                aria-label={originFromLabel}
+                                data-testid={`origin-icon-${event.id}`}
+                              />
+                            </>
+                          ) : null}
                         </span>
                         {event.status ? (
-                          <TaskStatusBadge
-                            status={event.status}
-                            showDot={!isStatusOnlyEvent}
-                          />
+                          <>
+                            <TaskStatusBadge
+                              status={event.status}
+                              showDot={!isStatusOnlyEvent}
+                            />
+                            <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                              <span>{originFromLabel}</span>
+                              <OriginIcon
+                                className="text-muted-foreground/50 size-3.5 shrink-0"
+                                role="img"
+                                aria-label={originFromLabel}
+                                data-testid={`origin-icon-${event.id}`}
+                              />
+                            </span>
+                          </>
                         ) : null}
                       </div>
                       <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
