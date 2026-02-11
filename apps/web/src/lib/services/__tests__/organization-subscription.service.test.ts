@@ -60,40 +60,6 @@ describe("organizationSubscriptionService", () => {
     jest.clearAllMocks();
   });
 
-  describe("canManageOrganizationSubscription", () => {
-    it("returns true for organization owner", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "owner",
-      });
-
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
-
-      await expect(
-        organizationSubscriptionService.canManageOrganizationSubscription(
-          "user-1",
-          "org-1",
-        ),
-      ).resolves.toBe(true);
-    });
-
-    it("returns false for regular member", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "member",
-      });
-
-      const { organizationSubscriptionService } =
-        await import("../organization-subscription.service");
-
-      await expect(
-        organizationSubscriptionService.canManageOrganizationSubscription(
-          "user-1",
-          "org-1",
-        ),
-      ).resolves.toBe(false);
-    });
-  });
-
   describe("ensureCanCreateInvitation", () => {
     it("throws when no active organization subscription exists", async () => {
       findSubscriptionMock.mockResolvedValue(null);
@@ -173,9 +139,9 @@ describe("organizationSubscriptionService", () => {
           payment_behavior: "error_if_incomplete",
           proration_behavior: "always_invoice",
         },
-        {
-          idempotencyKey: "sub_stripe_1:seats:5",
-        },
+        expect.objectContaining({
+          idempotencyKey: expect.stringMatching(/^sub_stripe_1:seats:5:\d+$/),
+        }),
       );
       expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
         where: { id: "sub-row-1" },
@@ -307,9 +273,9 @@ describe("organizationSubscriptionService", () => {
           payment_behavior: "error_if_incomplete",
           proration_behavior: "always_invoice",
         },
-        {
-          idempotencyKey: "sub_stripe_1:seats:6",
-        },
+        expect.objectContaining({
+          idempotencyKey: expect.stringMatching(/^sub_stripe_1:seats:6:\d+$/),
+        }),
       );
       expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
         where: { id: "sub-row-1" },

@@ -88,7 +88,7 @@ async function increaseSubscriptionSeats(
       proration_behavior: "always_invoice",
     },
     {
-      idempotencyKey: `${stripeSubscriptionId}:seats:${seats}`,
+      idempotencyKey: `${stripeSubscriptionId}:seats:${seats}:${Date.now()}`,
     },
   );
 }
@@ -166,23 +166,6 @@ async function syncOrganizationSeatCount(
 
 export const organizationSubscriptionService = (() => {
   return {
-    async canManageOrganizationSubscription(
-      userId: string,
-      organizationId: string,
-    ): Promise<boolean> {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        organizationId,
-        prisma,
-      );
-
-      if (!member) {
-        return false;
-      }
-
-      return isOwnerOrAdmin(member.role);
-    },
-
     async updateOrganizationSeatsImmediately(
       userId: string,
       organizationId: string,
