@@ -205,7 +205,14 @@ export const organizationSubscriptionService = (() => {
       return { seats };
     },
 
-    async ensureCanInviteOrAcceptMember(organizationId: string): Promise<void> {
+    async ensureCanCreateInvitation(organizationId: string): Promise<void> {
+      await ensureActiveOrganizationSubscription(
+        organizationId,
+        "An active organization subscription is required before adding members.",
+      );
+    },
+
+    async ensureCanAcceptInvitation(organizationId: string): Promise<void> {
       const [requiredSeats, activeSubscription] = await Promise.all([
         getRequiredSeatsForNextMember(organizationId),
         ensureActiveOrganizationSubscription(

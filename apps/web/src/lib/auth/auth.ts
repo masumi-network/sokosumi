@@ -369,12 +369,12 @@ export const auth = betterAuth({
         getEnvSecrets().BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
       organizationHooks: {
         beforeAcceptInvitation: async ({ organization }) => {
-          await organizationSubscriptionService.ensureCanInviteOrAcceptMember(
+          await organizationSubscriptionService.ensureCanAcceptInvitation(
             organization.id,
           );
         },
         beforeCreateInvitation: async ({ organization }) => {
-          await organizationSubscriptionService.ensureCanInviteOrAcceptMember(
+          await organizationSubscriptionService.ensureCanCreateInvitation(
             organization.id,
           );
         },

@@ -94,7 +94,40 @@ describe("organizationSubscriptionService", () => {
     });
   });
 
-  describe("ensureCanInviteOrAcceptMember", () => {
+  describe("ensureCanCreateInvitation", () => {
+    it("throws when no active organization subscription exists", async () => {
+      findSubscriptionMock.mockResolvedValue(null);
+
+      const { organizationSubscriptionService } =
+        await import("../organization-subscription.service");
+
+      await expect(
+        organizationSubscriptionService.ensureCanCreateInvitation("org-1"),
+      ).rejects.toThrow(
+        "An active organization subscription is required before adding members.",
+      );
+    });
+
+    it("checks active subscription without updating seats", async () => {
+      findSubscriptionMock.mockResolvedValue({
+        id: "sub-row-1",
+        seats: 2,
+        stripeSubscriptionId: "sub_stripe_1",
+      });
+
+      const { organizationSubscriptionService } =
+        await import("../organization-subscription.service");
+
+      await organizationSubscriptionService.ensureCanCreateInvitation("org-1");
+
+      expect(memberCountMock).not.toHaveBeenCalled();
+      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ensureCanAcceptInvitation", () => {
     it("throws when no active organization subscription exists", async () => {
       memberCountMock.mockResolvedValue(2);
       findSubscriptionMock.mockResolvedValue(null);
@@ -103,7 +136,7 @@ describe("organizationSubscriptionService", () => {
         await import("../organization-subscription.service");
 
       await expect(
-        organizationSubscriptionService.ensureCanInviteOrAcceptMember("org-1"),
+        organizationSubscriptionService.ensureCanAcceptInvitation("org-1"),
       ).rejects.toThrow(
         "An active organization subscription is required before adding members.",
       );
@@ -127,9 +160,7 @@ describe("organizationSubscriptionService", () => {
       const { organizationSubscriptionService } =
         await import("../organization-subscription.service");
 
-      await organizationSubscriptionService.ensureCanInviteOrAcceptMember(
-        "org-1",
-      );
+      await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
       expect(retrieveStripeSubscriptionMock).toHaveBeenCalledWith(
         "sub_stripe_1",
@@ -163,9 +194,7 @@ describe("organizationSubscriptionService", () => {
       const { organizationSubscriptionService } =
         await import("../organization-subscription.service");
 
-      await organizationSubscriptionService.ensureCanInviteOrAcceptMember(
-        "org-1",
-      );
+      await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
       expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
