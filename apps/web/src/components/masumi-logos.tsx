@@ -9,6 +9,7 @@ interface LogoProps extends Omit<ImageProps, "src" | "alt"> {
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "width" | "height"> {
   size?: number;
+  animated?: boolean;
 }
 
 interface ThemedLogoProps extends Omit<LogoProps, "variant" | "className"> {
@@ -49,7 +50,7 @@ function SokosumiLogo({ variant = "black", ...props }: LogoProps) {
   );
 }
 
-function SokosumiIcon({ className, ...props }: IconProps) {
+function SokosumiIcon({ className, animated = true, ...props }: IconProps) {
   // Inline SVG for SokosumiIconFlat (black/white by variant, using currentColor for adaptability)
   return (
     <svg
@@ -58,7 +59,10 @@ function SokosumiIcon({ className, ...props }: IconProps) {
       width={32}
       height={32}
       aria-label="Sokosumi Icon"
-      className={cn("animate-fade-in animate-rotate-once", className)}
+      className={cn(
+        animated && "animate-fade-in animate-rotate-once",
+        className,
+      )}
       {...props}
     >
       <path
