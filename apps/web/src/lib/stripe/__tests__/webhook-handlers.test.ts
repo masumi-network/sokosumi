@@ -739,6 +739,144 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("does not short-circuit split grants when a legacy combined top-up bucket exists", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    findExistingBucketMock.mockImplementation((args: unknown) => {
+      const reference =
+        (args as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }).where.referenceId_referenceType;
+      if (
+        reference.referenceId === "in_mixed_legacy" &&
+        reference.referenceType === "STRIPE_TOPUP"
+      ) {
+        return Promise.resolve({ id: "legacy-combined" });
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_mixed_legacy",
+        lines: [
+          { productId: "prod_credit", quantity: 3 },
+          { productId: "prod_starter", quantity: 1, periodEnd: 1_735_689_600 },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+    const lookedUpLegacyCombinedBucket = findExistingBucketMock.mock.calls.some(
+      (call) => {
+        const reference = (call[0] as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }).where.referenceId_referenceType;
+
+        return (
+          reference.referenceId === "in_mixed_legacy" &&
+          reference.referenceType === "STRIPE_TOPUP"
+        );
+      },
+    );
+    expect(lookedUpLegacyCombinedBucket).toBe(false);
+  });
+
+  it("does not look up top-up fallback when creating subscription-period buckets", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    findExistingBucketMock.mockImplementation((args: unknown) => {
+      const reference =
+        (args as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }).where.referenceId_referenceType;
+      if (
+        reference.referenceId === "in_sub_cycle_legacy" &&
+        reference.referenceType === "STRIPE_TOPUP"
+      ) {
+        return Promise.resolve({
+          expiresAt: new Date(1_735_689_600 * 1000),
+          id: "legacy-subscription",
+        });
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_sub_cycle_legacy",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const lookedUpLegacyTopUpFallback = findExistingBucketMock.mock.calls.some(
+      (call) => {
+        const reference = (call[0] as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }).where.referenceId_referenceType;
+
+        return (
+          reference.referenceId === "in_sub_cycle_legacy" &&
+          reference.referenceType === "STRIPE_TOPUP"
+        );
+      },
+    );
+    expect(lookedUpLegacyTopUpFallback).toBe(false);
+  });
+
   it("fails when subscription period end is missing", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },

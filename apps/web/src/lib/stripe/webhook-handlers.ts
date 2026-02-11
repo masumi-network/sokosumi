@@ -42,7 +42,19 @@ interface SubscriptionLine {
   productId: string;
 }
 
-interface SubscriptionCreditBreakdown {
+interface CreditScope {
+  buildGrantedCreditsWhere: (expiresAt: Date) => {
+    expiresAt: Date;
+    organizationId?: string | null;
+    referenceType: CreditBucketReferenceType;
+    userId?: string;
+  };
+  organizationId: string | null;
+  resolveDefaultQuantity: () => Promise<number>;
+  userId: string;
+}
+
+interface SubscriptionCreditTotals {
   freeSubscriptionUpdateTargetCredits: number;
   maxSubscriptionPeriodDurationSeconds: number | null;
   maxSubscriptionPeriodEndUnix: number | null;
@@ -144,22 +156,17 @@ function shouldGrantSubscriptionCreditsForLine(params: {
   return params.invoiceAmountPaid > 0 && params.lineAmount !== 0;
 }
 
-async function getGrantedSubscriptionCreditsForPeriod(params: {
+async function getGrantedSubscriptionCreditsForPeriod(where: {
   expiresAt: Date;
-  where: {
-    organizationId?: string | null;
-    referenceType: CreditBucketReferenceType;
-    userId?: string;
-  };
+  organizationId?: string | null;
+  referenceType: CreditBucketReferenceType;
+  userId?: string;
 }): Promise<number> {
   const aggregateResult = await prisma.creditBucket.aggregate({
     _sum: {
       amount: true,
     },
-    where: {
-      expiresAt: params.expiresAt,
-      ...params.where,
-    },
+    where,
   });
 
   const grantedCents = aggregateResult._sum.amount;
@@ -170,39 +177,12 @@ async function getGrantedSubscriptionCreditsForPeriod(params: {
   return Math.max(0, Math.trunc(convertCentsToCredits(grantedCents)));
 }
 
-async function getGrantedOrganizationSubscriptionCreditsForPeriod(params: {
-  expiresAt: Date;
-  organizationId: string;
-}): Promise<number> {
-  return getGrantedSubscriptionCreditsForPeriod({
-    expiresAt: params.expiresAt,
-    where: {
-      organizationId: params.organizationId,
-      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-    },
-  });
-}
-
-async function getGrantedPersonalSubscriptionCreditsForPeriod(params: {
-  expiresAt: Date;
-  userId: string;
-}): Promise<number> {
-  return getGrantedSubscriptionCreditsForPeriod({
-    expiresAt: params.expiresAt,
-    where: {
-      organizationId: null,
-      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-      userId: params.userId,
-    },
-  });
-}
-
-async function calculateSubscriptionCreditBreakdown(params: {
+async function calculateSubscriptionCreditTotals(params: {
   invoiceId: string;
   isSubscriptionUpdate: boolean;
   resolveDefaultQuantity: () => Promise<number>;
   subscriptionLines: SubscriptionLine[];
-}): Promise<SubscriptionCreditBreakdown> {
+}): Promise<SubscriptionCreditTotals> {
   let paidOrCycleSubscriptionCredits = 0;
   let freeSubscriptionUpdateTargetCredits = 0;
   let maxSubscriptionPeriodEndUnix: number | null = null;
@@ -299,38 +279,38 @@ async function calculateSubscriptionCreditBreakdown(params: {
 }
 
 async function finalizeAppliedSubscriptionCredits(params: {
-  breakdown: SubscriptionCreditBreakdown;
-  getAlreadyGrantedFreeSubscriptionCredits: (expiresAt: Date) => Promise<number>;
+  creditScope: CreditScope;
   invoice: Stripe.Invoice;
   invoiceId: string;
   isSubscriptionUpdate: boolean;
+  totals: SubscriptionCreditTotals;
 }): Promise<AppliedSubscriptionCredits> {
-  let paidOrCycleSubscriptionCredits = params.breakdown.paidOrCycleSubscriptionCredits;
+  let paidOrCycleSubscriptionCredits =
+    params.totals.paidOrCycleSubscriptionCredits;
   if (params.isSubscriptionUpdate && paidOrCycleSubscriptionCredits < 0) {
     paidOrCycleSubscriptionCredits = 0;
   }
 
   let freeSubscriptionUpdateCredits =
-    params.breakdown.freeSubscriptionUpdateTargetCredits;
+    params.totals.freeSubscriptionUpdateTargetCredits;
   const freeSubscriptionUpdateExpiry =
-    params.breakdown.freeSubscriptionUpdateTargetCredits > 0 &&
-    typeof params.breakdown.maxSubscriptionPeriodEndUnix === "number" &&
-    params.breakdown.maxSubscriptionPeriodEndUnix > 0
-      ? new Date(params.breakdown.maxSubscriptionPeriodEndUnix * 1000)
+    params.totals.freeSubscriptionUpdateTargetCredits > 0 &&
+    typeof params.totals.maxSubscriptionPeriodEndUnix === "number" &&
+    params.totals.maxSubscriptionPeriodEndUnix > 0
+      ? new Date(params.totals.maxSubscriptionPeriodEndUnix * 1000)
       : null;
 
   if (
     freeSubscriptionUpdateExpiry &&
-    params.breakdown.freeSubscriptionUpdateTargetCredits > 0
+    params.totals.freeSubscriptionUpdateTargetCredits > 0
   ) {
     const alreadyGrantedCredits =
-      await params.getAlreadyGrantedFreeSubscriptionCredits(
-        freeSubscriptionUpdateExpiry,
+      await getGrantedSubscriptionCreditsForPeriod(
+        params.creditScope.buildGrantedCreditsWhere(freeSubscriptionUpdateExpiry),
       );
     freeSubscriptionUpdateCredits = Math.max(
       0,
-      params.breakdown.freeSubscriptionUpdateTargetCredits -
-        alreadyGrantedCredits,
+      params.totals.freeSubscriptionUpdateTargetCredits - alreadyGrantedCredits,
     );
   }
 
@@ -340,16 +320,16 @@ async function finalizeAppliedSubscriptionCredits(params: {
   const subscriptionCreditsExpiry =
     subscriptionCredits > 0
       ? params.isSubscriptionUpdate &&
-          paidOrCycleSubscriptionCredits === 0 &&
-          freeSubscriptionUpdateCredits > 0 &&
-          freeSubscriptionUpdateExpiry
+        paidOrCycleSubscriptionCredits === 0 &&
+        freeSubscriptionUpdateCredits > 0 &&
+        freeSubscriptionUpdateExpiry
         ? freeSubscriptionUpdateExpiry
         : getSubscriptionCreditExpiry({
             invoice: params.invoice,
             invoiceId: params.invoiceId,
             maxPeriodDurationSeconds:
-              params.breakdown.maxSubscriptionPeriodDurationSeconds,
-            maxPeriodEndUnix: params.breakdown.maxSubscriptionPeriodEndUnix,
+              params.totals.maxSubscriptionPeriodDurationSeconds,
+            maxPeriodEndUnix: params.totals.maxSubscriptionPeriodEndUnix,
           })
       : null;
 
@@ -357,70 +337,6 @@ async function finalizeAppliedSubscriptionCredits(params: {
     subscriptionCredits,
     subscriptionCreditsExpiry,
   };
-}
-
-async function applyOrganizationSubscriptionCredits(params: {
-  invoice: Stripe.Invoice;
-  invoiceId: string;
-  organizationId: string;
-  subscriptionLines: SubscriptionLine[];
-}): Promise<AppliedSubscriptionCredits> {
-  const isSubscriptionUpdate =
-    params.invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON;
-  let organizationSeatCount: number | null = null;
-  const breakdown = await calculateSubscriptionCreditBreakdown({
-    invoiceId: params.invoiceId,
-    isSubscriptionUpdate,
-    resolveDefaultQuantity: async () => {
-      if (organizationSeatCount === null) {
-        organizationSeatCount = await resolveOrganizationSeatCount(
-          params.organizationId,
-        );
-      }
-      return organizationSeatCount;
-    },
-    subscriptionLines: params.subscriptionLines,
-  });
-
-  return finalizeAppliedSubscriptionCredits({
-    breakdown,
-    getAlreadyGrantedFreeSubscriptionCredits: async (expiresAt) =>
-      getGrantedOrganizationSubscriptionCreditsForPeriod({
-        expiresAt,
-        organizationId: params.organizationId,
-      }),
-    invoice: params.invoice,
-    invoiceId: params.invoiceId,
-    isSubscriptionUpdate,
-  });
-}
-
-async function applyPersonalSubscriptionCredits(params: {
-  invoice: Stripe.Invoice;
-  invoiceId: string;
-  subscriptionLines: SubscriptionLine[];
-  userId: string;
-}): Promise<AppliedSubscriptionCredits> {
-  const isSubscriptionUpdate =
-    params.invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON;
-  const breakdown = await calculateSubscriptionCreditBreakdown({
-    invoiceId: params.invoiceId,
-    isSubscriptionUpdate,
-    resolveDefaultQuantity: async () => 1,
-    subscriptionLines: params.subscriptionLines,
-  });
-
-  return finalizeAppliedSubscriptionCredits({
-    breakdown,
-    getAlreadyGrantedFreeSubscriptionCredits: async (expiresAt) =>
-      getGrantedPersonalSubscriptionCreditsForPeriod({
-        expiresAt,
-        userId: params.userId,
-      }),
-    invoice: params.invoice,
-    invoiceId: params.invoiceId,
-    isSubscriptionUpdate,
-  });
 }
 
 async function resolveOrganizationSeatCount(
@@ -522,6 +438,38 @@ export async function handleInvoicePaidEvent(
     }
   }
 
+  let organizationSeatCount: number | null = null;
+  const creditScope: CreditScope = organizationId
+    ? {
+        userId,
+        organizationId,
+        resolveDefaultQuantity: async () => {
+          if (organizationSeatCount === null) {
+            organizationSeatCount = await resolveOrganizationSeatCount(
+              organizationId,
+            );
+          }
+
+          return organizationSeatCount;
+        },
+        buildGrantedCreditsWhere: (expiresAt) => ({
+          expiresAt,
+          organizationId,
+          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+        }),
+      }
+    : {
+        userId,
+        organizationId: null,
+        resolveDefaultQuantity: async () => 1,
+        buildGrantedCreditsWhere: (expiresAt) => ({
+          expiresAt,
+          organizationId: null,
+          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+          userId,
+        }),
+      };
+
   const env = getEnvSecrets();
   const creditProductId = env.STRIPE_CREDIT_PRODUCT_ID;
   const freeSubscriptionProductId = env.STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID;
@@ -585,20 +533,22 @@ export async function handleInvoicePaidEvent(
       `Skipping subscription credits for invoice ${invoiceId} due to billing reason ${billingReason}`,
     );
   }
-
-  const { subscriptionCredits, subscriptionCreditsExpiry } = organizationId
-    ? await applyOrganizationSubscriptionCredits({
-        invoice,
-        invoiceId,
-        organizationId,
-        subscriptionLines,
-      })
-    : await applyPersonalSubscriptionCredits({
-        invoice,
-        invoiceId,
-        subscriptionLines,
-        userId,
-      });
+  const isSubscriptionUpdate =
+    billingReason === SUBSCRIPTION_UPDATE_BILLING_REASON;
+  const subscriptionCreditTotals = await calculateSubscriptionCreditTotals({
+    invoiceId,
+    isSubscriptionUpdate,
+    resolveDefaultQuantity: creditScope.resolveDefaultQuantity,
+    subscriptionLines,
+  });
+  const { subscriptionCredits, subscriptionCreditsExpiry } =
+    await finalizeAppliedSubscriptionCredits({
+      creditScope,
+      invoice,
+      invoiceId,
+      isSubscriptionUpdate,
+      totals: subscriptionCreditTotals,
+    });
 
   const creditGrants: InvoiceCreditGrant[] = [];
   if (oneTimeTopUpCredits > 0) {
@@ -627,26 +577,6 @@ export async function handleInvoicePaidEvent(
   }
 
   await prisma.$transaction(async (tx) => {
-    const grantsToCreate: InvoiceCreditGrant[] = [];
-
-    if (creditGrants.length > 1) {
-      const legacyCombinedBucket = await tx.creditBucket.findUnique({
-        where: {
-          referenceId_referenceType: {
-            referenceId: invoiceId,
-            referenceType: "STRIPE_TOPUP",
-          },
-        },
-      });
-
-      if (legacyCombinedBucket) {
-        console.log(
-          `✅ Legacy combined bucket already exists for invoice ${invoiceId}, skipping split credit grants`,
-        );
-        return;
-      }
-    }
-
     for (const grant of creditGrants) {
       const existingBucket = await tx.creditBucket.findUnique({
         where: {
@@ -664,32 +594,6 @@ export async function handleInvoicePaidEvent(
         continue;
       }
 
-      if (grant.referenceType === "STRIPE_SUBSCRIPTION_PERIOD") {
-        const migratedLegacyBucket = await tx.creditBucket.findUnique({
-          where: {
-            referenceId_referenceType: {
-              referenceId: grant.referenceId,
-              referenceType: "STRIPE_TOPUP",
-            },
-          },
-        });
-
-        if (migratedLegacyBucket && migratedLegacyBucket.expiresAt !== null) {
-          console.log(
-            `✅ Legacy migrated subscription bucket already exists for invoice reference ${grant.referenceId}, skipping creation`,
-          );
-          continue;
-        }
-      }
-
-      grantsToCreate.push(grant);
-    }
-
-    if (grantsToCreate.length === 0) {
-      return;
-    }
-
-    for (const grant of grantsToCreate) {
       const cents = convertCreditsToCents(grant.credits);
       await tx.transaction.create({
         data: {
