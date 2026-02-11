@@ -203,6 +203,9 @@ async function calculateSubscriptionCreditTotals(params: {
     ]),
   );
 
+  let maxFreePlanQuantity = 0;
+  let freePlanCreditsPerSeat = 0;
+
   for (const { lineItem, productId } of params.subscriptionLines) {
     const catalogPlan = catalogByProductId.get(productId);
     if (!catalogPlan) {
@@ -220,7 +223,8 @@ async function calculateSubscriptionCreditTotals(params: {
           continue;
         }
 
-        freeSubscriptionUpdateTargetCredits += catalogPlan.credits * quantity;
+        maxFreePlanQuantity = Math.max(maxFreePlanQuantity, quantity);
+        freePlanCreditsPerSeat = catalogPlan.credits;
       } else {
         paidOrCycleSubscriptionCredits += calculateProratedSubscriptionCredits({
           invoiceId: params.invoiceId,
@@ -263,6 +267,11 @@ async function calculateSubscriptionCreditTotals(params: {
         maxSubscriptionPeriodDurationSeconds ?? 0,
       );
     }
+  }
+
+  if (maxFreePlanQuantity > 0 && freePlanCreditsPerSeat > 0) {
+    freeSubscriptionUpdateTargetCredits =
+      freePlanCreditsPerSeat * maxFreePlanQuantity;
   }
 
   return {

@@ -214,6 +214,9 @@ export default function OrganizationSubscription({
   }, [handleSubscriptionActionError, organizationId, returnPath]);
 
   function formatPrice(monthlyAmount: number, currency: string): string {
+    if (monthlyAmount === 0) {
+      return tSubscriptions("freePrice");
+    }
     return formatter.number(monthlyAmount / 100, {
       style: "currency",
       currency: currency.toUpperCase(),
