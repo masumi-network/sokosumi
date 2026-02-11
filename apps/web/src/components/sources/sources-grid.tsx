@@ -1,4 +1,4 @@
-import { Blob, BlobStatus, Link } from "@sokosumi/database";
+import { BlobStatus } from "@sokosumi/database";
 import { FileIcon } from "lucide-react";
 
 import { Favicon } from "@/components/ui/favicon";
@@ -9,10 +9,24 @@ import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
 
 import { BlobStatusBadge } from "./blob-status-badge";
 
+export interface BlobLike {
+  id: string;
+  sourceUrl: string;
+  status: BlobStatus;
+  name?: string | null;
+  fileUrl?: string | null;
+}
+
+export interface LinkLike {
+  id: string;
+  url: string;
+  title?: string | null;
+}
+
 export interface SourcesGridProps {
   title: string;
-  blobs?: Blob[];
-  links?: Link[];
+  blobs?: BlobLike[];
+  links?: LinkLike[];
   className?: string;
 }
 
@@ -52,7 +66,7 @@ export function SourcesGrid(props: SourcesGridProps) {
   );
 }
 
-function FileItemChip({ blob }: { blob: Blob }) {
+function FileItemChip({ blob }: { blob: BlobLike }) {
   if (blob.status !== BlobStatus.READY) {
     return (
       <div className="inline-flex items-center gap-2 rounded-md border p-2">
@@ -68,6 +82,7 @@ function FileItemChip({ blob }: { blob: Blob }) {
       </div>
     );
   }
+
   return (
     <FileChip url={getBlobUrl(blob)} fileName={blob.name} sizeClass="size-4" />
   );

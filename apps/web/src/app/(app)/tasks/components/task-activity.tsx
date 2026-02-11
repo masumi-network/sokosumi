@@ -1,6 +1,6 @@
 "use client";
 
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { BlobStatus, TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -13,11 +13,17 @@ import {
   useTransition,
 } from "react";
 
+import { SourcesGrid } from "@/components/sources/sources-grid";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
+import {
+  extractFileLikeLinks,
+  extractHttpLinks,
+} from "@/lib/data/markdown/links";
 import type { TaskEvent } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
@@ -74,6 +80,14 @@ function getEventTimestamp(event: TaskEvent): number {
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
+}
+
+function getFileNameFromUrl(url: string): string | null {
+  try {
+    return new URL(url).pathname.split("/").pop() ?? null;
+  } catch {
+    return url.split("/").pop() ?? null;
+  }
 }
 
 function AnimatedNewRow({ children }: { children: ReactNode }) {
@@ -280,6 +294,25 @@ export function TaskActivitySection({
                   resolvedAgentNameById,
                 )
               : null;
+            const sourceFiles = formattedComment
+              ? extractFileLikeLinks(formattedComment).map(
+                  (url, fileIndex) => ({
+                    id: `${event.id}-file-${fileIndex}`,
+                    sourceUrl: url,
+                    fileUrl: url,
+                    name: getFileNameFromUrl(url),
+                    status: BlobStatus.READY,
+                  }),
+                )
+              : [];
+            const sourceLinks = formattedComment
+              ? extractHttpLinks(formattedComment).map((url, linkIndex) => ({
+                  id: `${event.id}-link-${linkIndex}`,
+                  url,
+                }))
+              : [];
+            const hasCommentSources =
+              sourceFiles.length > 0 || sourceLinks.length > 0;
             const chargedLabel =
               event.credits != null
                 ? t("actionChargedCredits", { credits: event.credits })
@@ -352,8 +385,27 @@ export function TaskActivitySection({
                         className="prose-sm text-foreground/70 text-sm"
                         expandLabel={expandLabel}
                         collapseLabel={collapseLabel}
-                        fadeClassName="to-background"
+                        fadeClassName="to-transparent"
                       />
+                    ) : null}
+                    {hasCommentSources ? (
+                      <div className="space-y-1.5">
+                        <Separator className="my-3" />
+                        {sourceFiles.length > 0 ? (
+                          <SourcesGrid
+                            title={t("sourcesFiles")}
+                            blobs={sourceFiles}
+                            className="mt-0"
+                          />
+                        ) : null}
+                        {sourceLinks.length > 0 ? (
+                          <SourcesGrid
+                            title={t("sourcesLinks")}
+                            links={sourceLinks}
+                            className="mt-0"
+                          />
+                        ) : null}
+                      </div>
                     ) : null}
                     {shouldShowAuthenticateButton ? (
                       <div className="flex items-center justify-end gap-2">
