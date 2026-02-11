@@ -3,6 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { attachCreditsToOrganizations } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapSubscription } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { organizationsSchema } from "@/schemas/organization.schema";
@@ -25,6 +26,14 @@ const route = createRoute({
             createdAt: "2025-01-01T00:00:00.000Z",
             role: "member",
             credits: 100.0,
+            subscription: {
+              id: "sub_123",
+              plan: "starter",
+              status: "active",
+              periodStart: "2025-01-01T00:00:00.000Z",
+              periodEnd: "2025-02-01T00:00:00.000Z",
+              cancelAtPeriodEnd: false,
+            },
           },
         ],
         meta: {
@@ -48,13 +57,52 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: { organization: true },
       });
 
-      return await attachCreditsToOrganizations(
+      const organizationsWithCredits = await attachCreditsToOrganizations(
         members.map((member) => ({
           organization: member.organization,
           role: member.role,
         })),
         tx,
       );
+
+      if (organizationsWithCredits.length === 0) {
+        return [];
+      }
+
+      const subscriptions = await tx.subscription.findMany({
+        where: {
+          referenceId: {
+            in: organizationsWithCredits.map((organization) => organization.id),
+          },
+        },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          referenceId: true,
+          plan: true,
+          status: true,
+          periodStart: true,
+          periodEnd: true,
+          cancelAtPeriodEnd: true,
+        },
+      });
+
+      const subscriptionsByOrganizationId = new Map<
+        string,
+        (typeof subscriptions)[number]
+      >();
+      for (const subscription of subscriptions) {
+        if (!subscriptionsByOrganizationId.has(subscription.referenceId)) {
+          subscriptionsByOrganizationId.set(subscription.referenceId, subscription);
+        }
+      }
+
+      return organizationsWithCredits.map((organization) => ({
+        ...organization,
+        subscription: mapSubscription(
+          subscriptionsByOrganizationId.get(organization.id) ?? null,
+        ),
+      }));
     });
     return ok(c, organizationsSchema.parse(organizations));
   });
