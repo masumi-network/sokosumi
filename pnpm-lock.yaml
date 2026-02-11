@@ -54,8 +54,8 @@ importers:
         specifier: 1.2.1
         version: 1.2.1(hono@4.11.9)(zod@4.3.6)
       '@openrouter/ai-sdk-provider':
-        specifier: 2.2.1
-        version: 2.2.1(ai@6.0.78(zod@4.3.6))(zod@4.3.6)
+        specifier: 2.2.3
+        version: 2.2.3(ai@6.0.78(zod@4.3.6))(zod@4.3.6)
       '@scalar/hono-api-reference':
         specifier: 0.9.40
         version: 0.9.40(hono@4.11.9)
@@ -184,8 +184,8 @@ importers:
         specifier: 16.1.6
         version: 16.1.6(next@16.1.6(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       '@openrouter/ai-sdk-provider':
-        specifier: 2.2.1
-        version: 2.2.1(ai@6.0.78(zod@4.3.6))(zod@4.3.6)
+        specifier: 2.2.3
+        version: 2.2.3(ai@6.0.78(zod@4.3.6))(zod@4.3.6)
       '@radix-ui/react-slot':
         specifier: 1.2.4
         version: 1.2.4(@types/react@19.2.13)(react@19.2.4)
@@ -1722,8 +1722,8 @@ packages:
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
 
-  '@openrouter/ai-sdk-provider@2.2.1':
-    resolution: {integrity: sha512-VjTSNTDIymAJsyIWw4+qPCMuezCS1kJCQwrPjszaNI+ZIo8PbIHTWNc2Y5pYO+ymYbOXKEvedFZxXsEkytOJSA==}
+  '@openrouter/ai-sdk-provider@2.2.3':
+    resolution: {integrity: sha512-NovC+BaCfEeJwhToDrs8JeDYXXlJdEyz7lcxkjtyePSE4eoAKik872SyDK0MzXKcz8MRkv7XlNhPI6zz4TQp0g==}
     engines: {node: '>=18'}
     peerDependencies:
       ai: ^6.0.0
@@ -10797,7 +10797,7 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
-  '@openrouter/ai-sdk-provider@2.2.1(ai@6.0.78(zod@4.3.6))(zod@4.3.6)':
+  '@openrouter/ai-sdk-provider@2.2.3(ai@6.0.78(zod@4.3.6))(zod@4.3.6)':
     dependencies:
       ai: 6.0.78(zod@4.3.6)
       zod: 4.3.6
