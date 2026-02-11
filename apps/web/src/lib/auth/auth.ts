@@ -392,19 +392,19 @@ export const auth = betterAuth({
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
         authorizeReference: async ({ referenceId, user }) => {
-          const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-            user.id,
-            referenceId,
-            prisma,
-          );
+          const member =
+            await memberRepository.getMemberByUserIdAndOrganizationId(
+              user.id,
+              referenceId,
+              prisma,
+            );
 
           if (!member) {
             return false;
           }
 
           return (
-            member.role === MemberRole.OWNER ||
-            member.role === MemberRole.ADMIN
+            member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN
           );
         },
       },

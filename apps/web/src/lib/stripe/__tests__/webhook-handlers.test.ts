@@ -755,15 +755,16 @@ describe("handleInvoicePaidEvent", () => {
       },
     });
     findExistingBucketMock.mockImplementation((args: unknown) => {
-      const reference =
-        (args as {
+      const reference = (
+        args as {
           where: {
             referenceId_referenceType: {
               referenceId: string;
               referenceType: string;
             };
           };
-        }).where.referenceId_referenceType;
+        }
+      ).where.referenceId_referenceType;
       if (
         reference.referenceId === "in_mixed_legacy" &&
         reference.referenceType === "STRIPE_TOPUP"
@@ -790,14 +791,16 @@ describe("handleInvoicePaidEvent", () => {
     expect(createTransactionMock).toHaveBeenCalledTimes(2);
     const lookedUpLegacyCombinedBucket = findExistingBucketMock.mock.calls.some(
       (call) => {
-        const reference = (call[0] as {
-          where: {
-            referenceId_referenceType: {
-              referenceId: string;
-              referenceType: string;
+        const reference = (
+          call[0] as {
+            where: {
+              referenceId_referenceType: {
+                referenceId: string;
+                referenceType: string;
+              };
             };
-          };
-        }).where.referenceId_referenceType;
+          }
+        ).where.referenceId_referenceType;
 
         return (
           reference.referenceId === "in_mixed_legacy" &&
@@ -824,15 +827,16 @@ describe("handleInvoicePaidEvent", () => {
       },
     });
     findExistingBucketMock.mockImplementation((args: unknown) => {
-      const reference =
-        (args as {
+      const reference = (
+        args as {
           where: {
             referenceId_referenceType: {
               referenceId: string;
               referenceType: string;
             };
           };
-        }).where.referenceId_referenceType;
+        }
+      ).where.referenceId_referenceType;
       if (
         reference.referenceId === "in_sub_cycle_legacy" &&
         reference.referenceType === "STRIPE_TOPUP"
@@ -859,14 +863,16 @@ describe("handleInvoicePaidEvent", () => {
     expect(createTransactionMock).toHaveBeenCalledTimes(1);
     const lookedUpLegacyTopUpFallback = findExistingBucketMock.mock.calls.some(
       (call) => {
-        const reference = (call[0] as {
-          where: {
-            referenceId_referenceType: {
-              referenceId: string;
-              referenceType: string;
+        const reference = (
+          call[0] as {
+            where: {
+              referenceId_referenceType: {
+                referenceId: string;
+                referenceType: string;
+              };
             };
-          };
-        }).where.referenceId_referenceType;
+          }
+        ).where.referenceId_referenceType;
 
         return (
           reference.referenceId === "in_sub_cycle_legacy" &&
