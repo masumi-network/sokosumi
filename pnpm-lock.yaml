@@ -133,7 +133,7 @@ importers:
   apps/web:
     dependencies:
       '@ai-sdk/react':
-        specifier: ^3.0.81
+        specifier: 3.0.81
         version: 3.0.81(react@19.2.4)(zod@4.3.6)
       '@better-auth/oauth-provider':
         specifier: 1.4.18
