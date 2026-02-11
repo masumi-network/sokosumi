@@ -21,6 +21,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
 import {
+  ORIGIN_APP_NAME_KEY_MAP,
+  ORIGIN_ICON_MAP,
+} from "@/lib/constants/task-event-origin-icons";
+import {
   extractFileLikeLinks,
   extractHttpLinks,
 } from "@/lib/data/markdown/links";
@@ -287,6 +291,13 @@ export function TaskActivitySection({
             const action = event.comment
               ? actionCommentedLabel
               : actionUpdatedStatusLabel;
+            const OriginIcon = ORIGIN_ICON_MAP[event.origin];
+            const originAppName = t(
+              `originApp.${ORIGIN_APP_NAME_KEY_MAP[event.origin]}`,
+            );
+            const originFromLabel = t("originFromApp", {
+              appName: originAppName,
+            });
             const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
             const formattedComment = event.comment
               ? formatMentionsAsMarkdownLinks(
@@ -365,8 +376,15 @@ export function TaskActivitySection({
                     <div className="flex flex-row items-baseline justify-between gap-2">
                       <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
                         <span className="text-sm font-medium">{actorName}</span>
-                        <span className="text-muted-foreground/60 text-xs">
-                          {action}
+                        <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                          <span>{action}</span>
+                          <span>{originFromLabel}</span>
+                          <OriginIcon
+                            className="text-muted-foreground/50 size-3.5 shrink-0"
+                            role="img"
+                            aria-label={originFromLabel}
+                            data-testid={`origin-icon-${event.id}`}
+                          />
                         </span>
                         {event.status ? (
                           <TaskStatusBadge
