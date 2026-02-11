@@ -26,7 +26,7 @@
     "web:lint:fix": "pnpm --filter web lint:fix",
     "database:lint": "pnpm --filter @sokosumi/database lint",
     "database:lint:fix": "pnpm --filter @sokosumi/database lint:fix",
-    "lint:report": "pnpm -r lint:report",
+    "lint:report": "pnpm -r --if-present --no-bail lint:report",
     "web:lint:report": "pnpm --filter web lint:report",
     "test": "pnpm -r test",
     "web:test": "pnpm --filter web test",
