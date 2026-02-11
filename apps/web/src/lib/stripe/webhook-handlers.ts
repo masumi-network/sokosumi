@@ -16,6 +16,10 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
+import {
+  ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES,
+  getLatestActiveOrganizationSubscription,
+} from "@/lib/stripe/subscription-utils";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
@@ -23,12 +27,6 @@ const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
   "subscription_cycle",
 ]);
 const SUBSCRIPTION_UPDATE_BILLING_REASON = "subscription_update";
-const ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES = [
-  "active",
-  "trialing",
-  "past_due",
-  "unpaid",
-] as const;
 
 interface InvoiceCreditGrant {
   credits: number;
@@ -341,14 +339,8 @@ async function finalizeAppliedSubscriptionCredits(params: {
 async function resolveOrganizationSeatCount(
   organizationId: string,
 ): Promise<number> {
-  const latestSubscription = await prisma.subscription.findFirst({
-    where: {
-      referenceId: organizationId,
-      status: {
-        in: [...ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES],
-      },
-    },
-    orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+  const latestSubscription = await getLatestActiveOrganizationSubscription({
+    organizationId,
     select: {
       seats: true,
     },

@@ -146,6 +146,9 @@ export default function SubscriptionsPageContent({
   }, [router, t]);
 
   function formatPrice(monthlyAmount: number, currency: string): string {
+    if (monthlyAmount === 0) {
+      return t("freePrice");
+    }
     return formatter.number(monthlyAmount / 100, {
       style: "currency",
       currency: currency.toUpperCase(),

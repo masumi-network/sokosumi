@@ -7,15 +7,9 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
+import { getLatestActiveOrganizationSubscription as getLatestActiveOrganizationSubscriptionQuery } from "@/lib/stripe/subscription-utils";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-
-const ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES = [
-  "active",
-  "trialing",
-  "past_due",
-  "unpaid",
-];
 
 interface ActiveOrganizationSubscription {
   id: string;
@@ -30,14 +24,8 @@ function isOwnerOrAdmin(role: string): boolean {
 async function getLatestActiveOrganizationSubscription(
   organizationId: string,
 ): Promise<ActiveOrganizationSubscription | null> {
-  return await prisma.subscription.findFirst({
-    where: {
-      referenceId: organizationId,
-      status: {
-        in: [...ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES],
-      },
-    },
-    orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+  return await getLatestActiveOrganizationSubscriptionQuery({
+    organizationId,
     select: {
       id: true,
       seats: true,
