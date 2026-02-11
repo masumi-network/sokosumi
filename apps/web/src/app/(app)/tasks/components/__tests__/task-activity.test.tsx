@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom";
+
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 
@@ -12,12 +13,26 @@ jest.mock("next/navigation", () => ({
 }));
 
 jest.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => {
+  useTranslations: () => (key: string, values?: Record<string, string>) => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
       sendWith: "Send with",
       ctrl: "Ctrl",
+      "originApp.sokosumi": "Sokosumi",
+      "originApp.slack": "Slack",
+      "originApp.teams": "Teams",
+      "originApp.email": "Email",
+      "originApp.linear": "Linear",
+      "originApp.github": "GitHub",
+      "originApp.whatsapp": "WhatsApp",
+      "originApp.telegram": "Telegram",
+      "originApp.signal": "Signal",
+      "originApp.chat": "Chat",
+      "originApp.unknown": "Unknown",
     };
+    if (key === "originFromApp") {
+      return `from ${values?.appName ?? ""}`.trim();
+    }
     return labels[key] ?? key;
   },
 }));
@@ -46,11 +61,13 @@ function createEvent(
     status,
     comment = null,
     authenticationUrl = null,
+    origin = TaskEventOrigin.SOKOSUMI,
   }: {
     createdAt: string;
     status: TaskStatus | null;
     comment?: string | null;
     authenticationUrl?: string | null;
+    origin?: TaskEventOrigin;
   },
 ): TaskEvent {
   return {
@@ -61,7 +78,7 @@ function createEvent(
     status,
     comment,
     authenticationUrl,
-    origin: TaskEventOrigin.SOKOSUMI,
+    origin,
     userId: "user-1",
     coworkerId: null,
     transactionId: null,
@@ -207,5 +224,29 @@ describe("TaskActivitySection", () => {
     expect(
       screen.getByRole("link", { name: /docs\.example\.com/i }),
     ).toHaveAttribute("href", "https://docs.example.com/article");
+  });
+
+  it("renders origin app text and icon alongside action", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-sokosumi", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Posted in app",
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+      createEvent("older-email", {
+        createdAt: "2026-01-01T11:00:00.000Z",
+        status: null,
+        comment: "Sent by email",
+        origin: TaskEventOrigin.EMAIL,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("from Sokosumi")).toBeInTheDocument();
+    expect(screen.getByText("from Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
+    expect(screen.getByLabelText("from Email")).toBeInTheDocument();
   });
 });
