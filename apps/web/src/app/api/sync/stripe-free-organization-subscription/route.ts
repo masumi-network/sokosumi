@@ -35,7 +35,9 @@ export async function GET(request: Request) {
 async function stripeFreeOrganizationSubscriptionSync(): Promise<Response> {
   let lock: Lock;
   const syncStartedAt = Date.now();
-  console.info(`[${LOCK_KEY}] Starting free organization subscription sync run`);
+  console.info(
+    `[${LOCK_KEY}] Starting free organization subscription sync run`,
+  );
 
   try {
     lock = await lockService.acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
@@ -108,11 +110,12 @@ async function syncOrganizationsBatchToFreeSubscription(): Promise<StripeFreeOrg
     };
   }
 
-  const organizations = await organizationRepository.getOrganizationsBatchAfterCursor(
-    metadata.cursorId,
-    BATCH_SIZE,
-    prisma,
-  );
+  const organizations =
+    await organizationRepository.getOrganizationsBatchAfterCursor(
+      metadata.cursorId,
+      BATCH_SIZE,
+      prisma,
+    );
   console.info(`[${LOCK_KEY}] Loaded batch`, {
     batchSize: organizations.length,
     fromCursorId: metadata.cursorId,

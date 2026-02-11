@@ -246,8 +246,7 @@ export const openOrganizationBillingPortal = withAuthContext<
   }
 });
 
-interface UpdateOrganizationSubscriptionSeatsParameters
-  extends AuthenticatedRequest {
+interface UpdateOrganizationSubscriptionSeatsParameters extends AuthenticatedRequest {
   organizationId: string;
   seats: number;
 }

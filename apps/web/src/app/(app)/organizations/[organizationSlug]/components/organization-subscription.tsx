@@ -65,7 +65,9 @@ export default function OrganizationSubscription({
   plans,
   returnPath,
 }: OrganizationSubscriptionProps) {
-  const t = useTranslations("App.Organizations.OrganizationDetail.Subscription");
+  const t = useTranslations(
+    "App.Organizations.OrganizationDetail.Subscription",
+  );
   const tSubscriptions = useTranslations("App.Subscriptions");
   const formatter = useFormatter();
   const router = useRouter();
@@ -272,7 +274,8 @@ export default function OrganizationSubscription({
           {plans.map((plan) => {
             const translationKey = getPlanTranslationKey(plan.name);
             const isPlanPending = pendingPlan === plan.name;
-            const hasSamePlanAndSeats = plan.isCurrent && currentSeats === targetSeats;
+            const hasSamePlanAndSeats =
+              plan.isCurrent && currentSeats === targetSeats;
 
             return (
               <Card key={plan.name}>

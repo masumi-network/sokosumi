@@ -304,10 +304,9 @@ async function finalizeAppliedSubscriptionCredits(params: {
     freeSubscriptionUpdateExpiry &&
     params.totals.freeSubscriptionUpdateTargetCredits > 0
   ) {
-    const alreadyGrantedCredits =
-      await getGrantedSubscriptionCreditsForPeriod(
-        params.creditScope.buildGrantedCreditsWhere(freeSubscriptionUpdateExpiry),
-      );
+    const alreadyGrantedCredits = await getGrantedSubscriptionCreditsForPeriod(
+      params.creditScope.buildGrantedCreditsWhere(freeSubscriptionUpdateExpiry),
+    );
     freeSubscriptionUpdateCredits = Math.max(
       0,
       params.totals.freeSubscriptionUpdateTargetCredits - alreadyGrantedCredits,
@@ -445,9 +444,8 @@ export async function handleInvoicePaidEvent(
         organizationId,
         resolveDefaultQuantity: async () => {
           if (organizationSeatCount === null) {
-            organizationSeatCount = await resolveOrganizationSeatCount(
-              organizationId,
-            );
+            organizationSeatCount =
+              await resolveOrganizationSeatCount(organizationId);
           }
 
           return organizationSeatCount;

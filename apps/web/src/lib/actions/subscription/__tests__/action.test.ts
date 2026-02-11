@@ -320,7 +320,9 @@ describe("subscription actions", () => {
   it("maps unauthorized immediate seat update errors", async () => {
     updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
       Object.assign(
-        new Error("Only organization owners and admins can manage subscriptions"),
+        new Error(
+          "Only organization owners and admins can manage subscriptions",
+        ),
         { status: "FORBIDDEN" },
       ),
     );
