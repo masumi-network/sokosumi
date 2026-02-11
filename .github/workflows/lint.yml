@@ -22,18 +22,47 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm i
+        run: pnpm install
 
-      - name: Save Code Linting Report JSON
+      - name: Generate ESLint JSON reports
         run: pnpm lint:report
         continue-on-error: true
 
-      - name: Annotate Web App Code Linting Results
+      - name: Annotate web lint results
+        if: always()
+        continue-on-error: true
         uses: ataylorme/eslint-annotate-action@v3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           report-json: "apps/web/lint-report.json"
+
+      - name: Annotate core lint results
+        if: always()
+        continue-on-error: true
+        uses: ataylorme/eslint-annotate-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          report-json: "apps/core/lint-report.json"
+
+      - name: Annotate database lint results
+        if: always()
+        continue-on-error: true
+        uses: ataylorme/eslint-annotate-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          report-json: "packages/database/lint-report.json"
+
+      - name: Annotate masumi lint results
+        if: always()
+        continue-on-error: true
+        uses: ataylorme/eslint-annotate-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          report-json: "packages/masumi/lint-report.json"
+
+      - name: Run lint checks
+        run: pnpm lint

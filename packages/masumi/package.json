@@ -50,7 +50,8 @@
     "test:ci": "jest --ci",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
-    "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
+    "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
+    "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
   },
   "dependencies": {
     "json-canonicalize": "2.0.0",
