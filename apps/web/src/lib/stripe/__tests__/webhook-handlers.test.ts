@@ -2,8 +2,10 @@ jest.mock("server-only", () => ({}));
 
 const getUserByStripeCustomerIdMock = jest.fn();
 const getOrganizationByStripeCustomerIdMock = jest.fn();
+const getMembersByOrganizationIdMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
+const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
 const ensurePersonalFreeSubscriptionMock = jest.fn();
 const ensureOrganizationFreeSubscriptionMock = jest.fn();
@@ -34,7 +36,8 @@ jest.mock("@/config/env.secrets", () => ({
 
 jest.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
-    getMembersByOrganizationId: jest.fn(),
+    getMembersByOrganizationId: (...args: unknown[]) =>
+      getMembersByOrganizationIdMock(...args),
   },
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
@@ -52,6 +55,9 @@ jest.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
+    creditBucket: {
+      aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
+    },
     organization: {
       update: (...args: unknown[]) => prismaOrganizationUpdateMock(...args),
     },
@@ -139,7 +145,13 @@ describe("handleInvoicePaidEvent", () => {
       id: "user-1",
     });
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "owner", userId: "user-1" },
+    ]);
     findExistingBucketMock.mockResolvedValue(null);
+    aggregateGrantedCreditsMock.mockResolvedValue({
+      _sum: { amount: null },
+    });
     createTransactionMock.mockResolvedValue({});
   });
 
@@ -157,6 +169,171 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
     expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("grants free-plan seat credits for zero-amount subscription_update invoices", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "subscription_update",
+        id: "in_free_sub_update",
+        lines: [{ amount: 0, productId: "prod_free", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_free_sub_update",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
+    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
+  });
+
+  it("credits only the newly added free seats on subscription_update invoices", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    aggregateGrantedCreditsMock.mockResolvedValue({
+      _sum: { amount: BigInt("2500000000000") },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "subscription_update",
+        id: "in_free_sub_update_incremental",
+        lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_free_sub_update_incremental",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
+    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
+  });
+
+  it("dedupes free organization subscription_update credits by organization period", async () => {
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
+      id: "org-1",
+    });
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "owner", userId: "owner-2" },
+    ]);
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    aggregateGrantedCreditsMock.mockResolvedValue({
+      _sum: { amount: BigInt("2500000000000") },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "subscription_update",
+        id: "in_org_free_sub_update",
+        lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(aggregateGrantedCreditsMock).toHaveBeenCalledTimes(1);
+    const aggregateCall = aggregateGrantedCreditsMock.mock.calls[0][0] as {
+      where: Record<string, unknown>;
+    };
+    expect(aggregateCall.where).toMatchObject({
+      organizationId: "org-1",
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+    });
+    expect(aggregateCall.where).not.toHaveProperty("userId");
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        organization: {
+          connect: {
+            id: string;
+          };
+        };
+      };
+    };
+    expect(createCall.data.organization.connect.id).toBe("org-1");
+    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
   });
 
   it("grants positive prorated credits for paid subscription_update invoices", async () => {
