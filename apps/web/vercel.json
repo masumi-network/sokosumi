@@ -6,10 +6,6 @@
     { "path": "/api/sync/jobs", "schedule": "* * * * *" },
     { "path": "/api/sync/stripe-customers", "schedule": "0 * * * *" },
     {
-      "path": "/api/sync/stripe-free-user-subscription",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/api/sync/stripe-free-organization-subscription",
       "schedule": "* * * * *"
     },
