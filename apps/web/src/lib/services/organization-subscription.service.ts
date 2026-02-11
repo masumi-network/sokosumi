@@ -34,14 +34,18 @@ async function getLatestActiveOrganizationSubscription(
   });
 }
 
-async function getRequiredSeatsForNextMember(
-  organizationId: string,
-): Promise<number> {
-  const currentMembersCount = await prisma.member.count({
+async function getCurrentMemberCount(organizationId: string): Promise<number> {
+  return await prisma.member.count({
     where: {
       organizationId,
     },
   });
+}
+
+async function getRequiredSeatsForNextMember(
+  organizationId: string,
+): Promise<number> {
+  const currentMembersCount = await getCurrentMemberCount(organizationId);
 
   return currentMembersCount + 1;
 }
@@ -83,10 +87,15 @@ function resolveCurrentSeats(seats: number | null | undefined): number {
   return seats && seats > 0 ? seats : 1;
 }
 
-function ensureValidSeatCount(seats: number): void {
+function ensureValidSeatCount(seats: number, memberCount?: number): void {
   if (!Number.isInteger(seats) || seats < 1) {
     throw new APIError("BAD_REQUEST", {
       message: "Please provide valid plan and seat values",
+    });
+  }
+  if (memberCount !== undefined && seats < memberCount) {
+    throw new APIError("BAD_REQUEST", {
+      message: `Seats must be at least ${memberCount} to accommodate all current members`,
     });
   }
 }
@@ -157,12 +166,15 @@ export const organizationSubscriptionService = (() => {
       organizationId: string,
       seats: number,
     ): Promise<{ seats: number }> {
-      ensureValidSeatCount(seats);
       await ensureCanManageOrganizationSubscription(userId, organizationId);
-      const activeSubscription = await ensureActiveOrganizationSubscription(
-        organizationId,
-        "An active organization subscription is required before updating seats.",
-      );
+      const [memberCount, activeSubscription] = await Promise.all([
+        getCurrentMemberCount(organizationId),
+        ensureActiveOrganizationSubscription(
+          organizationId,
+          "An active organization subscription is required before updating seats.",
+        ),
+      ]);
+      ensureValidSeatCount(seats, memberCount);
 
       const currentSeats = resolveCurrentSeats(activeSubscription.seats);
       if (currentSeats === seats) {
