@@ -75,22 +75,17 @@ async function increaseSubscriptionSeats(
     });
   }
 
-  await stripeInstance.subscriptions.update(
-    stripeSubscriptionId,
-    {
-      items: [
-        {
-          id: firstItem.id,
-          quantity: seats,
-        },
-      ],
-      payment_behavior: "error_if_incomplete",
-      proration_behavior: "always_invoice",
-    },
-    {
-      idempotencyKey: `${stripeSubscriptionId}:seats:${seats}:${Date.now()}`,
-    },
-  );
+  const updatePayload: Stripe.SubscriptionUpdateParams = {
+    items: [
+      {
+        id: firstItem.id,
+        quantity: seats,
+      },
+    ],
+    payment_behavior: "error_if_incomplete",
+    proration_behavior: "always_invoice",
+  };
+  await stripeInstance.subscriptions.update(stripeSubscriptionId, updatePayload);
 }
 
 function resolveCurrentSeats(seats: number | null | undefined): number {

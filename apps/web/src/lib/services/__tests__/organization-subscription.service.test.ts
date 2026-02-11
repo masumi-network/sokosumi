@@ -139,9 +139,6 @@ describe("organizationSubscriptionService", () => {
           payment_behavior: "error_if_incomplete",
           proration_behavior: "always_invoice",
         },
-        expect.objectContaining({
-          idempotencyKey: expect.stringMatching(/^sub_stripe_1:seats:5:\d+$/),
-        }),
       );
       expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
         where: { id: "sub-row-1" },
@@ -273,9 +270,6 @@ describe("organizationSubscriptionService", () => {
           payment_behavior: "error_if_incomplete",
           proration_behavior: "always_invoice",
         },
-        expect.objectContaining({
-          idempotencyKey: expect.stringMatching(/^sub_stripe_1:seats:6:\d+$/),
-        }),
       );
       expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
         where: { id: "sub-row-1" },
