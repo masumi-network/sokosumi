@@ -1,15 +1,29 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/sync/agents", "schedule": "*/5 * * * *" },
-    { "path": "/api/sync/agents-summary", "schedule": "*/5 * * * *" },
-    { "path": "/api/sync/jobs", "schedule": "* * * * *" },
-    { "path": "/api/sync/stripe-customers", "schedule": "0 * * * *" },
     {
-      "path": "/api/sync/stripe-free-organization-subscription",
+      "path": "/api/sync/agents",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/sync/agents-summary",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/sync/jobs",
       "schedule": "* * * * *"
     },
-    { "path": "/api/sync/source-import", "schedule": "*/5 * * * *" },
-    { "path": "/api/sync/job-schedules", "schedule": "* * * * *" }
+    {
+      "path": "/api/sync/stripe-customers",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/sync/source-import",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/sync/job-schedules",
+      "schedule": "* * * * *"
+    }
   ]
 }
