@@ -85,7 +85,10 @@ async function increaseSubscriptionSeats(
     payment_behavior: "error_if_incomplete",
     proration_behavior: "always_invoice",
   };
-  await stripeInstance.subscriptions.update(stripeSubscriptionId, updatePayload);
+  await stripeInstance.subscriptions.update(
+    stripeSubscriptionId,
+    updatePayload,
+  );
 }
 
 function resolveCurrentSeats(seats: number | null | undefined): number {

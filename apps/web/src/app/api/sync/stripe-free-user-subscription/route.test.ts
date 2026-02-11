@@ -57,7 +57,7 @@ jest.mock("p-limit", () => ({
   default: () => (fn: () => Promise<unknown>) => fn(),
 }));
 
-describe("GET /api/sync/stripe-free-subscriptions", () => {
+describe("GET /api/sync/stripe-free-user-subscription", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     authenticateCronSecretMock.mockReturnValue({ ok: true });
@@ -141,7 +141,7 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
       expect.any(Object),
     );
     expect(setSyncMetadataByKeyMock).toHaveBeenCalledWith(
-      "stripe-free-subscriptions-sync",
+      "stripe-free-user-subscription-sync",
       "user-3",
       new Date(0),
       expect.any(Object),
@@ -181,7 +181,7 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
       expect.any(Object),
     );
     expect(setSyncMetadataByKeyMock).toHaveBeenCalledWith(
-      "stripe-free-subscriptions-sync",
+      "stripe-free-user-subscription-sync",
       "user-4",
       new Date(0),
       expect.any(Object),
@@ -209,7 +209,7 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
     });
     expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
     expect(setSyncMetadataByKeyMock).toHaveBeenCalledWith(
-      "stripe-free-subscriptions-sync",
+      "stripe-free-user-subscription-sync",
       null,
       expect.any(Date),
       expect.any(Object),
@@ -247,7 +247,7 @@ describe("GET /api/sync/stripe-free-subscriptions", () => {
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({
-      message: "Failed to sync free subscriptions",
+      message: "Failed to sync free user subscriptions",
     });
     expect(unlockByKeyMock).toHaveBeenCalledWith(
       "lock-key",
