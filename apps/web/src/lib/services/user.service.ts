@@ -1,12 +1,13 @@
 import "server-only";
 
-import type { Member, User } from "@sokosumi/database";
+import type { Member, Prisma, User } from "@sokosumi/database";
 import {
   InvitationWithRelations,
   JobWithSokosumiStatus,
   MemberWithOrganization,
   OrganizationWithRelations,
 } from "@sokosumi/database";
+import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   invitationRepository,
   jobRepository,
@@ -14,12 +15,23 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
+import { jobInclude } from "@sokosumi/database/types/job";
 import { headers } from "next/headers";
 
 import { auth, type Session } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
+
+interface ListMyJobsForActiveContextParams {
+  cursor?: string | null;
+  limit?: number;
+}
+
+interface PaginatedJobsResult {
+  jobs: JobWithSokosumiStatus[];
+  nextCursor: string | null;
+}
 
 /**
  * Service for user-related operations.
@@ -116,6 +128,87 @@ export const userService = (() => {
   }
 
   /**
+   * Retrieves jobs for the current user across all agents in the active context.
+   *
+   * - Includes jobs owned by the user in the active organization/personal context.
+   * - When an organization is active, also includes jobs shared with that organization.
+   */
+  async function listMyJobsForActiveContext(): Promise<
+    JobWithSokosumiStatus[]
+  > {
+    const result = await listMyJobsForActiveContextPaginated();
+    return result.jobs;
+  }
+
+  async function listMyJobsForActiveContextPaginated(
+    params: ListMyJobsForActiveContextParams = {},
+  ): Promise<PaginatedJobsResult> {
+    const { cursor = null, limit = 20 } = params;
+    const context = await getAuthContext();
+    if (!context) {
+      return { jobs: [], nextCursor: null };
+    }
+
+    const baseWhere: Prisma.JobWhereInput = {
+      OR: [
+        {
+          userId: context.userId,
+          organizationId: context.organizationId,
+        },
+        ...(context.organizationId
+          ? [{ share: { organizationId: context.organizationId } }]
+          : []),
+      ],
+    };
+
+    let where: Prisma.JobWhereInput = baseWhere;
+    if (cursor) {
+      const cursorJob = await prisma.job.findUnique({
+        where: { id: cursor },
+        select: { id: true, createdAt: true },
+      });
+
+      if (!cursorJob) {
+        return { jobs: [], nextCursor: null };
+      }
+
+      where = {
+        AND: [
+          baseWhere,
+          {
+            OR: [
+              { createdAt: { lt: cursorJob.createdAt } },
+              {
+                createdAt: cursorJob.createdAt,
+                id: { lt: cursorJob.id },
+              },
+            ],
+          },
+        ],
+      };
+    }
+
+    const rawJobs = await prisma.job.findMany({
+      where,
+      include: jobInclude,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+    });
+
+    const hasMore = rawJobs.length > limit;
+    const pageJobs = hasMore ? rawJobs.slice(0, limit) : rawJobs;
+    const paginatedJobs = pageJobs.map(mapJobWithStatus);
+    const nextCursor = hasMore
+      ? (pageJobs[pageJobs.length - 1]?.id ?? null)
+      : null;
+
+    return {
+      jobs: paginatedJobs,
+      nextCursor,
+    };
+  }
+
+  /**
    * Retrieves all organization memberships for the currently authenticated user.
    *
    * @returns A promise that resolves to an array of MemberWithOrganization objects for the current user.
@@ -202,7 +295,7 @@ export const userService = (() => {
 
     const now = new Date();
     const pendingInvitation = invitations.find(
-      (invitation) =>
+      (invitation: { status: string; expiresAt: string }) =>
         invitation.status === "pending" && new Date(invitation.expiresAt) > now,
     );
 
@@ -314,6 +407,8 @@ export const userService = (() => {
     getActiveOrganizationId,
     getActiveOrganization,
     getMyJobs,
+    listMyJobsForActiveContext,
+    listMyJobsForActiveContextPaginated,
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getMyValidPendingInvitations,

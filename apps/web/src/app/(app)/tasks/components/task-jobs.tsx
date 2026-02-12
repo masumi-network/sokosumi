@@ -96,11 +96,11 @@ export function TaskJobs({
                       />
                     ) : null}
                     <AvatarFallback className="text-[10px] font-medium">
-                      {agentName === unknownAgentLabel ? (
-                        <Sparkles className="size-3" aria-hidden />
-                      ) : (
-                        agentName.slice(0, 1).toUpperCase()
-                      )}
+                      <Sparkles
+                        strokeWidth={1}
+                        className="size-3"
+                        aria-hidden
+                      />
                     </AvatarFallback>
                   </Avatar>
                   <p className="truncate text-xs font-medium">{agentName}</p>

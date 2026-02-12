@@ -7,11 +7,13 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { type SokosumiJobStatus } from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -19,11 +21,13 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { loadMoreTasks } from "@/app/tasks/actions";
+import { loadMoreJobs, loadMoreTasks } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import {
+  jobStatusDataSchema,
+  makeAgentJobsChannelName,
   makeUserTasksChannelName,
   type TaskEventData,
   taskEventDataSchema,
@@ -46,6 +50,11 @@ import {
   CreateTaskModalProvider,
   useCreateTaskModal,
 } from "./create-task-modal";
+import {
+  type JobsFailedFilterMode,
+  JobsFilterDropdown,
+} from "./jobs-filter-dropdown";
+import { JobsListView, type TasksViewJob } from "./jobs-list-view";
 import { KanbanBoard } from "./kanban-board";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListView } from "./task-list-view";
@@ -94,9 +103,21 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
+const JOBS_FAILED_FILTER_MODE_STORAGE_KEY =
+  "sokosumi.tasks.jobs.failedFilterMode";
+
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
+}
+
+interface AgentJobsRealtimeListenerProps {
+  agentId: string;
+  userId: string;
+  onStatusUpdate: (data: {
+    jobId: string;
+    jobStatus: SokosumiJobStatus;
+  }) => void;
 }
 
 function TasksRealtimeListener({
@@ -119,8 +140,35 @@ function TasksRealtimeListener({
   return null;
 }
 
+function AgentJobsRealtimeListener({
+  agentId,
+  userId,
+  onStatusUpdate,
+}: AgentJobsRealtimeListenerProps) {
+  useChannel(makeAgentJobsChannelName(agentId, userId), (message) => {
+    const parsedResult = jobStatusDataSchema.safeParse(message.data);
+    if (parsedResult.success) {
+      onStatusUpdate({
+        jobId: parsedResult.data.jobId,
+        jobStatus: parsedResult.data.jobStatus,
+      });
+    } else {
+      console.error(
+        "Failed to parse JobStatus from message",
+        message,
+        parsedResult.error,
+      );
+    }
+  });
+
+  return null;
+}
+
 interface TasksViewProps {
   tasks: TaskWithCoworker[];
+  jobs: TasksViewJob[];
+  jobsNextCursor?: string | null;
+  agentPreviewById: Record<string, { name: string; icon: string | null }>;
   nextCursor?: string | null;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
@@ -134,7 +182,18 @@ interface TasksViewProps {
     columns: Record<KanbanColumnId, string>;
     add: string;
     addTask: string;
-    jobsPlaceholder: string;
+    jobs: {
+      filterButton: string;
+      filterHideFailed: string;
+      filterShowAll: string;
+      recentTitle: string;
+      emptyRecent: string;
+      emptyList: string;
+      emptySection: string;
+      untitled: string;
+      unknownAgent: string;
+      unknownCoworker: string;
+    };
     display: {
       button: string;
       list: string;
@@ -151,6 +210,9 @@ type TasksTabValue = "tasks" | "jobs";
 
 export function TasksView({
   tasks,
+  jobs,
+  jobsNextCursor: initialJobsNextCursor,
+  agentPreviewById,
   nextCursor: initialNextCursor,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
@@ -163,7 +225,28 @@ export function TasksView({
     defaultViewMode ?? "board",
   );
   const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
+  const [jobsFailedFilterMode, setJobsFailedFilterMode] =
+    useState<JobsFailedFilterMode>(() => {
+      if (typeof window === "undefined") {
+        return "hideFailed";
+      }
+
+      try {
+        const storedValue = window.localStorage.getItem(
+          JOBS_FAILED_FILTER_MODE_STORAGE_KEY,
+        );
+
+        return storedValue === "showAll" ? "showAll" : "hideFailed";
+      } catch {
+        return "hideFailed";
+      }
+    });
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
+  const [jobsItems, setJobsItems] = useState<TasksViewJob[]>(jobs);
+  const [jobsCursor, setJobsCursor] = useState<string | null>(
+    initialJobsNextCursor ?? null,
+  );
+  const [agentPreviews, setAgentPreviews] = useState(agentPreviewById);
   const [nextCursor, setNextCursor] = useState<string | null>(
     initialNextCursor ?? null,
   );
@@ -173,9 +256,12 @@ export function TasksView({
     hydrationStore.getServerSnapshot,
   );
   const [isPending, startTransition] = useTransition();
+  const [isJobsPending, startJobsTransition] = useTransition();
   const moveVersionRef = useRef(0);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const itemsRef = useRef(items);
+  const jobsItemsRef = useRef(jobsItems);
+  const isRefetchingJobsRef = useRef(false);
   const handleEventUpdate = (_data: TaskEventData) => {
     router.refresh();
   };
@@ -183,6 +269,21 @@ export function TasksView({
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  useEffect(() => {
+    jobsItemsRef.current = jobsItems;
+  }, [jobsItems]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        JOBS_FAILED_FILTER_MODE_STORAGE_KEY,
+        jobsFailedFilterMode,
+      );
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [jobsFailedFilterMode]);
 
   useEffect(() => {
     const prev = itemsRef.current;
@@ -208,6 +309,15 @@ export function TasksView({
       setNextCursor(initialNextCursor ?? null);
     }
   }, [initialNextCursor, tasks]);
+
+  useEffect(() => {
+    setJobsItems(jobs);
+    setJobsCursor(initialJobsNextCursor ?? null);
+  }, [initialJobsNextCursor, jobs]);
+
+  useEffect(() => {
+    setAgentPreviews(agentPreviewById);
+  }, [agentPreviewById]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -294,6 +404,215 @@ export function TasksView({
     document.cookie = serializeTasksViewModeCookie(next);
   };
 
+  const handleLoadMoreJobs = () => {
+    if (!jobsCursor) return;
+    startJobsTransition(async () => {
+      try {
+        const result = await loadMoreJobs(jobsCursor);
+        setJobsItems((prev) => appendUniqueJobs(prev, result.jobs));
+        setJobsCursor(result.nextCursor);
+        setAgentPreviews((prev) => ({
+          ...prev,
+          ...result.agentPreviewById,
+        }));
+      } catch {
+        setJobsCursor(null);
+      }
+    });
+  };
+
+  const refetchFirstJobsPage = () => {
+    if (isRefetchingJobsRef.current) return;
+    isRefetchingJobsRef.current = true;
+
+    startJobsTransition(async () => {
+      try {
+        const result = await loadMoreJobs(null);
+        setJobsItems((prev) => mergeTopPageJobs(prev, result.jobs));
+        setJobsCursor(result.nextCursor);
+        setAgentPreviews((prev) => ({
+          ...prev,
+          ...result.agentPreviewById,
+        }));
+      } finally {
+        isRefetchingJobsRef.current = false;
+      }
+    });
+  };
+
+  const handleJobStatusUpdate = ({
+    jobId,
+    jobStatus,
+  }: {
+    jobId: string;
+    jobStatus: SokosumiJobStatus;
+  }) => {
+    const existingJob = jobsItemsRef.current.find((job) => job.id === jobId);
+    if (!existingJob) {
+      refetchFirstJobsPage();
+      return;
+    }
+
+    if (
+      jobStatus === SokosumiJobStatus.COMPLETED &&
+      existingJob.completedAt === null
+    ) {
+      refetchFirstJobsPage();
+    }
+
+    setJobsItems((prev) =>
+      prev.map((job) =>
+        job.id === jobId && job.status !== jobStatus
+          ? { ...job, status: jobStatus }
+          : job,
+      ),
+    );
+  };
+
+  const realtimeAgentIds = useMemo(
+    () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
+    [jobsItems],
+  );
+
+  const tabsContent = (
+    <Tabs
+      value={activeTab}
+      onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
+      className="flex flex-col gap-5"
+    >
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="">
+          <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
+            <TabsTrigger
+              value="tasks"
+              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+            >
+              {labels.tabs.tasks}
+            </TabsTrigger>
+            <TabsTrigger
+              value="jobs"
+              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+            >
+              {labels.tabs.jobs}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {activeTab === "tasks" ? (
+            <ViewModeSwitch
+              value={viewMode}
+              onChange={handleViewModeChange}
+              labels={labels.display}
+            />
+          ) : null}
+          {activeTab === "jobs" ? (
+            <JobsFilterDropdown
+              value={jobsFailedFilterMode}
+              onChange={setJobsFailedFilterMode}
+              labels={{
+                button: labels.jobs.filterButton,
+                hideFailed: labels.jobs.filterHideFailed,
+                showAll: labels.jobs.filterShowAll,
+              }}
+            />
+          ) : null}
+          {activeTab === "tasks" ? (
+            <HeaderAddButton label={labels.add} />
+          ) : null}
+        </div>
+      </div>
+
+      {/* Content */}
+      <TabsContent value="tasks" className="flex flex-col gap-4">
+        {/* {activeTab === "tasks" ? ( */}
+        <div className="flex flex-col gap-4">
+          {isMounted ? (
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              {viewMode === "board" ? (
+                <KanbanBoard
+                  tasks={items}
+                  columns={columns}
+                  labels={{
+                    columns: labels.columns,
+                    addTask: labels.addTask,
+                    emptyColumn: labels.listPlaceholder,
+                  }}
+                />
+              ) : (
+                <TaskListView
+                  tasks={items}
+                  columns={columns}
+                  labels={{
+                    columns: labels.columns,
+                    emptyList: labels.listPlaceholder,
+                    emptySection: labels.listPlaceholder,
+                  }}
+                />
+              )}
+            </DndContext>
+          ) : viewMode === "board" ? (
+            <KanbanBoard
+              tasks={items}
+              columns={columns}
+              labels={{
+                columns: labels.columns,
+                addTask: labels.addTask,
+                emptyColumn: labels.listPlaceholder,
+              }}
+              isDragEnabled={false}
+            />
+          ) : (
+            <TaskListView
+              tasks={items}
+              columns={columns}
+              labels={{
+                columns: labels.columns,
+                emptyList: labels.listPlaceholder,
+                emptySection: labels.listPlaceholder,
+              }}
+              isDragEnabled={false}
+            />
+          )}
+          {nextCursor ? (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onClick={handleLoadMore}
+                disabled={isPending}
+              >
+                {isPending ? labels.loading : labels.loadMore}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </TabsContent>
+      {/* ) : ( */}
+      <TabsContent value="jobs" className="flex flex-col gap-4">
+        <JobsListView
+          jobs={jobsItems}
+          agentPreviewById={agentPreviews}
+          columnLabels={labels.columns}
+          failedFilterMode={jobsFailedFilterMode}
+          labels={labels.jobs}
+        />
+        {jobsCursor ? (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={handleLoadMoreJobs}
+              disabled={isJobsPending}
+            >
+              {isJobsPending ? labels.loading : labels.loadMore}
+            </Button>
+          </div>
+        ) : null}
+      </TabsContent>
+      {/* ) : ( */}
+    </Tabs>
+  );
+
   return (
     <CreateTaskModalProvider>
       {userId ? (
@@ -304,117 +623,39 @@ export function TasksView({
               onEvent={handleEventUpdate}
             />
           </ChannelProvider>
+          {realtimeAgentIds.map((agentId) => (
+            <ChannelProvider
+              key={agentId}
+              channelName={makeAgentJobsChannelName(agentId, userId)}
+            >
+              <AgentJobsRealtimeListener
+                agentId={agentId}
+                userId={userId}
+                onStatusUpdate={handleJobStatusUpdate}
+              />
+            </ChannelProvider>
+          ))}
+          {tabsContent}
         </DynamicAblyProvider>
-      ) : null}
-      <Tabs
-        value={activeTab}
-        onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
-        className="flex flex-col gap-5"
-      >
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="">
-            <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
-              <TabsTrigger
-                value="tasks"
-                className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-              >
-                {labels.tabs.tasks}
-              </TabsTrigger>
-              <TabsTrigger
-                value="jobs"
-                className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-              >
-                {labels.tabs.jobs}
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <ViewModeSwitch
-              value={viewMode}
-              onChange={handleViewModeChange}
-              labels={labels.display}
-            />
-            {activeTab === "tasks" ? (
-              <HeaderAddButton label={labels.add} />
-            ) : null}
-          </div>
-        </div>
-
-        {/* Content */}
-        <TabsContent value="tasks" className="flex flex-col gap-4">
-          {/* {activeTab === "tasks" ? ( */}
-          <div className="flex flex-col gap-4">
-            {isMounted ? (
-              <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                {viewMode === "board" ? (
-                  <KanbanBoard
-                    tasks={items}
-                    columns={columns}
-                    labels={{
-                      columns: labels.columns,
-                      addTask: labels.addTask,
-                      emptyColumn: labels.listPlaceholder,
-                    }}
-                  />
-                ) : (
-                  <TaskListView
-                    tasks={items}
-                    columns={columns}
-                    labels={{
-                      columns: labels.columns,
-                      emptyList: labels.listPlaceholder,
-                      emptySection: labels.listPlaceholder,
-                    }}
-                  />
-                )}
-              </DndContext>
-            ) : viewMode === "board" ? (
-              <KanbanBoard
-                tasks={items}
-                columns={columns}
-                labels={{
-                  columns: labels.columns,
-                  addTask: labels.addTask,
-                  emptyColumn: labels.listPlaceholder,
-                }}
-                isDragEnabled={false}
-              />
-            ) : (
-              <TaskListView
-                tasks={items}
-                columns={columns}
-                labels={{
-                  columns: labels.columns,
-                  emptyList: labels.listPlaceholder,
-                  emptySection: labels.listPlaceholder,
-                }}
-                isDragEnabled={false}
-              />
-            )}
-            {nextCursor ? (
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={handleLoadMore}
-                  disabled={isPending}
-                >
-                  {isPending ? labels.loading : labels.loadMore}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </TabsContent>
-        {/* ) : ( */}
-        <TabsContent value="jobs" className="flex flex-col gap-4">
-          <div className="text-muted-foreground rounded-xl border border-dashed p-8 text-center text-sm">
-            {labels.jobsPlaceholder}
-          </div>
-        </TabsContent>
-        {/* ) : ( */}
-      </Tabs>
+      ) : (
+        tabsContent
+      )}
       <CreateTaskModal coworkerOptions={coworkerOptions} />
     </CreateTaskModalProvider>
   );
+}
+
+function appendUniqueJobs(prevJobs: TasksViewJob[], newJobs: TasksViewJob[]) {
+  const existingIds = new Set(prevJobs.map((job) => job.id));
+  const uniqueNewJobs = newJobs.filter((job) => !existingIds.has(job.id));
+  return [...prevJobs, ...uniqueNewJobs];
+}
+
+function mergeTopPageJobs(
+  prevJobs: TasksViewJob[],
+  refreshedJobs: TasksViewJob[],
+) {
+  const refreshedJobIds = new Set(refreshedJobs.map((job) => job.id));
+  const remainingJobs = prevJobs.filter((job) => !refreshedJobIds.has(job.id));
+  return [...refreshedJobs, ...remainingJobs];
 }

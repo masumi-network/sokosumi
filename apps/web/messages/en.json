@@ -1192,7 +1192,16 @@
         "placeholder": "No tasks"
       },
       "Jobs": {
-        "placeholder": "Job view coming soon."
+        "filterButton": "Status",
+        "filterHideFailed": "Hide failed",
+        "filterShowAll": "Show all",
+        "recentTitle": "Recent",
+        "emptyRecent": "No recently finished jobs.",
+        "emptyList": "No jobs yet.",
+        "emptySection": "No jobs in this status.",
+        "untitled": "Untitled job",
+        "unknownAgent": "Unknown agent",
+        "unknownCoworker": "Unknown coworker"
       },
       "Detail": {
         "back": "Back to tasks",
