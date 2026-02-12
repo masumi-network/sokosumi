@@ -19,7 +19,7 @@ import { requireCoworkerId } from "../helper";
 
 const route = createRoute({
   method: "get",
-  path: "/events",
+  path: "/me/events",
   description: "List task events for the current coworker (paginated)",
   tags: ["Coworkers"],
   request: {

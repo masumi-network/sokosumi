@@ -25,7 +25,7 @@ import { createCoworkerUsageRequestSchema } from "./schema";
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/usage",
+    path: "/me/usage",
     description: "Create usage for the current coworker",
     tags: ["Coworkers"],
     request: {

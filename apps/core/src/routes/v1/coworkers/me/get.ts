@@ -11,7 +11,7 @@ import { requireCoworkerId } from "./helper";
 
 const route = createRoute({
   method: "get",
-  path: "/",
+  path: "/me",
   description: "Get current authenticated coworker",
   tags: ["Coworkers"],
   responses: {
