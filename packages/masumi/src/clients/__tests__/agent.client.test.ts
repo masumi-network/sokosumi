@@ -1,5 +1,5 @@
-import { createAgentClient } from "../agent.client.js";
 import type { Agent } from "../../types/agent.js";
+import { createAgentClient } from "../agent.client.js";
 
 function createAgent(overrides: Partial<Agent> = {}): Agent {
   return {
@@ -94,7 +94,9 @@ describe("createAgentClient URL validation", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toContain("Agent API base URL must be HTTP or HTTPS");
+      expect(result.error).toContain(
+        "Agent API base URL must be HTTP or HTTPS",
+      );
     }
   });
 });
