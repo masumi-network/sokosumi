@@ -77,7 +77,6 @@ export function getEnv(): EnvConfig {
   return envConfig;
 }
 
-/** Coworkers API base URL */
 export function getResponsesApiBaseUrl(): string | null {
   const env = getEnv();
   return env.COWORKERS_API_BASE_URL ?? null;

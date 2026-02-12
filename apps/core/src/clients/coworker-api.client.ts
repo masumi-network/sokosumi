@@ -4,7 +4,6 @@ import {
   isResponsesApiConfigured,
 } from "@/config/env";
 
-/** Agent IDs supported by the Responses API (X-Agent-Id header). */
 export const RESPONSES_API_AGENT_IDS = ["hannah", "elena"] as const;
 
 export type ResponsesApiAgentId = (typeof RESPONSES_API_AGENT_IDS)[number];
@@ -21,7 +20,6 @@ export function isResponsesApiAgentId(
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 
-/** Extract assistant text from Responses API completed response output array */
 function extractTextFromCompletedOutput(output: unknown): string {
   if (!Array.isArray(output) || output.length === 0) return "";
   const parts: string[] = [];
@@ -48,23 +46,13 @@ const UI_MESSAGE_EVENTS = {
 } as const;
 
 export interface StreamResponsesApiOptions {
-  /** Sokosumi user ID (sent as X-Sokosumi-User-Id). */
   sokosumiUserId: string;
-  /** Agent id for X-Agent-Id: "hannah" (default) or "elena". */
   agentId?: ResponsesApiAgentId;
-  /** Chain to previous response for multi-turn threads. */
   previousResponseId?: string | null;
-  /** Custom instructions (appended to agent prompt). */
   instructions?: string;
-  /** Called when response.completed is received with the response id (for persisting thread). */
   onResponseCompleted?: (responseId: string) => void;
 }
 
-/**
- * Stream a response from the Responses API (Hannah/Elena).
- * Transforms API SSE into the same UI message stream format as OpenRouter for compatibility.
- * Secure: uses env-based base URL and service key; only sokosumiUserId is passed (from auth).
- */
 export async function streamResponsesApi(
   input: string | Array<{ role: string; content: string }>,
   options: StreamResponsesApiOptions,
@@ -245,7 +233,7 @@ function createResponsesApiUiStream(
         return true;
       }
     } catch {
-      // Ignore parse errors for non-JSON lines
+      // ignore
     }
 
     return false;
@@ -335,7 +323,7 @@ function createResponsesApiUiStream(
               return;
             }
           } catch {
-            // Not valid JSON or not a completed response; fall through to closeStream
+            // ignore
           }
         }
 

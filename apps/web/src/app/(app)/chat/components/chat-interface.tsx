@@ -136,7 +136,7 @@ export default function ChatInterface({
     });
   }
 
-  /* eslint-disable react-hooks/refs -- slotPayloadRef read only in prepareSendMessagesRequest at send time (event), not during render */
+  /* eslint-disable react-hooks/refs */
   const transport0 = useMemo(() => makeSlotTransport(0), []);
   const transport1 = useMemo(() => makeSlotTransport(1), []);
   const transport2 = useMemo(() => makeSlotTransport(2), []);
