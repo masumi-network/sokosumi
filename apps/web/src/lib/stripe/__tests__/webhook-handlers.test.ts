@@ -692,9 +692,9 @@ describe("handleInvoicePaidEvent", () => {
       "STRIPE_TOPUP",
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
-    // quantity-based top-up credits: 3 Stripe units => 300 credits
+    // quantity-based top-up credits: quantity 3 => 3 credits
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
-      BigInt("3000000000000"),
+      BigInt("30000000000"),
     );
   });
 
@@ -763,7 +763,7 @@ describe("handleInvoicePaidEvent", () => {
 
     const topupCall = callsByReference.get("in_mixed:topup");
     expect(topupCall).toBeDefined();
-    expect(topupCall?.data.amount).toBe(BigInt("3000000000000"));
+    expect(topupCall?.data.amount).toBe(BigInt("30000000000"));
     expect(topupCall?.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
     );

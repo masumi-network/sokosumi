@@ -280,7 +280,7 @@ describe("stripe.client lookup-key pricing", () => {
     );
   });
 
-  it("creates invoice items with Stripe quantity converted from coupon credits", async () => {
+  it("creates invoice items with quantity matching coupon credits", async () => {
     productsRetrieveMock.mockResolvedValue({
       default_price: createMockStripePrice({
         currency: "eur",
@@ -306,7 +306,7 @@ describe("stripe.client lookup-key pricing", () => {
     expect(invoiceItemsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         customer: "cus_1",
-        quantity: 5,
+        quantity: 500,
       }),
     );
   });

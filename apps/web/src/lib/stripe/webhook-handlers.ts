@@ -15,7 +15,6 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services";
-import { convertStripeUnitsToCredits } from "@/lib/stripe/credit-topup-pricing";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { getLatestActiveOrganizationSubscription } from "@/lib/stripe/subscription-utils";
 
@@ -516,9 +515,7 @@ export async function handleInvoicePaidEvent(
 
       if (productId === creditProductId) {
         if (oneTimeTopUpCreditsFromMetadata === null) {
-          oneTimeTopUpCredits += convertStripeUnitsToCredits(
-            lineItem.quantity ?? 0,
-          );
+          oneTimeTopUpCredits += lineItem.quantity ?? 0;
         }
         continue;
       }

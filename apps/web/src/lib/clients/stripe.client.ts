@@ -5,7 +5,6 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
-  convertCreditsToStripeUnits,
   CREDIT_TOPUP_LOOKUP_KEYS,
   CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
@@ -504,7 +503,6 @@ export const stripeClient = (() => {
         throw new Error("Coupon must have percent_off");
       }
       const credits = getCreditsForCoupon(coupon);
-      const stripeQuantity = convertCreditsToStripeUnits(credits);
 
       // 1) Add invoice items representing the free credits
       const itemsToCreate = Math.min(referralCount!, MAX_REFERRAL_COUNT);
@@ -514,7 +512,7 @@ export const stripeClient = (() => {
             customer: customerId,
             pricing: { price: price.id },
             currency: price.currency,
-            quantity: stripeQuantity,
+            quantity: credits,
             description: `Referral credit redemption (${credits} credits) - ${index + 1} of ${itemsToCreate}`,
             metadata: {
               coupon_id: couponId,
