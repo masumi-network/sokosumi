@@ -360,7 +360,10 @@ export function TasksView({
   }, [initialJobsNextCursor, jobs]);
 
   useEffect(() => {
-    setAgentPreviews(agentPreviewById);
+    setAgentPreviews((prev) => ({
+      ...prev,
+      ...agentPreviewById,
+    }));
   }, [agentPreviewById]);
 
   const sensors = useSensors(
