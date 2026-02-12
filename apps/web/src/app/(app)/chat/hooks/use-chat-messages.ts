@@ -1,14 +1,11 @@
 "use client";
 
+import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
 import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
 import { getConversationItems } from "@/lib/actions/conversation/core-api-actions";
-
-interface SetMessagesForConversation {
-  (convId: string, messages: UIMessage[]): void;
-}
 
 interface UseChatMessagesProps {
   selectedChatId: string | null;
@@ -21,11 +18,10 @@ interface UseChatMessagesProps {
       createdAt: number;
     }>;
   } | null;
-  setMessagesForConversation: SetMessagesForConversation;
+  setMessages: UseChatHelpers<UIMessage>["setMessages"];
   previousChatIdRef: React.MutableRefObject<string | null>;
   messagesChatIdRef: React.MutableRefObject<string | null>;
   chatMessagesRef: React.MutableRefObject<Map<string, unknown[]>>;
-  streamingConversationIdsRef?: React.MutableRefObject<Set<string>>;
 }
 
 /**
@@ -34,23 +30,17 @@ interface UseChatMessagesProps {
 export function useChatMessages({
   selectedChatId,
   selectedConversation,
-  setMessagesForConversation,
+  setMessages,
   previousChatIdRef,
   messagesChatIdRef,
   chatMessagesRef,
-  streamingConversationIdsRef,
 }: UseChatMessagesProps) {
+  // Track retry timeout ID across effect runs so it can be cleaned up
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (selectedChatId) {
       const currentSelectedChatId = selectedChatId;
-      if (streamingConversationIdsRef?.current.has(currentSelectedChatId)) {
-        return;
-      }
-      const hasSyncItems =
-        selectedConversation?.id === currentSelectedChatId &&
-        selectedConversation.items !== undefined;
 
       // Clear any existing retry timeout from previous effect run
       if (retryTimeoutRef.current !== null) {
@@ -58,23 +48,8 @@ export function useChatMessages({
         retryTimeoutRef.current = null;
       }
 
-      if (hasSyncItems) {
-        const items = selectedConversation!.items!;
-        previousChatIdRef.current = currentSelectedChatId;
-        if (items.length > 0) {
-          const dbMessages = convertItemsToMessages(items);
-          messagesChatIdRef.current = currentSelectedChatId;
-          setMessagesForConversation(currentSelectedChatId, dbMessages);
-          chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
-        } else {
-          messagesChatIdRef.current = currentSelectedChatId;
-          setMessagesForConversation(currentSelectedChatId, []);
-        }
-        return;
-      }
-
       messagesChatIdRef.current = null;
-      setMessagesForConversation(currentSelectedChatId, []);
+      setMessages([]);
       previousChatIdRef.current = currentSelectedChatId;
 
       const loadMessagesFromDB = async () => {
@@ -113,10 +88,7 @@ export function useChatMessages({
           );
           if (cachedMessages && cachedMessages.length > 0) {
             messagesChatIdRef.current = currentSelectedChatId;
-            setMessagesForConversation(
-              currentSelectedChatId,
-              cachedMessages as UIMessage[],
-            );
+            setMessages(cachedMessages as Parameters<typeof setMessages>[0]);
           }
 
           const rawItemsResult: unknown = await getConversationItems({
@@ -162,7 +134,9 @@ export function useChatMessages({
           if (items && items.length > 0) {
             const dbMessages = convertItemsToMessages(items);
             messagesChatIdRef.current = currentSelectedChatId;
-            setMessagesForConversation(currentSelectedChatId, dbMessages);
+            setMessages(
+              dbMessages as unknown as Parameters<typeof setMessages>[0],
+            );
             chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
           } else if (!cachedMessages) {
             // Store retry timeout ID in ref so it can be cleared by cleanup
@@ -222,9 +196,10 @@ export function useChatMessages({
                     if (retryItems && retryItems.length > 0) {
                       const retryMessages = convertItemsToMessages(retryItems);
                       messagesChatIdRef.current = currentSelectedChatId;
-                      setMessagesForConversation(
-                        currentSelectedChatId,
-                        retryMessages,
+                      setMessages(
+                        retryMessages as unknown as Parameters<
+                          typeof setMessages
+                        >[0],
                       );
                       chatMessagesRef.current.set(
                         currentSelectedChatId,
@@ -232,7 +207,7 @@ export function useChatMessages({
                       );
                     } else {
                       messagesChatIdRef.current = currentSelectedChatId;
-                      setMessagesForConversation(currentSelectedChatId, []);
+                      setMessages([]);
                     }
                   }
                 } catch (error) {
@@ -246,7 +221,7 @@ export function useChatMessages({
                     messagesChatIdRef.current === null
                   ) {
                     messagesChatIdRef.current = currentSelectedChatId;
-                    setMessagesForConversation(currentSelectedChatId, []);
+                    setMessages([]);
                   }
                 }
               }
@@ -259,13 +234,10 @@ export function useChatMessages({
           );
           if (cachedMessages && cachedMessages.length > 0) {
             messagesChatIdRef.current = currentSelectedChatId;
-            setMessagesForConversation(
-              currentSelectedChatId,
-              cachedMessages as UIMessage[],
-            );
+            setMessages(cachedMessages as Parameters<typeof setMessages>[0]);
           } else {
             messagesChatIdRef.current = currentSelectedChatId;
-            setMessagesForConversation(currentSelectedChatId, []);
+            setMessages([]);
           }
         }
       };
@@ -285,16 +257,15 @@ export function useChatMessages({
     } else {
       previousChatIdRef.current = null;
       messagesChatIdRef.current = null;
+      setMessages([]);
     }
   }, [
     selectedChatId,
-    selectedConversation,
-    setMessagesForConversation,
+    setMessages,
     previousChatIdRef,
     messagesChatIdRef,
     chatMessagesRef,
     retryTimeoutRef,
-    streamingConversationIdsRef,
   ]);
 
   useEffect(() => {
@@ -304,9 +275,6 @@ export function useChatMessages({
       selectedConversation.items &&
       selectedConversation.items.length > 0
     ) {
-      if (streamingConversationIdsRef?.current.has(selectedChatId)) {
-        return;
-      }
       const currentMessages = chatMessagesRef.current.get(selectedChatId);
       if (currentMessages && currentMessages.length > 0) {
         return;
@@ -314,7 +282,7 @@ export function useChatMessages({
 
       const dbMessages = convertItemsToMessages(selectedConversation.items);
       messagesChatIdRef.current = selectedChatId;
-      setMessagesForConversation(selectedChatId, dbMessages);
+      setMessages(dbMessages as unknown as Parameters<typeof setMessages>[0]);
       chatMessagesRef.current.set(selectedChatId, dbMessages);
 
       previousChatIdRef.current = selectedChatId;
@@ -322,11 +290,10 @@ export function useChatMessages({
   }, [
     selectedConversation,
     selectedChatId,
-    setMessagesForConversation,
+    setMessages,
     previousChatIdRef,
     messagesChatIdRef,
     chatMessagesRef,
-    streamingConversationIdsRef,
   ]);
 
   const cacheMessages = useCallback(
