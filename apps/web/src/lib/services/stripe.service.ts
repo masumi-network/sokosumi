@@ -72,6 +72,7 @@ export const stripeService = (() => {
       credits: number,
       price: Price,
       promotionCode: string | null = null,
+      returnPath: string = "/credits",
     ): Promise<{ url: string }> {
       const isVerified = await verifyUserId(userId);
       if (!isVerified) {
@@ -95,6 +96,7 @@ export const stripeService = (() => {
           price,
           headerList.get("origin"),
           promotionCode,
+          returnPath,
         );
 
         if (!checkoutSession.url) {

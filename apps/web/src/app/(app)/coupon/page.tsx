@@ -1,26 +1,23 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import CreditsForm from "@/components/credits/credits-form";
+import CreditsCancelModal from "@/app/credits/components/cancel-modal";
+import PurchaseTracker from "@/app/credits/components/purchase-tracker";
+import CreditsSuccessModal from "@/app/credits/components/success-modal";
+import CouponForm from "@/components/credits/coupon-form";
 import { stripeClient } from "@/lib/clients";
 import { agentService, userService } from "@/lib/services";
 
-import CreditsCancelModal from "./components/cancel-modal";
-import PurchaseTracker from "./components/purchase-tracker";
-import CreditsSuccessModal from "./components/success-modal";
-
-interface CreditsPageProps {
+interface CouponPageProps {
   searchParams: Promise<{
     session_id?: string;
     cancel?: string;
   }>;
 }
 
-export default async function CreditsPage({ searchParams }: CreditsPageProps) {
+export default async function CouponPage({ searchParams }: CouponPageProps) {
   const t = await getTranslations("App.Credits");
   const { session_id, cancel } = await searchParams;
-
-  const priceCatalog = await stripeClient.getCreditTopUpPriceCatalog();
   const activeOrganization = await userService.getActiveOrganization();
 
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
@@ -42,10 +39,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
           {t("billingPortalCta")}
         </Link>
         <div>
-          <CreditsForm
-            priceCatalog={priceCatalog}
-            organization={activeOrganization}
-          />
+          <CouponForm organization={activeOrganization} />
           {session_id && (
             <CreditsSuccessModal randomAgentPromise={randomAgentPromise} />
           )}
