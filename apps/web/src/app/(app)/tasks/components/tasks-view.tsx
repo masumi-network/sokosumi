@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { type SokosumiJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/database";
 import { ChannelProvider, useChannel } from "ably/react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -460,12 +460,23 @@ export function TasksView({
       refetchFirstJobsPage();
     }
 
+    const completedAtForUpdate =
+      jobStatus === SokosumiJobStatus.COMPLETED &&
+      existingJob.completedAt === null
+        ? new Date().toISOString()
+        : undefined;
+
     setJobsItems((prev) =>
-      prev.map((job) =>
-        job.id === jobId && job.status !== jobStatus
-          ? { ...job, status: jobStatus }
-          : job,
-      ),
+      prev.map((job) => {
+        if (job.id !== jobId || job.status === jobStatus) return job;
+        return {
+          ...job,
+          status: jobStatus,
+          ...(completedAtForUpdate !== undefined && {
+            completedAt: completedAtForUpdate,
+          }),
+        };
+      }),
     );
   };
 

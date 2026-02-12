@@ -127,19 +127,6 @@ export const userService = (() => {
     );
   }
 
-  /**
-   * Retrieves jobs for the current user across all agents in the active context.
-   *
-   * - Includes jobs owned by the user in the active organization/personal context.
-   * - When an organization is active, also includes jobs shared with that organization.
-   */
-  async function listMyJobsForActiveContext(): Promise<
-    JobWithSokosumiStatus[]
-  > {
-    const result = await listMyJobsForActiveContextPaginated();
-    return result.jobs;
-  }
-
   async function listMyJobsForActiveContextPaginated(
     params: ListMyJobsForActiveContextParams = {},
   ): Promise<PaginatedJobsResult> {
@@ -295,8 +282,8 @@ export const userService = (() => {
 
     const now = new Date();
     const pendingInvitation = invitations.find(
-      (invitation: { status: string; expiresAt: string }) =>
-        invitation.status === "pending" && new Date(invitation.expiresAt) > now,
+      (invitation) =>
+        invitation.status === "pending" && invitation.expiresAt > now,
     );
 
     return pendingInvitation?.id ?? null;
@@ -407,7 +394,6 @@ export const userService = (() => {
     getActiveOrganizationId,
     getActiveOrganization,
     getMyJobs,
-    listMyJobsForActiveContext,
     listMyJobsForActiveContextPaginated,
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,

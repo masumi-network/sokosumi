@@ -1,9 +1,8 @@
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import { getSession } from "@/lib/auth/utils";
-import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -45,66 +44,14 @@ export default async function TasksPage() {
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const tasksById = new Map(tasksResult.tasks.map((task) => [task.id, task]));
-  const missingTaskIds = Array.from(
-    new Set(
-      jobsPage.jobs
-        .map((job) => job.taskId)
-        .filter((taskId): taskId is string => {
-          if (!taskId) return false;
-          return !tasksById.has(taskId);
-        }),
-    ),
-  );
-  if (missingTaskIds.length > 0) {
-    const missingTasks = await Promise.all(
-      missingTaskIds.map((taskId) => taskService.getTaskById(taskId)),
-    );
-    for (const task of missingTasks) {
-      if (!task) continue;
-      tasksById.set(task.id, task);
-    }
-  }
   const tasks = tasksResult.tasks.map((task) =>
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
   );
-  const jobs = jobsPage.jobs.map((job) => ({
-    id: job.id,
-    agentId: job.agentId,
-    name: job.name,
-    createdAt: new Date(job.createdAt).toISOString(),
-    completedAt: job.completedAt
-      ? new Date(job.completedAt).toISOString()
-      : null,
-    status: job.status,
-    jobType: job.jobType,
-    coworker: (() => {
-      const task = job.taskId ? tasksById.get(job.taskId) : null;
-      if (!task) {
-        return {
-          name: job.user.name ?? null,
-          image: job.user.image ?? null,
-        };
-      }
-      const coworker = task?.coworkerId
-        ? (coworkersById.get(task.coworkerId) ?? null)
-        : null;
-      return {
-        name: coworker?.name ?? null,
-        image: getCoworkerImage(coworker),
-      };
-    })(),
-  }));
-  const agentPreviewById: Record<
-    string,
-    { name: string; icon: string | null }
-  > = {};
-  for (const job of jobsPage.jobs) {
-    if (agentPreviewById[job.agentId]) continue;
-    agentPreviewById[job.agentId] = {
-      name: getAgentName(job.agent),
-      icon: getAgentResolvedIcon(job.agent),
-    };
-  }
+  const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
+    jobs: jobsPage.jobs,
+    coworkersById,
+    seedTasksById: tasksById,
+  });
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(coworkers);
 
