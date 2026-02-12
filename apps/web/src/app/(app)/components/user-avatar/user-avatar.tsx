@@ -1,4 +1,6 @@
 import { MemberWithOrganization } from "@sokosumi/database";
+import { headers } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { auth, Session } from "@/lib/auth/auth";
@@ -20,7 +22,7 @@ interface UserAvatarProps {
 
 const PERSONAL_WORKSPACE_KEY = "personal-account";
 
-function getWorkspacePlanLabels(
+async function getWorkspacePlanLabels(
   members: MemberWithOrganization[],
   activeOrganizationId: string | null,
 ): Promise<Record<string, string>> {
@@ -115,7 +117,7 @@ async function UserAvatarInner({
 }) {
   const members = await userService.getMyMembersWithOrganizations();
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const workspacePlanLabels = getWorkspacePlanLabels(
+  const workspacePlanLabels = await getWorkspacePlanLabels(
     members,
     activeOrganizationId,
   );
