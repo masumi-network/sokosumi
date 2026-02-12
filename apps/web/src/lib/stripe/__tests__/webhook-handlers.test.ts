@@ -9,6 +9,7 @@ const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
 const ensurePersonalFreeSubscriptionMock = jest.fn();
 const ensureOrganizationFreeSubscriptionMock = jest.fn();
+const claimWelcomeCouponMock = jest.fn();
 const prismaOrganizationUpdateMock = jest.fn();
 const prismaUserUpdateMock = jest.fn();
 
@@ -73,6 +74,7 @@ jest.mock("@/lib/services", () => ({
       ensurePersonalFreeSubscriptionMock(...args),
     ensureOrganizationFreeSubscription: (...args: unknown[]) =>
       ensureOrganizationFreeSubscriptionMock(...args),
+    claimWelcomeCoupon: (...args: unknown[]) => claimWelcomeCouponMock(...args),
   },
 }));
 
@@ -927,6 +929,10 @@ describe("handleCustomerCreatedEvent", () => {
     ensureOrganizationFreeSubscriptionMock.mockResolvedValue({
       status: "skipped",
       reason: "ALREADY_HAS_SUBSCRIPTION",
+    });
+    claimWelcomeCouponMock.mockResolvedValue({
+      couponApplied: false,
+      invoiceId: null,
     });
     prismaUserUpdateMock.mockResolvedValue(undefined);
     prismaOrganizationUpdateMock.mockResolvedValue(undefined);
