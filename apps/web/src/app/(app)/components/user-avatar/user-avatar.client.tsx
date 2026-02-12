@@ -255,8 +255,7 @@ export default function UserAvatarClient({
                 key={getWorkspaceKey(workspace)}
                 className="flex cursor-pointer items-center justify-between gap-2 py-2"
                 disabled={isPending}
-                onSelect={(event) => {
-                  event.preventDefault();
+                onSelect={() => {
                   handleSelectWorkspaceAndClose(workspace.id);
                 }}
               >
@@ -365,8 +364,7 @@ export default function UserAvatarClient({
                         key={getWorkspaceKey(workspace)}
                         className="flex cursor-pointer items-center gap-2 py-2"
                         disabled={isPending}
-                        onSelect={(event) => {
-                          event.preventDefault();
+                        onSelect={() => {
                           handleSelectWorkspaceAndClose(workspace.id);
                         }}
                       >

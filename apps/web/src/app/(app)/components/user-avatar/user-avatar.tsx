@@ -1,14 +1,7 @@
 import { MemberWithOrganization } from "@sokosumi/database";
-import { headers } from "next/headers";
-import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import { auth, Session } from "@/lib/auth/auth";
-import {
-  type ActiveSubscription,
-  getPlanTranslationKey,
-  resolveCurrentPlanName,
-} from "@/lib/helpers/subscription";
+import { Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
 
 import UserAvatarClient from "./user-avatar.client";
@@ -23,70 +16,19 @@ interface UserAvatarProps {
 
 const PERSONAL_WORKSPACE_KEY = "personal-account";
 
-async function getWorkspacePlanLabels(
+function getWorkspacePlanLabels(
   members: MemberWithOrganization[],
-  activeOrganizationId: string | null,
-): Promise<Record<string, string>> {
-  const requestHeaders = await headers();
-  const tPlan = await getTranslations("App.Header.Plan");
-  const tSubscriptions = await getTranslations("App.Subscriptions");
-  const unavailablePlanLabel = tPlan("unavailable");
-
-  const workspacePlanEntries = await Promise.all([
-    (async () => {
-      // Skip fetching for personal workspace if it's the active workspace
-      if (activeOrganizationId === null) {
-        return [PERSONAL_WORKSPACE_KEY, ""] as const;
-      }
-
-      try {
-        const activeSubscriptions = await auth.api.listActiveSubscriptions({
-          headers: requestHeaders,
-          query: {
-            customerType: "user",
-          },
-        });
-
-        const currentPlan =
-          resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
-          "free";
-        const planName = tSubscriptions(
-          `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-        );
-
-        return [PERSONAL_WORKSPACE_KEY, planName] as const;
-      } catch (_error) {
-        return [PERSONAL_WORKSPACE_KEY, unavailablePlanLabel] as const;
-      }
-    })(),
-    ...members.map(async (member) => {
-      // Skip fetching for this organization if it's the active workspace
-      if (member.organization.id === activeOrganizationId) {
-        return [member.organization.id, ""] as const;
-      }
-
-      try {
-        const activeSubscriptions = await auth.api.listActiveSubscriptions({
-          headers: requestHeaders,
-          query: {
-            customerType: "organization",
-            referenceId: member.organization.id,
-          },
-        });
-
-        const currentPlan =
-          resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
-          "free";
-        const planName = tSubscriptions(
-          `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-        );
-
-        return [member.organization.id, planName] as const;
-      } catch (_error) {
-        return [member.organization.id, unavailablePlanLabel] as const;
-      }
-    }),
-  ]);
+  _activeOrganizationId: string | null,
+): Record<string, string> {
+  // Return empty labels for all workspaces to avoid O(n) API calls
+  // The active workspace shows credits instead, and non-active workspaces
+  // don't need plan labels in the dropdown for performance reasons
+  const workspacePlanEntries: [string, string][] = [
+    [PERSONAL_WORKSPACE_KEY, ""],
+    ...members.map(
+      (member) => [member.organization.id, ""] as [string, string],
+    ),
+  ];
 
   return Object.fromEntries(workspacePlanEntries);
 }
@@ -122,7 +64,7 @@ async function UserAvatarInner({
 }) {
   const members = await userService.getMyMembersWithOrganizations();
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const workspacePlanLabels = await getWorkspacePlanLabels(
+  const workspacePlanLabels = getWorkspacePlanLabels(
     members,
     activeOrganizationId,
   );
