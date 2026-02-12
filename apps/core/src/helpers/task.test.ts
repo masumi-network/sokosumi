@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import type { TaskWithIncludes } from "@/types/task";
 
-import { mapTask, validateStatusTransition } from "./task";
+import {
+  mapTask,
+  validateStatusTransition,
+  validateTaskCoworkerAssignment,
+} from "./task";
 
 const coworkerContext = {
   userId: "user_123",
@@ -355,6 +359,44 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow();
     });
+  });
+});
+
+describe("validateTaskCoworkerAssignment", () => {
+  it("allows DRAFT tasks without a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.DRAFT,
+        coworkerId: null,
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows non-DRAFT tasks with a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.READY,
+        coworkerId: "cow_123",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects non-DRAFT tasks without a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.READY,
+        coworkerId: null,
+      }),
+    ).toThrow();
+  });
+
+  it("allows non-DRAFT tasks with empty coworkerId at invariant layer", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.READY,
+        coworkerId: "   ",
+      }),
+    ).not.toThrow();
   });
 });
 

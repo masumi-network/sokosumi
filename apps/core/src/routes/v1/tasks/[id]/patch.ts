@@ -1,11 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import {
+  requireCoworkerExists,
+  requireUserTaskAccess,
+} from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import {
+  mapTask,
+  validateTaskCoworkerAssignment,
+} from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskSchema } from "@/schemas/task.schema";
@@ -76,6 +82,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         task.status !== TaskStatus.READY
       ) {
         throw forbidden("You can only update draft or ready tasks");
+      }
+
+      const nextCoworkerId =
+        body.coworkerId !== undefined ? body.coworkerId : task.coworkerId;
+      validateTaskCoworkerAssignment({
+        status: task.status,
+        coworkerId: nextCoworkerId,
+      });
+
+      if (body.coworkerId !== null && body.coworkerId !== undefined) {
+        await requireCoworkerExists(body.coworkerId, tx);
       }
 
       return tx.task.update({

@@ -1,10 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
+import { requireCoworkerExists } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import {
+  mapTask,
+  validateTaskCoworkerAssignment,
+} from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -13,25 +17,38 @@ import {
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
-export const createTaskRequestSchema = z.object({
-  name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
-  description: z.string().nullish().openapi({ example: "Notes go here" }),
-  coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
-  status: z
-    .enum([TaskStatus.DRAFT, TaskStatus.READY])
-    .optional()
-    .default(TaskStatus.DRAFT)
-    .openapi({ example: TaskStatus.READY }),
-  origin: z
-    .enum(TaskEventOrigin)
-    .optional()
-    .default(TaskEventOrigin.SOKOSUMI)
-    .openapi({
-      example: TaskEventOrigin.SLACK,
-      description:
-        "Origin of the initial task event. Defaults to SOKOSUMI if not provided.",
-    }),
-});
+export const createTaskRequestSchema = z
+  .object({
+    name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
+    description: z.string().nullish().openapi({ example: "Notes go here" }),
+    coworkerId: z.string().nullish().openapi({ example: "cow_123" }),
+    status: z
+      .enum([TaskStatus.DRAFT, TaskStatus.READY])
+      .optional()
+      .default(TaskStatus.DRAFT)
+      .openapi({ example: TaskStatus.READY }),
+    origin: z
+      .enum(TaskEventOrigin)
+      .optional()
+      .default(TaskEventOrigin.SOKOSUMI)
+      .openapi({
+        example: TaskEventOrigin.SLACK,
+        description:
+          "Origin of the initial task event. Defaults to SOKOSUMI if not provided.",
+      }),
+  })
+  .superRefine((data, ctx) => {
+    const hasCoworkerId =
+      data.coworkerId !== null && data.coworkerId !== undefined;
+
+    if (data.status !== TaskStatus.DRAFT && !hasCoworkerId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "coworkerId is required when creating a non-draft task",
+        path: ["coworkerId"],
+      });
+    }
+  });
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -68,6 +85,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const task = await prisma.$transaction(async (tx) => {
+      validateTaskCoworkerAssignment({
+        status: body.status,
+        coworkerId: body.coworkerId,
+      });
+
+      if (body.coworkerId !== null && body.coworkerId !== undefined) {
+        await requireCoworkerExists(body.coworkerId, tx);
+      }
+
       return tx.task.create({
         data: {
           userId: authContext.userId,

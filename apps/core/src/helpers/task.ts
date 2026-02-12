@@ -16,6 +16,11 @@ type TaskEventWithOptionalTransaction = Omit<
   } | null;
 };
 
+interface ValidateTaskCoworkerAssignmentParams {
+  status: TaskStatus;
+  coworkerId: string | null | undefined;
+}
+
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
@@ -83,6 +88,19 @@ export function validateStatusTransition(
   if (!allowedTransitions[from].includes(to)) {
     throw unprocessableEntity(
       `Invalid status transition from ${from} to ${to}`,
+    );
+  }
+}
+
+export function validateTaskCoworkerAssignment({
+  status,
+  coworkerId,
+}: ValidateTaskCoworkerAssignmentParams): void {
+  const hasCoworkerId = coworkerId !== null && coworkerId !== undefined;
+
+  if (status !== TaskStatus.DRAFT && !hasCoworkerId) {
+    throw unprocessableEntity(
+      "coworkerId is required for non-draft task statuses",
     );
   }
 }
