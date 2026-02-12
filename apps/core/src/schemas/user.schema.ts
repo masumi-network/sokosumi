@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { subscriptionSchema } from "@/schemas/subscription.schema";
 
 export const userSchema = z
   .object({
@@ -15,17 +16,7 @@ export const userSchema = z
       .nullish()
       .openapi({ example: "https://example.com/image.png" }),
     credits: z.number().openapi({ example: 100.0 }),
-    subscription: z
-      .object({
-        id: z.string().openapi({ example: "sub_123" }),
-        plan: z.string().openapi({ example: "starter" }),
-        status: z.string().openapi({ example: "active" }),
-        periodStart: dateTimeSchema.nullish(),
-        periodEnd: dateTimeSchema.nullish(),
-        cancelAtPeriodEnd: z.boolean().nullish().openapi({ example: false }),
-      })
-      .nullable()
-      .openapi("UserSubscription"),
+    subscription: subscriptionSchema.nullable(),
   })
   .openapi("User");
 

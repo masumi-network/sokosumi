@@ -1193,7 +1193,16 @@
         "placeholder": "No tasks"
       },
       "Jobs": {
-        "placeholder": "Job view coming soon."
+        "filterButton": "Status",
+        "filterHideFailed": "Hide failed",
+        "filterShowAll": "Show all",
+        "recentTitle": "Recent",
+        "emptyRecent": "No recently finished jobs.",
+        "emptyList": "No jobs yet.",
+        "emptySection": "No jobs in this status.",
+        "untitled": "Untitled job",
+        "unknownAgent": "Unknown agent",
+        "unknownCoworker": "Unknown coworker"
       },
       "Detail": {
         "back": "Back to tasks",
@@ -1206,7 +1215,7 @@
         "jobs": "Jobs",
         "jobsEmpty": "No jobs yet.",
         "jobsUntitled": "Untitled job",
-        "jobsUnknownAgent": "Unknown agent",
+        "jobsUnknownAgent": "Agent unavailable",
         "activity": "Activity",
         "sourcesFiles": "Files",
         "sourcesLinks": "Links",
@@ -1221,6 +1230,20 @@
         "actorCoworker": "Coworker",
         "actorUser": "User",
         "actorSystem": "System",
+        "originFromApp": "from {appName}",
+        "originApp": {
+          "sokosumi": "Sokosumi",
+          "slack": "Slack",
+          "teams": "Teams",
+          "email": "Email",
+          "linear": "Linear",
+          "github": "GitHub",
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "chat": "Chat",
+          "unknown": "Unknown"
+        },
         "actionCommented": "commented",
         "actionUpdatedStatus": "changed status to",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
@@ -1829,6 +1852,31 @@
             "unauthorized": "Only organization owners and admins can update the invoice email",
             "badInput": "Please enter a valid email address",
             "general": "Failed to update invoice email"
+          }
+        },
+        "Subscription": {
+          "title": "Organization Subscription",
+          "description": "Manage plan and seats for your organization.",
+          "currentPlanLabel": "Current plan",
+          "currentSeatsLabel": "Current seats",
+          "membersLabel": "Active members",
+          "seatsInputLabel": "Target seats",
+          "seatsInputHint": "Minimum seats is {minimum} to cover all active members.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
+          "noActivePlan": "No active plan",
+          "seatsUpdatedSuccess": "Seats updated successfully.",
+          "updating": "Redirecting...",
+          "currentPlanCta": "Current plan",
+          "updateSeatsCta": "Update seats",
+          "choosePlanCta": "Choose plan",
+          "openingBillingPortal": "Opening...",
+          "billingPortalCta": "Open billing portal",
+          "Errors": {
+            "unauthenticated": "Please log in to continue",
+            "unauthenticatedAction": "Log in",
+            "unauthorized": "Only organization owners and admins can manage subscriptions",
+            "badInput": "Please provide valid plan and seat values",
+            "general": "Failed to manage organization subscription"
           }
         }
       }

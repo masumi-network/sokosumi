@@ -167,7 +167,7 @@ Stripe **test mode** and **live mode** are separate environments. The app does n
 2. **Stripe customer** – Users have a `stripeCustomerId` in your DB; in production that ID must refer to a customer in the **live** Stripe account. New production users get a customer created in live when they first use Stripe.
 3. **Auth in server actions** – When claiming a coupon from a server action, the credits flow passes the request auth into `stripeService.claimCoupon` so it does not rely on `getAuthContext()` again (which can be null in production if cookies/headers differ).
 
-Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CREDIT_PRODUCT_ID`, `STRIPE_ONBOARD_PERSONAL_COUPON`, `STRIPE_ONBOARD_ORGANIZATION_COUPON` (and optionally `STRIPE_PUBLISHABLE_KEY` for client-side).
+Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CREDIT_PRODUCT_ID`, `STRIPE_ONBOARD_PERSONAL_COUPON`, `STRIPE_ONBOARD_ORGANIZATION_COUPON`, `STRIPE_WELCOME_COUPON` (and optionally `STRIPE_PUBLISHABLE_KEY` for client-side).
 
 **Coupon semantics for credits:** Credits come from the coupon metadata key `credits` (positive integer). The discount at checkout is applied via the coupon’s `percent_off`. Only coupons with both `metadata.credits` and `percent_off` are supported; `amount_off`-only coupons are not supported.
 

@@ -156,4 +156,35 @@ export const organizationRepository = {
       },
     });
   },
+
+  /**
+   * Retrieves a page of organization IDs ordered by ID, starting after an optional cursor.
+   *
+   * @param cursorId - The last processed organization ID, or null to start from the beginning.
+   * @param limit - The maximum number of organizations to return.
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to an array of organizations containing only IDs.
+   */
+  async getOrganizationsBatchAfterCursor(
+    cursorId: string | null,
+    limit: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<Array<Pick<Organization, "id">>> {
+    return await tx.organization.findMany({
+      where: cursorId
+        ? {
+            id: {
+              gt: cursorId,
+            },
+          }
+        : undefined,
+      orderBy: {
+        id: "asc",
+      },
+      select: {
+        id: true,
+      },
+      take: limit,
+    });
+  },
 };

@@ -149,7 +149,6 @@ export default function SubscriptionsPageContent({
     if (monthlyAmount === 0) {
       return t("freePrice");
     }
-
     return formatter.number(monthlyAmount / 100, {
       style: "currency",
       currency: currency.toUpperCase(),

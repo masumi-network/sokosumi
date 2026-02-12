@@ -50,6 +50,7 @@ const envSecretsSchema = z.object({
   STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
   STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
   STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
+  STRIPE_WELCOME_COUPON: z.string().min(1),
   STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),

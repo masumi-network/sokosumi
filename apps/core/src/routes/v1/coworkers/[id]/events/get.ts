@@ -21,8 +21,9 @@ import { paramsSchema } from "../schema";
 const route = createRoute({
   method: "get",
   path: "/{id}/events",
-  description: "List task events for a coworker (paginated)",
+  description: "List task events for a coworker (paginated, deprecated)",
   tags: ["Coworkers"],
+  deprecated: true,
   request: {
     params: paramsSchema,
     query: cursorPaginationQuerySchema,

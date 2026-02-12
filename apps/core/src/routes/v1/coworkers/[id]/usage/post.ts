@@ -26,8 +26,9 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/usage",
-    description: "Create coworker usage",
+    description: "Create coworker usage (deprecated)",
     tags: ["Coworkers"],
+    deprecated: true,
     request: {
       params: paramsSchema,
       body: {

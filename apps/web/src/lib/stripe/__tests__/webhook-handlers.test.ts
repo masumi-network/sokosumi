@@ -2,9 +2,16 @@ jest.mock("server-only", () => ({}));
 
 const getUserByStripeCustomerIdMock = jest.fn();
 const getOrganizationByStripeCustomerIdMock = jest.fn();
+const getMembersByOrganizationIdMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
+const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
+const ensurePersonalFreeSubscriptionMock = jest.fn();
+const ensureOrganizationFreeSubscriptionMock = jest.fn();
+const claimWelcomeCouponMock = jest.fn();
+const prismaOrganizationUpdateMock = jest.fn();
+const prismaUserUpdateMock = jest.fn();
 
 const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
@@ -30,7 +37,8 @@ jest.mock("@/config/env.secrets", () => ({
 
 jest.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
-    getMembersByOrganizationId: jest.fn(),
+    getMembersByOrganizationId: (...args: unknown[]) =>
+      getMembersByOrganizationIdMock(...args),
   },
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
@@ -48,18 +56,25 @@ jest.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
+    creditBucket: {
+      aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
+    },
     organization: {
-      update: jest.fn(),
+      update: (...args: unknown[]) => prismaOrganizationUpdateMock(...args),
     },
     user: {
-      update: jest.fn(),
+      update: (...args: unknown[]) => prismaUserUpdateMock(...args),
     },
   },
 }));
 
 jest.mock("@/lib/services", () => ({
   stripeService: {
-    ensurePersonalFreeSubscription: jest.fn(),
+    ensurePersonalFreeSubscription: (...args: unknown[]) =>
+      ensurePersonalFreeSubscriptionMock(...args),
+    ensureOrganizationFreeSubscription: (...args: unknown[]) =>
+      ensureOrganizationFreeSubscriptionMock(...args),
+    claimWelcomeCoupon: (...args: unknown[]) => claimWelcomeCouponMock(...args),
   },
 }));
 
@@ -132,7 +147,13 @@ describe("handleInvoicePaidEvent", () => {
       id: "user-1",
     });
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "owner", userId: "user-1" },
+    ]);
     findExistingBucketMock.mockResolvedValue(null);
+    aggregateGrantedCreditsMock.mockResolvedValue({
+      _sum: { amount: null },
+    });
     createTransactionMock.mockResolvedValue({});
   });
 
@@ -150,6 +171,171 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
     expect(transactionMock).not.toHaveBeenCalled();
+  });
+
+  it("grants free-plan seat credits for zero-amount subscription_update invoices", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "subscription_update",
+        id: "in_free_sub_update",
+        lines: [{ amount: 0, productId: "prod_free", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_free_sub_update",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
+    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
+  });
+
+  it("credits only the newly added free seats on subscription_update invoices", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    aggregateGrantedCreditsMock.mockResolvedValue({
+      _sum: { amount: BigInt("2500000000000") },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "subscription_update",
+        id: "in_free_sub_update_incremental",
+        lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_free_sub_update_incremental",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
+    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
+  });
+
+  it("dedupes free organization subscription_update credits by organization period", async () => {
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
+      id: "org-1",
+    });
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "owner", userId: "owner-2" },
+    ]);
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    aggregateGrantedCreditsMock.mockResolvedValue({
+      _sum: { amount: BigInt("2500000000000") },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "subscription_update",
+        id: "in_org_free_sub_update",
+        lines: [{ amount: 0, productId: "prod_free", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(aggregateGrantedCreditsMock).toHaveBeenCalledTimes(1);
+    const aggregateCall = aggregateGrantedCreditsMock.mock.calls[0][0] as {
+      where: Record<string, unknown>;
+    };
+    expect(aggregateCall.where).toMatchObject({
+      organizationId: "org-1",
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+    });
+    expect(aggregateCall.where).not.toHaveProperty("userId");
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        organization: {
+          connect: {
+            id: string;
+          };
+        };
+      };
+    };
+    expect(createCall.data.organization.connect.id).toBe("org-1");
+    expect(createCall.data.amount).toBe(BigInt("2500000000000"));
   });
 
   it("grants positive prorated credits for paid subscription_update invoices", async () => {
@@ -216,6 +402,93 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("8750000000000"),
     );
+  });
+
+  it("uses net proration amount for subscription_update invoices with negative lines", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 7491,
+        billingReason: "subscription_update",
+        created: 1_735_689_600,
+        id: "in_sub_update_net",
+        lines: [
+          {
+            amount: 7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: 7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: 7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: -7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+          {
+            amount: -7491,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 3,
+          },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        amount: bigint;
+        sourceCreditBucket: {
+          create: {
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_sub_update_net",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_SUBSCRIPTION_PERIOD",
+    );
+    expect(createCall.data.amount).toBe(BigInt("52430000000000"));
   });
 
   it("fails paid subscription_update invoices when created timestamp is missing", async () => {
@@ -468,6 +741,150 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("does not short-circuit split grants when a legacy combined top-up bucket exists", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    findExistingBucketMock.mockImplementation((args: unknown) => {
+      const reference = (
+        args as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }
+      ).where.referenceId_referenceType;
+      if (
+        reference.referenceId === "in_mixed_legacy" &&
+        reference.referenceType === "STRIPE_TOPUP"
+      ) {
+        return Promise.resolve({ id: "legacy-combined" });
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_mixed_legacy",
+        lines: [
+          { productId: "prod_credit", quantity: 3 },
+          { productId: "prod_starter", quantity: 1, periodEnd: 1_735_689_600 },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+    const lookedUpLegacyCombinedBucket = findExistingBucketMock.mock.calls.some(
+      (call) => {
+        const reference = (
+          call[0] as {
+            where: {
+              referenceId_referenceType: {
+                referenceId: string;
+                referenceType: string;
+              };
+            };
+          }
+        ).where.referenceId_referenceType;
+
+        return (
+          reference.referenceId === "in_mixed_legacy" &&
+          reference.referenceType === "STRIPE_TOPUP"
+        );
+      },
+    );
+    expect(lookedUpLegacyCombinedBucket).toBe(false);
+  });
+
+  it("does not look up top-up fallback when creating subscription-period buckets", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    findExistingBucketMock.mockImplementation((args: unknown) => {
+      const reference = (
+        args as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }
+      ).where.referenceId_referenceType;
+      if (
+        reference.referenceId === "in_sub_cycle_legacy" &&
+        reference.referenceType === "STRIPE_TOPUP"
+      ) {
+        return Promise.resolve({
+          expiresAt: new Date(1_735_689_600 * 1000),
+          id: "legacy-subscription",
+        });
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_sub_cycle_legacy",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    const lookedUpLegacyTopUpFallback = findExistingBucketMock.mock.calls.some(
+      (call) => {
+        const reference = (
+          call[0] as {
+            where: {
+              referenceId_referenceType: {
+                referenceId: string;
+                referenceType: string;
+              };
+            };
+          }
+        ).where.referenceId_referenceType;
+
+        return (
+          reference.referenceId === "in_sub_cycle_legacy" &&
+          reference.referenceType === "STRIPE_TOPUP"
+        );
+      },
+    );
+    expect(lookedUpLegacyTopUpFallback).toBe(false);
+  });
+
   it("fails when subscription period end is missing", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
@@ -499,5 +916,65 @@ describe("handleInvoicePaidEvent", () => {
     );
 
     expect(createTransactionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleCustomerCreatedEvent", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    ensurePersonalFreeSubscriptionMock.mockResolvedValue({
+      status: "skipped",
+      reason: "ALREADY_HAS_SUBSCRIPTION",
+    });
+    ensureOrganizationFreeSubscriptionMock.mockResolvedValue({
+      status: "skipped",
+      reason: "ALREADY_HAS_SUBSCRIPTION",
+    });
+    claimWelcomeCouponMock.mockResolvedValue({
+      couponApplied: false,
+      invoiceId: null,
+    });
+    prismaUserUpdateMock.mockResolvedValue(undefined);
+    prismaOrganizationUpdateMock.mockResolvedValue(undefined);
+  });
+
+  it("ensures a free subscription for newly created organization customers", async () => {
+    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
+
+    await handleCustomerCreatedEvent({
+      id: "cus_org_1",
+      metadata: {
+        customerType: "organization",
+        organizationId: "org-1",
+      },
+    } as never);
+
+    expect(prismaOrganizationUpdateMock).toHaveBeenCalledWith({
+      where: { id: "org-1" },
+      data: { stripeCustomerId: "cus_org_1" },
+    });
+    expect(ensureOrganizationFreeSubscriptionMock).toHaveBeenCalledWith(
+      "org-1",
+    );
+    expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps personal free subscription enrollment for user customers", async () => {
+    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
+
+    await handleCustomerCreatedEvent({
+      id: "cus_user_1",
+      metadata: {
+        customerType: "user",
+        userId: "user-1",
+      },
+    } as never);
+
+    expect(prismaUserUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { stripeCustomerId: "cus_user_1" },
+    });
+    expect(ensurePersonalFreeSubscriptionMock).toHaveBeenCalledWith("user-1");
+    expect(ensureOrganizationFreeSubscriptionMock).not.toHaveBeenCalled();
   });
 });

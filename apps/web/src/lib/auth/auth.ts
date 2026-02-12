@@ -3,7 +3,8 @@ import "server-only";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
-import { User } from "@sokosumi/database";
+import { MemberRole, User } from "@sokosumi/database";
+import { memberRepository } from "@sokosumi/database/repositories";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -29,6 +30,7 @@ import {
   callAccountCreatedWebHook,
   callUserCreatedWebHook,
   callUserUpdatedWebHook,
+  organizationSubscriptionService,
   stripeService,
 } from "@/lib/services";
 import { getBetterAuthSubscriptionPlans } from "@/lib/stripe/subscription-catalog";
@@ -365,6 +367,18 @@ export const auth = betterAuth({
       organizationLimit: getEnvSecrets().BETTER_AUTH_ORG_LIMIT,
       invitationExpiresIn:
         getEnvSecrets().BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
+      organizationHooks: {
+        beforeAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.ensureCanAcceptInvitation(
+            organization.id,
+          );
+        },
+        beforeCreateInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.ensureCanCreateInvitation(
+            organization.id,
+          );
+        },
+      },
     }),
     localization({
       defaultLocale: "default",
@@ -377,6 +391,22 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
+        authorizeReference: async ({ referenceId, user }) => {
+          const member =
+            await memberRepository.getMemberByUserIdAndOrganizationId(
+              user.id,
+              referenceId,
+              prisma,
+            );
+
+          if (!member) {
+            return false;
+          }
+
+          return (
+            member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN
+          );
+        },
       },
       organization: {
         enabled: true,

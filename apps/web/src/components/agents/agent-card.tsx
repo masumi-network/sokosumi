@@ -16,6 +16,7 @@ import {
   getAgentAuthorResolvedImage,
   getAgentCategoryStyles,
   getAgentName,
+  getAgentResolvedIcon,
   getAgentSummary,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
@@ -256,7 +257,13 @@ function AgentCard({
       <div className="mb-4 flex min-h-10 w-full items-center justify-between">
         {/* Icon */}
         <div className="shrink-0" style={{ color: categoryColor }}>
-          <AgentIcon agent={agent} className="size-8" />
+          <AgentIcon
+            agent={{
+              name: getAgentName(agent),
+              icon: getAgentResolvedIcon(agent),
+            }}
+            className="size-8"
+          />
         </div>
 
         {/* Verified Badge */}
