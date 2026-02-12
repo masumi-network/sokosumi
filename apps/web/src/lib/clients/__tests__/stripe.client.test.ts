@@ -267,6 +267,12 @@ describe("stripe.client lookup-key pricing", () => {
           },
         ],
         discounts: [{ promotion_code: "promo_1" }],
+        custom_text: {
+          submit: {
+            message:
+              "25,000 credits will be added to your account after checkout.",
+          },
+        },
         success_url:
           "https://app.sokosumi.com/coupon?session_id={CHECKOUT_SESSION_ID}",
         cancel_url: "https://app.sokosumi.com/coupon?cancel=true",

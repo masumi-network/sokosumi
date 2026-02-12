@@ -410,7 +410,7 @@ export const stripeClient = (() => {
       organizationId: string | null,
       credits: number,
       price: Price,
-      origin: string | null = null,
+      origin: string,
       promotionCode: string | null = null,
       returnPath: string = "/credits",
     ): Promise<Stripe.Checkout.Session> {
@@ -422,8 +422,12 @@ export const stripeClient = (() => {
       const env = getEnvSecrets();
       const checkoutUnitAmount = getCheckoutUnitAmount(credits, price);
       const creditsLabel = credits.toLocaleString("en-US");
-      const checkoutBaseUrl = (origin ?? env.VERCEL_URL).replace(/\/$/, "");
+      const checkoutBaseUrl = (origin ?? getEnvSecrets().VERCEL_URL!).replace(
+        /\/$/,
+        "",
+      );
       const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
+      const couponCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
@@ -448,6 +452,15 @@ export const stripeClient = (() => {
         ...(promotionCode
           ? { discounts: [{ promotion_code: promotionCode }] }
           : { allow_promotion_codes: false }),
+        ...(promotionCode
+          ? {
+              custom_text: {
+                submit: {
+                  message: couponCreditsMessage,
+                },
+              },
+            }
+          : {}),
         customer: stripeCustomerId,
         customer_update: {
           address: "auto",
