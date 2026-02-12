@@ -79,6 +79,11 @@ function isInternalHostname(hostname: string): boolean {
         return false; // Not a valid IP, might be a hostname
       }
 
+      // Block 0.0.0.0/8 (SSRF bypass - resolves to localhost on Unix systems)
+      if (a === 0) {
+        return true;
+      }
+
       // Private IP ranges (RFC 1918)
       // 10.0.0.0/8
       if (a === 10) {
@@ -138,6 +143,23 @@ function isInternalHostname(hostname: string): boolean {
       // ::ffff:0:0/96 (IPv4-mapped IPv6 addresses)
       if (ipString.startsWith("::ffff:")) {
         const ipv4Part = ipString.substring(7);
+        // WHATWG URL parser normalizes IPv4-mapped addresses to hex groups
+        // e.g., ::ffff:127.0.0.1 becomes ::ffff:7f00:1
+        // Convert hex groups back to decimal IPv4 format
+        if (ipv4Part.includes(":")) {
+          // Hex format: convert to decimal IPv4
+          const hexParts = ipv4Part.split(":");
+          if (hexParts.length === 2) {
+            // Format: 7f00:1 -> 127.0.0.1
+            const upper = parseInt(hexParts[0], 16);
+            const lower = parseInt(hexParts[1], 16);
+            const a = (upper >> 8) & 0xff;
+            const b = upper & 0xff;
+            const c = (lower >> 8) & 0xff;
+            const d = lower & 0xff;
+            return isInternalHostname(`${a}.${b}.${c}.${d}`);
+          }
+        }
         return isInternalHostname(ipv4Part);
       }
     }
@@ -186,6 +208,19 @@ export function createAgentClient(config?: AgentClientConfig) {
     const overrideUrl = new URL(usedUrl);
 
     // Also validate override URL if present
+    if (overrideUrl.protocol !== "https:" && overrideUrl.protocol !== "http:") {
+      throw new Error("Agent API base URL override must be HTTP or HTTPS");
+    }
+
+    if (overrideUrl.search !== "") {
+      throw new Error(
+        "Agent API base URL override must not have a query string",
+      );
+    }
+    if (overrideUrl.hash !== "") {
+      throw new Error("Agent API base URL override must not have a hash");
+    }
+
     if (isInternalHostname(overrideUrl.hostname)) {
       throw new Error(
         "Agent API base URL override must not point to internal or private addresses",
