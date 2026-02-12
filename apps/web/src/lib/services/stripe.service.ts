@@ -492,10 +492,16 @@ export const stripeService = (() => {
         if (!invoice?.id) {
           throw new Error("Failed to apply welcome coupon");
         }
+        if (invoice.status !== "paid") {
+          throw new Error("Welcome coupon invoice is not paid");
+        }
 
         return { couponApplied: true, invoiceId: invoice.id };
       } catch (error) {
-        console.error(`Failed to claim welcome coupon for user ${userId}:`, error);
+        console.error(
+          `Failed to claim welcome coupon for user ${userId}:`,
+          error,
+        );
         return { couponApplied: false, invoiceId: null };
       }
     },

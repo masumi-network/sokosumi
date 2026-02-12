@@ -81,7 +81,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const coworkerIdWasProvided = coworkerId !== undefined;
-      const nextCoworkerId = coworkerIdWasProvided ? coworkerId : task.coworkerId;
+      const nextCoworkerId = coworkerIdWasProvided
+        ? coworkerId
+        : task.coworkerId;
       validateTaskCoworkerAssignment({
         status: task.status,
         coworkerId: nextCoworkerId,
