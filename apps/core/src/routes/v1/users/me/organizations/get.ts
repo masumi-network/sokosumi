@@ -93,7 +93,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       >();
       for (const subscription of subscriptions) {
         if (!subscriptionsByOrganizationId.has(subscription.referenceId)) {
-          subscriptionsByOrganizationId.set(subscription.referenceId, subscription);
+          subscriptionsByOrganizationId.set(
+            subscription.referenceId,
+            subscription,
+          );
         }
       }
 

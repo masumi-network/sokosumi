@@ -5,10 +5,7 @@ import { requireCoworkerExists } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import {
-  mapTask,
-  validateTaskCoworkerAssignment,
-} from "@/helpers/task";
+import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
