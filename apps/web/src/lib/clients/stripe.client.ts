@@ -409,7 +409,7 @@ export const stripeClient = (() => {
       organizationId: string | null,
       credits: number,
       price: Price,
-      origin: string,
+      origin: string | null = null,
       promotionCode: string | null = null,
       returnPath: string = "/credits",
     ): Promise<Stripe.Checkout.Session> {
@@ -421,10 +421,11 @@ export const stripeClient = (() => {
       const env = getEnvSecrets();
       const checkoutUnitAmount = getCheckoutUnitAmount(credits, price);
       const creditsLabel = credits.toLocaleString("en-US");
-      const checkoutBaseUrl = (origin ?? getEnvSecrets().VERCEL_URL!).replace(
-        /\/$/,
-        "",
-      );
+      const checkoutBaseUrl = (
+        origin ??
+        env.VERCEL_URL ??
+        "https://sokosumi.com"
+      ).replace(/\/$/, "");
       const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
       const couponCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
 
