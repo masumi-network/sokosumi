@@ -151,11 +151,13 @@
       "organizations": "Organizations",
       "credits": "Credits",
       "subscriptions": "Subscriptions",
+      "connections": "Connections",
       "mcp": "MCP",
       "support": "Support",
       "logout": "Log out"
     },
     "OrganizationSwitcher": {
+      "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
       "noOrganizationsFound": "No organizations found",
       "personalAccountHeading": "Personal",
@@ -1367,6 +1369,11 @@
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
+      },
+      "Plan": {
+        "userPlan": "{plan}",
+        "organizationPlan": "{plan} ({organization})",
+        "unavailable": "Plan unavailable"
       }
     },
     "Subscriptions": {
