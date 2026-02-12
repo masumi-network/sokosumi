@@ -256,7 +256,10 @@ function createResponsesApiUiStream(
           buffer = lines.pop() ?? "";
 
           for (const line of lines) {
-            if (!line.trim() || line.startsWith(":")) continue;
+            if (!line.trim() || line.startsWith(":")) {
+              lastEventLine = null;
+              continue;
+            }
             if (line.startsWith("event:")) {
               lastEventLine = line.slice(6).trim();
               continue;
@@ -264,6 +267,7 @@ function createResponsesApiUiStream(
             if (line.startsWith(SSE_DATA_PREFIX)) {
               const data = line.slice(SSE_DATA_PREFIX.length);
               const shouldStop = processSSELine(data, controller);
+              lastEventLine = null;
               if (shouldStop) return;
             }
           }
