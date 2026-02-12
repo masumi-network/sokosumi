@@ -32,17 +32,15 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl space-y-12 px-4">
-        <div className="space-y-1">
-          <Link
-            href="https://billing.stripe.com/p/login/00w28r02bac4cNR8mDgIo00"
-            target="_blank"
-            rel="noopener noreferrer"
-            prefetch={false}
-            className="text-primary text-sm font-medium underline-offset-4 hover:underline"
-          >
-            {t("billingPortalCta")}
-          </Link>
-        </div>
+        <Link
+          href="https://billing.stripe.com/p/login/00w28r02bac4cNR8mDgIo00"
+          target="_blank"
+          rel="noopener noreferrer"
+          prefetch={false}
+          className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+        >
+          {t("billingPortalCta")}
+        </Link>
         <div>
           <CreditsForm
             priceCatalog={priceCatalog}

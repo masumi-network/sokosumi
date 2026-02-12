@@ -44,17 +44,8 @@ export const stripeClient = (() => {
     return Number.isFinite(decimalAmount) ? decimalAmount : null;
   }
 
-  function getPriceAmountPerCredit(price: Stripe.Price): number | null {
-    const stripeUnitAmount = getStripeUnitAmount(price);
-    if (stripeUnitAmount === null) {
-      return null;
-    }
-
-    return stripeUnitAmount;
-  }
-
   function isValidCreditPrice(price: Stripe.Price): boolean {
-    const amountPerCredit = getPriceAmountPerCredit(price);
+    const amountPerCredit = getStripeUnitAmount(price);
     return (
       isSupportedCreditPriceCurrency(price.currency) &&
       amountPerCredit !== null &&
@@ -78,7 +69,7 @@ export const stripeClient = (() => {
   }
 
   function validatePrice(price: Stripe.Price): Price {
-    const amountPerCredit = getPriceAmountPerCredit(price);
+    const amountPerCredit = getStripeUnitAmount(price);
 
     if (!isSupportedCreditPriceCurrency(price.currency)) {
       throw new Error(`Unsupported credit price currency: ${price.currency}`);
@@ -428,39 +419,27 @@ export const stripeClient = (() => {
       ).replace(/\/$/, "");
       const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
       const couponCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
-
-      const session = await stripe.checkout.sessions.create({
+      const lineItemPriceData = promotionCode
+        ? {
+            currency: price.currency,
+            product: env.STRIPE_CREDIT_PRODUCT_ID,
+            unit_amount: checkoutUnitAmount,
+          }
+        : {
+            currency: price.currency,
+            product_data: {
+              name: `${creditsLabel} Sokosumi Credits`,
+            },
+            unit_amount: checkoutUnitAmount,
+          };
+      const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
         line_items: [
           {
-            price_data: promotionCode
-              ? {
-                  currency: price.currency,
-                  product: env.STRIPE_CREDIT_PRODUCT_ID,
-                  unit_amount: checkoutUnitAmount,
-                }
-              : {
-                  currency: price.currency,
-                  product_data: {
-                    name: `${creditsLabel} Sokosumi Credits`,
-                  },
-                  unit_amount: checkoutUnitAmount,
-                },
+            price_data: lineItemPriceData,
             quantity: 1,
           },
         ],
-        ...(promotionCode
-          ? { discounts: [{ promotion_code: promotionCode }] }
-          : { allow_promotion_codes: false }),
-        ...(promotionCode
-          ? {
-              custom_text: {
-                submit: {
-                  message: couponCreditsMessage,
-                },
-              },
-            }
-          : {}),
         customer: stripeCustomerId,
         customer_update: {
           address: "auto",
@@ -485,7 +464,20 @@ export const stripeClient = (() => {
         tax_id_collection: { enabled: true },
         success_url: `${checkoutBaseUrl}${normalizedReturnPath}?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${checkoutBaseUrl}${normalizedReturnPath}?cancel=true`,
-      });
+      };
+
+      if (promotionCode) {
+        sessionParams.discounts = [{ promotion_code: promotionCode }];
+        sessionParams.custom_text = {
+          submit: {
+            message: couponCreditsMessage,
+          },
+        };
+      } else {
+        sessionParams.allow_promotion_codes = false;
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionParams);
       return session;
     },
 
@@ -506,7 +498,7 @@ export const stripeClient = (() => {
       const credits = getCreditsForCoupon(coupon);
 
       // 1) Add invoice items representing the free credits
-      const itemsToCreate = Math.min(referralCount!, MAX_REFERRAL_COUNT);
+      const itemsToCreate = Math.min(referralCount, MAX_REFERRAL_COUNT);
       await Promise.all(
         Array.from({ length: itemsToCreate }).map((_, index) =>
           stripe.invoiceItems.create({
