@@ -119,6 +119,10 @@ function isInternalHostname(hostname: string): boolean {
       }
     } else if (ipString.includes(":")) {
       // IPv6 address
+      // Block IPv6 unspecified address :: (SSRF bypass - resolves to localhost on Unix systems)
+      if (ipString === "::" || ipString === "0:0:0:0:0:0:0:0") {
+        return true;
+      }
       // Check for IPv6 loopback
       if (ipString === "::1" || ipString === "0:0:0:0:0:0:0:1") {
         return true;
