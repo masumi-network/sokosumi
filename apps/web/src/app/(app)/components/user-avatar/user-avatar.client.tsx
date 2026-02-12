@@ -7,20 +7,27 @@ import {
   Cable,
   Check,
   ChevronDown,
+  ChevronsUpDown,
   CircleHelp,
   CreditCardIcon,
   LogOut,
   User as UserIcon,
   WalletCards,
-  Workflow,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +39,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -145,6 +158,8 @@ export default function UserAvatarClient({
 
   const router = useRouter();
   const { isMobile, toggleSidebar } = useSidebar();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isWorkspacePopoverOpen, setIsWorkspacePopoverOpen] = useState(false);
   const workspaces = getOrderedWorkspaces(
     [
       {
@@ -162,6 +177,12 @@ export default function UserAvatarClient({
   const directWorkspaces = workspaces.slice(0, 4);
   const overflowWorkspaces = workspaces.slice(4);
 
+  const handleSelectWorkspaceAndClose = (organizationId: string | null) => {
+    setIsWorkspacePopoverOpen(false);
+    setIsMenuOpen(false);
+    handleSelectWorkspace(organizationId);
+  };
+
   const handleClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
 
@@ -169,6 +190,8 @@ export default function UserAvatarClient({
       return;
     }
 
+    setIsWorkspacePopoverOpen(false);
+    setIsMenuOpen(false);
     router.push(path);
     // Close sidebar if on mobile
     if (isMobile) {
@@ -178,7 +201,7 @@ export default function UserAvatarClient({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
         <TooltipProvider disableHoverableContent>
           <Tooltip delayDuration={100}>
             <TooltipTrigger asChild>
@@ -233,7 +256,7 @@ export default function UserAvatarClient({
                 disabled={isPending}
                 onSelect={(event) => {
                   event.preventDefault();
-                  handleSelectWorkspace(workspace.id);
+                  handleSelectWorkspaceAndClose(workspace.id);
                 }}
               >
                 <WorkspaceRow
@@ -256,39 +279,111 @@ export default function UserAvatarClient({
               </DropdownMenuItem>
             ))}
             {overflowWorkspaces.length > 0 ? (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger
-                  disabled={isPending}
-                  className={cn("flex cursor-pointer items-center gap-2")}
+              isMobile ? (
+                <Popover
+                  open={isWorkspacePopoverOpen}
+                  onOpenChange={setIsWorkspacePopoverOpen}
                 >
-                  <Building2 className="text-muted-foreground size-4" />
-                  {tOrganizationSwitcher("switchWorkspace")}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-72">
-                  {overflowWorkspaces.map((workspace) => (
-                    <DropdownMenuItem
-                      key={getWorkspaceKey(workspace)}
-                      className="flex cursor-pointer items-center gap-2 py-2"
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      role="combobox"
+                      aria-expanded={isWorkspacePopoverOpen}
+                      aria-label={tOrganizationSwitcher("switchWorkspace")}
                       disabled={isPending}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        handleSelectWorkspace(workspace.id);
+                      className={cn(
+                        "w-full justify-between px-2 py-1.5",
+                        isPending && "opacity-50",
+                      )}
+                      onClick={() => {
+                        setIsWorkspacePopoverOpen(
+                          (currentOpen) => !currentOpen,
+                        );
                       }}
                     >
-                      <WorkspaceRow
-                        sessionUser={sessionUser}
-                        workspace={workspace}
-                        subtitle={
-                          workspacePlanLabels[getWorkspaceKey(workspace)]
-                        }
-                      />
-                      {workspace.id === activeOrganizationId ? (
-                        <Check className="size-4" />
-                      ) : null}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="text-muted-foreground size-4" />
+                        <span>{tOrganizationSwitcher("switchWorkspace")}</span>
+                      </div>
+                      <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    side="bottom"
+                    sideOffset={8}
+                    className="w-72 p-0"
+                  >
+                    <Command>
+                      <CommandList>
+                        <CommandGroup>
+                          {overflowWorkspaces.map((workspace) => (
+                            <PopoverClose
+                              key={getWorkspaceKey(workspace)}
+                              asChild
+                            >
+                              <CommandItem
+                                disabled={isPending}
+                                className="flex cursor-pointer items-center gap-2 py-2"
+                                onSelect={() => {
+                                  handleSelectWorkspaceAndClose(workspace.id);
+                                }}
+                              >
+                                <WorkspaceRow
+                                  sessionUser={sessionUser}
+                                  workspace={workspace}
+                                  subtitle={
+                                    workspacePlanLabels[
+                                      getWorkspaceKey(workspace)
+                                    ]
+                                  }
+                                />
+                                {workspace.id === activeOrganizationId ? (
+                                  <Check className="size-4" />
+                                ) : null}
+                              </CommandItem>
+                            </PopoverClose>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger
+                    disabled={isPending}
+                    className={cn("flex cursor-pointer items-center gap-2")}
+                  >
+                    <Building2 className="text-muted-foreground size-4" />
+                    {tOrganizationSwitcher("switchWorkspace")}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-72">
+                    {overflowWorkspaces.map((workspace) => (
+                      <DropdownMenuItem
+                        key={getWorkspaceKey(workspace)}
+                        className="flex cursor-pointer items-center gap-2 py-2"
+                        disabled={isPending}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          handleSelectWorkspaceAndClose(workspace.id);
+                        }}
+                      >
+                        <WorkspaceRow
+                          sessionUser={sessionUser}
+                          workspace={workspace}
+                          subtitle={
+                            workspacePlanLabels[getWorkspaceKey(workspace)]
+                          }
+                        />
+                        {workspace.id === activeOrganizationId ? (
+                          <Check className="size-4" />
+                        ) : null}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )
             ) : null}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
@@ -322,26 +417,22 @@ export default function UserAvatarClient({
               {t("subscriptions")}
             </DropdownMenuItem>
 
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
-                <Workflow className="text-muted-foreground size-4" />
-                {t("connections")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-56">
-                <DropdownMenuItem
-                  className="flex cursor-pointer items-center gap-2"
-                  onClick={(e) => handleClick(e, "/mcp")}
-                >
-                  <Cable className="text-muted-foreground" />
-                  {t("mcp")}
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2"
+              onClick={(e) => handleClick(e, "/connections")}
+            >
+              <Cable className="text-muted-foreground" />
+              {t("connections")}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
-            onClick={handleSupport}
+            onClick={() => {
+              setIsWorkspacePopoverOpen(false);
+              setIsMenuOpen(false);
+              handleSupport();
+            }}
           >
             <CircleHelp className="text-muted-foreground" />
             {t("support")}
@@ -349,7 +440,11 @@ export default function UserAvatarClient({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
-            onClick={() => showLogoutModal(sessionUser.email)}
+            onClick={() => {
+              setIsWorkspacePopoverOpen(false);
+              setIsMenuOpen(false);
+              showLogoutModal(sessionUser.email);
+            }}
           >
             <LogOut className="text-muted-foreground" />
             {t("logout")}

@@ -152,7 +152,6 @@
       "credits": "Credits",
       "subscriptions": "Subscriptions",
       "connections": "Connections",
-      "mcp": "MCP",
       "support": "Support",
       "logout": "Log out"
     },
@@ -246,7 +245,8 @@
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Scheduled Agents",
       "chat": "Chat",
-      "tasks": "Task Manager"
+      "tasks": "Task Manager",
+      "connections": "Connections"
     },
     "Jobs": {
       "StatusBadge": {
