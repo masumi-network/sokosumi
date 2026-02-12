@@ -25,6 +25,7 @@ const PERSONAL_WORKSPACE_KEY = "personal-account";
 
 async function getWorkspacePlanLabels(
   members: MemberWithOrganization[],
+  activeOrganizationId: string | null,
 ): Promise<Record<string, string>> {
   const requestHeaders = await headers();
   const tPlan = await getTranslations("App.Header.Plan");
@@ -33,6 +34,11 @@ async function getWorkspacePlanLabels(
 
   const workspacePlanEntries = await Promise.all([
     (async () => {
+      // Skip fetching for personal workspace if it's the active workspace
+      if (activeOrganizationId === null) {
+        return [PERSONAL_WORKSPACE_KEY, ""] as const;
+      }
+
       try {
         const activeSubscriptions = await auth.api.listActiveSubscriptions({
           headers: requestHeaders,
@@ -54,6 +60,11 @@ async function getWorkspacePlanLabels(
       }
     })(),
     ...members.map(async (member) => {
+      // Skip fetching for this organization if it's the active workspace
+      if (member.organization.id === activeOrganizationId) {
+        return [member.organization.id, ""] as const;
+      }
+
       try {
         const activeSubscriptions = await auth.api.listActiveSubscriptions({
           headers: requestHeaders,
@@ -110,13 +121,17 @@ async function UserAvatarInner({
   session: Session;
 }) {
   const members = await userService.getMyMembersWithOrganizations();
-  const workspacePlanLabels = await getWorkspacePlanLabels(members);
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  const workspacePlanLabels = await getWorkspacePlanLabels(
+    members,
+    activeOrganizationId,
+  );
 
   return (
     <UserAvatarClient
       sessionUser={session.user}
       members={members}
-      activeOrganizationId={session.session.activeOrganizationId ?? null}
+      activeOrganizationId={activeOrganizationId}
       creditsLabel={creditsLabel}
       primaryLabel={primaryLabel}
       secondaryLabel={secondaryLabel}

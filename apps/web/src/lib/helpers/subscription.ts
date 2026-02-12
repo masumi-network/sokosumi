@@ -1,11 +1,13 @@
+import type { SubscriptionPlanName } from "@/lib/stripe/subscription-catalog";
+
 export interface ActiveSubscription {
   plan?: string | null;
   periodEnd?: Date | string | null;
 }
 
-type PlanName = "free" | "starter" | "standard" | "pro";
-
-function parsePlanName(value: string | null | undefined): PlanName | null {
+function parsePlanName(
+  value: string | null | undefined,
+): SubscriptionPlanName | null {
   if (!value) {
     return null;
   }
@@ -15,7 +17,7 @@ function parsePlanName(value: string | null | undefined): PlanName | null {
     case "starter":
     case "standard":
     case "pro":
-      return value.toLowerCase() as PlanName;
+      return value.toLowerCase() as SubscriptionPlanName;
     default:
       return null;
   }
@@ -35,7 +37,7 @@ function getDateValue(value: Date | string | null | undefined): number {
 
 export function resolveCurrentPlanName(
   subscriptions: ActiveSubscription[],
-): PlanName | null {
+): SubscriptionPlanName | null {
   if (subscriptions.length === 0) {
     return null;
   }
@@ -47,7 +49,7 @@ export function resolveCurrentPlanName(
   return parsePlanName(sortedSubscriptions[0]?.plan);
 }
 
-export function getPlanTranslationKey(plan: string): PlanName {
+export function getPlanTranslationKey(plan: string): SubscriptionPlanName {
   switch (plan) {
     case "free":
       return "free";
