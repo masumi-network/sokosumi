@@ -418,25 +418,16 @@ export const stripeClient = (() => {
         "https://sokosumi.com"
       ).replace(/\/$/, "");
       const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
-      const couponCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
-      const lineItemPriceData = promotionCode
-        ? {
-            currency: price.currency,
-            product: env.STRIPE_CREDIT_PRODUCT_ID,
-            unit_amount: checkoutUnitAmount,
-          }
-        : {
-            currency: price.currency,
-            product_data: {
-              name: `${creditsLabel} Sokosumi Credits`,
-            },
-            unit_amount: checkoutUnitAmount,
-          };
+      const checkoutCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
         line_items: [
           {
-            price_data: lineItemPriceData,
+            price_data: {
+              currency: price.currency,
+              product: env.STRIPE_CREDIT_PRODUCT_ID,
+              unit_amount: checkoutUnitAmount,
+            },
             quantity: 1,
           },
         ],
@@ -462,17 +453,17 @@ export const stripeClient = (() => {
         },
         billing_address_collection: "required",
         tax_id_collection: { enabled: true },
+        custom_text: {
+          submit: {
+            message: checkoutCreditsMessage,
+          },
+        },
         success_url: `${checkoutBaseUrl}${normalizedReturnPath}?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${checkoutBaseUrl}${normalizedReturnPath}?cancel=true`,
       };
 
       if (promotionCode) {
         sessionParams.discounts = [{ promotion_code: promotionCode }];
-        sessionParams.custom_text = {
-          submit: {
-            message: couponCreditsMessage,
-          },
-        };
       } else {
         sessionParams.allow_promotion_codes = false;
       }

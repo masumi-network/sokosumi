@@ -192,7 +192,7 @@ describe("stripe.client lookup-key pricing", () => {
     });
   });
 
-  it("creates top-up checkout with integer total amount and dynamic product label", async () => {
+  it("creates top-up checkout linked to the credit product", async () => {
     checkoutSessionsCreateMock.mockResolvedValue({ id: "cs_123", url: "test" });
     const { stripeClient } = await import("../stripe.client");
 
@@ -215,15 +215,19 @@ describe("stripe.client lookup-key pricing", () => {
           {
             price_data: {
               currency: "eur",
-              product_data: {
-                name: "25,000 Sokosumi Credits",
-              },
+              product: "prod_credit",
               unit_amount: 30000,
             },
             quantity: 1,
           },
         ],
         allow_promotion_codes: false,
+        custom_text: {
+          submit: {
+            message:
+              "25,000 credits will be added to your account after checkout.",
+          },
+        },
         metadata: expect.objectContaining({
           credits: 25_000,
           userId: "user-1",
