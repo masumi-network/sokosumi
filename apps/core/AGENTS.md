@@ -478,7 +478,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
 #### Example: Reference Implementation
 
-See `apps/core/src/routes/v1/coworkers/[id]/events/get.ts` and `apps/core/src/routes/v1/conversations/[id]/items/get.ts` for complete reference implementations.
+See `apps/core/src/routes/v1/coworkers/me/events/get.ts` and `apps/core/src/routes/v1/conversations/[id]/items/get.ts` for complete reference implementations.
 
 ### Accessing Job-Related Resources
 
