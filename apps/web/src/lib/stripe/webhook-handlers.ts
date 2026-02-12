@@ -501,8 +501,7 @@ export async function handleInvoicePaidEvent(
 
   const billingReason = invoice.billing_reason;
   const metadataTopUpCredits = getTopUpCreditsFromInvoiceMetadata(invoice);
-  const oneTimeTopUpCreditsFromMetadata =
-    billingReason === "manual" ? metadataTopUpCredits : null;
+  const oneTimeTopUpCreditsFromMetadata = metadataTopUpCredits;
   let oneTimeTopUpCredits = oneTimeTopUpCreditsFromMetadata ?? 0;
   const subscriptionLines: SubscriptionLine[] = [];
 
