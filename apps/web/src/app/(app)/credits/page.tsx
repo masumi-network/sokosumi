@@ -2,7 +2,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import CreditsForm from "@/components/credits/credits-form";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients";
 import { agentService, userService } from "@/lib/services";
 
@@ -21,8 +20,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   const t = await getTranslations("App.Credits");
   const { session_id, cancel } = await searchParams;
 
-  const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
-  const price = await stripeClient.getPriceByProductId(productId);
+  const priceCatalog = await stripeClient.getCreditTopUpPriceCatalog();
   const activeOrganization = await userService.getActiveOrganization();
 
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
@@ -46,7 +44,10 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
           </Link>
         </div>
         <div>
-          <CreditsForm price={price} organization={activeOrganization} />
+          <CreditsForm
+            priceCatalog={priceCatalog}
+            organization={activeOrganization}
+          />
           {session_id && (
             <CreditsSuccessModal randomAgentPromise={randomAgentPromise} />
           )}

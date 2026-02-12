@@ -5,10 +5,11 @@ import {
   CommonErrorCode,
   CreditsErrorCode,
 } from "@/lib/actions/errors";
-import { Price } from "@/lib/clients/stripe.client";
+import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
+import { isStripeUnitAlignedCredits } from "@/lib/stripe/credit-topup-pricing";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -17,18 +18,17 @@ import {
 
 interface PurchaseCreditsParameters extends AuthenticatedRequest {
   organizationId: string | null;
-  price: Price;
   credits: number;
 }
 
 export const purchaseCredits = withAuthContext<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, price, credits, authContext }) => {
+>(async ({ organizationId, credits, authContext }) => {
   const { userId } = authContext;
 
   // Validate input
-  if (!credits || credits <= 0) {
+  if (!isStripeUnitAlignedCredits(credits)) {
     return Err({
       message: "Invalid credits",
       code: CreditsErrorCode.INVALID_CREDITS,
@@ -47,6 +47,8 @@ export const purchaseCredits = withAuthContext<
   }
 
   try {
+    const price = await stripeClient.getCreditTopUpPriceByCredits(credits);
+
     // Create the checkout session
     const { url } = await stripeService.createStripeCheckoutSession(
       userId,
@@ -66,14 +68,13 @@ export const purchaseCredits = withAuthContext<
 
 interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   organizationId: string | null;
-  price: Price;
   couponId: string;
 }
 
 export const claimFreeCreditsWithCoupon = withAuthContext<
   ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, price, couponId, authContext }) => {
+>(async ({ organizationId, couponId, authContext }) => {
   const { userId } = authContext;
 
   // If organizationId is provided, verify user is a member
@@ -99,6 +100,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
         code: CreditsErrorCode.INVALID_COUPON,
       });
     }
+    const price = await stripeClient.getBaseCreditTopUpPrice();
 
     // Create the checkout session (for org if orgId provided, else personal)
     const { url } = await stripeService.createStripeCheckoutSession(

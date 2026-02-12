@@ -34,8 +34,14 @@ import {
   CreditsErrorCode,
   purchaseCredits,
 } from "@/lib/actions";
-import { Price } from "@/lib/clients/stripe.client";
+import { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import {
+  BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  getCreditTopUpLookupKeyByCredits,
+  isPositiveIntegerCredits,
+  isStripeUnitAlignedCredits,
+} from "@/lib/stripe/credit-topup-pricing";
 
 const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
   z
@@ -44,7 +50,9 @@ const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
       coupon: z.string().nullish(),
     })
     .superRefine((data, ctx) => {
-      const hasValidCredits = data.credits != null && data.credits > 0;
+      const hasValidCredits = isStripeUnitAlignedCredits(
+        data.credits ?? Number.NaN,
+      );
       const hasValidCoupon =
         data.coupon != null && data.coupon.trim().length > 0;
       const hasCreditsAttempt = data.credits != null;
@@ -65,11 +73,14 @@ const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
 type CreditsFormData = z.infer<ReturnType<typeof creditsFormSchema>>;
 
 interface CreditsFormProps {
-  price: Price;
+  priceCatalog: CreditTopUpPriceCatalog;
   organization: Organization | null;
 }
 
-export default function CreditsForm({ price, organization }: CreditsFormProps) {
+export default function CreditsForm({
+  priceCatalog,
+  organization,
+}: CreditsFormProps) {
   const t = useTranslations("App.Credits");
   const formatter = useFormatter();
   const router = useRouter();
@@ -139,14 +150,13 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
       if (data.coupon && data.coupon.trim().length > 0) {
         result = await claimFreeCreditsWithCoupon({
           organizationId: organization?.id ?? null,
-          price: price,
           couponId: data.coupon.trim(),
         });
-      } else if (data.credits && data.credits > 0) {
+      } else if (isStripeUnitAlignedCredits(data.credits ?? Number.NaN)) {
+        const creditsAmount = data.credits as number;
         result = await purchaseCredits({
           organizationId: organization?.id ?? null,
-          price: price,
-          credits: data.credits,
+          credits: creditsAmount,
         });
       } else {
         toast.error(t("invalidInput"));
@@ -198,7 +208,7 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
         }
       }
     },
-    [router, t, price, organization],
+    [router, t, organization],
   );
 
   const handleQuickAmount = useCallback(
@@ -209,6 +219,10 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
   );
 
   const { isSubmitting } = form.formState;
+  const selectedLookupKey = isPositiveIntegerCredits(credits ?? Number.NaN)
+    ? getCreditTopUpLookupKeyByCredits(credits as number)
+    : BASE_CREDIT_TOPUP_LOOKUP_KEY;
+  const selectedPrice = priceCatalog[selectedLookupKey];
 
   const FieldClearedIndicator = ({
     show,
@@ -244,7 +258,7 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {[1000, 2500, 5000, 10000].map((amount) => (
+              {[5_000, 20_000, 50_000, 100_000].map((amount) => (
                 <Button
                   key={amount}
                   type="button"
@@ -266,8 +280,8 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
                     <Input
                       type="number"
                       placeholder={t("creditsPlaceholder")}
-                      min="1"
-                      max="10000"
+                      min="100"
+                      step="100"
                       disabled={isSubmitting}
                       {...field}
                       onChange={(e) => {
@@ -326,7 +340,7 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
               type="submit"
               disabled={
                 isSubmitting ||
-                ((!credits || credits <= 0) &&
+                (!isStripeUnitAlignedCredits(credits ?? Number.NaN) &&
                   (!coupon || coupon.trim().length === 0))
               }
             >
@@ -335,9 +349,10 @@ export default function CreditsForm({ price, organization }: CreditsFormProps) {
             </Button>
             <p className="text-muted-foreground text-sm">
               {t("costPerCredit", {
-                cost: formatter.number(price.amountPerCredit / 100, {
+                cost: formatter.number(selectedPrice.amountPerCredit / 100, {
                   style: "currency",
-                  currency: price.currency,
+                  currency: selectedPrice.currency,
+                  maximumFractionDigits: 4,
                 }),
               })}
             </p>
