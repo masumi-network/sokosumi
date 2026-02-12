@@ -11,10 +11,10 @@ import {
 describe("credit-topup-pricing", () => {
   it("resolves lookup keys for boundary values", () => {
     expect(getCreditTopUpLookupKeyByCredits(1)).toBe("credit_20_margin");
-    expect(getCreditTopUpLookupKeyByCredits(10_000)).toBe("credit_20_margin");
-    expect(getCreditTopUpLookupKeyByCredits(10_001)).toBe("credit_15_margin");
-    expect(getCreditTopUpLookupKeyByCredits(100_000)).toBe("credit_15_margin");
-    expect(getCreditTopUpLookupKeyByCredits(100_001)).toBe("credit_10_margin");
+    expect(getCreditTopUpLookupKeyByCredits(9_999)).toBe("credit_20_margin");
+    expect(getCreditTopUpLookupKeyByCredits(10_000)).toBe("credit_15_margin");
+    expect(getCreditTopUpLookupKeyByCredits(99_999)).toBe("credit_15_margin");
+    expect(getCreditTopUpLookupKeyByCredits(100_000)).toBe("credit_10_margin");
   });
 
   it("exports the base lookup key for coupon checkout", () => {

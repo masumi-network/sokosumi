@@ -43,6 +43,10 @@ import {
   isStripeUnitAlignedCredits,
 } from "@/lib/stripe/credit-topup-pricing";
 
+function hasAlignedCreditsInput(credits: number | null | undefined): boolean {
+  return isStripeUnitAlignedCredits(credits ?? Number.NaN);
+}
+
 const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
   z
     .object({
@@ -50,9 +54,7 @@ const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
       coupon: z.string().nullish(),
     })
     .superRefine((data, ctx) => {
-      const hasValidCredits = isStripeUnitAlignedCredits(
-        data.credits ?? Number.NaN,
-      );
+      const hasValidCredits = hasAlignedCreditsInput(data.credits);
       const hasValidCoupon =
         data.coupon != null && data.coupon.trim().length > 0;
       const hasCreditsAttempt = data.credits != null;
@@ -152,7 +154,7 @@ export default function CreditsForm({
           organizationId: organization?.id ?? null,
           couponId: data.coupon.trim(),
         });
-      } else if (isStripeUnitAlignedCredits(data.credits ?? Number.NaN)) {
+      } else if (hasAlignedCreditsInput(data.credits)) {
         const creditsAmount = data.credits as number;
         result = await purchaseCredits({
           organizationId: organization?.id ?? null,
@@ -219,6 +221,7 @@ export default function CreditsForm({
   );
 
   const { isSubmitting } = form.formState;
+  const hasValidCreditsInput = hasAlignedCreditsInput(credits);
   const selectedLookupKey = isPositiveIntegerCredits(credits ?? Number.NaN)
     ? getCreditTopUpLookupKeyByCredits(credits as number)
     : BASE_CREDIT_TOPUP_LOOKUP_KEY;
@@ -340,8 +343,7 @@ export default function CreditsForm({
               type="submit"
               disabled={
                 isSubmitting ||
-                (!isStripeUnitAlignedCredits(credits ?? Number.NaN) &&
-                  (!coupon || coupon.trim().length === 0))
+                (!hasValidCreditsInput && (!coupon || coupon.trim().length === 0))
               }
             >
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}

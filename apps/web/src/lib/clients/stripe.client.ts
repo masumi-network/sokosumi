@@ -33,18 +33,21 @@ export const stripeClient = (() => {
     return SUPPORTED_CREDIT_PRICE_CURRENCY_SET.has(currency);
   }
 
-  function getPriceAmountPerCredit(price: Stripe.Price): number | null {
-    let stripeUnitAmount: number | null = null;
+  function getStripeUnitAmount(price: Stripe.Price): number | null {
     if (price.unit_amount !== null) {
-      stripeUnitAmount = price.unit_amount;
-    } else if (price.unit_amount_decimal !== null) {
-      const decimalAmount = Number(price.unit_amount_decimal);
-      if (!Number.isFinite(decimalAmount)) {
-        return null;
-      }
-      stripeUnitAmount = decimalAmount;
+      return price.unit_amount;
     }
 
+    if (price.unit_amount_decimal === null) {
+      return null;
+    }
+
+    const decimalAmount = Number(price.unit_amount_decimal);
+    return Number.isFinite(decimalAmount) ? decimalAmount : null;
+  }
+
+  function getPriceAmountPerCredit(price: Stripe.Price): number | null {
+    const stripeUnitAmount = getStripeUnitAmount(price);
     if (stripeUnitAmount === null) {
       return null;
     }

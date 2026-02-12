@@ -157,9 +157,9 @@ describe("stripe.client lookup-key pricing", () => {
 
     const { stripeClient } = await import("../stripe.client");
 
+    await stripeClient.getCreditTopUpPriceByCredits(9_999);
     await stripeClient.getCreditTopUpPriceByCredits(10_000);
-    await stripeClient.getCreditTopUpPriceByCredits(10_001);
-    await stripeClient.getCreditTopUpPriceByCredits(100_001);
+    await stripeClient.getCreditTopUpPriceByCredits(100_000);
 
     expect(
       pricesListMock.mock.calls.map((call) => call[0].lookup_keys[0]),
@@ -208,7 +208,10 @@ describe("stripe.client lookup-key pricing", () => {
     expect(checkoutSessionsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         line_items: [{ price: "price_credits", quantity: 250 }],
-        metadata: expect.objectContaining({ credits: 25_000, userId: "user-1" }),
+        metadata: expect.objectContaining({
+          credits: 25_000,
+          userId: "user-1",
+        }),
       }),
     );
   });

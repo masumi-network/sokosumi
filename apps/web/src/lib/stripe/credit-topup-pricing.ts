@@ -9,8 +9,8 @@ export const CREDIT_TOPUP_LOOKUP_KEYS = [
   HIGH_CREDIT_TOPUP_LOOKUP_KEY,
 ] as const;
 
-const LOWEST_TIER_MAX_CREDITS = 10_000;
-const MIDDLE_TIER_MAX_CREDITS = 100_000;
+const BASE_TIER_MAX_CREDITS = 10_000;
+const MID_TIER_MAX_CREDITS = 100_000;
 
 export type CreditTopUpLookupKey = (typeof CREDIT_TOPUP_LOOKUP_KEYS)[number];
 
@@ -50,11 +50,11 @@ export function getCreditTopUpLookupKeyByCredits(
     throw new Error("Credits must be a positive integer");
   }
 
-  if (credits < LOWEST_TIER_MAX_CREDITS) {
+  if (credits < BASE_TIER_MAX_CREDITS) {
     return BASE_CREDIT_TOPUP_LOOKUP_KEY;
   }
 
-  if (credits < MIDDLE_TIER_MAX_CREDITS) {
+  if (credits < MID_TIER_MAX_CREDITS) {
     return MID_CREDIT_TOPUP_LOOKUP_KEY;
   }
 
