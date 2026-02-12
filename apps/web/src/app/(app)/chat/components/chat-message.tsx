@@ -139,22 +139,21 @@ export default function ChatMessage({
       >
         <div
           className={cn(
-            "flex flex-col gap-0.5",
-            isUser ? "max-w-[70%] items-end" : "max-w-full items-start",
+            "flex max-w-[50%] flex-col gap-0.5",
+            isUser ? "items-end" : "items-start",
           )}
         >
           <div
             className={cn(
-              "min-h-6 rounded-lg",
+              "min-h-6 rounded-lg px-3",
               isUser
-                ? "bg-gray-200 px-3 py-3 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
-                : "text-foreground bg-transparent pr-10 pb-3",
+                ? "bg-gray-200 py-3 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
+                : "text-foreground bg-transparent pb-3",
             )}
           >
             <div
               className={cn(
                 "prose prose-sm dark:prose-invert max-w-none",
-
                 isAssistantStreaming && "contain-layout",
                 // Allow proper spacing for paragraphs and line breaks
                 "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
