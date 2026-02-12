@@ -38,6 +38,118 @@ export interface AgentClientConfig {
 }
 
 /**
+ * Validates that a hostname is not an internal/private address to prevent SSRF attacks.
+ * Blocks localhost, loopback, private IP ranges, link-local, and multicast addresses.
+ */
+function isInternalHostname(hostname: string): boolean {
+  // Check for localhost and loopback
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.startsWith("127.") ||
+    hostname === "[::1]"
+  ) {
+    return true;
+  }
+
+  // Try to parse as IP address
+  try {
+    // Handle IPv6 addresses in brackets
+    const ipString =
+      hostname.startsWith("[") && hostname.endsWith("]")
+        ? hostname.slice(1, -1)
+        : hostname;
+
+    // Check if it's a valid IP address
+    const parts = ipString.split(".");
+    if (parts.length === 4) {
+      // IPv4 address
+      const [a, b, c, d] = parts.map((p) => parseInt(p, 10));
+
+      // Check for invalid parts
+      if (
+        parts.some(
+          (p) =>
+            isNaN(parseInt(p, 10)) ||
+            parseInt(p, 10) < 0 ||
+            parseInt(p, 10) > 255,
+        )
+      ) {
+        return false; // Not a valid IP, might be a hostname
+      }
+
+      // Private IP ranges (RFC 1918)
+      // 10.0.0.0/8
+      if (a === 10) {
+        return true;
+      }
+      // 172.16.0.0/12
+      if (a === 172 && b >= 16 && b <= 31) {
+        return true;
+      }
+      // 192.168.0.0/16
+      if (a === 192 && b === 168) {
+        return true;
+      }
+
+      // Link-local addresses (169.254.0.0/16) - includes cloud metadata endpoints
+      if (a === 169 && b === 254) {
+        return true;
+      }
+
+      // Loopback (127.0.0.0/8)
+      if (a === 127) {
+        return true;
+      }
+
+      // Multicast (224.0.0.0/4)
+      if (a >= 224 && a <= 239) {
+        return true;
+      }
+
+      // Reserved for future use (240.0.0.0/4)
+      if (a >= 240 && a <= 255) {
+        return true;
+      }
+    } else if (ipString.includes(":")) {
+      // IPv6 address
+      // Check for IPv6 loopback
+      if (ipString === "::1" || ipString === "0:0:0:0:0:0:0:1") {
+        return true;
+      }
+
+      // Check for IPv6 private ranges
+      // fc00::/7 (unique local addresses)
+      if (ipString.startsWith("fc") || ipString.startsWith("fd")) {
+        return true;
+      }
+
+      // fe80::/10 (link-local)
+      if (
+        ipString.startsWith("fe8") ||
+        ipString.startsWith("fe9") ||
+        ipString.startsWith("fea") ||
+        ipString.startsWith("feb")
+      ) {
+        return true;
+      }
+
+      // ::ffff:0:0/96 (IPv4-mapped IPv6 addresses)
+      if (ipString.startsWith("::ffff:")) {
+        const ipv4Part = ipString.substring(7);
+        return isInternalHostname(ipv4Part);
+      }
+    }
+  } catch {
+    // Not a valid IP address, treat as hostname
+    // Additional hostname checks can go here if needed
+  }
+
+  return false;
+}
+
+/**
  * Creates an agent client with the provided configuration.
  */
 export function createAgentClient(config?: AgentClientConfig) {
@@ -63,8 +175,24 @@ export function createAgentClient(config?: AgentClientConfig) {
       throw new Error("Agent API base URL must not have a hash");
     }
 
+    // SSRF protection: block internal/private hostnames
+    if (isInternalHostname(apiBaseUrl.hostname)) {
+      throw new Error(
+        "Agent API base URL must not point to internal or private addresses",
+      );
+    }
+
     const usedUrl = agent.overrideApiBaseUrl ?? agent.apiBaseUrl;
-    return new URL(usedUrl);
+    const overrideUrl = new URL(usedUrl);
+
+    // Also validate override URL if present
+    if (isInternalHostname(overrideUrl.hostname)) {
+      throw new Error(
+        "Agent API base URL override must not point to internal or private addresses",
+      );
+    }
+
+    return overrideUrl;
   }
 
   function logError(

@@ -20,13 +20,8 @@ describe("createAgentClient URL validation", () => {
     jest.restoreAllMocks();
   });
 
-  it("does not block localhost hostnames anymore", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      statusText: "Bad Request",
-      json: async () => ({}),
-    });
+  it("blocks localhost hostnames to prevent SSRF", async () => {
+    const fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -35,13 +30,101 @@ describe("createAgentClient URL validation", () => {
       { prompt: "hello" },
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      "http://localhost:3000/start_job",
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
-      expect(result.error).toBe("Failed to start free agent job");
+      expect(result.error).toContain(
+        "Agent API base URL must not point to internal or private addresses",
+      );
+    }
+  });
+
+  it("blocks 127.0.0.1 to prevent SSRF", async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({ apiBaseUrl: "http://127.0.0.1:3000" }),
+      { prompt: "hello" },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toContain(
+        "Agent API base URL must not point to internal or private addresses",
+      );
+    }
+  });
+
+  it("blocks private IP ranges to prevent SSRF", async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+
+    const privateIPs = [
+      "http://10.0.0.1",
+      "http://172.16.0.1",
+      "http://192.168.1.1",
+    ];
+
+    for (const ip of privateIPs) {
+      const result = await client.startFreeAgentJob(
+        createAgent({ apiBaseUrl: ip }),
+        { prompt: "hello" },
+      );
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toContain(
+          "Agent API base URL must not point to internal or private addresses",
+        );
+      }
+      fetchMock.mockClear();
+    }
+  });
+
+  it("blocks cloud metadata endpoints (169.254.x.x) to prevent SSRF", async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({ apiBaseUrl: "http://169.254.169.254/latest/meta-data/" }),
+      { prompt: "hello" },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toContain(
+        "Agent API base URL must not point to internal or private addresses",
+      );
+    }
+  });
+
+  it("blocks override URLs with internal addresses", async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({
+        apiBaseUrl: "https://agent.example.com",
+        overrideApiBaseUrl: "http://localhost:3000",
+      }),
+      { prompt: "hello" },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toContain(
+        "Agent API base URL override must not point to internal or private addresses",
+      );
     }
   });
 
