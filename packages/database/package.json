@@ -62,18 +62,18 @@
     "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.3.0",
-    "@prisma/client": "7.3.0",
+    "@prisma/adapter-pg": "7.4.0",
+    "@prisma/client": "7.4.0",
     "decimal.js": "10.6.0",
     "pg": "8.18.0",
     "pg-pool": "3.11.0",
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/node": "24.10.10",
+    "@types/node": "24.10.13",
     "@types/pg": "8.16.0",
     "dotenv": "17.2.4",
-    "prisma": "7.3.0",
+    "prisma": "7.4.0",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   }

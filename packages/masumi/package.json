@@ -61,7 +61,7 @@
   "devDependencies": {
     "@hey-api/openapi-ts": "0.92.3",
     "@types/jest": "30.0.0",
-    "@types/node": "24.10.10",
+    "@types/node": "24.10.13",
     "jest": "30.2.0",
     "ts-jest": "29.4.6",
     "typescript": "5.9.3"

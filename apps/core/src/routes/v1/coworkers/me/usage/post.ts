@@ -9,7 +9,7 @@ import {
   creditBucketRepository,
 } from "@sokosumi/database/repositories";
 
-import { badRequest, conflict, forbidden } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -19,18 +19,16 @@ import {
 } from "@/lib/hono";
 import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
 
-import { paramsSchema } from "../schema";
+import { requireCoworkerId } from "../helper";
 import { createCoworkerUsageRequestSchema } from "./schema";
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/{id}/usage",
-    description: "Create coworker usage (deprecated)",
+    path: "/me/usage",
+    description: "Create usage for the current coworker",
     tags: ["Coworkers"],
-    deprecated: true,
     request: {
-      params: paramsSchema,
       body: {
         content: {
           "application/json": {
@@ -97,23 +95,15 @@ async function prepareConsumptions(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { id } = c.req.valid("param");
     const { credits, idempotencyKey, referenceId } = c.req.valid("json");
-
-    if (!authContext.coworkerId) {
-      throw forbidden("Coworker authentication required");
-    }
-
-    if (authContext.coworkerId !== id) {
-      throw forbidden("Coworker can only create usage for itself");
-    }
+    const coworkerId = requireCoworkerId(authContext);
 
     const result = await prisma.$transaction(
       async (tx) => {
         const existing = await tx.coworkerUsage.findUnique({
           where: {
             coworkerId_idempotencyKey: {
-              coworkerId: id,
+              coworkerId,
               idempotencyKey,
             },
           },
@@ -172,7 +162,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             idempotencyKey,
             referenceId: referenceId ?? null,
             cents,
-            coworker: { connect: { id } },
+            coworker: { connect: { id: coworkerId } },
             user: { connect: { id: authContext.userId } },
             ...(authContext.organizationId
               ? {
