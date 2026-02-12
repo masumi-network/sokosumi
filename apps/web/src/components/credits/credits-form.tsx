@@ -40,11 +40,10 @@ import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
   getCreditTopUpLookupKeyByCredits,
   isPositiveIntegerCredits,
-  isStripeUnitAlignedCredits,
 } from "@/lib/stripe/credit-topup-pricing";
 
-function hasAlignedCreditsInput(credits: number | null | undefined): boolean {
-  return isStripeUnitAlignedCredits(credits ?? Number.NaN);
+function hasValidCreditsInput(credits: number | null | undefined): boolean {
+  return isPositiveIntegerCredits(credits ?? Number.NaN);
 }
 
 const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
@@ -54,7 +53,7 @@ const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
       coupon: z.string().nullish(),
     })
     .superRefine((data, ctx) => {
-      const hasValidCredits = hasAlignedCreditsInput(data.credits);
+      const hasValidCredits = hasValidCreditsInput(data.credits);
       const hasValidCoupon =
         data.coupon != null && data.coupon.trim().length > 0;
       const hasCreditsAttempt = data.credits != null;
@@ -154,7 +153,7 @@ export default function CreditsForm({
           organizationId: organization?.id ?? null,
           couponId: data.coupon.trim(),
         });
-      } else if (hasAlignedCreditsInput(data.credits)) {
+      } else if (hasValidCreditsInput(data.credits)) {
         const creditsAmount = data.credits as number;
         result = await purchaseCredits({
           organizationId: organization?.id ?? null,
@@ -221,7 +220,7 @@ export default function CreditsForm({
   );
 
   const { isSubmitting } = form.formState;
-  const hasValidCreditsInput = hasAlignedCreditsInput(credits);
+  const hasValidCreditsValue = hasValidCreditsInput(credits);
   const selectedLookupKey = isPositiveIntegerCredits(credits ?? Number.NaN)
     ? getCreditTopUpLookupKeyByCredits(credits as number)
     : BASE_CREDIT_TOPUP_LOOKUP_KEY;
@@ -283,8 +282,8 @@ export default function CreditsForm({
                     <Input
                       type="number"
                       placeholder={t("creditsPlaceholder")}
-                      min="100"
-                      step="100"
+                      min="1"
+                      step="1"
                       disabled={isSubmitting}
                       {...field}
                       onChange={(e) => {
@@ -343,7 +342,7 @@ export default function CreditsForm({
               type="submit"
               disabled={
                 isSubmitting ||
-                (!hasValidCreditsInput && (!coupon || coupon.trim().length === 0))
+                (!hasValidCreditsValue && (!coupon || coupon.trim().length === 0))
               }
             >
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}

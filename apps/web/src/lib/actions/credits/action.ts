@@ -9,7 +9,7 @@ import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
-import { isStripeUnitAlignedCredits } from "@/lib/stripe/credit-topup-pricing";
+import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -28,7 +28,7 @@ export const purchaseCredits = withAuthContext<
   const { userId } = authContext;
 
   // Validate input
-  if (!isStripeUnitAlignedCredits(credits)) {
+  if (!isPositiveIntegerCredits(credits)) {
     return Err({
       message: "Invalid credits",
       code: CreditsErrorCode.INVALID_CREDITS,

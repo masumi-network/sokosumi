@@ -9,7 +9,6 @@ import {
   CREDIT_TOPUP_LOOKUP_KEYS,
   CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
-  TOPUP_CREDITS_PER_STRIPE_UNIT,
 } from "@/lib/stripe/credit-topup-pricing";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 
@@ -52,7 +51,7 @@ export const stripeClient = (() => {
       return null;
     }
 
-    return stripeUnitAmount / TOPUP_CREDITS_PER_STRIPE_UNIT;
+    return stripeUnitAmount;
   }
 
   function isValidCreditPrice(price: Stripe.Price): boolean {
@@ -98,6 +97,15 @@ export const stripeClient = (() => {
       amountPerCredit,
       currency: price.currency,
     };
+  }
+
+  function getCheckoutUnitAmount(credits: number, price: Price): number {
+    const totalMinorUnits = Math.ceil(credits * price.amountPerCredit);
+    if (!Number.isFinite(totalMinorUnits) || totalMinorUnits < 1) {
+      throw new Error("Computed checkout amount is invalid");
+    }
+
+    return totalMinorUnits;
   }
 
   return {
@@ -397,20 +405,23 @@ export const stripeClient = (() => {
       origin: string | null = null,
       promotionCode: string | null = null,
     ): Promise<Stripe.Checkout.Session> {
-      // Prevent division by zero for price.unit_amount
       if (price.amountPerCredit === 0) {
         throw new Error(
           "Price amountPerCredit is 0 – cannot create checkout session for free product",
         );
       }
-      const stripeQuantity = convertCreditsToStripeUnits(credits);
+      const checkoutUnitAmount = getCheckoutUnitAmount(credits, price);
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [
           {
-            price: price.id,
-            quantity: stripeQuantity,
+            price_data: {
+              currency: price.currency,
+              product: getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID,
+              unit_amount: checkoutUnitAmount,
+            },
+            quantity: 1,
           },
         ],
         ...(promotionCode

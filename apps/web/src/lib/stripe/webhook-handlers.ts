@@ -62,6 +62,22 @@ interface AppliedSubscriptionCredits {
   subscriptionCreditsExpiry: Date | null;
 }
 
+function getTopUpCreditsFromInvoiceMetadata(
+  invoice: Stripe.Invoice,
+): number | null {
+  const metadataCredits = invoice.metadata?.credits;
+  if (!metadataCredits) {
+    return null;
+  }
+
+  const credits = Number(metadataCredits);
+  if (!Number.isInteger(credits) || credits <= 0) {
+    return null;
+  }
+
+  return credits;
+}
+
 function getUpgradeCreditExpiry(
   invoice: Stripe.Invoice,
   periodDurationSeconds: number,
@@ -485,6 +501,8 @@ export async function handleInvoicePaidEvent(
   }
 
   const billingReason = invoice.billing_reason;
+  const metadataTopUpCredits = getTopUpCreditsFromInvoiceMetadata(invoice);
+  let hasTopUpLine = false;
   let oneTimeTopUpCredits = 0;
   const subscriptionLines: SubscriptionLine[] = [];
 
@@ -496,7 +514,12 @@ export async function handleInvoicePaidEvent(
       }
 
       if (productId === creditProductId) {
-        oneTimeTopUpCredits += convertStripeUnitsToCredits(lineItem.quantity ?? 0);
+        hasTopUpLine = true;
+        if (metadataTopUpCredits === null) {
+          oneTimeTopUpCredits += convertStripeUnitsToCredits(
+            lineItem.quantity ?? 0,
+          );
+        }
         continue;
       }
 
@@ -546,6 +569,10 @@ export async function handleInvoicePaidEvent(
       isSubscriptionUpdate,
       totals: subscriptionCreditTotals,
     });
+
+  if (hasTopUpLine && metadataTopUpCredits !== null) {
+    oneTimeTopUpCredits = metadataTopUpCredits;
+  }
 
   const creditGrants: InvoiceCreditGrant[] = [];
   if (oneTimeTopUpCredits > 0) {

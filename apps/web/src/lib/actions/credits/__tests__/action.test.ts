@@ -129,7 +129,7 @@ describe("credits actions", () => {
     });
   });
 
-  it("returns INVALID_CREDITS when credits are not a multiple of 100", async () => {
+  it("returns INVALID_CREDITS when credits are not a positive integer", async () => {
     const { CreditsErrorCode } = await import("@/lib/actions/errors");
     const { purchaseCredits } = await import("../action");
 
@@ -139,7 +139,7 @@ describe("credits actions", () => {
         organizationId: null,
       },
       organizationId: null,
-      credits: 150,
+      credits: 1.5,
     });
 
     expect(result).toEqual({

@@ -76,12 +76,14 @@ describe("stripe.client lookup-key pricing", () => {
         createMockStripePrice({
           currency: "usd",
           id: "price_usd",
-          unitAmount: 125,
+          unitAmount: null,
+          unitAmountDecimal: "1.25",
         }),
         createMockStripePrice({
           currency: "eur",
           id: "price_eur",
-          unitAmount: 120,
+          unitAmount: null,
+          unitAmountDecimal: "1.2",
         }),
       ],
     });
@@ -113,7 +115,8 @@ describe("stripe.client lookup-key pricing", () => {
         createMockStripePrice({
           currency: "usd",
           id: "price_usd_valid",
-          unitAmount: 150,
+          unitAmount: null,
+          unitAmountDecimal: "1.5",
         }),
       ],
     });
@@ -148,7 +151,8 @@ describe("stripe.client lookup-key pricing", () => {
             createMockStripePrice({
               currency: "eur",
               id: `price_${lookupKey}`,
-              unitAmount: 120,
+              unitAmount: null,
+              unitAmountDecimal: "1.2",
             }),
           ],
         };
@@ -173,7 +177,7 @@ describe("stripe.client lookup-key pricing", () => {
           currency: "eur",
           id: "price_decimal",
           unitAmount: null,
-          unitAmountDecimal: "115",
+          unitAmountDecimal: "1.15",
         }),
       ],
     });
@@ -188,7 +192,7 @@ describe("stripe.client lookup-key pricing", () => {
     });
   });
 
-  it("creates checkout with Stripe quantity converted from credits", async () => {
+  it("creates checkout with integer total amount to support decimal per-credit pricing", async () => {
     checkoutSessionsCreateMock.mockResolvedValue({ id: "cs_123", url: "test" });
     const { stripeClient } = await import("../stripe.client");
 
@@ -207,7 +211,16 @@ describe("stripe.client lookup-key pricing", () => {
 
     expect(checkoutSessionsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        line_items: [{ price: "price_credits", quantity: 250 }],
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              product: "prod_credit",
+              unit_amount: 30000,
+            },
+            quantity: 1,
+          },
+        ],
         metadata: expect.objectContaining({
           credits: 25_000,
           userId: "user-1",

@@ -106,26 +106,26 @@ describe("CreditsForm", () => {
     });
 
     await user.clear(creditsInput);
-    await user.type(creditsInput, "10100");
+    await user.type(creditsInput, "10000");
     expect(screen.getByText("usd:0.0115 per credit")).toBeInTheDocument();
 
     await user.clear(creditsInput);
-    await user.type(creditsInput, "100100");
+    await user.type(creditsInput, "100000");
     expect(screen.getByText("usd:0.0110 per credit")).toBeInTheDocument();
   });
 
-  it("enforces 100-credit input granularity without a hard max", () => {
+  it("allows single-credit granularity without a hard max", () => {
     render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
 
     const creditsInput = screen.getByRole("spinbutton", {
       name: "creditsLabel",
     });
-    expect(creditsInput).toHaveAttribute("min", "100");
-    expect(creditsInput).toHaveAttribute("step", "100");
+    expect(creditsInput).toHaveAttribute("min", "1");
+    expect(creditsInput).toHaveAttribute("step", "1");
     expect(creditsInput).not.toHaveAttribute("max");
   });
 
-  it("keeps submit disabled for non-100-multiple credits", async () => {
+  it("allows submit for non-100-multiple positive credits", async () => {
     const user = userEvent.setup();
     render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
 
@@ -136,6 +136,6 @@ describe("CreditsForm", () => {
 
     await user.type(creditsInput, "150");
 
-    expect(submitButton).toBeDisabled();
+    expect(submitButton).not.toBeDisabled();
   });
 });
