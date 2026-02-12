@@ -411,6 +411,7 @@ export const stripeClient = (() => {
         );
       }
       const checkoutUnitAmount = getCheckoutUnitAmount(credits, price);
+      const creditsLabel = credits.toLocaleString("en-US");
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
@@ -418,7 +419,9 @@ export const stripeClient = (() => {
           {
             price_data: {
               currency: price.currency,
-              product: getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID,
+              product_data: {
+                name: `${creditsLabel} Sokosumi Credits`,
+              },
               unit_amount: checkoutUnitAmount,
             },
             quantity: 1,

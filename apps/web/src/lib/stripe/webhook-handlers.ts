@@ -502,8 +502,9 @@ export async function handleInvoicePaidEvent(
 
   const billingReason = invoice.billing_reason;
   const metadataTopUpCredits = getTopUpCreditsFromInvoiceMetadata(invoice);
-  let hasTopUpLine = false;
-  let oneTimeTopUpCredits = 0;
+  const oneTimeTopUpCreditsFromMetadata =
+    billingReason === "manual" ? metadataTopUpCredits : null;
+  let oneTimeTopUpCredits = oneTimeTopUpCreditsFromMetadata ?? 0;
   const subscriptionLines: SubscriptionLine[] = [];
 
   for (const lineItem of lineItems) {
@@ -514,8 +515,7 @@ export async function handleInvoicePaidEvent(
       }
 
       if (productId === creditProductId) {
-        hasTopUpLine = true;
-        if (metadataTopUpCredits === null) {
+        if (oneTimeTopUpCreditsFromMetadata === null) {
           oneTimeTopUpCredits += convertStripeUnitsToCredits(
             lineItem.quantity ?? 0,
           );
@@ -569,10 +569,6 @@ export async function handleInvoicePaidEvent(
       isSubscriptionUpdate,
       totals: subscriptionCreditTotals,
     });
-
-  if (hasTopUpLine && metadataTopUpCredits !== null) {
-    oneTimeTopUpCredits = metadataTopUpCredits;
-  }
 
   const creditGrants: InvoiceCreditGrant[] = [];
   if (oneTimeTopUpCredits > 0) {

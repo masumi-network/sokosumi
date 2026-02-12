@@ -215,7 +215,10 @@ describe("stripe.client lookup-key pricing", () => {
           {
             price_data: {
               currency: "eur",
-              product: "prod_credit",
+              product_data: {
+                description: "Credit top-up",
+                name: "25,000 Sokosumi Credits",
+              },
               unit_amount: 30000,
             },
             quantity: 1,
