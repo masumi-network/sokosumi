@@ -69,27 +69,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+    const { name, description, coworkerId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
       const task = await requireUserTaskAccess(authContext, id, tx);
 
-      if (
-        task.status !== TaskStatus.DRAFT &&
-        task.status !== TaskStatus.READY
-      ) {
+      const canUpdateTask =
+        task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
+      if (!canUpdateTask) {
         throw forbidden("You can only update draft or ready tasks");
       }
 
-      const nextCoworkerId =
-        body.coworkerId !== undefined ? body.coworkerId : task.coworkerId;
+      const coworkerIdWasProvided = coworkerId !== undefined;
+      const nextCoworkerId = coworkerIdWasProvided ? coworkerId : task.coworkerId;
       validateTaskCoworkerAssignment({
         status: task.status,
         coworkerId: nextCoworkerId,
       });
 
-      if (body.coworkerId !== null && body.coworkerId !== undefined) {
-        await requireCoworkerExists(body.coworkerId, tx);
+      if (coworkerIdWasProvided && coworkerId !== null) {
+        await requireCoworkerExists(coworkerId, tx);
       }
 
       return tx.task.update({
@@ -99,9 +98,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
         },
         data: {
-          name: body.name,
-          description: body.description,
-          coworkerId: body.coworkerId,
+          name,
+          description,
+          coworkerId,
         },
         include: taskInclude,
       });
