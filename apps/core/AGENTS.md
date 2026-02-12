@@ -346,6 +346,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 }
 ```
 
+### Endpoint Migration Pattern (`/{id}` to `/me`)
+
+When the authentication context already identifies the caller (for example `authContext.coworkerId`), prefer self-scoped endpoints under `/me`:
+
+- `GET /resource/me`
+- `GET /resource/me/...`
+- `POST /resource/me/...`
+
+If older clients still depend on `/{id}`:
+
+- Keep legacy `/{id}` endpoints as temporary fallback routes.
+- Mark fallback operations as deprecated in OpenAPI with `deprecated: true` in `createRoute(...)`.
+- Keep fallback behavior/auth checks consistent with the `/me` implementation.
+
+Route mounting order:
+
+- Mount static `/me` routes before dynamic `/{id}` routes to prevent path conflicts.
+
+Required tests for migration PRs:
+
+- Add an OpenAPI contract test that asserts:
+  - `/me` endpoints exist.
+  - fallback `/{id}` endpoints exist while compatibility is required.
+  - fallback operations are marked `deprecated: true`.
+- Add/keep auth helper tests for missing self identity (`403`) and valid self identity.
+
+Temporary duplication rule during deprecation:
+
+- Limited duplication between `/me` and deprecated `/{id}` handlers is acceptable during rollout.
+- Duplication must be temporary and tracked with a removal ticket/sunset date.
+- Remove deprecated routes and duplicated logic once clients are migrated.
+
 ### Cursor-Based Pagination
 
 **Always use cursor-based pagination for list endpoints** that may return large datasets. This ensures consistent performance and a better user experience.
