@@ -1214,7 +1214,7 @@
         "jobs": "Jobs",
         "jobsEmpty": "No jobs yet.",
         "jobsUntitled": "Untitled job",
-        "jobsUnknownAgent": "Unknown agent",
+        "jobsUnknownAgent": "Agent unavailable",
         "activity": "Activity",
         "sourcesFiles": "Files",
         "sourcesLinks": "Links",

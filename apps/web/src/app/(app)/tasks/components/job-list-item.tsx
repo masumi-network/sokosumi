@@ -1,9 +1,10 @@
 "use client";
 
-import { type JobType, type SokosumiJobStatus } from "@sokosumi/database";
-import { Sparkles, UserCog } from "lucide-react";
+import { UserCog } from "lucide-react";
 import Link from "next/link";
 
+import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -13,25 +14,6 @@ import {
 } from "@/components/ui/tooltip";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 
-export interface TasksViewJob {
-  id: string;
-  agentId: string;
-  name: string | null;
-  createdAt: string;
-  completedAt: string | null;
-  status: SokosumiJobStatus;
-  jobType: JobType;
-  coworker: {
-    name: string | null;
-    image: string | null;
-  } | null;
-}
-
-interface AgentPreview {
-  name: string;
-  icon: string | null;
-}
-
 interface JobListItemLabels {
   untitled: string;
   unknownAgent: string;
@@ -40,14 +22,20 @@ interface JobListItemLabels {
 
 interface JobListItemProps {
   job: TasksViewJob;
-  agentPreview?: AgentPreview;
+  agentPreview?: {
+    name: string;
+    icon: string | null;
+  };
   labels: JobListItemLabels;
 }
 
 export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
   const name = job.name?.trim() ? job.name : labels.untitled;
   const agentName = agentPreview?.name ?? labels.unknownAgent;
-  const agentIcon = agentPreview?.icon ?? null;
+  const agentIconModel = {
+    name: agentName,
+    icon: agentPreview?.icon ?? null,
+  };
   const coworkerName = job.coworker?.name?.trim() || labels.unknownCoworker;
   const coworkerImage = job.coworker?.image ?? null;
   const href = `/agents/${job.agentId}/jobs/${job.id}`;
@@ -61,18 +49,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
 
   const agentCell = (
     <div className="flex min-w-0 items-center gap-2">
-      <Avatar className="size-6 shrink-0">
-        {agentIcon ? (
-          <AvatarImage
-            src={agentIcon}
-            alt={agentName}
-            className="object-cover"
-          />
-        ) : null}
-        <AvatarFallback className="text-[10px] font-medium">
-          <Sparkles strokeWidth={1} className="size-3" aria-hidden />
-        </AvatarFallback>
-      </Avatar>
+      <AgentIcon agent={agentIconModel} />
       <Tooltip>
         <TooltipTrigger asChild>
           <p className="text-foreground max-w-40 truncate text-xs font-medium">

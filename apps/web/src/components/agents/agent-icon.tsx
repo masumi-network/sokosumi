@@ -1,30 +1,30 @@
 "use client";
 
-import type { Agent } from "@sokosumi/database";
 import { Sparkles } from "lucide-react";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 
-import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 
 import { ResolverSVGIcon } from "./resolver-svg-icon";
 
+interface AgentIcon {
+  name: string;
+  icon: string | null;
+}
 interface AgentIconProps {
-  agent: Agent;
+  agent: AgentIcon;
   className?: string;
   isMuted?: boolean;
 }
 
 function AgentIconComponent({ agent, className, isMuted }: AgentIconProps) {
-  const resolvedIcon = useMemo(() => getAgentResolvedIcon(agent), [agent]);
+  const { icon, name } = agent;
 
-  const agentName = useMemo(() => getAgentName(agent), [agent]);
-
-  if (resolvedIcon) {
+  if (icon) {
     return (
       <ResolverSVGIcon
-        svgUrl={resolvedIcon}
-        alt={`${agentName} icon`}
+        svgUrl={icon}
+        alt={`${name} icon`}
         className={cn("size-4", className, isMuted && "opacity-60")}
       />
     );

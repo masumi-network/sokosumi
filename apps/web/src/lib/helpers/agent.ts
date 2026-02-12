@@ -1,6 +1,7 @@
 import {
   Agent,
   AgentWithCategories,
+  AgentWithCreditsPrice,
   type AgentWithExampleOutput,
   type AgentWithPricing,
   type AgentWithTags,
@@ -25,15 +26,19 @@ import {
 } from "@/lib/types/agent";
 import { CategoryStyles } from "@/lib/types/category";
 
-export function getAgentName(agent: Agent): string {
+export function getAgentName(agent: Agent | AgentWithCreditsPrice): string {
   return agent.overrideName ?? agent.name;
 }
 
-export function getAgentDescription(agent: Agent): string | null {
+export function getAgentDescription(
+  agent: Agent | AgentWithCreditsPrice,
+): string | null {
   return agent.overrideDescription ?? agent.description;
 }
 
-export function getAgentResolvedImage(agent: Agent): string | null {
+export function getAgentResolvedImage(
+  agent: Agent | AgentWithCreditsPrice,
+): string | null {
   const image = agent.overrideImage ?? agent.image;
   if (!image) {
     return null;
@@ -41,7 +46,9 @@ export function getAgentResolvedImage(agent: Agent): string | null {
   return ipfsUrlResolver(image);
 }
 
-export function getAgentResolvedIcon(agent: Agent): string | null {
+export function getAgentResolvedIcon(
+  agent: Agent | AgentWithCreditsPrice,
+): string | null {
   if (!agent.icon) {
     return null;
   }

@@ -3,25 +3,21 @@
 import { SokosumiJobStatus } from "@sokosumi/database";
 import { useEffect, useMemo, useState } from "react";
 
+import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { COLUMN_STATUS_COLORS, type KanbanColumnId } from "@/lib/types/task";
 
 import { ColumnHeader } from "./column-header";
-import { JobListItem, type TasksViewJob } from "./job-list-item";
+import { JobListItem } from "./job-list-item";
 import { type JobsFailedFilterMode } from "./jobs-filter-dropdown";
 
 const JOBS_LAST_SEEN_AT_STORAGE_KEY = "sokosumi.tasks.jobs.lastSeenAt";
 const RECENT_SECTION_COLOR_CLASS = "bg-violet-500";
 const RECENT_RETENTION_MS = 1000 * 60 * 60 * 24;
-export type { TasksViewJob } from "./job-list-item";
-
-interface AgentPreview {
-  name: string;
-  icon: string | null;
-}
+export type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 
 interface JobsListViewProps {
   jobs: TasksViewJob[];
-  agentPreviewById: Record<string, AgentPreview>;
+  agentPreviewById: Record<string, { name: string; icon: string | null }>;
   columnLabels: Record<KanbanColumnId, string>;
   failedFilterMode: JobsFailedFilterMode;
   labels: {

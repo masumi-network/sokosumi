@@ -2,28 +2,10 @@ import "server-only";
 
 import type { JobWithSokosumiStatus } from "@sokosumi/database";
 
+import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { taskService } from "@/lib/services/task.service";
-
-interface TasksViewJobData {
-  id: string;
-  agentId: string;
-  name: string | null;
-  createdAt: string;
-  completedAt: string | null;
-  status: JobWithSokosumiStatus["status"];
-  jobType: JobWithSokosumiStatus["jobType"];
-  coworker: {
-    name: string | null;
-    image: string | null;
-  } | null;
-}
-
-interface AgentPreview {
-  name: string;
-  icon: string | null;
-}
 
 interface MapJobsToTasksViewDataParams {
   jobs: JobWithSokosumiStatus[];
@@ -39,8 +21,8 @@ export async function mapJobsToTasksViewData({
   coworkersById,
   seedTasksById,
 }: MapJobsToTasksViewDataParams): Promise<{
-  jobs: TasksViewJobData[];
-  agentPreviewById: Record<string, AgentPreview>;
+  jobs: TasksViewJob[];
+  agentPreviewById: Record<string, { name: string; icon: string | null }>;
 }> {
   const tasksById = new Map(seedTasksById);
   const missingTaskIds = Array.from(
@@ -64,7 +46,7 @@ export async function mapJobsToTasksViewData({
     }
   }
 
-  const mappedJobs = jobs.map((job) => ({
+  const mappedJobs: TasksViewJob[] = jobs.map((job) => ({
     id: job.id,
     agentId: job.agentId,
     name: job.name,
@@ -93,7 +75,10 @@ export async function mapJobsToTasksViewData({
     })(),
   }));
 
-  const agentPreviewById: Record<string, AgentPreview> = {};
+  const agentPreviewById: Record<
+    string,
+    { name: string; icon: string | null }
+  > = {};
   for (const job of jobs) {
     if (agentPreviewById[job.agentId]) continue;
     agentPreviewById[job.agentId] = {
