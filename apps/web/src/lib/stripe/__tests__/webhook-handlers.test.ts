@@ -9,6 +9,7 @@ const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
 const ensurePersonalFreeSubscriptionMock = jest.fn();
 const ensureOrganizationFreeSubscriptionMock = jest.fn();
+const claimWelcomeCouponMock = jest.fn();
 const prismaOrganizationUpdateMock = jest.fn();
 const prismaUserUpdateMock = jest.fn();
 
@@ -73,6 +74,7 @@ jest.mock("@/lib/services", () => ({
       ensurePersonalFreeSubscriptionMock(...args),
     ensureOrganizationFreeSubscription: (...args: unknown[]) =>
       ensureOrganizationFreeSubscriptionMock(...args),
+    claimWelcomeCoupon: (...args: unknown[]) => claimWelcomeCouponMock(...args),
   },
 }));
 
@@ -928,6 +930,10 @@ describe("handleCustomerCreatedEvent", () => {
       status: "skipped",
       reason: "ALREADY_HAS_SUBSCRIPTION",
     });
+    claimWelcomeCouponMock.mockResolvedValue({
+      couponApplied: false,
+      invoiceId: null,
+    });
     prismaUserUpdateMock.mockResolvedValue(undefined);
     prismaOrganizationUpdateMock.mockResolvedValue(undefined);
   });
@@ -951,6 +957,7 @@ describe("handleCustomerCreatedEvent", () => {
       "org-1",
     );
     expect(ensurePersonalFreeSubscriptionMock).not.toHaveBeenCalled();
+    expect(claimWelcomeCouponMock).not.toHaveBeenCalled();
   });
 
   it("keeps personal free subscription enrollment for user customers", async () => {
@@ -969,6 +976,7 @@ describe("handleCustomerCreatedEvent", () => {
       data: { stripeCustomerId: "cus_user_1" },
     });
     expect(ensurePersonalFreeSubscriptionMock).toHaveBeenCalledWith("user-1");
+    expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
     expect(ensureOrganizationFreeSubscriptionMock).not.toHaveBeenCalled();
   });
 });

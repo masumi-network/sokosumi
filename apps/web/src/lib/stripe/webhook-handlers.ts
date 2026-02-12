@@ -646,6 +646,16 @@ export async function handleCustomerCreatedEvent(
           `⚠️ Failed free subscription enrollment for user ${userId}: ${freeSubscriptionResult.reason}`,
         );
       }
+
+      const { couponApplied, invoiceId } =
+        await stripeService.claimWelcomeCoupon(userId);
+      if (couponApplied && invoiceId) {
+        console.log(
+          `✅ Claimed welcome coupon for user ${userId}, invoice: ${invoiceId}`,
+        );
+      } else {
+        console.log(`⚠️ Failed to claim welcome coupon for user ${userId}`);
+      }
       break;
     }
     case "organization": {
