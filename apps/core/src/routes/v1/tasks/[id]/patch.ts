@@ -1,11 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
+import {
+  requireCoworkerExists,
+  requireUserTaskAccess,
+} from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskSchema } from "@/schemas/task.schema";
@@ -66,16 +69,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
-    const body = c.req.valid("json");
+    const { name, description, coworkerId } = c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
       const task = await requireUserTaskAccess(authContext, id, tx);
 
-      if (
-        task.status !== TaskStatus.DRAFT &&
-        task.status !== TaskStatus.READY
-      ) {
+      const canUpdateTask =
+        task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
+      if (!canUpdateTask) {
         throw forbidden("You can only update draft or ready tasks");
+      }
+
+      const coworkerIdWasProvided = coworkerId !== undefined;
+      const nextCoworkerId = coworkerIdWasProvided ? coworkerId : task.coworkerId;
+      validateTaskCoworkerAssignment({
+        status: task.status,
+        coworkerId: nextCoworkerId,
+      });
+
+      if (coworkerIdWasProvided && coworkerId !== null) {
+        await requireCoworkerExists(coworkerId, tx);
       }
 
       return tx.task.update({
@@ -85,9 +98,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
         },
         data: {
-          name: body.name,
-          description: body.description,
-          coworkerId: body.coworkerId,
+          name,
+          description,
+          coworkerId,
         },
         include: taskInclude,
       });

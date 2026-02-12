@@ -180,6 +180,20 @@ export async function requireCoworkerTaskAccess(
   return task;
 }
 
+export async function requireCoworkerExists(
+  coworkerId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const coworker = await tx.coworker.findUnique({
+    where: { id: coworkerId },
+    select: { id: true },
+  });
+
+  if (!coworker) {
+    throw notFound("Coworker not found");
+  }
+}
+
 /**
  * Validates access to a task based on the authentication context (user or coworker)
  * and fetches the task record. Directs to the appropriate access control depending

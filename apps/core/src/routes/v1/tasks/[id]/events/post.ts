@@ -6,7 +6,11 @@ import { requireTaskAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { mapTaskEvent, validateStatusTransition } from "@/helpers/task";
+import {
+  mapTaskEvent,
+  validateStatusTransition,
+  validateTaskCoworkerAssignment,
+} from "@/helpers/task";
 import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -83,6 +87,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
+          validateTaskCoworkerAssignment({
+            status,
+            coworkerId: task.coworkerId,
+          });
 
           let transactionId: string | null = null;
           if (isChargeableTaskStatus(status) && credits !== undefined) {

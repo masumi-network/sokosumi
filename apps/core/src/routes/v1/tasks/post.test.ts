@@ -25,6 +25,28 @@ describe("createTaskRequestSchema", () => {
     expect(result.status).toBe(TaskStatus.READY);
   });
 
+  it("rejects READY status without coworkerId", () => {
+    expect(() => {
+      createTaskRequestSchema.parse({
+        name: "Ready task",
+        description: null,
+        coworkerId: null,
+        status: TaskStatus.READY,
+      });
+    }).toThrow();
+  });
+
+  it("accepts READY status with whitespace coworkerId at schema layer", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Ready task",
+      description: null,
+      coworkerId: "  ",
+      status: TaskStatus.READY,
+    });
+
+    expect(result.status).toBe(TaskStatus.READY);
+  });
+
   it("rejects unsupported status values", () => {
     Object.values(TaskStatus).forEach((status) => {
       if (status !== TaskStatus.DRAFT && status !== TaskStatus.READY) {
