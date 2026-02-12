@@ -84,6 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     } else {
       where = {
         userId: authContext.userId,
+        organizationId: authContext.organizationId ?? null,
         ...(status ? { status } : {}),
         ...(coworkerId ? { coworkerId } : {}),
       };

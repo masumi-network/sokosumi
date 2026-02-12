@@ -38,6 +38,7 @@ export default async function TasksPage() {
   ]);
 
   const session = await getSession();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -74,6 +75,7 @@ export default async function TasksPage() {
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         userId={session?.user.id ?? null}
+        activeOrganizationId={activeOrganizationId}
         defaultViewMode={defaultViewMode}
         labels={{
           tabs: {

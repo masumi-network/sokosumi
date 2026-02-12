@@ -173,6 +173,7 @@ interface TasksViewProps {
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
   userId?: string | null;
+  activeOrganizationId: string | null;
   defaultViewMode?: TasksViewMode;
   labels: {
     tabs: {
@@ -217,6 +218,7 @@ export function TasksView({
   columns = KANBAN_COLUMNS,
   coworkerOptions,
   userId,
+  activeOrganizationId,
   defaultViewMode,
   labels,
 }: TasksViewProps) {
@@ -262,6 +264,8 @@ export function TasksView({
   const itemsRef = useRef(items);
   const jobsItemsRef = useRef(jobsItems);
   const isRefetchingJobsRef = useRef(false);
+  const scopeKey = activeOrganizationId ?? "personal";
+  const previousScopeKeyRef = useRef(scopeKey);
   const handleEventUpdate = (_data: TaskEventData) => {
     router.refresh();
   };
@@ -284,6 +288,33 @@ export function TasksView({
       // Ignore storage errors.
     }
   }, [jobsFailedFilterMode]);
+
+  useEffect(() => {
+    if (previousScopeKeyRef.current === scopeKey) return;
+
+    previousScopeKeyRef.current = scopeKey;
+    moveVersionRef.current = 0;
+    pendingMoveVersionByTaskIdRef.current.clear();
+    isRefetchingJobsRef.current = false;
+
+    const nextTaskCursor = initialNextCursor ?? null;
+    const nextJobCursor = initialJobsNextCursor ?? null;
+
+    itemsRef.current = tasks;
+    jobsItemsRef.current = jobs;
+    setItems(tasks);
+    setJobsItems(jobs);
+    setNextCursor(nextTaskCursor);
+    setJobsCursor(nextJobCursor);
+    setAgentPreviews(agentPreviewById);
+  }, [
+    agentPreviewById,
+    initialJobsNextCursor,
+    initialNextCursor,
+    jobs,
+    scopeKey,
+    tasks,
+  ]);
 
   useEffect(() => {
     const prev = itemsRef.current;
