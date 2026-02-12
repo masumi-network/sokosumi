@@ -1100,7 +1100,6 @@
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "uploadPastedImageError": "Failed to upload pasted image(s)",
         "waitForModelResponse": "Please wait for the model to finish its response!",
-        "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",
         "imageAttachment": "An image attachment",
         "fileLabel": "File",
         "loaderTitle": "Loader",
