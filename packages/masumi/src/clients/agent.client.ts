@@ -21,10 +21,6 @@ import { safeAddPathComponent } from "../utils/url.js";
  */
 export interface AgentClientConfig {
   /**
-   * List of hostnames that are not allowed for agent API calls.
-   */
-  blacklistedHostnames?: string[];
-  /**
    * Optional error tracking function.
    * Called when errors occur during agent API operations.
    */
@@ -49,19 +45,13 @@ export function createAgentClient(config?: AgentClientConfig) {
     agent: Agent,
     pathComponent: string,
   ): URL {
-    const baseUrl = getAgentApiBaseUrl(agent, config);
+    const baseUrl = getAgentApiBaseUrl(agent);
     return safeAddPathComponent(baseUrl, pathComponent);
   }
 
-  function getAgentApiBaseUrl(agent: Agent, config?: AgentClientConfig): URL {
+  function getAgentApiBaseUrl(agent: Agent): URL {
     // Validate the API base URL
     const apiBaseUrl = new URL(agent.apiBaseUrl);
-    if (
-      config?.blacklistedHostnames &&
-      config?.blacklistedHostnames.includes(apiBaseUrl.hostname)
-    ) {
-      throw new Error("Agent API base URL is not allowed");
-    }
     if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
       throw new Error("Agent API base URL must be HTTP or HTTPS");
     }

@@ -295,17 +295,12 @@ export async function createAgentJobForUser(
     ? convertCreditsToCents(agentInput.maxCredits)
     : null;
 
-  const { userOrganizationIds, creditCosts } =
-    await getAgentAccessContext(authContext);
+  const { creditCosts } = await getAgentAccessContext();
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
       id: agentInput.agentId,
-      ...buildAgentAccessWhereClause(
-        userOrganizationIds,
-        authContext.organizationId,
-        creditCosts,
-      ),
+      ...buildAgentAccessWhereClause(creditCosts),
     },
     include: {
       ...agentPricingInclude,

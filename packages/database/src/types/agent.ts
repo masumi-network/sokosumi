@@ -28,18 +28,12 @@ export const agentJobsInclude = {
   jobs: true,
 } as const;
 
-export const agentOrganizationsInclude = {
-  organizations: true,
-  blacklistedOrganizations: true,
-} as const;
-
 export const agentInclude = {
   ...agentPricingInclude,
   ...agentExampleOutputInclude,
   ...agentTagsInclude,
   ...agentCategoriesInclude,
   ...agentRatingInclude,
-  ...agentOrganizationsInclude,
 } as const;
 
 export const agentJobsCountOrderBy = {
@@ -91,8 +85,4 @@ export type AgentWithExampleOutput = Prisma.AgentGetPayload<{
 
 export type AgentWithJobs = Prisma.AgentGetPayload<{
   include: typeof agentJobsInclude;
-}>;
-
-export type AgentWithOrganizations = Prisma.AgentGetPayload<{
-  include: typeof agentOrganizationsInclude;
 }>;

@@ -3,11 +3,8 @@ import "server-only";
 import * as Sentry from "@sentry/nextjs";
 import { createAgentClient } from "@sokosumi/masumi";
 
-import { getEnvSecrets } from "@/config/env.secrets";
-
 export const agentClient = (() => {
   return createAgentClient({
-    blacklistedHostnames: getEnvSecrets().BLACKLISTED_AGENT_HOSTNAMES,
     onError: (error) => {
       const { type, operation, agentId, message, context } = error;
 

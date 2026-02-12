@@ -67,21 +67,13 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const result = await prisma.$transaction(async (tx) => {
-      const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
-        authContext,
-        tx,
-      );
+      const { creditCosts } = await getAgentAccessContext(tx);
 
-      const where = buildAgentAccessWhereClause(
-        userOrganizationIds,
-        authContext.organizationId,
-        creditCosts,
-      );
+      const where = buildAgentAccessWhereClause(creditCosts);
 
       const takePlusOne = take + 1;
       const [agents, count] = await Promise.all([
