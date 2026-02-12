@@ -65,7 +65,7 @@ function isInternalHostname(hostname: string): boolean {
     const parts = ipString.split(".");
     if (parts.length === 4) {
       // IPv4 address
-      const [a, b, c, d] = parts.map((p) => parseInt(p, 10));
+      const [a, b, _c, _d] = parts.map((p) => parseInt(p, 10));
 
       // Check for invalid parts
       if (
