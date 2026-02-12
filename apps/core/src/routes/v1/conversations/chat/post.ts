@@ -1,6 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import {
+  isResponsesApiAgentId,
+  streamResponsesApi,
+} from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
+import { isResponsesApiConfigured } from "@/config/env";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import {
   extractMessageText,
@@ -88,10 +93,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const { messages, conversationId, model } = parsedBody.data;
 
       let internalConversationId: string | null = null;
-      let selectedModel: string | null = model || null;
+      let selectedModel: string | null = model ?? null;
+      let conversation: Awaited<
+        ReturnType<typeof prisma.conversation.findFirst>
+      > = null;
 
       if (conversationId) {
-        const conversation = await prisma.conversation.findFirst({
+        conversation = await prisma.conversation.findFirst({
           where: {
             id: conversationId,
             userId: authContext.userId,
@@ -106,11 +114,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         internalConversationId = conversation.id;
 
         if (!selectedModel) {
-          const metadata = conversation.metadata as Record<
-            string,
-            unknown
-          > | null;
-          const modelId = metadata?.model_id as string | undefined;
+          const meta = conversation.metadata as Record<string, unknown> | null;
+          const modelId = meta?.model_id as string | undefined;
           if (modelId) {
             selectedModel = modelId;
           }
@@ -145,25 +150,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       });
 
+      const lastUserMessageText =
+        messages.length > 0
+          ? (() => {
+              const lastMessage = messages[messages.length - 1];
+              if (lastMessage.role !== "user" && lastMessage.role !== "system")
+                return null;
+              if ("parts" in lastMessage && Array.isArray(lastMessage.parts)) {
+                return lastMessage.parts
+                  .map((part: { type?: string; text?: string }) =>
+                    part.type === "text" && part.text ? part.text : "",
+                  )
+                  .filter(Boolean)
+                  .join("");
+              }
+              return extractMessageText(lastMessage as Record<string, unknown>);
+            })()
+          : null;
+
       if (internalConversationId && messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.role === "user" || lastMessage.role === "system") {
-          let extractedText = "";
-          if ("parts" in lastMessage && Array.isArray(lastMessage.parts)) {
-            extractedText = lastMessage.parts
-              .map((part: { type?: string; text?: string }) => {
-                if (part.type === "text" && part.text) {
-                  return part.text;
-                }
-                return "";
-              })
-              .filter(Boolean)
-              .join("");
-          } else {
-            extractedText = extractMessageText(
-              lastMessage as Record<string, unknown>,
-            );
-          }
+          const extractedText = lastUserMessageText ?? "";
           const formattedContent =
             formatMessageContentForConversation(extractedText);
 
@@ -180,6 +188,61 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               console.error("Failed to add message to conversation:", error);
             });
         }
+      }
+
+      const metadata = (conversation?.metadata ?? null) as Record<
+        string,
+        unknown
+      > | null;
+      const coworkerId = metadata?.coworker_id as string | undefined;
+      const lastResponsesApiResponseId =
+        metadata?.last_responses_api_response_id as string | undefined;
+
+      const useResponsesApi =
+        Boolean(internalConversationId) &&
+        isResponsesApiAgentId(coworkerId) &&
+        isResponsesApiConfigured();
+
+      if (useResponsesApi) {
+        if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
+          throw badRequest(
+            "Coworker chat requires a user or system message to respond to; send at least one message with text.",
+          );
+        }
+        const result = await streamResponsesApi(lastUserMessageText, {
+          sokosumiUserId: authContext.userId,
+          agentId: coworkerId as "hannah" | "elena",
+          previousResponseId: lastResponsesApiResponseId ?? null,
+          onResponseCompleted: async (responseId: string) => {
+            if (!internalConversationId) return;
+            try {
+              const conv = await prisma.conversation.findFirst({
+                where: {
+                  id: internalConversationId,
+                  userId: authContext.userId,
+                },
+                select: { metadata: true },
+              });
+              const currentMeta =
+                (conv?.metadata as Record<string, unknown>) ?? {};
+              await prisma.conversation.update({
+                where: { id: internalConversationId },
+                data: {
+                  metadata: {
+                    ...currentMeta,
+                    last_responses_api_response_id: responseId,
+                  },
+                },
+              });
+            } catch (error) {
+              console.error(
+                "Failed to persist Responses API response id to conversation:",
+                error,
+              );
+            }
+          },
+        });
+        return result;
       }
 
       const result = await openrouterClient.streamChatResponse(

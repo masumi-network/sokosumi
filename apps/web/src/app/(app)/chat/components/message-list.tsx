@@ -123,7 +123,9 @@ export default function MessageList({
                 isLoading && isLastMessage && role === "assistant";
 
               return (
-                <div key={message.id}>
+                <div
+                  key={`${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`}
+                >
                   {showDaySeparator && currentCreatedAt && (
                     <DaySeparator
                       date={currentCreatedAt}

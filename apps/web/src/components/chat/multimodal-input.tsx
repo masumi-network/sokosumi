@@ -9,6 +9,7 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -73,33 +74,34 @@ function PureMultimodalInput({
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const defaultCoworker = useMemo<Coworker>(
+    () => ({
+      id: "hannah",
+      name: t("coworkers.hannah.name"),
+      description: t("coworkers.hannah.description"),
+      useCase: t("coworkers.hannah.useCase"),
+    }),
+    [t],
+  );
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
-  const defaultCoworker: Coworker = {
-    id: "hannah",
-    name: t("coworkers.hannah.name"),
-    description: t("coworkers.hannah.description"),
-    useCase: t("coworkers.hannah.useCase"),
-  };
-  const [selectedCoworker, setSelectedCoworker] = useState<Coworker>(
-    propCoworker || defaultCoworker,
+  const [selectedCoworker, setSelectedCoworker] = useState<Coworker | null>(
+    propCoworker ?? (propSelectedModel ? null : defaultCoworker),
   );
   const [selectedModel, setSelectedModel] = useState<{
     id: string;
     name: string;
-  } | null>(propSelectedModel || null);
+  } | null>(propSelectedModel ?? null);
 
-  // Update selectedCoworker when propCoworker changes (for existing chats)
+  // Sync selected agent from props when switching conversations (model vs coworker).
+  // When no model is selected and no coworker is passed (e.g. new chat), default to Hannah.
   useEffect(() => {
-    if (propCoworker) {
-      setSelectedCoworker(propCoworker);
-    }
-  }, [propCoworker]);
+    setSelectedCoworker(
+      propCoworker ?? (propSelectedModel ? null : defaultCoworker),
+    );
+  }, [propCoworker, propSelectedModel, defaultCoworker]);
 
-  // Update selectedModel when propSelectedModel changes
   useEffect(() => {
-    if (propSelectedModel !== undefined) {
-      setSelectedModel(propSelectedModel);
-    }
+    setSelectedModel(propSelectedModel ?? null);
   }, [propSelectedModel]);
 
   useEffect(() => {
@@ -193,7 +195,11 @@ function PureMultimodalInput({
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
-      onSendMessage(input, selectedCoworker, selectedModel || undefined);
+      onSendMessage(
+        input,
+        selectedCoworker ?? undefined,
+        selectedModel ?? undefined,
+      );
     } else {
       sendMessage({ text: input } as never);
     }
