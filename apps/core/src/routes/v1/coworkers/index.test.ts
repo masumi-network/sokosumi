@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import coworkersRouter from "./index";
 
 describe("coworkers routes OpenAPI contract", () => {
-  it("exposes me endpoints and keeps by-id lookup only", () => {
+  it("exposes me endpoints and deprecated fallback id endpoints", () => {
     const doc = coworkersRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -19,8 +19,13 @@ describe("coworkers routes OpenAPI contract", () => {
     expect(paths).toContain("/me/events");
     expect(paths).toContain("/me/usage");
     expect(paths).toContain("/{id}");
+    expect(paths).toContain("/{id}/events");
+    expect(paths).toContain("/{id}/usage");
 
-    expect(paths).not.toContain("/{id}/events");
-    expect(paths).not.toContain("/{id}/usage");
+    const fallbackEvents = doc.paths?.["/{id}/events"]?.get;
+    const fallbackUsage = doc.paths?.["/{id}/usage"]?.post;
+
+    expect(fallbackEvents?.deprecated).toBe(true);
+    expect(fallbackUsage?.deprecated).toBe(true);
   });
 });
