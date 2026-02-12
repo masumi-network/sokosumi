@@ -295,11 +295,6 @@ export default function UserAvatarClient({
                         "w-full justify-between px-2 py-1.5",
                         isPending && "opacity-50",
                       )}
-                      onClick={() => {
-                        setIsWorkspacePopoverOpen(
-                          (currentOpen) => !currentOpen,
-                        );
-                      }}
                     >
                       <div className="flex items-center gap-2">
                         <Building2 className="text-muted-foreground size-4" />

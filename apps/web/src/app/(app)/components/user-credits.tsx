@@ -11,7 +11,6 @@ import { auth, Session } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 import {
   type ActiveSubscription,
-  getPlanTranslationKey,
   resolveCurrentPlanName,
 } from "@/lib/helpers/subscription";
 import { userService } from "@/lib/services/user.service";
@@ -73,9 +72,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     const currentPlan =
       resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
       "free";
-    const planName = tSubscriptions(
-      `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-    );
+    const planName = tSubscriptions(`Plans.${currentPlan}.name`);
 
     planLabel = activeOrganization
       ? tPlan("organizationPlan", {

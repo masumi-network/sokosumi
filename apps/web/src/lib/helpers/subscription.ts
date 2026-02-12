@@ -48,18 +48,3 @@ export function resolveCurrentPlanName(
 
   return parsePlanName(sortedSubscriptions[0]?.plan);
 }
-
-export function getPlanTranslationKey(plan: string): SubscriptionPlanName {
-  switch (plan) {
-    case "free":
-      return "free";
-    case "starter":
-      return "starter";
-    case "standard":
-      return "standard";
-    case "pro":
-      return "pro";
-    default:
-      return "free";
-  }
-}

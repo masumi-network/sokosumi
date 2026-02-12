@@ -6,7 +6,6 @@ import { Suspense } from "react";
 import { auth, Session } from "@/lib/auth/auth";
 import {
   type ActiveSubscription,
-  getPlanTranslationKey,
   resolveCurrentPlanName,
 } from "@/lib/helpers/subscription";
 import { userService } from "@/lib/services";
@@ -50,9 +49,7 @@ async function getWorkspacePlanLabels(
         const currentPlan =
           resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
           "free";
-        const planName = tSubscriptions(
-          `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-        );
+        const planName = tSubscriptions(`Plans.${currentPlan}.name`);
 
         return [PERSONAL_WORKSPACE_KEY, planName] as const;
       } catch (_error) {
@@ -77,9 +74,7 @@ async function getWorkspacePlanLabels(
         const currentPlan =
           resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
           "free";
-        const planName = tSubscriptions(
-          `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-        );
+        const planName = tSubscriptions(`Plans.${currentPlan}.name`);
 
         return [member.organization.id, planName] as const;
       } catch (_error) {
