@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
-import { forbidden } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -16,21 +15,20 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { paramsSchema } from "../schema";
+import { requireCoworkerId } from "../helper";
 
 const route = createRoute({
   method: "get",
-  path: "/{id}/events",
-  description: "List task events for a coworker (paginated)",
+  path: "/events",
+  description: "List task events for the current coworker (paginated)",
   tags: ["Coworkers"],
   request: {
-    params: paramsSchema,
     query: cursorPaginationQuerySchema,
   },
   responses: {
     200: jsonPaginatedSuccessResponse(
       z.array(taskEventSchema),
-      "Retrieve coworker task events",
+      "Retrieve current coworker task events",
       {
         data: [
           {
@@ -67,19 +65,15 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { id } = c.req.valid("param");
     const queryParams = c.req.valid("query");
-
-    if (!authContext.coworkerId || authContext.coworkerId !== id) {
-      throw forbidden("Coworker can only access its own events");
-    }
+    const coworkerId = requireCoworkerId(authContext);
 
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
 
     const where = {
       task: {
-        coworkerId: id,
+        coworkerId,
         status: { not: TaskStatus.DRAFT },
       },
     };
