@@ -75,8 +75,10 @@ export async function mapJobsToTasksViewData({
     })(),
   }));
 
-  const agentPreviewById: Record<string, { name: string; icon: string | null }> =
-    {};
+  const agentPreviewById: Record<
+    string,
+    { name: string; icon: string | null }
+  > = {};
   for (const job of jobs) {
     if (agentPreviewById[job.agentId]) continue;
     agentPreviewById[job.agentId] = {

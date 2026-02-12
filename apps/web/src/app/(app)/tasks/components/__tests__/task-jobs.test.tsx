@@ -63,12 +63,7 @@ const baseProps = {
 
 describe("TaskJobsSection", () => {
   it("renders empty state when there are no jobs", () => {
-    render(
-      <TaskJobs
-        {...baseProps}
-        jobs={[]}
-      />,
-    );
+    render(<TaskJobs {...baseProps} jobs={[]} />);
 
     expect(screen.getByText("No jobs yet.")).toBeInTheDocument();
   });
