@@ -203,7 +203,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         isResponsesApiAgentId(coworkerId) &&
         isResponsesApiConfigured();
 
-      if (useResponsesApi && lastUserMessageText !== null) {
+      if (useResponsesApi) {
+        if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
+          throw badRequest(
+            "Coworker chat requires a user or system message to respond to; send at least one message with text.",
+          );
+        }
         const result = await streamResponsesApi(lastUserMessageText, {
           sokosumiUserId: authContext.userId,
           agentId: coworkerId as "hannah" | "elena",
