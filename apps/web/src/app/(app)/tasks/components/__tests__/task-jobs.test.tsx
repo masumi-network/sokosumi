@@ -1,5 +1,9 @@
 import "@testing-library/jest-dom";
-import { JobType, SokosumiJobStatus } from "@sokosumi/database";
+import {
+  JobType,
+  SokosumiJobStatus,
+  type AgentWithCreditsPrice,
+} from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
@@ -50,6 +54,7 @@ function createJob(
 
 const baseProps = {
   title: "Jobs",
+  agents: [] as AgentWithCreditsPrice[],
   userId: "user-1",
   emptyLabel: "No jobs yet.",
   untitledLabel: "Untitled job",
@@ -62,9 +67,6 @@ describe("TaskJobsSection", () => {
       <TaskJobs
         {...baseProps}
         jobs={[]}
-        agentPreviewById={
-          new Map<string, { name: string; icon: string | null }>()
-        }
       />,
     );
 
@@ -93,8 +95,15 @@ describe("TaskJobsSection", () => {
       <TaskJobs
         {...baseProps}
         jobs={jobs}
-        agentPreviewById={
-          new Map([["agent-1", { name: "Known agent", icon: null }]])
+        agents={
+          [
+            {
+              id: "agent-1",
+              name: "Known agent",
+              overrideName: null,
+              icon: null,
+            },
+          ] as AgentWithCreditsPrice[]
         }
       />,
     );
