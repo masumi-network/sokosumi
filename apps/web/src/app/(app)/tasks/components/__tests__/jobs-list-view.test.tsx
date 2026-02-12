@@ -20,7 +20,7 @@ jest.mock("@/lib/utils/datetime", () => ({
 function createJob(overrides: Partial<TasksViewJob>): TasksViewJob {
   return {
     id: "job-1",
-    agentId: "agent-1",
+    agentId: overrides.agentId ?? "agent-1",
     name: "Job name",
     createdAt: "2026-02-10T10:00:00.000Z",
     completedAt: null,
@@ -119,7 +119,7 @@ describe("JobsListView", () => {
       <JobsListView
         jobs={jobs}
         agentPreviewById={{
-          "agent-1": { name: "Known agent", icon: null },
+          "agent-1": { name: "Agent name", icon: null },
         }}
         columnLabels={columnLabels}
         failedFilterMode="hideFailed"
@@ -137,9 +137,8 @@ describe("JobsListView", () => {
     expect(screen.getByText("Older complete")).toBeInTheDocument();
     expect(screen.getByText("Needs input")).toBeInTheDocument();
     expect(screen.getByText("Untitled job")).toBeInTheDocument();
-    expect(screen.getAllByText("Unknown agent").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Unknown coworker").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Known agent").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Agent name").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Jane coworker").length).toBeGreaterThan(0);
 
     expect(screen.getAllByText("completed").length).toBeGreaterThan(0);
@@ -182,7 +181,9 @@ describe("JobsListView", () => {
     render(
       <JobsListView
         jobs={jobs}
-        agentPreviewById={{}}
+        agentPreviewById={{
+          "agent-1": { name: "Agent name", icon: null },
+        }}
         columnLabels={columnLabels}
         failedFilterMode="hideFailed"
         labels={labels}
@@ -215,7 +216,9 @@ describe("JobsListView", () => {
     render(
       <JobsListView
         jobs={jobs}
-        agentPreviewById={{}}
+        agentPreviewById={{
+          "agent-1": { name: "Agent name", icon: null },
+        }}
         columnLabels={columnLabels}
         failedFilterMode="showAll"
         labels={labels}
@@ -252,7 +255,9 @@ describe("JobsListView", () => {
     render(
       <JobsListView
         jobs={jobs}
-        agentPreviewById={{}}
+        agentPreviewById={{
+          "agent-1": { name: "Agent name", icon: null },
+        }}
         columnLabels={columnLabels}
         failedFilterMode="showAll"
         labels={labels}

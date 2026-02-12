@@ -1,9 +1,10 @@
-import { Sparkles } from "lucide-react";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import Link from "next/link";
 
+import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { makeAgentJobsChannelName } from "@/lib/ably";
+import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import type { TaskWithEvents } from "@/lib/services/task.service";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 
@@ -13,16 +14,11 @@ import {
   TaskJobStatusChannelProvider,
 } from "./task-jobs-realtime-provider.client";
 
-interface AgentPreview {
-  name: string;
-  icon: string | null;
-}
-
 interface TaskJobsProps {
   title: string;
+  agents: AgentWithCreditsPrice[];
   jobs: TaskWithEvents["jobs"];
   userId: string | null;
-  agentPreviewById: Map<string, AgentPreview>;
   emptyLabel: string;
   untitledLabel: string;
   unknownAgentLabel: string;
@@ -30,13 +26,14 @@ interface TaskJobsProps {
 
 export function TaskJobs({
   title,
+  agents,
   jobs,
   userId,
-  agentPreviewById,
   emptyLabel,
   untitledLabel,
   unknownAgentLabel,
 }: TaskJobsProps) {
+  const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const sortedJobs = [...jobs].sort((firstJob, secondJob) => {
     return (
       new Date(secondJob.createdAt).getTime() -
@@ -48,9 +45,12 @@ export function TaskJobs({
     <ul className="space-y-3">
       {sortedJobs.map((job) => {
         const name = job.name?.trim() ? job.name : untitledLabel;
-        const agentPreview = agentPreviewById.get(job.agentId);
-        const agentName = agentPreview?.name ?? unknownAgentLabel;
-        const agentIcon = agentPreview?.icon ?? null;
+        const agent = agentsById.get(job.agentId);
+        const agentName = agent ? getAgentName(agent) : unknownAgentLabel;
+        const agentIconModel = {
+          name: agentName,
+          icon: agent ? getAgentResolvedIcon(agent) : null,
+        };
         const href = `/agents/${job.agentId}/jobs/${job.id}`;
         const channelName = userId
           ? makeAgentJobsChannelName(job.agentId, userId)
@@ -87,22 +87,7 @@ export function TaskJobs({
                 <div className="text-xs sm:w-[120px]">{statusBadge}</div>
 
                 <div className="flex min-w-0 items-center gap-2 sm:w-[120px]">
-                  <Avatar className="size-6 shrink-0">
-                    {agentIcon ? (
-                      <AvatarImage
-                        src={agentIcon}
-                        alt={agentName}
-                        className="object-cover"
-                      />
-                    ) : null}
-                    <AvatarFallback className="text-[10px] font-medium">
-                      <Sparkles
-                        strokeWidth={1}
-                        className="size-3"
-                        aria-hidden
-                      />
-                    </AvatarFallback>
-                  </Avatar>
+                  <AgentIcon agent={agentIconModel} />
                   <p className="truncate text-xs font-medium">{agentName}</p>
                 </div>
 
