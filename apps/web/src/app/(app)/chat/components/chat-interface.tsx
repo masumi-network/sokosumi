@@ -1,10 +1,20 @@
 "use client";
 
+import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "sonner";
 
 import { useChatCreation } from "@/app/chat/hooks/use-chat-creation";
 import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
@@ -21,6 +31,13 @@ import ChatInputContainer from "./chat-input-container";
 import MessageList from "./message-list";
 import SelectCoworkerModal from "./select-coworker-modal";
 import WelcomeScreen from "./welcome-screen";
+
+const NUM_SLOTS = 3;
+
+interface SlotPayload {
+  conversationId: string | null;
+  model: { id: string; name: string } | null;
+}
 
 interface ChatInterfaceProps {
   userImageUrl: string;
@@ -60,74 +77,105 @@ export default function ChatInterface({
   const messagesChatIdRef = useRef<string | null>(null);
   const previousChatIdRef = useRef<string | null>(null);
   const currentChatIdRef = useRef<string | null>(null);
-  /** Conversation ID the current stream belongs to; set when request is prepared so onFinish persists to the correct conversation. */
-  const streamingConversationIdRef = useRef<string | null>(null);
   const isUpdatingUrlRef = useRef(false);
+  const pendingUrlConversationIdRef = useRef<string | null>(null);
   const updateChatPreviewRef = useRef<
     ((chatId: string, content: string, isFirstMessage?: boolean) => void) | null
   >(null);
+
+  const [conversationToSlot, setConversationToSlot] = useState<
+    Map<string, number>
+  >(new Map());
+  const [slotToConversation, setSlotToConversation] = useState<
+    Map<number, string>
+  >(new Map());
+  const [cachedMessagesByConversation, setCachedMessagesByConversation] =
+    useState<Record<string, UIMessage[]>>({});
+  const slotPayloadRef = useRef<SlotPayload[]>(
+    Array.from({ length: NUM_SLOTS }, () => ({
+      conversationId: null,
+      model: null,
+    })),
+  );
 
   useEffect(() => {
     selectedModelRef.current = selectedModel;
   }, [selectedModel]);
 
-  const { messages, sendMessage, status, setMessages, stop } = useChat({
-    /* eslint-disable react-hooks/refs */
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      prepareSendMessagesRequest(request) {
-        const chatId = currentChatIdRef.current ?? selectedChatId;
-        const model = selectedModelRef.current;
-        streamingConversationIdRef.current = chatId;
-        const body = {
-          messages: request.messages,
-          ...(chatId ? { conversationId: chatId } : {}),
-          ...(model ? { model: model.id } : {}),
-          ...request.body,
+  useEffect(() => {
+    slotToConversation.forEach((convId, slot) => {
+      const current = slotPayloadRef.current[slot];
+      if (current?.conversationId !== convId) {
+        slotPayloadRef.current[slot] = {
+          conversationId: convId,
+          model: selectedModelRef.current,
         };
-        return { body };
-      },
-    }),
-    /* eslint-enable react-hooks/refs */
-    onError: (error: unknown) => {
-      console.error("Chat API error:", error);
-    },
-    onFinish: ({ messages: finishedMessages }) => {
-      const conversationId = streamingConversationIdRef.current;
-      if (!conversationId || finishedMessages.length === 0) {
-        return;
       }
+    });
+  }, [slotToConversation]);
 
-      // Find the last assistant message
-      const lastAssistantMessage = [...finishedMessages]
-        .reverse()
-        .find((msg) => msg.role === "assistant");
+  function makeSlotTransport(slotIndex: number) {
+    return new DefaultChatTransport({
+      api: "/api/chat",
+      prepareSendMessagesRequest(request: {
+        messages: unknown[];
+        body?: Record<string, unknown>;
+      }) {
+        const payload = slotPayloadRef.current[slotIndex];
+        return {
+          body: {
+            messages: request.messages,
+            ...(payload?.conversationId
+              ? { conversationId: payload.conversationId }
+              : {}),
+            ...(payload?.model ? { model: payload.model.id } : {}),
+            ...request.body,
+          },
+        };
+      },
+    });
+  }
 
-      if (lastAssistantMessage) {
-        const content = extractMessageContent(lastAssistantMessage);
-        if (content) {
-          const formattedContent: Array<{ type: string; text: string }> =
-            content ? [{ type: "output_text", text: content }] : [];
+  /* eslint-disable react-hooks/refs -- slotPayloadRef read only in prepareSendMessagesRequest at send time (event), not during render */
+  const transport0 = useMemo(() => makeSlotTransport(0), []);
+  const transport1 = useMemo(() => makeSlotTransport(1), []);
+  const transport2 = useMemo(() => makeSlotTransport(2), []);
+  /* eslint-enable react-hooks/refs */
 
-          addConversationItem({
-            conversationId,
-            role: "assistant",
-            content: formattedContent,
-          }).catch((error) => {
-            console.error(
-              "Failed to add assistant message to conversation:",
-              error,
-            );
-          });
+  const onFinishForSlot = useCallback(
+    (slotIndex: number) =>
+      ({ messages: finishedMessages }: { messages: UIMessage[] }) => {
+        const payload = slotPayloadRef.current[slotIndex];
+        const conversationId = payload?.conversationId ?? null;
+        if (!conversationId || finishedMessages.length === 0) return;
 
-          if (
-            previousChatIdRef.current === conversationId &&
-            messagesChatIdRef.current === conversationId
-          ) {
-            const isFirstAssistantMessage =
-              finishedMessages.filter((m) => m.role === "assistant").length ===
-              1;
-            if (updateChatPreviewRef.current) {
+        const lastAssistantMessage = [...finishedMessages]
+          .reverse()
+          .find((msg) => msg.role === "assistant");
+        if (lastAssistantMessage) {
+          const content = extractMessageContent(lastAssistantMessage);
+          if (content) {
+            const formattedContent: Array<{ type: string; text: string }> = [
+              { type: "output_text", text: content },
+            ];
+            addConversationItem({
+              conversationId,
+              role: "assistant",
+              content: formattedContent,
+            }).catch((error) => {
+              console.error(
+                "Failed to add assistant message to conversation:",
+                error,
+              );
+            });
+            if (
+              previousChatIdRef.current === conversationId &&
+              messagesChatIdRef.current === conversationId &&
+              updateChatPreviewRef.current
+            ) {
+              const isFirstAssistantMessage =
+                finishedMessages.filter((m) => m.role === "assistant")
+                  .length === 1;
               updateChatPreviewRef.current(
                 conversationId,
                 content,
@@ -136,27 +184,238 @@ export default function ChatInterface({
             }
           }
         }
-      }
-    },
+      },
+    [],
+  );
+
+  const chat0 = useChat({
+    transport: transport0,
+    onError: (error: unknown) =>
+      console.error("Chat API error (slot 0):", error),
+    onFinish: onFinishForSlot(0),
+  });
+  const chat1 = useChat({
+    transport: transport1,
+    onError: (error: unknown) =>
+      console.error("Chat API error (slot 1):", error),
+    onFinish: onFinishForSlot(1),
+  });
+  const chat2 = useChat({
+    transport: transport2,
+    onError: (error: unknown) =>
+      console.error("Chat API error (slot 2):", error),
+    onFinish: onFinishForSlot(2),
   });
 
-  const isLoading = status === "streaming" || status === "submitted";
+  const slotMessages = useMemo(
+    () => [chat0.messages, chat1.messages, chat2.messages],
+    [chat0.messages, chat1.messages, chat2.messages],
+  );
+  const slotStatuses = useMemo(
+    () => [chat0.status, chat1.status, chat2.status],
+    [chat0.status, chat1.status, chat2.status],
+  );
+  const setMessagesSlots = useMemo(
+    () => [chat0.setMessages, chat1.setMessages, chat2.setMessages],
+    [chat0.setMessages, chat1.setMessages, chat2.setMessages],
+  );
+  const sendMessageSlots = useMemo(
+    () => [chat0.sendMessage, chat1.sendMessage, chat2.sendMessage],
+    [chat0.sendMessage, chat1.sendMessage, chat2.sendMessage],
+  );
+  const stopSlots = useMemo(
+    () => [chat0.stop, chat1.stop, chat2.stop],
+    [chat0.stop, chat1.stop, chat2.stop],
+  );
+
+  const streamingConversationIdsRef = useRef<Set<string>>(new Set());
+  const streamingIds = useMemo(() => {
+    const set = new Set<string>();
+    conversationToSlot.forEach((slot, convId) => {
+      const s = slotStatuses[slot];
+      if (s === "streaming" || s === "submitted") set.add(convId);
+    });
+    return set;
+  }, [conversationToSlot, slotStatuses]);
+  useLayoutEffect(() => {
+    streamingConversationIdsRef.current = streamingIds;
+  }, [streamingIds]);
+
+  const displayedMessages = useMemo(() => {
+    if (!selectedChatId) return [];
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot !== undefined && slot >= 0 && slot < NUM_SLOTS) {
+      return (slotMessages[slot] ?? []) as UIMessage[];
+    }
+    return cachedMessagesByConversation[selectedChatId] ?? [];
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotMessages,
+    cachedMessagesByConversation,
+  ]);
+
+  const isSelectedChatLoading =
+    Boolean(selectedChatId) &&
+    (() => {
+      const slot = conversationToSlot.get(selectedChatId!);
+      if (slot === undefined) return false;
+      const s = slotStatuses[slot];
+      return s === "streaming" || s === "submitted";
+    })();
+
+  const setMessagesForConversation = useCallback(
+    (convId: string, messages: UIMessage[]) => {
+      if (streamingConversationIdsRef.current.has(convId)) return;
+      const slot = conversationToSlot.get(convId);
+      if (slot !== undefined) return;
+      setCachedMessagesByConversation((prev) => ({
+        ...prev,
+        [convId]: messages,
+      }));
+      chatMessagesRef.current.set(convId, messages);
+    },
+    [conversationToSlot],
+  );
+
+  useEffect(() => {
+    slotToConversation.forEach((convId, slot) => {
+      const msgs = slotMessages[slot] as UIMessage[];
+      if (msgs && msgs.length > 0) {
+        setCachedMessagesByConversation((prev) =>
+          prev[convId] === msgs ? prev : { ...prev, [convId]: msgs },
+        );
+        chatMessagesRef.current.set(convId, msgs);
+      }
+    });
+  }, [slotToConversation, slotMessages]);
+
+  const getOrAssignSlot = useCallback(
+    (conversationId: string): number | null => {
+      const existing = conversationToSlot.get(conversationId);
+      if (existing !== undefined) return existing;
+      for (let i = 0; i < NUM_SLOTS; i++) {
+        if (!slotToConversation.has(i)) return i;
+      }
+      const selectedId = selectedChatId;
+      for (let i = 0; i < NUM_SLOTS; i++) {
+        const convId = slotToConversation.get(i);
+        if (convId && convId !== selectedId) {
+          const status = slotStatuses[i];
+          if (status !== "streaming" && status !== "submitted") {
+            return i;
+          }
+        }
+      }
+      return null;
+    },
+    [conversationToSlot, slotToConversation, selectedChatId, slotStatuses],
+  );
+
+  const evictSlot = useCallback(
+    (slot: number) => {
+      const convId = slotToConversation.get(slot);
+      if (convId === undefined) return;
+      const msgs = slotMessages[slot] as UIMessage[];
+      if (msgs?.length > 0) {
+        setCachedMessagesByConversation((prev) => ({
+          ...prev,
+          [convId]: msgs,
+        }));
+        chatMessagesRef.current.set(convId, msgs);
+      }
+      setConversationToSlot((prev) => {
+        const m = new Map(prev);
+        m.delete(convId);
+        return m;
+      });
+      setSlotToConversation((prev) => {
+        const m = new Map(prev);
+        m.delete(slot);
+        return m;
+      });
+      slotPayloadRef.current[slot] = { conversationId: null, model: null };
+    },
+    [slotToConversation, slotMessages],
+  );
+
+  const sendInConversation = useCallback(
+    (conversationId: string, text: string) => {
+      let slot = conversationToSlot.get(conversationId);
+      if (slot === undefined) {
+        const freeSlot = getOrAssignSlot(conversationId);
+        if (freeSlot === null) {
+          toast.info(t("waitForResponses"), {
+            id: "chat-slot-busy",
+            duration: 3000,
+          });
+          return;
+        }
+        const existingConv = slotToConversation.get(freeSlot);
+        if (existingConv !== undefined) evictSlot(freeSlot);
+        slot = freeSlot;
+        slotPayloadRef.current[slot] = {
+          conversationId,
+          model: selectedModelRef.current,
+        };
+        setConversationToSlot((prev) =>
+          new Map(prev).set(conversationId, slot!),
+        );
+        setSlotToConversation((prev) =>
+          new Map(prev).set(slot!, conversationId),
+        );
+        const seed =
+          cachedMessagesByConversation[conversationId] ??
+          (chatMessagesRef.current.get(conversationId) as
+            | UIMessage[]
+            | undefined) ??
+          [];
+        setMessagesSlots[slot](
+          seed as Parameters<(typeof setMessagesSlots)[0]>[0],
+        );
+      }
+      sendMessageSlots[slot]({ text });
+    },
+    [
+      conversationToSlot,
+      slotToConversation,
+      getOrAssignSlot,
+      evictSlot,
+      cachedMessagesByConversation,
+      setMessagesSlots,
+      sendMessageSlots,
+      t,
+    ],
+  );
+
+  const stopSelectedChat = useCallback(() => {
+    if (!selectedChatId) return;
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot !== undefined) stopSlots[slot]();
+  }, [selectedChatId, conversationToSlot, stopSlots]);
+
+  const isLoading = isSelectedChatLoading;
 
   useChatSelection({
     urlConversationId,
     pathname,
     conversations,
+    selectedConversation,
     selectConversation,
     selectedChatId,
     setSelectedChatId,
     setSelectedModel,
     selectedModelRef,
-    setMessages,
+    setMessages: (msgs) => {
+      if (selectedChatId)
+        setMessagesForConversation(selectedChatId, msgs as UIMessage[]);
+    },
     setInput,
     currentChatIdRef,
     previousChatIdRef,
     isUpdatingUrlRef,
-    stopStreaming: stop,
+    pendingUrlConversationIdRef,
+    stopStreaming: stopSelectedChat,
   });
 
   const { updateChatPreview } = useChatPreview({ setChats });
@@ -165,14 +424,16 @@ export default function ChatInterface({
     updateChatPreviewRef.current = updateChatPreview;
   }, [updateChatPreview]);
 
-  const { cacheMessages, clearMessages: _clearMessages } = useChatMessages({
-    selectedChatId,
-    selectedConversation,
-    setMessages,
-    previousChatIdRef,
-    messagesChatIdRef,
-    chatMessagesRef,
-  });
+  const { cacheMessages: _cacheMessages, clearMessages: _clearMessages } =
+    useChatMessages({
+      selectedChatId,
+      selectedConversation,
+      setMessagesForConversation,
+      previousChatIdRef,
+      messagesChatIdRef,
+      chatMessagesRef,
+      streamingConversationIdsRef,
+    });
 
   const {
     createModelChat,
@@ -184,7 +445,10 @@ export default function ChatInterface({
     createNewConversation,
     setChats,
     setSelectedChatId,
-    setMessages,
+    setMessages: (msgs) => {
+      const cid = currentChatIdRef.current;
+      if (cid) setMessagesForConversation(cid, msgs as UIMessage[]);
+    },
     setInput,
     currentChatIdRef,
     previousChatIdRef,
@@ -207,25 +471,8 @@ export default function ChatInterface({
     selectedModelRef,
   });
 
-  useEffect(() => {
-    if (
-      selectedChatId &&
-      previousChatIdRef.current === selectedChatId &&
-      messagesChatIdRef.current === selectedChatId &&
-      messages.length > 0
-    ) {
-      cacheMessages(selectedChatId, messages);
-    }
-  }, [
-    messages,
-    selectedChatId,
-    cacheMessages,
-    previousChatIdRef,
-    messagesChatIdRef,
-  ]);
-
   const { scrollAreaRef, scrollToBottom } = useChatScroll({
-    messages,
+    messages: displayedMessages,
     isLoading,
     selectedChatId,
   });
@@ -306,7 +553,8 @@ export default function ChatInterface({
           scrollToBottom();
         });
 
-        sendMessage({ text: trimmedMessage });
+        const cid = currentChatIdRef.current ?? conversationId;
+        if (cid) sendInConversation(cid, trimmedMessage);
         setInput("");
         return;
       }
@@ -331,13 +579,13 @@ export default function ChatInterface({
         scrollToBottom();
       });
 
-      sendMessage({ text: trimmedMessage });
+      sendInConversation(selectedChatId, trimmedMessage);
       setInput("");
     },
     [
       isLoading,
       selectedChatId,
-      sendMessage,
+      sendInConversation,
       setInput,
       handleCoworkerSelected,
       handleModelSelected,
@@ -350,13 +598,72 @@ export default function ChatInterface({
     ],
   );
 
+  const selectedChatStatus = useMemo(() => {
+    if (!selectedChatId) return "ready" as const;
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot === undefined) return "ready" as const;
+    return slotStatuses[slot];
+  }, [selectedChatId, conversationToSlot, slotStatuses]);
+
+  const sendMessageForInput = useCallback(
+    (message?: { text?: string } | { parts?: unknown[] } | UIMessage) => {
+      const cid = selectedChatId ?? currentChatIdRef.current;
+      if (!cid) return Promise.resolve();
+      const text =
+        message &&
+        typeof message === "object" &&
+        "text" in message &&
+        typeof (message as { text?: string }).text === "string"
+          ? (message as { text: string }).text
+          : undefined;
+      if (text) sendInConversation(cid, text);
+      return Promise.resolve();
+    },
+    [selectedChatId, sendInConversation],
+  ) as UseChatHelpers<UIMessage>["sendMessage"];
+
+  const setMessagesForInput = useCallback(
+    (msgs: UIMessage[] | ((prev: UIMessage[]) => UIMessage[])) => {
+      if (!selectedChatId) return;
+      const next =
+        typeof msgs === "function"
+          ? msgs(cachedMessagesByConversation[selectedChatId] ?? [])
+          : msgs;
+      setMessagesForConversation(selectedChatId, next);
+    },
+    [selectedChatId, cachedMessagesByConversation, setMessagesForConversation],
+  );
+
   const handleStop = () => {
-    stop();
+    stopSelectedChat();
   };
 
-  // Get the selected chat's coworker for MultimodalInput
   const selectedChat = chats.find((c) => c.id === selectedChatId);
-  const selectedChatCoworker = selectedChat?.coworker;
+  const selectedChatCoworker = useMemo(() => {
+    if (
+      selectedConversation?.id === selectedChatId &&
+      selectedConversation?.metadata
+    ) {
+      const meta = selectedConversation.metadata as Record<string, unknown>;
+      const type = meta?.type as string | undefined;
+      const coworkerId = meta?.coworker_id as string | undefined;
+      const coworkerName = meta?.coworker_name as string | undefined;
+      if (type === "coworker" && coworkerId && coworkerName) {
+        return {
+          id: coworkerId,
+          name: coworkerName,
+          description: (meta?.coworker_description as string) ?? "",
+          useCase: (meta?.coworker_useCase as string) ?? "",
+        };
+      }
+    }
+    return selectedChat?.coworker;
+  }, [
+    selectedConversation?.id,
+    selectedConversation?.metadata,
+    selectedChatId,
+    selectedChat?.coworker,
+  ]);
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
@@ -365,7 +672,7 @@ export default function ChatInterface({
           <>
             {showMessagesAfterTransition && (
               <MessageList
-                messages={messages}
+                messages={displayedMessages}
                 selectedChatId={selectedChatId}
                 chats={chats}
                 userImageUrl={userImageUrl}
@@ -375,14 +682,15 @@ export default function ChatInterface({
               />
             )}
             <ChatInputContainer
+              key={selectedChatId}
               selectedChatId={selectedChatId}
               input={input}
               setInput={setInput}
-              status={status}
+              status={selectedChatStatus}
               stop={handleStop}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
+              messages={displayedMessages}
+              setMessages={setMessagesForInput}
+              sendMessage={sendMessageForInput}
               onSendMessage={handleSendMessage}
               selectedModel={selectedModel}
               onSelectModel={handleModelSelected}
@@ -396,10 +704,10 @@ export default function ChatInterface({
             isTransitioning={isWelcomeTransitioning}
             input={input}
             setInput={setInput}
-            messages={messages}
-            setMessages={setMessages}
-            sendMessage={sendMessage}
-            status={status}
+            messages={[]}
+            setMessages={() => {}}
+            sendMessage={sendMessageForInput}
+            status="ready"
             stop={handleStop}
           />
         )}
