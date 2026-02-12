@@ -37,9 +37,12 @@ import { fireGTMEvent } from "@/lib/gtm-events";
 
 const couponFormSchema = (t: IntlTranslation<"App.Credits">) =>
   z.object({
-    coupon: z.string().trim().min(1, {
-      message: t("Errors.invalidCoupon"),
-    }),
+    coupon: z
+      .string()
+      .trim()
+      .min(1, {
+        message: t("Errors.invalidCoupon"),
+      }),
   });
 
 type CouponFormData = z.infer<ReturnType<typeof couponFormSchema>>;
@@ -158,9 +161,7 @@ export default function CouponForm({ organization }: CouponFormProps) {
           <CardFooter className="pt-6">
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {organization
-                ? t("couponButtonOrganization")
-                : t("couponButton")}
+              {organization ? t("couponButtonOrganization") : t("couponButton")}
             </Button>
           </CardFooter>
         </form>

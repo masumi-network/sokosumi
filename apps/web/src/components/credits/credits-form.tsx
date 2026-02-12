@@ -229,7 +229,10 @@ export default function CreditsForm({
             />
           </CardContent>
           <CardFooter className="flex items-center justify-between pt-6">
-            <Button type="submit" disabled={isSubmitting || !hasValidCreditsValue}>
+            <Button
+              type="submit"
+              disabled={isSubmitting || !hasValidCreditsValue}
+            >
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               {organization ? t("topUpButtonOrganization") : t("topUpButton")}
             </Button>
