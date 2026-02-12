@@ -13,16 +13,16 @@ function createCoupon(params: {
 }
 
 describe("getCreditsForCoupon", () => {
-  it("returns parsed credits when metadata is a valid multiple of 100", () => {
-    const coupon = createCoupon({ credits: "500", percentOff: 100 });
-    expect(getCreditsForCoupon(coupon)).toBe(500);
+  it("returns parsed credits when metadata is a positive integer", () => {
+    const coupon = createCoupon({ credits: "150", percentOff: 100 });
+    expect(getCreditsForCoupon(coupon)).toBe(150);
   });
 
-  it("throws when coupon credits are not a multiple of 100", () => {
-    const coupon = createCoupon({ credits: "150", percentOff: 100 });
+  it("throws when coupon credits are not a positive integer", () => {
+    const coupon = createCoupon({ credits: "1.5", percentOff: 100 });
     expect(() => getCreditsForCoupon(coupon)).toThrow(CouponTypeError);
     expect(() => getCreditsForCoupon(coupon)).toThrow(
-      "Coupon metadata credits must be a positive integer multiple of 100",
+      "Coupon metadata credits must be a positive integer",
     );
   });
 

@@ -7,7 +7,6 @@ import { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
 
 const mockRouterPush = jest.fn();
 const purchaseCreditsMock = jest.fn();
-const claimFreeCreditsWithCouponMock = jest.fn();
 const viewCreditsMock = jest.fn();
 const beginCheckoutMock = jest.fn();
 
@@ -49,8 +48,6 @@ jest.mock("sonner", () => ({
 
 jest.mock("@/lib/actions", () => ({
   purchaseCredits: (...args: unknown[]) => purchaseCreditsMock(...args),
-  claimFreeCreditsWithCoupon: (...args: unknown[]) =>
-    claimFreeCreditsWithCouponMock(...args),
   CommonErrorCode: {
     UNAUTHENTICATED: "UNAUTHENTICATED",
     UNAUTHORIZED: "UNAUTHORIZED",
@@ -125,8 +122,23 @@ describe("CreditsForm", () => {
     expect(creditsInput).not.toHaveAttribute("max");
   });
 
-  it("allows submit for non-100-multiple positive credits", async () => {
+  it("does not render coupon input on top-up page", () => {
+    render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
+
+    expect(
+      screen.queryByRole("textbox", {
+        name: "couponLabel",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("submits purchase credits with the entered amount", async () => {
     const user = userEvent.setup();
+    purchaseCreditsMock.mockResolvedValue({
+      ok: false,
+      error: { code: "INVALID_CREDITS" },
+    });
+
     render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
 
     const creditsInput = screen.getByRole("spinbutton", {
@@ -135,7 +147,11 @@ describe("CreditsForm", () => {
     const submitButton = screen.getByRole("button", { name: "topUpButton" });
 
     await user.type(creditsInput, "150");
+    await user.click(submitButton);
 
-    expect(submitButton).not.toBeDisabled();
+    expect(purchaseCreditsMock).toHaveBeenCalledWith({
+      organizationId: null,
+      credits: 150,
+    });
   });
 });

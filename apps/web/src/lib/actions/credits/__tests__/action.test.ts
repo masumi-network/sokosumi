@@ -122,6 +122,7 @@ describe("credits actions", () => {
         currency: "eur",
       },
       "promo_1",
+      "/coupon",
     );
     expect(result).toEqual({
       ok: true,

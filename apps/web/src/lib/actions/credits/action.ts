@@ -109,6 +109,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
       credits,
       price,
       promo.id,
+      "/coupon",
     );
     return Ok({ url });
   } catch (error) {

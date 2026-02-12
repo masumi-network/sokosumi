@@ -108,6 +108,14 @@ export const stripeClient = (() => {
     return totalMinorUnits;
   }
 
+  function normalizeCheckoutReturnPath(returnPath: string): string {
+    if (!returnPath) {
+      return "/credits";
+    }
+
+    return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
+  }
+
   return {
     async createUserCustomer(
       userId: string,
@@ -404,26 +412,36 @@ export const stripeClient = (() => {
       price: Price,
       origin: string | null = null,
       promotionCode: string | null = null,
+      returnPath: string = "/credits",
     ): Promise<Stripe.Checkout.Session> {
       if (price.amountPerCredit === 0) {
         throw new Error(
           "Price amountPerCredit is 0 – cannot create checkout session for free product",
         );
       }
+      const env = getEnvSecrets();
       const checkoutUnitAmount = getCheckoutUnitAmount(credits, price);
       const creditsLabel = credits.toLocaleString("en-US");
+      const checkoutBaseUrl = (origin ?? env.VERCEL_URL).replace(/\/$/, "");
+      const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [
           {
-            price_data: {
-              currency: price.currency,
-              product_data: {
-                name: `${creditsLabel} Sokosumi Credits`,
-              },
-              unit_amount: checkoutUnitAmount,
-            },
+            price_data: promotionCode
+              ? {
+                  currency: price.currency,
+                  product: env.STRIPE_CREDIT_PRODUCT_ID,
+                  unit_amount: checkoutUnitAmount,
+                }
+              : {
+                  currency: price.currency,
+                  product_data: {
+                    name: `${creditsLabel} Sokosumi Credits`,
+                  },
+                  unit_amount: checkoutUnitAmount,
+                },
             quantity: 1,
           },
         ],
@@ -452,8 +470,8 @@ export const stripeClient = (() => {
         },
         billing_address_collection: "required",
         tax_id_collection: { enabled: true },
-        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
+        success_url: `${checkoutBaseUrl}${normalizedReturnPath}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${checkoutBaseUrl}${normalizedReturnPath}?cancel=true`,
       });
       return session;
     },

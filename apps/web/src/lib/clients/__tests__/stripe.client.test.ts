@@ -192,7 +192,7 @@ describe("stripe.client lookup-key pricing", () => {
     });
   });
 
-  it("creates checkout with integer total amount to support decimal per-credit pricing", async () => {
+  it("creates top-up checkout with integer total amount and dynamic product label", async () => {
     checkoutSessionsCreateMock.mockResolvedValue({ id: "cs_123", url: "test" });
     const { stripeClient } = await import("../stripe.client");
 
@@ -216,7 +216,6 @@ describe("stripe.client lookup-key pricing", () => {
             price_data: {
               currency: "eur",
               product_data: {
-                description: "Credit top-up",
                 name: "25,000 Sokosumi Credits",
               },
               unit_amount: 30000,
@@ -224,10 +223,53 @@ describe("stripe.client lookup-key pricing", () => {
             quantity: 1,
           },
         ],
+        allow_promotion_codes: false,
         metadata: expect.objectContaining({
           credits: 25_000,
           userId: "user-1",
         }),
+        success_url:
+          "https://app.sokosumi.com/credits?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://app.sokosumi.com/credits?cancel=true",
+      }),
+    );
+  });
+
+  it("creates coupon checkout with credit product id and coupon return path", async () => {
+    checkoutSessionsCreateMock.mockResolvedValue({ id: "cs_456", url: "test" });
+    const { stripeClient } = await import("../stripe.client");
+
+    await stripeClient.createCheckoutSession(
+      "cus_1",
+      "user-1",
+      null,
+      25_000,
+      {
+        id: "price_credits",
+        amountPerCredit: 1.2,
+        currency: "eur",
+      },
+      "https://app.sokosumi.com",
+      "promo_1",
+      "/coupon",
+    );
+
+    expect(checkoutSessionsCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              product: "prod_credit",
+              unit_amount: 30000,
+            },
+            quantity: 1,
+          },
+        ],
+        discounts: [{ promotion_code: "promo_1" }],
+        success_url:
+          "https://app.sokosumi.com/coupon?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://app.sokosumi.com/coupon?cancel=true",
       }),
     );
   });

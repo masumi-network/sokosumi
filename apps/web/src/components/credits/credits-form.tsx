@@ -5,7 +5,7 @@ import { Organization } from "@sokosumi/database";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  claimFreeCreditsWithCoupon,
   CommonErrorCode,
   CreditsErrorCode,
   purchaseCredits,
@@ -50,23 +49,14 @@ const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
   z
     .object({
       credits: z.number().nullish(),
-      coupon: z.string().nullish(),
     })
     .superRefine((data, ctx) => {
       const hasValidCredits = hasValidCreditsInput(data.credits);
-      const hasValidCoupon =
-        data.coupon != null && data.coupon.trim().length > 0;
-      const hasCreditsAttempt = data.credits != null;
-      const hasCouponAttempt =
-        data.coupon != null && data.coupon.trim().length > 0;
-      const path =
-        hasCreditsAttempt && !hasCouponAttempt ? ["credits"] : ["coupon"];
-
-      if (!hasValidCredits && !hasValidCoupon) {
+      if (!hasValidCredits) {
         ctx.addIssue({
           code: "custom",
-          message: t("Errors.invalidInput"),
-          path,
+          message: t("Errors.invalidCredits"),
+          path: ["credits"],
         });
       }
     });
@@ -86,15 +76,10 @@ export default function CreditsForm({
   const formatter = useFormatter();
   const router = useRouter();
 
-  const [clearedField, setClearedField] = useState<"credits" | "coupon" | null>(
-    null,
-  );
-
   const form = useForm<CreditsFormData>({
     resolver: zodResolver(creditsFormSchema(t)),
     defaultValues: {
       credits: null,
-      coupon: null,
     },
   });
 
@@ -109,60 +94,26 @@ export default function CreditsForm({
     control: form.control,
     name: "credits",
   });
-  const coupon = useWatch({
-    control: form.control,
-    name: "coupon",
-  });
 
   const handleFieldChange = useCallback(
-    (field: "credits" | "coupon", value: number | string | undefined) => {
-      if (field === "credits") {
-        const numValue = value as number | undefined;
-        setValue("credits", numValue);
-
-        // Only clear coupon if we have a valid credit amount and coupon exists
-        if (numValue && numValue > 0) {
-          const currentCoupon = form.getValues("coupon");
-          if (currentCoupon) {
-            setValue("coupon", "");
-            setClearedField("coupon");
-          }
-        }
-      } else if (field === "coupon") {
-        const strValue = String(value ?? "");
-        setValue("coupon", strValue);
-
-        // Only clear credits if we have a valid coupon and credits exist
-        if (strValue.length > 0) {
-          const currentCredits = form.getValues("credits");
-          if (currentCredits && currentCredits > 0) {
-            setValue("credits", undefined);
-            setClearedField("credits");
-          }
-        }
-      }
+    (value: number | undefined) => {
+      setValue("credits", value);
     },
-    [setValue, form],
+    [setValue],
   );
 
   const handleSubmit = useCallback(
     async (data: CreditsFormData) => {
-      let result;
-      if (data.coupon && data.coupon.trim().length > 0) {
-        result = await claimFreeCreditsWithCoupon({
-          organizationId: organization?.id ?? null,
-          couponId: data.coupon.trim(),
-        });
-      } else if (hasValidCreditsInput(data.credits)) {
-        const creditsAmount = data.credits as number;
-        result = await purchaseCredits({
-          organizationId: organization?.id ?? null,
-          credits: creditsAmount,
-        });
-      } else {
-        toast.error(t("invalidInput"));
+      if (!hasValidCreditsInput(data.credits)) {
+        toast.error(t("Errors.invalidCredits"));
         return;
       }
+
+      const creditsAmount = data.credits as number;
+      const result = await purchaseCredits({
+        organizationId: organization?.id ?? null,
+        credits: creditsAmount,
+      });
 
       if (result.ok) {
         fireGTMEvent.beginCheckout();
@@ -182,21 +133,6 @@ export default function CreditsForm({
           case CreditsErrorCode.INVALID_CREDITS:
             toast.error(t("Errors.invalidCredits"));
             break;
-          case CreditsErrorCode.INVALID_COUPON:
-            toast.error(t("Errors.invalidCoupon"));
-            break;
-          case CreditsErrorCode.COUPON_NOT_FOUND:
-            toast.error(t("Errors.couponNotFound"));
-            break;
-          case CreditsErrorCode.COUPON_TYPE_ERROR:
-            toast.error(t("Errors.couponTypeError"));
-            break;
-          case CreditsErrorCode.COUPON_CURRENCY_ERROR:
-            toast.error(t("Errors.couponCurrencyError"));
-            break;
-          case CreditsErrorCode.PROMOTION_CODE_NOT_FOUND:
-            toast.error(t("Errors.promotionCodeNotFound"));
-            break;
           case CommonErrorCode.UNAUTHORIZED:
             if (organization) {
               toast.error(t("Errors.unauthorizedOrganization"));
@@ -214,7 +150,7 @@ export default function CreditsForm({
 
   const handleQuickAmount = useCallback(
     (amount: number) => {
-      handleFieldChange("credits", amount);
+      handleFieldChange(amount);
     },
     [handleFieldChange],
   );
@@ -225,19 +161,6 @@ export default function CreditsForm({
     ? getCreditTopUpLookupKeyByCredits(credits as number)
     : BASE_CREDIT_TOPUP_LOOKUP_KEY;
   const selectedPrice = priceCatalog[selectedLookupKey];
-
-  const FieldClearedIndicator = ({
-    show,
-    message,
-  }: {
-    show: boolean;
-    message: string;
-  }) =>
-    show ? (
-      <div className="text-muted-foreground mt-1 text-xs transition-opacity duration-200">
-        {message}
-      </div>
-    ) : null;
 
   return (
     <Card>
@@ -289,62 +212,24 @@ export default function CreditsForm({
                       onChange={(e) => {
                         const { value } = e.target;
                         if (value === "") {
-                          handleFieldChange("credits", undefined);
+                          handleFieldChange(undefined);
                         } else {
                           const numValue = Number(value);
                           if (Number.isFinite(numValue) && numValue >= 0) {
-                            handleFieldChange("credits", numValue);
+                            handleFieldChange(numValue);
                           }
                         }
                       }}
                       value={field.value ?? ""}
                     />
                   </FormControl>
-                  <FieldClearedIndicator
-                    show={clearedField === "credits"}
-                    message={t("creditsCleared")}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="coupon"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("couponLabel")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      placeholder={t("couponPlaceholder")}
-                      disabled={isSubmitting}
-                      autoComplete="off"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleFieldChange("coupon", value);
-                      }}
-                    />
-                  </FormControl>
-                  <FieldClearedIndicator
-                    show={clearedField === "coupon"}
-                    message={t("couponCleared")}
-                  />
                   <FormMessage />
                 </FormItem>
               )}
             />
           </CardContent>
           <CardFooter className="flex items-center justify-between pt-6">
-            <Button
-              type="submit"
-              disabled={
-                isSubmitting ||
-                (!hasValidCreditsValue && (!coupon || coupon.trim().length === 0))
-              }
-            >
+            <Button type="submit" disabled={isSubmitting || !hasValidCreditsValue}>
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               {organization ? t("topUpButtonOrganization") : t("topUpButton")}
             </Button>
