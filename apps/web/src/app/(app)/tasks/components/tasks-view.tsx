@@ -311,8 +311,21 @@ export function TasksView({
   }, [initialNextCursor, tasks]);
 
   useEffect(() => {
-    setJobsItems(jobs);
-    setJobsCursor(initialJobsNextCursor ?? null);
+    const prev = jobsItemsRef.current;
+    const nextJobIds = new Set(jobs.map((job) => job.id));
+    const next = [...jobs];
+
+    prev.forEach((job) => {
+      if (!nextJobIds.has(job.id)) {
+        next.push(job);
+      }
+    });
+
+    setJobsItems(next);
+
+    if (next.length <= jobs.length) {
+      setJobsCursor(initialJobsNextCursor ?? null);
+    }
   }, [initialJobsNextCursor, jobs]);
 
   useEffect(() => {
@@ -429,7 +442,6 @@ export function TasksView({
       try {
         const result = await loadMoreJobs(null);
         setJobsItems((prev) => mergeTopPageJobs(prev, result.jobs));
-        setJobsCursor(result.nextCursor);
         setAgentPreviews((prev) => ({
           ...prev,
           ...result.agentPreviewById,
