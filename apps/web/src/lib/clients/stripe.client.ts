@@ -32,16 +32,16 @@ export const stripeClient = (() => {
   }
 
   function getStripeUnitAmount(price: Stripe.Price): number | null {
+    if (price.unit_amount_decimal !== null) {
+      const decimalAmount = Number(price.unit_amount_decimal);
+      return Number.isFinite(decimalAmount) ? decimalAmount : null;
+    }
+
     if (price.unit_amount !== null) {
       return price.unit_amount;
     }
 
-    if (price.unit_amount_decimal === null) {
-      return null;
-    }
-
-    const decimalAmount = Number(price.unit_amount_decimal);
-    return Number.isFinite(decimalAmount) ? decimalAmount : null;
+    return null;
   }
 
   function isValidCreditPrice(price: Stripe.Price): boolean {
