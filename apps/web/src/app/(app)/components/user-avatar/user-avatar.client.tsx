@@ -281,6 +281,7 @@ export default function UserAvatarClient({
             {overflowWorkspaces.length > 0 ? (
               isMobile ? (
                 <Popover
+                  modal={false}
                   open={isWorkspacePopoverOpen}
                   onOpenChange={setIsWorkspacePopoverOpen}
                 >
