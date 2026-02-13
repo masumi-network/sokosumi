@@ -174,6 +174,68 @@ describe("subscription actions", () => {
     });
   });
 
+  it("uses returnPath for personal subscription redirect urls", async () => {
+    upgradeSubscriptionMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/session/test",
+    });
+
+    const { upgradePersonalSubscription } = await import("../action");
+
+    const result = await upgradePersonalSubscription({
+      authContext: {
+        organizationId: null,
+        userId: "user-1",
+      },
+      plan: "starter",
+      returnPath: "/billing?tab=subscription",
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://checkout.stripe.com/session/test" },
+      ok: true,
+    });
+    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
+      body: {
+        cancelUrl: "/billing?tab=subscription&status=cancel",
+        customerType: "user",
+        disableRedirect: true,
+        plan: "starter",
+        returnUrl: "/billing?tab=subscription",
+        successUrl: "/billing?tab=subscription&status=success",
+      },
+      headers: new Headers(),
+    });
+  });
+
+  it("uses returnPath for personal billing portal", async () => {
+    createBillingPortalMock.mockResolvedValue({
+      url: "https://billing.stripe.com/session/test",
+    });
+
+    const { openPersonalBillingPortal } = await import("../action");
+
+    const result = await openPersonalBillingPortal({
+      authContext: {
+        organizationId: null,
+        userId: "user-1",
+      },
+      returnPath: "/billing?tab=coupon",
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://billing.stripe.com/session/test" },
+      ok: true,
+    });
+    expect(createBillingPortalMock).toHaveBeenCalledWith({
+      body: {
+        customerType: "user",
+        disableRedirect: true,
+        returnUrl: "/billing?tab=coupon",
+      },
+      headers: new Headers(),
+    });
+  });
+
   it("returns BAD_INPUT for invalid organization seats", async () => {
     const { CommonErrorCode } = await import("@/lib/actions/errors");
     const { upgradeOrganizationSubscription } = await import("../action");

@@ -17,9 +17,11 @@ import {
 } from "@/middleware/auth-middleware";
 
 const subscriptionPlanSchema = z.enum(["free", "starter", "standard", "pro"]);
+const personalReturnPathSchema = z.string().startsWith("/");
 
 const upgradePersonalSubscriptionSchema = z.object({
   plan: subscriptionPlanSchema,
+  returnPath: personalReturnPathSchema.optional(),
 });
 
 const upgradeOrganizationSubscriptionSchema = z.object({
@@ -86,16 +88,34 @@ function parseOrganizationSeatUpdateError(error: unknown): ActionError {
   };
 }
 
+function buildSubscriptionStatusPath(
+  returnPath: string,
+  status: "cancel" | "success",
+): string {
+  const [pathname, queryString = ""] = returnPath.split("?");
+  const searchParams = new URLSearchParams(queryString);
+  searchParams.set("status", status);
+
+  const nextQueryString = searchParams.toString();
+  if (!nextQueryString) {
+    return pathname;
+  }
+
+  return `${pathname}?${nextQueryString}`;
+}
+
 interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
   plan: "free" | "starter" | "standard" | "pro";
+  returnPath?: string;
 }
 
 export const upgradePersonalSubscription = withAuthContext<
   UpgradePersonalSubscriptionParameters,
   Result<{ url: string }, ActionError>
->(async ({ plan }) => {
+>(async ({ plan, returnPath }) => {
   const parsed = upgradePersonalSubscriptionSchema.safeParse({
     plan,
+    returnPath,
   });
   if (!parsed.success) {
     return Err({
@@ -104,14 +124,16 @@ export const upgradePersonalSubscription = withAuthContext<
   }
 
   try {
+    const resolvedReturnPath = parsed.data.returnPath ?? "/subscriptions";
+
     const result = await auth.api.upgradeSubscription({
       headers: await headers(),
       body: {
         plan: parsed.data.plan,
         customerType: "user",
-        successUrl: "/subscriptions?status=success",
-        cancelUrl: "/subscriptions?status=cancel",
-        returnUrl: "/subscriptions",
+        successUrl: buildSubscriptionStatusPath(resolvedReturnPath, "success"),
+        cancelUrl: buildSubscriptionStatusPath(resolvedReturnPath, "cancel"),
+        returnUrl: resolvedReturnPath,
         disableRedirect: true,
       },
     });
@@ -128,16 +150,29 @@ export const upgradePersonalSubscription = withAuthContext<
   }
 });
 
+interface OpenPersonalBillingPortalParameters extends AuthenticatedRequest {
+  returnPath?: string;
+}
+
 export const openPersonalBillingPortal = withAuthContext<
-  AuthenticatedRequest,
+  OpenPersonalBillingPortalParameters,
   Result<{ url: string }, ActionError>
->(async () => {
+>(async ({ returnPath }) => {
+  const parsedReturnPath = personalReturnPathSchema
+    .optional()
+    .safeParse(returnPath);
+  if (!parsedReturnPath.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+
   try {
     const result = await auth.api.createBillingPortal({
       headers: await headers(),
       body: {
         customerType: "user",
-        returnUrl: "/subscriptions",
+        returnUrl: parsedReturnPath.data ?? "/subscriptions",
         disableRedirect: true,
       },
     });

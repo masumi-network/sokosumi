@@ -19,12 +19,13 @@ import {
 interface PurchaseCreditsParameters extends AuthenticatedRequest {
   organizationId: string | null;
   credits: number;
+  returnPath?: string;
 }
 
 export const purchaseCredits = withAuthContext<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, credits, authContext }) => {
+>(async ({ organizationId, credits, authContext, returnPath }) => {
   const { userId } = authContext;
 
   // Validate input
@@ -55,6 +56,8 @@ export const purchaseCredits = withAuthContext<
       organizationId,
       credits,
       price,
+      null,
+      returnPath,
     );
 
     return Ok({ url });
@@ -69,12 +72,13 @@ export const purchaseCredits = withAuthContext<
 interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   organizationId: string | null;
   couponId: string;
+  returnPath?: string;
 }
 
 export const claimFreeCreditsWithCoupon = withAuthContext<
   ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, couponId, authContext }) => {
+>(async ({ organizationId, couponId, authContext, returnPath }) => {
   const { userId } = authContext;
 
   // If organizationId is provided, verify user is a member
@@ -109,7 +113,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
       credits,
       price,
       promo.id,
-      "/coupon",
+      returnPath ?? "/coupon",
     );
     return Ok({ url });
   } catch (error) {

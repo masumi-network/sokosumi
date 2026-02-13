@@ -18,6 +18,7 @@ interface TaskDetailHeaderProps {
       deleteError: string;
       markAsReady: string;
       revertToDraft: string;
+      cancelRequest: string;
     };
   };
 }
@@ -26,6 +27,11 @@ export function TaskDetailHeader({ task, labels }: TaskDetailHeaderProps) {
   const canManage =
     task.status === TaskStatus.DRAFT ||
     task.status === TaskStatus.READY ||
+    task.status === TaskStatus.INPUT_REQUIRED ||
+    task.status === TaskStatus.AUTHENTICATION_REQUIRED ||
+    task.status === TaskStatus.OUT_OF_CREDITS ||
+    task.status === TaskStatus.CREDITS_TOPPED_UP ||
+    task.status === TaskStatus.RUNNING ||
     task.status === TaskStatus.CANCELED;
 
   return (
