@@ -1,12 +1,10 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode } from "@/lib/actions";
 import {
-  openOrganizationBillingPortal,
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
@@ -36,7 +33,6 @@ interface OrganizationSubscriptionSectionProps {
   organizationId: string;
   plans: SubscriptionPlanView[];
   returnPath: string;
-  showBillingPortalButton?: boolean;
 }
 
 export function OrganizationSubscriptionSection({
@@ -46,7 +42,6 @@ export function OrganizationSubscriptionSection({
   organizationId,
   plans,
   returnPath,
-  showBillingPortalButton = true,
 }: OrganizationSubscriptionSectionProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
@@ -61,7 +56,6 @@ export function OrganizationSubscriptionSection({
   const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
     null,
   );
-  const [isBillingPortalPending, setIsBillingPortalPending] = useState(false);
 
   useEffect(() => {
     setTargetSeats(Math.max(currentSeats, minimumSeats));
@@ -177,24 +171,6 @@ export function OrganizationSubscriptionSection({
     ],
   );
 
-  const handleOpenBillingPortal = useCallback(async () => {
-    setIsBillingPortalPending(true);
-    try {
-      const result = await openOrganizationBillingPortal({
-        organizationId,
-        returnPath,
-      });
-      if (!result.ok) {
-        handleSubscriptionActionError(result.error);
-        return;
-      }
-
-      window.location.href = result.data.url;
-    } finally {
-      setIsBillingPortalPending(false);
-    }
-  }, [handleSubscriptionActionError, organizationId, returnPath]);
-
   return (
     <div className="space-y-6">
       <Card>
@@ -243,27 +219,6 @@ export function OrganizationSubscriptionSection({
               {t("seatsInputHint", { minimum: minimumSeats })}
             </p>
           </div>
-
-          {showBillingPortalButton ? (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                disabled={isBillingPortalPending}
-                onClick={() => {
-                  void handleOpenBillingPortal();
-                }}
-              >
-                {isBillingPortalPending ? (
-                  <>
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                    {t("openingBillingPortal")}
-                  </>
-                ) : (
-                  t("billingPortalCta")
-                )}
-              </Button>
-            </div>
-          ) : null}
         </CardContent>
       </Card>
       <div className="grid gap-4 md:grid-cols-2">

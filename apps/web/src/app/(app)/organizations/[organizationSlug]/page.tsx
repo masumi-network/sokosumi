@@ -6,7 +6,6 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
-import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import {
   type ActiveSubscription,
   parsePlanName,
@@ -166,9 +165,6 @@ export default async function OrganizationPage({
           <OrganizationRoleBadge role={member.role} />
         </div>
         <OrganizationInformation organization={organization} member={member} />
-        {isOwnerOrAdmin && organizationSubscriptionProps ? (
-          <OrganizationSubscriptionSection {...organizationSubscriptionProps} />
-        ) : null}
         <OrganizationInvoiceEmail organization={organization} member={member} />
         {isOwnerOrAdmin ? (
           <div className="flex items-center justify-between">

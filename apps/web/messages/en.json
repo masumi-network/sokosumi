@@ -149,9 +149,6 @@
     "UserAvatar": {
       "account": "Account",
       "organizations": "Organizations",
-      "credits": "Credits",
-      "coupon": "Coupon",
-      "subscriptions": "Subscriptions",
       "billing": "Billing",
       "connections": "Connections",
       "support": "Support",
@@ -1912,8 +1909,6 @@
           "currentPlanCta": "Current plan",
           "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
-          "openingBillingPortal": "Opening...",
-          "billingPortalCta": "Open billing portal",
           "Errors": {
             "unauthenticated": "Please log in to continue",
             "unauthenticatedAction": "Log in",

@@ -1,10 +1,12 @@
-import { AgentStatus, type CreditCost, PricingType, type Prisma } from "@sokosumi/database";
+import {
+  AgentStatus,
+  type CreditCost,
+  PricingType,
+  type Prisma,
+} from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  buildAvailableAgentWhereClause,
-  getCreditCostsOrThrow,
-} from "./agent";
+import { buildAvailableAgentWhereClause, getCreditCostsOrThrow } from "./agent";
 
 function createCreditCost(unit: string): CreditCost {
   const now = new Date("2026-01-01T00:00:00.000Z");

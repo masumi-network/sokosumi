@@ -9,12 +9,9 @@ import {
   ChevronDown,
   ChevronsUpDown,
   CircleHelp,
-  CreditCardIcon,
   LogOut,
   ReceiptText,
-  Tag,
   User as UserIcon,
-  WalletCards,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -124,12 +121,12 @@ function WorkspaceRow({ sessionUser, subtitle, workspace }: WorkspaceRowProps) {
           imageAlt={sessionUser.name ?? "User avatar"}
         />
       )}
-      <div className="flex min-w-0 flex-col items-start">
-        <div className="text-sm font-semibold">
-          <span className="truncate">{workspace.name}</span>
+      <div className="flex w-full min-w-0 flex-col items-start">
+        <div className="w-full truncate text-sm font-semibold">
+          {workspace.name}
         </div>
         {subtitle ? (
-          <div className="text-muted-foreground truncate text-xs">
+          <div className="text-muted-foreground w-full truncate text-xs">
             {subtitle}
           </div>
         ) : null}
@@ -261,7 +258,10 @@ export default function UserAvatarClient({
             {directWorkspaces.map((workspace) => (
               <DropdownMenuItem
                 key={getWorkspaceKey(workspace)}
-                className="flex cursor-pointer items-center justify-between gap-2 py-2"
+                className={cn(
+                  "flex cursor-pointer items-center justify-between gap-2 py-2",
+                  workspace.id === activeOrganizationId && "text-primary",
+                )}
                 disabled={isPending}
                 onSelect={() => {
                   handleSelectWorkspaceAndClose(workspace.id);
@@ -280,7 +280,7 @@ export default function UserAvatarClient({
                   className={cn(
                     "size-4",
                     workspace.id === activeOrganizationId
-                      ? "opacity-100"
+                      ? "text-primary opacity-100"
                       : "opacity-0",
                   )}
                 />
@@ -393,43 +393,24 @@ export default function UserAvatarClient({
           <DropdownMenuGroup>
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
-              onClick={(e) => handleClick(e, "/account")}
+              onClick={(e: React.MouseEvent) => handleClick(e, "/account")}
             >
               <UserIcon className="text-muted-foreground" />
               {t("account")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
-              onClick={(e) => handleClick(e, "/organizations")}
+              onClick={(e: React.MouseEvent) =>
+                handleClick(e, "/organizations")
+              }
             >
               <Building2 className="text-muted-foreground" />
               {t("organizations")}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              className="flex cursor-pointer items-center gap-2"
-              onClick={(e) => handleClick(e, "/credits")}
-            >
-              <CreditCardIcon className="text-muted-foreground" />
-              {t("credits")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="flex cursor-pointer items-center gap-2"
-              onClick={(e) => handleClick(e, "/coupon")}
-            >
-              <Tag className="text-muted-foreground" />
-              {t("coupon")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="flex cursor-pointer items-center gap-2"
-              onClick={(e) => handleClick(e, "/subscriptions")}
-            >
-              <WalletCards className="text-muted-foreground" />
-              {t("subscriptions")}
-            </DropdownMenuItem>
             {canViewBilling ? (
               <DropdownMenuItem
                 className="flex cursor-pointer items-center gap-2"
-                onClick={(e) => handleClick(e, "/billing")}
+                onClick={(e: React.MouseEvent) => handleClick(e, "/billing")}
               >
                 <ReceiptText className="text-muted-foreground" />
                 {t("billing")}
@@ -437,7 +418,7 @@ export default function UserAvatarClient({
             ) : null}
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
-              onClick={(e) => handleClick(e, "/connections")}
+              onClick={(e: React.MouseEvent) => handleClick(e, "/connections")}
             >
               <Cable className="text-muted-foreground" />
               {t("connections")}

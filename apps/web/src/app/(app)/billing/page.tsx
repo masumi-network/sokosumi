@@ -42,6 +42,7 @@ interface BillingPageProps {
     cancel?: string;
     session_id?: string;
     status?: string;
+    tab?: string;
   }>;
 }
 
@@ -52,9 +53,20 @@ function parseStatus(status: string | undefined): "cancel" | "success" | null {
   return null;
 }
 
+type BillingTab = "subscription" | "credits" | "coupon";
+
+function parseBillingTab(tab: string | undefined): BillingTab {
+  if (tab === "credits" || tab === "coupon" || tab === "subscription") {
+    return tab;
+  }
+
+  return "subscription";
+}
+
 export default async function BillingPage({ searchParams }: BillingPageProps) {
   const t = await getTranslations("App.Billing");
   const query = await searchParams;
+  const activeTab = parseBillingTab(query.tab);
   const authContext = await getAuthContext();
   const activeOrganizationId = authContext?.organizationId ?? null;
   const activeOrganization = await userService.getActiveOrganization();
@@ -85,6 +97,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     );
     const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
     const canPurchaseCredits = isOwnerOrAdmin && currentPlan !== "free";
+    const creditsCheckoutParams =
+      canPurchaseCredits && activeTab === "credits"
+        ? { cancel: query.cancel, session_id: query.session_id }
+        : undefined;
+    const couponCheckoutParams =
+      activeTab === "coupon"
+        ? { cancel: query.cancel, session_id: query.session_id }
+        : undefined;
 
     if (!isOwnerOrAdmin) {
       return (
@@ -158,7 +178,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 organizationId={activeOrganization.id}
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"
-                showBillingPortalButton={false}
               />
             }
             creditsContent={
@@ -166,14 +185,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 isPurchaseEnabled={canPurchaseCredits}
                 organization={activeOrganization}
                 returnPath="/billing?tab=credits"
-                searchParams={query}
+                searchParams={creditsCheckoutParams}
               />
             }
             couponContent={
               <CouponSection
                 organization={activeOrganization}
                 returnPath="/billing?tab=coupon"
-                searchParams={query}
+                searchParams={couponCheckoutParams}
               />
             }
           />
@@ -244,6 +263,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   });
 
   const canPurchaseCredits = currentPlan !== "free";
+  const creditsCheckoutParams =
+    canPurchaseCredits && activeTab === "credits"
+      ? { cancel: query.cancel, session_id: query.session_id }
+      : undefined;
+  const couponCheckoutParams =
+    activeTab === "coupon"
+      ? { cancel: query.cancel, session_id: query.session_id }
+      : undefined;
 
   return (
     <div className="min-h-full w-full">
@@ -273,14 +300,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               isPurchaseEnabled={canPurchaseCredits}
               organization={null}
               returnPath="/billing?tab=credits"
-              searchParams={query}
+              searchParams={creditsCheckoutParams}
             />
           }
           couponContent={
             <CouponSection
               organization={null}
               returnPath="/billing?tab=coupon"
-              searchParams={query}
+              searchParams={couponCheckoutParams}
             />
           }
         />
