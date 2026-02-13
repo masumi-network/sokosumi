@@ -53,7 +53,7 @@ export function SubscriptionPlanCard({
           (item): item is string => typeof item === "string",
         )
       : [];
-  const resolvedDisabled = (isDisabled ?? isAnyPlanPending) || plan.isCurrent;
+  const resolvedDisabled = isDisabled ?? (isAnyPlanPending || plan.isCurrent);
   const resolvedActionLabel =
     actionLabel ?? (plan.isCurrent ? t("currentPlanCta") : t("upgradePlanCta"));
   const resolvedLoadingLabel = loadingLabel ?? t("upgrading");
