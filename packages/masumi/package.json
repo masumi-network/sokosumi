@@ -55,8 +55,8 @@
   },
   "dependencies": {
     "json-canonicalize": "2.0.0",
-    "zod": "4.3.6",
-    "neverthrow": "8.2.0"
+    "neverthrow": "8.2.0",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.92.3",
