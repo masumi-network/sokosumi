@@ -980,7 +980,6 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(findOutOfCreditsTasksMock).toHaveBeenCalledWith({
       where: {
-        organizationId: null,
         status: "OUT_OF_CREDITS",
         userId: "user-1",
       },
