@@ -52,11 +52,11 @@
   "devDependencies": {
     "chrome-launcher": "1.2.1",
     "eslint": "9.39.2",
-    "lighthouse": "^13.0.2",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-simple-import-sort": "12.1.1",
     "eslint-plugin-unused-imports": "4.4.1",
+    "lighthouse": "13.0.3",
     "prettier": "3.8.1",
     "typescript-eslint": "8.55.0"
   }
