@@ -55,12 +55,6 @@ const route = createRoute({
   },
 });
 
-const taskEventTransactionInclude = {
-  transaction: {
-    select: { amount: true },
-  },
-} as const;
-
 function getActorData(authContext: AuthenticationContext) {
   if (authContext.coworkerId) {
     return {
@@ -114,7 +108,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               transactionId,
               ...getActorData(authContext),
             },
-            include: taskEventTransactionInclude,
           });
 
           const updateResult = await tx.task.updateMany({
