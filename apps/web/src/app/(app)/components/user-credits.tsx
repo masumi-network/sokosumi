@@ -48,12 +48,13 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   );
 
   const credits = convertCentsToCredits(cents);
+  const displayCredits = Math.trunc(credits);
   const creditsLabel = activeOrganization
     ? t("organizationBalance", {
-        credits,
+        credits: displayCredits,
         organization: activeOrganization.name,
       })
-    : t("userBalance", { credits });
+    : t("userBalance", { credits: displayCredits });
 
   try {
     const requestHeaders = await headers();

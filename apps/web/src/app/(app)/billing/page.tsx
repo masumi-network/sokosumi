@@ -137,6 +137,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       activeOrganization._count.members,
     );
     const credits = convertCentsToCredits(balanceInCents);
+    const displayCredits = Math.trunc(credits);
 
     const orgPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
       const plan = subscriptionCatalog[planName];
@@ -159,7 +160,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               organization: activeOrganization.name,
               seats: currentSeats,
             })}
-            creditsLabel={t("balanceCreditsLabel", { credits })}
+            creditsLabel={t("balanceCreditsLabel", {
+              credits: displayCredits,
+            })}
           />
 
           <BillingTabs
@@ -235,6 +238,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   );
   const currentPlan = parsePlanName(latestPersonalSubscription?.plan) ?? "free";
   const credits = convertCentsToCredits(balanceInCents);
+  const displayCredits = Math.trunc(credits);
   const personalPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
     const plan = subscriptionCatalog[planName];
     return {
@@ -262,7 +266,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         <BalanceSection
           title={t("balanceTitle")}
           description={t("balanceDescriptionPersonal")}
-          creditsLabel={t("balanceCreditsLabel", { credits })}
+          creditsLabel={t("balanceCreditsLabel", {
+            credits: displayCredits,
+          })}
         />
 
         <BillingTabs
