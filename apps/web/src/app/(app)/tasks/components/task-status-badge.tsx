@@ -7,9 +7,12 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.READY]: "Ready",
   [TaskStatus.INPUT_REQUIRED]: "Input",
   [TaskStatus.AUTHENTICATION_REQUIRED]: "Auth",
+  [TaskStatus.OUT_OF_CREDITS]: "No credits",
+  [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
   [TaskStatus.RUNNING]: "Running",
   [TaskStatus.COMPLETED]: "Done",
   [TaskStatus.FAILED]: "Failed",
+  [TaskStatus.CANCEL_REQUESTED]: "Cancel requested",
   [TaskStatus.CANCELED]: "Canceled",
 };
 
@@ -18,9 +21,12 @@ const STATUS_DOT_COLORS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.READY]: "bg-blue-500",
   [TaskStatus.INPUT_REQUIRED]: "bg-orange-500",
   [TaskStatus.AUTHENTICATION_REQUIRED]: "bg-purple-500",
+  [TaskStatus.OUT_OF_CREDITS]: "bg-rose-500",
+  [TaskStatus.CREDITS_TOPPED_UP]: "bg-cyan-500",
   [TaskStatus.RUNNING]: "bg-amber-500",
   [TaskStatus.COMPLETED]: "bg-emerald-500",
   [TaskStatus.FAILED]: "bg-red-500",
+  [TaskStatus.CANCEL_REQUESTED]: "bg-fuchsia-500",
   [TaskStatus.CANCELED]: "bg-muted-foreground",
 };
 
