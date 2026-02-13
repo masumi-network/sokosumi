@@ -284,6 +284,34 @@ describe("stripe.client lookup-key pricing", () => {
     );
   });
 
+  it("preserves existing query params in return path for checkout urls", async () => {
+    checkoutSessionsCreateMock.mockResolvedValue({ id: "cs_789", url: "test" });
+    const { stripeClient } = await import("../stripe.client");
+
+    await stripeClient.createCheckoutSession(
+      "cus_1",
+      "user-1",
+      null,
+      25_000,
+      {
+        id: "price_credits",
+        amountPerCredit: 1.2,
+        currency: "eur",
+      },
+      "https://app.sokosumi.com",
+      null,
+      "/billing?tab=credits",
+    );
+
+    expect(checkoutSessionsCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url:
+          "https://app.sokosumi.com/billing?tab=credits&session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://app.sokosumi.com/billing?tab=credits&cancel=true",
+      }),
+    );
+  });
+
   it("creates invoice items with quantity matching coupon credits", async () => {
     productsRetrieveMock.mockResolvedValue({
       default_price: createMockStripePrice({

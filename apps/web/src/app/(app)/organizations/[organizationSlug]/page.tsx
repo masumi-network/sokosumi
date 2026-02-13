@@ -6,6 +6,13 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
+import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
+import {
+  type ActiveSubscription,
+  parsePlanName,
+  resolveLatestSubscription,
+  type SubscriptionPlanView,
+} from "@/components/billing/subscription-plan-utils";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -14,13 +21,12 @@ import prisma from "@/lib/db/prisma";
 import { organizationService, userService } from "@/lib/services";
 import {
   getSubscriptionCatalog,
-  SubscriptionPlanName,
+  type SubscriptionPlanName,
 } from "@/lib/stripe/subscription-catalog";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
 import OrganizationInvoiceEmail from "./components/organization-invoice-email";
-import OrganizationSubscription from "./components/organization-subscription";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const PLAN_ORDER: SubscriptionPlanName[] = [
@@ -29,56 +35,6 @@ const PLAN_ORDER: SubscriptionPlanName[] = [
   "standard",
   "pro",
 ];
-
-interface ActiveOrganizationSubscription {
-  plan?: string | null;
-  periodEnd?: Date | string | null;
-  seats?: number | null;
-}
-
-function parsePlanName(
-  value: string | null | undefined,
-): SubscriptionPlanName | null {
-  if (!value) {
-    return null;
-  }
-
-  switch (value.toLowerCase()) {
-    case "free":
-    case "starter":
-    case "standard":
-    case "pro":
-      return value.toLowerCase() as SubscriptionPlanName;
-    default:
-      return null;
-  }
-}
-
-function getDateValue(value: Date | string | null | undefined): number {
-  if (!value) {
-    return 0;
-  }
-
-  if (value instanceof Date) {
-    return value.getTime();
-  }
-
-  return Number.isNaN(Date.parse(value)) ? 0 : Date.parse(value);
-}
-
-function resolveLatestOrganizationSubscription(
-  subscriptions: ActiveOrganizationSubscription[],
-): ActiveOrganizationSubscription | null {
-  if (subscriptions.length === 0) {
-    return null;
-  }
-
-  const sortedSubscriptions = [...subscriptions].sort((a, b) => {
-    return getDateValue(b.periodEnd) - getDateValue(a.periodEnd);
-  });
-
-  return sortedSubscriptions[0] ?? null;
-}
 
 interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
@@ -141,13 +97,7 @@ export default async function OrganizationPage({
     currentSeats: number;
     memberCount: number;
     organizationId: string;
-    plans: Array<{
-      credits: number;
-      currency: string;
-      isCurrent: boolean;
-      monthlyAmount: number;
-      name: SubscriptionPlanName;
-    }>;
+    plans: SubscriptionPlanView[];
     returnPath: string;
   } | null = null;
 
@@ -173,8 +123,8 @@ export default async function OrganizationPage({
         }),
       ]);
 
-      const latestSubscription = resolveLatestOrganizationSubscription(
-        activeSubscriptions as ActiveOrganizationSubscription[],
+      const latestSubscription = resolveLatestSubscription(
+        activeSubscriptions as ActiveSubscription[],
       );
       const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
       const currentSeats = Math.max(
@@ -217,7 +167,7 @@ export default async function OrganizationPage({
         </div>
         <OrganizationInformation organization={organization} member={member} />
         {isOwnerOrAdmin && organizationSubscriptionProps ? (
-          <OrganizationSubscription {...organizationSubscriptionProps} />
+          <OrganizationSubscriptionSection {...organizationSubscriptionProps} />
         ) : null}
         <OrganizationInvoiceEmail organization={organization} member={member} />
         {isOwnerOrAdmin ? (

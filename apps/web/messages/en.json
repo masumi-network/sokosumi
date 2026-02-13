@@ -152,6 +152,7 @@
       "credits": "Credits",
       "coupon": "Coupon",
       "subscriptions": "Subscriptions",
+      "billing": "Billing",
       "mcp": "MCP",
       "support": "Support",
       "logout": "Log out"
@@ -240,6 +241,7 @@
       "credits": "Credits",
       "coupon": "Coupon",
       "subscriptions": "Subscriptions",
+      "billing": "Billing",
       "account": "Account",
       "organizations": "Organizations",
       "api-docs": "API Documentation",
@@ -1447,6 +1449,35 @@
       "Error": {
         "title": "Something Went Wrong",
         "message": "We encountered an issue loading subscriptions. Please try again later.",
+        "retryButton": "Try Again"
+      }
+    },
+    "Billing": {
+      "balanceTitle": "Balance",
+      "balanceDescriptionPersonal": "Your current credits in personal account.",
+      "balanceDescriptionOrganization": "Current credits for {organization}. {members, plural, =1 {# member} other {# members}}, {seats, plural, =1 {# seat} other {# seats}}.",
+      "balanceCreditsLabel": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+      "tabs": {
+        "subscription": "Subscription",
+        "credits": "Credits",
+        "coupon": "Coupon"
+      },
+      "billingPortalTitle": "Billing Portal",
+      "billingPortalDescription": "Open Stripe Billing Portal to manage your billing details and invoices.",
+      "openingBillingPortal": "Opening...",
+      "billingPortalCta": "Open billing portal",
+      "orgAccessRestrictedTitle": "Billing access restricted",
+      "orgAccessRestrictedDescription": "Only organization owners and admins can view billing details for this organization.",
+      "orgAccessRestrictedHint": "Switch to a personal context or contact an organization owner/admin if you need access.",
+      "Errors": {
+        "unauthenticated": "Please sign in to continue",
+        "unauthenticatedAction": "Sign In",
+        "unauthorized": "You are not authorized to access this billing area",
+        "general": "Something went wrong. Please try again."
+      },
+      "Error": {
+        "title": "Something Went Wrong",
+        "message": "We encountered an issue loading billing details. Please try again later.",
         "retryButton": "Try Again"
       }
     },

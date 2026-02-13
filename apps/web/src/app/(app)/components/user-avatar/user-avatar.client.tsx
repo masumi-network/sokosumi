@@ -1,6 +1,6 @@
 "use client";
 
-import { MemberWithOrganization } from "@sokosumi/database";
+import { MemberRole, MemberWithOrganization } from "@sokosumi/database";
 import gravatarUrl from "gravatar-url";
 import {
   Building2,
@@ -8,6 +8,7 @@ import {
   CircleHelp,
   CreditCardIcon,
   LogOut,
+  ReceiptText,
   Tag,
   User as UserIcon,
   WalletCards,
@@ -49,6 +50,13 @@ export default function UserAvatarClient({
   activeOrganizationId,
 }: UserAvatarClientProps) {
   const t = useTranslations("Components.UserAvatar");
+  const activeOrganizationMember = activeOrganizationId
+    ? members.find((member) => member.organizationId === activeOrganizationId)
+    : null;
+  const canViewBilling =
+    !activeOrganizationId ||
+    activeOrganizationMember?.role === MemberRole.OWNER ||
+    activeOrganizationMember?.role === MemberRole.ADMIN;
 
   const { showLogoutModal } = useGlobalModalsContext();
   const handleSupport = () => {
@@ -144,6 +152,15 @@ export default function UserAvatarClient({
               <WalletCards className="text-muted-foreground" />
               {t("subscriptions")}
             </DropdownMenuItem>
+            {canViewBilling ? (
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-2"
+                onClick={(e) => handleClick(e, "/billing")}
+              >
+                <ReceiptText className="text-muted-foreground" />
+                {t("billing")}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
               onClick={(e) => handleClick(e, "/mcp")}

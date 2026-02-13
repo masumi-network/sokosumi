@@ -49,9 +49,13 @@ type CouponFormData = z.infer<ReturnType<typeof couponFormSchema>>;
 
 interface CouponFormProps {
   organization: Organization | null;
+  returnPath?: string;
 }
 
-export default function CouponForm({ organization }: CouponFormProps) {
+export default function CouponForm({
+  organization,
+  returnPath,
+}: CouponFormProps) {
   const t = useTranslations("App.Credits");
   const router = useRouter();
 
@@ -91,6 +95,7 @@ export default function CouponForm({ organization }: CouponFormProps) {
             const result = await claimFreeCreditsWithCoupon({
               organizationId: organization?.id ?? null,
               couponId: data.coupon,
+              returnPath,
             });
 
             if (result.ok) {
