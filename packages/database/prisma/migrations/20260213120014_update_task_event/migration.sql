@@ -5,6 +5,6 @@ ALTER TYPE "TaskStatus" ADD VALUE 'CANCEL_REQUESTED';
 ALTER TABLE "taskEvent" ADD COLUMN "cents" BIGINT;
 
 UPDATE "taskEvent" AS "te"
-SET "cents" = "t"."amount"
+SET "cents" = ABS("t"."amount")
 FROM "Transaction" AS "t"
 WHERE "te"."transactionId" = "t"."id";
