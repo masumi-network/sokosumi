@@ -129,15 +129,13 @@ export async function requireUserTaskAccess(
   const task = await tx.task.findUnique({
     where: {
       id: taskId,
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
     },
   });
 
   if (!task) {
     throw notFound("Task not found");
-  }
-
-  if (task.userId !== authContext.userId) {
-    throw forbidden("You can only access your own tasks");
   }
 
   return task;
