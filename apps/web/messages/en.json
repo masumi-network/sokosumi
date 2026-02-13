@@ -1383,6 +1383,7 @@
         "unavailable": "Credits unavailable"
       },
       "Plan": {
+        "upgradeCta": "Upgrade plan",
         "userPlan": "{plan}",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan unavailable"
