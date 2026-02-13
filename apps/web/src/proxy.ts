@@ -17,7 +17,6 @@ const EXCLUDED_PATHS = [
   "/api-docs",
   "/robots.txt",
   "/sitemap.xml",
-  "/openapi.json",
   "/manifest.json",
   "/manifest.webmanifest",
   "/favicon.ico",
