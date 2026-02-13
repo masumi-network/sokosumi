@@ -79,7 +79,6 @@ const resultHash = hashResult(resultString, purchaserId);
 import { createAgentClient } from "@sokosumi/masumi/clients";
 
 const agentClient = createAgentClient({
-  blacklistedHostnames: ["localhost"],
   onError: (error) => console.error(error),
 });
 ```
@@ -113,7 +112,6 @@ The agent client provides methods for interacting with Masumi-compliant agents:
 
 ```typescript
 const client = createAgentClient({
-  blacklistedHostnames: ["localhost"],
   onError: (error) => {
     // Handle errors (http_error, json_parse_error, schema_validation_error, network_error)
     console.error(error.type, error.message);

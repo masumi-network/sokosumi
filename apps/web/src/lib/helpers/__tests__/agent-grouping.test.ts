@@ -99,8 +99,6 @@ function createMockAgent(
     exampleOutput: [],
     overrideExampleOutput: [],
     userAgentRating: [],
-    organizations: [],
-    blacklistedOrganizations: [],
     creditsPrice: {
       cents: BigInt(0),
     },

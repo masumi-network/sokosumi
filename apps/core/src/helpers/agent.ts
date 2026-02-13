@@ -8,7 +8,6 @@ import {
 
 import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
-import type { AuthenticationContext } from "@/middleware/auth";
 import { type RatingMetrics } from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
@@ -40,45 +39,24 @@ export const getAgentAuthorImage = (agent: Agent): string | null => {
 };
 
 /**
- * Retrieves the current session's organization IDs and all credit costs for agent access checks.
- *
- * @param tx - Optional Prisma transaction client for DB operations.
- * @returns Object with userOrganizationIds and creditCosts.
+ * Retrieves credit costs used for agent availability and pricing checks.
+ * Throws when credit costs are missing because these checks depend on a configured unit table.
  */
-export const getAgentAccessContext = async (
-  authContext: AuthenticationContext,
+export const getCreditCostsOrThrow = async (
   tx: Prisma.TransactionClient = prisma,
-): Promise<{
-  userOrganizationIds: string[];
-  creditCosts: CreditCost[];
-}> => {
+): Promise<CreditCost[]> => {
   const creditCosts = await tx.creditCost.findMany();
-  if (!creditCosts || creditCosts.length === 0) {
+  if (creditCosts.length === 0) {
     throw internalServerError("Failed to get credit information for agents");
   }
-  const userMemberships = await tx.member.findMany({
-    where: { userId: authContext.userId },
-    select: { organizationId: true },
-  });
-  const userOrganizationIds = userMemberships.map((m) => m.organizationId);
-
-  return {
-    userOrganizationIds,
-    creditCosts,
-  };
+  return creditCosts;
 };
 
 /**
- * Builds a Prisma where clause for filtering agents based on user access and valid pricing.
+ * Builds a Prisma where clause for filtering agents by availability and valid pricing.
  *
- * Access rules:
+ * Availability rules:
  * - Only shows agents with status ONLINE and isShown: true
- * - Blacklist: Only enforced when activeOrganizationId is present (organization context)
- *   - Personal context (null) is not affected by organizational blacklist decisions
- * - Organization access:
- *   - Public agents (no organizations) are always accessible
- *   - If user has no organizations, only public agents are shown
- *   - If user has organizations, shows public agents OR agents with overlapping organizations
  *
  * Pricing validation rules:
  * - Exclude agents with pricingType UNKNOWN
@@ -86,30 +64,12 @@ export const getAgentAccessContext = async (
  * - For FIXED pricing: ensure all amount units exist in CreditCost table
  * - FREE pricing is always valid (no additional validation needed)
  *
- * @param userOrganizationIds - Organization IDs the user is a member of
- * @param activeOrganizationId - The currently active organization ID, or null for personal context
  * @param creditCosts - Array of credit costs to validate pricing units against
  * @returns Prisma where clause for agent queries
  */
-export const buildAgentAccessWhereClause = (
-  userOrganizationIds: string[],
-  activeOrganizationId: string | null,
+export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
 ): Prisma.AgentWhereInput => {
-  const organizationFilter =
-    userOrganizationIds.length === 0
-      ? [{ organizations: { none: {} } }]
-      : [
-          { organizations: { none: {} } },
-          {
-            organizations: {
-              some: {
-                id: { in: userOrganizationIds },
-              },
-            },
-          },
-        ];
-
   const validUnits = creditCosts.map((c) => c.unit);
 
   const pricingFilter = {
@@ -132,16 +92,6 @@ export const buildAgentAccessWhereClause = (
   return {
     status: AgentStatus.ONLINE,
     isShown: true,
-    ...(activeOrganizationId && {
-      NOT: {
-        blacklistedOrganizations: {
-          some: {
-            id: activeOrganizationId,
-          },
-        },
-      },
-    }),
-    OR: organizationFilter,
     pricing: pricingFilter,
   };
 };

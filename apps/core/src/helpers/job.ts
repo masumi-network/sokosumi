@@ -31,9 +31,9 @@ import { v4 as uuidv4 } from "uuid";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import {
-  buildAgentAccessWhereClause,
-  getAgentAccessContext,
+  buildAvailableAgentWhereClause,
   getAgentCost,
+  getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -45,7 +45,12 @@ import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
-import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  unprocessableEntity,
+} from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";
 
@@ -295,17 +300,12 @@ export async function createAgentJobForUser(
     ? convertCreditsToCents(agentInput.maxCredits)
     : null;
 
-  const { userOrganizationIds, creditCosts } =
-    await getAgentAccessContext(authContext);
+  const creditCosts = await getCreditCostsOrThrow();
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
       id: agentInput.agentId,
-      ...buildAgentAccessWhereClause(
-        userOrganizationIds,
-        authContext.organizationId,
-        creditCosts,
-      ),
+      ...buildAvailableAgentWhereClause(creditCosts),
     },
     include: {
       ...agentPricingInclude,

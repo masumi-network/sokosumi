@@ -3,9 +3,9 @@ import { Suspense } from "react";
 
 import { getSession } from "@/lib/auth/utils";
 
-import { McpPageContent } from "./components/mcp-page-content";
+import { McpPageContent } from "./mcp-page-content";
 
-export default async function McpPage() {
+export async function ConnectionsPage() {
   const [session, t] = await Promise.all([
     getSession(),
     getTranslations("App.MCP"),
