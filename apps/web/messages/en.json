@@ -1249,6 +1249,16 @@
         "actionCommented": "commented",
         "actionUpdatedStatus": "changed status to",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
+        "statusLabels": {
+          "outOfCredits": "Out of credits",
+          "creditsToppedUp": "Credits topped up",
+          "cancelRequested": "Cancel requested"
+        },
+        "billingCta": {
+          "upgradePlan": "Upgrade your Plan",
+          "addCredits": "Add credits",
+          "placeholder": "This task needs credits to continue. Open billing to proceed."
+        },
         "actions": {
           "edit": "Edit",
           "delete": "Delete",
@@ -1257,6 +1267,7 @@
           "deleteError": "Failed to delete task",
           "markAsReady": "Mark as Ready",
           "revertToDraft": "Revert to Draft",
+          "cancelRequest": "Cancel Request",
           "updateStatusSuccess": "Task status updated"
         }
       },
