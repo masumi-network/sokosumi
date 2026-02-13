@@ -106,6 +106,20 @@ export const stripeClient = (() => {
     return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
   }
 
+  function buildCheckoutReturnUrl(
+    checkoutBaseUrl: string,
+    returnPath: string,
+    searchParams: Record<string, string>,
+  ): string {
+    const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
+    const querySuffix = Object.entries(searchParams)
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&");
+    const querySeparator = normalizedReturnPath.includes("?") ? "&" : "?";
+
+    return `${checkoutBaseUrl}${normalizedReturnPath}${querySeparator}${querySuffix}`;
+  }
+
   return {
     async createUserCustomer(
       userId: string,
@@ -417,7 +431,6 @@ export const stripeClient = (() => {
         env.VERCEL_URL ??
         "https://sokosumi.com"
       ).replace(/\/$/, "");
-      const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
       const checkoutCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
@@ -458,8 +471,12 @@ export const stripeClient = (() => {
             message: checkoutCreditsMessage,
           },
         },
-        success_url: `${checkoutBaseUrl}${normalizedReturnPath}?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${checkoutBaseUrl}${normalizedReturnPath}?cancel=true`,
+        success_url: buildCheckoutReturnUrl(checkoutBaseUrl, returnPath, {
+          session_id: "{CHECKOUT_SESSION_ID}",
+        }),
+        cancel_url: buildCheckoutReturnUrl(checkoutBaseUrl, returnPath, {
+          cancel: "true",
+        }),
       };
 
       if (promotionCode) {

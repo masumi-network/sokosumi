@@ -1,20 +1,19 @@
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.secrets";
-import { auth } from "@/lib/auth/auth";
 import {
   type ActiveSubscription,
   resolveCurrentPlanName,
-} from "@/lib/helpers/subscription";
+  type SubscriptionPlanView,
+} from "@/components/billing/subscription-plan-utils";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { auth } from "@/lib/auth/auth";
 import {
   getSubscriptionCatalog,
   type SubscriptionPlanName,
 } from "@/lib/stripe/subscription-catalog";
 
-import SubscriptionsPageContent, {
-  type SubscriptionPlanView,
-} from "./components/subscriptions-page-content";
+import SubscriptionsPageContent from "./components/subscriptions-page-content";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const PLAN_ORDER: SubscriptionPlanName[] = [

@@ -3,11 +3,11 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import { auth, Session } from "@/lib/auth/auth";
 import {
   type ActiveSubscription,
   resolveCurrentPlanName,
-} from "@/lib/helpers/subscription";
+} from "@/components/billing/subscription-plan-utils";
+import { auth, Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
 
 import UserAvatarClient from "./user-avatar.client";

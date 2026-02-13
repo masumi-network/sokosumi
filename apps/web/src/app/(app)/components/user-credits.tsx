@@ -3,16 +3,17 @@ import {
   creditBucketRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
+import { Sparkles } from "lucide-react";
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import { getEnvPublicConfig } from "@/config/env.public";
-import { auth, Session } from "@/lib/auth/auth";
-import prisma from "@/lib/db/prisma";
 import {
   type ActiveSubscription,
   resolveCurrentPlanName,
-} from "@/lib/helpers/subscription";
+} from "@/components/billing/subscription-plan-utils";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { auth, Session } from "@/lib/auth/auth";
+import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services/user.service";
 
 import BuyCreditsButton from "./buy-credits-button";
@@ -40,6 +41,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   // Get appropriate credits based on context
   let planLabel: string;
+  let currentPlan: string | null = null;
 
   const cents = await creditBucketRepository.getBalance(
     user.id,
@@ -48,12 +50,13 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   );
 
   const credits = convertCentsToCredits(cents);
+  const displayCredits = Math.trunc(credits);
   const creditsLabel = activeOrganization
     ? t("organizationBalance", {
-        credits,
+        credits: displayCredits,
         organization: activeOrganization.name,
       })
-    : t("userBalance", { credits });
+    : t("userBalance", { credits: displayCredits });
 
   try {
     const requestHeaders = await headers();
@@ -69,7 +72,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
           },
     });
 
-    const currentPlan =
+    currentPlan =
       resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
       "free";
     const planName = tSubscriptions(`Plans.${currentPlan}.name`);
@@ -84,12 +87,26 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     planLabel = tPlan("unavailable");
   }
 
+  const creditsButtonThreshold =
+    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
+  const hasLowCredits = credits < creditsButtonThreshold;
+  const shouldShowUpgradePlanCta =
+    currentPlan !== null && currentPlan !== "pro";
+  const shouldShowAddCreditsCta =
+    hasLowCredits && (currentPlan === null || currentPlan !== "free");
+
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {credits <
-        getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD && (
-        <BuyCreditsButton label={t("buy")} path="/credits" />
-      )}
+      {!shouldShowAddCreditsCta && shouldShowUpgradePlanCta ? (
+        <BuyCreditsButton
+          label={tPlan("upgradeCta")}
+          path="/billing?tab=subscription"
+          iconRight={<Sparkles className="size-4" aria-hidden />}
+        />
+      ) : null}
+      {shouldShowAddCreditsCta ? (
+        <BuyCreditsButton label={t("buy")} path="/billing?tab=credits" />
+      ) : null}
       <UserAvatar
         session={session}
         primaryLabel={user.name}
