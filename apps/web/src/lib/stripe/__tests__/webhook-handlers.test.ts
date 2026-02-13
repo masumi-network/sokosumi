@@ -7,6 +7,8 @@ const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
 const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
+const findOutOfCreditsTasksMock = jest.fn();
+const updateTaskMock = jest.fn();
 const ensurePersonalFreeSubscriptionMock = jest.fn();
 const ensureOrganizationFreeSubscriptionMock = jest.fn();
 const claimWelcomeCouponMock = jest.fn();
@@ -20,6 +22,10 @@ const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
     },
     transaction: {
       create: (...args: unknown[]) => createTransactionMock(...args),
+    },
+    task: {
+      findMany: (...args: unknown[]) => findOutOfCreditsTasksMock(...args),
+      update: (...args: unknown[]) => updateTaskMock(...args),
     },
   }),
 );
@@ -157,6 +163,8 @@ describe("handleInvoicePaidEvent", () => {
       _sum: { amount: null },
     });
     createTransactionMock.mockResolvedValue({});
+    findOutOfCreditsTasksMock.mockResolvedValue([]);
+    updateTaskMock.mockResolvedValue({});
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
@@ -956,6 +964,65 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(createTransactionMock).not.toHaveBeenCalled();
   });
+  it("creates CREDITS_TOPPED_UP events for tasks in OUT_OF_CREDITS when credits are granted", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    findOutOfCreditsTasksMock.mockResolvedValue([{ id: "task-1" }, { id: "task-2" }]);
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_topup_with_tasks",
+        metadata: { credits: "2" },
+        lines: [{ productId: "prod_credit", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(findOutOfCreditsTasksMock).toHaveBeenCalledWith({
+      where: {
+        organizationId: null,
+        status: "OUT_OF_CREDITS",
+        userId: "user-1",
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(updateTaskMock).toHaveBeenCalledTimes(2);
+    expect(updateTaskMock).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "task-1",
+      },
+      data: {
+        status: "CREDITS_TOPPED_UP",
+        events: {
+          create: {
+            coworkerId: null,
+            origin: "SOKOSUMI",
+            status: "CREDITS_TOPPED_UP",
+            userId: "user-1",
+          },
+        },
+      },
+    });
+    expect(updateTaskMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "task-2",
+      },
+      data: {
+        status: "CREDITS_TOPPED_UP",
+        events: {
+          create: {
+            coworkerId: null,
+            origin: "SOKOSUMI",
+            status: "CREDITS_TOPPED_UP",
+            userId: "user-1",
+          },
+        },
+      },
+    });
+  });
+
 });
 
 describe("handleCustomerCreatedEvent", () => {

@@ -1,6 +1,12 @@
 import "server-only";
 
-import { CreditBucketReferenceType, MemberRole } from "@sokosumi/database";
+import {
+  CreditBucketReferenceType,
+  MemberRole,
+  Prisma,
+  TaskEventOrigin,
+  TaskStatus,
+} from "@sokosumi/database";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -59,6 +65,42 @@ interface SubscriptionCreditTotals {
 interface AppliedSubscriptionCredits {
   subscriptionCredits: number;
   subscriptionCreditsExpiry: Date | null;
+}
+
+async function markOutOfCreditsTasksAsToppedUp(params: {
+  organizationId: string | null;
+  tx: Prisma.TransactionClient;
+  userId: string;
+}): Promise<void> {
+  const tasks = await params.tx.task.findMany({
+    where: {
+      userId: params.userId,
+      organizationId: params.organizationId,
+      status: TaskStatus.OUT_OF_CREDITS,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  for (const task of tasks) {
+    await params.tx.task.update({
+      where: {
+        id: task.id,
+      },
+      data: {
+        status: TaskStatus.CREDITS_TOPPED_UP,
+        events: {
+          create: {
+            status: TaskStatus.CREDITS_TOPPED_UP,
+            origin: TaskEventOrigin.SOKOSUMI,
+            userId: params.userId,
+            coworkerId: null,
+          },
+        },
+      },
+    });
+  }
 }
 
 function getTopUpCreditsFromInvoiceMetadata(
@@ -593,6 +635,8 @@ export async function handleInvoicePaidEvent(
   }
 
   await prisma.$transaction(async (tx) => {
+    let creditsGranted = false;
+
     for (const grant of creditGrants) {
       const existingBucket = await tx.creditBucket.findUnique({
         where: {
@@ -631,9 +675,19 @@ export async function handleInvoicePaidEvent(
         },
       });
 
+      creditsGranted = true;
+
       console.log(
         `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
+    }
+
+    if (creditsGranted) {
+      await markOutOfCreditsTasksAsToppedUp({
+        userId,
+        organizationId,
+        tx,
+      });
     }
   });
 }
