@@ -14,6 +14,7 @@ import {
 import ScheduleItem from "@/components/schedules/schedule-item.client";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
+import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { JobScheduleType, mapPrismaToUiScheduleType } from "@/lib/types/job";
 
 export default async function SchedulesPage() {
@@ -55,7 +56,7 @@ export default async function SchedulesPage() {
                   const key = s.agentId;
                   if (!acc[key])
                     acc[key] = {
-                      agentName: s.agent.name,
+                      agentName: getAgentName(s.agent),
                       agent: s.agent,
                       items: [] as typeof schedules,
                     };
@@ -76,7 +77,12 @@ export default async function SchedulesPage() {
                 <div key={group.agentName} className="space-y-3">
                   <div className="text-sm font-medium">
                     <div className="flex items-center gap-2">
-                      <AgentIcon agent={group.agent} />
+                      <AgentIcon
+                        agent={{
+                          name: group.agentName,
+                          icon: getAgentResolvedIcon(group.agent),
+                        }}
+                      />
                       <span className="truncate">{group.agentName}</span>
                     </div>
                   </div>

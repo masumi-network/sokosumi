@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { type JobStatusData, makeAgentJobsChannelName } from "@/lib/ably";
-import { getAgentName } from "@/lib/helpers/agent";
+import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { AgentWithAvailability } from "@/lib/types/agent";
 import { cn } from "@/lib/utils";
 
@@ -109,6 +109,7 @@ export default function AgentListsClient({
                           const { agent, isAvailable } = agentWithAvailability;
                           const initialJobStatusData =
                             initialJobStatusesData[index];
+                          const agentName = getAgentName(agent);
 
                           return (
                             <SidebarMenuItem key={agent.id}>
@@ -130,13 +131,16 @@ export default function AgentListsClient({
                                   >
                                     <div className="group/agent-menu flex w-full items-center gap-2">
                                       <AgentIcon
-                                        agent={agent}
+                                        agent={{
+                                          name: agentName,
+                                          icon: getAgentResolvedIcon(agent),
+                                        }}
                                         isMuted={
                                           !isAvailable && agentId !== agent.id
                                         }
                                       />
                                       <span className="flex-1 truncate">
-                                        {getAgentName(agent)}
+                                        {agentName}
                                       </span>
                                       {isAvailable && (
                                         <ChannelProvider

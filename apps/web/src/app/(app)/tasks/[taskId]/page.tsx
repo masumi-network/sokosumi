@@ -9,7 +9,7 @@ import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { getSession } from "@/lib/auth/utils";
-import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
+import { getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -38,17 +38,9 @@ export default async function TaskDetailPage({
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = new Map<string, string>();
-  const agentPreviewById = new Map<
-    string,
-    { name: string; icon: string | null }
-  >();
   for (const agent of agents) {
     const name = getAgentName(agent);
     agentNameById.set(agent.id, name);
-    agentPreviewById.set(agent.id, {
-      name,
-      icon: getAgentResolvedIcon(agent),
-    });
   }
   const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
   const currentUser = session?.user
@@ -106,9 +98,9 @@ export default async function TaskDetailPage({
 
           <TaskJobs
             title={t("jobs")}
+            agents={agents}
             jobs={taskResult.jobs}
             userId={session?.user.id ?? null}
-            agentPreviewById={agentPreviewById}
             emptyLabel={t("jobsEmpty")}
             untitledLabel={t("jobsUntitled")}
             unknownAgentLabel={t("jobsUnknownAgent")}
