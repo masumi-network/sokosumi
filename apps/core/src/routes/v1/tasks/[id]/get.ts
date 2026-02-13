@@ -52,7 +52,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       if (authContext.userId) {
         return tx.task.findUnique({
-          where: { id, userId: authContext.userId },
+          where: {
+            id,
+            userId: authContext.userId,
+            organizationId: authContext.organizationId,
+          },
           include: taskInclude,
         });
       }
