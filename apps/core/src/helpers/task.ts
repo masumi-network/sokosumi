@@ -134,10 +134,17 @@ export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
   };
 }
 
+export function isChargeableTaskStatus(
+  status: TaskStatus | null | undefined,
+): boolean {
+  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
+}
+
 export function mapTask(task: TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
   const events = task.events.map((event) => mapTaskEvent(event));
   const credits = events.reduce((total, event) => {
+    if (!isChargeableTaskStatus(event.status)) return total;
     return total + (event.credits ?? 0);
   }, 0);
   return {

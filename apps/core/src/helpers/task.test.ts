@@ -544,4 +544,58 @@ describe("mapTask", () => {
     expect(result.events[1]?.credits).toBeNull();
     expect(result.events[2]?.credits).toBe(3);
   });
+
+  it("excludes CREDITS_TOPPED_UP event credits from task total", () => {
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      organizationId: null,
+      coworkerId: "cow_123",
+      name: "Task with top-up",
+      description: null,
+      status: TaskStatus.COMPLETED,
+      jobs: [],
+      events: [
+        {
+          id: "evt_complete",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          status: TaskStatus.COMPLETED,
+          comment: null,
+          authenticationUrl: null,
+          origin: TaskEventOrigin.SOKOSUMI,
+          userId: null,
+          coworkerId: "cow_123",
+          transactionId: "txn_complete",
+          cents: convertCreditsToCents(3),
+          transaction: { amount: convertCreditsToCents(3) * -1n },
+        },
+        {
+          id: "evt_topup",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:01:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:01:00.000Z"),
+          status: TaskStatus.CREDITS_TOPPED_UP,
+          comment: null,
+          authenticationUrl: null,
+          origin: TaskEventOrigin.SOKOSUMI,
+          userId: "user_123",
+          coworkerId: null,
+          transactionId: null,
+          cents: convertCreditsToCents(10),
+          transaction: null,
+        },
+      ],
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.credits).toBe(3);
+    expect(result.events).toHaveLength(2);
+    expect(result.events[0]?.credits).toBe(3);
+    expect(result.events[1]?.credits).toBe(10);
+  });
 });

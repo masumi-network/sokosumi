@@ -9,9 +9,3 @@ export function isCreditableTaskStatus(
     status === TaskStatus.CREDITS_TOPPED_UP
   );
 }
-
-export function isChargeableTaskStatus(
-  status: TaskStatus | undefined,
-): boolean {
-  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
-}

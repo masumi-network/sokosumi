@@ -8,6 +8,7 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
+  isChargeableTaskStatus,
   mapTaskEvent,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
@@ -19,7 +20,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { isChargeableTaskStatus } from "./helper";
 import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
