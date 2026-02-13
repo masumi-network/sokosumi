@@ -15,7 +15,11 @@ function getOAuthAuthorizationServerMetadata() {
     revocation_endpoint: `${oauthBasePath}/revoke`,
     introspection_endpoint: `${oauthBasePath}/introspect`,
     response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
+    grant_types_supported: [
+      "authorization_code",
+      "refresh_token",
+      "client_credentials",
+    ],
     token_endpoint_auth_methods_supported: [
       "none",
       "client_secret_post",
