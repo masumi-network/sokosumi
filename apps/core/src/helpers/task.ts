@@ -134,7 +134,7 @@ export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
   const { cents, ...rest } = event;
   return {
     ...rest,
-    credits: cents ? convertCentsToCredits(cents) : null,
+    credits: cents != null ? convertCentsToCredits(cents) : null,
   };
 }
 

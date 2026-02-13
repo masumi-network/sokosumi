@@ -104,7 +104,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               comment,
               authenticationUrl,
               origin,
-              cents: credits ? convertCreditsToCents(credits) : undefined,
+              cents:
+                credits != null ? convertCreditsToCents(credits) : undefined,
               transactionId,
               ...getActorData(authContext),
             },
