@@ -496,6 +496,7 @@ describe("mapTask", () => {
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_cancel",
+          cents: convertCreditsToCents(2),
           transaction: {
             amount: convertCreditsToCents(2) * -1n,
           },
@@ -512,6 +513,7 @@ describe("mapTask", () => {
           userId: "user_123",
           coworkerId: null,
           transactionId: null,
+          cents: null,
           transaction: null,
         },
         {
@@ -526,6 +528,7 @@ describe("mapTask", () => {
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_complete",
+          cents: convertCreditsToCents(3),
           transaction: {
             amount: convertCreditsToCents(3) * -1n,
           },
