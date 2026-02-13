@@ -11,23 +11,16 @@ import {
   DeleteApiKeyRequest,
   UpdateApiKeyRequest,
   UseApiKeysReturn,
-} from "@/app/account/components/api-keys/types";
-import { getToggleActionText } from "@/app/account/components/api-keys/utils";
+} from "@/app/connections/components/api-keys/types";
+import { getToggleActionText } from "@/app/connections/components/api-keys/utils";
 import { authClient } from "@/lib/auth/auth.client";
 
-/**
- * Custom hook for managing API keys CRUD operations
- * Handles all API interactions, loading states, and error handling
- */
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
   const [apiKeys, setApiKeys] = useState<Apikey[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Loads API keys from the server
-   */
   const refresh = useCallback(
     async (isInitial = false) => {
       if (isInitial) {
@@ -57,9 +50,6 @@ export function useApiKeys(): UseApiKeysReturn {
     [t],
   );
 
-  /**
-   * Creates a new API key
-   */
   const create = useCallback(
     async (data: CreateApiKeyRequest): Promise<CreateApiKeyResult> => {
       try {
@@ -69,7 +59,6 @@ export function useApiKeys(): UseApiKeysReturn {
 
         if (result.data) {
           toast.success(t("Messages.createSuccess"));
-          // Refresh the list to show the new key
           await refresh();
           return {
             success: true,
@@ -100,12 +89,9 @@ export function useApiKeys(): UseApiKeysReturn {
         };
       }
     },
-    [t, refresh],
+    [refresh, t],
   );
 
-  /**
-   * Updates an API key (currently only supports enabling/disabling)
-   */
   const update = useCallback(
     async (data: UpdateApiKeyRequest): Promise<boolean> => {
       try {
@@ -117,7 +103,6 @@ export function useApiKeys(): UseApiKeysReturn {
         if (result.data) {
           const action = getToggleActionText(!data.enabled);
           toast.success(t("Messages.updateSuccess", { action }));
-          // Refresh the list to show updated status
           await refresh();
           return true;
         } else {
@@ -129,12 +114,9 @@ export function useApiKeys(): UseApiKeysReturn {
         return false;
       }
     },
-    [t, refresh],
+    [refresh, t],
   );
 
-  /**
-   * Deletes an API key
-   */
   const deleteApiKey = useCallback(
     async (data: DeleteApiKeyRequest): Promise<boolean> => {
       try {
@@ -144,7 +126,6 @@ export function useApiKeys(): UseApiKeysReturn {
 
         if (result.data) {
           toast.success(t("Messages.deleteSuccess"));
-          // Refresh the list to remove deleted key
           await refresh();
           return true;
         } else {
@@ -156,11 +137,9 @@ export function useApiKeys(): UseApiKeysReturn {
         return false;
       }
     },
-    [t, refresh],
+    [refresh, t],
   );
 
-  // Effect is necessary: Initial data load when component mounts
-  // This is synchronizing with external system (API) on mount
   useEffect(() => {
     refresh(true);
   }, [refresh]);

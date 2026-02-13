@@ -29,10 +29,6 @@ import { ApiKeySuccessDisplay } from "./api-key-success-display";
 import { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
 import { createApiKeySchema, DEFAULT_CREATE_FORM_VALUES } from "./utils";
 
-/**
- * Dialog component for creating new API keys
- * Handles form submission and displays success state with the created key
- */
 export function CreateApiKeyDialog({
   open,
   onOpenChange,
@@ -52,9 +48,6 @@ export function CreateApiKeyDialog({
 
   const { isSubmitting } = form.formState;
 
-  /**
-   * Handle form submission to create API key
-   */
   const onSubmit = async (values: CreateApiKeyFormData) => {
     const result = await createApiKey({
       name: values.name,
@@ -65,36 +58,26 @@ export function CreateApiKeyDialog({
       onSuccess(result);
       form.reset();
     }
-    // Error handling is done in the hook via toast
   };
 
-  /**
-   * Handle dialog close - reset state and form
-   */
   const handleOpenChange = (open: boolean) => {
     onOpenChange(open);
     if (!open) {
-      // Clear any existing timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      // Reset state when closing
       timeoutRef.current = setTimeout(() => {
         setCreatedKey(null);
         form.reset();
         timeoutRef.current = null;
-      }, 300); // Small delay for smooth animation
+      }, 300);
     }
   };
 
-  /**
-   * Handle closing from success state
-   */
   const handleSuccessClose = () => {
     handleOpenChange(false);
   };
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {

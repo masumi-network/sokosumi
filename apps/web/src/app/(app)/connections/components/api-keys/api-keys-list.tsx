@@ -8,10 +8,6 @@ import { DataTable } from "@/components/data-table";
 import { getApiKeyColumns } from "./api-keys-columns";
 import { ApiKeysListProps } from "./types";
 
-/**
- * Component that renders the API keys table with loading and empty states
- * Wraps the DataTable component with proper configuration
- */
 export function ApiKeysList({
   apiKeys,
   isInitialLoading,
@@ -20,13 +16,11 @@ export function ApiKeysList({
 }: ApiKeysListProps) {
   const t = useTranslations("App.Account.ApiKeys");
 
-  // Memoize columns to prevent unnecessary re-renders
   const columns = useMemo(
     () => getApiKeyColumns(t, onToggleStatus, onDeleteClick),
     [t, onToggleStatus, onDeleteClick],
   );
 
-  // Loading state - only show on initial load
   if (isInitialLoading) {
     return (
       <div className="text-muted-foreground py-8 text-center">
@@ -35,7 +29,6 @@ export function ApiKeysList({
     );
   }
 
-  // Empty state
   if (apiKeys.length === 0) {
     return (
       <div className="text-muted-foreground py-8 text-center">
@@ -44,7 +37,6 @@ export function ApiKeysList({
     );
   }
 
-  // Data table
   return (
     <DataTable
       tableClassName="[&>div>div>div]:flex! [&>div>div>div]:md:table!"
