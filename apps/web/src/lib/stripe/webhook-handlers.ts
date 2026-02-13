@@ -88,6 +88,7 @@ async function markOutOfCreditsTasksAsToppedUp(params: {
     await params.tx.task.update({
       where: {
         id: task.id,
+        status: TaskStatus.OUT_OF_CREDITS,
       },
       data: {
         status: TaskStatus.CREDITS_TOPPED_UP,

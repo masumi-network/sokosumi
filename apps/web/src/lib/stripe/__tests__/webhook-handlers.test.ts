@@ -967,7 +967,10 @@ describe("handleInvoicePaidEvent", () => {
   it("creates CREDITS_TOPPED_UP events for tasks in OUT_OF_CREDITS when credits are granted", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
-    findOutOfCreditsTasksMock.mockResolvedValue([{ id: "task-1" }, { id: "task-2" }]);
+    findOutOfCreditsTasksMock.mockResolvedValue([
+      { id: "task-1" },
+      { id: "task-2" },
+    ]);
 
     await handleInvoicePaidEvent(
       createInvoice({
@@ -991,6 +994,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(updateTaskMock).toHaveBeenNthCalledWith(1, {
       where: {
         id: "task-1",
+        status: "OUT_OF_CREDITS",
       },
       data: {
         status: "CREDITS_TOPPED_UP",
@@ -1007,6 +1011,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(updateTaskMock).toHaveBeenNthCalledWith(2, {
       where: {
         id: "task-2",
+        status: "OUT_OF_CREDITS",
       },
       data: {
         status: "CREDITS_TOPPED_UP",
@@ -1021,7 +1026,6 @@ describe("handleInvoicePaidEvent", () => {
       },
     });
   });
-
 });
 
 describe("handleCustomerCreatedEvent", () => {
