@@ -74,8 +74,9 @@ async function markOutOfCreditsTasksAsToppedUp(params: {
 }): Promise<void> {
   const tasks = await params.tx.task.findMany({
     where: {
-      userId: params.userId,
-      organizationId: params.organizationId,
+      ...(params.organizationId
+        ? { organizationId: params.organizationId }
+        : { userId: params.userId }),
       status: TaskStatus.OUT_OF_CREDITS,
     },
     select: {
