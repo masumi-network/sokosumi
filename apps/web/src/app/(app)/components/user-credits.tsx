@@ -97,7 +97,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {shouldShowUpgradePlanCta ? (
+      {!shouldShowAddCreditsCta && shouldShowUpgradePlanCta ? (
         <BuyCreditsButton
           label={tPlan("upgradeCta")}
           path="/billing?tab=subscription"
