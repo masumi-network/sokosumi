@@ -103,7 +103,9 @@ export const agentService = (() => {
         tx,
       );
       const creditCosts = await creditCostRepository.getCreditCosts(tx);
-      return list.agents.filter((agent) => isAgentAvailable(agent, creditCosts));
+      return list.agents.filter((agent) =>
+        isAgentAvailable(agent, creditCosts),
+      );
     });
   };
 
@@ -133,7 +135,9 @@ export const agentService = (() => {
             AgentStatus.ONLINE,
             tx,
           );
-        return onlineAgents.filter((agent) => isAgentAvailable(agent, creditCosts));
+        return onlineAgents.filter((agent) =>
+          isAgentAvailable(agent, creditCosts),
+        );
       });
     },
 
@@ -157,8 +161,7 @@ export const agentService = (() => {
       );
       if (!agent) return null;
       const creditCosts = await creditCostRepository.getCreditCosts(tx);
-      if (!isAgentAvailable(agent, creditCosts))
-        return null;
+      if (!isAgentAvailable(agent, creditCosts)) return null;
       return agent;
     },
 

@@ -45,12 +45,7 @@ import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
-import {
-  badRequest,
-  forbidden,
-  notFound,
-  unprocessableEntity,
-} from "./error";
+import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";
 

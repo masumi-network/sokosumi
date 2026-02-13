@@ -204,6 +204,7 @@ export function TaskActivitySection({
       userId: currentUser?.id ?? null,
       coworkerId: null,
       transactionId: null,
+      cents: null,
     };
 
     setLocalEvents((prev) => [optimisticEvent, ...prev]);
