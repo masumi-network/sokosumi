@@ -82,20 +82,6 @@ export const agentService = (() => {
   ): boolean {
     return canUserAccessAgent(agent) && hasValidPricing(agent, creditCosts);
   }
-  /**
-   * Retrieves all credit costs for agent access checks.
-   *
-   * @param tx - Optional Prisma transaction client for DB operations.
-   * @returns Object with creditCosts.
-   */
-  const getAgentAccessContext = async (
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<{
-    creditCosts: CreditCost[];
-  }> => {
-    const creditCosts = await creditCostRepository.getCreditCosts(tx);
-    return { creditCosts };
-  };
 
   /**
    * Retrieves agents by list type for the current user with access control applied.
@@ -116,7 +102,7 @@ export const agentService = (() => {
         type,
         tx,
       );
-      const { creditCosts } = await getAgentAccessContext(tx);
+      const creditCosts = await creditCostRepository.getCreditCosts(tx);
       return list.agents.filter((agent) => isAgentAvailable(agent, creditCosts));
     });
   };
@@ -141,7 +127,7 @@ export const agentService = (() => {
      */
     getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
       return await prisma.$transaction(async (tx) => {
-        const { creditCosts } = await getAgentAccessContext(tx);
+        const creditCosts = await creditCostRepository.getCreditCosts(tx);
         const onlineAgents =
           await agentRepository.getShownAgentsWithRelationsByStatus(
             AgentStatus.ONLINE,
@@ -170,7 +156,7 @@ export const agentService = (() => {
         tx,
       );
       if (!agent) return null;
-      const { creditCosts } = await getAgentAccessContext(tx);
+      const creditCosts = await creditCostRepository.getCreditCosts(tx);
       if (!isAgentAvailable(agent, creditCosts))
         return null;
       return agent;

@@ -7,11 +7,10 @@ import {
 } from "@sokosumi/database";
 
 import { TIME } from "@/config/constants";
-import prisma from "@/lib/db/prisma";
 import { type RatingMetrics } from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
-import { internalServerError, unprocessableEntity } from "./error";
+import { unprocessableEntity } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
 
 export const getAgentImage = (agent: Agent): string | null => {
@@ -39,25 +38,6 @@ export const getAgentAuthorImage = (agent: Agent): string | null => {
 };
 
 /**
- * Retrieves all credit costs for agent access checks.
- *
- * @param tx - Optional Prisma transaction client for DB operations.
- * @returns Object with creditCosts.
- */
-export const getAgentAccessContext = async (
-  tx: Prisma.TransactionClient = prisma,
-): Promise<{
-  creditCosts: CreditCost[];
-}> => {
-  const creditCosts = await tx.creditCost.findMany();
-  if (!creditCosts || creditCosts.length === 0) {
-    throw internalServerError("Failed to get credit information for agents");
-  }
-
-  return { creditCosts };
-};
-
-/**
  * Builds a Prisma where clause for filtering agents by availability and valid pricing.
  *
  * Availability rules:
@@ -72,7 +52,7 @@ export const getAgentAccessContext = async (
  * @param creditCosts - Array of credit costs to validate pricing units against
  * @returns Prisma where clause for agent queries
  */
-export const buildAgentAccessWhereClause = (
+export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
 ): Prisma.AgentWhereInput => {
   const validUnits = creditCosts.map((c) => c.unit);

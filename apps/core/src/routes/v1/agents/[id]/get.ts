@@ -2,16 +2,15 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
-  buildAgentAccessWhereClause,
+  buildAvailableAgentWhereClause,
   calculateAgentRating,
   calculateAverageExecutionTime,
-  getAgentAccessContext,
   getAgentCost,
   getAgentDescription,
   getAgentImage,
   getAgentName,
 } from "@/helpers/agent";
-import { notFound } from "@/helpers/error";
+import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -55,12 +54,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const agent = await prisma.$transaction(async (tx) => {
-      const { creditCosts } = await getAgentAccessContext(tx);
+      const creditCosts = await tx.creditCost.findMany();
+      if (creditCosts.length === 0) {
+        throw internalServerError("Failed to get credit information for agents");
+      }
 
       const agent = await tx.agent.findFirst({
         where: {
           id,
-          ...buildAgentAccessWhereClause(creditCosts),
+          ...buildAvailableAgentWhereClause(creditCosts),
         },
         include: {
           ...agentPricingInclude,

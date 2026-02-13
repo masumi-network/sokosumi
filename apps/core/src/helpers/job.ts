@@ -31,8 +31,7 @@ import { v4 as uuidv4 } from "uuid";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import {
-  buildAgentAccessWhereClause,
-  getAgentAccessContext,
+  buildAvailableAgentWhereClause,
   getAgentCost,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
@@ -45,7 +44,13 @@ import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
-import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
+import {
+  badRequest,
+  forbidden,
+  internalServerError,
+  notFound,
+  unprocessableEntity,
+} from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";
 
@@ -295,12 +300,15 @@ export async function createAgentJobForUser(
     ? convertCreditsToCents(agentInput.maxCredits)
     : null;
 
-  const { creditCosts } = await getAgentAccessContext();
+  const creditCosts = await prisma.creditCost.findMany();
+  if (creditCosts.length === 0) {
+    throw internalServerError("Failed to get credit information for agents");
+  }
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
       id: agentInput.agentId,
-      ...buildAgentAccessWhereClause(creditCosts),
+      ...buildAvailableAgentWhereClause(creditCosts),
     },
     include: {
       ...agentPricingInclude,
