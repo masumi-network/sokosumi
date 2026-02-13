@@ -40,23 +40,6 @@ interface OrganizationSubscriptionProps {
   returnPath: string;
 }
 
-function getPlanTranslationKey(plan: SubscriptionPlanName): string {
-  switch (plan) {
-    case "free":
-      return "free";
-    case "starter":
-      return "starter";
-    case "standard":
-      return "standard";
-    case "pro":
-      return "pro";
-    default: {
-      const _exhaustive: never = plan;
-      return _exhaustive;
-    }
-  }
-}
-
 export default function OrganizationSubscription({
   currentPlan,
   currentSeats,
@@ -235,9 +218,7 @@ export default function OrganizationSubscription({
             <p className="text-muted-foreground">{t("currentPlanLabel")}</p>
             <p className="font-medium">
               {currentPlan
-                ? tSubscriptions(
-                    `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-                  )
+                ? tSubscriptions(`Plans.${currentPlan}.name`)
                 : t("noActivePlan")}
             </p>
           </div>
@@ -275,7 +256,7 @@ export default function OrganizationSubscription({
 
         <div className="grid gap-3 md:grid-cols-2">
           {plans.map((plan) => {
-            const translationKey = getPlanTranslationKey(plan.name);
+            const translationKey = plan.name;
             const isPlanPending = pendingPlan === plan.name;
             const hasSamePlanAndSeats =
               plan.isCurrent && currentSeats === targetSeats;

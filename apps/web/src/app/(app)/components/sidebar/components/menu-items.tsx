@@ -31,6 +31,14 @@ export default function MenuItems({ taskManagerMenuEnabled }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
 
+  const isPathActive = (href: string) => {
+    if (pathname === href) {
+      return true;
+    }
+
+    return pathname.startsWith(`${href}/`);
+  };
+
   const items: MenuItemConfig[] = [
     {
       key: "explore-agents",
@@ -61,7 +69,7 @@ export default function MenuItems({ taskManagerMenuEnabled }: MenuItemsProps) {
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map(({ key, href, label, Icon, hasIndicator }) => {
-            const isActive = pathname === href;
+            const isActive = isPathActive(href);
 
             return (
               <SidebarMenuItem key={key}>

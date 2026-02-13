@@ -37,23 +37,6 @@ interface SubscriptionsPageContentProps {
   status: "cancel" | "success" | null;
 }
 
-function getPlanTranslationKey(plan: SubscriptionPlanName): string {
-  switch (plan) {
-    case "free":
-      return "free";
-    case "starter":
-      return "starter";
-    case "standard":
-      return "standard";
-    case "pro":
-      return "pro";
-    default: {
-      const _exhaustive: never = plan;
-      return _exhaustive;
-    }
-  }
-}
-
 export default function SubscriptionsPageContent({
   currentPlan,
   plans,
@@ -184,7 +167,7 @@ export default function SubscriptionsPageContent({
         {plans.map((plan) => {
           const isPlanPending = pendingPlan === plan.name;
           const isAnyPlanPending = pendingPlan !== null;
-          const translationKey = getPlanTranslationKey(plan.name);
+          const translationKey = plan.name;
           const featureItems = getPlanFeatureItems(translationKey);
 
           return (
@@ -264,9 +247,7 @@ export default function SubscriptionsPageContent({
               <CardDescription>
                 {currentPlan
                   ? t("billingPortalDescriptionWithPlan", {
-                      plan: t(
-                        `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-                      ),
+                      plan: t(`Plans.${currentPlan}.name`),
                     })
                   : t("billingPortalDescription")}
               </CardDescription>

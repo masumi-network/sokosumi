@@ -152,11 +152,12 @@
       "credits": "Credits",
       "coupon": "Coupon",
       "subscriptions": "Subscriptions",
-      "mcp": "MCP",
+      "connections": "Connections",
       "support": "Support",
       "logout": "Log out"
     },
     "OrganizationSwitcher": {
+      "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
       "noOrganizationsFound": "No organizations found",
       "personalAccountHeading": "Personal",
@@ -246,7 +247,8 @@
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Scheduled Agents",
       "chat": "Chat",
-      "tasks": "Task Manager"
+      "tasks": "Task Manager",
+      "connections": "Connections"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1369,6 +1371,11 @@
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
+      },
+      "Plan": {
+        "userPlan": "{plan}",
+        "organizationPlan": "{plan} ({organization})",
+        "unavailable": "Plan unavailable"
       }
     },
     "Subscriptions": {
