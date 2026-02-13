@@ -68,7 +68,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const query = await searchParams;
   const activeTab = parseBillingTab(query.tab);
   const authContext = await getAuthContext();
-  const activeOrganizationId = authContext?.organizationId ?? null;
   const activeOrganization = await userService.getActiveOrganization();
 
   if (!authContext) {
@@ -224,34 +223,17 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       getSubscriptionCatalog(stripeInstance),
     ]);
 
-  const [personalActiveSubscriptions, organizationActiveSubscriptions] =
-    await Promise.all([
-      auth.api.listActiveSubscriptions({
-        headers: requestHeaders,
-        query: {
-          customerType: "user",
-        },
-      }),
-      activeOrganizationId
-        ? auth.api.listActiveSubscriptions({
-            headers: requestHeaders,
-            query: {
-              customerType: "organization",
-              referenceId: activeOrganizationId,
-            },
-          })
-        : Promise.resolve([]),
-    ]);
+  const personalActiveSubscriptions = await auth.api.listActiveSubscriptions({
+    headers: requestHeaders,
+    query: {
+      customerType: "user",
+    },
+  });
 
   const latestPersonalSubscription = resolveLatestSubscription(
     personalActiveSubscriptions as ActiveSubscription[],
   );
-  const latestOrganizationSubscription = resolveLatestSubscription(
-    organizationActiveSubscriptions as ActiveSubscription[],
-  );
-  const latestSubscription =
-    latestOrganizationSubscription ?? latestPersonalSubscription;
-  const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
+  const currentPlan = parsePlanName(latestPersonalSubscription?.plan) ?? "free";
   const credits = convertCentsToCredits(balanceInCents);
   const personalPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
     const plan = subscriptionCatalog[planName];
