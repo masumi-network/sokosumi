@@ -49,7 +49,11 @@ function getAllowedTransitions(
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
-      [TaskStatus.OUT_OF_CREDITS]: [TaskStatus.CANCELED],
+      [TaskStatus.OUT_OF_CREDITS]: [
+        TaskStatus.CANCELED,
+        TaskStatus.FAILED,
+        TaskStatus.COMPLETED,
+      ],
       [TaskStatus.CREDITS_TOPPED_UP]: [
         TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,

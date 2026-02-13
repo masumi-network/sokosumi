@@ -243,6 +243,16 @@ describe("validateStatusTransition", () => {
         ),
       ).not.toThrow();
     });
+
+    it("CANCEL_REQUESTED → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CANCEL_REQUESTED,
+          TaskStatus.CANCELED,
+        ),
+      ).not.toThrow();
+    });
   });
 
   describe("coworker disallowed transitions", () => {
@@ -305,6 +315,16 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow();
     });
+
+    it("CANCEL_REQUESTED → RUNNING is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CANCEL_REQUESTED,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow();
+    });
   });
 
   describe("user allowed transitions", () => {
@@ -354,6 +374,26 @@ describe("validateStatusTransition", () => {
           userContext,
           TaskStatus.OUT_OF_CREDITS,
           TaskStatus.CREDITS_TOPPED_UP,
+        ),
+      ).not.toThrow();
+    });
+
+    it("RUNNING → CANCEL_REQUESTED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.RUNNING,
+          TaskStatus.CANCEL_REQUESTED,
+        ),
+      ).not.toThrow();
+    });
+
+    it("OUT_OF_CREDITS → CANCEL_REQUESTED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.CANCEL_REQUESTED,
         ),
       ).not.toThrow();
     });
@@ -426,6 +466,16 @@ describe("validateStatusTransition", () => {
           userContext,
           TaskStatus.CREDITS_TOPPED_UP,
           TaskStatus.RUNNING,
+        ),
+      ).toThrow();
+    });
+
+    it("rejects CANCEL_REQUESTED → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.CANCEL_REQUESTED,
+          TaskStatus.CANCELED,
         ),
       ).toThrow();
     });
