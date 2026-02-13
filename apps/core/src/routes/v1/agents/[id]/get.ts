@@ -2,14 +2,14 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
-  buildAgentAccessWhereClause,
+  buildAvailableAgentWhereClause,
   calculateAgentRating,
   calculateAverageExecutionTime,
-  getAgentAccessContext,
   getAgentCost,
   getAgentDescription,
   getAgentImage,
   getAgentName,
+  getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -52,23 +52,15 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
     const { id } = c.req.valid("param");
 
     const agent = await prisma.$transaction(async (tx) => {
-      const { userOrganizationIds, creditCosts } = await getAgentAccessContext(
-        authContext,
-        tx,
-      );
+      const creditCosts = await getCreditCostsOrThrow(tx);
 
       const agent = await tx.agent.findFirst({
         where: {
           id,
-          ...buildAgentAccessWhereClause(
-            userOrganizationIds,
-            authContext.organizationId,
-            creditCosts,
-          ),
+          ...buildAvailableAgentWhereClause(creditCosts),
         },
         include: {
           ...agentPricingInclude,

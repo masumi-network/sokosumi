@@ -25,15 +25,6 @@ export type AgentWithPricing = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude;
 }>;
 
-export const agentOrganizationsInclude = {
-  organizations: true,
-  blacklistedOrganizations: true,
-} as const;
-
-export type AgentWithOrganizations = Prisma.AgentGetPayload<{
-  include: typeof agentOrganizationsInclude;
-}>;
-
 export const agentJobsCountInclude = {
   _count: {
     select: {

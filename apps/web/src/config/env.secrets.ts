@@ -133,10 +133,6 @@ const envSecretsSchema = z.object({
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
-  BLACKLISTED_AGENT_HOSTNAMES: z
-    .string()
-    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
-    .default([]),
   BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
 
   // ably keys

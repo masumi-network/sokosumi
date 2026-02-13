@@ -161,8 +161,6 @@ model Organization {
 
   members           Member[]
   invitations       Invitation[]
-  agents            Agent[]
-  blacklistedAgents Agent[]         @relation("AgentBlacklist")
   jobs              Job[]
   tasks             Task[]
   jobSchedules      JobSchedule[]
@@ -389,8 +387,6 @@ model Agent {
   agentLists               AgentList[]
   jobs                     Job[]
   jobSchedules             JobSchedule[]
-  organizations            Organization[]
-  blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
 
   tags         Tag[]      @relation("AgentTag")
   overrideTags Tag[]      @relation("AgentTagOverride")

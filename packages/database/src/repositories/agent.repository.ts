@@ -2,10 +2,8 @@ import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client.js";
 import {
   agentInclude,
   agentOrderBy,
-  agentOrganizationsInclude,
   agentPricingInclude,
   type AgentWithJobs,
-  type AgentWithOrganizations,
   type AgentWithPricing,
   type AgentWithRelations,
 } from "../types/agent.js";
@@ -30,24 +28,6 @@ export const agentRepository = {
     return await tx.agent.findUnique({
       where: { id },
       include: agentInclude,
-    });
-  },
-
-  /**
-   * Fetch a single agent by ID with only organization-related data.
-   * Optimized for access control scenarios.
-   *
-   * @param id - Agent unique identifier
-   * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
-   * @returns Agent with organization data, or null if not found
-   */
-  async getAgentWithOrganizationsById(
-    id: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<AgentWithOrganizations | null> {
-    return await tx.agent.findUnique({
-      where: { id },
-      include: agentOrganizationsInclude,
     });
   },
 
