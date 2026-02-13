@@ -77,6 +77,8 @@ describe("credits actions", () => {
         amountPerCredit: 15,
         currency: "eur",
       },
+      null,
+      undefined,
     );
     expect(result).toEqual({
       ok: true,

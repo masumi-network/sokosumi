@@ -64,13 +64,17 @@ const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
 type CreditsFormData = z.infer<ReturnType<typeof creditsFormSchema>>;
 
 interface CreditsFormProps {
+  isPurchaseEnabled?: boolean;
   priceCatalog: CreditTopUpPriceCatalog;
   organization: Organization | null;
+  returnPath?: string;
 }
 
 export default function CreditsForm({
+  isPurchaseEnabled = true,
   priceCatalog,
   organization,
+  returnPath,
 }: CreditsFormProps) {
   const t = useTranslations("App.Credits");
   const formatter = useFormatter();
@@ -104,6 +108,11 @@ export default function CreditsForm({
 
   const handleSubmit = useCallback(
     async (data: CreditsFormData) => {
+      if (!isPurchaseEnabled) {
+        toast.error(t("Errors.invalidCredits"));
+        return;
+      }
+
       if (!hasValidCreditsInput(data.credits)) {
         toast.error(t("Errors.invalidCredits"));
         return;
@@ -113,6 +122,7 @@ export default function CreditsForm({
       const result = await purchaseCredits({
         organizationId: organization?.id ?? null,
         credits: creditsAmount,
+        returnPath,
       });
 
       if (result.ok) {
@@ -145,7 +155,7 @@ export default function CreditsForm({
         }
       }
     },
-    [router, t, organization],
+    [isPurchaseEnabled, organization, returnPath, router, t],
   );
 
   const handleQuickAmount = useCallback(
@@ -156,7 +166,8 @@ export default function CreditsForm({
   );
 
   const { isSubmitting } = form.formState;
-  const hasValidCreditsValue = hasValidCreditsInput(credits);
+  const hasValidCreditsValue =
+    hasValidCreditsInput(credits) && isPurchaseEnabled;
   const selectedLookupKey = isPositiveIntegerCredits(credits ?? Number.NaN)
     ? getCreditTopUpLookupKeyByCredits(credits as number)
     : BASE_CREDIT_TOPUP_LOOKUP_KEY;
@@ -182,51 +193,59 @@ export default function CreditsForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {[5_000, 20_000, 50_000, 100_000].map((amount) => (
-                <Button
-                  key={amount}
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleQuickAmount(amount)}
-                  disabled={isSubmitting}
-                >
-                  {t("creditAmount", { count: amount })}
-                </Button>
-              ))}
-            </div>
-            <FormField
-              control={form.control}
-              name="credits"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("creditsLabel")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder={t("creditsPlaceholder")}
-                      min="1"
-                      step="1"
+            {isPurchaseEnabled ? (
+              <>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {[5_000, 20_000, 50_000, 100_000].map((amount) => (
+                    <Button
+                      key={amount}
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleQuickAmount(amount)}
                       disabled={isSubmitting}
-                      {...field}
-                      onChange={(e) => {
-                        const { value } = e.target;
-                        if (value === "") {
-                          handleFieldChange(undefined);
-                        } else {
-                          const numValue = Number(value);
-                          if (Number.isFinite(numValue) && numValue >= 0) {
-                            handleFieldChange(numValue);
-                          }
-                        }
-                      }}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    >
+                      {t("creditAmount", { count: amount })}
+                    </Button>
+                  ))}
+                </div>
+                <FormField
+                  control={form.control}
+                  name="credits"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("creditsLabel")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder={t("creditsPlaceholder")}
+                          min="1"
+                          step="1"
+                          disabled={isSubmitting}
+                          {...field}
+                          onChange={(e) => {
+                            const { value } = e.target;
+                            if (value === "") {
+                              handleFieldChange(undefined);
+                            } else {
+                              const numValue = Number(value);
+                              if (Number.isFinite(numValue) && numValue >= 0) {
+                                handleFieldChange(numValue);
+                              }
+                            }
+                          }}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {t("topUpDescription")}
+              </p>
+            )}
           </CardContent>
           <CardFooter className="flex items-center justify-between pt-6">
             <Button
@@ -236,15 +255,17 @@ export default function CreditsForm({
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               {organization ? t("topUpButtonOrganization") : t("topUpButton")}
             </Button>
-            <p className="text-muted-foreground text-sm">
-              {t("costPerCredit", {
-                cost: formatter.number(selectedPrice.amountPerCredit / 100, {
-                  style: "currency",
-                  currency: selectedPrice.currency,
-                  maximumFractionDigits: 4,
-                }),
-              })}
-            </p>
+            {isPurchaseEnabled ? (
+              <p className="text-muted-foreground text-sm">
+                {t("costPerCredit", {
+                  cost: formatter.number(selectedPrice.amountPerCredit / 100, {
+                    style: "currency",
+                    currency: selectedPrice.currency,
+                    maximumFractionDigits: 4,
+                  }),
+                })}
+              </p>
+            ) : null}
           </CardFooter>
         </form>
       </Form>

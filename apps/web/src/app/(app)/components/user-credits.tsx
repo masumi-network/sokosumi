@@ -6,13 +6,13 @@ import {
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import { getEnvPublicConfig } from "@/config/env.public";
-import { auth, Session } from "@/lib/auth/auth";
-import prisma from "@/lib/db/prisma";
 import {
   type ActiveSubscription,
   resolveCurrentPlanName,
-} from "@/lib/helpers/subscription";
+} from "@/components/billing/subscription-plan-utils";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { auth, Session } from "@/lib/auth/auth";
+import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services/user.service";
 
 import BuyCreditsButton from "./buy-credits-button";
