@@ -2,7 +2,7 @@ import { TaskStatus } from "@sokosumi/database";
 
 import { cn } from "@/lib/utils";
 
-const STATUS_LABELS: Record<TaskStatus, string> = {
+const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.DRAFT]: "Draft",
   [TaskStatus.READY]: "Ready",
   [TaskStatus.INPUT_REQUIRED]: "Input",
@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   [TaskStatus.CANCELED]: "Canceled",
 };
 
-const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
+const STATUS_DOT_COLORS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.DRAFT]: "bg-gray-400",
   [TaskStatus.READY]: "bg-blue-500",
   [TaskStatus.INPUT_REQUIRED]: "bg-orange-500",
@@ -25,7 +25,11 @@ const STATUS_DOT_COLORS: Record<TaskStatus, string> = {
 };
 
 export function getTaskStatusDotColorClass(status: TaskStatus): string {
-  return STATUS_DOT_COLORS[status];
+  return STATUS_DOT_COLORS[status] ?? "bg-muted-foreground";
+}
+
+function getTaskStatusLabel(status: TaskStatus): string {
+  return STATUS_LABELS[status] ?? "Unknown";
 }
 
 interface TaskStatusBadgeProps {
@@ -54,7 +58,7 @@ export function TaskStatusBadge({
       ) : null}
       {showLabel && (
         <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-          {STATUS_LABELS[status]}
+          {getTaskStatusLabel(status)}
         </span>
       )}
     </div>

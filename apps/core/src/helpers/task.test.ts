@@ -54,6 +54,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("READY → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.READY,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).not.toThrow();
+    });
+
     it("READY → CANCELED", () => {
       expect(() =>
         validateStatusTransition(
@@ -164,6 +174,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("RUNNING → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.RUNNING,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).not.toThrow();
+    });
+
     it("RUNNING → INPUT_REQUIRED", () => {
       expect(() =>
         validateStatusTransition(
@@ -210,6 +230,16 @@ describe("validateStatusTransition", () => {
           coworkerContext,
           TaskStatus.RUNNING,
           TaskStatus.CANCELED,
+        ),
+      ).not.toThrow();
+    });
+
+    it("CREDITS_TOPPED_UP → RUNNING", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CREDITS_TOPPED_UP,
+          TaskStatus.RUNNING,
         ),
       ).not.toThrow();
     });
@@ -265,6 +295,16 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow();
     });
+
+    it("OUT_OF_CREDITS → CREDITS_TOPPED_UP is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.CREDITS_TOPPED_UP,
+        ),
+      ).toThrow();
+    });
   });
 
   describe("user allowed transitions", () => {
@@ -304,6 +344,16 @@ describe("validateStatusTransition", () => {
           userContext,
           TaskStatus.CANCELED,
           TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("OUT_OF_CREDITS → CREDITS_TOPPED_UP", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.CREDITS_TOPPED_UP,
         ),
       ).not.toThrow();
     });
@@ -356,6 +406,26 @@ describe("validateStatusTransition", () => {
           userContext,
           TaskStatus.RUNNING,
           TaskStatus.COMPLETED,
+        ),
+      ).toThrow();
+    });
+
+    it("rejects READY → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.READY,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).toThrow();
+    });
+
+    it("rejects CREDITS_TOPPED_UP → RUNNING", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.CREDITS_TOPPED_UP,
+          TaskStatus.RUNNING,
         ),
       ).toThrow();
     });

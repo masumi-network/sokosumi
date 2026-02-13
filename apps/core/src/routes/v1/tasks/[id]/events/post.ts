@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
 import { requireTaskAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
@@ -107,9 +108,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               taskId,
               status,
               comment,
-              authenticationUrl: authenticationUrl ?? null,
+              authenticationUrl,
               origin,
-              ...getActorData(authContext),
+              cents: credits ? convertCreditsToCents(credits) : undefined,
               transactionId,
             },
             include: taskEventTransactionInclude,
