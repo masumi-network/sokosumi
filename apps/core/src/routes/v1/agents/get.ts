@@ -9,8 +9,8 @@ import {
   getAgentDescription,
   getAgentImage,
   getAgentName,
+  getCreditCostsOrThrow,
 } from "@/helpers/agent";
-import { internalServerError } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -71,10 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const result = await prisma.$transaction(async (tx) => {
-      const creditCosts = await tx.creditCost.findMany();
-      if (creditCosts.length === 0) {
-        throw internalServerError("Failed to get credit information for agents");
-      }
+      const creditCosts = await getCreditCostsOrThrow(tx);
 
       const where = buildAvailableAgentWhereClause(creditCosts);
 

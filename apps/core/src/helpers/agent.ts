@@ -7,10 +7,11 @@ import {
 } from "@sokosumi/database";
 
 import { TIME } from "@/config/constants";
+import prisma from "@/lib/db/prisma";
 import { type RatingMetrics } from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
-import { unprocessableEntity } from "./error";
+import { internalServerError, unprocessableEntity } from "./error";
 import { ipfsUrlResolver } from "./ipfs";
 
 export const getAgentImage = (agent: Agent): string | null => {
@@ -35,6 +36,20 @@ export const getAgentAuthorImage = (agent: Agent): string | null => {
     return null;
   }
   return ipfsUrlResolver(image);
+};
+
+/**
+ * Retrieves credit costs used for agent availability and pricing checks.
+ * Throws when credit costs are missing because these checks depend on a configured unit table.
+ */
+export const getCreditCostsOrThrow = async (
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CreditCost[]> => {
+  const creditCosts = await tx.creditCost.findMany();
+  if (creditCosts.length === 0) {
+    throw internalServerError("Failed to get credit information for agents");
+  }
+  return creditCosts;
 };
 
 /**

@@ -33,6 +33,7 @@ import { openrouterClient } from "@/clients/openrouter.client";
 import {
   buildAvailableAgentWhereClause,
   getAgentCost,
+  getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -47,7 +48,6 @@ import type { AgentCost } from "./agent";
 import {
   badRequest,
   forbidden,
-  internalServerError,
   notFound,
   unprocessableEntity,
 } from "./error";
@@ -300,10 +300,7 @@ export async function createAgentJobForUser(
     ? convertCreditsToCents(agentInput.maxCredits)
     : null;
 
-  const creditCosts = await prisma.creditCost.findMany();
-  if (creditCosts.length === 0) {
-    throw internalServerError("Failed to get credit information for agents");
-  }
+  const creditCosts = await getCreditCostsOrThrow();
 
   const agentRecord = await prisma.agent.findFirst({
     where: {
