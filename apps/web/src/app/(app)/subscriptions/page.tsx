@@ -9,10 +9,6 @@ import {
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
 import {
-  type ActiveSubscription,
-  resolveCurrentPlanName,
-} from "@/lib/helpers/subscription";
-import {
   getSubscriptionCatalog,
   type SubscriptionPlanName,
 } from "@/lib/stripe/subscription-catalog";
