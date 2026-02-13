@@ -112,6 +112,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               origin,
               cents: credits ? convertCreditsToCents(credits) : undefined,
               transactionId,
+              ...getActorData(authContext),
             },
             include: taskEventTransactionInclude,
           });
