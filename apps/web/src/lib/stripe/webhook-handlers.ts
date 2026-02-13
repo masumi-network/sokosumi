@@ -67,6 +67,15 @@ interface AppliedSubscriptionCredits {
   subscriptionCreditsExpiry: Date | null;
 }
 
+function isPrismaRecordNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2025"
+  );
+}
+
 async function markOutOfCreditsTasksAsToppedUp(params: {
   organizationId: string | null;
   tx: Prisma.TransactionClient;
@@ -85,23 +94,31 @@ async function markOutOfCreditsTasksAsToppedUp(params: {
   });
 
   for (const task of tasks) {
-    await params.tx.task.update({
-      where: {
-        id: task.id,
-        status: TaskStatus.OUT_OF_CREDITS,
-      },
-      data: {
-        status: TaskStatus.CREDITS_TOPPED_UP,
-        events: {
-          create: {
-            status: TaskStatus.CREDITS_TOPPED_UP,
-            origin: TaskEventOrigin.SOKOSUMI,
-            userId: params.userId,
-            coworkerId: null,
+    try {
+      await params.tx.task.update({
+        where: {
+          id: task.id,
+          status: TaskStatus.OUT_OF_CREDITS,
+        },
+        data: {
+          status: TaskStatus.CREDITS_TOPPED_UP,
+          events: {
+            create: {
+              status: TaskStatus.CREDITS_TOPPED_UP,
+              origin: TaskEventOrigin.SOKOSUMI,
+              userId: params.userId,
+              coworkerId: null,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (isPrismaRecordNotFoundError(error)) {
+        continue;
+      }
+
+      throw error;
+    }
   }
 }
 

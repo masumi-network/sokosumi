@@ -61,7 +61,8 @@ jest.mock("@sokosumi/database/repositories", () => ({
 jest.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
-    $transaction: (...args: unknown[]) => transactionMock(...args),
+    $transaction: (callback: (tx: unknown) => unknown) =>
+      transactionMock(callback),
     creditBucket: {
       aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
     },
@@ -1025,6 +1026,32 @@ describe("handleInvoicePaidEvent", () => {
         },
       },
     });
+  });
+
+  it("does not roll back granted credits when a task is updated concurrently", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    findOutOfCreditsTasksMock.mockResolvedValue([
+      { id: "task-1" },
+      { id: "task-2" },
+    ]);
+    updateTaskMock
+      .mockRejectedValueOnce({ code: "P2025" })
+      .mockResolvedValueOnce({});
+
+    await expect(
+      handleInvoicePaidEvent(
+        createInvoice({
+          billingReason: "manual",
+          id: "in_topup_with_task_race",
+          metadata: { credits: "2" },
+          lines: [{ productId: "prod_credit", quantity: 2 }],
+        }) as never,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    expect(updateTaskMock).toHaveBeenCalledTimes(2);
   });
 });
 
