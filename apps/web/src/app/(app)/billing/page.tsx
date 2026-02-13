@@ -84,28 +84,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const isOwnerOrAdmin =
       member?.role === MemberRole.OWNER || member?.role === MemberRole.ADMIN;
 
-    const activeSubscriptions = await auth.api.listActiveSubscriptions({
-      headers: requestHeaders,
-      query: {
-        customerType: "organization",
-        referenceId: activeOrganization.id,
-      },
-    });
-
-    const latestSubscription = resolveLatestSubscription(
-      activeSubscriptions as ActiveSubscription[],
-    );
-    const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
-    const canPurchaseCredits = isOwnerOrAdmin && currentPlan !== "free";
-    const creditsCheckoutParams =
-      canPurchaseCredits && activeTab === "credits"
-        ? { cancel: query.cancel, session_id: query.session_id }
-        : undefined;
-    const couponCheckoutParams =
-      activeTab === "coupon"
-        ? { cancel: query.cancel, session_id: query.session_id }
-        : undefined;
-
     if (!isOwnerOrAdmin) {
       return (
         <div className="min-h-full w-full">
@@ -127,6 +105,28 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       );
     }
+
+    const activeSubscriptions = await auth.api.listActiveSubscriptions({
+      headers: requestHeaders,
+      query: {
+        customerType: "organization",
+        referenceId: activeOrganization.id,
+      },
+    });
+
+    const latestSubscription = resolveLatestSubscription(
+      activeSubscriptions as ActiveSubscription[],
+    );
+    const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
+    const canPurchaseCredits = isOwnerOrAdmin && currentPlan !== "free";
+    const creditsCheckoutParams =
+      canPurchaseCredits && activeTab === "credits"
+        ? { cancel: query.cancel, session_id: query.session_id }
+        : undefined;
+    const couponCheckoutParams =
+      activeTab === "coupon"
+        ? { cancel: query.cancel, session_id: query.session_id }
+        : undefined;
 
     const balanceInCents = await creditBucketRepository.getBalance(
       authContext.userId,
@@ -181,12 +181,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               />
             }
             creditsContent={
-              <CreditsSection
-                isPurchaseEnabled={canPurchaseCredits}
-                organization={activeOrganization}
-                returnPath="/billing?tab=credits"
-                searchParams={creditsCheckoutParams}
-              />
+              canPurchaseCredits ? (
+                <CreditsSection
+                  isPurchaseEnabled={canPurchaseCredits}
+                  organization={activeOrganization}
+                  returnPath="/billing?tab=credits"
+                  searchParams={creditsCheckoutParams}
+                />
+              ) : undefined
             }
             couponContent={
               <CouponSection
@@ -296,12 +298,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             />
           }
           creditsContent={
-            <CreditsSection
-              isPurchaseEnabled={canPurchaseCredits}
-              organization={null}
-              returnPath="/billing?tab=credits"
-              searchParams={creditsCheckoutParams}
-            />
+            canPurchaseCredits ? (
+              <CreditsSection
+                isPurchaseEnabled={canPurchaseCredits}
+                organization={null}
+                returnPath="/billing?tab=credits"
+                searchParams={creditsCheckoutParams}
+              />
+            ) : undefined
           }
           couponContent={
             <CouponSection
