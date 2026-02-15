@@ -34,10 +34,6 @@ import {
   validateConfirmationName,
 } from "./utils";
 
-/**
- * Dialog component for confirming API key deletion
- * Requires user to type the API key name for confirmation
- */
 export function DeleteApiKeyDialog({
   apiKey,
   open,
@@ -54,7 +50,6 @@ export function DeleteApiKeyDialog({
     defaultValues: DEFAULT_DELETE_FORM_VALUES,
   });
 
-  // Reset form when apiKey changes
   useEffect(() => {
     if (apiKey) {
       form.reset({
@@ -64,13 +59,9 @@ export function DeleteApiKeyDialog({
     }
   }, [apiKey, form]);
 
-  /**
-   * Handle form submission to delete API key
-   */
   const onSubmit = async (values: DeleteApiKeyFormData) => {
     if (!apiKey) return;
 
-    // Verify the confirmation name matches
     const validation = validateConfirmationName(
       apiKey.name ?? "",
       values.confirmName,
@@ -82,7 +73,6 @@ export function DeleteApiKeyDialog({
       return;
     }
 
-    // Attempt to delete the API key
     const success = await deleteApiKey({ keyId: apiKey.id });
 
     if (success) {
@@ -90,12 +80,8 @@ export function DeleteApiKeyDialog({
       onSuccess();
       form.reset();
     }
-    // Error handling is done in the hook via toast
   };
 
-  /**
-   * Handle dialog close - reset form
-   */
   const handleOpenChange = (open: boolean) => {
     onOpenChange(open);
     if (!open) {

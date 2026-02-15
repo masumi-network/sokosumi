@@ -1,15 +1,12 @@
-import { OAuthAuthorizedClients } from "@/components/oauth/authorized-clients";
 import { type Account } from "@/lib/auth/auth";
 import { AccountProvider } from "@/lib/auth/types";
 
-import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
 import { EmailPreferences } from "./email-preferences";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
 import { PasswordForm } from "./password-form";
-import { SocialAccounts } from "./social-accounts";
 
 interface AccountSettingsProps {
   accounts: Account[];
@@ -22,9 +19,6 @@ export function AccountSettings({
   notificationsOptIn,
   marketingOptIn,
 }: AccountSettingsProps) {
-  const socialAccounts = accounts.filter(
-    (account) => account.providerId !== AccountProvider.CREDENTIAL,
-  );
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
   );
@@ -40,22 +34,10 @@ export function AccountSettings({
       </div>
 
       <div className="border-t pt-8">
-        <SocialAccounts socialAccounts={socialAccounts} />
-      </div>
-
-      <div className="border-t pt-8">
-        <OAuthAuthorizedClients />
-      </div>
-
-      <div className="border-t pt-8">
         <EmailPreferences
           notificationsOptIn={notificationsOptIn}
           marketingOptIn={marketingOptIn}
         />
-      </div>
-
-      <div className="border-t pt-8">
-        <ApiKeysSection />
       </div>
 
       <div className="border-t pt-8">
