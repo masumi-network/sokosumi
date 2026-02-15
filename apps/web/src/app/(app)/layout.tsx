@@ -14,7 +14,10 @@ import { taskManagerMenuEnabled } from "@/lib/flags/task-manager";
 import { userService } from "@/lib/services";
 
 import Header from "./components/header";
+import { OnboardingDialog } from "./components/onboarding-dialog";
 import Sidebar from "./components/sidebar";
+
+const FORCE_ONBOARDING_FOR_TESTING = false;
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -53,10 +56,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     return redirect(`/accept-invitation/${pendingInvitationId}`);
   }
 
-  const shouldShowOnboarding = await userService.showOnboarding(session);
-  if (shouldShowOnboarding) {
-    return redirect("/onboarding");
-  }
+  const shouldShowOnboarding =
+    FORCE_ONBOARDING_FOR_TESTING ||
+    (await userService.showOnboarding(session));
 
   const content = (
     <SidebarProvider
@@ -88,6 +90,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       ) : (
         content
       )}
+      {shouldShowOnboarding && <OnboardingDialog />}
     </QueryProvider>
   );
 }
