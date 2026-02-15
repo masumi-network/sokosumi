@@ -69,6 +69,7 @@ export default async function OrganizationPage({
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: Invitation[] = [];
+
   if (isOwnerOrAdmin) {
     try {
       pendingInvitations = await organizationService.getPendingInvitations(

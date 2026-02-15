@@ -8,6 +8,7 @@ import { getTranslations } from "next-intl/server";
 import { ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
+import { chatUIEnabled } from "@/lib/flags/chat";
 import {
   organizationService,
   stripeService,
@@ -93,7 +94,8 @@ export async function completeOnboarding(
     await userService.markOnboardingCompleteForMe();
 
     revalidatePath("/");
-    return Ok({ redirectUrl: "/agents" });
+    const isChatEnabled = await chatUIEnabled();
+    return Ok({ redirectUrl: isChatEnabled ? "/chat" : "/agents" });
   } catch (error) {
     console.error("Error completing onboarding:", error);
     const t = await getTranslations("Onboarding.Actions.Errors");
@@ -112,7 +114,8 @@ export async function skipOnboarding(): Promise<
     await userService.markOnboardingCompleteForMe();
 
     revalidatePath("/");
-    return Ok({ redirectUrl: "/agents" });
+    const isChatEnabled = await chatUIEnabled();
+    return Ok({ redirectUrl: isChatEnabled ? "/chat" : "/agents" });
   } catch (error) {
     console.error("Error skipping onboarding:", error);
     const t = await getTranslations("Onboarding.Actions.Errors");

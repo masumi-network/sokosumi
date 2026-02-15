@@ -5,7 +5,6 @@ import {
   AgentStatus,
   AgentWithCreditsPrice,
   AgentWithJobs,
-  AgentWithOrganizations,
   AgentWithPricing,
   AgentWithRelations,
   CreditCost,
@@ -18,7 +17,6 @@ import {
   agentRepository,
   creditCostRepository,
   jobRepository,
-  memberRepository,
 } from "@sokosumi/database/repositories";
 
 import { getAuthContext } from "@/lib/auth/utils";
@@ -28,40 +26,10 @@ import { pricingAmountsSchema } from "@/lib/schemas";
 
 export const agentService = (() => {
   /**
-   * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
-   *
-   * Blacklist behavior:
-   * - When viewing in an organization context (activeOrganizationId present), that organization's
-   *   blacklist is enforced, hiding agents they've explicitly blocked.
-   * - When viewing in personal context (activeOrganizationId is null), no blacklists apply.
-   * - Users in multiple organizations see different agents depending on their active context.
-   *
-   * @param agent - Agent with organization and blacklist data.
-   * @param userOrganizationIds - Organization IDs the user is a member of.
-   * @param activeOrganizationId - The currently active organization ID, or null for personal context.
-   * @returns True if the user can access the agent, false otherwise.
+   * Utility: Checks if an agent is visible in the catalog.
    */
-  function canUserAccessAgent(
-    agent: AgentWithOrganizations,
-    userOrganizationIds: string[],
-    activeOrganizationId: string | null,
-  ): boolean {
-    // Blacklist: only enforce when organization scope is active
-    // Personal context (null) is not affected by organizational blacklist decisions
-    if (activeOrganizationId) {
-      const isBlacklisted = agent.blacklistedOrganizations.some(
-        ({ id }) => id === activeOrganizationId,
-      );
-      if (isBlacklisted) return false;
-    }
-
-    // Visibility: deny if agent is not shown
-    if (!agent.isShown) return false;
-    if (agent.organizations.length === 0) return true;
-    if (userOrganizationIds.length === 0) return false;
-    return agent.organizations.some((agentOrg) =>
-      userOrganizationIds.includes(agentOrg.id),
-    );
+  function canUserAccessAgent(agent: AgentWithRelations): boolean {
+    return agent.isShown;
   }
 
   /**
@@ -104,46 +72,16 @@ export const agentService = (() => {
   /**
    * Utility: Determines if an agent is available to the user based on access permissions and pricing validity.
    *
-   * @param agent - Agent with relations including organization and pricing data.
-   * @param organizationIds - Organization IDs the user is a member of.
+   * @param agent - Agent with relations including pricing data.
    * @param creditCosts - Valid credit cost objects for pricing validation.
    * @returns True if the agent is available to the user, false otherwise.
    */
   function isAgentAvailable(
     agent: AgentWithRelations,
-    organizationIds: string[],
     creditCosts: CreditCost[],
-    activeOrganizationId: string | null,
   ): boolean {
-    return (
-      canUserAccessAgent(agent, organizationIds, activeOrganizationId) &&
-      hasValidPricing(agent, creditCosts)
-    );
+    return canUserAccessAgent(agent) && hasValidPricing(agent, creditCosts);
   }
-  /**
-   * Retrieves the current session's organization IDs and all credit costs for agent access checks.
-   *
-   * @param tx - Optional Prisma transaction client for DB operations.
-   * @returns Object with userOrganizationIds and creditCosts.
-   */
-  const getAgentAccessContext = async (
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<{
-    userOrganizationIds: string[];
-    creditCosts: CreditCost[];
-    activeOrganizationId: string | null;
-  }> => {
-    const context = await getAuthContext();
-    const creditCosts = await creditCostRepository.getCreditCosts(tx);
-    const userOrganizationIds = context?.userId
-      ? await memberRepository.getMembersOrganizationIdsByUserId(
-          context.userId,
-          tx,
-        )
-      : [];
-    const activeOrganizationId = context?.organizationId ?? null;
-    return { userOrganizationIds, creditCosts, activeOrganizationId };
-  };
 
   /**
    * Retrieves agents by list type for the current user with access control applied.
@@ -164,15 +102,9 @@ export const agentService = (() => {
         type,
         tx,
       );
-      const { userOrganizationIds, creditCosts, activeOrganizationId } =
-        await getAgentAccessContext(tx);
+      const creditCosts = await creditCostRepository.getCreditCosts(tx);
       return list.agents.filter((agent) =>
-        isAgentAvailable(
-          agent,
-          userOrganizationIds,
-          creditCosts,
-          activeOrganizationId,
-        ),
+        isAgentAvailable(agent, creditCosts),
       );
     });
   };
@@ -197,20 +129,14 @@ export const agentService = (() => {
      */
     getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
       return await prisma.$transaction(async (tx) => {
-        const { userOrganizationIds, creditCosts, activeOrganizationId } =
-          await getAgentAccessContext(tx);
+        const creditCosts = await creditCostRepository.getCreditCosts(tx);
         const onlineAgents =
           await agentRepository.getShownAgentsWithRelationsByStatus(
             AgentStatus.ONLINE,
             tx,
           );
         return onlineAgents.filter((agent) =>
-          isAgentAvailable(
-            agent,
-            userOrganizationIds,
-            creditCosts,
-            activeOrganizationId,
-          ),
+          isAgentAvailable(agent, creditCosts),
         );
       });
     },
@@ -234,17 +160,8 @@ export const agentService = (() => {
         tx,
       );
       if (!agent) return null;
-      const { userOrganizationIds, creditCosts, activeOrganizationId } =
-        await getAgentAccessContext(tx);
-      if (
-        !isAgentAvailable(
-          agent,
-          userOrganizationIds,
-          creditCosts,
-          activeOrganizationId,
-        )
-      )
-        return null;
+      const creditCosts = await creditCostRepository.getCreditCosts(tx);
+      if (!isAgentAvailable(agent, creditCosts)) return null;
       return agent;
     },
 

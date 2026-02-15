@@ -1,12 +1,18 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
 import { requireTaskAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { mapTaskEvent, validateStatusTransition } from "@/helpers/task";
+import {
+  isChargeableTaskStatus,
+  mapTaskEvent,
+  validateStatusTransition,
+  validateTaskCoworkerAssignment,
+} from "@/helpers/task";
 import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -14,7 +20,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { isChargeableTaskStatus } from "./helper";
 import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
@@ -50,12 +55,6 @@ const route = createRoute({
   },
 });
 
-const taskEventTransactionInclude = {
-  transaction: {
-    select: { amount: true },
-  },
-} as const;
-
 function getActorData(authContext: AuthenticationContext) {
   if (authContext.coworkerId) {
     return {
@@ -83,6 +82,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
+          validateTaskCoworkerAssignment({
+            status,
+            coworkerId: task.coworkerId,
+          });
 
           let transactionId: string | null = null;
           if (isChargeableTaskStatus(status) && credits !== undefined) {
@@ -99,12 +102,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               taskId,
               status,
               comment,
-              authenticationUrl: authenticationUrl ?? null,
+              authenticationUrl,
               origin,
-              ...getActorData(authContext),
+              cents:
+                credits != null ? convertCreditsToCents(credits) : undefined,
               transactionId,
+              ...getActorData(authContext),
             },
-            include: taskEventTransactionInclude,
           });
 
           const updateResult = await tx.task.updateMany({

@@ -149,13 +149,13 @@
     "UserAvatar": {
       "account": "Account",
       "organizations": "Organizations",
-      "credits": "Credits",
-      "subscriptions": "Subscriptions",
-      "mcp": "MCP",
+      "billing": "Billing",
+      "connections": "Connections",
       "support": "Support",
       "logout": "Log out"
     },
     "OrganizationSwitcher": {
+      "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
       "noOrganizationsFound": "No organizations found",
       "personalAccountHeading": "Personal",
@@ -237,13 +237,17 @@
       "jobs": "Jobs",
       "agents": "Gallery",
       "credits": "Credits",
+      "coupon": "Coupon",
       "subscriptions": "Subscriptions",
+      "billing": "Billing",
       "account": "Account",
       "organizations": "Organizations",
       "api-docs": "API Documentation",
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Scheduled Agents",
-      "tasks": "Task Manager"
+      "chat": "Chat",
+      "tasks": "Task Manager",
+      "connections": "Connections"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1037,6 +1041,108 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
+    "Chat": {
+      "Metadata": {
+        "title": "Chat",
+        "description": "Chat with your AI coworkers"
+      },
+      "title": "Chat",
+      "description": "Chat with your AI coworkers",
+      "Chat": {
+        "newChat": "New Chat",
+        "noChats": "No chats yet",
+        "emptyState": {
+          "title": "Start a conversation",
+          "titleWithName": "Start a conversation with {name}",
+          "description": "This chat is empty.{specialization} Send a message to get started!",
+          "suggestionTitle": "Try asking:"
+        },
+        "welcomeScreen": {
+          "greeting": "Welcome!",
+          "greetingWithName": "Welcome {name}!",
+          "question": "How can we help you today?",
+          "title": "Welcome! How can we help you today?",
+          "titleWithName": "Welcome {name}! How can we help you today?",
+          "placeholder": "What's on your mind?"
+        },
+        "introducingCoworkers": "Introducing: Agentic Coworkers",
+        "emptyTitle": "Start a conversation",
+        "emptyDescription": "Ask me anything and I'll help you out. You can start a new chat or continue an existing one.",
+        "inputPlaceholder": "Type your message...",
+        "inputHint": "Press Enter to send, Shift+Enter for new line",
+        "assistant": "Assistant",
+        "filterAll": "All",
+        "filterActive": "Active",
+        "filterAwaiting": "Awaiting",
+        "statusActive": "Active",
+        "statusAwaiting": "Awaiting",
+        "statusResolved": "Resolved",
+        "justNow": "Just now",
+        "minutesAgo": "{count} mins ago",
+        "hoursAgo": "{count} hours ago",
+        "daysAgo": "{count} days ago",
+        "deleteDialog": {
+          "title": "Delete Chat",
+          "description": "Are you sure you want to delete this chat? This action cannot be undone.",
+          "cancel": "Cancel",
+          "delete": "Delete"
+        },
+        "selectCoworker": {
+          "title": "Select Agentic Coworker",
+          "description": "Choose a coworker to start a conversation with.",
+          "placeholder": "Select a coworker...",
+          "useCase": "Use case",
+          "cancel": "Cancel",
+          "confirm": "Start Chat",
+          "selectButton": "Start chat with {coworker}"
+        },
+        "comingSoon": "Coming Soon",
+        "agenticCoworkers": "Agentic Coworkers",
+        "models": "Models",
+        "uploadFileError": "Failed to upload file",
+        "uploadFileErrorRetry": "Failed to upload file, please try again!",
+        "uploadPastedImageError": "Failed to upload pasted image(s)",
+        "waitForModelResponse": "Please wait for the model to finish its response!",
+        "imageAttachment": "An image attachment",
+        "fileLabel": "File",
+        "loaderTitle": "Loader",
+        "modelAlt": "Model",
+        "coworkerAlt": "Coworker",
+        "userAvatarAlt": "User avatar",
+        "chatErrorTitle": "Chat Error",
+        "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",
+        "promptPlaceholder": "What would you like to know?",
+        "pastedImage": "Pasted image",
+        "modelNames": {
+          "gpt4oMini": "GPT-4o Mini",
+          "gpt4o": "GPT-4o",
+          "gemini20Flash": "Gemini 2.0 Flash",
+          "gemini25Pro": "Gemini 2.5 Pro",
+          "mixtral8x22b": "Mixtral 8x22B",
+          "mixtral8x7b": "Mixtral 8x7B"
+        },
+        "coworkers": {
+          "hannah": {
+            "name": "Hannah",
+            "description": "Data Analysis & Research Specialist",
+            "useCase": "Analyze datasets, create reports, and provide research insights"
+          },
+          "john": {
+            "name": "John",
+            "description": "Code Review & Development Assistant",
+            "useCase": "Review code, suggest improvements, and help with debugging"
+          },
+          "demosthenes": {
+            "name": "Demosthenes",
+            "description": "Writing & Communication Expert",
+            "useCase": "Draft documents, improve writing, and craft professional communications"
+          }
+        },
+        "errorTitle": "Error",
+        "errorDescription": "An error occurred while processing your message. Please try again.",
+        "tryAgain": "Try Again"
+      }
+    },
     "Schedules": {
       "empty": {
         "title": "No schedules yet",
@@ -1089,7 +1195,16 @@
         "placeholder": "No tasks"
       },
       "Jobs": {
-        "placeholder": "Job view coming soon."
+        "filterButton": "Status",
+        "filterHideFailed": "Hide failed",
+        "filterShowAll": "Show all",
+        "recentTitle": "Recent",
+        "emptyRecent": "No recently finished jobs.",
+        "emptyList": "No jobs yet.",
+        "emptySection": "No jobs in this status.",
+        "untitled": "Untitled job",
+        "unknownAgent": "Unknown agent",
+        "unknownCoworker": "Unknown coworker"
       },
       "Detail": {
         "back": "Back to tasks",
@@ -1099,18 +1214,51 @@
         "created": "Created",
         "updated": "Updated",
         "description": "Description",
+        "jobs": "Jobs",
+        "jobsEmpty": "No jobs yet.",
+        "jobsUntitled": "Untitled job",
+        "jobsUnknownAgent": "Agent unavailable",
         "activity": "Activity",
+        "sourcesFiles": "Files",
+        "sourcesLinks": "Links",
         "commentPlaceholder": "Write a comment...",
         "attach": "Attach",
         "submit": "Submit",
+        "sendWith": "Send with",
+        "ctrl": "Ctrl",
+        "authenticate": "Authenticate",
         "expand": "Expand",
         "collapse": "Show less",
         "actorCoworker": "Coworker",
         "actorUser": "User",
         "actorSystem": "System",
+        "originFromApp": "from {appName}",
+        "originApp": {
+          "sokosumi": "Sokosumi",
+          "slack": "Slack",
+          "teams": "Teams",
+          "email": "Email",
+          "linear": "Linear",
+          "github": "GitHub",
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "chat": "Chat",
+          "unknown": "Unknown"
+        },
         "actionCommented": "commented",
-        "actionUpdatedStatus": "updated status",
+        "actionUpdatedStatus": "changed status to",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
+        "statusLabels": {
+          "outOfCredits": "Out of credits",
+          "creditsToppedUp": "Credits topped up",
+          "cancelRequested": "Cancel requested"
+        },
+        "billingCta": {
+          "upgradePlan": "Upgrade your Plan",
+          "addCredits": "Add credits",
+          "placeholder": "This task needs credits to continue. Open billing to proceed."
+        },
         "actions": {
           "edit": "Edit",
           "delete": "Delete",
@@ -1119,6 +1267,7 @@
           "deleteError": "Failed to delete task",
           "markAsReady": "Mark as Ready",
           "revertToDraft": "Revert to Draft",
+          "cancelRequest": "Cancel Request",
           "updateStatusSuccess": "Task status updated"
         }
       },
@@ -1180,10 +1329,26 @@
     "Sidebar": {
       "Content": {
         "MenuItems": {
+          "chat": "Chat",
+          "newChat": "New Chat",
           "exploreAgents": "Explore Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Task Manager",
           "scheduledAgents": "Scheduled Agents"
+        },
+        "ChatLists": {
+          "title": "Recent Chats",
+          "noChats": "No chats yet",
+          "untitledChat": "Untitled Chat",
+          "modelAlt": "Model",
+          "coworkerAlt": "Coworker",
+          "deleteChatAriaLabel": "Delete chat",
+          "deleteDialog": {
+            "title": "Delete Chat",
+            "description": "Are you sure you want to delete this chat? This action cannot be undone.",
+            "cancel": "Cancel",
+            "delete": "Delete"
+          }
         },
         "AgentLists": {
           "pinnedTitle": "Pinned Agents",
@@ -1216,6 +1381,12 @@
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
+      },
+      "Plan": {
+        "upgradeCta": "Upgrade plan",
+        "userPlan": "{plan}",
+        "organizationPlan": "{plan} ({organization})",
+        "unavailable": "Plan unavailable"
       }
     },
     "Subscriptions": {
@@ -1297,6 +1468,35 @@
         "retryButton": "Try Again"
       }
     },
+    "Billing": {
+      "balanceTitle": "Balance",
+      "balanceDescriptionPersonal": "Your current credits in personal account.",
+      "balanceDescriptionOrganization": "Current credits for {organization}. {members, plural, =1 {# member} other {# members}}, {seats, plural, =1 {# seat} other {# seats}}.",
+      "balanceCreditsLabel": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+      "tabs": {
+        "subscription": "Subscription",
+        "credits": "Credits",
+        "coupon": "Coupon"
+      },
+      "billingPortalTitle": "Billing Portal",
+      "billingPortalDescription": "Open Stripe Billing Portal to manage your billing details and invoices.",
+      "openingBillingPortal": "Opening...",
+      "billingPortalCta": "Open billing portal",
+      "orgAccessRestrictedTitle": "Billing access restricted",
+      "orgAccessRestrictedDescription": "Only organization owners and admins can view billing details for this organization.",
+      "orgAccessRestrictedHint": "Switch to a personal context or contact an organization owner/admin if you need access.",
+      "Errors": {
+        "unauthenticated": "Please sign in to continue",
+        "unauthenticatedAction": "Sign In",
+        "unauthorized": "You are not authorized to access this billing area",
+        "general": "Something went wrong. Please try again."
+      },
+      "Error": {
+        "title": "Something Went Wrong",
+        "message": "We encountered an issue loading billing details. Please try again later.",
+        "retryButton": "Try Again"
+      }
+    },
     "Credits": {
       "billingPortalCta": "Manage purchases",
       "topUpTitle": "Top up your credits",
@@ -1307,6 +1507,10 @@
       "creditsPlaceholder": "Enter amount",
       "topUpButton": "Continue",
       "topUpButtonOrganization": "Continue",
+      "couponPageTitle": "Redeem your coupon",
+      "couponPageDescription": "Enter your coupon code to claim credits",
+      "couponButton": "Continue",
+      "couponButtonOrganization": "Continue",
       "purchaseForOrganization": "{organization} (Organization)",
       "couponLabel": "Coupon code",
       "couponPlaceholder": "Enter coupon",
@@ -1348,6 +1552,13 @@
         "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
         "unauthorizedPersonal": "You are not authorized to purchase credits",
         "unknownError": "Something went wrong"
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Connected Apps",
+        "apiKeys": "API Keys",
+        "mcp": "MCP"
       }
     },
     "MCP": {
@@ -1700,6 +1911,29 @@
             "unauthorized": "Only organization owners and admins can update the invoice email",
             "badInput": "Please enter a valid email address",
             "general": "Failed to update invoice email"
+          }
+        },
+        "Subscription": {
+          "title": "Organization Subscription",
+          "description": "Manage plan and seats for your organization.",
+          "currentPlanLabel": "Current plan",
+          "currentSeatsLabel": "Current seats",
+          "membersLabel": "Active members",
+          "seatsInputLabel": "Target seats",
+          "seatsInputHint": "Minimum seats is {minimum} to cover all active members.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
+          "noActivePlan": "No active plan",
+          "seatsUpdatedSuccess": "Seats updated successfully.",
+          "updating": "Redirecting...",
+          "currentPlanCta": "Current plan",
+          "updateSeatsCta": "Update seats",
+          "choosePlanCta": "Choose plan",
+          "Errors": {
+            "unauthenticated": "Please log in to continue",
+            "unauthenticatedAction": "Log in",
+            "unauthorized": "Only organization owners and admins can manage subscriptions",
+            "badInput": "Please provide valid plan and seat values",
+            "general": "Failed to manage organization subscription"
           }
         }
       }

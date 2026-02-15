@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.29.2",
+  "packageManager": "pnpm@10.29.3",
   "pnpm": {
     "overrides": {
       "zod": "4.3.6"
@@ -26,7 +26,7 @@
     "web:lint:fix": "pnpm --filter web lint:fix",
     "database:lint": "pnpm --filter @sokosumi/database lint",
     "database:lint:fix": "pnpm --filter @sokosumi/database lint:fix",
-    "lint:report": "pnpm -r lint:report",
+    "lint:report": "pnpm -r --if-present --no-bail lint:report",
     "web:lint:report": "pnpm --filter web lint:report",
     "test": "pnpm -r test",
     "web:test": "pnpm --filter web test",
@@ -38,7 +38,9 @@
     "masumi:test:ci": "pnpm --filter @sokosumi/masumi test:ci",
     "format": "pnpm -r format",
     "web:format": "pnpm --filter web format",
+    "core:format": "pnpm --filter core format",
     "database:format": "pnpm --filter @sokosumi/database format",
+    "masumi:format": "pnpm --filter @sokosumi/masumi format",
     "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
@@ -50,11 +52,11 @@
   "devDependencies": {
     "chrome-launcher": "1.2.1",
     "eslint": "9.39.2",
-    "lighthouse": "^13.0.2",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-simple-import-sort": "12.1.1",
     "eslint-plugin-unused-imports": "4.4.1",
+    "lighthouse": "13.0.3",
     "prettier": "3.8.1",
     "typescript-eslint": "8.55.0"
   }

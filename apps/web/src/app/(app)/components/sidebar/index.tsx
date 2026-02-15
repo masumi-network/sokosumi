@@ -17,17 +17,21 @@ import {
 import { Session } from "@/lib/auth/auth";
 
 import AgentLists from "./components/agent-lists";
+import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
+import NewChatButton from "./components/new-chat-button";
 
 interface SidebarProps {
   session: Session;
   taskManagerMenuEnabled: boolean;
+  chatUIEnabled: boolean;
 }
 
 export default function Sidebar({
   session,
   taskManagerMenuEnabled,
+  chatUIEnabled,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -50,8 +54,13 @@ export default function Sidebar({
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
+        {/* Top Section: Chats */}
+        {chatUIEnabled && <NewChatButton />}
+        {/* Bottom Section: Agents */}
         <MenuItems taskManagerMenuEnabled={taskManagerMenuEnabled} />
+        {/* Divider */}
         <SidebarSeparator className="mx-0" />
+        {chatUIEnabled && <ChatListsClient />}
         <AgentLists userId={session.user.id} />
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">

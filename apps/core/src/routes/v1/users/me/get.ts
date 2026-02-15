@@ -3,6 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapSubscription } from "@/helpers/subscription";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -56,22 +57,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const credits = await getCredits(user.id, null, tx);
       const subscription = await tx.subscription.findFirst({
         where: { referenceId: user.id },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updatedAt: "desc" },
       });
 
       return userSchema.parse({
         ...user,
         credits,
-        subscription: subscription
-          ? {
-              id: subscription.id,
-              plan: subscription.plan,
-              status: subscription.status,
-              periodStart: subscription.periodStart,
-              periodEnd: subscription.periodEnd,
-              cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-            }
-          : null,
+        subscription: mapSubscription(subscription),
       });
     });
 

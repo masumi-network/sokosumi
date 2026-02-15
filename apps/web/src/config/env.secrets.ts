@@ -50,6 +50,7 @@ const envSecretsSchema = z.object({
   STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
   STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
   STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
+  STRIPE_WELCOME_COUPON: z.string().min(1),
   STRIPE_FREE_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
@@ -57,6 +58,7 @@ const envSecretsSchema = z.object({
 
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
+  OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
   // Seed
   SEED_DATABASE: z
@@ -131,10 +133,6 @@ const envSecretsSchema = z.object({
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
-  BLACKLISTED_AGENT_HOSTNAMES: z
-    .string()
-    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
-    .default([]),
   BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
 
   // ably keys

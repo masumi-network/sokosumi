@@ -3,6 +3,12 @@ import "server-only";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  CREDIT_TOPUP_LOOKUP_KEYS,
+  CreditTopUpLookupKey,
+  getCreditTopUpLookupKeyByCredits,
+} from "@/lib/stripe/credit-topup-pricing";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 export interface Price {
@@ -10,6 +16,8 @@ export interface Price {
   amountPerCredit: number;
   currency: string;
 }
+
+export type CreditTopUpPriceCatalog = Record<CreditTopUpLookupKey, Price>;
 
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -23,11 +31,25 @@ export const stripeClient = (() => {
     return SUPPORTED_CREDIT_PRICE_CURRENCY_SET.has(currency);
   }
 
+  function getStripeUnitAmount(price: Stripe.Price): number | null {
+    if (price.unit_amount_decimal !== null) {
+      const decimalAmount = Number(price.unit_amount_decimal);
+      return Number.isFinite(decimalAmount) ? decimalAmount : null;
+    }
+
+    if (price.unit_amount !== null) {
+      return price.unit_amount;
+    }
+
+    return null;
+  }
+
   function isValidCreditPrice(price: Stripe.Price): boolean {
+    const amountPerCredit = getStripeUnitAmount(price);
     return (
       isSupportedCreditPriceCurrency(price.currency) &&
-      price.unit_amount !== null &&
-      price.unit_amount > 0
+      amountPerCredit !== null &&
+      amountPerCredit > 0
     );
   }
 
@@ -47,22 +69,55 @@ export const stripeClient = (() => {
   }
 
   function validatePrice(price: Stripe.Price): Price {
+    const amountPerCredit = getStripeUnitAmount(price);
+
     if (!isSupportedCreditPriceCurrency(price.currency)) {
       throw new Error(`Unsupported credit price currency: ${price.currency}`);
     }
-    if (price.unit_amount === null) {
-      throw new Error("Price unit_amount is null");
+    if (amountPerCredit === null) {
+      throw new Error("Price unit_amount and unit_amount_decimal are invalid");
     }
-    if (price.unit_amount === 0) {
+    if (amountPerCredit <= 0) {
       throw new Error(
         "Price unit_amount is 0 (free product) – cannot use for credit purchase",
       );
     }
     return {
       id: price.id,
-      amountPerCredit: price.unit_amount!,
+      amountPerCredit,
       currency: price.currency,
     };
+  }
+
+  function getCheckoutUnitAmount(credits: number, price: Price): number {
+    const totalMinorUnits = Math.ceil(credits * price.amountPerCredit);
+    if (!Number.isFinite(totalMinorUnits) || totalMinorUnits < 1) {
+      throw new Error("Computed checkout amount is invalid");
+    }
+
+    return totalMinorUnits;
+  }
+
+  function normalizeCheckoutReturnPath(returnPath: string): string {
+    if (!returnPath) {
+      return "/credits";
+    }
+
+    return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
+  }
+
+  function buildCheckoutReturnUrl(
+    checkoutBaseUrl: string,
+    returnPath: string,
+    searchParams: Record<string, string>,
+  ): string {
+    const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
+    const querySuffix = Object.entries(searchParams)
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&");
+    const querySeparator = normalizedReturnPath.includes("?") ? "&" : "?";
+
+    return `${checkoutBaseUrl}${normalizedReturnPath}${querySeparator}${querySuffix}`;
   }
 
   return {
@@ -138,16 +193,29 @@ export const stripeClient = (() => {
     async createSubscription(
       customerId: string,
       priceId: string,
-      metadata: { referenceId: string; userId: string },
+      quantity: number,
+      metadata: {
+        organizationId?: string;
+        referenceId: string;
+        userId?: string;
+      },
       idempotencyKey?: string,
     ): Promise<Stripe.Subscription> {
       return await stripe.subscriptions.create(
         {
           customer: customerId,
-          items: [{ price: priceId }],
+          items: [
+            {
+              price: priceId,
+              ...(quantity > 0 ? { quantity } : {}),
+            },
+          ],
           metadata: {
             referenceId: metadata.referenceId,
-            userId: metadata.userId,
+            ...(metadata.userId ? { userId: metadata.userId } : {}),
+            ...(metadata.organizationId
+              ? { organizationId: metadata.organizationId }
+              : {}),
           },
         },
         {
@@ -239,6 +307,48 @@ export const stripeClient = (() => {
       }
     },
 
+    async getPriceByLookupKey(lookupKey: CreditTopUpLookupKey): Promise<Price> {
+      try {
+        const matchingPrices = await stripe.prices.list({
+          lookup_keys: [lookupKey],
+          product: getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID,
+          active: true,
+          limit: 100,
+        });
+        const matchedPrice = selectPreferredCreditPrice(matchingPrices.data);
+        if (!matchedPrice) {
+          throw new Error(
+            `No valid credit price found for lookup key ${lookupKey}. Expected currencies: ${SUPPORTED_CREDIT_PRICE_CURRENCIES.join(", ")}`,
+          );
+        }
+
+        return validatePrice(matchedPrice);
+      } catch (error) {
+        console.error("Error retrieving price by lookup key", error);
+        throw error;
+      }
+    },
+
+    async getCreditTopUpPriceByCredits(credits: number): Promise<Price> {
+      const lookupKey = getCreditTopUpLookupKeyByCredits(credits);
+      return await this.getPriceByLookupKey(lookupKey);
+    },
+
+    async getBaseCreditTopUpPrice(): Promise<Price> {
+      return await this.getPriceByLookupKey(BASE_CREDIT_TOPUP_LOOKUP_KEY);
+    },
+
+    async getCreditTopUpPriceCatalog(): Promise<CreditTopUpPriceCatalog> {
+      const prices = await Promise.all(
+        CREDIT_TOPUP_LOOKUP_KEYS.map(async (lookupKey) => [
+          lookupKey,
+          await this.getPriceByLookupKey(lookupKey),
+        ]),
+      );
+
+      return Object.fromEntries(prices) as CreditTopUpPriceCatalog;
+    },
+
     async getPriceByProductId(productId: string): Promise<Price> {
       try {
         const product = await stripe.products.retrieve(productId, {
@@ -306,25 +416,34 @@ export const stripeClient = (() => {
       price: Price,
       origin: string | null = null,
       promotionCode: string | null = null,
+      returnPath: string = "/credits",
     ): Promise<Stripe.Checkout.Session> {
-      // Prevent division by zero for price.unit_amount
       if (price.amountPerCredit === 0) {
         throw new Error(
           "Price amountPerCredit is 0 – cannot create checkout session for free product",
         );
       }
-
-      const session = await stripe.checkout.sessions.create({
+      const env = getEnvSecrets();
+      const checkoutUnitAmount = getCheckoutUnitAmount(credits, price);
+      const creditsLabel = credits.toLocaleString("en-US");
+      const checkoutBaseUrl = (
+        origin ??
+        env.VERCEL_URL ??
+        "https://sokosumi.com"
+      ).replace(/\/$/, "");
+      const checkoutCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
+      const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
         line_items: [
           {
-            price: price.id,
-            quantity: credits,
+            price_data: {
+              currency: price.currency,
+              product: env.STRIPE_CREDIT_PRODUCT_ID,
+              unit_amount: checkoutUnitAmount,
+            },
+            quantity: 1,
           },
         ],
-        ...(promotionCode
-          ? { discounts: [{ promotion_code: promotionCode }] }
-          : { allow_promotion_codes: false }),
         customer: stripeCustomerId,
         customer_update: {
           address: "auto",
@@ -347,9 +466,26 @@ export const stripeClient = (() => {
         },
         billing_address_collection: "required",
         tax_id_collection: { enabled: true },
-        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
-      });
+        custom_text: {
+          submit: {
+            message: checkoutCreditsMessage,
+          },
+        },
+        success_url: buildCheckoutReturnUrl(checkoutBaseUrl, returnPath, {
+          session_id: "{CHECKOUT_SESSION_ID}",
+        }),
+        cancel_url: buildCheckoutReturnUrl(checkoutBaseUrl, returnPath, {
+          cancel: "true",
+        }),
+      };
+
+      if (promotionCode) {
+        sessionParams.discounts = [{ promotion_code: promotionCode }];
+      } else {
+        sessionParams.allow_promotion_codes = false;
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionParams);
       return session;
     },
 
@@ -370,7 +506,7 @@ export const stripeClient = (() => {
       const credits = getCreditsForCoupon(coupon);
 
       // 1) Add invoice items representing the free credits
-      const itemsToCreate = Math.min(referralCount!, MAX_REFERRAL_COUNT);
+      const itemsToCreate = Math.min(referralCount, MAX_REFERRAL_COUNT);
       await Promise.all(
         Array.from({ length: itemsToCreate }).map((_, index) =>
           stripe.invoiceItems.create({

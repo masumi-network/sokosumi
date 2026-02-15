@@ -17,17 +17,11 @@ import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-const EXISTING_PERSONAL_SUBSCRIPTION_STATUSES =
-  new Set<Stripe.Subscription.Status>([
-    "active",
-    "trialing",
-    "past_due",
-    "unpaid",
-    "incomplete",
-    "paused",
-  ]);
+const EXISTING_FREE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>(
+  ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"],
+);
 
-export type EnsurePersonalFreeSubscriptionResult =
+export type EnsureFreeSubscriptionResult =
   | {
       status: "created";
       subscriptionId: string;
@@ -41,11 +35,9 @@ export type EnsurePersonalFreeSubscriptionResult =
       reason: string;
     };
 
-export interface SyncSubscriptionRowsResult {
-  created: number;
-  skipped: number;
-  updated: number;
-}
+export type EnsurePersonalFreeSubscriptionResult = EnsureFreeSubscriptionResult;
+export type EnsureOrganizationFreeSubscriptionResult =
+  EnsureFreeSubscriptionResult;
 
 export const stripeService = (() => {
   async function getStripeCustomerId(
@@ -80,6 +72,7 @@ export const stripeService = (() => {
       credits: number,
       price: Price,
       promotionCode: string | null = null,
+      returnPath: string = "/credits",
     ): Promise<{ url: string }> {
       const isVerified = await verifyUserId(userId);
       if (!isVerified) {
@@ -103,6 +96,7 @@ export const stripeService = (() => {
           price,
           headerList.get("origin"),
           promotionCode,
+          returnPath,
         );
 
         if (!checkoutSession.url) {
@@ -239,7 +233,7 @@ export const stripeService = (() => {
           await stripeClient.listSubscriptions(stripeCustomerId);
         const hasExistingPersonalSubscription = existingSubscriptions.some(
           (subscription) =>
-            EXISTING_PERSONAL_SUBSCRIPTION_STATUSES.has(subscription.status),
+            EXISTING_FREE_SUBSCRIPTION_STATUSES.has(subscription.status),
         );
 
         if (hasExistingPersonalSubscription) {
@@ -268,6 +262,7 @@ export const stripeService = (() => {
         const subscription = await stripeClient.createSubscription(
           stripeCustomerId,
           freePlanPriceId,
+          1,
           { referenceId: userId, userId },
           `free-plan-user-${userId}`,
         );
@@ -288,118 +283,98 @@ export const stripeService = (() => {
       }
     },
 
-    async syncSubscriptionRowsForReference(
-      referenceId: string,
-      stripeCustomerId: string,
-    ): Promise<SyncSubscriptionRowsResult> {
-      const [stripeSubscriptions, subscriptionCatalog] = await Promise.all([
-        stripeClient.listSubscriptions(stripeCustomerId),
-        getSubscriptionCatalog(stripeInstance),
-      ]);
-
-      const planByPriceId = new Map(
-        Object.values(subscriptionCatalog).map((plan) => [plan.priceId, plan]),
-      );
-
-      const syncResult: SyncSubscriptionRowsResult = {
-        created: 0,
-        skipped: 0,
-        updated: 0,
-      };
-
-      for (const stripeSubscription of stripeSubscriptions) {
-        const subscriptionItem = stripeSubscription.items.data[0];
-        if (!subscriptionItem) {
-          syncResult.skipped += 1;
-          continue;
+    async ensureOrganizationFreeSubscription(
+      organizationId: string,
+    ): Promise<EnsureOrganizationFreeSubscriptionResult> {
+      try {
+        const organization =
+          await organizationRepository.getOrganizationWithRelationsById(
+            organizationId,
+            prisma,
+          );
+        if (!organization) {
+          return {
+            status: "failed",
+            reason: "ORGANIZATION_NOT_FOUND",
+          };
         }
 
-        const plan = planByPriceId.get(subscriptionItem.price.id);
-        if (!plan) {
-          syncResult.skipped += 1;
-          continue;
-        }
-
-        const subscriptionData = {
-          cancelAt:
-            stripeSubscription.cancel_at !== null
-              ? new Date(stripeSubscription.cancel_at * 1000)
-              : null,
-          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-          canceledAt:
-            stripeSubscription.canceled_at !== null
-              ? new Date(stripeSubscription.canceled_at * 1000)
-              : null,
-          endedAt:
-            stripeSubscription.ended_at !== null
-              ? new Date(stripeSubscription.ended_at * 1000)
-              : null,
-          periodEnd: new Date(subscriptionItem.current_period_end * 1000),
-          periodStart: new Date(subscriptionItem.current_period_start * 1000),
-          plan: plan.name.toLowerCase(),
-          referenceId,
-          seats: subscriptionItem.quantity ?? null,
-          status: stripeSubscription.status,
-          stripeCustomerId,
-          stripeSubscriptionId: stripeSubscription.id,
-          trialEnd:
-            stripeSubscription.trial_end !== null
-              ? new Date(stripeSubscription.trial_end * 1000)
-              : null,
-          trialStart:
-            stripeSubscription.trial_start !== null
-              ? new Date(stripeSubscription.trial_start * 1000)
-              : null,
-        };
-
-        const existingSubscription = await prisma.subscription.findUnique({
-          select: { id: true },
-          where: { stripeSubscriptionId: stripeSubscription.id },
-        });
-
-        if (existingSubscription) {
-          await prisma.subscription.update({
-            data: subscriptionData,
-            where: { id: existingSubscription.id },
+        let stripeCustomerId = organization.stripeCustomerId;
+        if (!stripeCustomerId) {
+          const customer =
+            await this.createStripeCustomerForOrganization(organizationId);
+          if (!customer) {
+            return {
+              status: "failed",
+              reason: "CUSTOMER_CREATION_FAILED",
+            };
+          }
+          stripeCustomerId = customer.id;
+          await prisma.organization.update({
+            where: { id: organizationId },
+            data: { stripeCustomerId },
           });
-          syncResult.updated += 1;
-          continue;
         }
 
-        const pendingLocalSubscription = await prisma.subscription.findFirst({
-          orderBy: {
-            createdAt: "desc",
-          },
-          select: { id: true },
+        const existingSubscriptions =
+          await stripeClient.listSubscriptions(stripeCustomerId);
+        const hasExistingOrganizationSubscription = existingSubscriptions.some(
+          (subscription) =>
+            EXISTING_FREE_SUBSCRIPTION_STATUSES.has(subscription.status),
+        );
+
+        if (hasExistingOrganizationSubscription) {
+          return {
+            status: "skipped",
+            reason: "ALREADY_HAS_SUBSCRIPTION",
+          };
+        }
+
+        let freePlanPriceId: string;
+        try {
+          const subscriptionCatalog =
+            await getSubscriptionCatalog(stripeInstance);
+          freePlanPriceId = subscriptionCatalog.free.priceId;
+        } catch (error) {
+          console.error(
+            `Invalid free subscription plan configuration for organization ${organizationId}:`,
+            error,
+          );
+          return {
+            status: "failed",
+            reason: "INVALID_FREE_PLAN_CONFIGURATION",
+          };
+        }
+
+        const organizationMemberCount = await prisma.member.count({
           where: {
-            referenceId,
-            status: "incomplete",
-            stripeCustomerId,
-            stripeSubscriptionId: null,
+            organizationId,
           },
         });
+        const seats = Math.max(organizationMemberCount, 1);
 
-        if (pendingLocalSubscription) {
-          await prisma.subscription.update({
-            data: subscriptionData,
-            where: {
-              id: pendingLocalSubscription.id,
-            },
-          });
-          syncResult.updated += 1;
-          continue;
-        }
+        const subscription = await stripeClient.createSubscription(
+          stripeCustomerId,
+          freePlanPriceId,
+          seats,
+          { referenceId: organizationId, organizationId },
+          `free-plan-organization-${organizationId}`,
+        );
 
-        await prisma.subscription.create({
-          data: {
-            ...subscriptionData,
-            id: crypto.randomUUID(),
-          },
-        });
-        syncResult.created += 1;
+        return {
+          status: "created",
+          subscriptionId: subscription.id,
+        };
+      } catch (error) {
+        console.error(
+          `Failed to ensure organization free subscription for organization ${organizationId}:`,
+          error,
+        );
+        return {
+          status: "failed",
+          reason: "SUBSCRIPTION_ENROLLMENT_FAILED",
+        };
       }
-
-      return syncResult;
     },
 
     async createStripeCustomerForOrganization(
@@ -488,6 +463,49 @@ export const stripeService = (() => {
         throw new CouponNotFoundError(couponId);
       }
       return coupon;
+    },
+
+    async claimWelcomeCoupon(
+      userId: string,
+    ): Promise<{ couponApplied: boolean; invoiceId: string | null }> {
+      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
+
+      try {
+        const user = await userRepository.getUserById(userId, prisma);
+        if (!user) {
+          throw new Error("User not found");
+        }
+        if (!user.stripeCustomerId) {
+          throw new Error("User does not have a stripe customer id");
+        }
+
+        const coupon = await this.getCoupon(welcomeCouponId);
+        const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
+          user.stripeCustomerId,
+          coupon.id,
+          {
+            redemption_type: "welcome_coupon",
+            welcome_source: "customer.created",
+            user_id: user.id,
+            user_email: user.email ?? "",
+          },
+        );
+
+        if (!invoice?.id) {
+          throw new Error("Failed to apply welcome coupon");
+        }
+        if (invoice.status !== "paid") {
+          throw new Error("Welcome coupon invoice is not paid");
+        }
+
+        return { couponApplied: true, invoiceId: invoice.id };
+      } catch (error) {
+        console.error(
+          `Failed to claim welcome coupon for user ${userId}:`,
+          error,
+        );
+        return { couponApplied: false, invoiceId: null };
+      }
     },
 
     async createAndApplyReferralCredits(

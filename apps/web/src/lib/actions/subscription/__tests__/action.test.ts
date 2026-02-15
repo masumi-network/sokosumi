@@ -3,6 +3,7 @@ jest.mock("server-only", () => ({}));
 const headersMock = jest.fn(async () => new Headers());
 const upgradeSubscriptionMock = jest.fn();
 const createBillingPortalMock = jest.fn();
+const updateOrganizationSeatsImmediatelyMock = jest.fn();
 
 jest.mock("next/headers", () => ({
   headers: (...args: unknown[]) => headersMock(...args),
@@ -16,6 +17,13 @@ jest.mock("@/lib/auth/auth", () => ({
       upgradeSubscription: (...args: unknown[]) =>
         upgradeSubscriptionMock(...args),
     },
+  },
+}));
+
+jest.mock("@/lib/services", () => ({
+  organizationSubscriptionService: {
+    updateOrganizationSeatsImmediately: (...args: unknown[]) =>
+      updateOrganizationSeatsImmediatelyMock(...args),
   },
 }));
 
@@ -163,6 +171,274 @@ describe("subscription actions", () => {
         returnUrl: "/subscriptions",
       },
       headers: new Headers(),
+    });
+  });
+
+  it("uses returnPath for personal subscription redirect urls", async () => {
+    upgradeSubscriptionMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/session/test",
+    });
+
+    const { upgradePersonalSubscription } = await import("../action");
+
+    const result = await upgradePersonalSubscription({
+      authContext: {
+        organizationId: null,
+        userId: "user-1",
+      },
+      plan: "starter",
+      returnPath: "/billing?tab=subscription",
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://checkout.stripe.com/session/test" },
+      ok: true,
+    });
+    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
+      body: {
+        cancelUrl: "/billing?tab=subscription&status=cancel",
+        customerType: "user",
+        disableRedirect: true,
+        plan: "starter",
+        returnUrl: "/billing?tab=subscription",
+        successUrl: "/billing?tab=subscription&status=success",
+      },
+      headers: new Headers(),
+    });
+  });
+
+  it("uses returnPath for personal billing portal", async () => {
+    createBillingPortalMock.mockResolvedValue({
+      url: "https://billing.stripe.com/session/test",
+    });
+
+    const { openPersonalBillingPortal } = await import("../action");
+
+    const result = await openPersonalBillingPortal({
+      authContext: {
+        organizationId: null,
+        userId: "user-1",
+      },
+      returnPath: "/billing?tab=coupon",
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://billing.stripe.com/session/test" },
+      ok: true,
+    });
+    expect(createBillingPortalMock).toHaveBeenCalledWith({
+      body: {
+        customerType: "user",
+        disableRedirect: true,
+        returnUrl: "/billing?tab=coupon",
+      },
+      headers: new Headers(),
+    });
+  });
+
+  it("returns BAD_INPUT for invalid organization seats", async () => {
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { upgradeOrganizationSubscription } = await import("../action");
+
+    const result = await upgradeOrganizationSubscription({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      plan: "starter",
+      returnPath: "/organizations/org-1",
+      seats: 0,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+      },
+      ok: false,
+    });
+    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns checkout url for organization subscription upgrade", async () => {
+    upgradeSubscriptionMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/session/org-test",
+    });
+
+    const { upgradeOrganizationSubscription } = await import("../action");
+
+    const result = await upgradeOrganizationSubscription({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      plan: "pro",
+      returnPath: "/organizations/acme",
+      seats: 7,
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://checkout.stripe.com/session/org-test" },
+      ok: true,
+    });
+
+    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
+      body: {
+        cancelUrl: "/organizations/acme",
+        customerType: "organization",
+        disableRedirect: true,
+        plan: "pro",
+        referenceId: "org-1",
+        returnUrl: "/organizations/acme",
+        seats: 7,
+        successUrl: "/organizations/acme",
+      },
+      headers: new Headers(),
+    });
+  });
+
+  it("returns billing portal url for organization", async () => {
+    createBillingPortalMock.mockResolvedValue({
+      url: "https://billing.stripe.com/session/org-test",
+    });
+
+    const { openOrganizationBillingPortal } = await import("../action");
+
+    const result = await openOrganizationBillingPortal({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      returnPath: "/organizations/acme",
+    });
+
+    expect(result).toEqual({
+      data: { url: "https://billing.stripe.com/session/org-test" },
+      ok: true,
+    });
+    expect(createBillingPortalMock).toHaveBeenCalledWith({
+      body: {
+        customerType: "organization",
+        disableRedirect: true,
+        referenceId: "org-1",
+        returnUrl: "/organizations/acme",
+      },
+      headers: new Headers(),
+    });
+  });
+
+  it("returns BAD_INPUT for invalid immediate organization seat update", async () => {
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 0,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+      },
+      ok: false,
+    });
+    expect(updateOrganizationSeatsImmediatelyMock).not.toHaveBeenCalled();
+  });
+
+  it("updates organization seats immediately without redirect flow", async () => {
+    updateOrganizationSeatsImmediatelyMock.mockResolvedValue({
+      seats: 9,
+    });
+
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 9,
+    });
+
+    expect(result).toEqual({
+      data: { seats: 9 },
+      ok: true,
+    });
+    expect(updateOrganizationSeatsImmediatelyMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      9,
+    );
+    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("maps unauthorized immediate seat update errors", async () => {
+    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          "Only organization owners and admins can manage subscriptions",
+        ),
+        { status: "FORBIDDEN" },
+      ),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can manage subscriptions",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps bad request immediate seat update errors", async () => {
+    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          "An active organization subscription is required before updating seats.",
+        ),
+        { status: "BAD_REQUEST" },
+      ),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      authContext: {
+        organizationId: "org-1",
+        userId: "user-1",
+      },
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        message:
+          "An active organization subscription is required before updating seats.",
+      },
+      ok: false,
     });
   });
 });

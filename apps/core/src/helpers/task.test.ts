@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 
 import type { TaskWithIncludes } from "@/types/task";
 
-import { mapTask, validateStatusTransition } from "./task";
+import {
+  mapTask,
+  validateStatusTransition,
+  validateTaskCoworkerAssignment,
+} from "./task";
 
 const coworkerContext = {
   userId: "user_123",
@@ -46,6 +50,16 @@ describe("validateStatusTransition", () => {
           coworkerContext,
           TaskStatus.READY,
           TaskStatus.AUTHENTICATION_REQUIRED,
+        ),
+      ).not.toThrow();
+    });
+
+    it("READY → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.READY,
+          TaskStatus.OUT_OF_CREDITS,
         ),
       ).not.toThrow();
     });
@@ -160,6 +174,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("RUNNING → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.RUNNING,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).not.toThrow();
+    });
+
     it("RUNNING → INPUT_REQUIRED", () => {
       expect(() =>
         validateStatusTransition(
@@ -205,6 +229,26 @@ describe("validateStatusTransition", () => {
         validateStatusTransition(
           coworkerContext,
           TaskStatus.RUNNING,
+          TaskStatus.CANCELED,
+        ),
+      ).not.toThrow();
+    });
+
+    it("CREDITS_TOPPED_UP → RUNNING", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CREDITS_TOPPED_UP,
+          TaskStatus.RUNNING,
+        ),
+      ).not.toThrow();
+    });
+
+    it("CANCEL_REQUESTED → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CANCEL_REQUESTED,
           TaskStatus.CANCELED,
         ),
       ).not.toThrow();
@@ -261,6 +305,26 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow();
     });
+
+    it("OUT_OF_CREDITS → CREDITS_TOPPED_UP is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.CREDITS_TOPPED_UP,
+        ),
+      ).toThrow();
+    });
+
+    it("CANCEL_REQUESTED → RUNNING is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CANCEL_REQUESTED,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow();
+    });
   });
 
   describe("user allowed transitions", () => {
@@ -300,6 +364,36 @@ describe("validateStatusTransition", () => {
           userContext,
           TaskStatus.CANCELED,
           TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("OUT_OF_CREDITS → CREDITS_TOPPED_UP", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.CREDITS_TOPPED_UP,
+        ),
+      ).not.toThrow();
+    });
+
+    it("RUNNING → CANCEL_REQUESTED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.RUNNING,
+          TaskStatus.CANCEL_REQUESTED,
+        ),
+      ).not.toThrow();
+    });
+
+    it("OUT_OF_CREDITS → CANCEL_REQUESTED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.CANCEL_REQUESTED,
         ),
       ).not.toThrow();
     });
@@ -355,6 +449,74 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow();
     });
+
+    it("rejects READY → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.READY,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).toThrow();
+    });
+
+    it("rejects CREDITS_TOPPED_UP → RUNNING", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.CREDITS_TOPPED_UP,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow();
+    });
+
+    it("rejects CANCEL_REQUESTED → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.CANCEL_REQUESTED,
+          TaskStatus.CANCELED,
+        ),
+      ).toThrow();
+    });
+  });
+});
+
+describe("validateTaskCoworkerAssignment", () => {
+  it("allows DRAFT tasks without a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.DRAFT,
+        coworkerId: null,
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows non-DRAFT tasks with a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.READY,
+        coworkerId: "cow_123",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects non-DRAFT tasks without a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.READY,
+        coworkerId: null,
+      }),
+    ).toThrow();
+  });
+
+  it("allows non-DRAFT tasks with empty coworkerId at invariant layer", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.READY,
+        coworkerId: "   ",
+      }),
+    ).not.toThrow();
   });
 });
 
@@ -384,6 +546,7 @@ describe("mapTask", () => {
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_cancel",
+          cents: convertCreditsToCents(2),
           transaction: {
             amount: convertCreditsToCents(2) * -1n,
           },
@@ -400,6 +563,7 @@ describe("mapTask", () => {
           userId: "user_123",
           coworkerId: null,
           transactionId: null,
+          cents: null,
           transaction: null,
         },
         {
@@ -414,6 +578,7 @@ describe("mapTask", () => {
           userId: null,
           coworkerId: "cow_123",
           transactionId: "txn_complete",
+          cents: convertCreditsToCents(3),
           transaction: {
             amount: convertCreditsToCents(3) * -1n,
           },
@@ -428,5 +593,59 @@ describe("mapTask", () => {
     expect(result.events[0]?.credits).toBe(2);
     expect(result.events[1]?.credits).toBeNull();
     expect(result.events[2]?.credits).toBe(3);
+  });
+
+  it("excludes CREDITS_TOPPED_UP event credits from task total", () => {
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      organizationId: null,
+      coworkerId: "cow_123",
+      name: "Task with top-up",
+      description: null,
+      status: TaskStatus.COMPLETED,
+      jobs: [],
+      events: [
+        {
+          id: "evt_complete",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          status: TaskStatus.COMPLETED,
+          comment: null,
+          authenticationUrl: null,
+          origin: TaskEventOrigin.SOKOSUMI,
+          userId: null,
+          coworkerId: "cow_123",
+          transactionId: "txn_complete",
+          cents: convertCreditsToCents(3),
+          transaction: { amount: convertCreditsToCents(3) * -1n },
+        },
+        {
+          id: "evt_topup",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:01:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:01:00.000Z"),
+          status: TaskStatus.CREDITS_TOPPED_UP,
+          comment: null,
+          authenticationUrl: null,
+          origin: TaskEventOrigin.SOKOSUMI,
+          userId: "user_123",
+          coworkerId: null,
+          transactionId: null,
+          cents: convertCreditsToCents(10),
+          transaction: null,
+        },
+      ],
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.credits).toBe(3);
+    expect(result.events).toHaveLength(2);
+    expect(result.events[0]?.credits).toBe(3);
+    expect(result.events[1]?.credits).toBe(10);
   });
 });

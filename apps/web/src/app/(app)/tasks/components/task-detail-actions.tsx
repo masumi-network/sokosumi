@@ -30,6 +30,7 @@ interface TaskDetailActionsLabels {
   deleteError: string;
   markAsReady: string;
   revertToDraft: string;
+  cancelRequest: string;
 }
 
 interface TaskDetailActionsProps {
@@ -48,27 +49,16 @@ export function TaskDetailActions({
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingStatusTarget, setPendingStatusTarget] =
+    useState<TaskStatus | null>(null);
 
-  const statusActions =
-    status === TaskStatus.CANCELED
-      ? [
-          { label: labels.revertToDraft, target: TaskStatus.DRAFT },
-          { label: labels.markAsReady, target: TaskStatus.READY },
-        ]
-      : [
-          {
-            label:
-              status === TaskStatus.DRAFT
-                ? labels.markAsReady
-                : labels.revertToDraft,
-            target:
-              status === TaskStatus.DRAFT ? TaskStatus.READY : TaskStatus.DRAFT,
-          },
-        ];
+  const statusActions = getTaskStatusActions(status, labels);
   const canEditOrDelete =
     status === TaskStatus.DRAFT || status === TaskStatus.READY;
 
   const handleStatusToggle = (desiredStatus: TaskStatus) => {
+    setPendingStatusTarget(desiredStatus);
+
     startStatusTransition(async () => {
       try {
         await setTaskStatusFromDrag({
@@ -80,6 +70,8 @@ export function TaskDetailActions({
       } catch (error) {
         console.error("Failed to update task status", error);
         toast.error(t("Tasks.Errors.updateStatus"));
+      } finally {
+        setPendingStatusTarget(null);
       }
     });
   };
@@ -108,7 +100,9 @@ export function TaskDetailActions({
           disabled={isStatusPending}
           className="h-7 gap-1.5 px-2.5 text-xs"
         >
-          {isStatusPending ? <Loader2 className="size-3 animate-spin" /> : null}
+          {isStatusPending && pendingStatusTarget === action.target ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : null}
           <span>{action.label}</span>
         </Button>
       ))}
@@ -171,4 +165,41 @@ export function TaskDetailActions({
       ) : null}
     </div>
   );
+}
+
+function getTaskStatusActions(
+  status: TaskStatus,
+  labels: TaskDetailActionsLabels,
+) {
+  if (status === TaskStatus.CANCELED) {
+    return [
+      { label: labels.revertToDraft, target: TaskStatus.DRAFT },
+      { label: labels.markAsReady, target: TaskStatus.READY },
+    ];
+  }
+
+  if (status === TaskStatus.DRAFT) {
+    return [{ label: labels.markAsReady, target: TaskStatus.READY }];
+  }
+
+  if (status === TaskStatus.READY) {
+    return [{ label: labels.revertToDraft, target: TaskStatus.DRAFT }];
+  }
+
+  if (
+    status === TaskStatus.INPUT_REQUIRED ||
+    status === TaskStatus.AUTHENTICATION_REQUIRED ||
+    status === TaskStatus.OUT_OF_CREDITS ||
+    status === TaskStatus.CREDITS_TOPPED_UP ||
+    status === TaskStatus.RUNNING
+  ) {
+    return [
+      {
+        label: labels.cancelRequest,
+        target: TaskStatus.CANCEL_REQUESTED,
+      },
+    ];
+  }
+
+  return [];
 }
