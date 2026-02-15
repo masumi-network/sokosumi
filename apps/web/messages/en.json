@@ -1556,7 +1556,6 @@
     },
     "Connections": {
       "tabs": {
-        "oauth": "OAuth",
         "connectedApps": "Connected Apps",
         "apiKeys": "API Keys",
         "mcp": "MCP"
