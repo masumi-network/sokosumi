@@ -29,12 +29,14 @@ function getAllowedTransitions(
       [TaskStatus.DRAFT]: [],
       [TaskStatus.READY]: [
         TaskStatus.RUNNING,
+        TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
+        TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
@@ -43,6 +45,7 @@ function getAllowedTransitions(
       ],
       [TaskStatus.AUTHENTICATION_REQUIRED]: [
         TaskStatus.RUNNING,
+        TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
@@ -56,6 +59,7 @@ function getAllowedTransitions(
       ],
       [TaskStatus.CREDITS_TOPPED_UP]: [
         TaskStatus.RUNNING,
+        TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
@@ -64,6 +68,16 @@ function getAllowedTransitions(
         TaskStatus.CANCELED,
       ],
       [TaskStatus.RUNNING]: [
+        TaskStatus.AWAITING_EXTERNAL,
+        TaskStatus.INPUT_REQUIRED,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.AWAITING_EXTERNAL]: [
+        TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
@@ -90,6 +104,7 @@ function getAllowedTransitions(
       ],
       [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
+      [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
       [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
