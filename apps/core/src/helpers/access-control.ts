@@ -10,6 +10,12 @@ import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 import { forbidden, notFound } from "./error";
+import {
+  buildJobScopeFilters,
+  buildTaskScopeFilters,
+  type JobScope,
+  type TaskScope,
+} from "./scope";
 
 /**
  * Validates job access and returns the job if valid
@@ -129,15 +135,13 @@ export async function requireUserTaskAccess(
   const task = await tx.task.findUnique({
     where: {
       id: taskId,
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
     },
   });
 
   if (!task) {
     throw notFound("Task not found");
-  }
-
-  if (task.userId !== authContext.userId) {
-    throw forbidden("You can only access your own tasks");
   }
 
   return task;
@@ -226,4 +230,59 @@ export async function requireTaskAccess(
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
   return await requireUserTaskAccess(authContext, taskId, tx);
+}
+
+export async function requireScopedTaskReadAccess(
+  authContext: AuthenticationContext,
+  taskId: string,
+  scopes: TaskScope[] | undefined,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  if (authContext.coworkerId) {
+    return await requireCoworkerTaskAccess(authContext, taskId, tx);
+  }
+
+  const scopeFilters = buildTaskScopeFilters(authContext, scopes);
+  if (scopeFilters.length === 0) {
+    throw notFound("Task not found");
+  }
+
+  const task = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      OR: scopeFilters,
+    },
+  });
+
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  return task;
+}
+
+export async function requireScopedJobReadAccess(
+  authContext: AuthenticationContext,
+  jobId: string,
+  scopes: JobScope[] | undefined,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job> {
+  const scopeFilters = buildJobScopeFilters(authContext, scopes);
+
+  if (scopeFilters.length === 0) {
+    throw forbidden("You can only access jobs within the requested scope");
+  }
+
+  const job = await tx.job.findFirst({
+    where: {
+      id: jobId,
+      OR: scopeFilters,
+    },
+  });
+
+  if (!job) {
+    throw forbidden("You can only access jobs within the requested scope");
+  }
+
+  return job;
 }

@@ -5,9 +5,10 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 
-import { requireTaskAccess } from "@/helpers/access-control";
+import { requireScopedTaskReadAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { taskScopeQuerySchema } from "@/helpers/scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { jobsSchema } from "@/schemas/job.schema";
@@ -20,6 +21,10 @@ const paramsSchema = z.object({
   }),
 });
 
+const querySchema = z.object({
+  scope: taskScopeQuerySchema,
+});
+
 const route = createRoute({
   method: "get",
   path: "/{id}/jobs",
@@ -27,6 +32,7 @@ const route = createRoute({
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
+    query: querySchema,
   },
   responses: {
     200: jsonSuccessResponse(jobsSchema, "Retrieve task jobs"),
@@ -39,9 +45,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
+    const { scope } = c.req.valid("query");
 
     const jobs = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
+      await requireScopedTaskReadAccess(authContext, id, scope, tx);
 
       const jobsList = await tx.job.findMany({
         where: { taskId: id },
