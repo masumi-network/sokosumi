@@ -133,6 +133,11 @@ export function useChatSelection({
       return;
     }
 
+    // Clear pending ref when URL has caught up with our navigation
+    if (currentUrlConversationId === selectedChatId) {
+      pendingUrlConversationIdRef.current = null;
+    }
+
     // Only process if we're on the /chat route
     if (pathname !== "/chat") {
       return;
@@ -147,14 +152,70 @@ export function useChatSelection({
 
     if (urlDiffersFromSelection) {
       // Only skip when the URL already shows the conversation we just selected (our own push).
-      // If the URL shows a different conversation (e.g. back button), we must select it.
       if (pending === currentUrlConversationId) {
         pendingUrlConversationIdRef.current = null;
+        return;
+      }
+      if (!conversations.some((c) => c.id === currentUrlConversationId)) {
+        const sorted = [...conversations].sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        );
+        const nextId = sorted[0]?.id ?? null;
+        if (pending === nextId) {
+          pendingUrlConversationIdRef.current = null;
+          const targetPath = nextId
+            ? `/chat?conversationId=${nextId}`
+            : "/chat";
+          router.replace(targetPath, { scroll: false });
+          if (nextId === null) {
+            setSelectedChatId(null);
+            currentChatIdRef.current = null;
+            setSelectedModel(null);
+            selectedModelRef.current = null;
+            setMessages([]);
+            setInput("");
+          }
+          return;
+        }
+        pendingUrlConversationIdRef.current = null;
+        const targetPath = nextId ? `/chat?conversationId=${nextId}` : "/chat";
+        router.replace(targetPath, { scroll: false });
+        handleSelectChat(nextId);
         return;
       }
       pendingUrlConversationIdRef.current = null;
       handleSelectChat(currentUrlConversationId);
     } else if (urlConversationNotLoaded) {
+      // URL has a conversationId that's not in list (e.g. was just deleted) – select next or welcome
+      if (!conversations.some((c) => c.id === currentUrlConversationId)) {
+        const sorted = [...conversations].sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        );
+        const nextId = sorted[0]?.id ?? null;
+        if (pending === nextId) {
+          pendingUrlConversationIdRef.current = null;
+          const targetPath = nextId
+            ? `/chat?conversationId=${nextId}`
+            : "/chat";
+          router.replace(targetPath, { scroll: false });
+          if (nextId === null) {
+            setSelectedChatId(null);
+            currentChatIdRef.current = null;
+            setSelectedModel(null);
+            selectedModelRef.current = null;
+            setMessages([]);
+            setInput("");
+          }
+          return;
+        }
+        pendingUrlConversationIdRef.current = null;
+        const targetPath = nextId ? `/chat?conversationId=${nextId}` : "/chat";
+        router.replace(targetPath, { scroll: false });
+        handleSelectChat(nextId);
+        return;
+      }
       // First load with conversationId in URL: selectedChatId may already match but conversation not loaded
       pendingUrlConversationIdRef.current = null;
       handleSelectChat(currentUrlConversationId);
@@ -163,6 +224,17 @@ export function useChatSelection({
       selectedChatId &&
       pathname === "/chat"
     ) {
+      // Don't clear if we're waiting for our own router.push to complete (e.g. new chat creation)
+      // When creating, selectedChatId is the new conversation not yet in the list
+      // When conversations is empty, we're not creating (e.g. deleted last chat) – always clear
+      const isLikelyCreating =
+        conversations.length > 0 &&
+        pending === selectedChatId &&
+        !conversations.some((c) => c.id === selectedChatId);
+      if (isLikelyCreating) {
+        pendingUrlConversationIdRef.current = null;
+        return;
+      }
       const actualUrlConversationId =
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("conversationId")

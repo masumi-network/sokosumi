@@ -457,6 +457,7 @@ export default function ChatInterface({
     selectedModelRef,
     setSelectedModel,
     isUpdatingUrlRef,
+    pendingUrlConversationIdRef,
     chats,
     conversations,
   });

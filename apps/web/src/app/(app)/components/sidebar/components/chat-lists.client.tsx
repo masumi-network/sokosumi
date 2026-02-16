@@ -48,31 +48,23 @@ export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const router = useRouter();
   const { open, isMobile, toggleSidebar } = useSidebar();
-  const { conversations, refreshConversations, deleteConversationById } =
-    useConversationsContext();
+  const {
+    conversations,
+    refreshConversations,
+    deleteConversationById,
+    selectedConversation,
+  } = useConversationsContext();
   const searchParams = useSearchParams();
   const conversationId = searchParams?.get("conversationId");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
-  // Refresh conversations on mount and when conversations count changes
+  // Refresh conversations on mount
   // Note: Further refreshes happen automatically via:
   // - Visibility change handler in use-conversations hook
   // - After user actions (create, delete, etc.) in use-conversations hook
   useEffect(() => {
     void refreshConversations();
   }, [refreshConversations]);
-
-  // Also refresh when URL conversationId changes (user navigates to a conversation or creates a new one)
-  // This ensures the sidebar is up-to-date when switching conversations or when a new conversation is created
-  // Add a small delay to ensure the server has processed the creation
-  useEffect(() => {
-    if (conversationId) {
-      const timeoutId = setTimeout(() => {
-        void refreshConversations();
-      }, 500); // Small delay to ensure server has processed the creation
-      return () => clearTimeout(timeoutId);
-    }
-  }, [conversationId, refreshConversations]);
 
   const handleChatClick = () => {
     // Auto-collapse sidebar on desktop if it's expanded
@@ -142,6 +134,18 @@ export default function ChatListsClient() {
     });
   }, [conversations]);
 
+  const effectiveConversationId = (() => {
+    if (conversationId && conversations.some((c) => c.id === conversationId)) {
+      return conversationId;
+    }
+    return (
+      selectedConversation?.id ??
+      sortedConversations[0]?.id ??
+      conversationId ??
+      null
+    );
+  })();
+
   return (
     <Collapsible
       defaultOpen={sortedConversations.length > 0}
@@ -166,7 +170,7 @@ export default function ChatListsClient() {
             {sortedConversations.length > 0 ? (
               <SidebarMenu>
                 {sortedConversations.map((conversation) => {
-                  const isActive = conversationId === conversation.id;
+                  const isActive = effectiveConversationId === conversation.id;
                   const metadata = conversation.metadata as {
                     coworker_name?: string;
                     coworker_id?: string;
