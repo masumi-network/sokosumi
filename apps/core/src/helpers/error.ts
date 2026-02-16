@@ -85,6 +85,16 @@ export const conflict = (message: string = "Conflict"): HTTPException => {
 };
 
 /**
+ * 413 Payload Too Large
+ * The request entity is larger than limits defined by server
+ */
+export const payloadTooLarge = (
+  message: string = "Payload Too Large",
+): HTTPException => {
+  return createHTTPException(413, message);
+};
+
+/**
  * 422 Unprocessable Entity
  * The request was well-formed but was unable to be followed due to semantic errors
  */
@@ -154,6 +164,7 @@ export function getErrorName(status: ContentfulStatusCode): string {
     403: "Forbidden",
     404: "NotFound",
     409: "Conflict",
+    413: "PayloadTooLarge",
     422: "UnprocessableEntity",
     429: "TooManyRequests",
     500: "InternalServerError",
