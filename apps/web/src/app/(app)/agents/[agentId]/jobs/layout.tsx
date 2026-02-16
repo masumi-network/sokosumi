@@ -129,10 +129,8 @@ async function JobLayoutInner({
               {children}
             </div>
 
-            <div className="hidden min-h-0 min-w-0 flex-1 lg:block lg:h-[calc(100svh-64px)] lg:overflow-hidden">
-              <div className="mx-auto h-full min-h-0 w-full overflow-y-auto px-4">
-                {right}
-              </div>
+            <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">
+              <div className="mx-auto h-full min-h-0 w-full px-4">{right}</div>
             </div>
           </div>
           {modal}
