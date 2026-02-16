@@ -19,7 +19,7 @@ export default function Footer({ legal }: FooterProps) {
       {terms && (
         <Link
           href={terms}
-          className="text-sm hover:text-foreground transition-colors"
+          className="hover:text-foreground text-sm transition-colors"
         >
           {t("termsAndConditions")}
         </Link>
@@ -27,7 +27,7 @@ export default function Footer({ legal }: FooterProps) {
       {privacyPolicy && (
         <Link
           href={privacyPolicy}
-          className="text-sm hover:text-foreground transition-colors"
+          className="hover:text-foreground text-sm transition-colors"
         >
           {t("privacyPolicy")}
         </Link>
@@ -35,7 +35,7 @@ export default function Footer({ legal }: FooterProps) {
       {other && (
         <Link
           href={other}
-          className="text-sm hover:text-foreground transition-colors"
+          className="hover:text-foreground text-sm transition-colors"
         >
           {t("customerSupport")}
         </Link>
