@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
 
 import { requireTaskAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { resolveTaskScopes, taskScopeQuerySchema } from "@/helpers/scope";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -18,6 +18,10 @@ const paramsSchema = z.object({
   }),
 });
 
+const querySchema = z.object({
+  scope: taskScopeQuerySchema,
+});
+
 const route = createRoute({
   method: "get",
   path: "/{id}",
@@ -25,6 +29,7 @@ const route = createRoute({
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
+    query: querySchema,
   },
   responses: {
     200: jsonSuccessResponse(taskSchema, "Retrieve task"),
@@ -37,30 +42,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
+    const { scope } = c.req.valid("query");
+    const taskScopes = resolveTaskScopes(authContext, scope);
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx);
-      if (authContext.coworkerId) {
-        return tx.task.findUnique({
-          where: {
-            id,
-            coworkerId: authContext.coworkerId,
-            status: { not: TaskStatus.DRAFT },
-          },
-          include: taskInclude,
-        });
-      }
-      if (authContext.userId) {
-        return tx.task.findUnique({
-          where: {
-            id,
-            userId: authContext.userId,
-            organizationId: authContext.organizationId,
-          },
-          include: taskInclude,
-        });
-      }
-      return null;
+      await requireTaskAccess(authContext, id, tx, taskScopes);
+      return tx.task.findUnique({
+        where: { id },
+        include: taskInclude,
+      });
     });
 
     if (!task) {

@@ -47,6 +47,7 @@ import { flattenJob } from "@/types/job";
 import type { AgentCost } from "./agent";
 import { badRequest, forbidden, notFound, unprocessableEntity } from "./error";
 import { transformPurchaseToJobUpdate } from "./purchase";
+import { buildJobScopeFilters, type JobScope } from "./scope";
 import { getCents } from "./user";
 
 /**
@@ -502,6 +503,7 @@ export async function getUserJobs(
     cursor?: string;
     take: number;
     skip?: number;
+    scopes?: JobScope[];
     tx?: Prisma.TransactionClient;
   },
 ): Promise<{
@@ -509,11 +511,20 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, cursor, take, skip, tx = prisma } = options;
+  const { agentId, cursor, take, skip, scopes = ["context"], tx = prisma } =
+    options;
 
-  const where = {
-    userId: authContext.userId,
-    organizationId: authContext.organizationId,
+  const scopeFilters = buildJobScopeFilters(authContext, scopes);
+  if (scopeFilters.length === 0) {
+    return {
+      jobs: [],
+      count: 0,
+      hasMore: false,
+    };
+  }
+
+  const where: Prisma.JobWhereInput = {
+    OR: scopeFilters,
     ...(agentId ? { agentId } : {}),
   };
 

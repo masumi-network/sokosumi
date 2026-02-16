@@ -10,6 +10,12 @@ import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 import { forbidden, notFound } from "./error";
+import {
+  buildJobScopeFilters,
+  buildTaskScopeFilters,
+  type JobScope,
+  type TaskScope,
+} from "./scope";
 
 /**
  * Validates job access and returns the job if valid
@@ -122,15 +128,16 @@ export async function requireUserTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  scopes: TaskScope[] = ["context"],
 ): Promise<Task> {
   if (authContext.coworkerId) {
     throw forbidden("Only the user is allowed to do this operation");
   }
-  const task = await tx.task.findUnique({
+  const scopeFilters = buildTaskScopeFilters(authContext, scopes);
+  const task = await tx.task.findFirst({
     where: {
       id: taskId,
-      userId: authContext.userId,
-      organizationId: authContext.organizationId,
+      OR: scopeFilters,
     },
   });
 
@@ -219,9 +226,36 @@ export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  scopes: TaskScope[] = ["context"],
 ): Promise<Task> {
   if (authContext.coworkerId) {
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
-  return await requireUserTaskAccess(authContext, taskId, tx);
+  return await requireUserTaskAccess(authContext, taskId, tx, scopes);
+}
+
+export async function requireScopedJobReadAccess(
+  authContext: AuthenticationContext,
+  jobId: string,
+  scopes: JobScope[] = ["context"],
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job> {
+  const scopeFilters = buildJobScopeFilters(authContext, scopes);
+
+  if (scopeFilters.length === 0) {
+    throw forbidden("You can only access jobs within the requested scope");
+  }
+
+  const job = await tx.job.findFirst({
+    where: {
+      id: jobId,
+      OR: scopeFilters,
+    },
+  });
+
+  if (!job) {
+    throw forbidden("You can only access jobs within the requested scope");
+  }
+
+  return job;
 }

@@ -12,6 +12,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import { jobScopeQuerySchema, resolveJobScopes } from "@/helpers/scope";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -29,6 +30,7 @@ const query = z
         description: "Filter jobs by agent ID",
         example: "cmaeygqwa000e8i0s9s7wif8i",
       }),
+    scope: jobScopeQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -96,14 +98,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { agentId } = queryParams;
+    const { agentId, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const jobScopes = resolveJobScopes(authContext, scope);
 
     const { jobs, count, hasMore } = await getUserJobs(authContext, {
       agentId,
       cursor,
       take,
       skip,
+      scopes: jobScopes,
     });
 
     const paginationMeta = createPaginationMeta(

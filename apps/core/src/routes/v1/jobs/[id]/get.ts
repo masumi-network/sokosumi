@@ -7,10 +7,11 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/database/types/job";
 
-import { requireJobAccess } from "@/helpers/access-control.js";
+import { requireScopedJobReadAccess } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { jobScopeQuerySchema, resolveJobScopes } from "@/helpers/scope";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -26,6 +27,10 @@ const params = z.object({
   }),
 });
 
+const query = z.object({
+  scope: jobScopeQuerySchema,
+});
+
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
@@ -34,6 +39,7 @@ const route = withGlobalHeaderParameters(
     tags: ["Jobs"],
     request: {
       params,
+      query,
     },
     responses: {
       200: jsonSuccessResponse(jobSchema, "Retrieve job by ID", {
@@ -72,9 +78,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
+    const { scope } = c.req.valid("query");
+    const jobScopes = resolveJobScopes(authContext, scope);
 
     const job = await prisma.$transaction(async (tx) => {
-      await requireJobAccess(authContext, id, tx);
+      await requireScopedJobReadAccess(authContext, id, jobScopes, tx);
       const job = await tx.job.findUnique({
         where: { id },
         include: {
