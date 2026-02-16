@@ -96,8 +96,8 @@ importers:
         specifier: 4.11.9
         version: 4.11.9
       i18next:
-        specifier: 25.8.6
-        version: 25.8.6(typescript@5.9.3)
+        specifier: 25.8.8
+        version: 25.8.8(typescript@5.9.3)
       i18next-fs-backend:
         specifier: 2.6.1
         version: 2.6.1
@@ -161,25 +161,25 @@ importers:
         version: 13.11.2(react@19.2.4)
       '@m2d/core':
         specifier: 1.7.1
-        version: 1.7.1(docx@9.5.2)
+        version: 1.7.1(docx@9.5.3)
       '@m2d/html':
         specifier: 1.1.11
-        version: 1.1.11(docx@9.5.2)
+        version: 1.1.11(docx@9.5.3)
       '@m2d/image':
         specifier: 1.4.1
-        version: 1.4.1(docx@9.5.2)(sharp@0.34.5)
+        version: 1.4.1(docx@9.5.3)(sharp@0.34.5)
       '@m2d/list':
         specifier: 0.0.9
-        version: 0.0.9(docx@9.5.2)
+        version: 0.0.9(docx@9.5.3)
       '@m2d/math':
         specifier: 0.0.6
-        version: 0.0.6(docx@9.5.2)(remark-math@6.0.0)
+        version: 0.0.6(docx@9.5.3)(remark-math@6.0.0)
       '@m2d/mdast':
         specifier: 0.2.4
-        version: 0.2.4(docx@9.5.2)
+        version: 0.2.4(docx@9.5.3)
       '@m2d/table':
         specifier: 0.1.1
-        version: 0.1.1(docx@9.5.2)
+        version: 0.1.1(docx@9.5.3)
       '@next/third-parties':
         specifier: 16.1.6
         version: 16.1.6(next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
@@ -256,8 +256,8 @@ importers:
         specifier: 4.1.0
         version: 4.1.0
       docx:
-        specifier: 9.5.2
-        version: 9.5.2
+        specifier: 9.5.3
+        version: 9.5.3
       dompurify:
         specifier: 3.3.1
         version: 3.3.1
@@ -292,8 +292,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       lucide-react:
-        specifier: 0.563.0
-        version: 0.563.0(react@19.2.4)
+        specifier: 0.564.0
+        version: 0.564.0(react@19.2.4)
       marked:
         specifier: 17.0.2
         version: 17.0.2
@@ -605,6 +605,12 @@ packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
+
+  '@ai-sdk/gateway@3.0.46':
+    resolution: {integrity: sha512-zH1UbNRjG5woOXXFOrVCZraqZuFTtmPvLardMGcgLkzpxKV0U3tAGoyWKSZ862H+eBJfI/Hf2yj/zzGJcCkycg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: 4.3.6
 
   '@ai-sdk/gateway@3.0.46':
     resolution: {integrity: sha512-zH1UbNRjG5woOXXFOrVCZraqZuFTtmPvLardMGcgLkzpxKV0U3tAGoyWKSZ862H+eBJfI/Hf2yj/zzGJcCkycg==}
@@ -4032,6 +4038,9 @@ packages:
   '@types/node@24.10.13':
     resolution: {integrity: sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg==}
 
+  '@types/node@25.2.3':
+    resolution: {integrity: sha512-m0jEgYlYz+mDJZ2+F4v8D1AyQb+QzsNqRuI7xg1VQX/KlKS0qT9r1Mo16yo5F/MtifXFgaofIFsdFMox2SxIbQ==}
+
   '@types/pg-pool@2.0.6':
     resolution: {integrity: sha512-TaAUE5rq2VQYxab5Ts7WZhKNmuN78Q6PiFonTDdpbx8a1H0M1vhy3rhiMjl+e2iHmogyMw7jZF4FrE6eJUy5HQ==}
 
@@ -4504,6 +4513,12 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
+
+  ai@6.0.86:
+    resolution: {integrity: sha512-U2W2LBCHA/pr0Ui7vmmsjBiLEzBbZF3yVHNy7Rbzn7IX+SvoQPFM5rN74hhfVzZoE8zBuGD4nLLk+j0elGacvQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: 4.3.6
 
   ai@6.0.86:
     resolution: {integrity: sha512-U2W2LBCHA/pr0Ui7vmmsjBiLEzBbZF3yVHNy7Rbzn7IX+SvoQPFM5rN74hhfVzZoE8zBuGD4nLLk+j0elGacvQ==}
@@ -5508,8 +5523,8 @@ packages:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
 
-  docx@9.5.2:
-    resolution: {integrity: sha512-IJDqLzYeCGtnHJRtljEHCX/v9aQS0jgzpyD3BSxClEepFfn4h/H/5RVRminu05Kf4e29oMDZKRGyQo/5nQZmMg==}
+  docx@9.5.3:
+    resolution: {integrity: sha512-uFVrYiN2WKx1an884SS6mRu4JuCO10fpnRGQLYmbYgMLVAqqjrKPc2qMXsGj9JuDVrzdntGRw+y84bSjBxXqew==}
     engines: {node: '>=10'}
 
   dom-accessibility-api@0.5.16:
@@ -6360,8 +6375,8 @@ packages:
   i18next-fs-backend@2.6.1:
     resolution: {integrity: sha512-eYWTX7QT7kJ0sZyCPK6x1q+R63zvNKv2D6UdbMf15A8vNb2ZLyw4NNNZxPFwXlIv/U+oUtg8SakW6ZgJZcoqHQ==}
 
-  i18next@25.8.6:
-    resolution: {integrity: sha512-HsS6p2yr/Vo5EPljWuBJ9OxKVFok2Q/Oa6PvFTpv2bMcDt2sQMOnKDQ7FTDDdME+3d1YULQjKj7aVSZP1bCouQ==}
+  i18next@25.8.8:
+    resolution: {integrity: sha512-gNTWXMBe9JBr6LAl2tqRfa6fn2EjrQJ3JBeH2jR+yIckwaJYdI7UfMQrnxzFjuFBb2FHy9Yn4gJB2BwLuC8/ZQ==}
     peerDependencies:
       typescript: ^5
     peerDependenciesMeta:
@@ -7133,8 +7148,8 @@ packages:
     resolution: {integrity: sha512-DqC6n3QQ77zdFpCMASA1a3Jlb64Hv2N2DciFGkO/4L9+q/IpIAuRlKOvCXabtRW6cQf8usbmM6BE/TOPysCdIA==}
     engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
 
-  lucide-react@0.563.0:
-    resolution: {integrity: sha512-8dXPB2GI4dI8jV4MgUDGBeLdGk8ekfqVZ0BdLcrRzocGgG75ltNEmWS+gE7uokKF/0oSUuczNDT+g9hFJ23FkA==}
+  lucide-react@0.564.0:
+    resolution: {integrity: sha512-JJ8GVTQqFwuliifD48U6+h7DXEHdkhJ/E87kksGByII3qHxtPciVb8T8woQONHBQgHVOl7rSMrrip3SeVNy7Fg==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -9479,6 +9494,13 @@ snapshots:
       '@vercel/oidc': 3.1.0
       zod: 4.3.6
 
+  '@ai-sdk/gateway@3.0.46(zod@4.3.6)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      '@vercel/oidc': 3.1.0
+      zod: 4.3.6
+
   '@ai-sdk/provider-utils@4.0.15(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
@@ -10504,57 +10526,57 @@ snapshots:
 
   '@jsdevtools/ono@7.1.3': {}
 
-  '@m2d/core@1.7.1(docx@9.5.2)':
+  '@m2d/core@1.7.1(docx@9.5.3)':
     dependencies:
-      '@m2d/mdast': 0.2.4(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/mdast': 0.2.4(docx@9.5.3)
+      docx: 9.5.3
 
-  '@m2d/emoji@0.1.3(docx@9.5.2)':
+  '@m2d/emoji@0.1.3(docx@9.5.3)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/core': 1.7.1(docx@9.5.3)
+      docx: 9.5.3
 
-  '@m2d/html@1.1.11(docx@9.5.2)':
+  '@m2d/html@1.1.11(docx@9.5.3)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/core': 1.7.1(docx@9.5.3)
+      docx: 9.5.3
 
-  '@m2d/image@1.4.1(docx@9.5.2)(sharp@0.34.5)':
+  '@m2d/image@1.4.1(docx@9.5.3)(sharp@0.34.5)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
+      '@m2d/core': 1.7.1(docx@9.5.3)
       '@svg-fns/io': 1.0.1
       '@svg-fns/svg2img': 0.0.0(sharp@0.34.5)
-      docx: 9.5.2
+      docx: 9.5.3
     transitivePeerDependencies:
       - '@xmldom/xmldom'
       - sharp
 
-  '@m2d/list@0.0.9(docx@9.5.2)':
+  '@m2d/list@0.0.9(docx@9.5.3)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/core': 1.7.1(docx@9.5.3)
+      docx: 9.5.3
 
-  '@m2d/math@0.0.6(docx@9.5.2)(remark-math@6.0.0)':
+  '@m2d/math@0.0.6(docx@9.5.3)(remark-math@6.0.0)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/core': 1.7.1(docx@9.5.3)
+      docx: 9.5.3
       latex-math: 0.0.2
       remark-math: 6.0.0
 
-  '@m2d/mdast@0.2.4(docx@9.5.2)':
+  '@m2d/mdast@0.2.4(docx@9.5.3)':
     dependencies:
-      docx: 9.5.2
+      docx: 9.5.3
 
-  '@m2d/mermaid@1.2.2(docx@9.5.2)':
+  '@m2d/mermaid@1.2.2(docx@9.5.3)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/core': 1.7.1(docx@9.5.3)
+      docx: 9.5.3
       mermaid: 11.12.2
 
-  '@m2d/table@0.1.1(docx@9.5.2)':
+  '@m2d/table@0.1.1(docx@9.5.3)':
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/core': 1.7.1(docx@9.5.3)
+      docx: 9.5.3
 
   '@mermaid-js/parser@0.6.3':
     dependencies:
@@ -13244,6 +13266,10 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
+  '@types/node@25.2.3':
+    dependencies:
+      undici-types: 7.16.0
+
   '@types/pg-pool@2.0.6':
     dependencies:
       '@types/pg': 8.16.0
@@ -13750,6 +13776,14 @@ snapshots:
       - supports-color
 
   agent-base@7.1.4: {}
+
+  ai@6.0.86(zod@4.3.6):
+    dependencies:
+      '@ai-sdk/gateway': 3.0.46(zod@4.3.6)
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      '@opentelemetry/api': 1.9.0
+      zod: 4.3.6
 
   ai@6.0.86(zod@4.3.6):
     dependencies:
@@ -14748,9 +14782,9 @@ snapshots:
     dependencies:
       esutils: 2.0.3
 
-  docx@9.5.2:
+  docx@9.5.3:
     dependencies:
-      '@types/node': 24.10.13
+      '@types/node': 25.2.3
       hash.js: 1.1.7
       jszip: 3.10.1
       nanoid: 5.1.6
@@ -15890,7 +15924,7 @@ snapshots:
 
   i18next-fs-backend@2.6.1: {}
 
-  i18next@25.8.6(typescript@5.9.3):
+  i18next@25.8.8(typescript@5.9.3):
     dependencies:
       '@babel/runtime': 7.28.6
     optionalDependencies:
@@ -16808,7 +16842,7 @@ snapshots:
 
   lru.min@1.1.4: {}
 
-  lucide-react@0.563.0(react@19.2.4):
+  lucide-react@0.564.0(react@19.2.4):
     dependencies:
       react: 19.2.4
 
@@ -17039,15 +17073,15 @@ snapshots:
 
   mdast2docx@1.6.1(remark-math@6.0.0)(sharp@0.34.5):
     dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.2)
-      '@m2d/emoji': 0.1.3(docx@9.5.2)
-      '@m2d/html': 1.1.11(docx@9.5.2)
-      '@m2d/image': 1.4.1(docx@9.5.2)(sharp@0.34.5)
-      '@m2d/list': 0.0.9(docx@9.5.2)
-      '@m2d/math': 0.0.6(docx@9.5.2)(remark-math@6.0.0)
-      '@m2d/mermaid': 1.2.2(docx@9.5.2)
-      '@m2d/table': 0.1.1(docx@9.5.2)
-      docx: 9.5.2
+      '@m2d/core': 1.7.1(docx@9.5.3)
+      '@m2d/emoji': 0.1.3(docx@9.5.3)
+      '@m2d/html': 1.1.11(docx@9.5.3)
+      '@m2d/image': 1.4.1(docx@9.5.3)(sharp@0.34.5)
+      '@m2d/list': 0.0.9(docx@9.5.3)
+      '@m2d/math': 0.0.6(docx@9.5.3)(remark-math@6.0.0)
+      '@m2d/mermaid': 1.2.2(docx@9.5.3)
+      '@m2d/table': 0.1.1(docx@9.5.3)
+      docx: 9.5.3
     transitivePeerDependencies:
       - '@xmldom/xmldom'
       - remark-math
