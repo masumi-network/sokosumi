@@ -2,6 +2,7 @@
 
 import { BlobStatus, TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -62,6 +63,7 @@ interface TaskActivityProps {
   currentUser?: ({ id: string } & ActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
+  isFreePlan?: boolean;
 }
 
 function getInitials(name: string) {
@@ -141,6 +143,7 @@ export function TaskActivitySection({
   currentUser,
   expandLabel = "Expand",
   collapseLabel = "Show less",
+  isFreePlan = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
@@ -204,6 +207,7 @@ export function TaskActivitySection({
       userId: currentUser?.id ?? null,
       coworkerId: null,
       transactionId: null,
+      cents: null,
     };
 
     setLocalEvents((prev) => [optimisticEvent, ...prev]);
@@ -332,9 +336,20 @@ export function TaskActivitySection({
               index === 0 &&
               event.status === TaskStatus.AUTHENTICATION_REQUIRED &&
               Boolean(event.authenticationUrl);
+            const shouldShowBillingButton =
+              index === 0 && event.status === TaskStatus.OUT_OF_CREDITS;
+            const billingCtaLabel = isFreePlan
+              ? t("billingCta.upgradePlan")
+              : t("billingCta.addCredits");
+            const billingCtaHref = isFreePlan
+              ? "/billing?tab=subscription"
+              : "/billing?tab=credits";
             const isCommentEvent = Boolean(formattedComment);
             const isAuthEvent = shouldShowAuthenticateButton;
-            const isCardEvent = isCommentEvent || isAuthEvent;
+            const isBillingEvent = shouldShowBillingButton;
+            const shouldShowBillingPlaceholder =
+              isBillingEvent && !formattedComment;
+            const isCardEvent = isCommentEvent || isAuthEvent || isBillingEvent;
             const isStatusOnlyEvent = !isCardEvent && Boolean(event.status);
 
             const row = (
@@ -421,6 +436,11 @@ export function TaskActivitySection({
                         fadeClassName="to-transparent"
                       />
                     ) : null}
+                    {shouldShowBillingPlaceholder ? (
+                      <p className="text-foreground/70 text-sm">
+                        {t("billingCta.placeholder")}
+                      </p>
+                    ) : null}
                     {hasCommentSources ? (
                       <div className="space-y-1.5">
                         <Separator className="my-3" />
@@ -450,6 +470,13 @@ export function TaskActivitySection({
                           >
                             {t("authenticate")}
                           </a>
+                        </Button>
+                      </div>
+                    ) : null}
+                    {shouldShowBillingButton ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <Button asChild size="sm" variant="default">
+                          <Link href={billingCtaHref}>{billingCtaLabel}</Link>
                         </Button>
                       </div>
                     ) : null}

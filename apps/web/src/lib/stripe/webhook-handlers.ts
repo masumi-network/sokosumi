@@ -1,6 +1,12 @@
 import "server-only";
 
-import { CreditBucketReferenceType, MemberRole } from "@sokosumi/database";
+import {
+  CreditBucketReferenceType,
+  MemberRole,
+  Prisma,
+  TaskEventOrigin,
+  TaskStatus,
+} from "@sokosumi/database";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
@@ -59,6 +65,77 @@ interface SubscriptionCreditTotals {
 interface AppliedSubscriptionCredits {
   subscriptionCredits: number;
   subscriptionCreditsExpiry: Date | null;
+}
+
+function isPrismaRecordNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2025"
+  );
+}
+
+async function markOutOfCreditsTasksAsToppedUp(params: {
+  organizationId: string | null;
+  tx: Prisma.TransactionClient;
+  userId: string;
+}): Promise<void> {
+  const tasks = await params.tx.task.findMany({
+    where: {
+      ...(params.organizationId
+        ? { organizationId: params.organizationId }
+        : { userId: params.userId }),
+      status: TaskStatus.OUT_OF_CREDITS,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  for (const task of tasks) {
+    try {
+      await params.tx.task.update({
+        where: {
+          id: task.id,
+          status: TaskStatus.OUT_OF_CREDITS,
+        },
+        data: {
+          status: TaskStatus.CREDITS_TOPPED_UP,
+          events: {
+            create: {
+              status: TaskStatus.CREDITS_TOPPED_UP,
+              origin: TaskEventOrigin.SOKOSUMI,
+              userId: params.userId,
+              coworkerId: null,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      if (isPrismaRecordNotFoundError(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+}
+
+function getTopUpCreditsFromInvoiceMetadata(
+  invoice: Stripe.Invoice,
+): number | null {
+  const metadataCredits = invoice.metadata?.credits;
+  if (!metadataCredits) {
+    return null;
+  }
+
+  const credits = Number(metadataCredits);
+  if (!Number.isInteger(credits) || credits <= 0) {
+    return null;
+  }
+
+  return credits;
 }
 
 function getUpgradeCreditExpiry(
@@ -484,7 +561,9 @@ export async function handleInvoicePaidEvent(
   }
 
   const billingReason = invoice.billing_reason;
-  let oneTimeTopUpCredits = 0;
+  const metadataTopUpCredits = getTopUpCreditsFromInvoiceMetadata(invoice);
+  const oneTimeTopUpCreditsFromMetadata = metadataTopUpCredits;
+  let oneTimeTopUpCredits = oneTimeTopUpCreditsFromMetadata ?? 0;
   const subscriptionLines: SubscriptionLine[] = [];
 
   for (const lineItem of lineItems) {
@@ -495,7 +574,9 @@ export async function handleInvoicePaidEvent(
       }
 
       if (productId === creditProductId) {
-        oneTimeTopUpCredits += lineItem.quantity ?? 0;
+        if (oneTimeTopUpCreditsFromMetadata === null) {
+          oneTimeTopUpCredits += lineItem.quantity ?? 0;
+        }
         continue;
       }
 
@@ -573,6 +654,8 @@ export async function handleInvoicePaidEvent(
   }
 
   await prisma.$transaction(async (tx) => {
+    let creditsGranted = false;
+
     for (const grant of creditGrants) {
       const existingBucket = await tx.creditBucket.findUnique({
         where: {
@@ -611,9 +694,19 @@ export async function handleInvoicePaidEvent(
         },
       });
 
+      creditsGranted = true;
+
       console.log(
         `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
+    }
+
+    if (creditsGranted) {
+      await markOutOfCreditsTasksAsToppedUp({
+        userId,
+        organizationId,
+        tx,
+      });
     }
   });
 }

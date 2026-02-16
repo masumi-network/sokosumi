@@ -30,11 +30,13 @@ function getAllowedTransitions(
       [TaskStatus.READY]: [
         TaskStatus.RUNNING,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -42,6 +44,21 @@ function getAllowedTransitions(
       [TaskStatus.AUTHENTICATION_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.OUT_OF_CREDITS]: [
+        TaskStatus.CANCELED,
+        TaskStatus.FAILED,
+        TaskStatus.COMPLETED,
+      ],
+      [TaskStatus.CREDITS_TOPPED_UP]: [
+        TaskStatus.RUNNING,
+        TaskStatus.INPUT_REQUIRED,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -49,12 +66,14 @@ function getAllowedTransitions(
       [TaskStatus.RUNNING]: [
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
+      [TaskStatus.CANCEL_REQUESTED]: [TaskStatus.CANCELED],
       [TaskStatus.CANCELED]: [],
     };
   }
@@ -63,12 +82,18 @@ function getAllowedTransitions(
     return {
       [TaskStatus.DRAFT]: [TaskStatus.READY],
       [TaskStatus.READY]: [TaskStatus.DRAFT],
-      [TaskStatus.INPUT_REQUIRED]: [],
-      [TaskStatus.AUTHENTICATION_REQUIRED]: [],
-      [TaskStatus.RUNNING]: [],
+      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+      [TaskStatus.OUT_OF_CREDITS]: [
+        TaskStatus.CREDITS_TOPPED_UP,
+        TaskStatus.CANCEL_REQUESTED,
+      ],
+      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
+      [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
       [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
+      [TaskStatus.CANCEL_REQUESTED]: [],
     };
   }
 
@@ -106,19 +131,24 @@ export function validateTaskCoworkerAssignment({
 }
 
 export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
-  const { transaction, ...rest } = event;
+  const { cents, ...rest } = event;
   return {
     ...rest,
-    credits: transaction
-      ? Math.abs(convertCentsToCredits(transaction.amount))
-      : null,
+    credits: cents != null ? convertCentsToCredits(cents) : null,
   };
+}
+
+export function isChargeableTaskStatus(
+  status: TaskStatus | null | undefined,
+): boolean {
+  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
 export function mapTask(task: TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
   const events = task.events.map((event) => mapTaskEvent(event));
   const credits = events.reduce((total, event) => {
+    if (!isChargeableTaskStatus(event.status)) return total;
     return total + (event.credits ?? 0);
   }, 0);
   return {

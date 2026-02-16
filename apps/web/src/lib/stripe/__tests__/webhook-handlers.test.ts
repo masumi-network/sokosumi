@@ -7,6 +7,8 @@ const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
 const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
+const findOutOfCreditsTasksMock = jest.fn();
+const updateTaskMock = jest.fn();
 const ensurePersonalFreeSubscriptionMock = jest.fn();
 const ensureOrganizationFreeSubscriptionMock = jest.fn();
 const claimWelcomeCouponMock = jest.fn();
@@ -20,6 +22,10 @@ const transactionMock = jest.fn(async (callback: (tx: unknown) => unknown) =>
     },
     transaction: {
       create: (...args: unknown[]) => createTransactionMock(...args),
+    },
+    task: {
+      findMany: (...args: unknown[]) => findOutOfCreditsTasksMock(...args),
+      update: (...args: unknown[]) => updateTaskMock(...args),
     },
   }),
 );
@@ -55,7 +61,8 @@ jest.mock("@sokosumi/database/repositories", () => ({
 jest.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
-    $transaction: (...args: unknown[]) => transactionMock(...args),
+    $transaction: (callback: (tx: unknown) => unknown) =>
+      transactionMock(callback),
     creditBucket: {
       aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
     },
@@ -95,6 +102,7 @@ function createInvoice(params: {
     | "subscription_update";
   created?: number;
   id: string;
+  metadata?: Record<string, string>;
   lines: Array<{
     amount?: number;
     periodStart?: number | null;
@@ -109,6 +117,7 @@ function createInvoice(params: {
     created: params.created ?? 1_735_689_600,
     customer: "cus_1",
     id: params.id,
+    metadata: params.metadata ?? {},
     lines: {
       data: params.lines.map((line) => ({
         amount: line.amount ?? 1000,
@@ -155,6 +164,8 @@ describe("handleInvoicePaidEvent", () => {
       _sum: { amount: null },
     });
     createTransactionMock.mockResolvedValue({});
+    findOutOfCreditsTasksMock.mockResolvedValue([]);
+    updateTaskMock.mockResolvedValue({});
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
@@ -620,6 +631,43 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("uses invoice metadata credits for checkout-based top-up grants", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_topup_metadata",
+        lines: [{ productId: "prod_credit", quantity: 1 }],
+        metadata: { credits: "123" },
+      }) as never,
+    );
+
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            amount: bigint;
+            referenceId: string;
+            referenceType: string;
+          };
+        };
+      };
+    };
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      "in_topup_metadata",
+    );
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_TOPUP",
+    );
+    expect(createCall.data.sourceCreditBucket.create.amount).toBe(
+      BigInt("1230000000000"),
+    );
+  });
+
   it("keeps one-time top-up crediting working regardless of billing reason", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -653,7 +701,7 @@ describe("handleInvoicePaidEvent", () => {
       "STRIPE_TOPUP",
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
-    // quantity-based top-up credits: 3 credits
+    // quantity-based top-up credits: quantity 3 => 3 credits
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("30000000000"),
     );
@@ -916,6 +964,94 @@ describe("handleInvoicePaidEvent", () => {
     );
 
     expect(createTransactionMock).not.toHaveBeenCalled();
+  });
+  it("creates CREDITS_TOPPED_UP events for tasks in OUT_OF_CREDITS when credits are granted", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    findOutOfCreditsTasksMock.mockResolvedValue([
+      { id: "task-1" },
+      { id: "task-2" },
+    ]);
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_topup_with_tasks",
+        metadata: { credits: "2" },
+        lines: [{ productId: "prod_credit", quantity: 2 }],
+      }) as never,
+    );
+
+    expect(findOutOfCreditsTasksMock).toHaveBeenCalledWith({
+      where: {
+        status: "OUT_OF_CREDITS",
+        userId: "user-1",
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(updateTaskMock).toHaveBeenCalledTimes(2);
+    expect(updateTaskMock).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "task-1",
+        status: "OUT_OF_CREDITS",
+      },
+      data: {
+        status: "CREDITS_TOPPED_UP",
+        events: {
+          create: {
+            coworkerId: null,
+            origin: "SOKOSUMI",
+            status: "CREDITS_TOPPED_UP",
+            userId: "user-1",
+          },
+        },
+      },
+    });
+    expect(updateTaskMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "task-2",
+        status: "OUT_OF_CREDITS",
+      },
+      data: {
+        status: "CREDITS_TOPPED_UP",
+        events: {
+          create: {
+            coworkerId: null,
+            origin: "SOKOSUMI",
+            status: "CREDITS_TOPPED_UP",
+            userId: "user-1",
+          },
+        },
+      },
+    });
+  });
+
+  it("does not roll back granted credits when a task is updated concurrently", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    findOutOfCreditsTasksMock.mockResolvedValue([
+      { id: "task-1" },
+      { id: "task-2" },
+    ]);
+    updateTaskMock
+      .mockRejectedValueOnce({ code: "P2025" })
+      .mockResolvedValueOnce({});
+
+    await expect(
+      handleInvoicePaidEvent(
+        createInvoice({
+          billingReason: "manual",
+          id: "in_topup_with_task_race",
+          metadata: { credits: "2" },
+          lines: [{ productId: "prod_credit", quantity: 2 }],
+        }) as never,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    expect(updateTaskMock).toHaveBeenCalledTimes(2);
   });
 });
 

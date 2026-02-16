@@ -3,10 +3,16 @@ import {
   creditBucketRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
+import { Sparkles } from "lucide-react";
+import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import {
+  type ActiveSubscription,
+  resolveCurrentPlanName,
+} from "@/components/billing/subscription-plan-utils";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { Session } from "@/lib/auth/auth";
+import { auth, Session } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services/user.service";
 
@@ -21,6 +27,8 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   const user = await userRepository.getUserById(session.user.id, prisma);
 
   const t = await getTranslations("App.Header.Credit");
+  const tPlan = await getTranslations("App.Header.Plan");
+  const tSubscriptions = await getTranslations("App.Subscriptions");
 
   if (!user) {
     return (
@@ -32,7 +40,8 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   const activeOrganization = await userService.getActiveOrganization();
 
   // Get appropriate credits based on context
-  let creditLabel: string;
+  let planLabel: string;
+  let currentPlan: string | null = null;
 
   const cents = await creditBucketRepository.getBalance(
     user.id,
@@ -41,28 +50,69 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   );
 
   const credits = convertCentsToCredits(cents);
-  if (activeOrganization) {
-    creditLabel = t("organizationBalance", {
-      credits: credits,
-      organization: activeOrganization.name,
+  const displayCredits = Math.trunc(credits);
+  const creditsLabel = activeOrganization
+    ? t("organizationBalance", {
+        credits: displayCredits,
+        organization: activeOrganization.name,
+      })
+    : t("userBalance", { credits: displayCredits });
+
+  try {
+    const requestHeaders = await headers();
+    const activeSubscriptions = await auth.api.listActiveSubscriptions({
+      headers: requestHeaders,
+      query: activeOrganization
+        ? {
+            customerType: "organization",
+            referenceId: activeOrganization.id,
+          }
+        : {
+            customerType: "user",
+          },
     });
-  } else {
-    creditLabel = t("userBalance", { credits: credits });
+
+    currentPlan =
+      resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
+      "free";
+    const planName = tSubscriptions(`Plans.${currentPlan}.name`);
+
+    planLabel = activeOrganization
+      ? tPlan("organizationPlan", {
+          plan: planName,
+          organization: activeOrganization.name,
+        })
+      : tPlan("userPlan", { plan: planName });
+  } catch (_error) {
+    planLabel = tPlan("unavailable");
   }
+
+  const creditsButtonThreshold =
+    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
+  const hasLowCredits = credits < creditsButtonThreshold;
+  const shouldShowUpgradePlanCta =
+    currentPlan !== null && currentPlan !== "pro";
+  const shouldShowAddCreditsCta =
+    hasLowCredits && (currentPlan === null || currentPlan !== "free");
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {credits <
-        getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD && (
-        <BuyCreditsButton label={t("buy")} path="/credits" />
-      )}
-      <div className="flex items-center gap-2 md:flex-row-reverse">
-        <UserAvatar session={session} />
-        <div className="flex flex-col gap-0.5 md:items-end">
-          <div className="text-sm font-semibold">{user.name}</div>
-          <div className="text-muted-foreground text-xs">{creditLabel}</div>
-        </div>
-      </div>
+      {!shouldShowAddCreditsCta && shouldShowUpgradePlanCta ? (
+        <BuyCreditsButton
+          label={tPlan("upgradeCta")}
+          path="/billing?tab=subscription"
+          iconRight={<Sparkles className="size-4" aria-hidden />}
+        />
+      ) : null}
+      {shouldShowAddCreditsCta ? (
+        <BuyCreditsButton label={t("buy")} path="/billing?tab=credits" />
+      ) : null}
+      <UserAvatar
+        session={session}
+        primaryLabel={user.name}
+        secondaryLabel={planLabel}
+        creditsLabel={creditsLabel}
+      />
     </div>
   );
 }

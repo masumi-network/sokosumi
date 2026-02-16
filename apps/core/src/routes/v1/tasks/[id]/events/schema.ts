@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
-import { isChargeableTaskStatus } from "./helper";
+import { isCreditableTaskStatus } from "./helper";
 
 export const createTaskEventRequestSchema = z
   .object({
@@ -37,10 +37,11 @@ export const createTaskEventRequestSchema = z
       });
     }
 
-    if (!isChargeableTaskStatus(data.status) && data.credits !== undefined) {
+    if (!isCreditableTaskStatus(data.status) && data.credits !== undefined) {
       ctx.addIssue({
         code: "custom",
-        message: "Credits can only be set when completing or canceling a task",
+        message:
+          "Credits can only be set when completing, canceling or topping up a task",
         path: ["credits"],
       });
     }

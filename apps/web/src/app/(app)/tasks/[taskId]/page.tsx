@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -8,6 +9,11 @@ import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import {
+  type ActiveSubscription,
+  resolveCurrentPlanName,
+} from "@/components/billing/subscription-plan-utils";
+import { auth } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import { getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
@@ -32,6 +38,29 @@ export default async function TaskDetailPage({
   if (!taskResult) {
     return notFound();
   }
+  let activeSubscriptions: ActiveSubscription[] = [];
+  try {
+    const requestHeaders = await headers();
+    const subscriptions = taskResult.organizationId
+      ? await auth.api.listActiveSubscriptions({
+          headers: requestHeaders,
+          query: {
+            customerType: "organization",
+            referenceId: taskResult.organizationId,
+          },
+        })
+      : await auth.api.listActiveSubscriptions({
+          headers: requestHeaders,
+          query: {
+            customerType: "user",
+          },
+        });
+    activeSubscriptions = subscriptions as ActiveSubscription[];
+  } catch {
+    activeSubscriptions = [];
+  }
+  const currentPlan = resolveCurrentPlanName(activeSubscriptions) ?? "free";
+  const isFreePlan = currentPlan === "free";
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -83,6 +112,7 @@ export default async function TaskDetailPage({
               deleteError: t("actions.deleteError"),
               markAsReady: t("actions.markAsReady"),
               revertToDraft: t("actions.revertToDraft"),
+              cancelRequest: t("actions.cancelRequest"),
             },
           }}
         />
@@ -124,6 +154,7 @@ export default async function TaskDetailPage({
             currentUser={currentUser}
             expandLabel={t("expand")}
             collapseLabel={t("collapse")}
+            isFreePlan={isFreePlan}
           />
         </div>
 

@@ -5,8 +5,9 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client" // ESM-first
-  output   = "../src/generated/prisma" // output directory for the generated client
+  provider        = "prisma-client" // ESM-first
+  output          = "../src/generated/prisma" // output directory for the generated client
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -158,16 +159,14 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members           Member[]
-  invitations       Invitation[]
-  agents            Agent[]
-  blacklistedAgents Agent[]         @relation("AgentBlacklist")
-  jobs              Job[]
-  tasks             Task[]
-  jobSchedules      JobSchedule[]
-  transactions      Transaction[]
-  jobShares         JobShare[]
-  coworkerUsages    CoworkerUsage[]
+  members        Member[]
+  invitations    Invitation[]
+  jobs           Job[]
+  tasks          Task[]
+  jobSchedules   JobSchedule[]
+  transactions   Transaction[]
+  jobShares      JobShare[]
+  coworkerUsages CoworkerUsage[]
 
   stripeCustomerId String?
   invoiceEmail     String?
@@ -384,12 +383,10 @@ model Agent {
   exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
   overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
 
-  userAgentRating          UserAgentRating[]
-  agentLists               AgentList[]
-  jobs                     Job[]
-  jobSchedules             JobSchedule[]
-  organizations            Organization[]
-  blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
+  userAgentRating UserAgentRating[]
+  agentLists      AgentList[]
+  jobs            Job[]
+  jobSchedules    JobSchedule[]
 
   tags         Tag[]      @relation("AgentTag")
   overrideTags Tag[]      @relation("AgentTagOverride")
@@ -679,6 +676,7 @@ model JobEvent {
   blobs Blob[]
   links Link[]
 
+  // @@unique([jobId], where: raw("status = 'INITIATED'"))
   @@index([externalId])
   @@index([jobId])
   @@index([status])
@@ -822,6 +820,7 @@ model Attachment {
   jobInputId String
   jobInput   JobInput @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
 
+  @@unique([jobInputId, url])
   @@index([jobInputId])
   @@map("attachment")
 }
@@ -1090,9 +1089,12 @@ enum TaskStatus {
   READY
   INPUT_REQUIRED
   AUTHENTICATION_REQUIRED
+  OUT_OF_CREDITS
+  CREDITS_TOPPED_UP
   RUNNING
   COMPLETED
   FAILED
+  CANCEL_REQUESTED
   CANCELED
 }
 
@@ -1121,6 +1123,7 @@ model TaskEvent {
   status            TaskStatus?
   transactionId     String?
   comment           String?
+  cents             BigInt?
   authenticationUrl String?
   origin            TaskEventOrigin @default(SOKOSUMI)
 

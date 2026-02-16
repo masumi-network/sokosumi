@@ -149,13 +149,13 @@
     "UserAvatar": {
       "account": "Account",
       "organizations": "Organizations",
-      "credits": "Credits",
-      "subscriptions": "Subscriptions",
-      "mcp": "MCP",
+      "billing": "Billing",
+      "connections": "Connections",
       "support": "Support",
       "logout": "Log out"
     },
     "OrganizationSwitcher": {
+      "switchWorkspace": "Switch workspace",
       "personalAccount": "Personal Account",
       "noOrganizationsFound": "No organizations found",
       "personalAccountHeading": "Personal",
@@ -237,14 +237,17 @@
       "jobs": "Jobs",
       "agents": "Gallery",
       "credits": "Credits",
+      "coupon": "Coupon",
       "subscriptions": "Subscriptions",
+      "billing": "Billing",
       "account": "Account",
       "organizations": "Organizations",
       "api-docs": "API Documentation",
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Scheduled Agents",
       "chat": "Chat",
-      "tasks": "Task Manager"
+      "tasks": "Task Manager",
+      "connections": "Connections"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1247,6 +1250,16 @@
         "actionCommented": "commented",
         "actionUpdatedStatus": "changed status to",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
+        "statusLabels": {
+          "outOfCredits": "Out of credits",
+          "creditsToppedUp": "Credits topped up",
+          "cancelRequested": "Cancel requested"
+        },
+        "billingCta": {
+          "upgradePlan": "Upgrade your Plan",
+          "addCredits": "Add credits",
+          "placeholder": "This task needs credits to continue. Open billing to proceed."
+        },
         "actions": {
           "edit": "Edit",
           "delete": "Delete",
@@ -1255,6 +1268,7 @@
           "deleteError": "Failed to delete task",
           "markAsReady": "Mark as Ready",
           "revertToDraft": "Revert to Draft",
+          "cancelRequest": "Cancel Request",
           "updateStatusSuccess": "Task status updated"
         }
       },
@@ -1368,6 +1382,12 @@
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
+      },
+      "Plan": {
+        "upgradeCta": "Upgrade plan",
+        "userPlan": "{plan}",
+        "organizationPlan": "{plan} ({organization})",
+        "unavailable": "Plan unavailable"
       }
     },
     "Subscriptions": {
@@ -1449,6 +1469,35 @@
         "retryButton": "Try Again"
       }
     },
+    "Billing": {
+      "balanceTitle": "Balance",
+      "balanceDescriptionPersonal": "Your current credits in personal account.",
+      "balanceDescriptionOrganization": "Current credits for {organization}. {members, plural, =1 {# member} other {# members}}, {seats, plural, =1 {# seat} other {# seats}}.",
+      "balanceCreditsLabel": "{credits, plural, =0 {No credits} =1 {# credit} other {# credits}}",
+      "tabs": {
+        "subscription": "Subscription",
+        "credits": "Credits",
+        "coupon": "Coupon"
+      },
+      "billingPortalTitle": "Billing Portal",
+      "billingPortalDescription": "Open Stripe Billing Portal to manage your billing details and invoices.",
+      "openingBillingPortal": "Opening...",
+      "billingPortalCta": "Open billing portal",
+      "orgAccessRestrictedTitle": "Billing access restricted",
+      "orgAccessRestrictedDescription": "Only organization owners and admins can view billing details for this organization.",
+      "orgAccessRestrictedHint": "Switch to a personal context or contact an organization owner/admin if you need access.",
+      "Errors": {
+        "unauthenticated": "Please sign in to continue",
+        "unauthenticatedAction": "Sign In",
+        "unauthorized": "You are not authorized to access this billing area",
+        "general": "Something went wrong. Please try again."
+      },
+      "Error": {
+        "title": "Something Went Wrong",
+        "message": "We encountered an issue loading billing details. Please try again later.",
+        "retryButton": "Try Again"
+      }
+    },
     "Credits": {
       "billingPortalCta": "Manage purchases",
       "topUpTitle": "Top up your credits",
@@ -1459,6 +1508,10 @@
       "creditsPlaceholder": "Enter amount",
       "topUpButton": "Continue",
       "topUpButtonOrganization": "Continue",
+      "couponPageTitle": "Redeem your coupon",
+      "couponPageDescription": "Enter your coupon code to claim credits",
+      "couponButton": "Continue",
+      "couponButtonOrganization": "Continue",
       "purchaseForOrganization": "{organization} (Organization)",
       "couponLabel": "Coupon code",
       "couponPlaceholder": "Enter coupon",
@@ -1500,6 +1553,13 @@
         "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
         "unauthorizedPersonal": "You are not authorized to purchase credits",
         "unknownError": "Something went wrong"
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Connected Apps",
+        "apiKeys": "API Keys",
+        "mcp": "MCP"
       }
     },
     "MCP": {
@@ -1869,8 +1929,6 @@
           "currentPlanCta": "Current plan",
           "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
-          "openingBillingPortal": "Opening...",
-          "billingPortalCta": "Open billing portal",
           "Errors": {
             "unauthenticated": "Please log in to continue",
             "unauthenticatedAction": "Log in",

@@ -16,6 +16,10 @@ jest.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
+      "billingCta.upgradePlan": "Upgrade your Plan",
+      "billingCta.addCredits": "Add credits",
+      "billingCta.placeholder":
+        "This task needs credits to continue. Open billing to proceed.",
       sendWith: "Send with",
       ctrl: "Ctrl",
       "originApp.sokosumi": "Sokosumi",
@@ -248,5 +252,73 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("from Email")).toBeInTheDocument();
     expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
+  });
+
+  it("shows upgrade plan billing CTA for latest out-of-credits event on free plan", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-out-of-credits", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.OUT_OF_CREDITS,
+      }),
+    ];
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} isFreePlan={true} />,
+    );
+
+    const cta = screen.getByRole("link", { name: "Upgrade your Plan" });
+    expect(cta).toHaveAttribute("href", "/billing?tab=subscription");
+    expect(
+      screen.getByText(
+        "This task needs credits to continue. Open billing to proceed.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show billing CTA for latest credits-topped-up event", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-credits-topped-up", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.CREDITS_TOPPED_UP,
+      }),
+    ];
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} isFreePlan={false} />,
+    );
+
+    expect(
+      screen.queryByRole("link", { name: "Upgrade your Plan" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Add credits" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "This task needs credits to continue. Open billing to proceed.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show billing CTA when out-of-credits event is not latest", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-running", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.RUNNING,
+      }),
+      createEvent("older-out-of-credits", {
+        createdAt: "2026-01-01T11:00:00.000Z",
+        status: TaskStatus.OUT_OF_CREDITS,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(
+      screen.queryByRole("link", { name: "Upgrade your Plan" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Add credits" }),
+    ).not.toBeInTheDocument();
   });
 });

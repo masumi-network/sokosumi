@@ -1,7 +1,11 @@
 import { TaskStatus } from "@sokosumi/database";
 
-export function isChargeableTaskStatus(
+export function isCreditableTaskStatus(
   status: TaskStatus | undefined,
 ): boolean {
-  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
+  return (
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.CANCELED ||
+    status === TaskStatus.CREDITS_TOPPED_UP
+  );
 }
