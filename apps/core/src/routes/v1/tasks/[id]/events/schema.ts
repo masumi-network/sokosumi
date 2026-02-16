@@ -17,7 +17,7 @@ export const createTaskEventRequestSchema = z
       .httpUrl()
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
-    credits: z.number().min(1).optional().openapi({ example: 5 }),
+    credits: z.number().min(0).optional().openapi({ example: 5 }),
     origin: z
       .enum(TaskEventOrigin)
       .optional()
@@ -41,7 +41,7 @@ export const createTaskEventRequestSchema = z
       ctx.addIssue({
         code: "custom",
         message:
-          "Credits can only be set when completing, canceling or out of credits a task",
+          "Credits can only be set when completing, canceling, or marking that the user is out of credits",
         path: ["credits"],
       });
     }
