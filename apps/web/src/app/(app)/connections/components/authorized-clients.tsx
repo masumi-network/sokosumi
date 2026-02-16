@@ -36,8 +36,6 @@ export function OAuthAuthorizedClients() {
         }
 
         const consentsData = result.data || [];
-
-        // Fetch client details for each consent to get the client name
         const consentsWithDetails: AuthorizedClientWithDetails[] =
           await Promise.all(
             consentsData.map(async (consent) => {
@@ -56,7 +54,6 @@ export function OAuthAuthorizedClients() {
                   clientName,
                 };
               } catch {
-                // If fetching client fails, just use clientId as fallback
                 return {
                   ...consent,
                   clientName: consent.clientId,
@@ -92,7 +89,6 @@ export function OAuthAuthorizedClients() {
         throw new Error(result.error.message || t("revokeError"));
       }
 
-      // Remove consent from list
       setConsents(consents.filter((c) => c.clientId !== clientId));
       toast.success(t("revokeSuccess"));
     } catch (err) {

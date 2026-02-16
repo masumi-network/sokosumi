@@ -1,7 +1,6 @@
 import { Apikey } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
-// Form types
 export interface CreateApiKeyFormData {
   name: string;
 }
@@ -11,7 +10,6 @@ export interface DeleteApiKeyFormData {
   confirmName: string;
 }
 
-// API operation types
 export interface CreateApiKeyRequest {
   name: string;
 }
@@ -36,7 +34,6 @@ export interface DeleteApiKeyRequest {
   keyId: string;
 }
 
-// Hook return types
 export interface UseApiKeysReturn {
   apiKeys: Apikey[];
   isInitialLoading: boolean;
@@ -68,7 +65,6 @@ export interface DialogState {
   };
 }
 
-// Component prop types
 export interface ApiKeysHeaderProps {
   onCreateClick: () => void;
 }
@@ -100,7 +96,6 @@ export interface ApiKeySuccessDisplayProps {
   onClose: () => void;
 }
 
-// Utility types
 export type TranslationFunction = ReturnType<typeof useTranslations>;
 
 export interface ApiKeyActionCallbacks {

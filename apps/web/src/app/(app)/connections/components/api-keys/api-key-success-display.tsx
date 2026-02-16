@@ -14,10 +14,6 @@ import { useClipboard } from "@/hooks/use-clipboard";
 
 import { ApiKeySuccessDisplayProps } from "./types";
 
-/**
- * Component that displays a created API key with copy functionality
- * Shows the API key in a copiable format with visual feedback
- */
 export function ApiKeySuccessDisplay({
   apiKey,
   onClose,
