@@ -79,7 +79,7 @@ describe("uploadUserFileRequestSchema", () => {
 });
 
 describe("users/me files routes OpenAPI contract", () => {
-  it("documents 413 response on POST /files", () => {
+  it("documents 413 and 422 responses on POST /files", () => {
     const doc = usersMeRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -91,5 +91,6 @@ describe("users/me files routes OpenAPI contract", () => {
     const responses = doc.paths?.["/files"]?.post?.responses;
 
     expect(Object.keys(responses ?? {})).toContain("413");
+    expect(Object.keys(responses ?? {})).toContain("422");
   });
 });
