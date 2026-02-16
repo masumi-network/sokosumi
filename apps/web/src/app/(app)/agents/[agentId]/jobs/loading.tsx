@@ -1,5 +1,5 @@
-import JobsListLoading from "@/app/agents/[agentId]/jobs/components/jobs-list-loading";
+import DefaultLoading from "@/components/default-loading";
 
 export default function JobPageLoading() {
-  return <JobsListLoading />;
+  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
 }
