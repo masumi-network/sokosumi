@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { bodyLimit } from "hono/body-limit";
 
 import { LIMITS } from "@/config/constants";
@@ -15,19 +15,6 @@ import { uploadUserFile } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { blobFileSchema } from "@/schemas/blob-file.schema";
 
-const fileFieldSchema = z.custom<File>(
-  (value): value is File => value instanceof File,
-  "File is required",
-);
-
-export const uploadUserFileRequestSchema = z.object({
-  file: fileFieldSchema.openapi({
-    type: "string",
-    format: "binary",
-    description: "File to upload",
-  }),
-});
-
 const MULTIPART_FORM_OVERHEAD_BYTES = 256 * 1024;
 const MAX_UPLOAD_REQUEST_SIZE_BYTES =
   LIMITS.USER_UPLOAD_MAX_SIZE_BYTES + MULTIPART_FORM_OVERHEAD_BYTES;
@@ -43,15 +30,6 @@ const route = createRoute({
       throw payloadTooLarge("Request body exceeds upload size limit");
     },
   }),
-  request: {
-    body: {
-      content: {
-        "multipart/form-data": {
-          schema: uploadUserFileRequestSchema,
-        },
-      },
-    },
-  },
   responses: {
     201: jsonSuccessResponse(blobFileSchema, "File uploaded successfully", {
       data: {
@@ -75,14 +53,18 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     413: jsonErrorResponse("Payload Too Large"),
-    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
-export function extractAndValidateFile(formData: { file?: unknown }): File {
-  const fileValue = formData.file;
+export function extractAndValidateFile(formData: FormData): File {
+  const fileEntries = formData.getAll("file");
+  if (fileEntries.length !== 1) {
+    throw badRequest("File is required");
+  }
+
+  const fileValue = fileEntries[0];
 
   if (!(fileValue instanceof File)) {
     throw badRequest("File is required");
@@ -114,7 +96,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    const formData = c.req.valid("form");
+    const formData = await c.req.raw.formData();
     const file = extractAndValidateFile(formData);
     const uploadedFile = await uploadUserFile(authContext.userId, file, token);
 

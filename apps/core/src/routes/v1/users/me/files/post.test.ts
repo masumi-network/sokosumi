@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { LIMITS } from "@/config/constants";
 
 import usersMeRouter from "../index";
-import { extractAndValidateFile, uploadUserFileRequestSchema } from "./post";
+import { extractAndValidateFile } from "./post";
 
 function expectBadRequest(action: () => unknown, expectedMessage: string) {
   try {
@@ -22,64 +22,56 @@ function expectBadRequest(action: () => unknown, expectedMessage: string) {
 
 describe("extractAndValidateFile", () => {
   it("throws 400 when file is missing", () => {
-    expectBadRequest(() => extractAndValidateFile({}), "File is required");
+    expectBadRequest(() => extractAndValidateFile(new FormData()), "File is required");
+  });
+
+  it("throws 400 when file is not a File instance", () => {
+    const formData = new FormData();
+    formData.set("file", "not-a-file");
+
+    expectBadRequest(() => extractAndValidateFile(formData), "File is required");
   });
 
   it("throws 400 when file is empty", () => {
+    const formData = new FormData();
+    formData.set("file", new File([], "empty.txt", { type: "text/plain" }));
+
     expectBadRequest(
-      () =>
-        extractAndValidateFile({
-          file: new File([], "empty.txt", { type: "text/plain" }),
-        }),
+      () => extractAndValidateFile(formData),
       "File cannot be empty",
     );
   });
 
   it("throws 400 when file exceeds maximum size", () => {
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File(
+        [new Uint8Array(LIMITS.USER_UPLOAD_MAX_SIZE_BYTES + 1)],
+        "too-large.bin",
+        {
+          type: "application/octet-stream",
+        },
+      ),
+    );
+
     expectBadRequest(
-      () =>
-        extractAndValidateFile({
-          file: new File(
-            [new Uint8Array(LIMITS.USER_UPLOAD_MAX_SIZE_BYTES + 1)],
-            "too-large.bin",
-            {
-              type: "application/octet-stream",
-            },
-          ),
-        }),
+      () => extractAndValidateFile(formData),
       `File exceeds maximum size of ${LIMITS.USER_UPLOAD_MAX_SIZE_BYTES} bytes`,
     );
   });
-});
 
-describe("uploadUserFileRequestSchema", () => {
-  it("accepts a File instance", () => {
-    const parsed = uploadUserFileRequestSchema.parse({
-      file: new File(["hello"], "hello.txt", { type: "text/plain" }),
-    });
+  it("throws 400 when multiple files are provided", () => {
+    const formData = new FormData();
+    formData.append("file", new File(["a"], "a.txt", { type: "text/plain" }));
+    formData.append("file", new File(["b"], "b.txt", { type: "text/plain" }));
 
-    expect(parsed.file).toBeInstanceOf(File);
-  });
-
-  it("rejects non-file values", () => {
-    expect(() => {
-      uploadUserFileRequestSchema.parse({
-        file: "not-a-file",
-      });
-    }).toThrow();
-  });
-
-  it("rejects file arrays", () => {
-    expect(() => {
-      uploadUserFileRequestSchema.parse({
-        file: [new File(["a"], "a.txt", { type: "text/plain" })],
-      });
-    }).toThrow();
+    expectBadRequest(() => extractAndValidateFile(formData), "File is required");
   });
 });
 
 describe("users/me files routes OpenAPI contract", () => {
-  it("documents 413 and 422 responses on POST /files", () => {
+  it("documents 413 response on POST /files", () => {
     const doc = usersMeRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -91,6 +83,5 @@ describe("users/me files routes OpenAPI contract", () => {
     const responses = doc.paths?.["/files"]?.post?.responses;
 
     expect(Object.keys(responses ?? {})).toContain("413");
-    expect(Object.keys(responses ?? {})).toContain("422");
   });
 });
