@@ -12,7 +12,7 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import Markdown from "@/components/markdown";
+import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { Separator } from "@/components/ui/separator";
 
 import CopyMarkdown from "./copy-markdown";
@@ -74,14 +74,20 @@ function JobDetailsOutputsInner({
 
   const onChainResultHash = job.purchase?.resultHash ?? null;
   const isCompleted = event.status === AgentJobStatus.COMPLETED;
+  const highlightTerm = (searchParams?.get("query") ?? "").trim();
 
   return (
     <JobDetailsOutputsLayout>
       {result ? (
         <>
-          <Markdown highlightTerm={(searchParams?.get("query") ?? "").trim()}>
-            {result}
-          </Markdown>
+          <ExpandableMarkdown
+            content={result}
+            className="text-sm"
+            highlightTerm={highlightTerm}
+            expandLabel={t("expand")}
+            collapseLabel={t("collapse")}
+            fadeClassName="to-background"
+          />
           {isCompleted && (
             <>
               <div className="flex justify-between gap-2">

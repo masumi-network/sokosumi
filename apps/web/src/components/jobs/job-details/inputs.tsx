@@ -216,7 +216,7 @@ function JobDetailsInputsInner({
   return (
     <div className="flex flex-col gap-2">
       {Object.keys(input).length > 0 ? (
-        <div>
+        <div className="space-y-4">
           {Object.entries(input).map(([key, value]) => {
             const schemaEntry = inputsMap[key];
             const label = schemaEntry?.name ?? key;
@@ -224,13 +224,13 @@ function JobDetailsInputsInner({
             const values = schemaEntry?.values;
             return (
               <div
-                className="grid grid-cols-1 items-start gap-4 pb-4 text-base md:grid-cols-3"
+                className="flex flex-col items-start gap-1 text-base"
                 key={key}
               >
-                <span className="font-bold break-all md:col-span-1">
+                <span className="text-muted-foreground text-sm font-medium">
                   {label}
                 </span>
-                <div className="break-all md:col-span-2">
+                <div className="break-all">
                   {renderInputValue(value, type, attachments, values)}
                 </div>
               </div>

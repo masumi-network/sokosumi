@@ -1,17 +1,18 @@
 import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 
+import { JobsList } from "@/app/agents/[agentId]/jobs/components/jobs-list";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services";
 
-import { JobsList } from "./components/jobs-list";
-
-interface JobsPageProps {
-  params: Promise<{ agentId: string; jobId?: string | undefined }>;
+interface JobDetailListPageProps {
+  params: Promise<{ agentId: string; jobId: string }>;
 }
 
-export default async function JobsPage({ params }: JobsPageProps) {
+export default async function JobDetailListPage({
+  params,
+}: JobDetailListPageProps) {
   const session = await getSession();
   if (!session) {
     return notFound();
@@ -22,14 +23,12 @@ export default async function JobsPage({ params }: JobsPageProps) {
     agentId,
     prisma,
   );
-
   if (!agent) {
     return notFound();
   }
 
   const agentJobs = await userService.getMyJobs(agentId);
 
-  // return <JobsTable jobs={agentJobs} userId={session.user.id} />;
   return (
     <JobsList
       jobs={agentJobs}

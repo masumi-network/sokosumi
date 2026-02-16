@@ -27,6 +27,7 @@ interface ExpandableMarkdownProps {
   expandLabel: string;
   collapseLabel: string;
   fadeClassName?: string;
+  highlightTerm?: string;
 }
 
 export function ExpandableMarkdown({
@@ -36,6 +37,7 @@ export function ExpandableMarkdown({
   expandLabel,
   collapseLabel,
   fadeClassName,
+  highlightTerm,
 }: ExpandableMarkdownProps) {
   const [open, setOpen] = useState(false);
   const [isExpandable, setIsExpandable] = useState(false);
@@ -78,17 +80,19 @@ export function ExpandableMarkdown({
               !open && "overflow-hidden",
               !open && lineClampClass,
               shouldFade &&
-                "[mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]",
+                "mask-[linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]",
             )}
           >
-            <Markdown className={className}>{content}</Markdown>
+            <Markdown className={className} highlightTerm={highlightTerm}>
+              {content}
+            </Markdown>
           </div>
         </CollapsibleContent>
 
         {shouldFade ? (
           <div
             className={cn(
-              "pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-end justify-center bg-gradient-to-b from-transparent",
+              "pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-end justify-center bg-linear-to-b from-transparent",
               fadeClassName ?? "to-background",
             )}
           >

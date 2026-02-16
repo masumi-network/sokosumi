@@ -1,0 +1,34 @@
+import { type JobWithSokosumiStatus } from "@sokosumi/database";
+
+import { getDateGroupKey } from "@/lib/utils";
+
+export interface JobsByDayGroup {
+  key: string;
+  jobs: JobWithSokosumiStatus[];
+}
+
+export function buildJobDayGroups(
+  jobs: JobWithSokosumiStatus[],
+): JobsByDayGroup[] {
+  const sortedJobs = [...jobs].sort(
+    (firstJob, secondJob) =>
+      new Date(secondJob.createdAt).getTime() -
+      new Date(firstJob.createdAt).getTime(),
+  );
+
+  const groupsMap = new Map<string, JobWithSokosumiStatus[]>();
+  for (const job of sortedJobs) {
+    const groupKey = getDateGroupKey(new Date(job.createdAt).getTime()) ?? "";
+    const current = groupsMap.get(groupKey);
+    if (current) {
+      current.push(job);
+    } else {
+      groupsMap.set(groupKey, [job]);
+    }
+  }
+
+  return Array.from(groupsMap, ([key, groupedJobs]) => ({
+    key,
+    jobs: groupedJobs,
+  }));
+}

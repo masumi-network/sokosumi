@@ -17,10 +17,11 @@ export default function JobDetailRedirect({
   const router = useRouter();
 
   useEffect(() => {
+    if (!window.matchMedia("(min-width: 1024px)").matches) {
+      return;
+    }
     router.push(`/agents/${agentId}/jobs/${jobId}`);
   }, [agentId, jobId, router]);
 
-  return (
-    <DefaultLoading className="bg-muted/50 h-full w-full flex-1 rounded-xl border p-8" />
-  );
+  return <DefaultLoading className="h-full w-full flex-1 p-8" />;
 }

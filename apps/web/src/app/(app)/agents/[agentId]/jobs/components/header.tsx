@@ -49,7 +49,7 @@ export function HeaderSkeleton() {
   );
 }
 
-interface HeaderProps {
+export interface HeaderProps {
   agent: AgentWithCreditsPrice;
   favoriteAgents: AgentWithRelations[];
   ratingStats: AgentRatingStats;
@@ -84,40 +84,42 @@ export default function Header({
           showCloseButton={false}
         />
       </div>
-      <div className="hidden w-full items-center justify-between md:flex">
-        <Link
-          href="/agents"
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          <span>{t("back")}</span>
-        </Link>
-        <div className="flex items-center gap-1.5">
-          <div className="text-sm font-semibold">
-            {t("price", {
-              price: convertCentsToCredits(agent.creditsPrice.cents),
-            })}
-          </div>
-          {canRate && (
-            <AgentRatingCTA
+      <div className="hidden w-full md:block">
+        <div className="flex w-full items-center justify-between py-4">
+          <Link
+            href="/agents"
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+          >
+            <ArrowLeft className="size-4" />
+            <span>{t("back")}</span>
+          </Link>
+          <div className="flex items-center gap-1.5">
+            <div className="text-sm font-semibold">
+              {t("price", {
+                price: convertCentsToCredits(agent.creditsPrice.cents),
+              })}
+            </div>
+            {canRate && (
+              <AgentRatingCTA
+                agentId={agent.id}
+                ratingStats={ratingStats}
+                existingRating={existingRating}
+                disabled={disabled}
+                className="size-7"
+              />
+            )}
+            <AgentBookmarkButton
               agentId={agent.id}
-              ratingStats={ratingStats}
-              existingRating={existingRating}
+              isFavorite={isFavorite}
               disabled={disabled}
               className="size-7"
             />
-          )}
-          <AgentBookmarkButton
-            agentId={agent.id}
-            isFavorite={isFavorite}
-            disabled={disabled}
-            className="size-7"
-          />
-          <CreateJobModalTrigger
-            agentId={agent.id}
-            disabled={disabled}
-            className="h-7 gap-1.5 px-2.5 text-xs"
-          />
+            <CreateJobModalTrigger
+              agentId={agent.id}
+              disabled={disabled}
+              className="h-7 gap-1.5 px-2.5 text-xs"
+            />
+          </div>
         </div>
       </div>
     </div>

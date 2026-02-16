@@ -3,83 +3,82 @@
 import { AgentJobStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusBadgeProps {
   status: AgentJobStatus;
   className?: string;
+  variant?: "dot" | "text";
 }
 
 export function AgentJobStatusBadge({
   status,
   className,
+  variant = "dot",
 }: AgentJobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.AgentStatusBadge");
+  const label = t(statusToLabelKey(status));
+  const dotClass = getAgentStatusDotColorClass(status);
 
+  if (variant === "text") {
+    return (
+      <span
+        className={cn(
+          "text-muted-foreground text-[10px] font-medium tracking-wider uppercase",
+          className,
+        )}
+      >
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <div className={cn("inline-flex shrink-0 items-center gap-1.5", className)}>
+      <span
+        className={cn("size-1.5 shrink-0 rounded-full", dotClass)}
+        aria-hidden
+      />
+      <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function getAgentStatusDotColorClass(status: AgentJobStatus) {
+  switch (status) {
+    case AgentJobStatus.COMPLETED:
+      return "bg-green-500";
+    case AgentJobStatus.FAILED:
+      return "bg-red-500";
+    case AgentJobStatus.AWAITING_INPUT:
+      return "bg-yellow-500";
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return "bg-orange-500";
+    case AgentJobStatus.RUNNING:
+    case AgentJobStatus.INITIATED:
+      return "bg-sky-500";
+    default:
+      return "bg-gray-500";
+  }
+}
+
+function statusToLabelKey(status: AgentJobStatus) {
   switch (status) {
     case AgentJobStatus.INITIATED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-sky-100 text-sky-800", className)}
-        >
-          {t("initiated")}
-        </Badge>
-      );
+      return "initiated";
     case AgentJobStatus.AWAITING_PAYMENT:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-orange-100 text-orange-800", className)}
-        >
-          {t("awaitingPayment")}
-        </Badge>
-      );
+      return "awaitingPayment";
     case AgentJobStatus.AWAITING_INPUT:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-yellow-100 text-yellow-800", className)}
-        >
-          {t("awaitingInput")}
-        </Badge>
-      );
+      return "awaitingInput";
     case AgentJobStatus.RUNNING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-sky-100 text-sky-800", className)}
-        >
-          {t("running")}
-        </Badge>
-      );
+      return "running";
     case AgentJobStatus.COMPLETED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-green-100 text-green-800", className)}
-        >
-          {t("completed")}
-        </Badge>
-      );
+      return "completed";
     case AgentJobStatus.FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("failed")}
-        </Badge>
-      );
+      return "failed";
     default:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-gray-100 text-gray-800", className)}
-        >
-          {t("unknown")}
-        </Badge>
-      );
+      return "unknown";
   }
 }

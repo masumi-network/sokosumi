@@ -14,6 +14,7 @@ import {
   useTransition,
 } from "react";
 
+import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,6 @@ import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 
-import { ExpandableMarkdown } from "./expandable-markdown";
 import {
   getTaskStatusDotColorClass,
   TaskStatusBadge,

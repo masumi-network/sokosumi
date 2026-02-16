@@ -422,6 +422,29 @@
   }
 }
 
+/*
+ * Agents full-bleed layout
+ *
+ * We scope these overrides to `/agents/[agentId]/*` via the
+ * `data-agent-fullbleed` marker in that segment layout.
+ *
+ * This avoids nested scroll containers and allows `position: sticky` to work by
+ * disabling overflow clipping/hidden wrappers for that subtree.
+ */
+[data-app-shell]:has([data-agent-fullbleed]),
+[data-app-content]:has([data-agent-fullbleed]) {
+  overflow: visible !important;
+}
+
+main[data-app-main]:has([data-agent-fullbleed]) {
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
+  overflow: visible !important;
+}
+
 @utility container {
   margin-inline: auto;
   @media (width >= --theme(--breakpoint-sm)) {

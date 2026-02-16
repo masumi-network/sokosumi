@@ -1,6 +1,5 @@
+import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
-
-import { ExpandableMarkdown } from "./expandable-markdown";
 
 interface TaskDescriptionProps {
   title: string;

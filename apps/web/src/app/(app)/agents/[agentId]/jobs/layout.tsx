@@ -22,8 +22,8 @@ import {
 import { agentService } from "@/lib/services";
 
 import Footer from "./components/footer";
-import Header, { HeaderSkeleton } from "./components/header";
 import JobBottomNavigation from "./components/job-bottom-navigation";
+import { JobsHeaderProvider } from "./components/jobs-header-context";
 
 export async function generateMetadata({
   params,
@@ -45,25 +45,32 @@ export async function generateMetadata({
 
 interface JobLayoutProps {
   children: React.ReactNode;
+  modal: React.ReactNode;
   right: React.ReactNode;
   params: Promise<{ agentId: string }>;
 }
 
 export default async function JobLayout({
   children,
+  modal,
   right,
   params,
 }: JobLayoutProps) {
   return (
     <Suspense fallback={<JobLayoutSkeleton />}>
-      <JobLayoutInner right={right} params={params}>
+      <JobLayoutInner modal={modal} right={right} params={params}>
         {children}
       </JobLayoutInner>
     </Suspense>
   );
 }
 
-async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
+async function JobLayoutInner({
+  right,
+  modal,
+  params,
+  children,
+}: JobLayoutProps) {
   const { agentId } = await params;
   const agent = await agentRepository.getAgentWithRelationsById(
     agentId,
@@ -106,28 +113,37 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
       agentsWithPrice={[agentWithCreditsPrice]}
       averageExecutionDuration={averageExecutionDuration}
     >
-      <div className="flex w-full flex-col lg:h-[calc(100svh-96px)]">
-        <Header
-          agent={agentWithCreditsPrice}
-          favoriteAgents={favoriteAgents}
-          ratingStats={ratingStats}
-          canRate={canRate}
-          existingRating={existingRating}
-          disabled={!availableAgent}
-        />
-        <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-          {children}
-          {right}
+      <JobsHeaderProvider
+        value={{
+          agent: agentWithCreditsPrice,
+          favoriteAgents,
+          ratingStats,
+          canRate,
+          existingRating,
+          disabled: !availableAgent,
+        }}
+      >
+        <div className="flex w-full flex-col">
+          <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
+            <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
+              {children}
+            </div>
+
+            <div className="hidden min-w-0 flex-1 lg:block lg:h-[calc(100svh-64px)]">
+              <div className="mx-auto h-full w-full px-4">{right}</div>
+            </div>
+          </div>
+          {modal}
+          <JobBottomNavigation
+            agent={agentWithCreditsPrice}
+            favoriteAgents={favoriteAgents}
+            disabled={!availableAgent}
+          />
+          <Footer legal={getAgentLegal(agent)} />
+          {/* Create Job Modal */}
+          {!!availableAgent && <CreateJobModal />}
         </div>
-        <JobBottomNavigation
-          agent={agentWithCreditsPrice}
-          favoriteAgents={favoriteAgents}
-          disabled={!availableAgent}
-        />
-        <Footer legal={getAgentLegal(agent)} />
-        {/* Create Job Modal */}
-        {!!availableAgent && <CreateJobModal />}
-      </div>
+      </JobsHeaderProvider>
     </CreateJobModalContextProvider>
   );
 }
@@ -135,9 +151,8 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 function JobLayoutSkeleton() {
   return (
     <div className="flex flex-col lg:h-[calc(100svh-96px)]">
-      <HeaderSkeleton />
       <div className="mt-6 flex flex-1">
-        <DefaultLoading className="bg-muted/50 h-full min-h-[300px] w-full flex-1 rounded-xl border p-8" />
+        <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />
       </div>
     </div>
   );

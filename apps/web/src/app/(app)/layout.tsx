@@ -61,6 +61,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const content = (
     <SidebarProvider
       defaultOpen={defaultOpen}
+      data-app-shell
       className="flex max-w-svw overflow-clip"
     >
       <Sidebar
@@ -68,11 +69,20 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         taskManagerMenuEnabled={isTaskManagerMenuEnabled}
         chatUIEnabled={isChatUIEnabled}
       />
-      <div className="flex min-w-0 flex-1 flex-col overflow-clip">
+      <div
+        className="flex min-w-0 flex-1 flex-col overflow-clip"
+        data-app-content
+      >
         <Header session={session} className="h-16 p-4" />
-        <main className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4">
+        <main
+          className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4"
+          data-app-main
+        >
           <EmergencyDialog />
-          <div className="flex h-full flex-1 flex-col overflow-hidden">
+          <div
+            className="flex h-full flex-1 flex-col overflow-hidden"
+            data-app-main-inner
+          >
             {children}
           </div>
         </main>

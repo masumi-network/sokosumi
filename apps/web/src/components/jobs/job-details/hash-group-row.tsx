@@ -88,13 +88,13 @@ export function HashGroupRow({
     return (
       <div
         className={cn(
-          `grid h-9 grid-cols-2 items-center gap-4 md:grid-cols-3`,
+          `text-muted-foreground flex items-center justify-end gap-2 text-xs md:grid-cols-3`,
           rowClassName,
         )}
       >
-        <span className="font-bold break-all md:col-span-1">{label}</span>
-        <div className="break-all md:col-span-2">
-          <div className="flex items-center gap-2">
+        <span className="break-all">{label}</span>
+        <div className="break-all">
+          <div className="flex items-center justify-end">
             <CopyableValue value={externalHash} />
             {verificationBadge}
           </div>
@@ -109,13 +109,15 @@ export function HashGroupRow({
         <AccordionTrigger className="items-center px-0 py-0">
           <div
             className={cn(
-              "grid h-9 w-full grid-cols-2 items-center gap-4 md:grid-cols-3",
+              "flex h-9 w-full items-center justify-end gap-4",
               rowClassName,
             )}
           >
-            <span className="font-bold break-all md:col-span-1">{label}</span>
-            <div className="flex items-center gap-1">
-              <div className="pl-4 md:pl-2.5">
+            <span className="text-muted-foreground text-xs font-medium break-all md:col-span-1">
+              {label}
+            </span>
+            <div className="text-muted-foreground flex items-center gap-1 text-xs">
+              <div>
                 <CopyableValue
                   value={externalHash ?? hash}
                   renderButtonAsChild
@@ -127,11 +129,9 @@ export function HashGroupRow({
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-0">
-          <div className="grid grid-cols-2 items-center gap-5 text-sm md:grid-cols-3">
-            <span className="font-bold break-all md:col-span-1">
-              {tLabelExternal}
-            </span>
-            <div className="break-all md:col-span-2">
+          <div className="text-muted-foreground flex items-center justify-end gap-2 text-xs">
+            <span className="break-all">{tLabelExternal}</span>
+            <div className="break-all">
               {externalHash ? (
                 <CopyableValue value={externalHash} />
               ) : (
@@ -141,11 +141,11 @@ export function HashGroupRow({
               )}
             </div>
           </div>
-          <div className="grid grid-cols-2 items-center gap-4 text-sm md:grid-cols-3">
-            <span className="font-bold break-all md:col-span-1">
+          <div className="text-muted-foreground flex items-center justify-end gap-2 text-xs">
+            <span className="text-muted-foreground text-xs font-medium break-all">
               {tLabelHash}
             </span>
-            <div className="break-all md:col-span-2">
+            <div className="justify-end text-xs break-all">
               <CopyableValue value={hash} />
             </div>
           </div>
