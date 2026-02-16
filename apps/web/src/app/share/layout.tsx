@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { FooterSections } from "@/components/footer";
 import QueryProvider from "@/contexts/query-provider";
 
 import Header from "./components/header";
@@ -36,7 +35,6 @@ export default async function ShareLayout({ children }: ShareLayoutProps) {
             <SharePageCTA />
           </div>
         </div>
-        <FooterSections className="p-4" />
       </div>
     </QueryProvider>
   );
