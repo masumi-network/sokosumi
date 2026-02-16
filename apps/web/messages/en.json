@@ -284,7 +284,7 @@
       "JobDetails": {
         "activity": "Activity",
         "actionUpdatedStatus": "changed status to",
-        "emptyActivity": "No activies yet.",
+        "emptyActivity": "No activities yet.",
         "Header": {
           "JobName": {
             "Schema": {
