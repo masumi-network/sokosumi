@@ -1,8 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { bodyLimit } from "hono/body-limit";
 
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { badRequest, forbidden, serviceUnavailable } from "@/helpers/error";
+import {
+  badRequest,
+  forbidden,
+  payloadTooLarge,
+  serviceUnavailable,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { uploadUserFile } from "@/lib/blob";
@@ -22,11 +28,21 @@ export const uploadUserFileRequestSchema = z.object({
   }),
 });
 
+const MULTIPART_FORM_OVERHEAD_BYTES = 256 * 1024;
+const MAX_UPLOAD_REQUEST_SIZE_BYTES =
+  LIMITS.USER_UPLOAD_MAX_SIZE_BYTES + MULTIPART_FORM_OVERHEAD_BYTES;
+
 const route = createRoute({
   method: "post",
   path: "/files",
   description: "Upload a file for the current user",
   tags: ["Users"],
+  middleware: bodyLimit({
+    maxSize: MAX_UPLOAD_REQUEST_SIZE_BYTES,
+    onError: () => {
+      throw payloadTooLarge("Request body exceeds upload size limit");
+    },
+  }),
   request: {
     body: {
       content: {
@@ -58,6 +74,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    413: jsonErrorResponse("Payload Too Large"),
     503: jsonErrorResponse("Service Unavailable"),
     500: jsonErrorResponse("Internal Server Error"),
   },

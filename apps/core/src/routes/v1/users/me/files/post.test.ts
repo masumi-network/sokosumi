@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { LIMITS } from "@/config/constants";
 
+import usersMeRouter from "../index";
 import { extractAndValidateFile, uploadUserFileRequestSchema } from "./post";
 
 function expectBadRequest(action: () => unknown, expectedMessage: string) {
@@ -74,5 +75,21 @@ describe("uploadUserFileRequestSchema", () => {
         file: [new File(["a"], "a.txt", { type: "text/plain" })],
       });
     }).toThrow();
+  });
+});
+
+describe("users/me files routes OpenAPI contract", () => {
+  it("documents 413 response on POST /files", () => {
+    const doc = usersMeRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Users Me API",
+        version: "1.0.0",
+      },
+    });
+
+    const responses = doc.paths?.["/files"]?.post?.responses;
+
+    expect(Object.keys(responses ?? {})).toContain("413");
   });
 });
