@@ -54,11 +54,12 @@ describe("buildJobScopeFilters", () => {
   });
 
   it("builds context and shared filters with OR-compatible clauses", () => {
-    expect(buildJobScopeFilters(userAuthContext, ["context", "shared"]))
-      .toEqual([
-        { userId: "user_123", organizationId: "org_123" },
-        { share: { organizationId: "org_123" } },
-      ]);
+    expect(
+      buildJobScopeFilters(userAuthContext, ["context", "shared"]),
+    ).toEqual([
+      { userId: "user_123", organizationId: "org_123" },
+      { share: { organizationId: "org_123" } },
+    ]);
   });
 
   it("omits shared filter when organization context is missing", () => {
@@ -72,9 +73,9 @@ describe("buildJobScopeFilters", () => {
   });
 
   it("forces coworker-authenticated requests to context scope", () => {
-    expect(buildJobScopeFilters(coworkerAuthContext, ["owned", "shared"])).toEqual([
-      { userId: "user_123", organizationId: "org_123" },
-    ]);
+    expect(
+      buildJobScopeFilters(coworkerAuthContext, ["owned", "shared"]),
+    ).toEqual([{ userId: "user_123", organizationId: "org_123" }]);
   });
 });
 

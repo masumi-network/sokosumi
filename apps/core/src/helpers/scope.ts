@@ -26,7 +26,9 @@ function preprocessScopeQueryInput(value: unknown): unknown {
   );
 }
 
-function deduplicateScopes<T extends string>(scopes: readonly T[] | undefined): T[] {
+function deduplicateScopes<T extends string>(
+  scopes: readonly T[] | undefined,
+): T[] {
   if (!scopes || scopes.length === 0) {
     return [DEFAULT_SCOPE as T];
   }
@@ -99,7 +101,10 @@ export function buildJobScopeFilters(
   return filters;
 }
 
-const taskScopeArraySchema = z.array(z.enum(TASK_SCOPE_VALUES)).min(1).optional();
+const taskScopeArraySchema = z
+  .array(z.enum(TASK_SCOPE_VALUES))
+  .min(1)
+  .optional();
 const jobScopeArraySchema = z.array(z.enum(JOB_SCOPE_VALUES)).min(1).optional();
 
 export const taskScopeQuerySchema = z

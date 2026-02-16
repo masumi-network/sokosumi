@@ -74,7 +74,7 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
             {labels.created}
           </span>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {formatter.dateTime(task.createdAt, dateTimeOptions)}
+            {formatter.dateTime(new Date(task.createdAt), dateTimeOptions)}
           </span>
         </div>
 
@@ -84,7 +84,7 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
             {labels.updated}
           </span>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {formatter.dateTime(task.updatedAt, dateTimeOptions)}
+            {formatter.dateTime(new Date(task.updatedAt), dateTimeOptions)}
           </span>
         </div>
       </div>
