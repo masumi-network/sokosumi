@@ -1,10 +1,136 @@
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
-import { put } from "@vercel/blob";
+import {
+  head,
+  list,
+  put,
+  type PutBlobResult,
+} from "@vercel/blob";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
+
+export interface UserFileMetadata {
+  pathname: string;
+  downloadUrl: string;
+  size: number;
+  uploadedAt: string;
+  etag: string;
+}
+
+export interface UserFile {
+  publicUrl: string;
+  metadata: UserFileMetadata;
+}
+
+function toUserFile(data: {
+  url: string;
+  pathname: string;
+  downloadUrl: string;
+  size: number;
+  uploadedAt: Date;
+  etag: string;
+}): UserFile {
+  return {
+    publicUrl: data.url,
+    metadata: {
+      pathname: data.pathname,
+      downloadUrl: data.downloadUrl,
+      size: data.size,
+      uploadedAt: data.uploadedAt.toISOString(),
+      etag: data.etag,
+    },
+  };
+}
+
+function mapPutBlobToFallbackUserFile(blob: PutBlobResult, file: File): UserFile {
+  return toUserFile({
+    url: blob.url,
+    pathname: blob.pathname,
+    downloadUrl: blob.downloadUrl,
+    size: file.size,
+    uploadedAt: new Date(),
+    etag: blob.etag,
+  });
+}
+
+function buildUserUploadPrefix(userId: string): string {
+  return `${STORAGE.USER_UPLOADS_DIR}/${userId}/`;
+}
+
+function sanitizeUploadFilename(fileName: string): string {
+  const sanitized = fileName
+    .trim()
+    .replace(/[\\/]+/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .replace(/_+/g, "_")
+    .replace(/^[_.]+|[_.]+$/g, "");
+
+  return sanitized.length > 0 ? sanitized : "file";
+}
+
+export async function uploadUserFile(
+  userId: string,
+  file: File,
+  token: string,
+): Promise<UserFile> {
+  const sanitizedFilename = sanitizeUploadFilename(file.name);
+  const pathname = `${buildUserUploadPrefix(userId)}${sanitizedFilename}`;
+
+  const blob = await put(pathname, file, {
+    access: "public",
+    token,
+    addRandomSuffix: true,
+    allowOverwrite: false,
+    contentType: file.type || undefined,
+  });
+
+  try {
+    const blobHead = await head(blob.url, { token });
+    return toUserFile({
+      url: blobHead.url,
+      pathname: blobHead.pathname,
+      downloadUrl: blobHead.downloadUrl,
+      size: blobHead.size,
+      uploadedAt: blobHead.uploadedAt,
+      etag: blobHead.etag,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadUserFile",
+        phase: "head",
+      },
+    });
+    return mapPutBlobToFallbackUserFile(blob, file);
+  }
+}
+
+export async function listUserFiles(
+  userId: string,
+  token: string,
+): Promise<UserFile[]> {
+  const prefix = buildUserUploadPrefix(userId);
+  const result = await list({ prefix, token });
+
+  return result.blobs
+    .map((blob) =>
+      toUserFile({
+        url: blob.url,
+        pathname: blob.pathname,
+        downloadUrl: blob.downloadUrl,
+        size: blob.size,
+        uploadedAt: blob.uploadedAt,
+        etag: blob.etag,
+      }),
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(b.metadata.uploadedAt) - Date.parse(a.metadata.uploadedAt),
+    );
+}
 
 /**
  * Uploads an image to Vercel Blob storage
