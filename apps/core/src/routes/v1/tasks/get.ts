@@ -13,7 +13,6 @@ import {
 import { ok } from "@/helpers/response";
 import {
   buildTaskScopeFilters,
-  resolveTaskScopes,
   taskScopeQuerySchema,
 } from "@/helpers/scope";
 import { mapTask } from "@/helpers/task";
@@ -74,7 +73,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { status, coworkerId, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
-    const taskScopes = resolveTaskScopes(authContext, scope);
 
     let where: Prisma.TaskWhereInput;
     if (authContext.coworkerId) {
@@ -90,7 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     } else {
       where = {
-        OR: buildTaskScopeFilters(authContext, taskScopes),
+        OR: buildTaskScopeFilters(authContext, scope),
         ...(status ? { status } : {}),
         ...(coworkerId ? { coworkerId } : {}),
       };

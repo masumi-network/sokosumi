@@ -4,9 +4,8 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 import {
   buildJobScopeFilters,
+  buildTaskScopeFilters,
   jobScopeQuerySchema,
-  resolveJobScopes,
-  resolveTaskScopes,
   taskScopeQuerySchema,
 } from "./scope";
 
@@ -21,26 +20,6 @@ const coworkerAuthContext: AuthenticationContext = {
   organizationId: "org_123",
   coworkerId: "cow_123",
 };
-
-describe("resolveTaskScopes", () => {
-  it("defaults to context when scope query is missing", () => {
-    expect(resolveTaskScopes(userAuthContext, undefined)).toEqual(["context"]);
-  });
-});
-
-describe("resolveJobScopes", () => {
-  it("deduplicates scopes resolved from zod-validated input", () => {
-    expect(resolveJobScopes(userAuthContext, ["context", "shared", "context"])).toEqual(
-      ["context", "shared"],
-    );
-  });
-
-  it("forces coworker-authenticated requests to context scope", () => {
-    expect(resolveJobScopes(coworkerAuthContext, ["owned", "shared"])).toEqual([
-      "context",
-    ]);
-  });
-});
 
 describe("scope query schema", () => {
   it("parses comma-separated task scopes into a typed array", () => {
@@ -68,6 +47,12 @@ describe("scope query schema", () => {
 });
 
 describe("buildJobScopeFilters", () => {
+  it("defaults to context scope when scopes are missing", () => {
+    expect(buildJobScopeFilters(userAuthContext, undefined)).toEqual([
+      { userId: "user_123", organizationId: "org_123" },
+    ]);
+  });
+
   it("builds context and shared filters with OR-compatible clauses", () => {
     expect(buildJobScopeFilters(userAuthContext, ["context", "shared"]))
       .toEqual([
@@ -84,5 +69,25 @@ describe("buildJobScopeFilters", () => {
     };
 
     expect(buildJobScopeFilters(personalContext, ["shared"])).toEqual([]);
+  });
+
+  it("forces coworker-authenticated requests to context scope", () => {
+    expect(buildJobScopeFilters(coworkerAuthContext, ["owned", "shared"])).toEqual([
+      { userId: "user_123", organizationId: "org_123" },
+    ]);
+  });
+});
+
+describe("buildTaskScopeFilters", () => {
+  it("defaults to context scope when scopes are missing", () => {
+    expect(buildTaskScopeFilters(userAuthContext, undefined)).toEqual([
+      { userId: "user_123", organizationId: "org_123" },
+    ]);
+  });
+
+  it("supports owned scope", () => {
+    expect(buildTaskScopeFilters(userAuthContext, ["owned"])).toEqual([
+      { userId: "user_123" },
+    ]);
   });
 });

@@ -235,7 +235,7 @@ export async function requireTaskAccess(
 export async function requireScopedTaskReadAccess(
   authContext: AuthenticationContext,
   taskId: string,
-  scopes: TaskScope[] = ["context"],
+  scopes: TaskScope[] | undefined,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   if (authContext.coworkerId) {
@@ -264,7 +264,7 @@ export async function requireScopedTaskReadAccess(
 export async function requireScopedJobReadAccess(
   authContext: AuthenticationContext,
   jobId: string,
-  scopes: JobScope[] = ["context"],
+  scopes: JobScope[] | undefined,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   const scopeFilters = buildJobScopeFilters(authContext, scopes);

@@ -4,7 +4,7 @@ import { requireScopedTaskReadAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { resolveTaskScopes, taskScopeQuerySchema } from "@/helpers/scope";
+import { taskScopeQuerySchema } from "@/helpers/scope";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -43,10 +43,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
     const { scope } = c.req.valid("query");
-    const taskScopes = resolveTaskScopes(authContext, scope);
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireScopedTaskReadAccess(authContext, id, taskScopes, tx);
+      await requireScopedTaskReadAccess(authContext, id, scope, tx);
       return tx.task.findUnique({
         where: { id },
         include: taskInclude,

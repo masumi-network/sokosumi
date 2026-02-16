@@ -11,7 +11,7 @@ import { requireScopedJobReadAccess } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { jobScopeQuerySchema, resolveJobScopes } from "@/helpers/scope";
+import { jobScopeQuerySchema } from "@/helpers/scope";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -79,10 +79,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const { id } = c.req.valid("param");
     const { scope } = c.req.valid("query");
-    const jobScopes = resolveJobScopes(authContext, scope);
 
     const job = await prisma.$transaction(async (tx) => {
-      await requireScopedJobReadAccess(authContext, id, jobScopes, tx);
+      await requireScopedJobReadAccess(authContext, id, scope, tx);
       const job = await tx.job.findUnique({
         where: { id },
         include: {

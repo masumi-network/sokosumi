@@ -511,8 +511,7 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, cursor, take, skip, scopes = ["context"], tx = prisma } =
-    options;
+  const { agentId, cursor, take, skip, scopes, tx = prisma } = options;
 
   const scopeFilters = buildJobScopeFilters(authContext, scopes);
   if (scopeFilters.length === 0) {

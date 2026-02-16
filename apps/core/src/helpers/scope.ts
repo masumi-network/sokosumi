@@ -34,23 +34,12 @@ function deduplicateScopes<T extends string>(scopes: readonly T[] | undefined): 
   return Array.from(new Set(scopes));
 }
 
-export function resolveTaskScopes(
+function getEffectiveScopes<T extends string>(
   authContext: AuthenticationContext,
-  scopes: readonly TaskScope[] | undefined,
-): TaskScope[] {
+  scopes: readonly T[] | undefined,
+): T[] {
   if (authContext.coworkerId) {
-    return [DEFAULT_SCOPE];
-  }
-
-  return deduplicateScopes(scopes);
-}
-
-export function resolveJobScopes(
-  authContext: AuthenticationContext,
-  scopes: readonly JobScope[] | undefined,
-): JobScope[] {
-  if (authContext.coworkerId) {
-    return [DEFAULT_SCOPE];
+    return [DEFAULT_SCOPE as T];
   }
 
   return deduplicateScopes(scopes);
@@ -58,9 +47,9 @@ export function resolveJobScopes(
 
 export function buildTaskScopeFilters(
   authContext: AuthenticationContext,
-  scopes: readonly TaskScope[],
+  scopes: readonly TaskScope[] | undefined,
 ): Prisma.TaskWhereInput[] {
-  const uniqueScopes = new Set(scopes);
+  const uniqueScopes = new Set(getEffectiveScopes(authContext, scopes));
   const filters: Prisma.TaskWhereInput[] = [];
 
   if (uniqueScopes.has("context")) {
@@ -81,9 +70,9 @@ export function buildTaskScopeFilters(
 
 export function buildJobScopeFilters(
   authContext: AuthenticationContext,
-  scopes: readonly JobScope[],
+  scopes: readonly JobScope[] | undefined,
 ): Prisma.JobWhereInput[] {
-  const uniqueScopes = new Set(scopes);
+  const uniqueScopes = new Set(getEffectiveScopes(authContext, scopes));
   const filters: Prisma.JobWhereInput[] = [];
 
   if (uniqueScopes.has("context")) {
