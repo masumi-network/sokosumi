@@ -5,7 +5,6 @@ import {
   head,
   list,
   put,
-  type PutBlobResult,
 } from "@vercel/blob";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
@@ -34,17 +33,6 @@ function toBlobFile(data: {
   };
 }
 
-function mapPutBlobToFallbackBlobFile(blob: PutBlobResult, file: File): BlobFile {
-  return toBlobFile({
-    url: blob.url,
-    pathname: blob.pathname,
-    downloadUrl: blob.downloadUrl,
-    size: file.size,
-    uploadedAt: new Date(),
-    etag: blob.etag,
-  });
-}
-
 function buildUserUploadPrefix(userId: string): string {
   return `${STORAGE.USER_UPLOADS_DIR}/${userId}/`;
 }
@@ -59,17 +47,6 @@ function sanitizeUploadFilename(fileName: string): string {
     .replace(/^[_.]+|[_.]+$/g, "");
 
   return sanitized.length > 0 ? sanitized : "file";
-}
-
-function mapListBlobToBlobFile(blob: ListBlobItem): BlobFile {
-  return toBlobFile({
-    url: blob.url,
-    pathname: blob.pathname,
-    downloadUrl: blob.downloadUrl,
-    size: blob.size,
-    uploadedAt: blob.uploadedAt,
-    etag: blob.etag,
-  });
 }
 
 export async function uploadUserFile(
@@ -105,7 +82,14 @@ export async function uploadUserFile(
         phase: "head",
       },
     });
-    return mapPutBlobToFallbackBlobFile(blob, file);
+    return toBlobFile({
+      url: blob.url,
+      pathname: blob.pathname,
+      downloadUrl: blob.downloadUrl,
+      size: file.size,
+      uploadedAt: new Date(),
+      etag: blob.etag,
+    });
   }
 }
 
@@ -138,7 +122,16 @@ export async function listUserFiles(
   }
 
   return blobs
-    .map(mapListBlobToBlobFile)
+    .map((blob) =>
+      toBlobFile({
+        url: blob.url,
+        pathname: blob.pathname,
+        downloadUrl: blob.downloadUrl,
+        size: blob.size,
+        uploadedAt: blob.uploadedAt,
+        etag: blob.etag,
+      }),
+    )
     .sort(
       (a, b) =>
         Date.parse(b.metadata.uploadedAt) - Date.parse(a.metadata.uploadedAt),
