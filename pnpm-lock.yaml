@@ -55,7 +55,7 @@ importers:
         version: 1.2.1(hono@4.11.9)(zod@4.3.6)
       '@openrouter/ai-sdk-provider':
         specifier: 2.2.3
-        version: 2.2.3(ai@6.0.85(zod@4.3.6))(zod@4.3.6)
+        version: 2.2.3(ai@6.0.86(zod@4.3.6))(zod@4.3.6)
       '@scalar/hono-api-reference':
         specifier: 0.9.40
         version: 0.9.40(hono@4.11.9)
@@ -81,8 +81,8 @@ importers:
         specifier: 2.17.1
         version: 2.17.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
-        specifier: 6.0.85
-        version: 6.0.85(zod@4.3.6)
+        specifier: 6.0.86
+        version: 6.0.86(zod@4.3.6)
       better-auth:
         specifier: 1.4.18
         version: 1.4.18(@prisma/client@7.4.0(prisma@7.4.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3))(mysql2@3.15.3)(next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0)(prisma@7.4.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(happy-dom@20.6.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.28(typescript@5.9.3))
@@ -185,7 +185,7 @@ importers:
         version: 16.1.6(next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
       '@openrouter/ai-sdk-provider':
         specifier: 2.2.3
-        version: 2.2.3(ai@6.0.85(zod@4.3.6))(zod@4.3.6)
+        version: 2.2.3(ai@6.0.86(zod@4.3.6))(zod@4.3.6)
       '@radix-ui/react-slot':
         specifier: 1.2.4
         version: 1.2.4(@types/react@19.2.14)(react@19.2.4)
@@ -229,8 +229,8 @@ importers:
         specifier: 2.17.1
         version: 2.17.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
-        specifier: 6.0.85
-        version: 6.0.85(zod@4.3.6)
+        specifier: 6.0.86
+        version: 6.0.86(zod@4.3.6)
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
@@ -605,12 +605,6 @@ packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
-
-  '@ai-sdk/gateway@3.0.45':
-    resolution: {integrity: sha512-ZB6kHV+D8mLCRnkpWotLCV/rZK4NiODxx4Kv7JdT9QmQknbG/scbE4iyoT4JLFdULA8Y/IVbMvyE0Nwq3Dceqw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: 4.3.6
 
   '@ai-sdk/gateway@3.0.46':
     resolution: {integrity: sha512-zH1UbNRjG5woOXXFOrVCZraqZuFTtmPvLardMGcgLkzpxKV0U3tAGoyWKSZ862H+eBJfI/Hf2yj/zzGJcCkycg==}
@@ -4510,12 +4504,6 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
-
-  ai@6.0.85:
-    resolution: {integrity: sha512-2bP7M+OcNQGSIH8I3jdujUadxj4tAwuHBvLhpmDSlcjRXXry3zNGEajjjRraOjObHMO/Yqa37PJWhPVHIHt2TQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: 4.3.6
 
   ai@6.0.86:
     resolution: {integrity: sha512-U2W2LBCHA/pr0Ui7vmmsjBiLEzBbZF3yVHNy7Rbzn7IX+SvoQPFM5rN74hhfVzZoE8zBuGD4nLLk+j0elGacvQ==}
@@ -9484,13 +9472,6 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ai-sdk/gateway@3.0.45(zod@4.3.6)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
-      '@vercel/oidc': 3.1.0
-      zod: 4.3.6
-
   '@ai-sdk/gateway@3.0.46(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 3.0.8
@@ -10645,9 +10626,9 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
-  '@openrouter/ai-sdk-provider@2.2.3(ai@6.0.85(zod@4.3.6))(zod@4.3.6)':
+  '@openrouter/ai-sdk-provider@2.2.3(ai@6.0.86(zod@4.3.6))(zod@4.3.6)':
     dependencies:
-      ai: 6.0.85(zod@4.3.6)
+      ai: 6.0.86(zod@4.3.6)
       zod: 4.3.6
 
   '@opentelemetry/api-logs@0.207.0':
@@ -13769,14 +13750,6 @@ snapshots:
       - supports-color
 
   agent-base@7.1.4: {}
-
-  ai@6.0.85(zod@4.3.6):
-    dependencies:
-      '@ai-sdk/gateway': 3.0.45(zod@4.3.6)
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
-      '@opentelemetry/api': 1.9.0
-      zod: 4.3.6
 
   ai@6.0.86(zod@4.3.6):
     dependencies:
