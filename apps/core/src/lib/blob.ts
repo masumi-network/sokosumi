@@ -11,7 +11,7 @@ import {
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
 
-export interface UserFileMetadata {
+export interface BlobFileMetadata {
   pathname: string;
   downloadUrl: string;
   size: number;
@@ -19,19 +19,21 @@ export interface UserFileMetadata {
   etag: string;
 }
 
-export interface UserFile {
+export interface BlobFile {
   publicUrl: string;
-  metadata: UserFileMetadata;
+  metadata: BlobFileMetadata;
 }
 
-function toUserFile(data: {
+type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
+
+function toBlobFile(data: {
   url: string;
   pathname: string;
   downloadUrl: string;
   size: number;
   uploadedAt: Date;
   etag: string;
-}): UserFile {
+}): BlobFile {
   return {
     publicUrl: data.url,
     metadata: {
@@ -44,8 +46,8 @@ function toUserFile(data: {
   };
 }
 
-function mapPutBlobToFallbackUserFile(blob: PutBlobResult, file: File): UserFile {
-  return toUserFile({
+function mapPutBlobToFallbackBlobFile(blob: PutBlobResult, file: File): BlobFile {
+  return toBlobFile({
     url: blob.url,
     pathname: blob.pathname,
     downloadUrl: blob.downloadUrl,
@@ -71,11 +73,22 @@ function sanitizeUploadFilename(fileName: string): string {
   return sanitized.length > 0 ? sanitized : "file";
 }
 
+function mapListBlobToBlobFile(blob: ListBlobItem): BlobFile {
+  return toBlobFile({
+    url: blob.url,
+    pathname: blob.pathname,
+    downloadUrl: blob.downloadUrl,
+    size: blob.size,
+    uploadedAt: blob.uploadedAt,
+    etag: blob.etag,
+  });
+}
+
 export async function uploadUserFile(
   userId: string,
   file: File,
   token: string,
-): Promise<UserFile> {
+): Promise<BlobFile> {
   const sanitizedFilename = sanitizeUploadFilename(file.name);
   const pathname = `${buildUserUploadPrefix(userId)}${sanitizedFilename}`;
 
@@ -89,7 +102,7 @@ export async function uploadUserFile(
 
   try {
     const blobHead = await head(blob.url, { token });
-    return toUserFile({
+    return toBlobFile({
       url: blobHead.url,
       pathname: blobHead.pathname,
       downloadUrl: blobHead.downloadUrl,
@@ -104,50 +117,40 @@ export async function uploadUserFile(
         phase: "head",
       },
     });
-    return mapPutBlobToFallbackUserFile(blob, file);
+    return mapPutBlobToFallbackBlobFile(blob, file);
   }
 }
 
 export async function listUserFiles(
   userId: string,
   token: string,
-): Promise<UserFile[]> {
+): Promise<BlobFile[]> {
   const prefix = buildUserUploadPrefix(userId);
-  const blobs: Awaited<ReturnType<typeof list>>["blobs"] = [];
-  let cursor: string | undefined;
-  let hasMore = true;
+  const blobs: ListBlobItem[] = [];
 
-  while (hasMore) {
-    const result = await list(
-      cursor ? { prefix, token, cursor } : { prefix, token },
-    );
-    blobs.push(...result.blobs);
-    hasMore = result.hasMore;
+  for (let cursor: string | undefined; ; ) {
+    const { blobs: pageBlobs, hasMore, cursor: nextCursor } = await list({
+      prefix,
+      token,
+      cursor,
+    });
+    blobs.push(...pageBlobs);
 
     if (!hasMore) {
       break;
     }
 
-    if (!result.cursor) {
+    if (!nextCursor) {
       throw new Error(
         "Blob list pagination is invalid: hasMore=true without cursor",
       );
     }
 
-    cursor = result.cursor;
+    cursor = nextCursor;
   }
 
   return blobs
-    .map((blob) =>
-      toUserFile({
-        url: blob.url,
-        pathname: blob.pathname,
-        downloadUrl: blob.downloadUrl,
-        size: blob.size,
-        uploadedAt: blob.uploadedAt,
-        etag: blob.etag,
-      }),
-    )
+    .map(mapListBlobToBlobFile)
     .sort(
       (a, b) =>
         Date.parse(b.metadata.uploadedAt) - Date.parse(a.metadata.uploadedAt),
