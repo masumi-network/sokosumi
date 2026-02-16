@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { listUserFiles } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { userFilesSchema } from "@/schemas/user-file.schema";
+import { blobFilesSchema } from "@/schemas/blob-file.schema";
 
 const route = createRoute({
   method: "get",
@@ -14,7 +14,7 @@ const route = createRoute({
   description: "Get uploaded files for the current user",
   tags: ["Users"],
   responses: {
-    200: jsonSuccessResponse(userFilesSchema, "Retrieve user files", {
+    200: jsonSuccessResponse(blobFilesSchema, "Retrieve user files", {
       data: [
         {
           publicUrl:
@@ -56,6 +56,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const files = await listUserFiles(authContext.userId, token);
 
-    return ok(c, userFilesSchema.parse(files));
+    return ok(c, blobFilesSchema.parse(files));
   });
 }

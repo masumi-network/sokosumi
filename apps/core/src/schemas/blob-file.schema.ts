@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 
-export const userFileMetadataSchema = z
+export const blobFileMetadataSchema = z
   .object({
     pathname: z.string().openapi({
       example: "users/user_123/document_abc.pdf",
@@ -22,19 +22,19 @@ export const userFileMetadataSchema = z
       description: "Blob entity tag",
     }),
   })
-  .openapi("UserFileMetadata");
+  .openapi("BlobFileMetadata");
 
-export const userFileSchema = z
+export const blobFileSchema = z
   .object({
     publicUrl: z.string().openapi({
       example: "https://store.public.blob.vercel-storage.com/users/user_123/document_abc.pdf",
       description: "Public URL of the uploaded file",
     }),
-    metadata: userFileMetadataSchema,
+    metadata: blobFileMetadataSchema,
   })
-  .openapi("UserFile");
+  .openapi("BlobFile");
 
-export const userFilesSchema = z.array(userFileSchema);
+export const blobFilesSchema = z.array(blobFileSchema);
 
-export type UserFile = z.infer<typeof userFileSchema>;
-export type UserFileMetadata = z.infer<typeof userFileMetadataSchema>;
+export type BlobFile = z.infer<typeof blobFileSchema>;
+export type BlobFileMetadata = z.infer<typeof blobFileMetadataSchema>;

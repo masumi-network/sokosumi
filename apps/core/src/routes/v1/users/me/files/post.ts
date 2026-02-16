@@ -7,7 +7,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { uploadUserFile } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { userFileSchema } from "@/schemas/user-file.schema";
+import { blobFileSchema } from "@/schemas/blob-file.schema";
 
 const fileFieldSchema = z.custom<File>(
   (value): value is File => value instanceof File,
@@ -37,7 +37,7 @@ const route = createRoute({
     },
   },
   responses: {
-    201: jsonSuccessResponse(userFileSchema, "File uploaded successfully", {
+    201: jsonSuccessResponse(blobFileSchema, "File uploaded successfully", {
       data: {
         publicUrl:
           "https://store.public.blob.vercel-storage.com/users/user_123/document_abc.pdf",
@@ -100,6 +100,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const file = extractAndValidateFile(formData);
     const uploadedFile = await uploadUserFile(authContext.userId, file, token);
 
-    return created(c, userFileSchema.parse(uploadedFile));
+    return created(c, blobFileSchema.parse(uploadedFile));
   });
 }

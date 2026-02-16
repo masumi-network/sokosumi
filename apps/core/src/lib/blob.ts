@@ -10,19 +10,7 @@ import {
 
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
-
-export interface BlobFileMetadata {
-  pathname: string;
-  downloadUrl: string;
-  size: number;
-  uploadedAt: string;
-  etag: string;
-}
-
-export interface BlobFile {
-  publicUrl: string;
-  metadata: BlobFileMetadata;
-}
+import type { BlobFile } from "@/schemas/blob-file.schema";
 
 type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
 
