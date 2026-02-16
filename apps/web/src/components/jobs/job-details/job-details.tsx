@@ -136,6 +136,7 @@ export default function JobDetails({
                 )}
               </section>
             </div>
+            <JobDetailsFooter legal={getAgentLegal(job.agent)} />
           </div>
         </div>
 
@@ -145,7 +146,6 @@ export default function JobDetails({
           </div>
         </aside>
       </div>
-      <JobDetailsFooter legal={getAgentLegal(job.agent)} />
     </div>
   );
 

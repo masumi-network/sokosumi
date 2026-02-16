@@ -86,7 +86,7 @@ function JobDetailsOutputsInner({
             highlightTerm={highlightTerm}
             expandLabel={t("expand")}
             collapseLabel={t("collapse")}
-            fadeClassName="to-background"
+            fadeClassName="to-transparent"
           />
           {isCompleted && (
             <>
