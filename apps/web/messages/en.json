@@ -1,31 +1,4 @@
 {
-  "Footer": {
-    "Navigate": {
-      "title": "Navigate",
-      "agentsGallery": "Agents Gallery",
-      "contribute": "Contribute"
-    },
-    "Connect": {
-      "title": "Connect",
-      "twitter": "X/Twitter",
-      "discord": "Discord"
-    },
-    "GetInTouch": {
-      "title": "Get In Touch",
-      "contact": "Contact",
-      "listYourAgent": "List Your Agent",
-      "requestDataDeletion": "Request Data Deletion"
-    },
-    "AgenticServices": {
-      "title": "Agentic Services",
-      "masumi": "masumi",
-      "kodosumi": "kodosumi"
-    },
-    "copyright": "© {year} Masumi",
-    "imprint": "Imprint",
-    "privacyPolicy": "Privacy Policy",
-    "termsOfServices": "Terms of Service"
-  },
   "Job": {
     "CreationFailed": "Failed to create job",
     "RefundFailed": "Failed to refund job",
@@ -1645,6 +1618,19 @@
         "submit": "Set password",
         "success": "Password set successfully",
         "error": "Failed to set password"
+      },
+      "Theme": {
+        "title": "Theme",
+        "description": "Choose how the interface looks.",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "Language": {
+        "title": "Language",
+        "description": "Select your preferred language.",
+        "currentLanguage": "English",
+        "comingSoon": "More languages coming soon"
       },
       "SocialAccounts": {
         "connected": "is connected",

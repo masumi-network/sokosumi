@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { EmergencyDialog } from "@/components/emergency-dialog";
-import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import QueryProvider from "@/contexts/query-provider";
@@ -86,7 +85,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             {children}
           </div>
         </main>
-        <FooterSections className="p-4" />
       </div>
     </SidebarProvider>
   );
