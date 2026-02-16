@@ -88,10 +88,10 @@ export default function JobDetails({
       )}
     >
       <div className="flex w-full flex-col gap-4 md:h-full md:flex-row">
-        <div className="flex w-full min-w-0 justify-center pb-20">
+        <div className="flex w-full min-w-0 justify-center">
           <div className="max-w-4xl min-w-0 flex-1">
             {showAgentHeader && jobsHeader ? <Header {...jobsHeader} /> : null}
-            <div className="space-y-8">
+            <div className="space-y-8 pb-20">
               <JobDetailsHeader
                 job={job}
                 readOnly={readOnly}
