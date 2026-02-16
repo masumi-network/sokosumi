@@ -23,7 +23,7 @@ vi.mock("@sentry/node", () => ({
 
 describe("uploadUserFile", () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("uploads into user namespace and returns canonical metadata from head", async () => {
@@ -139,10 +139,10 @@ describe("uploadUserFile", () => {
 
 describe("listUserFiles", () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
-  it("lists files by user prefix and sorts newest first", async () => {
+  it("lists one page by user prefix and sorts newest first", async () => {
     listMock.mockResolvedValue({
       blobs: [
         {
@@ -166,33 +166,98 @@ describe("listUserFiles", () => {
       cursor: undefined,
     });
 
-    const files = await listUserFiles("user_123", "token_123");
+    const result = await listUserFiles("user_123", "token_123", {
+      limit: 10,
+    });
 
     expect(listMock).toHaveBeenCalledWith({
+      cursor: undefined,
+      limit: 10,
       prefix: "users/user_123/",
       token: "token_123",
     });
-    expect(files).toEqual([
-      {
-        publicUrl: "https://blob.example/users/user_123/newer.txt",
-        metadata: {
-          pathname: "users/user_123/newer.txt",
-          downloadUrl: "https://blob.example/download/newer.txt",
-          size: 20,
-          uploadedAt: "2026-02-16T12:00:00.000Z",
-          etag: "etag-newer",
+    expect(result).toEqual({
+      files: [
+        {
+          publicUrl: "https://blob.example/users/user_123/newer.txt",
+          metadata: {
+            pathname: "users/user_123/newer.txt",
+            downloadUrl: "https://blob.example/download/newer.txt",
+            size: 20,
+            uploadedAt: "2026-02-16T12:00:00.000Z",
+            etag: "etag-newer",
+          },
         },
-      },
-      {
-        publicUrl: "https://blob.example/users/user_123/older.txt",
-        metadata: {
-          pathname: "users/user_123/older.txt",
-          downloadUrl: "https://blob.example/download/older.txt",
-          size: 10,
-          uploadedAt: "2026-02-16T10:00:00.000Z",
-          etag: "etag-older",
+        {
+          publicUrl: "https://blob.example/users/user_123/older.txt",
+          metadata: {
+            pathname: "users/user_123/older.txt",
+            downloadUrl: "https://blob.example/download/older.txt",
+            size: 10,
+            uploadedAt: "2026-02-16T10:00:00.000Z",
+            etag: "etag-older",
+          },
         },
-      },
-    ]);
+      ],
+      hasMore: false,
+      nextCursor: null,
+    });
+  });
+
+  it("passes cursor and returns nextCursor when more pages exist", async () => {
+    listMock.mockResolvedValue({
+      blobs: [
+        {
+          url: "https://blob.example/users/user_123/newest.txt",
+          downloadUrl: "https://blob.example/download/newest.txt",
+          pathname: "users/user_123/newest.txt",
+          size: 30,
+          uploadedAt: new Date("2026-02-16T13:00:00.000Z"),
+          etag: "etag-newest",
+        },
+      ],
+      hasMore: true,
+      cursor: "cursor-1",
+    });
+
+    const result = await listUserFiles("user_123", "token_123", {
+      cursor: "cursor-0",
+      limit: 1,
+    });
+
+    expect(listMock).toHaveBeenCalledWith({
+      cursor: "cursor-0",
+      limit: 1,
+      prefix: "users/user_123/",
+      token: "token_123",
+    });
+    expect(result).toEqual({
+      files: [
+        {
+          publicUrl: "https://blob.example/users/user_123/newest.txt",
+          metadata: {
+            pathname: "users/user_123/newest.txt",
+            downloadUrl: "https://blob.example/download/newest.txt",
+            size: 30,
+            uploadedAt: "2026-02-16T13:00:00.000Z",
+            etag: "etag-newest",
+          },
+        },
+      ],
+      hasMore: true,
+      nextCursor: "cursor-1",
+    });
+  });
+
+  it("throws when blob pagination response is malformed", async () => {
+    listMock.mockResolvedValue({
+      blobs: [],
+      hasMore: true,
+      cursor: undefined,
+    });
+
+    await expect(
+      listUserFiles("user_123", "token_123", { limit: 10 }),
+    ).rejects.toThrow("Blob list pagination is invalid: hasMore=true without cursor");
   });
 });

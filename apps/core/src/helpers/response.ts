@@ -36,12 +36,24 @@ export type SuccessResponse<T> = z.infer<
   ReturnType<typeof successResponseSchema<z.ZodType<T>>>
 >;
 
-export const ok = <T>(
+type SuccessResponseWithCustomPagination<
+  T,
+  P extends Record<string, unknown>,
+> = {
+  data: T;
+  meta: {
+    timestamp: string;
+    requestId: string;
+    pagination?: P;
+  };
+};
+
+export const ok = <T, P extends Record<string, unknown> = CursorPaginationMeta>(
   c: Context,
   data: T,
-  paginationMeta?: CursorPaginationMeta,
+  paginationMeta?: P,
 ) => {
-  return c.json<SuccessResponse<T>, 200>(
+  return c.json<SuccessResponseWithCustomPagination<T, P>, 200>(
     {
       data,
       meta: {
@@ -54,12 +66,15 @@ export const ok = <T>(
   );
 };
 
-export const created = <T>(
+export const created = <
+  T,
+  P extends Record<string, unknown> = CursorPaginationMeta,
+>(
   c: Context,
   data: T,
-  paginationMeta?: CursorPaginationMeta,
+  paginationMeta?: P,
 ) => {
-  return c.json<SuccessResponse<T>, 201>(
+  return c.json<SuccessResponseWithCustomPagination<T, P>, 201>(
     {
       data,
       meta: {
