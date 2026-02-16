@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import { useSession } from "@/lib/auth/auth.client";
-import { getAgentName } from "@/lib/helpers/agent";
+import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { getInitials } from "@/lib/utils/text";
@@ -31,6 +31,7 @@ import {
   shouldRenderAwaitingInputFormForViewer,
   splitInitiatedEvent,
 } from "./job-details-events.utils";
+import { JobDetailsFooter } from "./job-details-footer";
 import JobDetailsName from "./job-details-name";
 import { JobMetaDetails } from "./job-meta-details";
 import JobDetailsOutputs from "./outputs";
@@ -144,6 +145,7 @@ export default function JobDetails({
           </div>
         </aside>
       </div>
+      <JobDetailsFooter legal={getAgentLegal(job.agent)} />
     </div>
   );
 

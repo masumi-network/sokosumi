@@ -14,14 +14,9 @@ import {
 import DefaultLoading from "@/components/default-loading";
 import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
-import {
-  getAgentDescription,
-  getAgentLegal,
-  getAgentName,
-} from "@/lib/helpers/agent";
+import { getAgentDescription, getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 
-import Footer from "./components/footer";
 import JobBottomNavigation from "./components/job-bottom-navigation";
 import { JobsHeaderProvider } from "./components/jobs-header-context";
 
@@ -139,7 +134,6 @@ async function JobLayoutInner({
             favoriteAgents={favoriteAgents}
             disabled={!availableAgent}
           />
-          <Footer legal={getAgentLegal(agent)} />
           {/* Create Job Modal */}
           {!!availableAgent && <CreateJobModal />}
         </div>
