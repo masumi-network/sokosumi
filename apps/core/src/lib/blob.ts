@@ -24,17 +24,6 @@ export interface UserFile {
   metadata: UserFileMetadata;
 }
 
-export interface ListUserFilesOptions {
-  cursor?: string;
-  limit: number;
-}
-
-export interface ListUserFilesResult {
-  files: UserFile[];
-  hasMore: boolean;
-  nextCursor: string | null;
-}
-
 function toUserFile(data: {
   url: string;
   pathname: string;
@@ -122,23 +111,33 @@ export async function uploadUserFile(
 export async function listUserFiles(
   userId: string,
   token: string,
-  options: ListUserFilesOptions,
-): Promise<ListUserFilesResult> {
+): Promise<UserFile[]> {
   const prefix = buildUserUploadPrefix(userId);
-  const result = await list({
-    prefix,
-    token,
-    limit: options.limit,
-    cursor: options.cursor,
-  });
+  const blobs: Awaited<ReturnType<typeof list>>["blobs"] = [];
+  let cursor: string | undefined;
+  let hasMore = true;
 
-  if (result.hasMore && !result.cursor) {
-    throw new Error(
-      "Blob list pagination is invalid: hasMore=true without cursor",
+  while (hasMore) {
+    const result = await list(
+      cursor ? { prefix, token, cursor } : { prefix, token },
     );
+    blobs.push(...result.blobs);
+    hasMore = result.hasMore;
+
+    if (!hasMore) {
+      break;
+    }
+
+    if (!result.cursor) {
+      throw new Error(
+        "Blob list pagination is invalid: hasMore=true without cursor",
+      );
+    }
+
+    cursor = result.cursor;
   }
 
-  const files = result.blobs
+  return blobs
     .map((blob) =>
       toUserFile({
         url: blob.url,
@@ -153,12 +152,6 @@ export async function listUserFiles(
       (a, b) =>
         Date.parse(b.metadata.uploadedAt) - Date.parse(a.metadata.uploadedAt),
     );
-
-  return {
-    files,
-    hasMore: result.hasMore,
-    nextCursor: result.hasMore ? result.cursor : null,
-  };
 }
 
 /**

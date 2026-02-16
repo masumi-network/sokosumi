@@ -51,9 +51,6 @@ export const LIMITS = {
   /** Default pagination limit */
   DEFAULT_PAGINATION_LIMIT: 20,
 
-  /** Default pagination limit for user file listing */
-  USER_FILES_DEFAULT_PAGINATION_LIMIT: 10,
-
   /** Maximum pagination limit */
   MAX_PAGINATION_LIMIT: 100,
 

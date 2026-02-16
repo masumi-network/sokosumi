@@ -142,7 +142,7 @@ describe("listUserFiles", () => {
     vi.resetAllMocks();
   });
 
-  it("lists one page by user prefix and sorts newest first", async () => {
+  it("lists files by user prefix and sorts newest first", async () => {
     listMock.mockResolvedValue({
       blobs: [
         {
@@ -166,87 +166,91 @@ describe("listUserFiles", () => {
       cursor: undefined,
     });
 
-    const result = await listUserFiles("user_123", "token_123", {
-      limit: 10,
-    });
+    const files = await listUserFiles("user_123", "token_123");
 
     expect(listMock).toHaveBeenCalledWith({
-      cursor: undefined,
-      limit: 10,
       prefix: "users/user_123/",
       token: "token_123",
     });
-    expect(result).toEqual({
-      files: [
-        {
-          publicUrl: "https://blob.example/users/user_123/newer.txt",
-          metadata: {
-            pathname: "users/user_123/newer.txt",
-            downloadUrl: "https://blob.example/download/newer.txt",
-            size: 20,
-            uploadedAt: "2026-02-16T12:00:00.000Z",
-            etag: "etag-newer",
-          },
+    expect(files).toEqual([
+      {
+        publicUrl: "https://blob.example/users/user_123/newer.txt",
+        metadata: {
+          pathname: "users/user_123/newer.txt",
+          downloadUrl: "https://blob.example/download/newer.txt",
+          size: 20,
+          uploadedAt: "2026-02-16T12:00:00.000Z",
+          etag: "etag-newer",
         },
-        {
-          publicUrl: "https://blob.example/users/user_123/older.txt",
-          metadata: {
-            pathname: "users/user_123/older.txt",
-            downloadUrl: "https://blob.example/download/older.txt",
-            size: 10,
-            uploadedAt: "2026-02-16T10:00:00.000Z",
-            etag: "etag-older",
-          },
+      },
+      {
+        publicUrl: "https://blob.example/users/user_123/older.txt",
+        metadata: {
+          pathname: "users/user_123/older.txt",
+          downloadUrl: "https://blob.example/download/older.txt",
+          size: 10,
+          uploadedAt: "2026-02-16T10:00:00.000Z",
+          etag: "etag-older",
         },
-      ],
-      hasMore: false,
-      nextCursor: null,
-    });
+      },
+    ]);
   });
 
-  it("passes cursor and returns nextCursor when more pages exist", async () => {
-    listMock.mockResolvedValue({
-      blobs: [
-        {
-          url: "https://blob.example/users/user_123/newest.txt",
-          downloadUrl: "https://blob.example/download/newest.txt",
-          pathname: "users/user_123/newest.txt",
-          size: 30,
-          uploadedAt: new Date("2026-02-16T13:00:00.000Z"),
-          etag: "etag-newest",
-        },
-      ],
-      hasMore: true,
-      cursor: "cursor-1",
-    });
+  it("paginates through all blob pages before sorting", async () => {
+    listMock
+      .mockResolvedValueOnce({
+        blobs: [
+          {
+            url: "https://blob.example/users/user_123/oldest.txt",
+            downloadUrl: "https://blob.example/download/oldest.txt",
+            pathname: "users/user_123/oldest.txt",
+            size: 10,
+            uploadedAt: new Date("2026-02-16T09:00:00.000Z"),
+            etag: "etag-oldest",
+          },
+        ],
+        hasMore: true,
+        cursor: "cursor-1",
+      })
+      .mockResolvedValueOnce({
+        blobs: [
+          {
+            url: "https://blob.example/users/user_123/newest.txt",
+            downloadUrl: "https://blob.example/download/newest.txt",
+            pathname: "users/user_123/newest.txt",
+            size: 30,
+            uploadedAt: new Date("2026-02-16T13:00:00.000Z"),
+            etag: "etag-newest",
+          },
+          {
+            url: "https://blob.example/users/user_123/middle.txt",
+            downloadUrl: "https://blob.example/download/middle.txt",
+            pathname: "users/user_123/middle.txt",
+            size: 20,
+            uploadedAt: new Date("2026-02-16T11:00:00.000Z"),
+            etag: "etag-middle",
+          },
+        ],
+        hasMore: false,
+        cursor: undefined,
+      });
 
-    const result = await listUserFiles("user_123", "token_123", {
-      cursor: "cursor-0",
-      limit: 1,
-    });
+    const files = await listUserFiles("user_123", "token_123");
 
-    expect(listMock).toHaveBeenCalledWith({
-      cursor: "cursor-0",
-      limit: 1,
+    expect(listMock).toHaveBeenNthCalledWith(1, {
       prefix: "users/user_123/",
       token: "token_123",
     });
-    expect(result).toEqual({
-      files: [
-        {
-          publicUrl: "https://blob.example/users/user_123/newest.txt",
-          metadata: {
-            pathname: "users/user_123/newest.txt",
-            downloadUrl: "https://blob.example/download/newest.txt",
-            size: 30,
-            uploadedAt: "2026-02-16T13:00:00.000Z",
-            etag: "etag-newest",
-          },
-        },
-      ],
-      hasMore: true,
-      nextCursor: "cursor-1",
+    expect(listMock).toHaveBeenNthCalledWith(2, {
+      prefix: "users/user_123/",
+      token: "token_123",
+      cursor: "cursor-1",
     });
+    expect(files.map((file) => file.metadata.pathname)).toEqual([
+      "users/user_123/newest.txt",
+      "users/user_123/middle.txt",
+      "users/user_123/oldest.txt",
+    ]);
   });
 
   it("throws when blob pagination response is malformed", async () => {
@@ -256,8 +260,8 @@ describe("listUserFiles", () => {
       cursor: undefined,
     });
 
-    await expect(
-      listUserFiles("user_123", "token_123", { limit: 10 }),
-    ).rejects.toThrow("Blob list pagination is invalid: hasMore=true without cursor");
+    await expect(listUserFiles("user_123", "token_123")).rejects.toThrow(
+      "Blob list pagination is invalid: hasMore=true without cursor",
+    );
   });
 });
