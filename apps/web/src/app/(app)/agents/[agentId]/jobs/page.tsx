@@ -29,7 +29,6 @@ export default async function JobsPage({ params }: JobsPageProps) {
 
   const agentJobs = await userService.getMyJobs(agentId);
 
-  // return <JobsTable jobs={agentJobs} userId={session.user.id} />;
   return (
     <JobsList
       jobs={agentJobs}

@@ -429,8 +429,9 @@ function getAgentJobStatusDotColorClass(status: AgentJobStatus) {
       return "bg-orange-500";
     case AgentJobStatus.RUNNING:
     case AgentJobStatus.INITIATED:
-    default:
       return "bg-sky-500";
+    default:
+      return "bg-gray-500";
   }
 }
 
