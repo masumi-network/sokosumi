@@ -128,16 +128,15 @@ export async function requireUserTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-  scopes: TaskScope[] = ["context"],
 ): Promise<Task> {
   if (authContext.coworkerId) {
     throw forbidden("Only the user is allowed to do this operation");
   }
-  const scopeFilters = buildTaskScopeFilters(authContext, scopes);
-  const task = await tx.task.findFirst({
+  const task = await tx.task.findUnique({
     where: {
       id: taskId,
-      OR: scopeFilters,
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
     },
   });
 
@@ -226,12 +225,40 @@ export async function requireTaskAccess(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-  scopes: TaskScope[] = ["context"],
 ): Promise<Task> {
   if (authContext.coworkerId) {
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
-  return await requireUserTaskAccess(authContext, taskId, tx, scopes);
+  return await requireUserTaskAccess(authContext, taskId, tx);
+}
+
+export async function requireScopedTaskReadAccess(
+  authContext: AuthenticationContext,
+  taskId: string,
+  scopes: TaskScope[] = ["context"],
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  if (authContext.coworkerId) {
+    return await requireCoworkerTaskAccess(authContext, taskId, tx);
+  }
+
+  const scopeFilters = buildTaskScopeFilters(authContext, scopes);
+  if (scopeFilters.length === 0) {
+    throw notFound("Task not found");
+  }
+
+  const task = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      OR: scopeFilters,
+    },
+  });
+
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  return task;
 }
 
 export async function requireScopedJobReadAccess(

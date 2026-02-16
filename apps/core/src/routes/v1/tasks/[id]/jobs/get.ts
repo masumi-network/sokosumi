@@ -5,7 +5,7 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 
-import { requireTaskAccess } from "@/helpers/access-control";
+import { requireScopedTaskReadAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { resolveTaskScopes, taskScopeQuerySchema } from "@/helpers/scope";
@@ -49,7 +49,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const taskScopes = resolveTaskScopes(authContext, scope);
 
     const jobs = await prisma.$transaction(async (tx) => {
-      await requireTaskAccess(authContext, id, tx, taskScopes);
+      await requireScopedTaskReadAccess(authContext, id, taskScopes, tx);
 
       const jobsList = await tx.job.findMany({
         where: { taskId: id },
