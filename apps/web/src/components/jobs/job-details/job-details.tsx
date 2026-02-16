@@ -22,6 +22,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import { getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
+import { getInitials } from "@/lib/utils/text";
 import { getJobQueryKey, getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
@@ -401,20 +402,6 @@ function JobDetailsContent({
       </div>
     </div>
   );
-}
-
-function getInitials(name: string) {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return "?";
-  }
-
-  return trimmedName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 }
 
 function getAgentJobStatusDotColorClass(status: AgentJobStatus) {

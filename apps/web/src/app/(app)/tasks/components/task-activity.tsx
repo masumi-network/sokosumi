@@ -34,6 +34,7 @@ import type { TaskEvent } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import { getInitials } from "@/lib/utils/text";
 
 import {
   getTaskStatusDotColorClass,
@@ -64,20 +65,6 @@ interface TaskActivityProps {
   expandLabel?: string;
   collapseLabel?: string;
   isFreePlan?: boolean;
-}
-
-function getInitials(name: string) {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return "?";
-  }
-
-  return trimmedName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 }
 
 function getEventTimestamp(event: TaskEvent): number {
