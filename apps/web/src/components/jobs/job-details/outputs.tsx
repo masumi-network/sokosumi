@@ -79,7 +79,7 @@ function JobDetailsOutputsInner({
   return (
     <JobDetailsOutputsLayout>
       {result ? (
-        <>
+        <div className="min-h-0 overflow-hidden">
           <ExpandableMarkdown
             content={result}
             className="text-sm"
@@ -124,7 +124,7 @@ function JobDetailsOutputsInner({
               />
             </>
           )}
-        </>
+        </div>
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
