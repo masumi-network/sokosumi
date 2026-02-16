@@ -21,8 +21,8 @@ const ThemeToggle = () => {
       size="icon"
       onClick={handleToggleTheme}
     >
-      <SunIcon className="h-4 w-4 scale-0 rotate-90 transition-transform duration-500 ease-in-out dark:scale-100 dark:rotate-0" />
-      <MoonIcon className="absolute h-4 w-4 scale-100 rotate-0 transition-transform duration-500 ease-in-out dark:scale-0 dark:-rotate-90" />
+      <SunIcon className="size-4 scale-0 rotate-90 transition-transform duration-500 ease-in-out dark:scale-100 dark:rotate-0" />
+      <MoonIcon className="absolute size-4 scale-100 rotate-0 transition-transform duration-500 ease-in-out dark:scale-0 dark:-rotate-90" />
     </Button>
   );
 };

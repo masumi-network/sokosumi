@@ -15,11 +15,11 @@ export default function Footer({ legal }: FooterProps) {
   const { terms, privacyPolicy, other } = legal;
 
   return (
-    <div className="mt-4 flex items-center gap-2">
+    <div className="text-muted-foreground mt-4 mb-4 flex items-center gap-2">
       {terms && (
         <Link
           href={terms}
-          className="hover:text-foreground underline underline-offset-4 transition-colors"
+          className="text-sm hover:text-foreground transition-colors"
         >
           {t("termsAndConditions")}
         </Link>
@@ -27,7 +27,7 @@ export default function Footer({ legal }: FooterProps) {
       {privacyPolicy && (
         <Link
           href={privacyPolicy}
-          className="hover:text-foreground underline underline-offset-4 transition-colors"
+          className="text-sm hover:text-foreground transition-colors"
         >
           {t("privacyPolicy")}
         </Link>
@@ -35,7 +35,7 @@ export default function Footer({ legal }: FooterProps) {
       {other && (
         <Link
           href={other}
-          className="hover:text-foreground underline underline-offset-4 transition-colors"
+          className="text-sm hover:text-foreground transition-colors"
         >
           {t("customerSupport")}
         </Link>

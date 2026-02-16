@@ -7,6 +7,7 @@ import { EmailPreferences } from "./email-preferences";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
 import { PasswordForm } from "./password-form";
+import { PreferencesSection } from "./preferences-section";
 
 interface AccountSettingsProps {
   accounts: Account[];
@@ -31,6 +32,10 @@ export function AccountSettings({
         <div className="md:col-span-2">
           {hasCredentialAccount ? <PasswordForm /> : <NewPasswordForm />}
         </div>
+      </div>
+
+      <div className="border-t pt-8">
+        <PreferencesSection />
       </div>
 
       <div className="border-t pt-8">
