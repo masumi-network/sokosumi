@@ -6,6 +6,6 @@ export function isCreditableTaskStatus(
   return (
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.CANCELED ||
-    status === TaskStatus.CREDITS_TOPPED_UP
+    status === TaskStatus.OUT_OF_CREDITS
   );
 }

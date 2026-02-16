@@ -1572,6 +1572,13 @@
         "unknownError": "Something went wrong"
       }
     },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Connected Apps",
+        "apiKeys": "API Keys",
+        "mcp": "MCP"
+      }
+    },
     "MCP": {
       "generateButton": "Generate your Sokosumi MCP URL",
       "urlLabel": "Your MCP Connection URL",

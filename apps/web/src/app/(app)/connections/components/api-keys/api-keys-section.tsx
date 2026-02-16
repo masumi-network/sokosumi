@@ -13,10 +13,6 @@ import { useApiKeys } from "./hooks/use-api-keys";
 import { useDialogState } from "./hooks/use-dialog-state";
 import { CreateApiKeyResult } from "./types";
 
-/**
- * Main API Keys management section component
- * Orchestrates all API key operations and UI components
- */
 export function ApiKeysSection() {
   const {
     apiKeys,
@@ -27,16 +23,10 @@ export function ApiKeysSection() {
   } = useApiKeys();
   const dialogState = useDialogState();
 
-  /**
-   * Handle create button click
-   */
   const handleCreateClick = useCallback(() => {
     dialogState.createDialog.setOpen(true);
   }, [dialogState.createDialog]);
 
-  /**
-   * Handle successful API key creation
-   */
   const handleCreateSuccess = useCallback(
     (result: CreateApiKeyResult) => {
       if (result.success && result.data) {
@@ -46,9 +36,6 @@ export function ApiKeysSection() {
     [dialogState.createDialog],
   );
 
-  /**
-   * Handle API key status toggle (enable/disable)
-   */
   const handleToggleStatus = useCallback(
     async (apiKey: Apikey) => {
       await update({
@@ -59,9 +46,6 @@ export function ApiKeysSection() {
     [update],
   );
 
-  /**
-   * Handle delete button click
-   */
   const handleDeleteClick = useCallback(
     (apiKey: Apikey) => {
       dialogState.deleteDialog.setKeyToDelete(apiKey);
@@ -70,11 +54,7 @@ export function ApiKeysSection() {
     [dialogState.deleteDialog],
   );
 
-  /**
-   * Handle successful API key deletion
-   */
   const handleDeleteSuccess = useCallback(() => {
-    // API key list will be refreshed automatically by the delete operation
     dialogState.deleteDialog.setKeyToDelete(null);
   }, [dialogState.deleteDialog]);
 

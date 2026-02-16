@@ -98,6 +98,15 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts credits for out-of-credits tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.OUT_OF_CREDITS,
+      credits: 3,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("accepts completed tasks without credits", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,
@@ -118,6 +127,15 @@ describe("createTaskEventRequestSchema", () => {
   it("rejects credits for non-chargeable statuses", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
+      credits: 2,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects credits for credits-topped-up tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.CREDITS_TOPPED_UP,
       credits: 2,
     });
 

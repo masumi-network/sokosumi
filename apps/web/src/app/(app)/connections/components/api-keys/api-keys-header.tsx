@@ -9,10 +9,6 @@ import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { ApiKeysHeaderProps } from "./types";
 
-/**
- * Header component for the API keys section
- * Contains title, description, and create button
- */
 export function ApiKeysHeader({ onCreateClick }: ApiKeysHeaderProps) {
   const t = useTranslations("App.Account.ApiKeys");
 

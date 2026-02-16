@@ -1,8 +1,7 @@
-import { OpenAPIHono, type RouteConfig } from "@hono/zod-openapi";
-import { z } from "@hono/zod-openapi";
+import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import { authMiddleware, type AuthVariables } from "@/middleware/auth";
+import { type AuthEnv, authMiddleware } from "@/middleware/auth";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
 
 /**
@@ -41,9 +40,7 @@ export interface OpenAPIHonoWithAuthOptions {
  * const app = new OpenAPIHonoWithAuth();
  * // authMiddleware and organizationHeaderMiddleware are already applied
  */
-export class OpenAPIHonoWithAuth extends OpenAPIHono<{
-  Variables: AuthVariables;
-}> {
+export class OpenAPIHonoWithAuth extends OpenAPIHono<AuthEnv> {
   constructor(
     options: OpenAPIHonoWithAuthOptions = { includeOrganizationHeader: true },
   ) {

@@ -4,8 +4,8 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { UseClipboardReturn } from "@/app/account/components/api-keys/types";
-import { COPY_SUCCESS_TIMEOUT } from "@/app/account/components/api-keys/utils";
+import { UseClipboardReturn } from "@/app/connections/components/api-keys/types";
+import { COPY_SUCCESS_TIMEOUT } from "@/app/connections/components/api-keys/utils";
 
 /**
  * Custom hook for clipboard operations
