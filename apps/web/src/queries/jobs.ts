@@ -19,16 +19,15 @@ export const getJobQueryKey = (jobId: string) => ["jobs", jobId];
 export const getJobQueryOptions = (jobId: string, session: Session | null) =>
   queryOptions({
     queryKey: getJobQueryKey(jobId),
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!session) {
         throw new UnAuthenticatedError();
       }
 
-      const url = new URL(
-        `/api/internal/jobs/${jobId}`,
-        window.location.origin,
-      );
-      const response = await fetch(url);
+      const response = await fetch(`/api/internal/jobs/${jobId}`, {
+        credentials: "include",
+      });
       if (!response.ok) {
         switch (response.status) {
           case 401:

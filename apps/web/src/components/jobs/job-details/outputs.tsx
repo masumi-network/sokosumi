@@ -82,7 +82,7 @@ function JobDetailsOutputsInner({
         <div className="min-h-0 overflow-hidden">
           <ExpandableMarkdown
             content={result}
-            className="text-sm"
+            className="text-foreground/80"
             highlightTerm={highlightTerm}
             expandLabel={t("expand")}
             collapseLabel={t("collapse")}

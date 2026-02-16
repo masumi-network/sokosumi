@@ -12,13 +12,14 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
-import { getAuthContext } from "@/lib/auth/utils";
+import { getAuthContext, getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentDescription, getAgentName } from "@/lib/helpers/agent";
-import { agentService } from "@/lib/services";
+import { agentService, userService } from "@/lib/services";
 
 import JobBottomNavigation from "./components/job-bottom-navigation";
 import { JobsHeaderProvider } from "./components/jobs-header-context";
+import { JobsList } from "./components/jobs-list";
 
 export async function generateMetadata({
   params,
@@ -60,12 +61,12 @@ export default async function JobLayout({
   );
 }
 
-async function JobLayoutInner({
-  right,
-  modal,
-  params,
-  children,
-}: JobLayoutProps) {
+async function JobLayoutInner({ right, modal, params }: JobLayoutProps) {
+  const session = await getSession();
+  if (!session) {
+    return notFound();
+  }
+
   const { agentId } = await params;
   const agent = await agentRepository.getAgentWithRelationsById(
     agentId,
@@ -78,6 +79,7 @@ async function JobLayoutInner({
   const authContext = await getAuthContext();
 
   const [
+    agentJobs,
     agentWithCreditsPrice,
     favoriteAgents,
     availableAgent,
@@ -86,6 +88,7 @@ async function JobLayoutInner({
     canRate,
     existingRating,
   ] = await Promise.all([
+    userService.getMyJobs(agentId),
     agentService.getAgentCreditsPrice(agent),
     agentService.getFavoriteAgents(),
     agentService.getAvailableAgentById(agentId),
@@ -121,7 +124,11 @@ async function JobLayoutInner({
         <div className="flex w-full flex-col">
           <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
             <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
-              {children}
+              <JobsList
+                jobs={agentJobs}
+                userId={session.user.id}
+                agentId={agentId}
+              />
             </div>
 
             <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">

@@ -1967,6 +1967,9 @@
           "newJob": "New Job",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
         },
+        "Modal": {
+          "back": "Back"
+        },
         "Footer": {
           "termsAndConditions": "Terms and Conditions",
           "privacyPolicy": "Privacy Policy",
