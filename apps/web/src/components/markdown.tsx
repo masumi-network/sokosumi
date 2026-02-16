@@ -93,7 +93,7 @@ export default function Markdown({
   };
 
   const baseTypographyClassName =
-    "prose prose-sm prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-h4:text-sm prose-h5:text-sm prose-h6:text-sm prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/80 prose-strong:text-foreground prose-li:my-1 prose-ul:my-2 prose-ol:my-2 prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-4 prose-a:decoration-primary/40 hover:prose-a:decoration-primary prose-pre:my-3 prose-blockquote:my-3 max-w-none dark:prose-invert";
+    "prose prose-sm prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-h4:text-sm prose-h5:text-sm prose-h6:text-sm prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/80 prose-strong:text-foreground prose-li:my-1 prose-ul:my-2 prose-ol:my-2 prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-4 prose-a:decoration-primary/40 hover:prose-a:decoration-primary prose-pre:my-3 prose-blockquote:my-3 prose-hr:my-4 prose-hr:border-border prose-hr:border-t prose-hr:border-b-0 max-w-none dark:prose-invert";
 
   return (
     <div className={cn(baseTypographyClassName, className)}>
