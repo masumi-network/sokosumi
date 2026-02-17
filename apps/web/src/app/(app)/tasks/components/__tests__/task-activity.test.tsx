@@ -52,7 +52,7 @@ jest.mock("@/lib/actions/task/action", () => ({
   createTaskComment: jest.fn(),
 }));
 
-jest.mock("../expandable-markdown", () => ({
+jest.mock("@/components/expandable-markdown", () => ({
   ExpandableMarkdown: ({ content }: { content: string }) => (
     <div>{content}</div>
   ),

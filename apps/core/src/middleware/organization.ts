@@ -1,8 +1,8 @@
-import type { MiddlewareHandler } from "hono";
+import { createMiddleware } from "hono/factory";
 
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthEnv } from "@/middleware/auth";
 import { setAuthContext } from "@/middleware/auth";
 
 /**
@@ -62,21 +62,19 @@ async function resolveOrganizationFromSlug(
  * app.use(organizationHeaderMiddleware);
  * ```
  */
-export const organizationHeaderMiddleware: MiddlewareHandler<{
-  Variables: AuthVariables;
-}> = async (c, next) => {
-  const { authContext, isAuthenticated } = c.var;
+export const organizationHeaderMiddleware = createMiddleware<AuthEnv>(
+  async (c, next) => {
+    const { authContext, isAuthenticated } = c.var;
 
-  // Only apply if organizationId is null
-  if (isAuthenticated && authContext && !authContext.organizationId) {
-    const organizationSlug = c.req.header("x-organization-slug");
+    // Only apply if organizationId is null
+    if (isAuthenticated && authContext && !authContext.organizationId) {
+      const organizationSlug = c.req.header("x-organization-slug");
 
-    if (organizationSlug) {
-      const organizationId = await resolveOrganizationFromSlug(
-        organizationSlug,
-        authContext.userId,
-      );
-      if (organizationId) {
+      if (organizationSlug) {
+        const organizationId = await resolveOrganizationFromSlug(
+          organizationSlug,
+          authContext.userId,
+        );
         setAuthContext(c, {
           isAuthenticated,
           authContext: {
@@ -86,7 +84,7 @@ export const organizationHeaderMiddleware: MiddlewareHandler<{
         });
       }
     }
-  }
 
-  return await next();
-};
+    return await next();
+  },
+);

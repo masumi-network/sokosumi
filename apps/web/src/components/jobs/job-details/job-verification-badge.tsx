@@ -203,7 +203,7 @@ function JobVerificationBadgeBase({
         : t("VerificationBadge.unverified", { direction: directionText });
 
   return (
-    <span className="inline-flex items-center pl-4">
+    <span className="inline-flex items-center self-center">
       <Tooltip>
         <TooltipTrigger asChild>
           <span

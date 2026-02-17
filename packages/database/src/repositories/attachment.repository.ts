@@ -2,9 +2,9 @@ import type { Attachment, Prisma } from "../generated/prisma/client.js";
 
 export interface AttachmentData {
   url: string;
-  name?: string;
-  mimeType?: string;
-  size?: bigint;
+  name: string;
+  mimeType: string;
+  size: bigint;
 }
 
 /**

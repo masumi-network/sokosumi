@@ -1,31 +1,4 @@
 {
-  "Footer": {
-    "Navigate": {
-      "title": "Navigate",
-      "agentsGallery": "Agents Gallery",
-      "contribute": "Contribute"
-    },
-    "Connect": {
-      "title": "Connect",
-      "twitter": "X/Twitter",
-      "discord": "Discord"
-    },
-    "GetInTouch": {
-      "title": "Get In Touch",
-      "contact": "Contact",
-      "listYourAgent": "List Your Agent",
-      "requestDataDeletion": "Request Data Deletion"
-    },
-    "AgenticServices": {
-      "title": "Agentic Services",
-      "masumi": "masumi",
-      "kodosumi": "kodosumi"
-    },
-    "copyright": "© {year} Masumi",
-    "imprint": "Imprint",
-    "privacyPolicy": "Privacy Policy",
-    "termsOfServices": "Terms of Service"
-  },
   "Job": {
     "CreationFailed": "Failed to create job",
     "RefundFailed": "Failed to refund job",
@@ -282,6 +255,9 @@
         "sharedBy": "Shared by"
       },
       "JobDetails": {
+        "activity": "Activity",
+        "actionUpdatedStatus": "changed status to",
+        "emptyActivity": "No activities yet.",
         "Header": {
           "JobName": {
             "Schema": {
@@ -314,16 +290,26 @@
           }
         },
         "Meta": {
+          "propertiesTitle": "Properties",
+          "status": "Status",
+          "task": "Task",
+          "coworker": "Coworker",
+          "openTask": "Open task",
+          "created": "Created",
+          "updated": "Updated",
           "jobId": "Job ID",
           "txId": "Txn ID",
-          "inputHash": "Input Hash",
-          "resultHash": "Result Hash",
+          "inputHash": "Job input hash",
+          "resultHash": "Job result hash",
           "onChain": "On-Chain",
           "calculated": "Sokosumi",
           "missing": "Missing",
           "started": "Started",
           "finished": "Finished",
           "credits": "Credits"
+        },
+        "InitiatedSection": {
+          "title": "What you sent to the agent for this job"
         },
         "JobShare": {
           "share": "Share",
@@ -365,11 +351,12 @@
         "Input": {
           "title": "Input",
           "failedToParseInput": "Failed to parse input",
-          "none": "No input"
+          "none": "No input",
+          "expand": "Expand",
+          "collapse": "Show less"
         },
         "Output": {
           "result": "Result",
-          "status": "Status",
           "failedToParseResult": "Failed to parse result",
           "none": "No result available",
           "download": "Download",
@@ -377,6 +364,8 @@
           "copySuccess": "Result copied to clipboard",
           "copyError": "Failed to copy result",
           "maximize": "Maximize",
+          "expand": "Expand",
+          "collapse": "Show less",
           "maximizeTitle": "Job Result",
           "close": "Close",
           "exportingMarkdown": "Exporting Markdown…",
@@ -453,6 +442,10 @@
         "placeholder": "Search jobs...",
         "clear": "Clear search",
         "resultsCount": "{found} of {total} results found"
+      },
+      "JobsList": {
+        "noExecutedJobs": "No executed jobs",
+        "emptyJobs": "No jobs yet."
       }
     },
     "Organizations": {
@@ -1103,6 +1096,7 @@
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "uploadPastedImageError": "Failed to upload pasted image(s)",
         "waitForModelResponse": "Please wait for the model to finish its response!",
+        "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",
         "imageAttachment": "An image attachment",
         "fileLabel": "File",
         "loaderTitle": "Loader",
@@ -1628,6 +1622,19 @@
         "success": "Password set successfully",
         "error": "Failed to set password"
       },
+      "Theme": {
+        "title": "Theme",
+        "description": "Choose how the interface looks.",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "Language": {
+        "title": "Language",
+        "description": "Select your preferred language.",
+        "currentLanguage": "English",
+        "comingSoon": "More languages coming soon"
+      },
       "SocialAccounts": {
         "connected": "is connected",
         "notConnected": "is not connected",
@@ -1962,6 +1969,9 @@
           "back": "Back to agents",
           "newJob": "New Job",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
+        },
+        "Modal": {
+          "back": "Back"
         },
         "Footer": {
           "termsAndConditions": "Terms and Conditions",

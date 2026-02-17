@@ -2,11 +2,8 @@ import { jobRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
 import superJson from "superjson";
 
-import {
-  createApiSuccessResponse,
-  handleApiError,
-  validateAuth,
-} from "@/lib/api";
+import { createApiSuccessResponse, handleApiError } from "@/lib/api";
+import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
 interface RouteParams {
@@ -24,7 +21,10 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const { authContext } = await validateAuth(request.headers);
+    const authContext = await getAuthContext();
+    if (!authContext) {
+      throw new Error("UNAUTHORIZED");
+    }
     const { jobId } = await params;
 
     if (!jobId) {

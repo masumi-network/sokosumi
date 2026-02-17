@@ -57,9 +57,15 @@ export default function Markdown({
         {children}
       </video>
     ),
-    table: ({ children, ...props }) => (
-      <div className="overflow-x-auto">
-        <table {...props} className="w-full min-w-full">
+    table: ({ children, className, ...props }) => (
+      <div className="border-border my-3 overflow-x-auto rounded-md border">
+        <table
+          {...props}
+          className={cn(
+            "w-full min-w-full caption-bottom border-collapse text-sm",
+            className,
+          )}
+        >
           {children}
         </table>
       </div>
@@ -92,8 +98,11 @@ export default function Markdown({
     },
   };
 
+  const baseTypographyClassName =
+    "prose prose-sm prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-h4:text-sm prose-h5:text-sm prose-h6:text-sm prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/80 prose-strong:text-foreground prose-ul:my-2 prose-ul:list-disc prose-ul:ps-6 prose-ol:my-2 prose-ol:list-decimal prose-ol:ps-6 prose-li:my-1 prose-li:ps-1 prose-li:marker:text-muted-foreground prose-li:text-foreground/80 prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-4 prose-a:decoration-primary/40 hover:prose-a:decoration-primary prose-pre:my-3 prose-blockquote:my-3 prose-hr:my-4 prose-hr:border-border prose-hr:border-t prose-hr:border-b-0 prose-table:my-0 prose-thead:border-b prose-thead:border-border prose-th:bg-muted/40 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-medium prose-th:text-foreground prose-td:px-3 prose-td:py-2 prose-td:align-top prose-td:text-foreground/80 prose-tr:border-b prose-tr:border-border prose-tr:last:border-b-0 max-w-none dark:prose-invert";
+
   return (
-    <div className={cn("prose dark:prose-invert max-w-none", className)}>
+    <div className={cn(baseTypographyClassName, className)}>
       <ReactMarkdown
         remarkPlugins={[remarkBreaks, remarkGfm]}
         rehypePlugins={[rehypeRaw]}

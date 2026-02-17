@@ -9,11 +9,6 @@ import { ReactNode, useState } from "react";
 import { useForm, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
-import {
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -36,7 +31,6 @@ import {
   JobDetailsNameFormSchemaType,
 } from "@/lib/schemas";
 
-import JobMetaDetails from "./job-meta-details";
 import JobShareModal from "./job-share-modal";
 
 interface JobNameContentProps {
@@ -112,52 +106,50 @@ function JobNameContent({
   }
 
   return (
-    <AccordionTrigger className="w-full items-center px-0 py-0">
-      <div className="flex w-full min-w-0 cursor-default items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <p className="min-w-0 flex-1 truncate text-base">
-            {name ?? t("noName")}
-          </p>
-          <Tooltip>
-            <TooltipTrigger
-              asChild
-              onClick={(event) => {
-                event.stopPropagation();
-                handleShareIndicatorClick();
-              }}
-            >
-              {sharedPublicly ? (
-                <Globe className="size-4" />
-              ) : sharedWithOrganization ? (
-                <Users className="size-4" />
-              ) : (
-                <Lock className="size-4" />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              {sharedPublicly
-                ? t("shared")
-                : sharedWithOrganization
-                  ? t("organizationShared")
-                  : t("private")}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        {!readOnly && (
-          <Button
+    <div className="flex w-full min-w-0 cursor-default items-center justify-between gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <p className="min-w-0 flex-1 text-xl leading-tight font-semibold tracking-tight wrap-break-word">
+          {name ?? t("noName")}
+        </p>
+        <Tooltip>
+          <TooltipTrigger
             asChild
-            variant="outline"
-            size="sm"
             onClick={(event) => {
               event.stopPropagation();
-              handleEdit();
+              handleShareIndicatorClick();
             }}
           >
-            <span>{t("edit")}</span>
-          </Button>
-        )}
+            {sharedPublicly ? (
+              <Globe className="size-4" />
+            ) : sharedWithOrganization ? (
+              <Users className="size-4" />
+            ) : (
+              <Lock className="size-4" />
+            )}
+          </TooltipTrigger>
+          <TooltipContent>
+            {sharedPublicly
+              ? t("shared")
+              : sharedWithOrganization
+                ? t("organizationShared")
+                : t("private")}
+          </TooltipContent>
+        </Tooltip>
       </div>
-    </AccordionTrigger>
+      {!readOnly ? (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          onClick={(event) => {
+            event.stopPropagation();
+            handleEdit();
+          }}
+        >
+          <span>{t("edit")}</span>
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -267,8 +259,6 @@ export default function JobDetailsName({
     }
   };
 
-  const isCollapsible = !editing; // collapse disabled while editing name
-
   const contentProps: JobNameContentProps = {
     editing,
     form,
@@ -284,21 +274,10 @@ export default function JobDetailsName({
   };
 
   return (
-    <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
-      {isCollapsible ? (
-        <AccordionItem value="meta" className="w-full border-0">
-          <JobNameWrapper readOnly={readOnly} Component={Component}>
-            <JobNameContent {...contentProps} />
-          </JobNameWrapper>
-          <AccordionContent className="px-0">
-            <JobMetaDetails job={job} />
-          </AccordionContent>
-        </AccordionItem>
-      ) : (
-        <JobNameWrapper readOnly={readOnly} Component={Component}>
-          <JobNameContent {...contentProps} />
-        </JobNameWrapper>
-      )}
+    <div className="flex items-center justify-between gap-2">
+      <JobNameWrapper readOnly={readOnly} Component={Component}>
+        <JobNameContent {...contentProps} />
+      </JobNameWrapper>
     </div>
   );
 }
