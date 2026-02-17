@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 
 import JobDetailRedirect from "@/app/agents/[agentId]/jobs/@right/components/job-detail-redirect";
 
@@ -11,20 +11,53 @@ jest.mock("next/navigation", () => ({
   }),
 }));
 
-function mockMatchMedia(matches: boolean) {
+function mockMatchMedia(initialMatches: boolean) {
+  let matches = initialMatches;
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+
+  const mediaQueryList = {
+    get matches() {
+      return matches;
+    },
+    media: "(min-width: 1024px)",
+    onchange: null,
+    addEventListener: jest.fn(
+      (eventName: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (eventName === "change") {
+          listeners.add(listener);
+        }
+      },
+    ),
+    removeEventListener: jest.fn(
+      (eventName: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (eventName === "change") {
+          listeners.delete(listener);
+        }
+      },
+    ),
+    addListener: jest.fn((listener: (event: MediaQueryListEvent) => void) => {
+      listeners.add(listener);
+    }),
+    removeListener: jest.fn(
+      (listener: (event: MediaQueryListEvent) => void) => {
+        listeners.delete(listener);
+      },
+    ),
+    dispatchEvent: jest.fn(),
+  };
+
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: jest.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    })),
+    value: jest.fn().mockReturnValue(mediaQueryList),
   });
+
+  return {
+    setMatches(nextMatches: boolean) {
+      matches = nextMatches;
+      const event = { matches: nextMatches } as MediaQueryListEvent;
+      listeners.forEach((listener) => listener(event));
+    },
+  };
 }
 
 describe("JobDetailRedirect", () => {
@@ -46,6 +79,24 @@ describe("JobDetailRedirect", () => {
     mockMatchMedia(true);
 
     render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith("/agents/agent-1/jobs/job-1");
+    });
+  });
+
+  it("redirects when viewport changes from below lg to lg", async () => {
+    const { setMatches } = mockMatchMedia(false);
+
+    render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
+
+    await waitFor(() => {
+      expect(pushMock).not.toHaveBeenCalled();
+    });
+
+    act(() => {
+      setMatches(true);
+    });
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/agents/agent-1/jobs/job-1");
