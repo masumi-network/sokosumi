@@ -11,15 +11,11 @@ interface AttachmentRow {
   createdAt: Date;
   updatedAt: Date;
   url: string;
-  name: string | null;
-  mimeType: string | null;
-  size: bigint | null;
+  name: string;
+  mimeType: string;
+  size: bigint;
   jobInputId: string;
 }
-
-export const DEFAULT_ATTACHMENT_MIME_TYPE = "application/octet-stream";
-export const DEFAULT_ATTACHMENT_NAME = "attachment";
-export const DEFAULT_ATTACHMENT_SIZE = 0;
 
 export function mapAttachmentForResponse(
   attachment: AttachmentRow,
@@ -32,12 +28,9 @@ export function mapAttachmentForResponse(
     userId,
     referenceId: attachment.jobInputId,
     referenceType: "Input" as const,
-    name: attachment.name ?? DEFAULT_ATTACHMENT_NAME,
-    size:
-      attachment.size !== null
-        ? Number(attachment.size)
-        : DEFAULT_ATTACHMENT_SIZE,
-    mimeType: attachment.mimeType ?? DEFAULT_ATTACHMENT_MIME_TYPE,
+    name: attachment.name,
+    size: Number(attachment.size),
+    mimeType: attachment.mimeType,
     url: attachment.url,
   };
 }
