@@ -66,6 +66,17 @@ export function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
+export function parseContentDispositionFilename(
+  disposition: string | null,
+): string | null {
+  if (!disposition) return null;
+  const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(
+    disposition,
+  );
+  const value = decodeURIComponent(match?.[1] ?? match?.[2] ?? "");
+  return value || null;
+}
+
 export function isFileLikeUrl(url: string): boolean {
   if (!isHttpUrl(url)) return false;
   try {

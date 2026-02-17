@@ -12,8 +12,7 @@ import pLimit from "p-limit";
 import { uploadFileForBlob } from "@/lib/blob/utils";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import prisma from "@/lib/db/prisma";
-import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
-import { isHttpUrl } from "@/lib/utils/file";
+import { isHttpUrl, parseContentDispositionFilename } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {
   function getBasename(url: string): string | null {

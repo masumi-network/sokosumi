@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { FileChip, type FileChipProps } from "@/components/ui/file-chip";
-import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
+import { parseContentDispositionFilename } from "@/lib/utils/file";
 
 interface FileHeadMetadata {
   contentType: string | null;
