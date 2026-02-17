@@ -15,6 +15,7 @@ import { useJobsHeader } from "@/app/agents/[agentId]/jobs/components/jobs-heade
 import { AgentIcon } from "@/components/agents/agent-icon";
 import {
   AgentJobStatusBadge,
+  getAgentStatusBorderColorClass,
   getAgentStatusDotColorClass,
 } from "@/components/jobs/agent-job-status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,6 +31,7 @@ import { getJobQueryKey, getJobQueryOptions } from "@/queries";
 import JobDetailsInputs from "./inputs";
 import {
   getVisibleTimelineEvents,
+  shouldHighlightJobEventBorder,
   shouldRenderAwaitingInputFormForViewer,
   splitInitiatedEvent,
 } from "./job-details-events.utils";
@@ -302,6 +304,10 @@ function JobDetailsContent({
   const isStatusOnlyEvent =
     !event.result && !event.input && !hasSources && !isAwaitingInput;
   const isCardEvent = !isStatusOnlyEvent;
+  const shouldHighlightBorder = shouldHighlightJobEventBorder(
+    event,
+    isLatestEvent,
+  );
   const actor = getJobEventActor({ job, event });
 
   return (
@@ -309,6 +315,9 @@ function JobDetailsContent({
       className={cn(
         "rounded-lg pr-3 pl-3",
         isCardEvent && "bg-muted/20 border-border/50 border",
+        isCardEvent &&
+          shouldHighlightBorder &&
+          getAgentStatusBorderColorClass(event.status),
       )}
     >
       <div className={cn("flex items-center gap-4", isCardEvent && "py-3")}>

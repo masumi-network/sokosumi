@@ -64,6 +64,24 @@ export function getAgentStatusDotColorClass(status: AgentJobStatus) {
   }
 }
 
+export function getAgentStatusBorderColorClass(status: AgentJobStatus) {
+  switch (status) {
+    case AgentJobStatus.COMPLETED:
+      return "border-green-500/40";
+    case AgentJobStatus.FAILED:
+      return "border-red-500/40";
+    case AgentJobStatus.AWAITING_INPUT:
+      return "border-yellow-500/40";
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return "border-orange-500/40";
+    case AgentJobStatus.RUNNING:
+    case AgentJobStatus.INITIATED:
+      return "border-sky-500/40";
+    default:
+      return "border-gray-500/40";
+  }
+}
+
 function statusToLabelKey(status: AgentJobStatus) {
   switch (status) {
     case AgentJobStatus.INITIATED:
