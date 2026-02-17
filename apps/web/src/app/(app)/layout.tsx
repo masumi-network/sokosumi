@@ -81,7 +81,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <QueryProvider>
-      <ConversationsProvider>{content}</ConversationsProvider>
+      {isChatUIEnabled ? (
+        <ConversationsProvider>{content}</ConversationsProvider>
+      ) : (
+        content
+      )}
     </QueryProvider>
   );
 }

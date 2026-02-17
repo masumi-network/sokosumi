@@ -105,6 +105,11 @@ export function useChatSelection({
     // Load conversation from DB; refine model/coworker when done (e.g. fresh metadata)
     const loadedConversation = await selectConversation(chatId);
 
+    // Stale-request guard: only update model if this chatId is still selected
+    if (currentChatIdRef.current !== chatId) {
+      return;
+    }
+
     const conversation =
       loadedConversation ?? conversations.find((c) => c.id === chatId);
     if (conversation) {
