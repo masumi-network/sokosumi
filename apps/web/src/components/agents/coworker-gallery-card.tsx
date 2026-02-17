@@ -5,7 +5,10 @@ import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-im
 import { cn } from "@/lib/utils";
 
 import { AgentVerifiedBadge } from "./agent-verified-badge";
-import { getCoworkerGalleryDefaults } from "./coworker-gallery-defaults";
+import {
+  DEFAULT_COWORKER_DESCRIPTION,
+  DEFAULT_COWORKER_SUBTITLE,
+} from "./coworker-gallery-defaults";
 
 interface CoworkerGalleryCardProps {
   slug: string;
@@ -22,12 +25,11 @@ function CoworkerGalleryCard({
   description,
   className,
 }: CoworkerGalleryCardProps) {
-  const defaults = getCoworkerGalleryDefaults(slug);
   const imageSrc =
     image ||
     COWORKER_FALLBACK_IMAGES[slug] ||
     "/images/logos/sokosumi-logo-white.svg";
-  const displayDescription = description || defaults.description;
+  const displayDescription = description || DEFAULT_COWORKER_DESCRIPTION;
   const coworkerChatHref = `/chat?coworker=${encodeURIComponent(slug)}`;
 
   return (
@@ -55,7 +57,7 @@ function CoworkerGalleryCard({
         {/* Text overlay with scrim */}
         <div className="absolute inset-x-0 bottom-0 bg-black/70 p-3">
           <p className="text-xs font-medium text-white/70">
-            {defaults.subtitle}
+            {DEFAULT_COWORKER_SUBTITLE}
           </p>
           <h3 className="truncate text-base font-medium text-balance text-white">
             {name}
