@@ -119,6 +119,12 @@ export function JobsList({
     useState<JobWithSokosumiStatus[]>(jobs);
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
+  // Sync local state when jobs prop changes (e.g., after revalidatePath)
+  useEffect(() => {
+    setLocalJobs(jobs);
+    setFilteredJobs(jobs);
+  }, [jobs]);
+
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs),
     [filteredJobs],

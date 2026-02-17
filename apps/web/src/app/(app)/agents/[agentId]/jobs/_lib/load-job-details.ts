@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/database/repositories";
 import { dehydrate } from "@tanstack/react-query";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 
 import { type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
@@ -24,6 +25,15 @@ interface LoadJobDetailsResult {
   job: JobWithSokosumiStatus;
   readOnly: boolean;
 }
+
+// Cache repository calls to deduplicate queries across parallel routes
+const getCachedAgent = cache(async (agentId: string) => {
+  return agentRepository.getAgentWithRelationsById(agentId, prisma);
+});
+
+const getCachedJob = cache(async (jobId: string) => {
+  return jobRepository.getJobById(jobId, prisma);
+});
 
 async function canAccessJob(
   job: JobWithSokosumiStatus,
@@ -53,15 +63,12 @@ export async function loadJobDetails({
     notFound();
   }
 
-  const agent = await agentRepository.getAgentWithRelationsById(
-    agentId,
-    prisma,
-  );
+  const agent = await getCachedAgent(agentId);
   if (!agent) {
     notFound();
   }
 
-  const job = await jobRepository.getJobById(jobId, prisma);
+  const job = await getCachedJob(jobId);
   if (!job || job.agent.id !== agentId) {
     notFound();
   }
