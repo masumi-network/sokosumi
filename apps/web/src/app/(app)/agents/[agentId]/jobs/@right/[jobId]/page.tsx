@@ -1,46 +1,11 @@
-import { JobWithSokosumiStatus } from "@sokosumi/database";
-import {
-  agentRepository,
-  jobRepository,
-} from "@sokosumi/database/repositories";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { notFound, redirect } from "next/navigation";
+import { HydrationBoundary } from "@tanstack/react-query";
 
+import { loadJobDetails } from "@/app/agents/[agentId]/jobs/_lib/load-job-details";
 import { JobDetails } from "@/components/jobs";
-import { Session } from "@/lib/auth/auth";
-import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
-import { isSharedWithOrganization } from "@/lib/helpers/job";
-import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface JobDetailsPageParams {
   agentId: string;
   jobId: string;
-}
-
-async function checkJobAccess(
-  job: JobWithSokosumiStatus,
-  session: Session,
-): Promise<boolean> {
-  // Check if user owns the job AND it belongs to current scope
-  if (job.userId === session.user.id) {
-    // Job must belong to the same scope (matching organizationId)
-    if (job.organizationId === session.session.activeOrganizationId) {
-      return true;
-    }
-    // If we reach here: user owns job but it's in different scope
-    return false;
-  }
-
-  // Check if job is shared with user's active organization
-  if (
-    session.session.activeOrganizationId &&
-    isSharedWithOrganization(job, session.session.activeOrganizationId)
-  ) {
-    return true;
-  }
-
-  return false;
 }
 
 export default async function JobDetailsPage({
@@ -48,49 +13,17 @@ export default async function JobDetailsPage({
 }: {
   params: Promise<JobDetailsPageParams>;
 }) {
-  const session = await getSession();
-  if (!session) {
-    return notFound();
-  }
   const { agentId, jobId } = await params;
-
-  const agent = await agentRepository.getAgentWithRelationsById(
-    agentId,
-    prisma,
-  );
-  if (!agent) {
-    notFound();
-  }
-
-  const job = await jobRepository.getJobById(jobId, prisma);
-  if (!job) {
-    console.warn("job not found in job detail page");
-    notFound();
-  }
-  if (job.agent.id !== agentId) {
-    console.warn("job not found in job detail page");
-    notFound();
-  }
-
-  // set the Job in the query client
-  const queryClient = getQueryClient();
-  queryClient.setQueryData(getJobQueryKey(jobId), job);
-
-  // Check if user can access this job (either owns it or it's shared with their organization)
-  const canAccessJob = await checkJobAccess(job, session);
-  if (!canAccessJob) {
-    redirect(`/agents/${agentId}/jobs`);
-  }
-
-  // Determine if the job should be read-only (user is not the owner)
-  const readOnly = job.userId !== session.user.id;
+  const { activeOrganizationId, dehydratedState, job, readOnly } =
+    await loadJobDetails({ agentId, jobId });
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
+    <HydrationBoundary state={dehydratedState}>
       <JobDetails
+        className="h-full"
         job={job}
         readOnly={readOnly}
-        activeOrganizationId={session.session.activeOrganizationId}
+        activeOrganizationId={activeOrganizationId}
       />
     </HydrationBoundary>
   );

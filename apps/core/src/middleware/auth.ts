@@ -23,10 +23,7 @@ export type AuthEnv = {
   Variables: AuthVariables;
 };
 
-export function setAuthContext(
-  c: Context<AuthEnv>,
-  context: AuthVariables,
-) {
+export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
 }

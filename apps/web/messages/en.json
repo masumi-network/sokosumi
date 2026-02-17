@@ -255,6 +255,9 @@
         "sharedBy": "Shared by"
       },
       "JobDetails": {
+        "activity": "Activity",
+        "actionUpdatedStatus": "changed status to",
+        "emptyActivity": "No activities yet.",
         "Header": {
           "JobName": {
             "Schema": {
@@ -287,16 +290,26 @@
           }
         },
         "Meta": {
+          "propertiesTitle": "Properties",
+          "status": "Status",
+          "task": "Task",
+          "coworker": "Coworker",
+          "openTask": "Open task",
+          "created": "Created",
+          "updated": "Updated",
           "jobId": "Job ID",
           "txId": "Txn ID",
-          "inputHash": "Input Hash",
-          "resultHash": "Result Hash",
+          "inputHash": "Job input hash",
+          "resultHash": "Job result hash",
           "onChain": "On-Chain",
           "calculated": "Sokosumi",
           "missing": "Missing",
           "started": "Started",
           "finished": "Finished",
           "credits": "Credits"
+        },
+        "InitiatedSection": {
+          "title": "What you sent to the agent for this job"
         },
         "JobShare": {
           "share": "Share",
@@ -338,11 +351,12 @@
         "Input": {
           "title": "Input",
           "failedToParseInput": "Failed to parse input",
-          "none": "No input"
+          "none": "No input",
+          "expand": "Expand",
+          "collapse": "Show less"
         },
         "Output": {
           "result": "Result",
-          "status": "Status",
           "failedToParseResult": "Failed to parse result",
           "none": "No result available",
           "download": "Download",
@@ -350,6 +364,8 @@
           "copySuccess": "Result copied to clipboard",
           "copyError": "Failed to copy result",
           "maximize": "Maximize",
+          "expand": "Expand",
+          "collapse": "Show less",
           "maximizeTitle": "Job Result",
           "close": "Close",
           "exportingMarkdown": "Exporting Markdown…",
@@ -426,6 +442,10 @@
         "placeholder": "Search jobs...",
         "clear": "Clear search",
         "resultsCount": "{found} of {total} results found"
+      },
+      "JobsList": {
+        "noExecutedJobs": "No executed jobs",
+        "emptyJobs": "No jobs yet."
       }
     },
     "Organizations": {
@@ -1949,6 +1969,9 @@
           "back": "Back to agents",
           "newJob": "New Job",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
+        },
+        "Modal": {
+          "back": "Back"
         },
         "Footer": {
           "termsAndConditions": "Terms and Conditions",

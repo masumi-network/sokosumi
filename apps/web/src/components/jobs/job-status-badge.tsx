@@ -3,142 +3,109 @@
 import { JobType, SokosumiJobStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {
   status: SokosumiJobStatus;
   jobType?: JobType;
   className?: string;
+  variant?: "badge" | "dot";
+}
+
+export function getJobStatusDotColorClass(
+  status: SokosumiJobStatus,
+  jobType?: JobType,
+) {
+  if (jobType === JobType.DEMO) return "bg-orange-500";
+
+  switch (status) {
+    case SokosumiJobStatus.COMPLETED:
+    case SokosumiJobStatus.REFUND_RESOLVED:
+    case SokosumiJobStatus.DISPUTE_RESOLVED:
+      return "bg-green-500";
+    case SokosumiJobStatus.FAILED:
+    case SokosumiJobStatus.PAYMENT_FAILED:
+    case SokosumiJobStatus.RESULT_PENDING:
+      return "bg-red-500";
+    case SokosumiJobStatus.INPUT_REQUIRED:
+      return "bg-yellow-500";
+    case SokosumiJobStatus.REFUND_PENDING:
+    case SokosumiJobStatus.DISPUTE_PENDING:
+      return "bg-orange-500";
+    case SokosumiJobStatus.STARTED:
+    case SokosumiJobStatus.PAYMENT_PENDING:
+    case SokosumiJobStatus.PROCESSING:
+    default:
+      return "bg-sky-500";
+  }
 }
 
 export function JobStatusBadge({
   status,
   jobType,
   className,
+  variant = "badge",
 }: JobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.StatusBadge");
+  const label = t(statusToLabelKey(status, jobType));
+  const dotClass = getJobStatusDotColorClass(status, jobType);
 
-  if (jobType === JobType.DEMO) {
+  if (variant === "dot") {
     return (
-      <Badge
-        variant="default"
-        className={cn("bg-orange-100 text-orange-800", className)}
-      >
-        {t("demo")}
-      </Badge>
+      <span
+        aria-label={label}
+        className={cn(
+          "inline-flex size-1.5 shrink-0 rounded-full",
+          dotClass,
+          className,
+        )}
+      />
     );
+  }
+
+  return (
+    <div className={cn("inline-flex shrink-0 items-center gap-1.5", className)}>
+      <span
+        className={cn("size-1.5 shrink-0 rounded-full", dotClass)}
+        aria-hidden
+      />
+      <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function statusToLabelKey(status: SokosumiJobStatus, jobType?: JobType) {
+  if (jobType === JobType.DEMO) {
+    return "demo";
   }
 
   switch (status) {
     case SokosumiJobStatus.COMPLETED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-green-100 text-green-800", className)}
-        >
-          {t("completed")}
-        </Badge>
-      );
+      return "completed";
     case SokosumiJobStatus.FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("failed")}
-        </Badge>
-      );
+      return "failed";
     case SokosumiJobStatus.PAYMENT_FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("paymentFailed")}
-        </Badge>
-      );
+      return "paymentFailed";
     case SokosumiJobStatus.STARTED:
     case SokosumiJobStatus.PAYMENT_PENDING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-sky-100 text-sky-800", className)}
-        >
-          {t("paymentPending")}
-        </Badge>
-      );
+      return "paymentPending";
     case SokosumiJobStatus.PROCESSING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-sky-100 text-sky-800", className)}
-        >
-          {t("processing")}
-        </Badge>
-      );
+      return "processing";
     case SokosumiJobStatus.INPUT_REQUIRED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-yellow-100 text-yellow-800", className)}
-        >
-          {t("inputRequired")}
-        </Badge>
-      );
+      return "inputRequired";
     case SokosumiJobStatus.REFUND_PENDING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-orange-100 text-orange-800", className)}
-        >
-          {t("refundRequested")}
-        </Badge>
-      );
+      return "refundRequested";
     case SokosumiJobStatus.REFUND_RESOLVED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-purple-100 text-purple-800", className)}
-        >
-          {t("refundResolved")}
-        </Badge>
-      );
+      return "refundResolved";
     case SokosumiJobStatus.DISPUTE_PENDING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-orange-100 text-orange-800", className)}
-        >
-          {t("disputeRequested")}
-        </Badge>
-      );
+      return "disputeRequested";
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-purple-100 text-purple-800", className)}
-        >
-          {t("disputeResolved")}
-        </Badge>
-      );
+      return "disputeResolved";
     case SokosumiJobStatus.RESULT_PENDING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("resultPending")}
-        </Badge>
-      );
+      return "resultPending";
     default:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-gray-100 text-gray-800", className)}
-        >
-          {t("unknown")}
-        </Badge>
-      );
+      return "unknown";
   }
 }

@@ -6,15 +6,22 @@ import { hashInput } from "@sokosumi/masumi";
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
+import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { FileChip } from "@/components/ui/file-chip";
 import { Separator } from "@/components/ui/separator";
 import {
   flattenInputs,
   normalizeAndValidateInputSchema,
 } from "@/lib/schemas/job";
+import { cn } from "@/lib/utils";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 import { HashGroupRow } from "./hash-group-row";
@@ -170,8 +177,12 @@ function JobDetailsInputsInner({
 }: JobDetailsInputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Input");
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
+  const [open, setOpen] = useState(false);
+  const [isExpandable, setIsExpandable] = useState(false);
+  const inputContentRef = useRef<HTMLDivElement | null>(null);
 
   const input = rawInput ? JSON.parse(rawInput) : {};
+  const hasInputs = Object.keys(input).length > 0;
 
   const calculatedInputHash = useMemo(() => {
     if (!identifierFromPurchaser || !rawInput) return null;
@@ -213,30 +224,95 @@ function JobDetailsInputsInner({
     }
   }, [rawInputSchema]);
 
+  useEffect(() => {
+    const element = inputContentRef.current;
+    if (!element || open || !hasInputs) {
+      return;
+    }
+
+    const measureOverflow = () => {
+      const hasOverflow = element.scrollHeight > element.clientHeight + 1;
+      setIsExpandable(hasOverflow);
+    };
+
+    measureOverflow();
+
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasInputs, open, rawInput]);
+
+  const shouldFade = !open && isExpandable;
+
   return (
     <div className="flex flex-col gap-2">
-      {Object.keys(input).length > 0 ? (
-        <div>
-          {Object.entries(input).map(([key, value]) => {
-            const schemaEntry = inputsMap[key];
-            const label = schemaEntry?.name ?? key;
-            const type = schemaEntry?.type ?? InputType.NONE;
-            const values = schemaEntry?.values;
-            return (
+      {hasInputs ? (
+        <Collapsible open={open} onOpenChange={setOpen}>
+          <div className="relative">
+            <CollapsibleContent forceMount>
               <div
-                className="grid grid-cols-1 items-start gap-4 pb-4 text-base md:grid-cols-3"
-                key={key}
+                ref={inputContentRef}
+                className={cn(
+                  "space-y-4",
+                  !open && "max-h-48 overflow-hidden",
+                  shouldFade &&
+                    "mask-[linear-gradient(to_bottom,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]",
+                )}
               >
-                <span className="font-bold break-all md:col-span-1">
-                  {label}
-                </span>
-                <div className="break-all md:col-span-2">
-                  {renderInputValue(value, type, attachments, values)}
-                </div>
+                {Object.entries(input).map(([key, value]) => {
+                  const schemaEntry = inputsMap[key];
+                  const label = schemaEntry?.name ?? key;
+                  const type = schemaEntry?.type ?? InputType.NONE;
+                  const values = schemaEntry?.values;
+                  return (
+                    <div
+                      className="flex flex-col items-start gap-1 text-base"
+                      key={key}
+                    >
+                      <span className="text-muted-foreground text-sm font-medium">
+                        {label}
+                      </span>
+                      <div className="break-all">
+                        {renderInputValue(value, type, attachments, values)}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </CollapsibleContent>
+
+            {shouldFade ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-end justify-center bg-linear-to-b from-transparent to-transparent">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="bg-background/80 hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
+                  >
+                    {t("expand")}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+            ) : null}
+          </div>
+
+          {open && isExpandable ? (
+            <div className="mt-2 flex justify-center">
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-7 rounded-full px-3 text-xs font-semibold"
+                >
+                  {t("collapse")}
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          ) : null}
+        </Collapsible>
       ) : (
         <p className="text-base">{t("none")}</p>
       )}

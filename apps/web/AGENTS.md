@@ -77,6 +77,7 @@ const apiKey = getEnvSecrets().API_KEY;
 - **No relative imports** across directories (enforced by `no-relative-import-paths`)
 - Same-folder relative imports are allowed: `import { helper } from "./helper"`
 - Use `@/` alias for all cross-directory imports
+- For App Router modules, always import via `@/app/<subpath>` and never `src/app/(app)` in import paths
 
 **Examples**:
 
@@ -84,11 +85,13 @@ const apiKey = getEnvSecrets().API_KEY;
 // ✅ Correct
 import { Button } from "@/components/ui/button";
 import { getUser } from "@/lib/services/user";
+import { JobsList } from "@/app/agents/[agentId]/jobs/components/jobs-list";
 import { helper } from "./helper"; // same folder
 
 // ❌ Wrong - will fail linting
 import { Button } from "../../components/ui/button";
 import { getUser } from "../services/user";
+import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-list";
 ```
 
 **Error**: `no-relative-import-paths/no-relative-import-paths`

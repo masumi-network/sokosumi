@@ -47,7 +47,7 @@ export function CopyableValue({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center">
       <MiddleTruncate text={value} />
       <Button
         variant="ghost"

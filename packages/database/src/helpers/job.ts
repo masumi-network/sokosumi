@@ -24,9 +24,9 @@ const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 /**
  * Returns the latest (most recent) job event from a job's events array.
  *
- * This helper assumes that events are ordered ascending by `createdAt`,
+ * This helper assumes that events are ordered descending by `createdAt`,
  * which is enforced by `jobInclude` in `packages/database/src/types/job.ts`.
- * The latest event is the last element in the array.
+ * The latest event is the first element in the array.
  *
  * @param job - An object containing an `events` array.
  * @returns The latest event, or `undefined` if the events array is empty.
@@ -34,7 +34,7 @@ const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 export function getLatestJobEvent(job: {
   events: JobEventWithRelations[];
 }): JobEventWithRelations | undefined {
-  return job.events.at(-1);
+  return job.events.at(0);
 }
 
 function checkPaymentStatus(
@@ -309,9 +309,11 @@ export function getResult(job: JobWithEvents): string | null {
 export function getInitiatedEvent(
   job: JobWithEvents,
 ): JobEventWithRelations | undefined {
-  return job.events.find(
-    (event: JobEventWithRelations) => event.status === AgentJobStatus.INITIATED,
-  );
+  const lastEvent = job.events.at(-1);
+  if (!lastEvent || lastEvent.status !== AgentJobStatus.INITIATED) {
+    return undefined;
+  }
+  return lastEvent;
 }
 
 export function getInput(job: JobWithEvents): string | null {
