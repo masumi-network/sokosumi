@@ -24,6 +24,7 @@ interface UseChatCreationProps {
   selectedModelRef: React.MutableRefObject<{ id: string; name: string } | null>;
   setSelectedModel: (model: { id: string; name: string } | null) => void;
   isUpdatingUrlRef: React.MutableRefObject<boolean>;
+  pendingUrlConversationIdRef: React.MutableRefObject<string | null>;
   chats: Chat[];
   conversations: Conversation[];
 }
@@ -44,6 +45,7 @@ export function useChatCreation({
   selectedModelRef,
   setSelectedModel,
   isUpdatingUrlRef,
+  pendingUrlConversationIdRef,
   chats,
   conversations,
 }: UseChatCreationProps) {
@@ -95,6 +97,7 @@ export function useChatCreation({
       currentChatIdRef.current = conversation.id;
       selectedModelRef.current = model;
       setSelectedModel(model);
+      pendingUrlConversationIdRef.current = conversation.id;
       isUpdatingUrlRef.current = true;
       router.push(`/chat?conversationId=${conversation.id}`, { scroll: false });
 
@@ -114,6 +117,7 @@ export function useChatCreation({
       currentChatIdRef,
       selectedModelRef,
       isUpdatingUrlRef,
+      pendingUrlConversationIdRef,
     ],
   );
 
@@ -162,6 +166,7 @@ export function useChatCreation({
 
       setSelectedChatId(conversation.id);
       currentChatIdRef.current = conversation.id;
+      pendingUrlConversationIdRef.current = conversation.id;
       isUpdatingUrlRef.current = true;
       router.push(`/chat?conversationId=${conversation.id}`, { scroll: false });
 
@@ -181,6 +186,7 @@ export function useChatCreation({
       currentChatIdRef,
       selectedModelRef,
       isUpdatingUrlRef,
+      pendingUrlConversationIdRef,
     ],
   );
 
