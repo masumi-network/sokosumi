@@ -360,7 +360,6 @@ function JobDetailsContent({
             <div className="space-y-4 pt-1">
               {event.result ? (
                 <section className="space-y-2">
-                  <div className="flex items-center gap-2"></div>
                   <JobDetailsOutputs
                     job={job}
                     event={event}

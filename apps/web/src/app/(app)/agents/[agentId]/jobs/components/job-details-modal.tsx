@@ -37,11 +37,7 @@ export function JobDetailsModal({
 }: JobDetailsModalProps) {
   const t = useTranslations("App.Agents.Jobs.Modal");
   const [isOpen, setIsOpen] = useState(true);
-  const [isBelowLg, setIsBelowLg] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 1023px)").matches
-      : false,
-  );
+  const [isBelowLg, setIsBelowLg] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const touchStartXRef = useRef<number | null>(null);
