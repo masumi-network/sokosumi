@@ -41,6 +41,10 @@ const envSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
+  // Coworkers API
+  COWORKERS_API_SERVICE_KEY: z.string().min(1).optional(),
+  COWORKERS_API_BASE_URL: z.url().optional(),
+
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
 
@@ -71,4 +75,14 @@ export function getEnv(): EnvConfig {
     envConfig = validateEnv();
   }
   return envConfig;
+}
+
+export function getResponsesApiBaseUrl(): string | null {
+  const env = getEnv();
+  return env.COWORKERS_API_BASE_URL ?? null;
+}
+
+export function isResponsesApiConfigured(): boolean {
+  const env = getEnv();
+  return Boolean(env.COWORKERS_API_SERVICE_KEY && getResponsesApiBaseUrl());
 }
