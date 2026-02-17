@@ -6,9 +6,9 @@ import { uploadFileForUser } from "@/lib/blob/utils";
 
 export interface UploadedFile {
   url: string;
-  name?: string;
-  size?: bigint;
-  mimeType?: string;
+  name: string;
+  size: bigint;
+  mimeType: string;
 }
 
 /**

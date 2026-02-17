@@ -6,6 +6,42 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { attachmentsSchema } from "@/schemas/attachment.schema";
 
+interface AttachmentRow {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  url: string;
+  name: string | null;
+  mimeType: string | null;
+  size: bigint | null;
+  jobInputId: string;
+}
+
+export const DEFAULT_ATTACHMENT_MIME_TYPE = "application/octet-stream";
+export const DEFAULT_ATTACHMENT_NAME = "attachment";
+export const DEFAULT_ATTACHMENT_SIZE = 0;
+
+export function mapAttachmentForResponse(
+  attachment: AttachmentRow,
+  userId: string,
+) {
+  return {
+    id: attachment.id,
+    createdAt: attachment.createdAt,
+    updatedAt: attachment.updatedAt,
+    userId,
+    referenceId: attachment.jobInputId,
+    referenceType: "Input" as const,
+    name: attachment.name ?? DEFAULT_ATTACHMENT_NAME,
+    size:
+      attachment.size !== null
+        ? Number(attachment.size)
+        : DEFAULT_ATTACHMENT_SIZE,
+    mimeType: attachment.mimeType ?? DEFAULT_ATTACHMENT_MIME_TYPE,
+    url: attachment.url,
+  };
+}
+
 const route = createRoute({
   method: "get",
   path: "/attachments",
@@ -51,17 +87,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     });
 
-    const attachmentsList = attachments.flatMap((attachment) => {
-      const referenceType = "Input";
-      const referenceId = attachment.jobInputId;
-      return {
-        ...attachment,
-        userId: authContext.userId,
-        referenceId,
-        referenceType,
-        size: attachment.size ? Number(attachment.size) : null,
-      };
-    });
+    const attachmentsList = attachments.map((attachment) =>
+      mapAttachmentForResponse(attachment, authContext.userId),
+    );
 
     return ok(c, attachmentsSchema.parse(attachmentsList));
   });
