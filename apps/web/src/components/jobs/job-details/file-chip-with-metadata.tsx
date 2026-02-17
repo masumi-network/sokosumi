@@ -11,6 +11,11 @@ interface FileHeadMetadata {
   size?: number;
 }
 
+interface FileHeadMetadataState {
+  url: string;
+  metadata?: FileHeadMetadata;
+}
+
 function parseContentLength(value: string | null): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
@@ -23,12 +28,13 @@ export function FileChipWithMetadata({
   title,
   ...props
 }: Omit<FileChipProps, "fileName" | "size">) {
-  const [metadata, setMetadata] = useState<FileHeadMetadata>();
+  const [metadataState, setMetadataState] = useState<FileHeadMetadataState>();
+  const currentUrlMetadata =
+    metadataState?.url === url ? metadataState.metadata : undefined;
 
   useEffect(() => {
     const abortController = new AbortController();
     let cancelled = false;
-    setMetadata(undefined);
 
     async function fetchMetadata() {
       try {
@@ -41,20 +47,23 @@ export function FileChipWithMetadata({
         }
 
         if (!response.ok) {
-          setMetadata(undefined);
+          setMetadataState({ url });
           return;
         }
 
-        setMetadata({
-          contentType: response.headers.get("content-type") ?? undefined,
-          fileName: parseContentDispositionFilename(
-            response.headers.get("content-disposition"),
-          ),
-          size: parseContentLength(response.headers.get("content-length")),
+        setMetadataState({
+          url,
+          metadata: {
+            contentType: response.headers.get("content-type") ?? undefined,
+            fileName: parseContentDispositionFilename(
+              response.headers.get("content-disposition"),
+            ),
+            size: parseContentLength(response.headers.get("content-length")),
+          },
         });
       } catch {
         if (!cancelled) {
-          setMetadata(undefined);
+          setMetadataState({ url });
         }
       }
     }
@@ -70,9 +79,9 @@ export function FileChipWithMetadata({
   return (
     <FileChip
       url={url}
-      fileName={metadata?.fileName}
-      size={metadata?.size ?? undefined}
-      title={title ?? metadata?.contentType}
+      fileName={currentUrlMetadata?.fileName}
+      size={currentUrlMetadata?.size ?? undefined}
+      title={title ?? currentUrlMetadata?.contentType}
       {...props}
     />
   );
