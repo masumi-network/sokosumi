@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import { cn } from "@/lib/utils";
@@ -27,10 +28,17 @@ function CoworkerGalleryCard({
     COWORKER_FALLBACK_IMAGES[slug] ||
     "/images/logos/sokosumi-logo-white.svg";
   const displayDescription = description || defaults.description;
+  const coworkerChatHref = `/chat?coworker=${encodeURIComponent(slug)}`;
 
   return (
-    <div className={cn("group w-full md:w-80", className)}>
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg">
+    <Link
+      href={coworkerChatHref}
+      className={cn(
+        "group block w-full cursor-pointer rounded-lg focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 focus-visible:outline-none md:w-80",
+        className,
+      )}
+    >
+      <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg">
         <Image
           src={imageSrc}
           alt={name}
@@ -49,15 +57,15 @@ function CoworkerGalleryCard({
           <p className="text-xs font-medium text-white/70">
             {defaults.subtitle}
           </p>
-          <h3 className="truncate text-base font-medium text-white text-balance">
+          <h3 className="truncate text-base font-medium text-balance text-white">
             {name}
           </h3>
-          <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm text-white/70 text-pretty">
+          <p className="mt-1 line-clamp-2 min-h-10 text-sm text-pretty text-white/70">
             {displayDescription}
           </p>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

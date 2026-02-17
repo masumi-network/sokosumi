@@ -30,8 +30,8 @@ function getCoworkerGalleryDefaults(slug: string): CoworkerGalleryDefaults {
 }
 
 export {
-  type CoworkerGalleryDefaults,
   COWORKER_GALLERY_DEFAULTS,
+  type CoworkerGalleryDefaults,
   DEFAULT_COWORKER_GALLERY,
   getCoworkerGalleryDefaults,
 };
