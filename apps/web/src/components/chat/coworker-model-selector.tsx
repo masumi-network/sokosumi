@@ -23,7 +23,7 @@ interface Model {
 }
 
 interface CoworkerModelSelectorProps {
-  selectedCoworker: Coworker;
+  selectedCoworker: Coworker | null;
   selectedModel?: Model | null;
   onSelectCoworker: (coworker: Coworker) => void;
   onSelectModel?: (model: Model | null) => void;
@@ -181,7 +181,7 @@ export default function CoworkerModelSelector({
               />
               <span className="hidden sm:inline">{selectedModel.name}</span>
             </>
-          ) : (
+          ) : selectedCoworker ? (
             <>
               <Avatar className="size-5 shrink-0">
                 <AvatarImage
@@ -196,6 +196,17 @@ export default function CoworkerModelSelector({
                 </AvatarFallback>
               </Avatar>
               <span className="hidden sm:inline">{selectedCoworker.name}</span>
+            </>
+          ) : (
+            <>
+              <Avatar className="size-5 shrink-0">
+                <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                  ?
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-muted-foreground hidden text-sm sm:inline">
+                {t("selectCoworker.placeholder")}
+              </span>
             </>
           )}
           <ChevronDown className="text-muted-foreground size-3 shrink-0" />
@@ -227,7 +238,7 @@ export default function CoworkerModelSelector({
                   }
                   className={cn(
                     "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                    selectedCoworker.id === coworker.id && "bg-accent",
+                    selectedCoworker?.id === coworker.id && "bg-accent",
                     isComingSoon &&
                       "cursor-not-allowed opacity-60 hover:bg-transparent hover:opacity-60",
                   )}

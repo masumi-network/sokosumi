@@ -53,6 +53,9 @@ export const LIMITS = {
 
   /** Maximum pagination limit */
   MAX_PAGINATION_LIMIT: 100,
+
+  /** Maximum upload size for user files (25MB) */
+  USER_UPLOAD_MAX_SIZE_BYTES: 25 * 1024 * 1024,
 } as const;
 
 /**
@@ -69,4 +72,7 @@ export const CRYPTO = {
 export const STORAGE = {
   /** Default directory for image uploads */
   IMAGES_UPLOAD_DIR: "images",
+
+  /** Root directory for user file uploads */
+  USER_UPLOADS_DIR: "users",
 } as const;

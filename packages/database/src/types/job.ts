@@ -11,7 +11,7 @@ import type {
 export const jobWithEvents = {
   events: {
     orderBy: {
-      createdAt: "asc",
+      createdAt: "desc",
     },
     include: {
       blobs: true,

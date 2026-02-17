@@ -1,7 +1,8 @@
+import { useFormatter } from "next-intl";
+
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TaskWithCoworker } from "@/lib/types/task";
-import { formatShortDateTime } from "@/lib/utils/datetime";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
@@ -20,6 +21,13 @@ interface TaskMetadataProps {
 
 export function TaskMetadata({ task, labels }: TaskMetadataProps) {
   const coworkerImage = getCoworkerImage(task.coworker);
+  const formatter = useFormatter();
+  const dateTimeOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  } as const;
 
   return (
     <div className="space-y-4">
@@ -66,7 +74,7 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
             {labels.created}
           </span>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {formatShortDateTime(task.createdAt)}
+            {formatter.dateTime(new Date(task.createdAt), dateTimeOptions)}
           </span>
         </div>
 
@@ -76,7 +84,7 @@ export function TaskMetadata({ task, labels }: TaskMetadataProps) {
             {labels.updated}
           </span>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {formatShortDateTime(task.updatedAt)}
+            {formatter.dateTime(new Date(task.updatedAt), dateTimeOptions)}
           </span>
         </div>
       </div>

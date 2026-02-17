@@ -76,7 +76,7 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
   }
 
   return (
-    <div className="flex w-full flex-col items-start justify-between gap-2 p-4 md:flex-row md:items-center">
+    <div className="flex w-full flex-col items-start justify-between px-2 pb-2 md:flex-row md:items-center md:px-0 md:pr-4">
       <div className="relative w-full">
         <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
         <Input

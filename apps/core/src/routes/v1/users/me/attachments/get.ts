@@ -6,6 +6,35 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { attachmentsSchema } from "@/schemas/attachment.schema";
 
+interface AttachmentRow {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  url: string;
+  name: string;
+  mimeType: string;
+  size: bigint;
+  jobInputId: string;
+}
+
+export function mapAttachmentForResponse(
+  attachment: AttachmentRow,
+  userId: string,
+) {
+  return {
+    id: attachment.id,
+    createdAt: attachment.createdAt,
+    updatedAt: attachment.updatedAt,
+    userId,
+    referenceId: attachment.jobInputId,
+    referenceType: "Input" as const,
+    name: attachment.name,
+    size: Number(attachment.size),
+    mimeType: attachment.mimeType,
+    url: attachment.url,
+  };
+}
+
 const route = createRoute({
   method: "get",
   path: "/attachments",
@@ -51,17 +80,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     });
 
-    const attachmentsList = attachments.flatMap((attachment) => {
-      const referenceType = "Input";
-      const referenceId = attachment.jobInputId;
-      return {
-        ...attachment,
-        userId: authContext.userId,
-        referenceId,
-        referenceType,
-        size: attachment.size ? Number(attachment.size) : null,
-      };
-    });
+    const attachmentsList = attachments.map((attachment) =>
+      mapAttachmentForResponse(attachment, authContext.userId),
+    );
 
     return ok(c, attachmentsSchema.parse(attachmentsList));
   });

@@ -1,7 +1,8 @@
 import { base64Url } from "@better-auth/utils/base64";
 import { createHash } from "@better-auth/utils/hash";
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
+import { createMiddleware } from "hono/factory";
 
 import { unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
@@ -18,10 +19,11 @@ export type AuthVariables = {
   authContext: AuthenticationContext;
 };
 
-export function setAuthContext(
-  c: Parameters<MiddlewareHandler>[0],
-  context: AuthVariables,
-) {
+export type AuthEnv = {
+  Variables: AuthVariables;
+};
+
+export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
 }
@@ -35,7 +37,7 @@ export function setAuthContext(
  */
 async function verifyApiKey(
   token: string,
-  c: Parameters<MiddlewareHandler>[0],
+  c: Context<AuthEnv>,
 ): Promise<boolean> {
   const apiKeyResult = await auth.api.verifyApiKey({
     body: { key: token },
@@ -81,7 +83,7 @@ const defaultHasher = async (value: string) => {
  */
 async function verifyOAuthToken(
   token: string,
-  c: Parameters<MiddlewareHandler>[0],
+  c: Context<AuthEnv>,
 ): Promise<boolean> {
   const hashedToken = await hashAccessToken(token);
   const oauthToken = await prisma.$transaction(async (tx) => {
@@ -143,9 +145,7 @@ async function verifyOAuthToken(
   return true;
 }
 
-const bearerMiddleware: MiddlewareHandler<{
-  Variables: AuthVariables;
-}> = bearerAuth({
+const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: API Key
     const apiKeyValid = await verifyApiKey(token, c);
@@ -163,9 +163,7 @@ const bearerMiddleware: MiddlewareHandler<{
   },
 });
 
-const sessionMiddleware: MiddlewareHandler<{
-  Variables: AuthVariables;
-}> = async (c, next) => {
+const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });
@@ -186,14 +184,12 @@ const sessionMiddleware: MiddlewareHandler<{
 
   return await next();
 };
-export const authMiddleware: MiddlewareHandler<{
-  Variables: AuthVariables;
-}> = async (c, next) => {
+export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   const authHeader = c.req.header("authorization");
 
   if (authHeader) {
-    await bearerMiddleware(c, next);
-  } else {
-    await sessionMiddleware(c, next);
+    return bearerMiddleware(c, next);
   }
-};
+
+  return sessionMiddleware(c, next);
+});

@@ -20,13 +20,11 @@ export const attachmentSchema = z
       .openapi({ example: "Input", description: "Type of the reference" }),
     name: z
       .string()
-      .nullish()
       .openapi({ example: "file.pdf", description: "Name of the file" }),
     size: z
       .number()
-      .nullish()
       .openapi({ example: 1000, description: "Size in bytes" }),
-    mimeType: z.string().nullish().openapi({
+    mimeType: z.string().openapi({
       example: "application/pdf",
       description: "MIME type of the file",
     }),

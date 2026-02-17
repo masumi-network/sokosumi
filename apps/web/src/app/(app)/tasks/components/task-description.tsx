@@ -1,6 +1,5 @@
+import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
-
-import { ExpandableMarkdown } from "./expandable-markdown";
 
 interface TaskDescriptionProps {
   title: string;
@@ -28,7 +27,7 @@ export function TaskDescription({
       {content ? (
         <ExpandableMarkdown
           content={content}
-          className="prose-sm text-foreground/80 leading-relaxed"
+          className="text-foreground/80"
           expandLabel={expandLabel}
           collapseLabel={collapseLabel}
           fadeClassName="to-background"
