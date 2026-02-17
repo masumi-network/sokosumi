@@ -15,8 +15,9 @@ import DefaultLoading from "@/components/default-loading";
 import { getAuthContext, getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentDescription, getAgentName } from "@/lib/helpers/agent";
-import { agentService, userService } from "@/lib/services";
+import { agentService } from "@/lib/services";
 
+import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import JobBottomNavigation from "./components/job-bottom-navigation";
 import { JobsHeaderProvider } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
@@ -93,7 +94,7 @@ async function JobLayoutInner({
     canRate,
     existingRating,
   ] = await Promise.all([
-    userService.getMyJobs(agentId),
+    getCachedMyJobs(agentId),
     agentService.getAgentCreditsPrice(agent),
     agentService.getFavoriteAgents(),
     agentService.getAvailableAgentById(agentId),

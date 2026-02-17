@@ -2,9 +2,10 @@ import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { getCachedMyJobs } from "@/app/agents/[agentId]/jobs/_lib/get-cached-my-jobs";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import prisma from "@/lib/db/prisma";
-import { agentService, userService } from "@/lib/services";
+import { agentService } from "@/lib/services";
 
 import JobDetailRedirect from "./components/job-detail-redirect";
 
@@ -29,7 +30,7 @@ export default async function RightSectionPage({
     notFound();
   }
 
-  const agentJobs = await userService.getMyJobs(agentId);
+  const agentJobs = await getCachedMyJobs(agentId);
   const availableAgent = await agentService.getAvailableAgentById(agentId);
 
   if (agentJobs.length > 0) {
