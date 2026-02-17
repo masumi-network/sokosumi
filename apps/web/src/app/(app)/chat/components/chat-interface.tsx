@@ -340,7 +340,7 @@ export default function ChatInterface({
   );
 
   const sendInConversation = useCallback(
-    (conversationId: string, text: string) => {
+    (conversationId: string, text: string): boolean => {
       let slot = conversationToSlot.get(conversationId);
       if (slot === undefined) {
         const freeSlot = getOrAssignSlot(conversationId);
@@ -349,7 +349,7 @@ export default function ChatInterface({
             id: "chat-slot-busy",
             duration: 3000,
           });
-          return;
+          return false;
         }
         const existingConv = slotToConversation.get(freeSlot);
         if (existingConv !== undefined) evictSlot(freeSlot);
@@ -373,8 +373,16 @@ export default function ChatInterface({
         setMessagesSlots[slot](
           seed as Parameters<(typeof setMessagesSlots)[0]>[0],
         );
+        // Defer send until after React processes the setMessages state update
+        // to ensure the slot has the correct message history
+        const slotToSend = slot;
+        queueMicrotask(() => {
+          sendMessageSlots[slotToSend]({ text });
+        });
+        return true;
       }
       sendMessageSlots[slot]({ text });
+      return true;
     },
     [
       conversationToSlot,
@@ -555,8 +563,8 @@ export default function ChatInterface({
         });
 
         const cid = currentChatIdRef.current ?? conversationId;
-        if (cid) sendInConversation(cid, trimmedMessage);
-        setInput("");
+        const sent = cid ? sendInConversation(cid, trimmedMessage) : false;
+        if (sent) setInput("");
         return;
       }
 
@@ -580,8 +588,8 @@ export default function ChatInterface({
         scrollToBottom();
       });
 
-      sendInConversation(selectedChatId, trimmedMessage);
-      setInput("");
+      const sent = sendInConversation(selectedChatId, trimmedMessage);
+      if (sent) setInput("");
     },
     [
       isLoading,

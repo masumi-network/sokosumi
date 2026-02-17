@@ -168,6 +168,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             })()
           : null;
 
+      const metadata = (conversation?.metadata ?? null) as Record<
+        string,
+        unknown
+      > | null;
+      const coworkerId = metadata?.coworker_id as string | undefined;
+      const lastResponsesApiResponseId =
+        metadata?.last_responses_api_response_id as string | undefined;
+
+      const useResponsesApi =
+        Boolean(internalConversationId) &&
+        isResponsesApiAgentId(coworkerId) &&
+        isResponsesApiConfigured();
+
+      // Validate coworker message text BEFORE persisting to avoid inconsistent state
+      if (useResponsesApi) {
+        if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
+          throw badRequest(
+            "Coworker chat requires a user or system message to respond to; send at least one message with text.",
+          );
+        }
+      }
+
       if (internalConversationId && messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.role === "user" || lastMessage.role === "system") {
@@ -190,25 +212,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      const metadata = (conversation?.metadata ?? null) as Record<
-        string,
-        unknown
-      > | null;
-      const coworkerId = metadata?.coworker_id as string | undefined;
-      const lastResponsesApiResponseId =
-        metadata?.last_responses_api_response_id as string | undefined;
-
-      const useResponsesApi =
-        Boolean(internalConversationId) &&
-        isResponsesApiAgentId(coworkerId) &&
-        isResponsesApiConfigured();
-
       if (useResponsesApi) {
-        if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
-          throw badRequest(
-            "Coworker chat requires a user or system message to respond to; send at least one message with text.",
-          );
-        }
         const result = await streamResponsesApi(lastUserMessageText, {
           sokosumiUserId: authContext.userId,
           agentId: coworkerId as "hannah" | "elena",
