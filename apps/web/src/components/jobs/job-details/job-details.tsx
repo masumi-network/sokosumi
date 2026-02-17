@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AgentJobStatus,
   JobEventWithRelations,
   JobWithSokosumiStatus,
 } from "@sokosumi/database";
@@ -14,7 +13,10 @@ import { useState } from "react";
 import Header from "@/app/agents/[agentId]/jobs/components/header";
 import { useJobsHeader } from "@/app/agents/[agentId]/jobs/components/jobs-header-context";
 import { AgentIcon } from "@/components/agents/agent-icon";
-import { AgentJobStatusBadge } from "@/components/jobs/agent-job-status-badge";
+import {
+  AgentJobStatusBadge,
+  getAgentStatusDotColorClass,
+} from "@/components/jobs/agent-job-status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
@@ -300,7 +302,7 @@ function JobDetailsContent({
   const isStatusOnlyEvent =
     !event.result && !event.input && !hasSources && !isAwaitingInput;
   const isCardEvent = !isStatusOnlyEvent;
-  const actor = getJobEventActor({ job, event, isAwaitingInput });
+  const actor = getJobEventActor({ job, event });
 
   return (
     <div
@@ -315,7 +317,7 @@ function JobDetailsContent({
             <span
               className={cn(
                 "size-1.5 shrink-0 rounded-full",
-                getAgentJobStatusDotColorClass(event.status),
+                getAgentStatusDotColorClass(event.status),
               )}
               aria-hidden
             />
@@ -406,32 +408,12 @@ function JobDetailsContent({
   );
 }
 
-function getAgentJobStatusDotColorClass(status: AgentJobStatus) {
-  switch (status) {
-    case AgentJobStatus.COMPLETED:
-      return "bg-green-500";
-    case AgentJobStatus.FAILED:
-      return "bg-red-500";
-    case AgentJobStatus.AWAITING_INPUT:
-      return "bg-yellow-500";
-    case AgentJobStatus.AWAITING_PAYMENT:
-      return "bg-orange-500";
-    case AgentJobStatus.RUNNING:
-    case AgentJobStatus.INITIATED:
-      return "bg-sky-500";
-    default:
-      return "bg-gray-500";
-  }
-}
-
 function getJobEventActor({
   job,
   event,
-  isAwaitingInput,
 }: {
   job: JobWithSokosumiStatus;
   event: JobEventWithRelations;
-  isAwaitingInput: boolean;
 }):
   | { type: "user"; name: string; imageUrl: string | null }
   | {
@@ -449,8 +431,8 @@ function getJobEventActor({
     },
   };
 
-  if (isAwaitingInput || Boolean(event.input)) {
-    // Show the user for input-required / input-provided events (fallback to agent).
+  if (Boolean(event.input)) {
+    // Show the user for input-provided events (fallback to agent).
     return job.user
       ? {
           type: "user",

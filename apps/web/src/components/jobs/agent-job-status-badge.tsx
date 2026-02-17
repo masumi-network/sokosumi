@@ -46,7 +46,7 @@ export function AgentJobStatusBadge({
   );
 }
 
-function getAgentStatusDotColorClass(status: AgentJobStatus) {
+export function getAgentStatusDotColorClass(status: AgentJobStatus) {
   switch (status) {
     case AgentJobStatus.COMPLETED:
       return "bg-green-500";
