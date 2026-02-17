@@ -234,6 +234,26 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("RUNNING → AWAITING_EXTERNAL", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.RUNNING,
+          TaskStatus.AWAITING_EXTERNAL,
+        ),
+      ).not.toThrow();
+    });
+
+    it("AWAITING_EXTERNAL → RUNNING", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.AWAITING_EXTERNAL,
+          TaskStatus.RUNNING,
+        ),
+      ).not.toThrow();
+    });
+
     it("CREDITS_TOPPED_UP → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -393,6 +413,16 @@ describe("validateStatusTransition", () => {
         validateStatusTransition(
           userContext,
           TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.CANCEL_REQUESTED,
+        ),
+      ).not.toThrow();
+    });
+
+    it("AWAITING_EXTERNAL → CANCEL_REQUESTED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.AWAITING_EXTERNAL,
           TaskStatus.CANCEL_REQUESTED,
         ),
       ).not.toThrow();

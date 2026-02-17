@@ -1,10 +1,142 @@
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
-import { put } from "@vercel/blob";
+import {
+  head,
+  list,
+  put,
+} from "@vercel/blob";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import type { BlobFile } from "@/schemas/blob-file.schema";
+
+type ListBlobItem = Awaited<ReturnType<typeof list>>["blobs"][number];
+
+function toBlobFile(data: {
+  url: string;
+  pathname: string;
+  downloadUrl: string;
+  size: number;
+  uploadedAt: Date;
+  etag: string;
+}): BlobFile {
+  return {
+    publicUrl: data.url,
+    metadata: {
+      pathname: data.pathname,
+      downloadUrl: data.downloadUrl,
+      size: data.size,
+      uploadedAt: data.uploadedAt.toISOString(),
+      etag: data.etag,
+    },
+  };
+}
+
+function buildUserUploadPrefix(userId: string): string {
+  return `${STORAGE.USER_UPLOADS_DIR}/${userId}/`;
+}
+
+function sanitizeUploadFilename(fileName: string): string {
+  const sanitized = fileName
+    .trim()
+    .replace(/[\\/]+/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .replace(/_+/g, "_")
+    .replace(/^[_.]+|[_.]+$/g, "");
+
+  return sanitized.length > 0 ? sanitized : "file";
+}
+
+export async function uploadUserFile(
+  userId: string,
+  file: File,
+  token: string,
+): Promise<BlobFile> {
+  const sanitizedFilename = sanitizeUploadFilename(file.name);
+  const pathname = `${buildUserUploadPrefix(userId)}${sanitizedFilename}`;
+
+  const blob = await put(pathname, file, {
+    access: "public",
+    token,
+    addRandomSuffix: true,
+    allowOverwrite: false,
+    contentType: file.type || undefined,
+  });
+
+  try {
+    const blobHead = await head(blob.url, { token });
+    return toBlobFile({
+      url: blobHead.url,
+      pathname: blobHead.pathname,
+      downloadUrl: blobHead.downloadUrl,
+      size: blobHead.size,
+      uploadedAt: blobHead.uploadedAt,
+      etag: blobHead.etag,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "uploadUserFile",
+        phase: "head",
+      },
+    });
+    return toBlobFile({
+      url: blob.url,
+      pathname: blob.pathname,
+      downloadUrl: blob.downloadUrl,
+      size: file.size,
+      uploadedAt: new Date(),
+      etag: blob.etag,
+    });
+  }
+}
+
+export async function listUserFiles(
+  userId: string,
+  token: string,
+): Promise<BlobFile[]> {
+  const prefix = buildUserUploadPrefix(userId);
+  const blobs: ListBlobItem[] = [];
+
+  for (let cursor: string | undefined; ; ) {
+    const { blobs: pageBlobs, hasMore, cursor: nextCursor } = await list({
+      prefix,
+      token,
+      cursor,
+    });
+    blobs.push(...pageBlobs);
+
+    if (!hasMore) {
+      break;
+    }
+
+    if (!nextCursor) {
+      throw new Error(
+        "Blob list pagination is invalid: hasMore=true without cursor",
+      );
+    }
+
+    cursor = nextCursor;
+  }
+
+  return blobs
+    .map((blob) =>
+      toBlobFile({
+        url: blob.url,
+        pathname: blob.pathname,
+        downloadUrl: blob.downloadUrl,
+        size: blob.size,
+        uploadedAt: blob.uploadedAt,
+        etag: blob.etag,
+      }),
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(b.metadata.uploadedAt) - Date.parse(a.metadata.uploadedAt),
+    );
+}
 
 /**
  * Uploads an image to Vercel Blob storage

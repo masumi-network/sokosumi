@@ -41,7 +41,7 @@ export const createTaskEventRequestSchema = z
       ctx.addIssue({
         code: "custom",
         message:
-          "Credits can only be set when completing, canceling or topping up a task",
+          "Credits can only be set when completing, canceling, or marking that the user is out of credits",
         path: ["credits"],
       });
     }

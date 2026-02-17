@@ -11,6 +11,10 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
+import {
+  buildTaskScopeFilters,
+  taskScopeQuerySchema,
+} from "@/helpers/scope";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import {
@@ -39,6 +43,7 @@ const query = z
         description: "Filter tasks by coworker ID",
         example: "cow_123",
       }),
+    scope: taskScopeQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -66,7 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { status, coworkerId } = queryParams;
+    const { status, coworkerId, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     let where: Prisma.TaskWhereInput;
@@ -83,8 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     } else {
       where = {
-        userId: authContext.userId,
-        organizationId: authContext.organizationId ?? null,
+        OR: buildTaskScopeFilters(authContext, scope),
         ...(status ? { status } : {}),
         ...(coworkerId ? { coworkerId } : {}),
       };
