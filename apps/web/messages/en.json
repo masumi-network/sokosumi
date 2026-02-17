@@ -984,6 +984,69 @@
       "title": "Welcome to Sokosumi",
       "description": "Invite your colleagues and earn $10 in credits for each, up to a maximum of $40."
     },
+    "Dialog": {
+      "navigation": {
+        "skip": "Skip",
+        "back": "Back",
+        "next": "Next",
+        "getStarted": "Get Started"
+      },
+      "coworkerTooltip": "{name} · {role}",
+      "coworkers": {
+        "elena": {
+          "name": "Elena",
+          "role": "Project Management"
+        },
+        "hannah": {
+          "name": "Hannah",
+          "role": "Research"
+        }
+      },
+      "alt": {
+        "coworkerAvatar": "{name} avatar"
+      },
+      "welcome": {
+        "coworkersSummary": "{first}, {second} & more"
+      },
+      "intro": {
+        "welcome": {
+          "title": "Welcome to Sokosumi",
+          "description": "Your AI marketing hub. Meet your new coworkers - they are ready to get to work."
+        },
+        "chat": {
+          "title": "Tell Them What You Need",
+          "description": "Chat naturally with your coworkers. Describe what you need and they will take it from there."
+        },
+        "taskboard": {
+          "title": "Work Gets Organized",
+          "description": "Your coworker creates tasks, tracks progress on the Taskboard, and keeps everything on track."
+        },
+        "orchestration": {
+          "title": "They Handle the Rest",
+          "description": "Your coworker hires specialized agents to research, write, analyze - whatever the task requires."
+        }
+      },
+      "visuals": {
+        "chat": {
+          "userMessage": "Create a marketing campaign for our product launch",
+          "reply": "On it! I will research the market and draft a campaign strategy."
+        },
+        "taskboard": {
+          "taskTitle": "Marketing campaign",
+          "todo": "Todo",
+          "inProgress": "In Progress"
+        },
+        "orchestration": {
+          "hires": "Hires",
+          "workDelivered": "Work delivered",
+          "agents": {
+            "research": "Research",
+            "writing": "Writing",
+            "analytics": "Analytics"
+          }
+        }
+      }
+    },
     "Form": {
       "step1": "Step 1: Create your Organisation",
       "step2": "Step 2: Invite Co-Workers",

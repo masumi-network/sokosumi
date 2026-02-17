@@ -23,41 +23,23 @@ import {
 } from "@/components/ui/tooltip";
 import { skipOnboarding } from "@/lib/actions/onboarding";
 
-const DISMISSED_KEY = "onboarding-dialog-dismissed";
+import OnboardingForm from "./onboarding-form";
 
-const COWORKERS = [
-  { name: "Elena", role: "Project Management", avatar: "/images/coworkers/elena.webp" },
-  { name: "Hannah", role: "Research", avatar: "/images/coworkers/hannah.webp" },
-] as const;
-
-const INTRO_STEPS = [
-  {
-    title: "Welcome to Sokosumi",
-    description:
-      "Your AI marketing hub. Meet your new coworkers — they're ready to get to work.",
-  },
-  {
-    title: "Tell Them What You Need",
-    description:
-      "Chat naturally with your coworkers. Describe what you need and they'll take it from there.",
-  },
-  {
-    title: "Work Gets Organized",
-    description:
-      "Your coworker creates tasks, tracks progress on the Taskboard, and keeps everything on track.",
-  },
-  {
-    title: "They Handle the Rest",
-    description:
-      "Your coworker hires specialized agents to research, write, analyze — whatever the task requires.",
-  },
-] as const;
-
-const TOTAL_STEPS = INTRO_STEPS.length + 1;
+const INTRO_STEP_COUNT = 4;
 
 /* ─── Animated visuals ─── */
 
-function ChatVisual() {
+interface ChatVisualProps {
+  avatarAlt: string;
+  userMessage: string;
+  coworkerReply: string;
+}
+
+function ChatVisual({
+  avatarAlt,
+  userMessage,
+  coworkerReply,
+}: ChatVisualProps) {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
@@ -79,7 +61,7 @@ function ChatVisual() {
           }`}
         >
           <div className="bg-primary text-primary-foreground max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 text-[13px]">
-            Create a marketing campaign for our product launch
+            {userMessage}
           </div>
         </div>
 
@@ -89,7 +71,7 @@ function ChatVisual() {
             <div className="relative size-6 shrink-0 overflow-hidden rounded-full">
               <Image
                 src="/images/coworkers/elena.webp"
-                alt="Elena"
+                alt={avatarAlt}
                 fill
                 className="object-cover"
               />
@@ -111,13 +93,13 @@ function ChatVisual() {
           <div className="relative size-6 shrink-0 overflow-hidden rounded-full">
             <Image
               src="/images/coworkers/elena.webp"
-              alt="Elena"
+              alt={avatarAlt}
               fill
               className="object-cover"
             />
           </div>
           <div className="bg-background max-w-[85%] rounded-2xl rounded-bl-sm border px-4 py-2.5 text-[13px]">
-            On it! I&apos;ll research the market and draft a campaign strategy.
+            {coworkerReply}
           </div>
         </div>
       </div>
@@ -125,7 +107,21 @@ function ChatVisual() {
   );
 }
 
-function TaskboardVisual() {
+interface TaskboardVisualProps {
+  avatarAlt: string;
+  coworkerName: string;
+  taskTitle: string;
+  todoLabel: string;
+  inProgressLabel: string;
+}
+
+function TaskboardVisual({
+  avatarAlt,
+  coworkerName,
+  taskTitle,
+  todoLabel,
+  inProgressLabel,
+}: TaskboardVisualProps) {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
@@ -139,30 +135,32 @@ function TaskboardVisual() {
 
   const taskCard = (
     <div className="bg-background rounded-md border p-2.5 shadow-sm">
-      <p className="text-[11px] font-medium">Marketing campaign</p>
+      <p className="text-[11px] font-medium">{taskTitle}</p>
       <div className="mt-1.5 flex items-center gap-1.5">
         <div className="relative size-4 overflow-hidden rounded-full">
           <Image
             src="/images/coworkers/elena.webp"
-            alt="Elena"
+            alt={avatarAlt}
             fill
             className="object-cover"
           />
         </div>
-        <span className="text-muted-foreground text-[10px]">Elena</span>
+        <span className="text-muted-foreground text-[10px]">
+          {coworkerName}
+        </span>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-6">
-      <div className="flex w-full max-w-[280px] gap-3">
+    <div className="flex h-full w-full flex-col items-center justify-center px-6">
+      <div className="flex w-full max-w-[280px] justify-center gap-3">
         {/* Todo column */}
         <div className="flex-1">
           <div className="mb-2.5 flex items-center gap-1.5">
             <span className="bg-muted-foreground/40 size-1.5 rounded-full" />
-            <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
-              Todo
+            <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+              {todoLabel}
             </span>
           </div>
           <div className="border-border/50 min-h-[100px] rounded-lg border border-dashed p-1.5">
@@ -184,14 +182,16 @@ function TaskboardVisual() {
         <div className="flex-1">
           <div className="mb-2.5 flex items-center gap-1.5">
             <span className="bg-primary size-1.5 rounded-full" />
-            <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
-              In Progress
+            <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+              {inProgressLabel}
             </span>
           </div>
           <div className="border-border/50 min-h-[100px] rounded-lg border border-dashed p-1.5">
             <div
               className={`transition-all duration-700 ${
-                phase >= 2 ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0"
+                phase >= 2
+                  ? "translate-x-0 opacity-100"
+                  : "-translate-x-2 opacity-0"
               }`}
             >
               {taskCard}
@@ -203,9 +203,22 @@ function TaskboardVisual() {
   );
 }
 
-function OrchestrationVisual() {
+interface OrchestrationVisualProps {
+  avatarAlt: string;
+  coworkerName: string;
+  agents: string[];
+  hiresLabel: string;
+  workDeliveredLabel: string;
+}
+
+function OrchestrationVisual({
+  avatarAlt,
+  coworkerName,
+  agents,
+  hiresLabel,
+  workDeliveredLabel,
+}: OrchestrationVisualProps) {
   const [phase, setPhase] = useState(0);
-  const agents = ["Research", "Writing", "Analytics"];
 
   useEffect(() => {
     const timers = [
@@ -220,7 +233,7 @@ function OrchestrationVisual() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-6">
+    <div className="flex h-full w-full flex-col items-center justify-center px-6">
       <div className="flex items-center gap-4">
         {/* Elena node */}
         <div
@@ -231,12 +244,12 @@ function OrchestrationVisual() {
           <div className="ring-primary/20 relative size-14 overflow-hidden rounded-full ring-2">
             <Image
               src="/images/coworkers/elena.webp"
-              alt="Elena"
+              alt={avatarAlt}
               fill
               className="object-cover"
             />
           </div>
-          <span className="text-xs font-medium">Elena</span>
+          <span className="text-xs font-medium">{coworkerName}</span>
         </div>
 
         {/* Connection */}
@@ -248,7 +261,9 @@ function OrchestrationVisual() {
           <div className="bg-border relative h-px w-16">
             <span className="bg-primary absolute top-1/2 left-0 size-1.5 -translate-y-1/2 animate-[slide_2s_ease-in-out_infinite] rounded-full" />
           </div>
-          <span className="text-muted-foreground text-[10px]">hires</span>
+          <span className="text-muted-foreground text-[10px]">
+            {hiresLabel}
+          </span>
         </div>
 
         {/* Agent nodes */}
@@ -257,7 +272,9 @@ function OrchestrationVisual() {
             <div
               key={name}
               className={`flex items-center gap-2 transition-all duration-500 ${
-                phase >= 3 + i ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0"
+                phase >= 3 + i
+                  ? "translate-x-0 opacity-100"
+                  : "-translate-x-2 opacity-0"
               }`}
             >
               <div className="bg-background flex size-8 items-center justify-center rounded-full border shadow-sm">
@@ -277,7 +294,7 @@ function OrchestrationVisual() {
       >
         <div className="bg-border h-px w-6" />
         <div className="bg-primary/10 text-primary rounded-full px-3 py-1 text-[11px] font-medium">
-          Work delivered
+          {workDeliveredLabel}
         </div>
         <div className="bg-border h-px w-6" />
       </div>
@@ -289,6 +306,8 @@ function OrchestrationVisual() {
 
 function StepNavigation({
   step,
+  totalSteps,
+  labels,
   isLoading,
   onBack,
   onNext,
@@ -296,6 +315,13 @@ function StepNavigation({
   onFinish,
 }: {
   step: number;
+  totalSteps: number;
+  labels: {
+    skip: string;
+    back: string;
+    next: string;
+    getStarted: string;
+  };
   isLoading: boolean;
   onBack: () => void;
   onNext: () => void;
@@ -303,12 +329,12 @@ function StepNavigation({
   onFinish: () => void;
 }) {
   const isFirst = step === 0;
-  const isLast = step === TOTAL_STEPS - 1;
+  const isLast = step === totalSteps - 1;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-center gap-1.5">
-        {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+        {Array.from({ length: totalSteps }).map((_, i) => (
           <span
             key={i}
             className={`size-1.5 rounded-full transition-colors ${
@@ -325,7 +351,7 @@ function StepNavigation({
             onClick={onSkip}
             disabled={isLoading}
           >
-            Skip
+            {labels.skip}
           </Button>
         ) : (
           <div />
@@ -337,15 +363,15 @@ function StepNavigation({
             disabled={isFirst || isLoading}
           >
             <ArrowLeft className="size-4" />
-            Back
+            {labels.back}
           </Button>
           {isLast ? (
             <Button variant="primary" onClick={onFinish} disabled={isLoading}>
-              Get Started
+              {labels.getStarted}
             </Button>
           ) : (
             <Button variant="primary" onClick={onNext} disabled={isLoading}>
-              Next
+              {labels.next}
               <ArrowRight className="size-4" />
             </Button>
           )}
@@ -358,38 +384,77 @@ function StepNavigation({
 /* ─── Main dialog ─── */
 
 export function OnboardingDialog() {
-  const t = useTranslations("Onboarding.Metadata");
+  const tMetadata = useTranslations("Onboarding.Metadata");
+  const tDialog = useTranslations("Onboarding.Dialog");
+  const tForm = useTranslations("Onboarding.Form");
   const router = useRouter();
-  // TODO: remove — always show for testing
   const [open, setOpen] = useState(true);
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   if (!open) return null;
 
-  const handleDismiss = async (event: string) => {
-    track(event);
+  const coworkers = [
+    {
+      name: tDialog("coworkers.elena.name"),
+      role: tDialog("coworkers.elena.role"),
+      avatar: "/images/coworkers/elena.webp",
+    },
+    {
+      name: tDialog("coworkers.hannah.name"),
+      role: tDialog("coworkers.hannah.role"),
+      avatar: "/images/coworkers/hannah.webp",
+    },
+  ];
+
+  const introSteps = [
+    {
+      title: tDialog("intro.welcome.title"),
+      description: tDialog("intro.welcome.description"),
+    },
+    {
+      title: tDialog("intro.chat.title"),
+      description: tDialog("intro.chat.description"),
+    },
+    {
+      title: tDialog("intro.taskboard.title"),
+      description: tDialog("intro.taskboard.description"),
+    },
+    {
+      title: tDialog("intro.orchestration.title"),
+      description: tDialog("intro.orchestration.description"),
+    },
+  ];
+
+  const handleSkip = async (eventName: string) => {
+    track(eventName);
     setIsLoading(true);
     try {
       const result = await skipOnboarding();
       if (result.ok) {
         const redirectUrl = result.data.redirectUrl ?? "/agents";
-        sessionStorage.setItem(DISMISSED_KEY, "true");
         setOpen(false);
         router.push(redirectUrl);
       } else {
-        toast.error(result.error.message ?? "Failed to complete onboarding");
+        toast.error(result.error.message ?? tForm("Toast.failedToSkip"));
       }
     } catch {
-      toast.error("An unexpected error occurred");
+      toast.error(tForm("Toast.unexpectedError"));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const isIntroStep = step < INTRO_STEPS.length;
+  const handleFormComplete = (redirectUrl: string) => {
+    setOpen(false);
+    router.push(redirectUrl);
+  };
+
+  const isIntroStep = step < INTRO_STEP_COUNT;
   const isWelcome = step === 0;
   const hasSplitLayout = isIntroStep && !isWelcome;
+  const elenaName = coworkers[0]?.name ?? "";
+  const elenaAvatarAlt = tDialog("alt.coworkerAvatar", { name: elenaName });
 
   return (
     <Dialog open={open}>
@@ -398,25 +463,69 @@ export function OnboardingDialog() {
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogTitle className="hidden">{t("title")}</DialogTitle>
+        <DialogTitle className="hidden">{tMetadata("title")}</DialogTitle>
         <DialogDescription className="hidden">
-          {t("description")}
+          {tMetadata("description")}
         </DialogDescription>
 
-        <div className="bg-background flex max-h-svh flex-col overflow-hidden rounded-xl shadow-lg md:h-[560px]">
+        <div
+          className={`bg-background flex flex-col rounded-xl shadow-lg ${
+            isIntroStep
+              ? "max-h-svh overflow-hidden md:h-[560px]"
+              : "h-[94svh] max-h-svh overflow-x-hidden overflow-y-auto md:h-[90svh] md:max-h-[760px]"
+          }`}
+        >
           {/* Content area */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+          <div
+            className={`flex min-h-0 flex-1 flex-col md:flex-row ${
+              isIntroStep ? "overflow-hidden" : "overflow-visible"
+            }`}
+          >
             {/* Visual panel — stacked on mobile, side panel on desktop */}
             {hasSplitLayout && (
-              <div className="bg-muted flex h-44 shrink-0 border-b md:h-auto md:w-[42%] md:shrink md:border-b-0 md:border-r">
-                {step === 1 && <ChatVisual />}
-                {step === 2 && <TaskboardVisual />}
-                {step === 3 && <OrchestrationVisual />}
+              <div className="bg-muted flex h-44 shrink-0 border-b md:h-auto md:w-[42%] md:shrink md:border-r md:border-b-0">
+                {step === 1 && (
+                  <ChatVisual
+                    avatarAlt={elenaAvatarAlt}
+                    userMessage={tDialog("visuals.chat.userMessage")}
+                    coworkerReply={tDialog("visuals.chat.reply")}
+                  />
+                )}
+                {step === 2 && (
+                  <TaskboardVisual
+                    avatarAlt={elenaAvatarAlt}
+                    coworkerName={elenaName}
+                    taskTitle={tDialog("visuals.taskboard.taskTitle")}
+                    todoLabel={tDialog("visuals.taskboard.todo")}
+                    inProgressLabel={tDialog("visuals.taskboard.inProgress")}
+                  />
+                )}
+                {step === 3 && (
+                  <OrchestrationVisual
+                    avatarAlt={elenaAvatarAlt}
+                    coworkerName={elenaName}
+                    hiresLabel={tDialog("visuals.orchestration.hires")}
+                    agents={[
+                      tDialog("visuals.orchestration.agents.research"),
+                      tDialog("visuals.orchestration.agents.writing"),
+                      tDialog("visuals.orchestration.agents.analytics"),
+                    ]}
+                    workDeliveredLabel={tDialog(
+                      "visuals.orchestration.workDelivered",
+                    )}
+                  />
+                )}
               </div>
             )}
 
             {/* Main content */}
-            <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center md:p-10">
+            <div
+              className={`flex flex-1 flex-col p-6 md:p-10 ${
+                isIntroStep
+                  ? "items-center justify-center overflow-y-auto text-center"
+                  : "items-stretch justify-start overflow-visible text-left"
+              }`}
+            >
               {/* Welcome */}
               {isWelcome && (
                 <>
@@ -426,33 +535,41 @@ export function OnboardingDialog() {
                     className="text-foreground"
                   />
                   <h2 className="mt-8 text-2xl font-semibold tracking-tight">
-                    {INTRO_STEPS[0].title}
+                    {introSteps[0].title}
                   </h2>
                   <p className="text-muted-foreground mt-3 max-w-md text-[15px] leading-relaxed">
-                    {INTRO_STEPS[0].description}
+                    {introSteps[0].description}
                   </p>
                   <div className="mt-8 flex items-center gap-3">
                     <div className="flex -space-x-2">
-                      {COWORKERS.map((cw) => (
+                      {coworkers.map((cw) => (
                         <Tooltip key={cw.name}>
                           <TooltipTrigger asChild>
                             <div className="ring-background relative size-8 overflow-hidden rounded-full ring-2">
                               <Image
                                 src={cw.avatar}
-                                alt={cw.name}
+                                alt={tDialog("alt.coworkerAvatar", {
+                                  name: cw.name,
+                                })}
                                 fill
                                 className="object-cover"
                               />
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">
-                            {cw.name} · {cw.role}
+                            {tDialog("coworkerTooltip", {
+                              name: cw.name,
+                              role: cw.role,
+                            })}
                           </TooltipContent>
                         </Tooltip>
                       ))}
                     </div>
                     <span className="text-muted-foreground text-sm">
-                      Elena, Hannah & more
+                      {tDialog("welcome.coworkersSummary", {
+                        first: coworkers[0]?.name ?? "",
+                        second: coworkers[1]?.name ?? "",
+                      })}
                     </span>
                   </div>
                 </>
@@ -462,59 +579,42 @@ export function OnboardingDialog() {
               {hasSplitLayout && (
                 <div className="md:self-start md:text-left">
                   <h2 className="text-2xl font-semibold tracking-tight">
-                    {INTRO_STEPS[step].title}
+                    {introSteps[step].title}
                   </h2>
                   <p className="text-muted-foreground mx-auto mt-3 max-w-sm text-[15px] leading-relaxed md:mx-0">
-                    {INTRO_STEPS[step].description}
+                    {introSteps[step].description}
                   </p>
                 </div>
               )}
 
-              {/* Close step */}
-              {!isIntroStep && (
-                <>
-                  <div className="flex -space-x-3">
-                    {COWORKERS.map((cw) => (
-                      <Tooltip key={cw.name}>
-                        <TooltipTrigger asChild>
-                          <div className="ring-background relative size-12 overflow-hidden rounded-full ring-2">
-                            <Image
-                              src={cw.avatar}
-                              alt={cw.name}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">
-                          {cw.name} · {cw.role}
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
-                  </div>
-                  <h2 className="mt-6 text-2xl font-semibold tracking-tight">
-                    You&apos;re all set
-                  </h2>
-                  <p className="text-muted-foreground mt-3 max-w-md text-[15px] leading-relaxed">
-                    Your coworkers are ready and waiting. Start a chat to get
-                    things done.
-                  </p>
-                </>
-              )}
+              {!isIntroStep ? (
+                <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
+                  <OnboardingForm onComplete={handleFormComplete} />
+                </div>
+              ) : null}
             </div>
           </div>
 
           {/* Fixed bottom navigation */}
-          <div className="shrink-0 border-t px-6 pb-6 pt-4 md:px-10 md:pb-8 md:pt-5">
-            <StepNavigation
-              step={step}
-              isLoading={isLoading}
-              onBack={() => setStep(step - 1)}
-              onNext={() => setStep(step + 1)}
-              onSkip={() => handleDismiss("Onboarding skipped")}
-              onFinish={() => handleDismiss("Onboarding completed")}
-            />
-          </div>
+          {isIntroStep ? (
+            <div className="shrink-0 border-t px-6 pt-4 pb-6 md:px-10 md:pt-5 md:pb-8">
+              <StepNavigation
+                step={step}
+                totalSteps={INTRO_STEP_COUNT}
+                labels={{
+                  skip: tDialog("navigation.skip"),
+                  back: tDialog("navigation.back"),
+                  next: tDialog("navigation.next"),
+                  getStarted: tDialog("navigation.getStarted"),
+                }}
+                isLoading={isLoading}
+                onBack={() => setStep(step - 1)}
+                onNext={() => setStep(step + 1)}
+                onSkip={() => handleSkip("Onboarding skipped")}
+                onFinish={() => setStep(INTRO_STEP_COUNT)}
+              />
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

@@ -86,8 +86,8 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Check if user needs onboarding (this will be checked server-side in the onboarding page)
-  // The actual onboarding status check happens in the page component
+  // Onboarding is checked server-side in the protected app layout.
+  // Users who still need onboarding see the in-app onboarding dialog there.
 
   return response;
 }

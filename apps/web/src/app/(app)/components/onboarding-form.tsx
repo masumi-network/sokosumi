@@ -5,7 +5,7 @@ import { track } from "@vercel/analytics";
 import { Building2, Loader2, Mail, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -73,7 +73,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps) {
     name: "emails",
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (emailFields.length === 0) {
       replace(["", "", "", ""]);
     }
@@ -164,10 +164,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps) {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-8"
-      >
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
         <section className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
@@ -233,8 +230,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps) {
                 name={`emails.${index}`}
                 render={({ field }) => {
                   const value = field.value ?? "";
-                  const showCredits =
-                    isValidEmail(value) && index < 4;
+                  const showCredits = isValidEmail(value) && index < 4;
                   const canRemoveField = index >= 4;
 
                   return (
@@ -268,9 +264,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps) {
                               onClick={() => remove(index)}
                             >
                               <X className="size-4" />
-                              <span className="sr-only">
-                                {tApp("delete")}
-                              </span>
+                              <span className="sr-only">{tApp("delete")}</span>
                             </Button>
                           ) : null}
                         </div>
@@ -310,9 +304,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps) {
             disabled={isContinueDisabled}
             className="h-10 w-full"
           >
-            {isSubmitting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
+            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
             {t("continueAndInviteCoWorkers")}
           </Button>
 
