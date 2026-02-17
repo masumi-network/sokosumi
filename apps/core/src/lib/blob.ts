@@ -1,7 +1,11 @@
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
-import { head, list, put } from "@vercel/blob";
+import {
+  head,
+  list,
+  put,
+} from "@vercel/blob";
 
 import { CRYPTO, STORAGE } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -97,11 +101,7 @@ export async function listUserFiles(
   const blobs: ListBlobItem[] = [];
 
   for (let cursor: string | undefined; ; ) {
-    const {
-      blobs: pageBlobs,
-      hasMore,
-      cursor: nextCursor,
-    } = await list({
+    const { blobs: pageBlobs, hasMore, cursor: nextCursor } = await list({
       prefix,
       token,
       cursor,

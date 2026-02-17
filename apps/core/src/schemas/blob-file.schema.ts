@@ -9,8 +9,7 @@ export const blobFileMetadataSchema = z
       description: "Blob pathname within storage",
     }),
     downloadUrl: z.string().openapi({
-      example:
-        "https://store.public.blob.vercel-storage.com/document_abc.pdf?download=1",
+      example: "https://store.public.blob.vercel-storage.com/document_abc.pdf?download=1",
       description: "Direct download URL",
     }),
     size: z.number().openapi({
@@ -28,8 +27,7 @@ export const blobFileMetadataSchema = z
 export const blobFileSchema = z
   .object({
     publicUrl: z.string().openapi({
-      example:
-        "https://store.public.blob.vercel-storage.com/users/user_123/document_abc.pdf",
+      example: "https://store.public.blob.vercel-storage.com/users/user_123/document_abc.pdf",
       description: "Public URL of the uploaded file",
     }),
     metadata: blobFileMetadataSchema,
