@@ -99,8 +99,8 @@ export const startJob = withAuthContext<
       });
 
       // Upload files if any and replace them with URLs in-place
-      if (input.inputData) {
-        await handleInputDataFileUploads(userId, input.inputData);
+      if (inputDataForService.inputData) {
+        await handleInputDataFileUploads(userId, inputDataForService.inputData);
       }
 
       // Set job context
@@ -262,9 +262,7 @@ export const provideJobInput = withAuthContext<
       });
 
       // Upload files if any and replace them with URLs in-place
-      if (Object.keys(inputData).length > 0) {
-        await handleInputDataFileUploads(userId, inputData);
-      }
+      await handleInputDataFileUploads(userId, inputData);
 
       // Set job context
       scope.setTag("action", "submitJobInput");

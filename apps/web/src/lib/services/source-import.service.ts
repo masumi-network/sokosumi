@@ -12,7 +12,7 @@ import pLimit from "p-limit";
 import { uploadFileForBlob } from "@/lib/blob/utils";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import prisma from "@/lib/db/prisma";
-import { isHttpUrl, parseContentDispositionFilename } from "@/lib/utils/file";
+import { isHttpUrl } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {
   function getBasename(url: string): string | null {
@@ -137,6 +137,17 @@ export const sourceImportService = (() => {
     } catch (_error) {
       await blobRepository.markBlobFailed(blob.id, prisma);
     }
+  }
+
+  function parseContentDispositionFilename(
+    disposition: string | null,
+  ): string | null {
+    if (!disposition) return null;
+    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(
+      disposition,
+    );
+    const value = decodeURIComponent(match?.[1] ?? match?.[2] ?? "");
+    return value || null;
   }
 
   /**
