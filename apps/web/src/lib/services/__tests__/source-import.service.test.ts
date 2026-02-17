@@ -2,10 +2,17 @@ jest.mock("server-only", () => ({}));
 
 const captureExceptionMock = jest.fn();
 
-jest.mock("@sentry/nextjs", () => ({
-  __esModule: true,
-  captureException: (...args: unknown[]) => captureExceptionMock(...args),
-}));
+jest.mock("@sentry/nextjs", () => {
+  const sentry = {
+    captureException: (...args: unknown[]) => captureExceptionMock(...args),
+  };
+
+  return {
+    __esModule: true,
+    ...sentry,
+    default: sentry,
+  };
+});
 
 jest.mock("p-limit", () => ({
   __esModule: true,
@@ -124,7 +131,7 @@ describe("sourceImportService.importPendingResultBlobs", () => {
     expect(markBlobFailedMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to uploaded file size when blob head metadata lookup fails", async () => {
+  it("marks blob as failed when blob head metadata lookup fails", async () => {
     const sourceResponse = new Response("hello world", {
       status: 200,
       headers: {
@@ -144,16 +151,8 @@ describe("sourceImportService.importPendingResultBlobs", () => {
 
     await sourceImportService.importPendingResultBlobs();
 
-    expect(markBlobReadyMock).toHaveBeenCalledWith(
-      "blob_1",
-      expect.objectContaining({
-        fileUrl: "https://blob.example/fallback.txt",
-        mimeType: "text/plain",
-        size: BigInt(11),
-      }),
-      expect.any(Object),
-    );
-    expect(markBlobFailedMock).not.toHaveBeenCalled();
-    expect(captureExceptionMock).toHaveBeenCalled();
+    expect(markBlobReadyMock).not.toHaveBeenCalled();
+    expect(markBlobFailedMock).toHaveBeenCalledWith("blob_1", expect.any(Object));
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 });

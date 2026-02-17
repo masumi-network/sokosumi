@@ -94,7 +94,7 @@ export const sourceImportService = (() => {
    * 2. Fetches the file from the blob's sourceUrl.
    * 3. Determines the file's content type and suggested filename.
    * 4. Uploads the file using the uploadFile utility.
-   * 5. Reads blob metadata from storage (with local fallback).
+   * 5. Reads blob metadata from storage.
    * 6. Marks the blob as READY with the uploaded file's metadata.
    * 7. If any error occurs, marks the blob as FAILED.
    *
@@ -134,7 +134,7 @@ export const sourceImportService = (() => {
         },
         prisma,
       );
-    } catch {
+    } catch (_error) {
       await blobRepository.markBlobFailed(blob.id, prisma);
     }
   }
