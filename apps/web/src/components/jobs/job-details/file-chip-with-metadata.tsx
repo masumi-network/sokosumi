@@ -3,31 +3,12 @@
 import { useEffect, useState } from "react";
 
 import { FileChip, type FileChipProps } from "@/components/ui/file-chip";
+import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
 
 interface FileHeadMetadata {
   contentType?: string;
   fileName?: string;
   size?: number;
-}
-
-function parseContentDispositionFilename(
-  disposition: string | null,
-): string | undefined {
-  if (!disposition) return undefined;
-
-  const encodedMatch = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
-  const encodedFileName = encodedMatch?.[1];
-  if (encodedFileName) {
-    try {
-      return decodeURIComponent(encodedFileName);
-    } catch {
-      return encodedFileName;
-    }
-  }
-
-  const plainMatch = /filename="?([^";]+)"?/i.exec(disposition);
-  const plainFileName = plainMatch?.[1];
-  return plainFileName || undefined;
 }
 
 function parseContentLength(value: string | null): number | undefined {
