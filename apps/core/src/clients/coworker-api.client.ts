@@ -232,9 +232,7 @@ function createResponsesApiUiStream(
         closeStream(controller);
         return true;
       }
-    } catch {
-      // ignore
-    }
+    } catch (_) {}
 
     return false;
   }
@@ -326,9 +324,7 @@ function createResponsesApiUiStream(
               controller.close();
               return;
             }
-          } catch {
-            // ignore
-          }
+          } catch (_) {}
         }
 
         if (!streamClosed) {

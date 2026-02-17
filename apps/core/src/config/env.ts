@@ -41,7 +41,7 @@ const envSchema = z.object({
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
-  // Coworkers API (Hannah / Elena)
+  // Coworkers API
   COWORKERS_API_SERVICE_KEY: z.string().min(1).optional(),
   COWORKERS_API_BASE_URL: z.url().optional(),
 

@@ -134,17 +134,13 @@ export default function ChatListsClient() {
     });
   }, [conversations]);
 
-  const effectiveConversationId = (() => {
-    if (conversationId && conversations.some((c) => c.id === conversationId)) {
-      return conversationId;
-    }
-    return (
-      selectedConversation?.id ??
-      sortedConversations[0]?.id ??
-      conversationId ??
-      null
-    );
-  })();
+  const effectiveConversationId =
+    conversationId && conversations.some((c) => c.id === conversationId)
+      ? conversationId
+      : (selectedConversation?.id ??
+        sortedConversations[0]?.id ??
+        conversationId ??
+        null);
 
   return (
     <Collapsible
