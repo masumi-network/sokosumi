@@ -107,7 +107,7 @@ async function processSchedule(schedule: JobSchedule) {
 
     const parsed = parsedResult.data;
 
-    const result = await jobService.startJob(parsed, []); // No uploaded files for schedule
+    const result = await jobService.startJob(parsed);
 
     // Success → compute next run or deactivate if one-time
     if (isOneTime) {

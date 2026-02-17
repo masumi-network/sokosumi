@@ -4,56 +4,32 @@ import { InputSchemaType } from "@sokosumi/masumi/schemas";
 
 import { uploadFileForUser } from "@/lib/blob/utils";
 
-export interface UploadedFile {
-  url: string;
-  name: string;
-  size: bigint;
-  mimeType: string;
-}
-
 /**
- * This function upload files from inputData to blob storage and return the file urls
+ * Upload files found in inputData to blob storage and replace file values with URLs.
  *
  * @param userId - The user id
  * @param inputData - The input data
- * @returns The file urls
  */
 export async function handleInputDataFileUploads(
   userId: string,
   inputData: InputSchemaType,
-): Promise<UploadedFile[]> {
-  const results: UploadedFile[] = [];
+): Promise<void> {
   for (const [key, value] of Object.entries(inputData)) {
     if (value instanceof File) {
       const blob = await uploadFileForUser(userId, value);
       inputData[key] = blob.url;
-      results.push({
-        url: blob.url,
-        name: value.name,
-        size: BigInt(value.size),
-        mimeType: blob.contentType,
-      });
     } else if (Array.isArray(value) && value.every((v) => v instanceof File)) {
       const uploaded = await Promise.all(
         value.map(async (file: File) => {
           const blob = await uploadFileForUser(userId, file);
-          return {
-            url: blob.url,
-            name: file.name,
-            size: BigInt(file.size),
-            mimeType: blob.contentType,
-          } satisfies UploadedFile;
+          return blob.url;
         }),
       );
-      results.push(...uploaded);
-
-      const fileUrls = uploaded.map((u) => u.url);
-      if (fileUrls.length === 1) {
-        inputData[key] = fileUrls[0];
+      if (uploaded.length === 1) {
+        inputData[key] = uploaded[0];
       } else {
-        inputData[key] = fileUrls;
+        inputData[key] = uploaded;
       }
     }
   }
-  return results;
 }

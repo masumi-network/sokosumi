@@ -38,7 +38,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { type UploadedFile } from "@/lib/actions/job/utils";
 import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
 import prisma from "@/lib/db/prisma";
@@ -492,7 +491,6 @@ export const jobService = (() => {
   async function startPaidJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
-    uploadedFiles: UploadedFile[],
   ): Promise<JobWithSokosumiStatus> {
     const {
       userId,
@@ -687,7 +685,6 @@ export const jobService = (() => {
             sellerVkey: startJobResponse.sellerVKey,
             name: generatedName,
             jobScheduleId,
-            attachments: uploadedFiles,
           },
           tx,
         );
@@ -774,7 +771,6 @@ export const jobService = (() => {
   async function startFreeJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
-    uploadedFiles: UploadedFile[],
   ): Promise<JobWithSokosumiStatus> {
     const {
       userId,
@@ -841,7 +837,6 @@ export const jobService = (() => {
         inputSchema: inputSchema,
         name: generatedName,
         jobScheduleId,
-        attachments: uploadedFiles,
       },
       prisma,
     );
@@ -872,7 +867,6 @@ export const jobService = (() => {
    */
   const startJob = async (
     input: StartJobInputSchemaType,
-    uploadedFiles: UploadedFile[],
   ): Promise<JobWithSokosumiStatus> => {
     const { userId, organizationId, agentId } = input;
 
@@ -902,7 +896,7 @@ export const jobService = (() => {
           message: "Routing to free job flow",
           level: "info",
         });
-        return startFreeJobInternal(input, agent, uploadedFiles);
+        return startFreeJobInternal(input, agent);
 
       case PricingType.FIXED:
         Sentry.addBreadcrumb({
@@ -911,7 +905,7 @@ export const jobService = (() => {
           level: "info",
         });
 
-        return startPaidJobInternal(input, agent, uploadedFiles);
+        return startPaidJobInternal(input, agent);
 
       case PricingType.UNKNOWN:
       default:
@@ -1277,7 +1271,6 @@ export const jobService = (() => {
    */
   const provideJobInput = async (
     input: ProvideJobInputSchemaType & { userId: string },
-    uploadedFiles: UploadedFile[],
   ): Promise<{
     job: JobWithSokosumiStatus;
     jobEvent: JobEvent;
@@ -1369,7 +1362,6 @@ export const jobService = (() => {
           input: inputJson,
           inputHash: responseData.input_hash,
           signature: responseData.signature,
-          attachments: uploadedFiles,
         },
         tx,
       );

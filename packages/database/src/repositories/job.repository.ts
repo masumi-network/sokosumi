@@ -13,7 +13,6 @@ import {
   jobOrderBy,
   type JobWithSokosumiStatus,
 } from "../types/job.js";
-import { AttachmentData } from "./attachment.repository.js";
 import { creditBucketRepository } from "./credit-bucket.repository.js";
 
 interface CreateDemoJobData {
@@ -37,7 +36,6 @@ interface CreateJobBase {
   input: string;
   inputHash: string | null;
   name: string | null;
-  attachments: AttachmentData[];
   jobScheduleId?: string | null | undefined;
 }
 
@@ -289,16 +287,6 @@ export const jobRepository = {
             create: {
               input: data.input,
               inputHash: data.inputHash,
-              attachments: {
-                createMany: {
-                  data: data.attachments.map((attachment) => ({
-                    url: attachment.url,
-                    name: attachment.name,
-                    mimeType: attachment.mimeType,
-                    size: attachment.size,
-                  })),
-                },
-              },
             },
           },
         },

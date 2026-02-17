@@ -33,7 +33,7 @@ import {
   withAuthContext,
 } from "@/middleware/auth-middleware";
 
-import { handleInputDataFileUploads, type UploadedFile } from "./utils";
+import { handleInputDataFileUploads } from "./utils";
 
 interface StartDemoJobParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">;
@@ -98,13 +98,9 @@ export const startJob = withAuthContext<
         id: userId,
       });
 
-      // Upload files if any
-      let uploadedFiles: UploadedFile[] = [];
+      // Upload files if any and replace them with URLs in-place
       if (input.inputData) {
-        uploadedFiles = await handleInputDataFileUploads(
-          userId,
-          input.inputData,
-        );
+        await handleInputDataFileUploads(userId, input.inputData);
       }
 
       // Set job context
@@ -147,7 +143,7 @@ export const startJob = withAuthContext<
       }
       const parsed = parsedResult.data;
 
-      const job = await jobService.startJob(parsed, uploadedFiles);
+      const job = await jobService.startJob(parsed);
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
@@ -265,10 +261,9 @@ export const provideJobInput = withAuthContext<
         id: userId,
       });
 
-      // Upload files if any
-      let uploadedFiles: UploadedFile[] = [];
+      // Upload files if any and replace them with URLs in-place
       if (Object.keys(inputData).length > 0) {
-        uploadedFiles = await handleInputDataFileUploads(userId, inputData);
+        await handleInputDataFileUploads(userId, inputData);
       }
 
       // Set job context
@@ -292,15 +287,12 @@ export const provideJobInput = withAuthContext<
       });
 
       // Call service to provide job input
-      const { job } = await jobService.provideJobInput(
-        {
-          jobId,
-          statusId,
-          userId,
-          inputData,
-        },
-        uploadedFiles,
-      );
+      const { job } = await jobService.provideJobInput({
+        jobId,
+        statusId,
+        userId,
+        inputData,
+      });
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
