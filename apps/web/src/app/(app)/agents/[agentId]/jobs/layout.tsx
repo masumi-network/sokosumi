@@ -61,7 +61,12 @@ export default async function JobLayout({
   );
 }
 
-async function JobLayoutInner({ right, modal, params }: JobLayoutProps) {
+async function JobLayoutInner({
+  right,
+  modal,
+  params,
+  children,
+}: JobLayoutProps) {
   const session = await getSession();
   if (!session) {
     return notFound();
@@ -129,6 +134,12 @@ async function JobLayoutInner({ right, modal, params }: JobLayoutProps) {
                 userId={session.user.id}
                 agentId={agentId}
               />
+            </div>
+
+            <div className="h-full min-h-0 min-w-0 flex-1 lg:hidden">
+              <div className="mx-auto h-full min-h-0 w-full px-4">
+                {children}
+              </div>
             </div>
 
             <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">
