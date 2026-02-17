@@ -88,13 +88,13 @@ export function HashGroupRow({
     return (
       <div
         className={cn(
-          `text-muted-foreground flex items-center justify-end gap-2 text-xs md:grid-cols-3`,
+          `text-muted-foreground flex items-center gap-2 text-xs md:grid-cols-3`,
           rowClassName,
         )}
       >
         <span className="break-all">{label}</span>
         <div className="break-all">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center">
             <CopyableValue value={externalHash} />
             {verificationBadge}
           </div>
@@ -108,10 +108,7 @@ export function HashGroupRow({
       <AccordionItem value={`${direction}-hash`} className="w-full border-0">
         <AccordionTrigger className="items-center px-0 py-0">
           <div
-            className={cn(
-              "flex h-9 w-full items-center justify-end gap-4",
-              rowClassName,
-            )}
+            className={cn("flex h-9 w-full items-center gap-4", rowClassName)}
           >
             <span className="text-muted-foreground text-xs font-medium break-all md:col-span-1">
               {label}
@@ -129,7 +126,7 @@ export function HashGroupRow({
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-0">
-          <div className="text-muted-foreground flex items-center justify-end gap-2 text-xs">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs">
             <span className="break-all">{tLabelExternal}</span>
             <div className="break-all">
               {externalHash ? (
@@ -141,11 +138,11 @@ export function HashGroupRow({
               )}
             </div>
           </div>
-          <div className="text-muted-foreground flex items-center justify-end gap-2 text-xs">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs">
             <span className="text-muted-foreground text-xs font-medium break-all">
               {tLabelHash}
             </span>
-            <div className="justify-end text-xs break-all">
+            <div className="text-xs break-all">
               <CopyableValue value={hash} />
             </div>
           </div>
