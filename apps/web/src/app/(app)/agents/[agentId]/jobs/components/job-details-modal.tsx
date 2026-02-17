@@ -113,7 +113,7 @@ export function JobDetailsModal({
         <ScrollArea className="max-h-svh md:max-h-[90svh]">
           <div
             data-testid="job-details-modal-surface"
-            className="bg-background min-h-svh w-svw rounded-none p-4 md:min-h-auto md:w-auto md:rounded-xl md:p-6"
+            className="bg-background min-h-svh w-svw rounded-none p-4 md:min-h-0 md:w-auto md:rounded-xl md:p-6"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
