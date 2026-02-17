@@ -92,4 +92,76 @@ describe("FileChipWithMetadata", () => {
       expect(screen.getByText("second.pdf")).toBeInTheDocument();
     });
   });
+
+  it("clears stale metadata when URL changes and next HEAD response is non-ok", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: createHeaders({
+          "content-disposition": 'attachment; filename="first-head.pdf"',
+          "content-length": "1024",
+          "content-type": "application/pdf",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        headers: createHeaders({
+          "content-disposition": null,
+          "content-length": null,
+          "content-type": null,
+        }),
+      });
+
+    const { rerender } = render(
+      <FileChipWithMetadata url="https://files.example/first.pdf" />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("first-head.pdf")).toBeInTheDocument();
+      expect(screen.getByText("1.0 KB")).toBeInTheDocument();
+    });
+
+    rerender(<FileChipWithMetadata url="https://files.example/second.pdf" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("second.pdf")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("first-head.pdf")).not.toBeInTheDocument();
+    expect(screen.queryByText("1.0 KB")).not.toBeInTheDocument();
+  });
+
+  it("uses raw filename when content-disposition filename cannot be decoded", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: createHeaders({
+        "content-disposition": 'attachment; filename="100%_report.pdf"',
+        "content-length": "1024",
+        "content-type": "application/pdf",
+      }),
+    });
+
+    render(<FileChipWithMetadata url="https://files.example/input.pdf" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("100%_report.pdf")).toBeInTheDocument();
+    });
+  });
+
+  it("shows zero-byte file size when content-length is zero", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: createHeaders({
+        "content-disposition": 'attachment; filename="empty.txt"',
+        "content-length": "0",
+        "content-type": "text/plain",
+      }),
+    });
+
+    render(<FileChipWithMetadata url="https://files.example/empty.txt" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("empty.txt")).toBeInTheDocument();
+      expect(screen.getByText("0 B")).toBeInTheDocument();
+    });
+  });
 });

@@ -14,17 +14,26 @@ function parseContentDispositionFilename(
   disposition: string | null,
 ): string | undefined {
   if (!disposition) return undefined;
-  const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(
-    disposition,
-  );
-  const value = decodeURIComponent(match?.[1] ?? match?.[2] ?? "");
-  return value || undefined;
+
+  const encodedMatch = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  const encodedFileName = encodedMatch?.[1];
+  if (encodedFileName) {
+    try {
+      return decodeURIComponent(encodedFileName);
+    } catch {
+      return encodedFileName;
+    }
+  }
+
+  const plainMatch = /filename="?([^";]+)"?/i.exec(disposition);
+  const plainFileName = plainMatch?.[1];
+  return plainFileName || undefined;
 }
 
 function parseContentLength(value: string | null): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
   return parsed;
 }
 
@@ -38,6 +47,7 @@ export function FileChipWithMetadata({
   useEffect(() => {
     const abortController = new AbortController();
     let cancelled = false;
+    setMetadata(undefined);
 
     async function fetchMetadata() {
       try {
@@ -45,7 +55,12 @@ export function FileChipWithMetadata({
           method: "HEAD",
           signal: abortController.signal,
         });
-        if (!response.ok || cancelled) {
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok) {
+          setMetadata(undefined);
           return;
         }
 
