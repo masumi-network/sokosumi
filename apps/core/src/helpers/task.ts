@@ -161,6 +161,16 @@ export function isChargeableTaskStatus(
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
+export function isTaskArchivableStatus(status: TaskStatus): boolean {
+  return (
+    status === TaskStatus.DRAFT ||
+    status === TaskStatus.READY ||
+    status === TaskStatus.CANCELED ||
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.FAILED
+  );
+}
+
 export function mapTask(task: TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
   const events = task.events.map((event) => mapTaskEvent(event));
