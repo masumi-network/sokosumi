@@ -142,7 +142,7 @@ export function validateTaskCoworkerAssignment({
 
   if (!allowsMissingCoworker && !hasCoworkerId) {
     throw unprocessableEntity(
-      "coworkerId is required for non-draft task statuses",
+      "coworkerId is required for statuses other than draft or canceled",
     );
   }
 }
