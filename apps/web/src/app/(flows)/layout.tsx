@@ -14,7 +14,7 @@ export default async function FlowsLayout({
         <Link href="/">
           <ThemedLogo LogoComponent={SokosumiLogo} priority />
         </Link>
-        <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
+        <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
           {children}
         </div>
         <FlowsLayoutFooter />

@@ -13,6 +13,7 @@ import { taskManagerMenuEnabled } from "@/lib/flags/task-manager";
 import { userService } from "@/lib/services";
 
 import Header from "./components/header";
+import { OnboardingDialog } from "./components/onboarding-dialog";
 import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
@@ -53,9 +54,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   }
 
   const shouldShowOnboarding = await userService.showOnboarding(session);
-  if (shouldShowOnboarding) {
-    return redirect("/onboarding");
-  }
 
   const content = (
     <SidebarProvider
@@ -96,6 +94,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       ) : (
         content
       )}
+      {shouldShowOnboarding && <OnboardingDialog />}
     </QueryProvider>
   );
 }
