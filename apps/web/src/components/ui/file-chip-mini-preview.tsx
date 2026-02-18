@@ -88,7 +88,7 @@ export function FileChipMiniPreview({
               <X className="size-3" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">Remove file</TooltipContent>
+          <TooltipContent side="top">{removeLabel}</TooltipContent>
         </Tooltip>
       ) : null}
     </div>

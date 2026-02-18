@@ -154,7 +154,7 @@ export function TaskActivitySection({
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const [comment, setComment] = useState("");
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
-  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
+  const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
@@ -174,6 +174,7 @@ export function TaskActivitySection({
   }, [localEvents]);
 
   const trimmedComment = comment.trim();
+  const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const isSubmitDisabled =
     isPending ||
     trimmedComment.length === 0 ||
@@ -225,7 +226,7 @@ export function TaskActivitySection({
   const handleAttachFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
-    setIsUploadingAttachments(true);
+    setUploadingAttachmentsCount((count) => count + 1);
     try {
       for (const file of files) {
         const uploadedUrl = await uploadTaskAttachment(file);
@@ -247,7 +248,7 @@ export function TaskActivitySection({
       toast.error(t("uploadFileErrorRetry"));
     } finally {
       setPendingUploadFiles([]);
-      setIsUploadingAttachments(false);
+      setUploadingAttachmentsCount((count) => count - 1);
     }
   };
 

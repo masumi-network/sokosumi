@@ -102,7 +102,7 @@ export function TaskForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
-  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
+  const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const attachmentUrls = useMemo(
@@ -116,7 +116,25 @@ export function TaskForm({
 
   const { os, isMobile } = useOSDetection();
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key === "Enter" &&
+        !isSaveDisabled
+      ) {
+        event.preventDefault();
+        const shortcutStatus = mode === "create" ? TaskStatus.READY : undefined;
+        void handleSave(shortcutStatus);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave, isSaveDisabled, mode]);
+
   const isNameRequired = mode === "edit";
+  const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const isSaveDisabled =
     !description.trim() ||
     (isNameRequired && !name.trim()) ||
@@ -197,7 +215,7 @@ export function TaskForm({
     async (files: File[]) => {
       if (files.length === 0) return;
 
-      setIsUploadingAttachments(true);
+      setUploadingAttachmentsCount((count) => count + 1);
       try {
         for (const file of files) {
           const uploadedUrl = await uploadTaskAttachment(file);
@@ -220,7 +238,7 @@ export function TaskForm({
         toast.error(labels.uploadFileError ?? "Failed to upload file");
       } finally {
         setPendingUploadFiles([]);
-        setIsUploadingAttachments(false);
+        setUploadingAttachmentsCount((count) => count - 1);
       }
     },
     [labels.uploadFileError],
