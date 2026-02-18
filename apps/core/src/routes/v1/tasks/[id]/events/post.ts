@@ -88,11 +88,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
 
           let transactionId: string | null = null;
-          if (isChargeableTaskStatus(status) && credits != null && credits >= 1) {
+          let cents: bigint | undefined = undefined;
+          if (
+            isChargeableTaskStatus(status) &&
+            credits != null &&
+            credits > 0
+          ) {
+            cents = convertCreditsToCents(credits);
             transactionId = await createTaskEventTransaction({
               userId: task.userId,
               organizationId: task.organizationId,
-              credits,
+              cents,
               tx,
             });
           }
@@ -104,8 +110,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               comment,
               authenticationUrl,
               origin,
-              cents:
-                credits != null ? convertCreditsToCents(credits) : undefined,
+              cents,
               transactionId,
               ...getActorData(authContext),
             },

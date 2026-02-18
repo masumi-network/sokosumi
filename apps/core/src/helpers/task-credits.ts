@@ -1,5 +1,4 @@
 import type { Prisma } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import {
   type Consumption,
   creditBucketRepository,
@@ -10,25 +9,23 @@ import { badRequest } from "./error";
 interface CreateTaskEventTransactionInput {
   userId: string;
   organizationId: string | null;
-  credits: number;
+  cents: bigint;
   tx: Prisma.TransactionClient;
 }
 
 export async function createTaskEventTransaction(
   input: CreateTaskEventTransactionInput,
 ): Promise<string | null> {
-  if (input.credits === 0) {
+  if (input.cents === 0n) {
     return null;
   }
-
-  const cents = convertCreditsToCents(input.credits);
 
   let consumptions: Consumption[];
   try {
     consumptions = await creditBucketRepository.prepareConsumption(
       input.userId,
       input.organizationId,
-      cents,
+      input.cents,
       input.tx,
     );
   } catch (error) {
@@ -40,7 +37,7 @@ export async function createTaskEventTransaction(
 
   const transaction = await input.tx.transaction.create({
     data: {
-      amount: cents * BigInt(-1),
+      amount: input.cents * BigInt(-1),
       user: { connect: { id: input.userId } },
       ...(input.organizationId
         ? { organization: { connect: { id: input.organizationId } } }

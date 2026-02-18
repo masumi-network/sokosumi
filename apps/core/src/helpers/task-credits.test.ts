@@ -30,7 +30,7 @@ describe("createTaskEventTransaction", () => {
     const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: null,
-      credits: 5,
+      cents: 500n,
       tx: tx as unknown as Parameters<
         typeof createTaskEventTransaction
       >[0]["tx"],
@@ -40,7 +40,7 @@ describe("createTaskEventTransaction", () => {
     expect(prepareConsumption).toHaveBeenCalledWith(
       "user_1",
       null,
-      expect.any(BigInt),
+      500n,
       tx,
     );
 
@@ -65,7 +65,7 @@ describe("createTaskEventTransaction", () => {
     const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: "org_1",
-      credits: 5,
+      cents: 500n,
       tx: tx as unknown as Parameters<
         typeof createTaskEventTransaction
       >[0]["tx"],
@@ -75,7 +75,7 @@ describe("createTaskEventTransaction", () => {
     expect(prepareConsumption).toHaveBeenCalledWith(
       "user_1",
       "org_1",
-      expect.any(BigInt),
+      500n,
       tx,
     );
 
@@ -87,7 +87,7 @@ describe("createTaskEventTransaction", () => {
     );
   });
 
-  it("returns null when credits are zero", async () => {
+  it("returns null when cents are zero", async () => {
     const prepareConsumption = vi.mocked(
       creditBucketRepository.prepareConsumption,
     );
@@ -101,7 +101,7 @@ describe("createTaskEventTransaction", () => {
     const result = await createTaskEventTransaction({
       userId: "user_1",
       organizationId: null,
-      credits: 0,
+      cents: 0n,
       tx: tx as unknown as Parameters<
         typeof createTaskEventTransaction
       >[0]["tx"],
