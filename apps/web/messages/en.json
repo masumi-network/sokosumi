@@ -1950,6 +1950,19 @@
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
       },
+      "CoworkerGallerySection": {
+        "title": "Agentic Coworkers",
+        "whatTheyDo": {
+          "title": "What They Do",
+          "description": "AI coworkers you can assign real work to. They work on their own and get it done."
+        },
+        "marketingExpertise": {
+          "title": "Marketing Expertise",
+          "description": "Trained on real campaign work - strategy, content, media planning, and brand communications."
+        },
+        "serviceplanLogoAlt": "Serviceplan Group",
+        "moreComingSoon": "+ More coming soon"
+      },
       "FilterSection": {
         "searchPlaceholder": "Search agents",
         "reset": "Reset",

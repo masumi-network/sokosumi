@@ -2,6 +2,7 @@ import { AgentJobStatus, type JobEventWithRelations } from "@sokosumi/database";
 
 import {
   getVisibleTimelineEvents,
+  shouldHighlightJobEventBorder,
   shouldRenderAwaitingInputForm,
   shouldRenderAwaitingInputFormForViewer,
   splitInitiatedEvent,
@@ -10,6 +11,7 @@ import {
 function createEvent(
   id: string,
   status: AgentJobStatus,
+  overrides?: Partial<JobEventWithRelations>,
 ): JobEventWithRelations {
   return {
     id,
@@ -23,6 +25,7 @@ function createEvent(
     input: null,
     blobs: [],
     links: [],
+    ...overrides,
   } as JobEventWithRelations;
 }
 
@@ -90,5 +93,33 @@ describe("job-details-events utils", () => {
     expect(shouldRenderAwaitingInputFormForViewer(event, true, true)).toBe(
       false,
     );
+  });
+
+  it("highlights border for latest completed event", () => {
+    const event = createEvent("completed", AgentJobStatus.COMPLETED);
+
+    expect(shouldHighlightJobEventBorder(event, true)).toBe(true);
+  });
+
+  it("highlights border for latest awaiting-input event without input", () => {
+    const event = createEvent("awaiting-input", AgentJobStatus.AWAITING_INPUT);
+
+    expect(shouldHighlightJobEventBorder(event, true)).toBe(true);
+  });
+
+  it("does not highlight border for non-latest completed event", () => {
+    const event = createEvent("completed", AgentJobStatus.COMPLETED);
+
+    expect(shouldHighlightJobEventBorder(event, false)).toBe(false);
+  });
+
+  it("does not highlight border for awaiting-input event with input", () => {
+    const event = createEvent("awaiting-input", AgentJobStatus.AWAITING_INPUT, {
+      input: {
+        id: "input-1",
+      } as JobEventWithRelations["input"],
+    });
+
+    expect(shouldHighlightJobEventBorder(event, true)).toBe(false);
   });
 });
