@@ -116,23 +116,6 @@ export function TaskForm({
 
   const { os, isMobile } = useOSDetection();
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.key === "Enter" &&
-        !isSaveDisabled
-      ) {
-        event.preventDefault();
-        const shortcutStatus = mode === "create" ? TaskStatus.READY : undefined;
-        void handleSave(shortcutStatus);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave, isSaveDisabled, mode]);
-
   const isNameRequired = mode === "edit";
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const isSaveDisabled =
@@ -210,6 +193,23 @@ export function TaskForm({
       onSuccess,
     ],
   );
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key === "Enter" &&
+        !isSaveDisabled
+      ) {
+        event.preventDefault();
+        const shortcutStatus = mode === "create" ? TaskStatus.READY : undefined;
+        void handleSave(shortcutStatus);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave, isSaveDisabled, mode]);
 
   const handleAttachFiles = useCallback(
     async (files: File[]) => {
