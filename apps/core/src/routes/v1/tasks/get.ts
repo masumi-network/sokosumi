@@ -80,11 +80,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       where = {
         coworkerId: authContext.coworkerId,
+        archivedAt: null,
         ...(status ? { status } : {}),
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
       where = {
+        archivedAt: null,
         OR: buildTaskScopeFilters(authContext, scope),
         ...(status ? { status } : {}),
         ...(coworkerId ? { coworkerId } : {}),
