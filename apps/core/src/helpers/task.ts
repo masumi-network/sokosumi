@@ -137,8 +137,10 @@ export function validateTaskCoworkerAssignment({
   coworkerId,
 }: ValidateTaskCoworkerAssignmentParams): void {
   const hasCoworkerId = coworkerId !== null && coworkerId !== undefined;
+  const allowsMissingCoworker =
+    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (status !== TaskStatus.DRAFT && !hasCoworkerId) {
+  if (!allowsMissingCoworker && !hasCoworkerId) {
     throw unprocessableEntity(
       "coworkerId is required for non-draft task statuses",
     );

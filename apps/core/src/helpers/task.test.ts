@@ -542,6 +542,15 @@ describe("validateTaskCoworkerAssignment", () => {
     ).not.toThrow();
   });
 
+  it("allows CANCELED tasks without a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.CANCELED,
+        coworkerId: null,
+      }),
+    ).not.toThrow();
+  });
+
   it("allows non-DRAFT tasks with a coworker", () => {
     expect(() =>
       validateTaskCoworkerAssignment({
