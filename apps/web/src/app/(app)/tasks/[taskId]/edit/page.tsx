@@ -60,6 +60,8 @@ export default async function EditTaskPage({
         revertToDraft: tActions("revertToDraft"),
         back: tEdit("back"),
         uploadFile: tEdit("uploadFile"),
+        uploadFileError: tEdit("uploadFileError"),
+        removeAttachment: tEdit("removeAttachment"),
         submit: tEdit("save"),
         cancel: tEdit("cancel"),
         ctrl: tEdit("ctrl"),

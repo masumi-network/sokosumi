@@ -2,6 +2,7 @@ import "@testing-library/jest-dom";
 import { TaskStatus } from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { forwardRef, useImperativeHandle } from "react";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
@@ -25,25 +26,46 @@ jest.mock("@/lib/actions/task/action", () => ({
 }));
 
 jest.mock("../markdown-editor", () => ({
-  MarkdownEditor: ({
-    value,
-    onChange,
-    id,
-    placeholder,
-  }: {
-    value: string;
-    onChange: (value: string) => void;
-    id: string;
-    placeholder: string;
-  }) => (
-    <textarea
-      data-testid="markdown-editor"
-      id={id}
-      placeholder={placeholder}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  ),
+  MarkdownEditor: forwardRef(function MockMarkdownEditor(
+    {
+      value,
+      onChange,
+      id,
+      placeholder,
+      onAttachClick,
+      attachLabel,
+    }: {
+      value: string;
+      onChange: (value: string) => void;
+      id: string;
+      placeholder: string;
+      onAttachClick?: () => void;
+      attachLabel?: string;
+    },
+    ref,
+  ) {
+    useImperativeHandle(ref, () => ({
+      insertText: (text: string) => onChange(`${value}${text}`),
+      insertLink: (label: string, url: string) =>
+        onChange(`${value}[${label}](${url})`),
+    }));
+    return (
+      <div>
+        <textarea
+          data-testid="markdown-editor"
+          id={id}
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        {onAttachClick ? (
+          <button type="button" onClick={onAttachClick}>
+            {attachLabel ?? "Attach"}
+          </button>
+        ) : null}
+      </div>
+    );
+  }),
 }));
 
 const baseLabels = {
