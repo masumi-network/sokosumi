@@ -115,6 +115,19 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it.each([
+    TaskStatus.COMPLETED,
+    TaskStatus.CANCELED,
+    TaskStatus.OUT_OF_CREDITS,
+  ])("accepts fractional credits for %s tasks", (status) => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status,
+      credits: 0.25,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("accepts null credits for completed tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,
