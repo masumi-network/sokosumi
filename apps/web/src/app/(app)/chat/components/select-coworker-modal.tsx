@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,31 +26,47 @@ interface SelectCoworkerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (coworker: Coworker) => void;
+  coworkers?: Coworker[];
+}
+
+/** Profile picture from coworker service (DB) only. */
+function getCoworkerAvatarUrl(coworker: Coworker): string | null {
+  return coworker.avatar ?? null;
 }
 
 export default function SelectCoworkerModal({
   open,
   onOpenChange,
   onSelect,
+  coworkers: propCoworkers,
 }: SelectCoworkerModalProps) {
   const t = useTranslations("App.Chat.Chat");
   const [selectedCoworkerId, setSelectedCoworkerId] = useState<string>("");
 
-  // John temporarily removed; Demosthenes shown as disabled (Coming Soon)
-  const coworkers: Coworker[] = [
+  const coworkersFallback: Coworker[] = [
     {
       id: "hannah",
+      slug: "hannah",
       name: t("coworkers.hannah.name"),
       description: t("coworkers.hannah.description"),
       useCase: t("coworkers.hannah.useCase"),
     },
     {
+      id: "elena",
+      slug: "elena",
+      name: t("coworkers.elena.name"),
+      description: t("coworkers.elena.description"),
+      useCase: t("coworkers.elena.useCase"),
+    },
+    {
       id: "demosthenes",
+      slug: "demosthenes",
       name: t("coworkers.demosthenes.name"),
       description: t("coworkers.demosthenes.description"),
       useCase: t("coworkers.demosthenes.useCase"),
     },
   ];
+  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
 
   const COMING_SOON_COWORKER_ID = "demosthenes";
 
@@ -99,8 +114,9 @@ export default function SelectCoworkerModal({
                     <div className="flex items-center gap-2">
                       <Avatar className="size-6">
                         <AvatarImage
-                          src={getCoworkerImageUrl(coworker.id) ?? undefined}
+                          src={getCoworkerAvatarUrl(coworker) ?? undefined}
                           alt={coworker.name}
+                          referrerPolicy="no-referrer"
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
                           }}
@@ -125,10 +141,11 @@ export default function SelectCoworkerModal({
             <div className="bg-muted/50 space-y-2 rounded-lg border p-4">
               <div className="flex items-center gap-3">
                 <Avatar className="size-10">
-                  {getCoworkerImageUrl(selectedCoworker.id) && (
+                  {getCoworkerAvatarUrl(selectedCoworker) && (
                     <AvatarImage
-                      src={getCoworkerImageUrl(selectedCoworker.id)!}
+                      src={getCoworkerAvatarUrl(selectedCoworker)!}
                       alt={selectedCoworker.name}
+                      referrerPolicy="no-referrer"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}

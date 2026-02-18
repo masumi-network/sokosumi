@@ -15,6 +15,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ interface MultimodalInputProps {
   className?: string;
   showSuggestedActions?: boolean;
   coworker?: Coworker;
+  coworkers?: Coworker[];
 }
 
 function PureMultimodalInput({
@@ -71,6 +73,7 @@ function PureMultimodalInput({
   coworker: propCoworker,
   onSelectModel,
   selectedModel: propSelectedModel,
+  coworkers: propCoworkers,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -223,7 +226,7 @@ function PureMultimodalInput({
     selectedModel,
   ]);
 
-  const coworkers: Coworker[] = [
+  const coworkersFallback: Coworker[] = [
     {
       id: "hannah",
       name: t("coworkers.hannah.name"),
@@ -237,17 +240,12 @@ function PureMultimodalInput({
       useCase: t("coworkers.demosthenes.useCase"),
     },
   ];
+  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
 
   const COMING_SOON_COWORKER_ID = "demosthenes";
 
-  // Helper function to get coworker image URL
-  const getCoworkerImageUrl = (coworkerId: string): string | null => {
-    const imageMap: Record<string, string> = {
-      hannah: "/images/coworkers/hannah.png",
-      demosthenes: "/images/coworkers/demosthenes.png",
-    };
-    return imageMap[coworkerId] || null;
-  };
+  const getCoworkerAvatarUrl = (c: Coworker): string | null =>
+    getCoworkerImageUrl(c.id, c.avatar ?? undefined);
 
   const handleCoworkerSelect = useCallback(
     (coworker: Coworker) => {
@@ -279,7 +277,7 @@ function PureMultimodalInput({
             {t("introducingCoworkers")}
           </span>
           <div className="flex -space-x-2">
-            {coworkers.slice(0, 3).map((coworker) => {
+            {coworkers.slice(0, 3).map((coworker: Coworker) => {
               const isComingSoon = coworker.id === COMING_SOON_COWORKER_ID;
               return (
                 <Tooltip key={coworker.id}>
@@ -298,7 +296,7 @@ function PureMultimodalInput({
                     >
                       <Avatar className="border-background size-[1.8rem] border-2 transition-transform hover:scale-110">
                         <AvatarImage
-                          src={getCoworkerImageUrl(coworker.id) ?? undefined}
+                          src={getCoworkerAvatarUrl(coworker) ?? undefined}
                           alt={coworker.name}
                           onError={(e) => {
                             e.currentTarget.style.display = "none";
@@ -394,6 +392,7 @@ function PureMultimodalInput({
             <CoworkerModelSelector
               selectedCoworker={selectedCoworker}
               selectedModel={selectedModel}
+              coworkers={coworkers}
               onSelectCoworker={handleCoworkerSelect}
               onSelectModel={handleModelSelect}
               disabled={!!chatId}
@@ -425,6 +424,10 @@ export const MultimodalInput = memo(
       return false;
     }
     if (prevProps.status !== nextProps.status) {
+      return false;
+    }
+    // Re-render when coworkers change so avatar URLs from API are shown
+    if (prevProps.coworkers !== nextProps.coworkers) {
       return false;
     }
 

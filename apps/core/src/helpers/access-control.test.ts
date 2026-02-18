@@ -54,7 +54,12 @@ describe("requireScopedTaskReadAccess", () => {
       id: "tsk_123",
     } as never);
 
-    await requireScopedTaskReadAccess(userAuthContext, "tsk_123", ["context"], tx);
+    await requireScopedTaskReadAccess(
+      userAuthContext,
+      "tsk_123",
+      ["context"],
+      tx,
+    );
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -70,7 +75,12 @@ describe("requireScopedTaskReadAccess", () => {
       id: "tsk_123",
     } as never);
 
-    await requireScopedTaskReadAccess(userAuthContext, "tsk_123", ["owned"], tx);
+    await requireScopedTaskReadAccess(
+      userAuthContext,
+      "tsk_123",
+      ["owned"],
+      tx,
+    );
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -111,9 +121,16 @@ describe("requireTaskAccess", () => {
 describe("requireScopedJobReadAccess", () => {
   it("uses context scope without implicit shared fallback", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({ id: "job_123" } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
 
-    await requireScopedJobReadAccess(userAuthContext, "job_123", ["context"], tx);
+    await requireScopedJobReadAccess(
+      userAuthContext,
+      "job_123",
+      ["context"],
+      tx,
+    );
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -125,9 +142,16 @@ describe("requireScopedJobReadAccess", () => {
 
   it("uses shared scope for organization shares", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({ id: "job_123" } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
 
-    await requireScopedJobReadAccess(userAuthContext, "job_123", ["shared"], tx);
+    await requireScopedJobReadAccess(
+      userAuthContext,
+      "job_123",
+      ["shared"],
+      tx,
+    );
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -139,7 +163,9 @@ describe("requireScopedJobReadAccess", () => {
 
   it("uses OR union for composed scopes", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({ id: "job_123" } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
 
     await requireScopedJobReadAccess(
       userAuthContext,

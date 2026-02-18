@@ -11,10 +11,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import {
-  buildTaskScopeFilters,
-  taskScopeQuerySchema,
-} from "@/helpers/scope";
+import { buildTaskScopeFilters, taskScopeQuerySchema } from "@/helpers/scope";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import {

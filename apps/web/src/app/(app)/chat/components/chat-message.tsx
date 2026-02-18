@@ -19,6 +19,7 @@ interface ChatMessageProps {
   createdAt?: Date;
   coworkerName?: string;
   coworkerId?: string;
+  coworkerImageUrl?: string | null;
   modelId?: string;
   modelName?: string;
   isStreaming?: boolean;
@@ -32,6 +33,7 @@ export default function ChatMessage({
   createdAt,
   coworkerName,
   coworkerId,
+  coworkerImageUrl,
   modelId,
   modelName,
   isStreaming = false,
@@ -90,14 +92,15 @@ export default function ChatMessage({
       );
     }
 
-    // If it's a coworker conversation, show coworker image
+    // If it's a coworker conversation, show coworker image (DB image or static fallback)
     if (coworkerId) {
-      const imageUrl = getCoworkerImageUrl(coworkerId);
+      const imageUrl = coworkerImageUrl ?? getCoworkerImageUrl(coworkerId);
       if (imageUrl) {
         return (
           <AvatarImage
             src={imageUrl}
             alt={coworkerName || t("coworkerAlt")}
+            referrerPolicy="no-referrer"
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}

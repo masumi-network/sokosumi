@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { type SyntheticEvent, useState } from "react";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +26,7 @@ interface Model {
 interface CoworkerModelSelectorProps {
   selectedCoworker: Coworker | null;
   selectedModel?: Model | null;
+  coworkers?: Coworker[];
   onSelectCoworker: (coworker: Coworker) => void;
   onSelectModel?: (model: Model | null) => void;
   disabled?: boolean;
@@ -110,6 +112,7 @@ function ModelIcon({
 export default function CoworkerModelSelector({
   selectedCoworker,
   selectedModel,
+  coworkers: propCoworkers,
   onSelectCoworker,
   onSelectModel,
   disabled = false,
@@ -117,8 +120,7 @@ export default function CoworkerModelSelector({
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
 
-  // John temporarily removed; Demosthenes shown as disabled (Coming Soon)
-  const coworkers: Coworker[] = [
+  const coworkersFallback: Coworker[] = [
     {
       id: "hannah",
       name: t("coworkers.hannah.name"),
@@ -132,6 +134,7 @@ export default function CoworkerModelSelector({
       useCase: t("coworkers.demosthenes.useCase"),
     },
   ];
+  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
 
   const COMING_SOON_COWORKER_ID = "demosthenes";
 
@@ -144,14 +147,20 @@ export default function CoworkerModelSelector({
     { id: "mixtral-8x7b", name: t("modelNames.mixtral8x7b") },
   ];
 
-  // Helper function to get coworker image URL
-  const getCoworkerImageUrl = (coworkerId: string): string | null => {
-    const imageMap: Record<string, string> = {
-      hannah: "/images/coworkers/hannah.png",
-      demosthenes: "/images/coworkers/demosthenes.png",
-    };
-    return imageMap[coworkerId] || null;
-  };
+  const getCoworkerAvatarUrl = (c: Coworker): string | null =>
+    getCoworkerImageUrl(c.id, c.avatar ?? undefined);
+
+  // Prefer coworker from list (has avatar after API load) for display when ids match
+  const displayCoworker =
+    selectedCoworker &&
+    (coworkers.find(
+      (c) =>
+        c.id === selectedCoworker.id ||
+        c.slug === selectedCoworker.slug ||
+        c.slug === selectedCoworker.id ||
+        c.id === selectedCoworker.slug,
+    ) ??
+      selectedCoworker);
 
   const handleCoworkerSelect = (coworker: Coworker) => {
     onSelectCoworker(coworker);
@@ -185,7 +194,11 @@ export default function CoworkerModelSelector({
             <>
               <Avatar className="size-5 shrink-0">
                 <AvatarImage
-                  src={getCoworkerImageUrl(selectedCoworker.id) ?? undefined}
+                  src={
+                    (displayCoworker &&
+                      getCoworkerAvatarUrl(displayCoworker)) ??
+                    undefined
+                  }
                   alt={selectedCoworker.name}
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
@@ -245,7 +258,7 @@ export default function CoworkerModelSelector({
                 >
                   <Avatar className="size-6 shrink-0">
                     <AvatarImage
-                      src={getCoworkerImageUrl(coworker.id) ?? undefined}
+                      src={getCoworkerAvatarUrl(coworker) ?? undefined}
                       alt={coworker.name}
                       onError={(e) => {
                         e.currentTarget.style.display = "none";

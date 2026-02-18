@@ -6,6 +6,7 @@ export interface Coworker {
   avatar?: string;
   description: string;
   useCase: string;
+  slug?: string;
 }
 
 export interface Chat {

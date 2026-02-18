@@ -7,7 +7,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type SyntheticEvent, useEffect, useMemo, useState } from "react";
 
+import { useCoworkers } from "@/app/chat/hooks/use-coworkers";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
+import type { Coworker } from "@/app/chat/utils/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +56,7 @@ export default function ChatListsClient() {
     deleteConversationById,
     selectedConversation,
   } = useConversationsContext();
+  const { coworkers } = useCoworkers();
   const searchParams = useSearchParams();
   const conversationId = searchParams?.get("conversationId");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
@@ -271,44 +274,40 @@ export default function ChatListsClient() {
                                     );
                                   }
 
-                                  // If it's a coworker conversation, show coworker image or initial
+                                  // If it's a coworker conversation, show profile image from coworkers list when available
                                   if (coworkerId) {
-                                    const imageMap: Record<string, string> = {
-                                      hannah: "/images/coworkers/hannah.png",
-                                      demosthenes:
-                                        "/images/coworkers/demosthenes.png",
-                                    };
-                                    const imageUrl = imageMap[coworkerId];
-                                    if (imageUrl) {
-                                      return (
-                                        <AvatarImage
-                                          src={imageUrl}
-                                          alt={coworkerName || t("coworkerAlt")}
-                                          onError={(
-                                            e: React.SyntheticEvent<
-                                              HTMLImageElement,
-                                              Event
-                                            >,
-                                          ) => {
-                                            e.currentTarget.style.display =
-                                              "none";
-                                          }}
-                                        />
-                                      );
-                                    }
-                                    // No image for this coworker (e.g. John) – show initial
+                                    const coworkerFromList = coworkers.find(
+                                      (c: Coworker) =>
+                                        c.id === coworkerId ||
+                                        c.slug === coworkerId,
+                                    );
+                                    const avatarUrl =
+                                      coworkerFromList?.avatar ?? null;
                                     return (
-                                      <AvatarFallback
-                                        className={cn(
-                                          "bg-primary text-primary-foreground text-xs",
-                                          isActive &&
-                                            "bg-primary-foreground text-primary",
-                                        )}
-                                      >
-                                        {coworkerName
-                                          ? coworkerName.charAt(0).toUpperCase()
-                                          : coworkerId.charAt(0).toUpperCase()}
-                                      </AvatarFallback>
+                                      <>
+                                        {avatarUrl ? (
+                                          <AvatarImage
+                                            src={avatarUrl}
+                                            alt={coworkerName ?? coworkerId}
+                                            className="object-cover"
+                                          />
+                                        ) : null}
+                                        <AvatarFallback
+                                          className={cn(
+                                            "bg-primary text-primary-foreground text-xs",
+                                            isActive &&
+                                              "bg-primary-foreground text-primary",
+                                          )}
+                                        >
+                                          {coworkerName
+                                            ? coworkerName
+                                                .charAt(0)
+                                                .toUpperCase()
+                                            : coworkerId
+                                                .charAt(0)
+                                                .toUpperCase()}
+                                        </AvatarFallback>
+                                      </>
                                     );
                                   }
 

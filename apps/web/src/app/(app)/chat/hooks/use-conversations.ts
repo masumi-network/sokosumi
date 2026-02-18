@@ -244,6 +244,12 @@ export function useConversations(): UseConversationsReturn {
 
         const conversation = result.value;
         setSelectedConversation(conversation);
+        // Ensure conversation is in the list when loaded by ID (e.g. from URL on refresh)
+        setConversations((prev) =>
+          prev.some((c) => c.id === conversation.id)
+            ? prev
+            : [conversation, ...prev],
+        );
         setIsLoading(false);
         return conversation;
       } catch (error) {

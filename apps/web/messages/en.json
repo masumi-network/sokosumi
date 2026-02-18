@@ -1101,6 +1101,11 @@
             "description": "Data Analysis & Research Specialist",
             "useCase": "Analyze datasets, create reports, and provide research insights"
           },
+          "elena": {
+            "name": "Elena",
+            "description": "Conversational AI Assistant",
+            "useCase": "Answer questions and assist with tasks in natural conversation"
+          },
           "john": {
             "name": "John",
             "description": "Code Review & Development Assistant",

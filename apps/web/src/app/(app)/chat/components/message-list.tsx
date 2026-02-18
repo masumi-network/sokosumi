@@ -19,6 +19,7 @@ interface MessageListProps {
   messages: UIMessage[];
   selectedChatId: string | null;
   chats: Chat[];
+  coworkers?: Coworker[];
   userImageUrl: string;
   userName?: string;
   isLoading: boolean;
@@ -29,6 +30,7 @@ export default function MessageList({
   messages,
   selectedChatId,
   chats,
+  coworkers = [],
   userImageUrl,
   userName,
   isLoading,
@@ -114,7 +116,13 @@ export default function MessageList({
               }
 
               const selectedChat = chats.find((c) => c.id === selectedChatId);
+              const coworkerId = selectedChat?.coworker?.id;
               const coworkerName = selectedChat?.coworker?.name;
+              const coworkerFromList = coworkerId
+                ? coworkers.find((c) => c.id === coworkerId)
+                : undefined;
+              const coworkerImageUrl =
+                selectedChat?.coworker?.avatar ?? coworkerFromList?.avatar;
               const modelName = selectedChat?.model?.name;
               const modelId = selectedChat?.model?.id;
 
@@ -140,7 +148,8 @@ export default function MessageList({
                       userName={userName}
                       createdAt={createdAt}
                       coworkerName={coworkerName}
-                      coworkerId={selectedChat?.coworker?.id}
+                      coworkerId={coworkerId}
+                      coworkerImageUrl={coworkerImageUrl}
                       modelName={modelName}
                       modelId={modelId}
                       isStreaming={isStreaming}
@@ -150,7 +159,11 @@ export default function MessageList({
               );
             })}
             {showLoadingIndicator && (
-              <LoadingIndicator selectedChatId={selectedChatId} chats={chats} />
+              <LoadingIndicator
+                selectedChatId={selectedChatId}
+                chats={chats}
+                coworkers={coworkers}
+              />
             )}
             <div ref={messagesEndRef} />
           </div>
