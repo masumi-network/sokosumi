@@ -54,7 +54,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   }
 
   const shouldShowOnboarding = await userService.showOnboarding(session);
-
   const content = (
     <SidebarProvider
       defaultOpen={defaultOpen}
