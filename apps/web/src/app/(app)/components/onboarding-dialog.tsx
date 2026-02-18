@@ -21,9 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { skipOnboarding } from "@/lib/actions/onboarding";
-
-import OnboardingForm from "./onboarding-form";
+import { completeOnboarding } from "@/lib/actions/onboarding";
 
 const INTRO_STEP_COUNT = 4;
 
@@ -386,7 +384,7 @@ function StepNavigation({
 export function OnboardingDialog() {
   const tMetadata = useTranslations("Onboarding.Metadata");
   const tDialog = useTranslations("Onboarding.Dialog");
-  const tForm = useTranslations("Onboarding.Form");
+  const tErrors = useTranslations("Onboarding.Actions.Errors");
   const router = useRouter();
   const [open, setOpen] = useState(true);
   const [step, setStep] = useState(0);
@@ -426,33 +424,26 @@ export function OnboardingDialog() {
     },
   ];
 
-  const handleSkip = async (eventName: string) => {
+  const handleComplete = async (eventName: string) => {
     track(eventName);
     setIsLoading(true);
     try {
-      const result = await skipOnboarding();
+      const result = await completeOnboarding();
       if (result.ok) {
         const redirectUrl = result.data.redirectUrl ?? "/agents";
         setOpen(false);
         router.push(redirectUrl);
       } else {
-        toast.error(result.error.message ?? tForm("Toast.failedToSkip"));
+        toast.error(result.error.message ?? tErrors("failedToComplete"));
       }
     } catch {
-      toast.error(tForm("Toast.unexpectedError"));
+      toast.error(tErrors("unexpectedError"));
     } finally {
       setIsLoading(false);
     }
   };
-
-  const handleFormComplete = (redirectUrl: string) => {
-    setOpen(false);
-    router.push(redirectUrl);
-  };
-
-  const isIntroStep = step < INTRO_STEP_COUNT;
   const isWelcome = step === 0;
-  const hasSplitLayout = isIntroStep && !isWelcome;
+  const hasSplitLayout = !isWelcome;
   const elenaName = coworkers[0]?.name ?? "";
   const elenaAvatarAlt = tDialog("alt.coworkerAvatar", { name: elenaName });
 
@@ -468,19 +459,9 @@ export function OnboardingDialog() {
           {tMetadata("description")}
         </DialogDescription>
 
-        <div
-          className={`bg-background flex flex-col rounded-xl shadow-lg ${
-            isIntroStep
-              ? "max-h-svh overflow-hidden md:h-[560px]"
-              : "h-[94svh] max-h-svh overflow-x-hidden overflow-y-auto md:h-[90svh] md:max-h-[760px]"
-          }`}
-        >
+        <div className="bg-background flex max-h-svh flex-col overflow-hidden rounded-xl shadow-lg md:h-[560px]">
           {/* Content area */}
-          <div
-            className={`flex min-h-0 flex-1 flex-col md:flex-row ${
-              isIntroStep ? "overflow-hidden" : "overflow-visible"
-            }`}
-          >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
             {/* Visual panel — stacked on mobile, side panel on desktop */}
             {hasSplitLayout && (
               <div className="bg-muted flex h-44 shrink-0 border-b md:h-auto md:w-[42%] md:shrink md:border-r md:border-b-0">
@@ -519,13 +500,7 @@ export function OnboardingDialog() {
             )}
 
             {/* Main content */}
-            <div
-              className={`flex flex-1 flex-col p-6 md:p-10 ${
-                isIntroStep
-                  ? "items-center justify-center overflow-y-auto text-center"
-                  : "items-stretch justify-start overflow-visible text-left"
-              }`}
-            >
+            <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center md:p-10">
               {/* Welcome */}
               {isWelcome && (
                 <>
@@ -586,35 +561,27 @@ export function OnboardingDialog() {
                   </p>
                 </div>
               )}
-
-              {!isIntroStep ? (
-                <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
-                  <OnboardingForm onComplete={handleFormComplete} />
-                </div>
-              ) : null}
             </div>
           </div>
 
           {/* Fixed bottom navigation */}
-          {isIntroStep ? (
-            <div className="shrink-0 border-t px-6 pt-4 pb-6 md:px-10 md:pt-5 md:pb-8">
-              <StepNavigation
-                step={step}
-                totalSteps={INTRO_STEP_COUNT}
-                labels={{
-                  skip: tDialog("navigation.skip"),
-                  back: tDialog("navigation.back"),
-                  next: tDialog("navigation.next"),
-                  getStarted: tDialog("navigation.getStarted"),
-                }}
-                isLoading={isLoading}
-                onBack={() => setStep(step - 1)}
-                onNext={() => setStep(step + 1)}
-                onSkip={() => handleSkip("Onboarding skipped")}
-                onFinish={() => setStep(INTRO_STEP_COUNT)}
-              />
-            </div>
-          ) : null}
+          <div className="shrink-0 border-t px-6 pt-4 pb-6 md:px-10 md:pt-5 md:pb-8">
+            <StepNavigation
+              step={step}
+              totalSteps={INTRO_STEP_COUNT}
+              labels={{
+                skip: tDialog("navigation.skip"),
+                back: tDialog("navigation.back"),
+                next: tDialog("navigation.next"),
+                getStarted: tDialog("navigation.getStarted"),
+              }}
+              isLoading={isLoading}
+              onBack={() => setStep(step - 1)}
+              onNext={() => setStep(step + 1)}
+              onSkip={() => handleComplete("Onboarding skipped")}
+              onFinish={() => handleComplete("Onboarding completed")}
+            />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
