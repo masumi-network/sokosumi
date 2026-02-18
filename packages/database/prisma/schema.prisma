@@ -696,8 +696,6 @@ model JobInput {
   inputHash String?
   signature String?
 
-  attachments Attachment[]
-
   @@map("jobInput")
 }
 
@@ -805,24 +803,6 @@ model Blob {
   @@index([status, createdAt]) // For getPendingResultBlobs query
   @@index([eventId]) // For fetching blobs by job event
   @@map("blob")
-}
-
-model Attachment {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  url      String // Required - file URL
-  name     String? // Optional - file name
-  mimeType String? // Optional - MIME type
-  size     BigInt? // Optional - file size in bytes
-
-  jobInputId String
-  jobInput   JobInput @relation(fields: [jobInputId], references: [id], onDelete: Cascade)
-
-  @@unique([jobInputId, url])
-  @@index([jobInputId])
-  @@map("attachment")
 }
 
 model Link {
@@ -1041,6 +1021,9 @@ model Coworker {
 
   slug        String  @unique
   name        String
+  caption     String?
+  company     String?
+  companyLogo String?
   url         String?
   email       String?
   description String?

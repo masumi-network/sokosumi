@@ -26,7 +26,6 @@
 export * from "./agent.repository.js";
 export * from "./agentList.repository.js";
 export * from "./agentRating.repository.js";
-export * from "./attachment.repository.js";
 export * from "./blob.repository.js";
 export * from "./category.repository.js";
 export * from "./credit-bucket.repository.js";

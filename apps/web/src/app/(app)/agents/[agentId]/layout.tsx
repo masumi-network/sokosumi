@@ -30,5 +30,12 @@ export default function AgentDetailLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <div
+      data-agent-fullbleed
+      className="flex min-h-[calc(100svh-64px)] flex-1 flex-col pt-20 md:pt-0"
+    >
+      {children}
+    </div>
+  );
 }

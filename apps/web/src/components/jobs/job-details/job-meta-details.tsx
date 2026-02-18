@@ -5,14 +5,13 @@ import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { Fragment, ReactNode } from "react";
+import { ReactNode } from "react";
 
 import { CopyableValue } from "@/components/copyable-value";
+import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { MiddleTruncate } from "@/components/middle-truncate";
-import { Separator } from "@/components/ui/separator";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { cn } from "@/lib/utils";
-import { formatDateTimeMedium } from "@/lib/utils/format";
 import { buildJobTransactionUrl } from "@/lib/utils/url";
 
 export interface JobMetaDetailsProps {
@@ -20,74 +19,96 @@ export interface JobMetaDetailsProps {
 }
 
 export function JobMetaDetails({ job }: JobMetaDetailsProps) {
-  const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
-
-  const formatter = useFormatter();
   const t = useTranslations("Components.Jobs.JobDetails.Meta");
-
-  const items = [
-    {
-      key: "jobId",
-      label: t("jobId"),
-      rowClassName: "pb-1",
-      content: <CopyableValue value={job.agentJobId} />,
-    },
-    {
-      key: "txId",
-      label: t("txId"),
-      rowClassName: "pb-1",
-      content: job.purchase?.onChainTransactionHash ? (
-        <Link
-          href={buildJobTransactionUrl(
-            job.purchase.onChainTransactionHash,
-            isMainnet,
-          )}
-          className={"flex items-center gap-1 text-sm md:text-base"}
-          target="_blank"
-        >
-          <LinkIcon className="size-4" />
-          <MiddleTruncate text={job.purchase.onChainTransactionHash} />
-        </Link>
-      ) : (
-        <span>{"-"}</span>
-      ),
-    },
-    {
-      key: "started",
-      label: t("started"),
-      rowClassName: "pb-1",
-      content: formatDateTimeMedium(formatter.dateTime, job.createdAt),
-    },
-    {
-      key: "finished",
-      label: t("finished"),
-      rowClassName: "pb-1",
-      content: job.completedAt
-        ? formatDateTimeMedium(formatter.dateTime, job.completedAt)
-        : "-",
-    },
-    ...(job.transaction
-      ? [
-          {
-            key: "credits",
-            label: t("credits"),
-            rowClassName: "",
-            content: Math.abs(convertCentsToCredits(job.transaction.amount)),
-          },
-        ]
-      : []),
-  ] as const;
+  const formatter = useFormatter();
+  const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
+  const taskHref = job.taskId ? `/tasks/${job.taskId}` : null;
+  const dateTimeOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  } as const;
 
   return (
-    <div className="pt-6">
-      {items.map((item, index) => (
-        <Fragment key={item.key}>
-          <KeyValueRow label={item.label} rowClassName={item.rowClassName}>
-            {item.content}
+    <div className="space-y-4">
+      <h3 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+        {t("propertiesTitle")}
+      </h3>
+
+      <div className="space-y-3">
+        <KeyValueRow label={t("status")}>
+          <JobStatusBadge
+            status={job.status}
+            jobType={job.jobType}
+            className="text-xs"
+          />
+        </KeyValueRow>
+
+        {taskHref ? (
+          <KeyValueRow label={t("task")}>
+            <Link
+              href={taskHref}
+              className="hover:text-foreground text-sm font-medium underline-offset-2 hover:underline"
+            >
+              {t("openTask")}
+            </Link>
           </KeyValueRow>
-          {index < items.length - 1 && <Separator className="my-2" />}
-        </Fragment>
-      ))}
+        ) : null}
+
+        {job.transaction ? (
+          <KeyValueRow label={t("credits")}>
+            <span className="text-muted-foreground text-sm">
+              {Math.abs(convertCentsToCredits(job.transaction.amount))}
+            </span>
+          </KeyValueRow>
+        ) : null}
+
+        <div className="border-border/50 my-3 border-t" />
+
+        <KeyValueRow label={t("started")}>
+          <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
+            {formatter.dateTime(job.createdAt, dateTimeOptions)}
+          </span>
+        </KeyValueRow>
+
+        <KeyValueRow label={t("finished")}>
+          <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
+            {job.completedAt
+              ? formatter.dateTime(job.completedAt, dateTimeOptions)
+              : "—"}
+          </span>
+        </KeyValueRow>
+
+        <div className="border-border/50 my-3 border-t" />
+
+        <KeyValueRow label={t("jobId")} layout="column">
+          <div className="w-full text-left text-sm">
+            <CopyableValue value={job.agentJobId} />
+          </div>
+        </KeyValueRow>
+
+        <KeyValueRow label={t("txId")} layout="column">
+          <div className="w-full text-sm">
+            {job.purchase?.onChainTransactionHash ? (
+              <Link
+                href={buildJobTransactionUrl(
+                  job.purchase.onChainTransactionHash,
+                  isMainnet,
+                )}
+                className="hover:text-foreground inline-flex items-center gap-1 text-sm underline-offset-2 hover:underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <LinkIcon className="size-4" />
+                <MiddleTruncate text={job.purchase.onChainTransactionHash} />
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </div>
+        </KeyValueRow>
+      </div>
     </div>
   );
 }
@@ -95,21 +116,25 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
 function KeyValueRow({
   label,
   children,
-  rowClassName = "",
+  layout = "row",
 }: {
   label: string;
   children: ReactNode;
-  rowClassName?: string;
+  layout?: "row" | "column";
 }) {
+  if (layout === "column") {
+    return (
+      <div className="flex flex-col items-start justify-start gap-1.5">
+        <span className="text-muted-foreground text-sm">{label}</span>
+        <div className={cn("w-full text-left")}>{children}</div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        `grid h-9 grid-cols-2 items-center gap-4 text-base md:grid-cols-3`,
-        rowClassName,
-      )}
-    >
-      <span className="font-bold break-all md:col-span-1">{label}</span>
-      <div className="break-all md:col-span-2">{children}</div>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground text-sm">{label}</span>
+      <div className={cn("text-right")}>{children}</div>
     </div>
   );
 }

@@ -243,21 +243,8 @@ export default function ChatInterface({
             }
           }
         }
-      },
-    [],
-  );
-
-  const chat0 = useChat({
-    transport: transport0,
-    onError: (error: unknown) =>
-      console.error("Chat API error (slot 0):", error),
-    onFinish: onFinishForSlot(0),
-  });
-  const chat1 = useChat({
-    transport: transport1,
-    onError: (error: unknown) =>
-      console.error("Chat API error (slot 1):", error),
-    onFinish: onFinishForSlot(1),
+      }
+    },
   });
   const chat2 = useChat({
     transport: transport2,
@@ -528,6 +515,7 @@ export default function ChatInterface({
     setSelectedModel,
     isUpdatingUrlRef,
     pendingUrlConversationIdRef,
+    pendingUrlConversationIdRef,
     chats,
     conversations,
   });
@@ -710,6 +698,7 @@ export default function ChatInterface({
     stopSelectedChat();
   };
 
+  // Get the selected chat's coworker for MultimodalInput
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedChatCoworker = useMemo(() => {
     if (

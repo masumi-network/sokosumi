@@ -6,11 +6,13 @@ import {
   blobRepository,
   linkRepository,
 } from "@sokosumi/database/repositories";
+import { head } from "@vercel/blob";
 import pLimit from "p-limit";
 
 import { uploadFileForBlob } from "@/lib/blob/utils";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import prisma from "@/lib/db/prisma";
+import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
 import { isHttpUrl } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {
@@ -91,10 +93,11 @@ export const sourceImportService = (() => {
    * Steps:
    * 1. Validates that the blob is in PENDING status.
    * 2. Fetches the file from the blob's sourceUrl.
-   * 3. Determines the file's content type, size, and suggested filename.
+   * 3. Determines the file's content type and suggested filename.
    * 4. Uploads the file using the uploadFile utility.
-   * 5. Marks the blob as READY with the uploaded file's metadata.
-   * 6. If any error occurs, marks the blob as FAILED.
+   * 5. Reads blob metadata from storage.
+   * 6. Marks the blob as READY with the uploaded file's metadata.
+   * 7. If any error occurs, marks the blob as FAILED.
    *
    * @param blob - The Blob entity to import.
    */
@@ -107,14 +110,8 @@ export const sourceImportService = (() => {
       if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
 
       const contentType = res.headers.get("content-type");
-      const contentLengthHeader = res.headers.get("content-length");
-      const sizeNumber = contentLengthHeader
-        ? Number(contentLengthHeader)
-        : NaN;
       const suggestedName =
-        parseContentDispositionFilename(
-          res.headers.get("content-disposition"),
-        ) ??
+        parseContentDispositionFilename(res.headers.get("content-disposition")) ??
         blob.name ??
         getBasename(sourceUrl) ??
         "file";
@@ -124,30 +121,21 @@ export const sourceImportService = (() => {
         type: contentType ?? "application/octet-stream",
       });
       const uploaded = await uploadFileForBlob(blob.id, file);
+      const blobMetadata = await head(uploaded.url);
+
       await blobRepository.markBlobReady(
         blob.id,
         {
           fileUrl: uploaded.url,
-          mimeType: contentType,
-          size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
+          mimeType: blobMetadata.contentType,
+          size: BigInt(blobMetadata.size),
           name: suggestedName,
         },
         prisma,
       );
-    } catch {
+    } catch (_error) {
       await blobRepository.markBlobFailed(blob.id, prisma);
     }
-  }
-
-  function parseContentDispositionFilename(
-    disposition: string | null,
-  ): string | null {
-    if (!disposition) return null;
-    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(
-      disposition,
-    );
-    const value = decodeURIComponent(match?.[1] ?? match?.[2] ?? "");
-    return value || null;
   }
 
   /**

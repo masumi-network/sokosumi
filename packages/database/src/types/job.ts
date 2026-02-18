@@ -11,15 +11,11 @@ import type {
 export const jobWithEvents = {
   events: {
     orderBy: {
-      createdAt: "asc",
+      createdAt: "desc",
     },
     include: {
       blobs: true,
-      input: {
-        include: {
-          attachments: true,
-        },
-      },
+      input: true,
       links: true,
     },
   },
@@ -106,11 +102,7 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 
 export type JobEventWithRelations = Prisma.JobEventGetPayload<{
   include: {
-    input: {
-      include: {
-        attachments: true;
-      };
-    };
+    input: true;
     blobs: true;
     links: true;
   };

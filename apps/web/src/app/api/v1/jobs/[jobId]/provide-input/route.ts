@@ -66,15 +66,12 @@ export async function POST(
     const { statusId, inputData } = parseResult.data;
 
     // Call the job service to provide input
-    const { job } = await jobService.provideJobInput(
-      {
-        jobId,
-        statusId,
-        userId,
-        inputData,
-      },
-      [], // No uploaded files for API
-    );
+    const { job } = await jobService.provideJobInput({
+      jobId,
+      statusId,
+      userId,
+      inputData,
+    });
 
     return createApiSuccessResponse({ jobId: job.id });
   } catch (error) {
