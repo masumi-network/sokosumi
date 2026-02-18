@@ -14,7 +14,7 @@ export type KanbanColumnId =
   | "todo"
   | "in-progress"
   | "input-required"
-  | "complete";
+  | "done";
 
 export interface TaskWithCoworker {
   id: string;
@@ -42,7 +42,7 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
   { id: "todo", translationKey: "App.Tasks.Columns.todo" },
   { id: "in-progress", translationKey: "App.Tasks.Columns.inProgress" },
   { id: "input-required", translationKey: "App.Tasks.Columns.inputRequired" },
-  { id: "complete", translationKey: "App.Tasks.Columns.complete" },
+  { id: "done", translationKey: "App.Tasks.Columns.done" },
 ];
 
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
@@ -50,5 +50,5 @@ export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
   todo: "bg-blue-500",
   "in-progress": "bg-amber-500",
   "input-required": "bg-orange-500",
-  complete: "bg-emerald-500",
+  done: "bg-emerald-500",
 };

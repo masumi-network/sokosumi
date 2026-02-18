@@ -113,7 +113,7 @@ export function JobsListView({
       todo: [],
       "in-progress": [],
       "input-required": [],
-      complete: [],
+      done: [],
     };
 
     for (const job of visibleJobs) {
@@ -126,7 +126,7 @@ export function JobsListView({
   }, [recentJobIds, visibleJobs]);
 
   const orderedColumns: KanbanColumnId[] = [
-    "complete",
+    "done",
     "input-required",
     "in-progress",
     "todo",
@@ -218,7 +218,7 @@ function jobStatusToColumnId(status: SokosumiJobStatus): KanbanColumnId {
     case SokosumiJobStatus.PAYMENT_FAILED:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      return "complete";
+      return "done";
     case SokosumiJobStatus.PROCESSING:
     case SokosumiJobStatus.RESULT_PENDING:
     case SokosumiJobStatus.REFUND_PENDING:
