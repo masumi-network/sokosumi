@@ -1049,11 +1049,6 @@
     },
     "Actions": {
       "Errors": {
-        "notAuthenticated": "Not authenticated",
-        "alreadyRegisteredUsers": "Already registered users: {emails}",
-        "orgAndEmailsRequired": "Organization name and colleague emails must be provided together",
-        "failedToCreateSlug": "Failed to create organization slug",
-        "failedToCreateOrganization": "Failed to create organization",
         "failedToComplete": "Failed to complete onboarding",
         "unexpectedError": "An unexpected error occurred"
       }
