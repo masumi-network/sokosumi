@@ -267,7 +267,6 @@ function JobDetailsInitiatedSection({
         <JobDetailsInputs
           input={event.input?.input ?? null}
           inputSchema={event.inputSchema}
-          attachments={event.input?.attachments ?? []}
           inputHash={event.input?.inputHash}
           identifierFromPurchaser={job.identifierFromPurchaser}
           jobType={job.jobType}
@@ -392,7 +391,6 @@ function JobDetailsContent({
                   <JobDetailsInputs
                     input={event.input.input}
                     inputSchema={event.inputSchema}
-                    attachments={event.input.attachments ?? []}
                     inputHash={event.input.inputHash}
                     identifierFromPurchaser={job.identifierFromPurchaser}
                     jobType={job.jobType}

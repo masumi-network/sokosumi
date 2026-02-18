@@ -12,6 +12,7 @@ import pLimit from "p-limit";
 import { uploadFileForBlob } from "@/lib/blob/utils";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import prisma from "@/lib/db/prisma";
+import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
 import { isHttpUrl } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {
@@ -110,9 +111,7 @@ export const sourceImportService = (() => {
 
       const contentType = res.headers.get("content-type");
       const suggestedName =
-        parseContentDispositionFilename(
-          res.headers.get("content-disposition"),
-        ) ??
+        parseContentDispositionFilename(res.headers.get("content-disposition")) ??
         blob.name ??
         getBasename(sourceUrl) ??
         "file";
@@ -137,17 +136,6 @@ export const sourceImportService = (() => {
     } catch (_error) {
       await blobRepository.markBlobFailed(blob.id, prisma);
     }
-  }
-
-  function parseContentDispositionFilename(
-    disposition: string | null,
-  ): string | null {
-    if (!disposition) return null;
-    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(
-      disposition,
-    );
-    const value = decodeURIComponent(match?.[1] ?? match?.[2] ?? "");
-    return value || null;
   }
 
   /**
