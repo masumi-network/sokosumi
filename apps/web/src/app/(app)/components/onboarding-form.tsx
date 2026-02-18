@@ -210,7 +210,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps) {
               <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                 {t("step2")}
               </p>
-              <h2 className="text-lg font-semibold">{t("step2")}</h2>
+              <h2 className="text-lg font-semibold">{t("inviteCoWorkers")}</h2>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="font-mono tabular-nums">

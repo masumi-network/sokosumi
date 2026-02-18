@@ -16,9 +16,6 @@ import Header from "./components/header";
 import { OnboardingDialog } from "./components/onboarding-dialog";
 import Sidebar from "./components/sidebar";
 
-// Dev-only escape hatch: temporarily set true to force the onboarding dialog.
-const FORCE_ONBOARDING_FOR_TESTING = false;
-
 interface AppLayoutProps {
   children: React.ReactNode;
 }
@@ -56,8 +53,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     return redirect(`/accept-invitation/${pendingInvitationId}`);
   }
 
-  const shouldShowOnboarding =
-    FORCE_ONBOARDING_FOR_TESTING || (await userService.showOnboarding(session));
+  const shouldShowOnboarding = await userService.showOnboarding(session);
 
   const content = (
     <SidebarProvider

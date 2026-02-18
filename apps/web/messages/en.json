@@ -1048,10 +1048,11 @@
       }
     },
     "Form": {
-      "step1": "Step 1: Create your Organisation",
-      "step2": "Step 2: Invite Co-Workers",
+      "step1": "Step 1",
+      "step2": "Step 2",
       "credits": "+ 10$ Credits",
       "createYourOrganisation": "Create your Organisation",
+      "inviteCoWorkers": "Invite Co-Workers",
       "inviteMoreCoWorkers": "+ Invite more co-workers",
       "continueAndInviteCoWorkers": "Continue & Invite Co-Workers",
       "divider": "or",
