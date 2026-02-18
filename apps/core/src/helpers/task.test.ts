@@ -358,12 +358,32 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("DRAFT → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.DRAFT,
+          TaskStatus.CANCELED,
+        ),
+      ).not.toThrow();
+    });
+
     it("READY → DRAFT", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
           TaskStatus.READY,
           TaskStatus.DRAFT,
+        ),
+      ).not.toThrow();
+    });
+
+    it("READY → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.READY,
+          TaskStatus.CANCELED,
         ),
       ).not.toThrow();
     });

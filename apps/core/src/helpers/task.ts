@@ -94,8 +94,8 @@ function getAllowedTransitions(
 
   if (authContext.userId) {
     return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY],
-      [TaskStatus.READY]: [TaskStatus.DRAFT],
+      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+      [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
       [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.OUT_OF_CREDITS]: [
