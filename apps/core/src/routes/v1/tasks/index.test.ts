@@ -45,7 +45,7 @@ describe("tasks routes OpenAPI scope contract", () => {
     );
   });
 
-  it("marks task deletion as forbidden", () => {
+  it("exposes task archive on delete route", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -57,7 +57,8 @@ describe("tasks routes OpenAPI scope contract", () => {
     const deleteResponses = doc.paths?.["/{id}"]?.delete?.responses;
 
     expect(deleteResponses).toBeDefined();
+    expect(deleteResponses).toHaveProperty("200");
     expect(deleteResponses).toHaveProperty("403");
-    expect(deleteResponses).not.toHaveProperty("200");
+    expect(deleteResponses).toHaveProperty("404");
   });
 });
