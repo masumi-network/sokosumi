@@ -27,75 +27,7 @@ function parseContentLength(value: string | null): number | undefined {
   return parsed;
 }
 
-export function FileChipWithMetadata({
-  url,
-  title,
-  ...props
-}: Omit<FileChipProps, "fileName" | "size">) {
-  const [metadataState, setMetadataState] = useState<FileHeadMetadataState>();
-  const currentUrlMetadata =
-    metadataState?.url === url ? metadataState.metadata : undefined;
-
-  useEffect(() => {
-    const abortController = new AbortController();
-    let cancelled = false;
-
-    async function fetchMetadata() {
-      try {
-        const response = await fetch(url, {
-          method: "HEAD",
-          signal: abortController.signal,
-        });
-        if (cancelled) {
-          return;
-        }
-
-        if (!response.ok) {
-          setMetadataState({ url });
-          return;
-        }
-
-        setMetadataState({
-          url,
-          metadata: {
-            contentType: response.headers.get("content-type") ?? undefined,
-            fileName: parseContentDispositionFilename(
-              response.headers.get("content-disposition"),
-            ),
-            size: parseContentLength(response.headers.get("content-length")),
-          },
-        });
-      } catch {
-        if (!cancelled) {
-          setMetadataState({ url });
-        }
-      }
-    }
-
-    void fetchMetadata();
-
-    return () => {
-      cancelled = true;
-      abortController.abort();
-    };
-  }, [url]);
-
-  return (
-    <FileChip
-      url={url}
-      fileName={currentUrlMetadata?.fileName}
-      size={currentUrlMetadata?.size ?? undefined}
-      title={title ?? currentUrlMetadata?.contentType}
-      {...props}
-    />
-  );
-}
-
-export function FileChipMiniPreviewWithMetadata({
-  url,
-  fileName,
-  ...props
-}: Omit<FileChipMiniPreviewProps, "fileName"> & { fileName?: string | null }) {
+function useFileHeadMetadata(url: string) {
   const [metadataState, setMetadataState] = useState<FileHeadMetadataState>();
   const currentUrlMetadata =
     metadataState?.url === url ? metadataState.metadata : undefined;
@@ -142,11 +74,39 @@ export function FileChipMiniPreviewWithMetadata({
     };
   }, [url]);
 
+  return currentUrlMetadata;
+}
+
+export function FileChipWithMetadata({
+  url,
+  title,
+  ...props
+}: Omit<FileChipProps, "fileName" | "size">) {
+  const metadata = useFileHeadMetadata(url);
+
+  return (
+    <FileChip
+      url={url}
+      fileName={metadata?.fileName}
+      size={metadata?.size ?? undefined}
+      title={title ?? metadata?.contentType}
+      {...props}
+    />
+  );
+}
+
+export function FileChipMiniPreviewWithMetadata({
+  url,
+  fileName,
+  ...props
+}: Omit<FileChipMiniPreviewProps, "fileName"> & { fileName?: string | null }) {
+  const metadata = useFileHeadMetadata(url);
+
   return (
     <FileChipMiniPreview
       url={url}
-      fileName={fileName ?? currentUrlMetadata?.fileName}
-      size={currentUrlMetadata?.size}
+      fileName={fileName ?? metadata?.fileName}
+      size={metadata?.size}
       {...props}
     />
   );

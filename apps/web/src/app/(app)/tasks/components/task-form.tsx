@@ -196,6 +196,7 @@ export function TaskForm({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       if (
         (event.metaKey || event.ctrlKey) &&
         event.key === "Enter" &&
