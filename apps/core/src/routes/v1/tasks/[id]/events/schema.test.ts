@@ -124,13 +124,13 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts zero credits for completed tasks", () => {
+  it("rejects zero credits for completed tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,
       credits: 0,
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
   it("accepts null credits for non-chargeable statuses", () => {

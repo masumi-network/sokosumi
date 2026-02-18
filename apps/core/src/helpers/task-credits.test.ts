@@ -37,12 +37,7 @@ describe("createTaskEventTransaction", () => {
     });
 
     expect(result).toBe("trx_1");
-    expect(prepareConsumption).toHaveBeenCalledWith(
-      "user_1",
-      null,
-      500n,
-      tx,
-    );
+    expect(prepareConsumption).toHaveBeenCalledWith("user_1", null, 500n, tx);
 
     const createCall = vi.mocked(tx.transaction.create).mock.calls[0]?.[0];
     expect(createCall?.data).not.toHaveProperty("organization");

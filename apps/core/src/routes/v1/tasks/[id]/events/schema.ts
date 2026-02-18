@@ -17,7 +17,7 @@ export const createTaskEventRequestSchema = z
       .httpUrl()
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
-    credits: z.number().min(0).nullish().openapi({ example: 5 }),
+    credits: z.number().min(1).nullish().openapi({ example: 5 }),
     origin: z
       .enum(TaskEventOrigin)
       .optional()
