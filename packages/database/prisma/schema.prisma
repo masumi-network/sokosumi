@@ -1021,6 +1021,9 @@ model Coworker {
 
   slug        String  @unique
   name        String
+  caption     String?
+  company     String?
+  companyLogo String?
   url         String?
   email       String?
   description String?
