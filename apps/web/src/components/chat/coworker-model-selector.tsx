@@ -128,15 +128,13 @@ export default function CoworkerModelSelector({
       useCase: t("coworkers.hannah.useCase"),
     },
     {
-      id: "demosthenes",
-      name: t("coworkers.demosthenes.name"),
-      description: t("coworkers.demosthenes.description"),
-      useCase: t("coworkers.demosthenes.useCase"),
+      id: "elena",
+      name: t("coworkers.elena.name"),
+      description: t("coworkers.elena.description"),
+      useCase: t("coworkers.elena.useCase"),
     },
   ];
   const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
-
-  const COMING_SOON_COWORKER_ID = "demosthenes";
 
   const models: Model[] = [
     { id: "gpt-4o-mini", name: t("modelNames.gpt4oMini") },
@@ -239,44 +237,31 @@ export default function CoworkerModelSelector({
             </h3>
           </div>
           <div className="px-1 pb-2">
-            {coworkers.map((coworker) => {
-              const isComingSoon = coworker.id === COMING_SOON_COWORKER_ID;
-              return (
-                <button
-                  key={coworker.id}
-                  type="button"
-                  disabled={isComingSoon}
-                  onClick={() =>
-                    !isComingSoon && handleCoworkerSelect(coworker)
-                  }
-                  className={cn(
-                    "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                    selectedCoworker?.id === coworker.id && "bg-accent",
-                    isComingSoon &&
-                      "cursor-not-allowed opacity-60 hover:bg-transparent hover:opacity-60",
-                  )}
-                >
-                  <Avatar className="size-6 shrink-0">
-                    <AvatarImage
-                      src={getCoworkerAvatarUrl(coworker) ?? undefined}
-                      alt={coworker.name}
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {coworker.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 text-left">{coworker.name}</span>
-                  {isComingSoon && (
-                    <span className="text-muted-foreground text-xs">
-                      ({t("comingSoon")})
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {coworkers.map((coworker) => (
+              <button
+                key={coworker.id}
+                type="button"
+                onClick={() => handleCoworkerSelect(coworker)}
+                className={cn(
+                  "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
+                  selectedCoworker?.id === coworker.id && "bg-accent",
+                )}
+              >
+                <Avatar className="size-6 shrink-0">
+                  <AvatarImage
+                    src={getCoworkerAvatarUrl(coworker) ?? undefined}
+                    alt={coworker.name}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    {coworker.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="flex-1 text-left">{coworker.name}</span>
+              </button>
+            ))}
           </div>
 
           {/* Models Section */}

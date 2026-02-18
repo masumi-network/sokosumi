@@ -116,13 +116,6 @@ export default function ChatInterface({
         description: t("coworkers.elena.description"),
         useCase: t("coworkers.elena.useCase"),
       },
-      {
-        id: "demosthenes",
-        slug: "demosthenes",
-        name: t("coworkers.demosthenes.name"),
-        description: t("coworkers.demosthenes.description"),
-        useCase: t("coworkers.demosthenes.useCase"),
-      },
     ],
     [t],
   );

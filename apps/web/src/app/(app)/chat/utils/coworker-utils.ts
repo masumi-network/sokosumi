@@ -20,12 +20,6 @@ export function getCoworkerSuggestions(coworkerId?: string): string[] {
       "How do I write more maintainable code?",
       "What's the best way to structure my project?",
     ],
-    demosthenes: [
-      "How can I write more clearly?",
-      "What makes a good professional email?",
-      "How do I structure a compelling proposal?",
-      "What are tips for better business writing?",
-    ],
   };
 
   return suggestionMap[coworkerId] || [];

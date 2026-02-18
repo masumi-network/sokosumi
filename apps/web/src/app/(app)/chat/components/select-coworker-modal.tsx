@@ -57,17 +57,8 @@ export default function SelectCoworkerModal({
       description: t("coworkers.elena.description"),
       useCase: t("coworkers.elena.useCase"),
     },
-    {
-      id: "demosthenes",
-      slug: "demosthenes",
-      name: t("coworkers.demosthenes.name"),
-      description: t("coworkers.demosthenes.description"),
-      useCase: t("coworkers.demosthenes.useCase"),
-    },
   ];
   const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
-
-  const COMING_SOON_COWORKER_ID = "demosthenes";
 
   const selectedCoworker = coworkers.find((c) => c.id === selectedCoworkerId);
 
@@ -102,38 +93,26 @@ export default function SelectCoworkerModal({
               <SelectValue placeholder={t("selectCoworker.placeholder")} />
             </SelectTrigger>
             <SelectContent>
-              {coworkers.map((coworker) => {
-                const isComingSoon = coworker.id === COMING_SOON_COWORKER_ID;
-                return (
-                  <SelectItem
-                    key={coworker.id}
-                    value={coworker.id}
-                    disabled={isComingSoon}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Avatar className="size-6">
-                        <AvatarImage
-                          src={getCoworkerAvatarUrl(coworker) ?? undefined}
-                          alt={coworker.name}
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                          {coworker.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span>{coworker.name}</span>
-                      {isComingSoon && (
-                        <span className="text-muted-foreground">
-                          ({t("comingSoon")})
-                        </span>
-                      )}
-                    </div>
-                  </SelectItem>
-                );
-              })}
+              {coworkers.map((coworker) => (
+                <SelectItem key={coworker.id} value={coworker.id}>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="size-6">
+                      <AvatarImage
+                        src={getCoworkerAvatarUrl(coworker) ?? undefined}
+                        alt={coworker.name}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                        {coworker.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{coworker.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {selectedCoworker && (

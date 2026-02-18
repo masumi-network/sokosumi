@@ -1156,11 +1156,6 @@
             "name": "John",
             "description": "Code Review & Development Assistant",
             "useCase": "Review code, suggest improvements, and help with debugging"
-          },
-          "demosthenes": {
-            "name": "Demosthenes",
-            "description": "Writing & Communication Expert",
-            "useCase": "Draft documents, improve writing, and craft professional communications"
           }
         },
         "errorTitle": "Error",
