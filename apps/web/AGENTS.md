@@ -20,8 +20,8 @@
 src/app/
 ├── (app)/              # Protected app routes
 ├── (auth)/             # Authentication routes
+├── (flows)/            # Transitional/public flows (e.g. accept-invitation)
 ├── api/                 # API route handlers
-├── onboarding/          # User onboarding flow
 ├── share/               # Public sharing routes
 ├── layout.tsx           # Root layout
 ├── globals.css          # Global styles with semantic colors
