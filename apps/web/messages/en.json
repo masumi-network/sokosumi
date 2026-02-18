@@ -1228,7 +1228,7 @@
         "todo": "Todo",
         "inProgress": "In Progress",
         "inputRequired": "Input Required",
-        "complete": "Complete"
+        "done": "Done"
       },
       "Actions": {
         "add": "Add",

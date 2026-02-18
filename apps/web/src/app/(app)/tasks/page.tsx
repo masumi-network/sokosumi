@@ -61,7 +61,7 @@ export default async function TasksPage() {
     todo: tColumns("todo"),
     "in-progress": tColumns("inProgress"),
     "input-required": tColumns("inputRequired"),
-    complete: tColumns("complete"),
+    done: tColumns("done"),
   };
 
   return (

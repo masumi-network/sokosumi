@@ -20,21 +20,21 @@ function buildTask(status: TaskStatus): TaskWithEvents {
 }
 
 describe("mapTaskToTaskWithCoworker", () => {
-  it("maps canceled tasks to backlog column", () => {
+  it("maps canceled tasks to done column", () => {
     const task = buildTask(TaskStatus.CANCELED);
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
-    expect(mapped.columnId).toBe("backlog");
+    expect(mapped.columnId).toBe("done");
     expect(mapped.status).toBe(TaskStatus.CANCELED);
   });
 
-  it("keeps completed tasks in complete column", () => {
+  it("keeps completed tasks in done column", () => {
     const task = buildTask(TaskStatus.COMPLETED);
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
-    expect(mapped.columnId).toBe("complete");
+    expect(mapped.columnId).toBe("done");
   });
 
   it("maps awaiting external tasks to in-progress column", () => {
