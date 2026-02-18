@@ -42,6 +42,7 @@ describe("requireUserTaskAccess", () => {
         id: "tsk_123",
         userId: "user_123",
         organizationId: "org_123",
+        archivedAt: null,
       },
     });
   });
@@ -64,6 +65,7 @@ describe("requireScopedTaskReadAccess", () => {
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
+        archivedAt: null,
         OR: [{ userId: "user_123", organizationId: "org_123" }],
       },
     });
@@ -85,6 +87,7 @@ describe("requireScopedTaskReadAccess", () => {
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
+        archivedAt: null,
         OR: [{ userId: "user_123" }],
       },
     });
@@ -113,6 +116,7 @@ describe("requireTaskAccess", () => {
       where: {
         id: "tsk_123",
         status: { not: TaskStatus.DRAFT },
+        archivedAt: null,
       },
     });
   });
