@@ -22,7 +22,6 @@ function getColumnId(status: TaskStatus): TaskWithCoworker["columnId"] {
       return "input-required";
     case TaskStatus.COMPLETED:
     case TaskStatus.FAILED:
-      return "done";
     case TaskStatus.CANCELED:
       return "done";
     default:
