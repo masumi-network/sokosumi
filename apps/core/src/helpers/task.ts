@@ -94,8 +94,8 @@ function getAllowedTransitions(
 
   if (authContext.userId) {
     return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY],
-      [TaskStatus.READY]: [TaskStatus.DRAFT],
+      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+      [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
       [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.OUT_OF_CREDITS]: [
@@ -137,10 +137,12 @@ export function validateTaskCoworkerAssignment({
   coworkerId,
 }: ValidateTaskCoworkerAssignmentParams): void {
   const hasCoworkerId = coworkerId !== null && coworkerId !== undefined;
+  const allowsMissingCoworker =
+    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (status !== TaskStatus.DRAFT && !hasCoworkerId) {
+  if (!allowsMissingCoworker && !hasCoworkerId) {
     throw unprocessableEntity(
-      "coworkerId is required for non-draft task statuses",
+      "coworkerId is required for statuses other than draft or canceled",
     );
   }
 }

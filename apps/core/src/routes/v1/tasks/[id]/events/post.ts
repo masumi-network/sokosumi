@@ -20,6 +20,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
+import { isCreditableTaskStatus } from "./helper";
 import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
@@ -88,11 +89,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
 
           let transactionId: string | null = null;
-          if (isChargeableTaskStatus(status) && credits !== undefined) {
+          let cents: bigint | undefined = undefined;
+          if (isCreditableTaskStatus(status) && credits != null) {
+            cents = convertCreditsToCents(credits);
+          }
+          if (
+            isChargeableTaskStatus(status) &&
+            cents !== undefined &&
+            cents > 0n
+          ) {
             transactionId = await createTaskEventTransaction({
               userId: task.userId,
               organizationId: task.organizationId,
-              credits,
+              cents,
               tx,
             });
           }
@@ -104,8 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               comment,
               authenticationUrl,
               origin,
-              cents:
-                credits != null ? convertCreditsToCents(credits) : undefined,
+              cents,
               transactionId,
               ...getActorData(authContext),
             },

@@ -111,7 +111,9 @@ export const sourceImportService = (() => {
 
       const contentType = res.headers.get("content-type");
       const suggestedName =
-        parseContentDispositionFilename(res.headers.get("content-disposition")) ??
+        parseContentDispositionFilename(
+          res.headers.get("content-disposition"),
+        ) ??
         blob.name ??
         getBasename(sourceUrl) ??
         "file";

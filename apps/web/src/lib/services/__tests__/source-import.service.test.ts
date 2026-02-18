@@ -152,7 +152,10 @@ describe("sourceImportService.importPendingResultBlobs", () => {
     await sourceImportService.importPendingResultBlobs();
 
     expect(markBlobReadyMock).not.toHaveBeenCalled();
-    expect(markBlobFailedMock).toHaveBeenCalledWith("blob_1", expect.any(Object));
+    expect(markBlobFailedMock).toHaveBeenCalledWith(
+      "blob_1",
+      expect.any(Object),
+    );
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
