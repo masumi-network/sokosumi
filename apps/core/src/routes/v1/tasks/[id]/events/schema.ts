@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
-import { isCreditableTaskStatus } from "./helper";
+import { isTaskStatusCreditable } from "./helper";
 
 export const createTaskEventRequestSchema = z
   .object({
@@ -37,7 +37,7 @@ export const createTaskEventRequestSchema = z
       });
     }
 
-    if (!isCreditableTaskStatus(data.status) && data.credits != null) {
+    if (!isTaskStatusCreditable(data.status) && data.credits != null) {
       ctx.addIssue({
         code: "custom",
         message:

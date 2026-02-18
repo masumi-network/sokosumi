@@ -1,8 +1,6 @@
 import { TaskStatus } from "@sokosumi/database";
 
-export function isCreditableTaskStatus(
-  status: TaskStatus | undefined,
-): boolean {
+export function isTaskStatusCreditable(status: TaskStatus): boolean {
   return (
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.CANCELED ||

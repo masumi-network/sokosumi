@@ -8,7 +8,7 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
-  isChargeableTaskStatus,
+  isTaskStatusChargable,
   mapTaskEvent,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
@@ -20,7 +20,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { isCreditableTaskStatus } from "./helper";
+import { isTaskStatusCreditable } from "./helper";
 import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
@@ -90,11 +90,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           let transactionId: string | null = null;
           let cents: bigint | undefined = undefined;
-          if (isCreditableTaskStatus(status) && credits != null) {
+          if (isTaskStatusCreditable(status) && credits != null) {
             cents = convertCreditsToCents(credits);
           }
           if (
-            isChargeableTaskStatus(status) &&
+            isTaskStatusChargable(status) &&
             cents !== undefined &&
             cents > 0n
           ) {
