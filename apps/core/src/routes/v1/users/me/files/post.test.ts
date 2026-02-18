@@ -22,14 +22,20 @@ function expectBadRequest(action: () => unknown, expectedMessage: string) {
 
 describe("extractAndValidateFile", () => {
   it("throws 400 when file is missing", () => {
-    expectBadRequest(() => extractAndValidateFile(new FormData()), "File is required");
+    expectBadRequest(
+      () => extractAndValidateFile(new FormData()),
+      "File is required",
+    );
   });
 
   it("throws 400 when file is not a File instance", () => {
     const formData = new FormData();
     formData.set("file", "not-a-file");
 
-    expectBadRequest(() => extractAndValidateFile(formData), "File is required");
+    expectBadRequest(
+      () => extractAndValidateFile(formData),
+      "File is required",
+    );
   });
 
   it("throws 400 when file is empty", () => {
@@ -66,7 +72,10 @@ describe("extractAndValidateFile", () => {
     formData.append("file", new File(["a"], "a.txt", { type: "text/plain" }));
     formData.append("file", new File(["b"], "b.txt", { type: "text/plain" }));
 
-    expectBadRequest(() => extractAndValidateFile(formData), "File is required");
+    expectBadRequest(
+      () => extractAndValidateFile(formData),
+      "File is required",
+    );
   });
 });
 

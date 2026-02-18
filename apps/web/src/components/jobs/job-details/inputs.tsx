@@ -1,6 +1,5 @@
 "use client";
 
-import type { Attachment } from "@sokosumi/database";
 import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
@@ -15,7 +14,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { FileChip } from "@/components/ui/file-chip";
 import { Separator } from "@/components/ui/separator";
 import {
   flattenInputs,
@@ -24,12 +22,12 @@ import {
 import { cn } from "@/lib/utils";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
+import { FileChipWithMetadata } from "./file-chip-with-metadata";
 import { HashGroupRow } from "./hash-group-row";
 
 interface JobDetailsInputsProps {
   input: string | null;
   inputSchema: string | null;
-  attachments?: Attachment[];
   inputHash?: string | null;
   identifierFromPurchaser?: string | null;
   jobType?: JobType;
@@ -38,7 +36,6 @@ interface JobDetailsInputsProps {
 export default function JobDetailsInputs({
   input,
   inputSchema,
-  attachments,
   inputHash,
   identifierFromPurchaser,
   jobType,
@@ -48,21 +45,12 @@ export default function JobDetailsInputs({
       <JobDetailsInputsInner
         input={input}
         inputSchema={inputSchema}
-        attachments={attachments}
         inputHash={inputHash}
         identifierFromPurchaser={identifierFromPurchaser}
         jobType={jobType}
       />
     </DefaultErrorBoundary>
   );
-}
-
-function findAttachmentByUrl(
-  url: string,
-  attachments?: Attachment[],
-): Attachment | undefined {
-  if (!attachments) return undefined;
-  return attachments.find((a) => a.url === url);
 }
 
 function isOption(type: InputType): boolean {
@@ -96,22 +84,10 @@ function mapIndexToLabel(index: unknown, values: string[]): string {
   return String(index);
 }
 
-function renderInputValue(
-  value: unknown,
-  type: InputType,
-  attachments?: Attachment[],
-  values?: string[],
-) {
+function renderInputValue(value: unknown, type: InputType, values?: string[]) {
   if (type === InputType.FILE) {
     if (isUrlString(value)) {
-      const attachment = findAttachmentByUrl(value, attachments);
-      return (
-        <FileChip
-          url={value}
-          fileName={attachment?.name ?? undefined}
-          size={attachment?.size ? Number(attachment.size) : undefined}
-        />
-      );
+      return <FileChipWithMetadata url={value} />;
     }
     if (isUrlArray(value)) {
       if (value.length === 0) {
@@ -119,17 +95,9 @@ function renderInputValue(
       }
       return (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {value.map((url) => {
-            const attachment = findAttachmentByUrl(url, attachments);
-            return (
-              <FileChip
-                key={url}
-                url={url}
-                fileName={attachment?.name ?? undefined}
-                size={attachment?.size ? Number(attachment.size) : undefined}
-              />
-            );
-          })}
+          {value.map((url) => (
+            <FileChipWithMetadata key={url} url={url} />
+          ))}
         </div>
       );
     }
@@ -170,7 +138,6 @@ function renderInputValue(
 function JobDetailsInputsInner({
   input: rawInput,
   inputSchema: rawInputSchema,
-  attachments = [],
   inputHash = null,
   identifierFromPurchaser = null,
   jobType,
@@ -276,7 +243,7 @@ function JobDetailsInputsInner({
                         {label}
                       </span>
                       <div className="break-all">
-                        {renderInputValue(value, type, attachments, values)}
+                        {renderInputValue(value, type, values)}
                       </div>
                     </div>
                   );

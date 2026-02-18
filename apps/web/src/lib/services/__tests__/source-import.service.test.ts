@@ -152,7 +152,52 @@ describe("sourceImportService.importPendingResultBlobs", () => {
     await sourceImportService.importPendingResultBlobs();
 
     expect(markBlobReadyMock).not.toHaveBeenCalled();
-    expect(markBlobFailedMock).toHaveBeenCalledWith("blob_1", expect.any(Object));
+    expect(markBlobFailedMock).toHaveBeenCalledWith(
+      "blob_1",
+      expect.any(Object),
+    );
     expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("imports blob when content-disposition filename contains raw percent", async () => {
+    const sourceResponse = new Response("hello", {
+      status: 200,
+      headers: {
+        "content-type": "text/plain",
+        "content-disposition": 'attachment; filename="100%_report.txt"',
+      },
+    });
+    const fetchMock = jest
+      .fn<Promise<Response>, [RequestInfo | URL, RequestInit?]>()
+      .mockResolvedValue(sourceResponse);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    getPendingBlobsMock.mockResolvedValue([createPendingBlob()]);
+    uploadFileForBlobMock.mockResolvedValue(
+      createUploadedBlob("https://blob.example/result.txt"),
+    );
+    headMock.mockResolvedValue({
+      size: 10,
+      uploadedAt: new Date("2026-01-01T00:00:00.000Z"),
+      pathname: "blobs/blob_1/result.txt",
+      contentType: "text/plain",
+      contentDisposition: "attachment; filename=result.txt",
+      url: "https://blob.example/result.txt",
+      downloadUrl: "https://blob.example/result.txt?download=1",
+      cacheControl: "public, max-age=31536000",
+      etag: "etag_abc",
+    });
+
+    const processedCount = await sourceImportService.importPendingResultBlobs();
+
+    expect(processedCount).toBe(1);
+    expect(markBlobReadyMock).toHaveBeenCalledWith(
+      "blob_1",
+      expect.objectContaining({
+        name: "100%_report.txt",
+      }),
+      expect.any(Object),
+    );
+    expect(markBlobFailedMock).not.toHaveBeenCalled();
   });
 });

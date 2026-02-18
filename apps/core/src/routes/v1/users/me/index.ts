@@ -1,6 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import mountGetMeAttachments from "./attachments/get.js";
 import mountGetMeCredits from "./credits/get.js";
 import mountGetMeFiles from "./files/get.js";
 import mountPostMeFiles from "./files/post.js";
@@ -24,7 +23,6 @@ mountGetMePreferences(app);
 mountPatchMePreferences(app);
 mountGetMeOnboarding(app);
 mountPostMeOnboarding(app);
-mountGetMeAttachments(app);
 mountGetMeFiles(app);
 mountPostMeFiles(app);
 
