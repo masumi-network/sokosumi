@@ -115,10 +115,28 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts zero credits for completed tasks", () => {
+  it("accepts null credits for completed tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      credits: null,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects zero credits for completed tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.COMPLETED,
       credits: 0,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts null credits for non-chargeable statuses", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.RUNNING,
+      credits: null,
     });
 
     expect(result.success).toBe(true);

@@ -88,7 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
 
           let transactionId: string | null = null;
-          if (isChargeableTaskStatus(status) && credits !== undefined) {
+          if (isChargeableTaskStatus(status) && credits != null && credits >= 1) {
             transactionId = await createTaskEventTransaction({
               userId: task.userId,
               organizationId: task.organizationId,

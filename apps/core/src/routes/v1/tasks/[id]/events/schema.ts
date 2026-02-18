@@ -17,7 +17,7 @@ export const createTaskEventRequestSchema = z
       .httpUrl()
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
-    credits: z.number().min(0).optional().openapi({ example: 5 }),
+    credits: z.number().min(1).nullish().openapi({ example: 5 }),
     origin: z
       .enum(TaskEventOrigin)
       .optional()
@@ -37,7 +37,7 @@ export const createTaskEventRequestSchema = z
       });
     }
 
-    if (!isCreditableTaskStatus(data.status) && data.credits !== undefined) {
+    if (!isCreditableTaskStatus(data.status) && data.credits != null) {
       ctx.addIssue({
         code: "custom",
         message:
