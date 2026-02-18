@@ -317,8 +317,12 @@ export function useConversations(): UseConversationsReturn {
         }
 
         const conversation = result.value;
+        if (conversation == null) {
+          setIsLoading(false);
+          return null;
+        }
+
         setSelectedConversation(conversation);
-        // Ensure conversation is in the list when loaded by ID (e.g. from URL on refresh)
         setConversations((prev) =>
           prev.some((c) => c.id === conversation.id)
             ? prev
