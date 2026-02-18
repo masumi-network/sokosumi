@@ -11,6 +11,15 @@ export const coworkerSchema = z
     updatedAt: dateTimeSchema,
     slug: z.string().openapi({ example: "ops-agent" }),
     name: z.string().openapi({ example: "Ops Agent" }),
+    caption: z
+      .string()
+      .nullish()
+      .openapi({ example: "Senior Campaign Partner" }),
+    company: z.string().nullish().openapi({ example: "Serviceplan" }),
+    companyLogo: z
+      .string()
+      .nullish()
+      .openapi({ example: "https://example.com/company-logo" }),
     url: z.string().nullish().openapi({ example: "https://example.com" }),
     email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
