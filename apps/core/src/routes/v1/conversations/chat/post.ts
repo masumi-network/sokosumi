@@ -172,13 +172,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         string,
         unknown
       > | null;
-      const coworkerId = metadata?.coworker_id as string | undefined;
+      const agentId = (metadata?.coworker_slug ?? metadata?.coworker_id) as
+        | string
+        | undefined;
       const lastResponsesApiResponseId =
         metadata?.last_responses_api_response_id as string | undefined;
 
       const useResponsesApi =
         Boolean(internalConversationId) &&
-        isResponsesApiAgentId(coworkerId) &&
+        isResponsesApiAgentId(agentId) &&
         isResponsesApiConfigured();
 
       // Validate coworker message text BEFORE persisting to avoid inconsistent state
@@ -215,7 +217,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (useResponsesApi) {
         const result = await streamResponsesApi(lastUserMessageText, {
           sokosumiUserId: authContext.userId,
-          agentId: coworkerId as "hannah" | "elena",
+          agentId: agentId as "hannah" | "elena",
           previousResponseId: lastResponsesApiResponseId ?? null,
           onResponseCompleted: async (responseId: string) => {
             if (!internalConversationId) return;

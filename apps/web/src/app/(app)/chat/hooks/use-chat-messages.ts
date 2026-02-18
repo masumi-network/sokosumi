@@ -50,7 +50,7 @@ export function useChatMessages({
       }
       const hasSyncItems =
         selectedConversation?.id === currentSelectedChatId &&
-        selectedConversation.items !== undefined;
+        Array.isArray(selectedConversation.items);
 
       // Clear any existing retry timeout from previous effect run
       if (retryTimeoutRef.current !== null) {
@@ -58,8 +58,8 @@ export function useChatMessages({
         retryTimeoutRef.current = null;
       }
 
-      if (hasSyncItems) {
-        const items = selectedConversation!.items!;
+      if (hasSyncItems && selectedConversation.items) {
+        const items = selectedConversation.items;
         previousChatIdRef.current = currentSelectedChatId;
         if (items.length > 0) {
           const dbMessages = convertItemsToMessages(items);
@@ -289,6 +289,7 @@ export function useChatMessages({
   }, [
     selectedChatId,
     selectedConversation,
+    selectedConversation?.items,
     setMessagesForConversation,
     previousChatIdRef,
     messagesChatIdRef,
@@ -301,7 +302,7 @@ export function useChatMessages({
     if (
       selectedChatId &&
       selectedConversation?.id === selectedChatId &&
-      selectedConversation.items &&
+      Array.isArray(selectedConversation.items) &&
       selectedConversation.items.length > 0
     ) {
       if (streamingConversationIdsRef?.current.has(selectedChatId)) {

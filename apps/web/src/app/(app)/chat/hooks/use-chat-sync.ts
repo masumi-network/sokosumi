@@ -13,6 +13,7 @@ interface UseChatSyncProps {
   selectedChatId: string | null;
   setSelectedModel: (model: { id: string; name: string } | null) => void;
   selectedModelRef: React.MutableRefObject<{ id: string; name: string } | null>;
+  coworkers?: Coworker[];
 }
 
 /**
@@ -25,6 +26,7 @@ export function useChatSync({
   selectedChatId,
   setSelectedModel,
   selectedModelRef,
+  coworkers = [],
 }: UseChatSyncProps) {
   const t = useTranslations("App.Chat.Chat");
 
@@ -74,24 +76,27 @@ export function useChatSync({
           const modelName = metadata?.model_name as string | undefined;
           const conversationType = metadata?.type as string | undefined;
 
-          // Find existing chat from latest state to preserve UI state (title, status, etc.)
           const existingChat = latestChats.find((c) => c.id === conv.id);
 
-          // Build coworker object from metadata or existing chat
           let coworker: Coworker | undefined;
-          if (existingChat?.coworker) {
+          if (coworkerId && conversationType === "coworker") {
+            const fromList =
+              coworkers.find((c) => c.id === coworkerId) ??
+              coworkers.find((c) => c.slug === coworkerId);
+            if (fromList) {
+              coworker = fromList;
+            } else if (existingChat?.coworker) {
+              coworker = existingChat.coworker;
+            } else if (coworkerName) {
+              coworker = {
+                id: coworkerId,
+                name: coworkerName,
+                description: coworkerDescription || "",
+                useCase: coworkerUseCase || "",
+              };
+            }
+          } else if (existingChat?.coworker) {
             coworker = existingChat.coworker;
-          } else if (
-            coworkerId &&
-            coworkerName &&
-            conversationType === "coworker"
-          ) {
-            coworker = {
-              id: coworkerId,
-              name: coworkerName,
-              description: coworkerDescription || "",
-              useCase: coworkerUseCase || "",
-            };
           }
 
           // Build model object from metadata or existing chat
@@ -130,5 +135,5 @@ export function useChatSync({
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversations, t]); // Don't include chats in deps to avoid infinite loop
+  }, [conversations, coworkers, t]);
 }

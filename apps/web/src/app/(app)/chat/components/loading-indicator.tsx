@@ -5,21 +5,28 @@ import { useTranslations } from "next-intl";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
-import type { Chat } from "@/app/chat/utils/types";
+import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface LoadingIndicatorProps {
   selectedChatId: string | null;
   chats: Chat[];
+  coworkers?: Coworker[];
 }
 
 export default function LoadingIndicator({
   selectedChatId,
   chats,
+  coworkers = [],
 }: LoadingIndicatorProps) {
   const t = useTranslations("App.Chat.Chat");
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const coworkerId = selectedChat?.coworker?.id;
+  const coworkerFromList = coworkerId
+    ? coworkers.find((c) => c.id === coworkerId)
+    : undefined;
+  const coworkerImageUrl =
+    selectedChat?.coworker?.avatar ?? coworkerFromList?.avatar;
   const modelId = selectedChat?.model?.id;
   const modelName = selectedChat?.model?.name;
   const coworkerName = selectedChat?.coworker?.name;
@@ -66,12 +73,13 @@ export default function LoadingIndicator({
 
     // If it's a coworker conversation, show coworker image
     if (coworkerId) {
-      const imageUrl = getCoworkerImageUrl(coworkerId);
+      const imageUrl = coworkerImageUrl ?? getCoworkerImageUrl(coworkerId);
       if (imageUrl) {
         return (
           <AvatarImage
             src={imageUrl}
             alt={coworkerName || t("coworkerAlt")}
+            referrerPolicy="no-referrer"
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}

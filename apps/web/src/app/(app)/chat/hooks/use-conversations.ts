@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,6 +14,50 @@ import {
   listConversations,
   updateConversation,
 } from "@/lib/actions/conversation/core-api-actions";
+
+const CONVERSATION_RETRY_ATTEMPTS = 2;
+const CONVERSATION_RETRY_DELAY_MS = 1500;
+
+function isRetryableNetworkError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("fetch failed") ||
+    lower.includes("failed to fetch") ||
+    lower.includes("unavailable") ||
+    lower.includes("econnrefused") ||
+    lower.includes("etimedout") ||
+    lower.includes("enotfound") ||
+    lower.includes("network error")
+  );
+}
+
+function getConversationToastMessage(
+  rawMessage: string,
+  networkFallback: string,
+): string {
+  return isRetryableNetworkError(rawMessage) ? networkFallback : rawMessage;
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: { retries: number; delayMs: number },
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= options.retries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e;
+      const message = e instanceof Error ? e.message : String(e);
+      if (attempt < options.retries && isRetryableNetworkError(message)) {
+        await new Promise((r) => setTimeout(r, options.delayMs));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError;
+}
 
 interface UseConversationsReturn {
   conversations: Conversation[];
@@ -38,11 +83,13 @@ interface UseConversationsReturn {
  * Uses internal database IDs.
  */
 export function useConversations(): UseConversationsReturn {
+  const t = useTranslations("App.Chat.Chat");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
     useState<ConversationWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
+  const networkErrorToastMessage = t("networkErrorAfterRetry");
 
   /**
    * Helper to parse serialized Result objects from Next.js server actions
@@ -98,7 +145,10 @@ export function useConversations(): UseConversationsReturn {
     setError(null);
 
     try {
-      const rawResult = await listConversations({});
+      const rawResult = await withRetry(() => listConversations({}), {
+        retries: CONVERSATION_RETRY_ATTEMPTS,
+        delayMs: CONVERSATION_RETRY_DELAY_MS,
+      });
       const result = parseServerActionResult<Conversation[], ActionError>(
         rawResult,
       );
@@ -107,12 +157,15 @@ export function useConversations(): UseConversationsReturn {
         const error = result.error;
         setError(error);
 
-        // Show user-friendly error message
         const errorMessage =
           error?.message || "Failed to refresh conversations";
+        const toastMessage = getConversationToastMessage(
+          errorMessage,
+          networkErrorToastMessage,
+        );
         const isServiceUnavailable = errorMessage.includes("unavailable");
 
-        toast.error(errorMessage, {
+        toast.error(toastMessage, {
           description: isServiceUnavailable
             ? "The conversation service is temporarily unavailable. Please try again in a moment."
             : undefined,
@@ -125,7 +178,6 @@ export function useConversations(): UseConversationsReturn {
       setConversations(result.value || []);
       setIsLoading(false);
     } catch (error) {
-      // Handle thrown errors (e.g., UnAuthenticatedError from withAuthContext)
       const errorMessage =
         error instanceof Error
           ? error.message
@@ -135,15 +187,21 @@ export function useConversations(): UseConversationsReturn {
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       });
 
-      toast.error(errorMessage, {
-        description: errorMessage.includes("unavailable")
+      const toastMessage = getConversationToastMessage(
+        errorMessage,
+        networkErrorToastMessage,
+      );
+      const isServiceUnavailable = errorMessage.includes("unavailable");
+
+      toast.error(toastMessage, {
+        description: isServiceUnavailable
           ? "The conversation service is temporarily unavailable. Please try again in a moment."
           : undefined,
       });
 
       setIsLoading(false);
     }
-  }, [parseServerActionResult]);
+  }, [parseServerActionResult, networkErrorToastMessage]);
 
   /**
    * Creates a new conversation and stores it in the database.
@@ -157,7 +215,13 @@ export function useConversations(): UseConversationsReturn {
       setError(null);
 
       try {
-        const rawResult = await createConversation({ metadata, title });
+        const rawResult = await withRetry(
+          () => createConversation({ metadata, title }),
+          {
+            retries: CONVERSATION_RETRY_ATTEMPTS,
+            delayMs: CONVERSATION_RETRY_DELAY_MS,
+          },
+        );
         const result = parseServerActionResult<Conversation, ActionError>(
           rawResult,
         );
@@ -166,10 +230,13 @@ export function useConversations(): UseConversationsReturn {
           const error = result.error;
           setError(error);
 
-          // Show user-friendly error message
           const errorMessage =
             error?.message || "Failed to create conversation";
-          toast.error(errorMessage, {
+          const toastMessage = getConversationToastMessage(
+            errorMessage,
+            networkErrorToastMessage,
+          );
+          toast.error(toastMessage, {
             description: errorMessage.includes("unavailable")
               ? "The conversation service is temporarily unavailable. Please try again in a moment."
               : undefined,
@@ -208,7 +275,11 @@ export function useConversations(): UseConversationsReturn {
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
 
-        toast.error(errorMessage, {
+        const toastMessage = getConversationToastMessage(
+          errorMessage,
+          networkErrorToastMessage,
+        );
+        toast.error(toastMessage, {
           description: errorMessage.includes("unavailable")
             ? "The conversation service is temporarily unavailable. Please try again in a moment."
             : undefined,
@@ -218,7 +289,7 @@ export function useConversations(): UseConversationsReturn {
         return null;
       }
     },
-    [parseServerActionResult, refreshConversations],
+    [parseServerActionResult, refreshConversations, networkErrorToastMessage],
   );
 
   /**
@@ -230,7 +301,10 @@ export function useConversations(): UseConversationsReturn {
       setError(null);
 
       try {
-        const rawResult = await getConversation({ id });
+        const rawResult = await withRetry(() => getConversation({ id }), {
+          retries: CONVERSATION_RETRY_ATTEMPTS,
+          delayMs: CONVERSATION_RETRY_DELAY_MS,
+        });
         const result = parseServerActionResult<
           ConversationWithItems,
           ActionError
@@ -243,7 +317,17 @@ export function useConversations(): UseConversationsReturn {
         }
 
         const conversation = result.value;
+        if (conversation == null) {
+          setIsLoading(false);
+          return null;
+        }
+
         setSelectedConversation(conversation);
+        setConversations((prev) =>
+          prev.some((c) => c.id === conversation.id)
+            ? prev
+            : [conversation, ...prev],
+        );
         setIsLoading(false);
         return conversation;
       } catch (error) {
@@ -256,7 +340,11 @@ export function useConversations(): UseConversationsReturn {
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
 
-        toast.error(errorMessage, {
+        const toastMessage = getConversationToastMessage(
+          errorMessage,
+          networkErrorToastMessage,
+        );
+        toast.error(toastMessage, {
           description: errorMessage.includes("unavailable")
             ? "The conversation service is temporarily unavailable. Please try again in a moment."
             : undefined,
@@ -266,7 +354,7 @@ export function useConversations(): UseConversationsReturn {
         return null;
       }
     },
-    [parseServerActionResult],
+    [parseServerActionResult, networkErrorToastMessage],
   );
 
   /**
@@ -282,11 +370,18 @@ export function useConversations(): UseConversationsReturn {
       setError(null);
 
       try {
-        const rawResult = await updateConversation({
-          id: selectedConversation.id,
-          metadata,
-          title,
-        });
+        const rawResult = await withRetry(
+          () =>
+            updateConversation({
+              id: selectedConversation.id,
+              metadata,
+              title,
+            }),
+          {
+            retries: CONVERSATION_RETRY_ATTEMPTS,
+            delayMs: CONVERSATION_RETRY_DELAY_MS,
+          },
+        );
         const result = parseServerActionResult<Conversation, ActionError>(
           rawResult,
         );
@@ -295,10 +390,13 @@ export function useConversations(): UseConversationsReturn {
           const error = result.error;
           setError(error);
 
-          // Show user-friendly error message
           const errorMessage =
             error?.message || "Failed to update conversation";
-          toast.error(errorMessage, {
+          const toastMessage = getConversationToastMessage(
+            errorMessage,
+            networkErrorToastMessage,
+          );
+          toast.error(toastMessage, {
             description: errorMessage.includes("unavailable")
               ? "The conversation service is temporarily unavailable. Please try again in a moment."
               : undefined,
@@ -330,7 +428,11 @@ export function useConversations(): UseConversationsReturn {
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
 
-        toast.error(errorMessage, {
+        const toastMessage = getConversationToastMessage(
+          errorMessage,
+          networkErrorToastMessage,
+        );
+        toast.error(toastMessage, {
           description: errorMessage.includes("unavailable")
             ? "The conversation service is temporarily unavailable. Please try again in a moment."
             : undefined,
@@ -339,7 +441,7 @@ export function useConversations(): UseConversationsReturn {
         setIsLoading(false);
       }
     },
-    [selectedConversation, parseServerActionResult],
+    [selectedConversation, parseServerActionResult, networkErrorToastMessage],
   );
 
   /**
@@ -354,9 +456,13 @@ export function useConversations(): UseConversationsReturn {
     setError(null);
 
     try {
-      const rawResult = await deleteConversation({
-        id: selectedConversation.id,
-      });
+      const rawResult = await withRetry(
+        () => deleteConversation({ id: selectedConversation.id }),
+        {
+          retries: CONVERSATION_RETRY_ATTEMPTS,
+          delayMs: CONVERSATION_RETRY_DELAY_MS,
+        },
+      );
       const result = parseServerActionResult<Conversation, ActionError>(
         rawResult,
       );
@@ -365,9 +471,12 @@ export function useConversations(): UseConversationsReturn {
         const error = result.error;
         setError(error);
 
-        // Show user-friendly error message
         const errorMessage = error?.message || "Failed to delete conversation";
-        toast.error(errorMessage, {
+        const toastMessage = getConversationToastMessage(
+          errorMessage,
+          networkErrorToastMessage,
+        );
+        toast.error(toastMessage, {
           description: errorMessage.includes("unavailable")
             ? "The conversation service is temporarily unavailable. Please try again in a moment."
             : undefined,
@@ -398,7 +507,11 @@ export function useConversations(): UseConversationsReturn {
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       });
 
-      toast.error(errorMessage, {
+      const toastMessage = getConversationToastMessage(
+        errorMessage,
+        networkErrorToastMessage,
+      );
+      toast.error(toastMessage, {
         description: errorMessage.includes("unavailable")
           ? "The conversation service is temporarily unavailable. Please try again in a moment."
           : undefined,
@@ -406,7 +519,12 @@ export function useConversations(): UseConversationsReturn {
 
       setIsLoading(false);
     }
-  }, [selectedConversation, parseServerActionResult, refreshConversations]);
+  }, [
+    selectedConversation,
+    parseServerActionResult,
+    refreshConversations,
+    networkErrorToastMessage,
+  ]);
 
   /**
    * Deletes a conversation by ID (can be any conversation, not just the selected one)
@@ -417,7 +535,10 @@ export function useConversations(): UseConversationsReturn {
       setError(null);
 
       try {
-        const rawResult = await deleteConversation({ id });
+        const rawResult = await withRetry(() => deleteConversation({ id }), {
+          retries: CONVERSATION_RETRY_ATTEMPTS,
+          delayMs: CONVERSATION_RETRY_DELAY_MS,
+        });
         const result = parseServerActionResult<Conversation, ActionError>(
           rawResult,
         );
@@ -426,10 +547,13 @@ export function useConversations(): UseConversationsReturn {
           const error = result.error;
           setError(error);
 
-          // Show user-friendly error message
           const errorMessage =
             error?.message || "Failed to delete conversation";
-          toast.error(errorMessage, {
+          const toastMessage = getConversationToastMessage(
+            errorMessage,
+            networkErrorToastMessage,
+          );
+          toast.error(toastMessage, {
             description: errorMessage.includes("unavailable")
               ? "The conversation service is temporarily unavailable. Please try again in a moment."
               : undefined,
@@ -462,7 +586,11 @@ export function useConversations(): UseConversationsReturn {
           code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
 
-        toast.error(errorMessage, {
+        const toastMessage = getConversationToastMessage(
+          errorMessage,
+          networkErrorToastMessage,
+        );
+        toast.error(toastMessage, {
           description: errorMessage.includes("unavailable")
             ? "The conversation service is temporarily unavailable. Please try again in a moment."
             : undefined,
@@ -471,7 +599,12 @@ export function useConversations(): UseConversationsReturn {
         setIsLoading(false);
       }
     },
-    [parseServerActionResult, refreshConversations, selectedConversation],
+    [
+      parseServerActionResult,
+      refreshConversations,
+      selectedConversation,
+      networkErrorToastMessage,
+    ],
   );
 
   // Load conversations on mount (defer to avoid synchronous setState in effect)

@@ -24,6 +24,7 @@ interface UseChatSelectionProps {
   isUpdatingUrlRef: React.MutableRefObject<boolean>;
   pendingUrlConversationIdRef: React.MutableRefObject<string | null>;
   stopStreaming: () => void;
+  isConversationsLoading?: boolean;
 }
 
 /**
@@ -65,6 +66,7 @@ export function useChatSelection({
   isUpdatingUrlRef,
   pendingUrlConversationIdRef,
   stopStreaming: _stopStreaming,
+  isConversationsLoading = false,
 }: UseChatSelectionProps) {
   const router = useRouter();
 
@@ -110,8 +112,20 @@ export function useChatSelection({
       return;
     }
 
-    const conversation =
-      loadedConversation ?? conversations.find((c) => c.id === chatId);
+    if (loadedConversation === null) {
+      setSelectedChatId(null);
+      currentChatIdRef.current = null;
+      pendingUrlConversationIdRef.current = null;
+      setSelectedModel(null);
+      selectedModelRef.current = null;
+      setMessages([]);
+      setInput("");
+      isUpdatingUrlRef.current = true;
+      router.replace("/chat", { scroll: false });
+      return;
+    }
+
+    const conversation = loadedConversation;
     if (conversation) {
       setSelectedModelFromConversation(
         conversation,
@@ -154,7 +168,6 @@ export function useChatSelection({
       selectedConversation?.id !== currentUrlConversationId;
     const urlDiffersFromSelection =
       currentUrlConversationId && currentUrlConversationId !== selectedChatId;
-
     if (urlDiffersFromSelection) {
       // Only skip when the URL already shows the conversation we just selected (our own push).
       if (pending === currentUrlConversationId) {
@@ -162,6 +175,21 @@ export function useChatSelection({
         return;
       }
       if (!conversations.some((c) => c.id === currentUrlConversationId)) {
+        if (conversations.length === 0) {
+          pendingUrlConversationIdRef.current = null;
+          if (!isConversationsLoading) {
+            router.replace("/chat", { scroll: false });
+            setSelectedChatId(null);
+            currentChatIdRef.current = null;
+            setSelectedModel(null);
+            selectedModelRef.current = null;
+            setMessages([]);
+            setInput("");
+            return;
+          }
+          handleSelectChat(currentUrlConversationId);
+          return;
+        }
         const sorted = [...conversations].sort(
           (a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -192,8 +220,22 @@ export function useChatSelection({
       pendingUrlConversationIdRef.current = null;
       handleSelectChat(currentUrlConversationId);
     } else if (urlConversationNotLoaded) {
-      // URL has a conversationId that's not in list (e.g. was just deleted) – select next or welcome
       if (!conversations.some((c) => c.id === currentUrlConversationId)) {
+        if (conversations.length === 0) {
+          pendingUrlConversationIdRef.current = null;
+          if (!isConversationsLoading) {
+            router.replace("/chat", { scroll: false });
+            setSelectedChatId(null);
+            currentChatIdRef.current = null;
+            setSelectedModel(null);
+            selectedModelRef.current = null;
+            setMessages([]);
+            setInput("");
+            return;
+          }
+          handleSelectChat(currentUrlConversationId);
+          return;
+        }
         const sorted = [...conversations].sort(
           (a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -258,7 +300,13 @@ export function useChatSelection({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlConversationId, pathname, selectedChatId, selectedConversation?.id]);
+  }, [
+    urlConversationId,
+    pathname,
+    selectedChatId,
+    selectedConversation?.id,
+    isConversationsLoading,
+  ]);
 
   return {
     selectChat: handleSelectChat,

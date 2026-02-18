@@ -19,6 +19,8 @@ interface WelcomeScreenProps {
   sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
   status: "ready" | "streaming" | "submitted" | "error";
   stop: () => void;
+  coworkers?: Coworker[];
+  initialCoworker?: Coworker;
 }
 
 export default function WelcomeScreen({
@@ -31,6 +33,8 @@ export default function WelcomeScreen({
   sendMessage,
   status,
   stop,
+  coworkers,
+  initialCoworker,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
 
@@ -58,6 +62,8 @@ export default function WelcomeScreen({
             sendMessage={sendMessage}
             onSendMessage={onSendMessage}
             showSuggestedActions={true}
+            coworkers={coworkers}
+            coworker={initialCoworker}
           />
         </div>
       </div>

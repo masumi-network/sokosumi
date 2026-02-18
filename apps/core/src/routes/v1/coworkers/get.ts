@@ -26,9 +26,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const coworkers = await prisma.coworker.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
     return ok(c, z.array(coworkerSchema).parse(coworkers));

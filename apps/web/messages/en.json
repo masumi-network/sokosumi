@@ -1147,20 +1147,21 @@
             "description": "Data Analysis & Research Specialist",
             "useCase": "Analyze datasets, create reports, and provide research insights"
           },
+          "elena": {
+            "name": "Elena",
+            "description": "Conversational AI Assistant",
+            "useCase": "Answer questions and assist with tasks in natural conversation"
+          },
           "john": {
             "name": "John",
             "description": "Code Review & Development Assistant",
             "useCase": "Review code, suggest improvements, and help with debugging"
-          },
-          "demosthenes": {
-            "name": "Demosthenes",
-            "description": "Writing & Communication Expert",
-            "useCase": "Draft documents, improve writing, and craft professional communications"
           }
         },
         "errorTitle": "Error",
         "errorDescription": "An error occurred while processing your message. Please try again.",
-        "tryAgain": "Try Again"
+        "tryAgain": "Try Again",
+        "networkErrorAfterRetry": "We couldn't reach the server after a few attempts. Please check your connection and try again."
       }
     },
     "Schedules": {

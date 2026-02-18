@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { type SyntheticEvent, useState } from "react";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +26,7 @@ interface Model {
 interface CoworkerModelSelectorProps {
   selectedCoworker: Coworker | null;
   selectedModel?: Model | null;
+  coworkers?: Coworker[];
   onSelectCoworker: (coworker: Coworker) => void;
   onSelectModel?: (model: Model | null) => void;
   disabled?: boolean;
@@ -110,6 +112,7 @@ function ModelIcon({
 export default function CoworkerModelSelector({
   selectedCoworker,
   selectedModel,
+  coworkers: propCoworkers,
   onSelectCoworker,
   onSelectModel,
   disabled = false,
@@ -117,8 +120,7 @@ export default function CoworkerModelSelector({
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
 
-  // John temporarily removed; Demosthenes shown as disabled (Coming Soon)
-  const coworkers: Coworker[] = [
+  const coworkersFallback: Coworker[] = [
     {
       id: "hannah",
       name: t("coworkers.hannah.name"),
@@ -126,14 +128,13 @@ export default function CoworkerModelSelector({
       useCase: t("coworkers.hannah.useCase"),
     },
     {
-      id: "demosthenes",
-      name: t("coworkers.demosthenes.name"),
-      description: t("coworkers.demosthenes.description"),
-      useCase: t("coworkers.demosthenes.useCase"),
+      id: "elena",
+      name: t("coworkers.elena.name"),
+      description: t("coworkers.elena.description"),
+      useCase: t("coworkers.elena.useCase"),
     },
   ];
-
-  const COMING_SOON_COWORKER_ID = "demosthenes";
+  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
 
   const models: Model[] = [
     { id: "gpt-4o-mini", name: t("modelNames.gpt4oMini") },
@@ -144,14 +145,20 @@ export default function CoworkerModelSelector({
     { id: "mixtral-8x7b", name: t("modelNames.mixtral8x7b") },
   ];
 
-  // Helper function to get coworker image URL
-  const getCoworkerImageUrl = (coworkerId: string): string | null => {
-    const imageMap: Record<string, string> = {
-      hannah: "/images/coworkers/hannah.png",
-      demosthenes: "/images/coworkers/demosthenes.png",
-    };
-    return imageMap[coworkerId] || null;
-  };
+  const getCoworkerAvatarUrl = (c: Coworker): string | null =>
+    getCoworkerImageUrl(c.id, c.avatar ?? undefined);
+
+  // Prefer coworker from list (has avatar after API load) for display when ids match
+  const displayCoworker =
+    selectedCoworker &&
+    (coworkers.find(
+      (c) =>
+        c.id === selectedCoworker.id ||
+        c.slug === selectedCoworker.slug ||
+        c.slug === selectedCoworker.id ||
+        c.id === selectedCoworker.slug,
+    ) ??
+      selectedCoworker);
 
   const handleCoworkerSelect = (coworker: Coworker) => {
     onSelectCoworker(coworker);
@@ -185,7 +192,11 @@ export default function CoworkerModelSelector({
             <>
               <Avatar className="size-5 shrink-0">
                 <AvatarImage
-                  src={getCoworkerImageUrl(selectedCoworker.id) ?? undefined}
+                  src={
+                    (displayCoworker &&
+                      getCoworkerAvatarUrl(displayCoworker)) ??
+                    undefined
+                  }
                   alt={selectedCoworker.name}
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
@@ -226,44 +237,31 @@ export default function CoworkerModelSelector({
             </h3>
           </div>
           <div className="px-1 pb-2">
-            {coworkers.map((coworker) => {
-              const isComingSoon = coworker.id === COMING_SOON_COWORKER_ID;
-              return (
-                <button
-                  key={coworker.id}
-                  type="button"
-                  disabled={isComingSoon}
-                  onClick={() =>
-                    !isComingSoon && handleCoworkerSelect(coworker)
-                  }
-                  className={cn(
-                    "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
-                    selectedCoworker?.id === coworker.id && "bg-accent",
-                    isComingSoon &&
-                      "cursor-not-allowed opacity-60 hover:bg-transparent hover:opacity-60",
-                  )}
-                >
-                  <Avatar className="size-6 shrink-0">
-                    <AvatarImage
-                      src={getCoworkerImageUrl(coworker.id) ?? undefined}
-                      alt={coworker.name}
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {coworker.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 text-left">{coworker.name}</span>
-                  {isComingSoon && (
-                    <span className="text-muted-foreground text-xs">
-                      ({t("comingSoon")})
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {coworkers.map((coworker) => (
+              <button
+                key={coworker.id}
+                type="button"
+                onClick={() => handleCoworkerSelect(coworker)}
+                className={cn(
+                  "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm transition-colors",
+                  selectedCoworker?.id === coworker.id && "bg-accent",
+                )}
+              >
+                <Avatar className="size-6 shrink-0">
+                  <AvatarImage
+                    src={getCoworkerAvatarUrl(coworker) ?? undefined}
+                    alt={coworker.name}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    {coworker.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="flex-1 text-left">{coworker.name}</span>
+              </button>
+            ))}
           </div>
 
           {/* Models Section */}

@@ -4,6 +4,7 @@ import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
+import { Loader2 } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -25,6 +26,7 @@ import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useConversationsContext } from "@/contexts/conversations-context";
+import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { addConversationItem } from "@/lib/actions/conversation/core-api-actions";
 
 import ChatInputContainer from "./chat-input-container";
@@ -59,6 +61,7 @@ export default function ChatInterface({
     createNewConversation,
     selectConversation,
     deleteConversationById: _deleteConversationById,
+    isLoading: isConversationsLoading,
   } = useConversationsContext();
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -71,6 +74,63 @@ export default function ChatInterface({
   const [selectedChatId, setSelectedChatId] = useState<string | null>(
     urlConversationId || null,
   );
+
+  const urlIdInList =
+    !urlConversationId ||
+    conversations.length === 0 ||
+    conversations.some((c) => c.id === urlConversationId);
+  useEffect(() => {
+    const willSync =
+      urlConversationId && selectedChatId !== urlConversationId && urlIdInList;
+    if (willSync) {
+      setSelectedChatId(urlConversationId);
+    }
+  }, [urlConversationId, selectedChatId, urlIdInList]);
+
+  const loadingConversationIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (pathname !== "/chat" || !selectedChatId) return;
+    if (selectedConversation?.id === selectedChatId) {
+      loadingConversationIdRef.current = null;
+      return;
+    }
+    if (loadingConversationIdRef.current === selectedChatId) return;
+    loadingConversationIdRef.current = selectedChatId;
+    void selectConversation(selectedChatId);
+  }, [pathname, selectedChatId, selectedConversation?.id, selectConversation]);
+
+  const { coworkers: apiCoworkers } = useCoworkersContext();
+  const defaultCoworkersFallback = useMemo<Coworker[]>(
+    () => [
+      {
+        id: "hannah",
+        slug: "hannah",
+        name: t("coworkers.hannah.name"),
+        description: t("coworkers.hannah.description"),
+        useCase: t("coworkers.hannah.useCase"),
+      },
+      {
+        id: "elena",
+        slug: "elena",
+        name: t("coworkers.elena.name"),
+        description: t("coworkers.elena.description"),
+        useCase: t("coworkers.elena.useCase"),
+      },
+    ],
+    [t],
+  );
+  const coworkers =
+    apiCoworkers.length > 0 ? apiCoworkers : defaultCoworkersFallback;
+
+  const welcomeCoworkerSlug = searchParams?.get("coworker") ?? null;
+  const initialWelcomeCoworker = useMemo(() => {
+    if (!welcomeCoworkerSlug) return undefined;
+    const slug = welcomeCoworkerSlug.toLowerCase();
+    return (
+      coworkers.find((c) => c.slug?.toLowerCase() === slug) ??
+      coworkers.find((c) => c.id.toLowerCase() === slug)
+    );
+  }, [coworkers, welcomeCoworkerSlug]);
 
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
@@ -136,6 +196,7 @@ export default function ChatInterface({
     });
   }
 
+  // Slot transports read slotPayloadRef only inside prepareSendMessagesRequest (on send), not during render
   /* eslint-disable react-hooks/refs */
   const transport0 = useMemo(() => makeSlotTransport(0), []);
   const transport1 = useMemo(() => makeSlotTransport(1), []);
@@ -403,6 +464,8 @@ export default function ChatInterface({
   }, [selectedChatId, conversationToSlot, stopSlots]);
 
   const isLoading = isSelectedChatLoading;
+  const isConversationLoading =
+    Boolean(selectedChatId) && selectedConversation?.id !== selectedChatId;
 
   useChatSelection({
     urlConversationId,
@@ -424,6 +487,7 @@ export default function ChatInterface({
     isUpdatingUrlRef,
     pendingUrlConversationIdRef,
     stopStreaming: stopSelectedChat,
+    isConversationsLoading,
   });
 
   const { updateChatPreview } = useChatPreview({ setChats });
@@ -470,7 +534,6 @@ export default function ChatInterface({
     conversations,
   });
 
-  // Chat sync hook
   useChatSync({
     conversations,
     chats,
@@ -478,6 +541,7 @@ export default function ChatInterface({
     selectedChatId,
     setSelectedModel,
     selectedModelRef,
+    coworkers,
   });
 
   const { scrollAreaRef, scrollToBottom } = useChatScroll({
@@ -658,6 +722,22 @@ export default function ChatInterface({
       const coworkerId = meta?.coworker_id as string | undefined;
       const coworkerName = meta?.coworker_name as string | undefined;
       if (type === "coworker" && coworkerId && coworkerName) {
+        const matches = (c: Coworker) =>
+          c.id === coworkerId || c.slug === coworkerId;
+        if (
+          selectedChat?.coworker &&
+          matches(selectedChat.coworker) &&
+          selectedChat.coworker.avatar
+        ) {
+          return selectedChat.coworker;
+        }
+        const fromList =
+          coworkers.find((c) => c.id === coworkerId) ??
+          coworkers.find((c) => c.slug === coworkerId);
+        if (fromList) return fromList;
+        if (selectedChat?.coworker && matches(selectedChat.coworker)) {
+          return selectedChat.coworker;
+        }
         return {
           id: coworkerId,
           name: coworkerName,
@@ -668,6 +748,7 @@ export default function ChatInterface({
     }
     return selectedChat?.coworker;
   }, [
+    coworkers,
     selectedConversation?.id,
     selectedConversation?.metadata,
     selectedChatId,
@@ -680,31 +761,46 @@ export default function ChatInterface({
         {selectedChatId ? (
           <>
             {showMessagesAfterTransition && (
-              <MessageList
-                messages={displayedMessages}
+              <>
+                {isConversationLoading ? (
+                  <div className="flex h-full min-h-[300px] flex-1 items-center justify-center">
+                    <Loader2
+                      className="text-muted-foreground size-8 animate-spin"
+                      aria-hidden
+                    />
+                  </div>
+                ) : (
+                  <MessageList
+                    messages={displayedMessages}
+                    selectedChatId={selectedChatId}
+                    chats={chats}
+                    coworkers={coworkers}
+                    userImageUrl={userImageUrl}
+                    userName={userName}
+                    isLoading={isLoading}
+                    scrollAreaRef={scrollAreaRef}
+                  />
+                )}
+              </>
+            )}
+            {!isConversationLoading && (
+              <ChatInputContainer
+                key={selectedChatId}
                 selectedChatId={selectedChatId}
-                chats={chats}
-                userImageUrl={userImageUrl}
-                userName={userName}
-                isLoading={isLoading}
-                scrollAreaRef={scrollAreaRef}
+                input={input}
+                setInput={setInput}
+                status={selectedChatStatus}
+                stop={handleStop}
+                messages={displayedMessages}
+                setMessages={setMessagesForInput}
+                sendMessage={sendMessageForInput}
+                onSendMessage={handleSendMessage}
+                selectedModel={selectedModel}
+                onSelectModel={handleModelSelected}
+                selectedChatCoworker={selectedChatCoworker}
+                coworkers={coworkers}
               />
             )}
-            <ChatInputContainer
-              key={selectedChatId}
-              selectedChatId={selectedChatId}
-              input={input}
-              setInput={setInput}
-              status={selectedChatStatus}
-              stop={handleStop}
-              messages={displayedMessages}
-              setMessages={setMessagesForInput}
-              sendMessage={sendMessageForInput}
-              onSendMessage={handleSendMessage}
-              selectedModel={selectedModel}
-              onSelectModel={handleModelSelected}
-              selectedChatCoworker={selectedChatCoworker}
-            />
           </>
         ) : (
           <WelcomeScreen
@@ -718,6 +814,8 @@ export default function ChatInterface({
             sendMessage={sendMessageForInput}
             status="ready"
             stop={handleStop}
+            coworkers={coworkers}
+            initialCoworker={initialWelcomeCoworker}
           />
         )}
       </div>
@@ -725,6 +823,7 @@ export default function ChatInterface({
         open={showSelectCoworkerModal}
         onOpenChange={setShowSelectCoworkerModal}
         onSelect={handleCoworkerSelected}
+        coworkers={coworkers}
       />
     </div>
   );

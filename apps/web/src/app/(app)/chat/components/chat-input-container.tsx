@@ -24,6 +24,7 @@ interface ChatInputContainerProps {
   selectedModel: { id: string; name: string } | null;
   onSelectModel: (model: { id: string; name: string } | null) => void;
   selectedChatCoworker?: Coworker;
+  coworkers?: Coworker[];
 }
 
 export default function ChatInputContainer({
@@ -39,6 +40,7 @@ export default function ChatInputContainer({
   selectedModel,
   onSelectModel,
   selectedChatCoworker,
+  coworkers,
 }: ChatInputContainerProps) {
   return (
     <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 flex shrink-0 justify-center px-4 py-2 backdrop-blur-sm">
@@ -57,6 +59,7 @@ export default function ChatInputContainer({
           onSelectModel={onSelectModel}
           selectedModel={selectedModel}
           coworker={selectedChatCoworker}
+          coworkers={coworkers}
         />
       </div>
     </div>
