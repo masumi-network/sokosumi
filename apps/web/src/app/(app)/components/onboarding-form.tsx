@@ -8,7 +8,6 @@ import { useTranslations } from "next-intl";
 import { useLayoutEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import * as z from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,12 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { completeOnboarding, skipOnboarding } from "@/lib/actions/onboarding";
 import { onboardingFormSchema, OnboardingFormSchemaType } from "@/lib/schemas";
-
-const emailSchema = z.email();
-const isValidEmail = (email: string): boolean => {
-  const trimmed = email.trim();
-  return trimmed.length > 0 && emailSchema.safeParse(trimmed).success;
-};
+import { isValidEmail } from "@/lib/utils/email";
 
 const normalizeEmails = (emails: string[]): string[] => {
   return emails
@@ -230,7 +224,9 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps) {
                 name={`emails.${index}`}
                 render={({ field }) => {
                   const value = field.value ?? "";
-                  const showCredits = isValidEmail(value) && index < 4;
+                  const trimmed = value.trim();
+                  const showCredits =
+                    trimmed.length > 0 && isValidEmail(trimmed) && index < 4;
                   const canRemoveField = index >= 4;
 
                   return (
