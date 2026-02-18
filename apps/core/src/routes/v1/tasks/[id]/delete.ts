@@ -1,15 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
 
-import { requireUserTaskAccess } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
-import prisma from "@/lib/db/prisma";
+import { jsonErrorResponse } from "@/helpers/openapi";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { taskSchema } from "@/schemas/task.schema";
-import { taskInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -27,35 +20,13 @@ const route = createRoute({
     params: paramsSchema,
   },
   responses: {
-    200: jsonSuccessResponse(taskSchema, "Delete task"),
     401: jsonErrorResponse("Unauthorized"),
-    404: jsonErrorResponse("Not Found"),
+    403: jsonErrorResponse("Task deletion is temporarily disabled"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const { id } = c.req.valid("param");
-
-    const task = await prisma.$transaction(async (tx) => {
-      const task = await requireUserTaskAccess(authContext, id, tx);
-      if (
-        task.status !== TaskStatus.DRAFT &&
-        task.status !== TaskStatus.READY
-      ) {
-        throw forbidden("You can only delete draft or ready tasks");
-      }
-      return tx.task.delete({
-        where: {
-          id,
-          userId: authContext.userId,
-          status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
-        },
-        include: taskInclude,
-      });
-    });
-
-    return ok(c, taskSchema.parse(mapTask(task)));
+  app.openapi(route, async (_c) => {
+    throw forbidden("Task deletion is temporarily disabled");
   });
 }
