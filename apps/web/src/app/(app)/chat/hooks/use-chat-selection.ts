@@ -24,7 +24,6 @@ interface UseChatSelectionProps {
   isUpdatingUrlRef: React.MutableRefObject<boolean>;
   pendingUrlConversationIdRef: React.MutableRefObject<string | null>;
   stopStreaming: () => void;
-  /** True while the conversations list is being fetched; when false and list is empty, we know there are no conversations (e.g. last chat deleted). */
   isConversationsLoading?: boolean;
 }
 
@@ -113,7 +112,6 @@ export function useChatSelection({
       return;
     }
 
-    // Conversation was deleted or failed to load; clear selection and show welcome
     if (loadedConversation === null) {
       setSelectedChatId(null);
       currentChatIdRef.current = null;
@@ -178,7 +176,6 @@ export function useChatSelection({
         return;
       }
       if (!conversations.some((c) => c.id === currentUrlConversationId)) {
-        // List empty: either still loading (try load by id for refresh) or last chat was deleted (go to welcome)
         if (conversations.length === 0) {
           pendingUrlConversationIdRef.current = null;
           if (!isConversationsLoading) {
@@ -224,9 +221,7 @@ export function useChatSelection({
       pendingUrlConversationIdRef.current = null;
       handleSelectChat(currentUrlConversationId);
     } else if (urlConversationNotLoaded) {
-      // URL has a conversationId that's not in list
       if (!conversations.some((c) => c.id === currentUrlConversationId)) {
-        // List empty: either still loading (try load by id for refresh) or last chat was deleted (go to welcome)
         if (conversations.length === 0) {
           pendingUrlConversationIdRef.current = null;
           if (!isConversationsLoading) {
@@ -242,7 +237,6 @@ export function useChatSelection({
           handleSelectChat(currentUrlConversationId);
           return;
         }
-        // List loaded but URL conversation not in list (e.g. deleted) – select next or welcome
         const sorted = [...conversations].sort(
           (a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),

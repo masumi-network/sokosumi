@@ -13,7 +13,6 @@ interface UseChatSyncProps {
   selectedChatId: string | null;
   setSelectedModel: (model: { id: string; name: string } | null) => void;
   selectedModelRef: React.MutableRefObject<{ id: string; name: string } | null>;
-  /** Resolve full coworker (including avatar) from list by id or slug */
   coworkers?: Coworker[];
 }
 
@@ -77,10 +76,8 @@ export function useChatSync({
           const modelName = metadata?.model_name as string | undefined;
           const conversationType = metadata?.type as string | undefined;
 
-          // Find existing chat from latest state to preserve UI state (title, status, etc.)
           const existingChat = latestChats.find((c) => c.id === conv.id);
 
-          // Build coworker object: prefer list (has avatar), then existing chat, then metadata
           let coworker: Coworker | undefined;
           if (coworkerId && conversationType === "coworker") {
             const fromList =
@@ -138,5 +135,5 @@ export function useChatSync({
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversations, coworkers, t]); // Re-run when coworkers load so chat.coworker gets avatar
+  }, [conversations, coworkers, t]);
 }

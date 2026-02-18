@@ -71,7 +71,7 @@ export default function LoadingIndicator({
       );
     }
 
-    // If it's a coworker conversation, show coworker image (DB image or static fallback)
+    // If it's a coworker conversation, show coworker image
     if (coworkerId) {
       const imageUrl = coworkerImageUrl ?? getCoworkerImageUrl(coworkerId);
       if (imageUrl) {

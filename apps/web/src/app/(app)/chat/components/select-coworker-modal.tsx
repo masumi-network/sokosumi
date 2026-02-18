@@ -29,7 +29,6 @@ interface SelectCoworkerModalProps {
   coworkers?: Coworker[];
 }
 
-/** Profile picture from coworker service (DB) only. */
 function getCoworkerAvatarUrl(coworker: Coworker): string | null {
   return coworker.avatar ?? null;
 }

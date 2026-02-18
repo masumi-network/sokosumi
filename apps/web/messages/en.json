@@ -1139,7 +1139,8 @@
         },
         "errorTitle": "Error",
         "errorDescription": "An error occurred while processing your message. Please try again.",
-        "tryAgain": "Try Again"
+        "tryAgain": "Try Again",
+        "networkErrorAfterRetry": "We couldn't reach the server after a few attempts. Please check your connection and try again."
       }
     },
     "Schedules": {

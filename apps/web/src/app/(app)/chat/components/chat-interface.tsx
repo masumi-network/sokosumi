@@ -75,9 +75,6 @@ export default function ChatInterface({
     urlConversationId || null,
   );
 
-  // Sync selectedChatId from URL when it becomes available (e.g. after hydration when useSearchParams was null).
-  // Only sync when the URL id is in the conversations list (or list not yet loaded), so we never overwrite
-  // with a stale deleted id after use-chat-selection has already selected the next chat.
   const urlIdInList =
     !urlConversationId ||
     conversations.length === 0 ||
@@ -90,7 +87,6 @@ export default function ChatInterface({
     }
   }, [urlConversationId, selectedChatId, urlIdInList]);
 
-  // When selectedChatId is set (e.g. from URL) but conversation not loaded yet, fetch it so API calls are made
   const loadingConversationIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (pathname !== "/chat" || !selectedChatId) return;
@@ -132,6 +128,16 @@ export default function ChatInterface({
   );
   const coworkers =
     apiCoworkers.length > 0 ? apiCoworkers : defaultCoworkersFallback;
+
+  const welcomeCoworkerSlug = searchParams?.get("coworker") ?? null;
+  const initialWelcomeCoworker = useMemo(() => {
+    if (!welcomeCoworkerSlug) return undefined;
+    const slug = welcomeCoworkerSlug.toLowerCase();
+    return (
+      coworkers.find((c) => c.slug?.toLowerCase() === slug) ??
+      coworkers.find((c) => c.id.toLowerCase() === slug)
+    );
+  }, [coworkers, welcomeCoworkerSlug]);
 
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
@@ -243,8 +249,21 @@ export default function ChatInterface({
             }
           }
         }
-      }
-    },
+      },
+    [],
+  );
+
+  const chat0 = useChat({
+    transport: transport0,
+    onError: (error: unknown) =>
+      console.error("Chat API error (slot 0):", error),
+    onFinish: onFinishForSlot(0),
+  });
+  const chat1 = useChat({
+    transport: transport1,
+    onError: (error: unknown) =>
+      console.error("Chat API error (slot 1):", error),
+    onFinish: onFinishForSlot(1),
   });
   const chat2 = useChat({
     transport: transport2,
@@ -515,12 +534,10 @@ export default function ChatInterface({
     setSelectedModel,
     isUpdatingUrlRef,
     pendingUrlConversationIdRef,
-    pendingUrlConversationIdRef,
     chats,
     conversations,
   });
 
-  // Chat sync hook (pass coworkers so chat.coworker gets avatar from list)
   useChatSync({
     conversations,
     chats,
@@ -698,7 +715,6 @@ export default function ChatInterface({
     stopSelectedChat();
   };
 
-  // Get the selected chat's coworker for MultimodalInput
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedChatCoworker = useMemo(() => {
     if (
@@ -712,7 +728,6 @@ export default function ChatInterface({
       if (type === "coworker" && coworkerId && coworkerName) {
         const matches = (c: Coworker) =>
           c.id === coworkerId || c.slug === coworkerId;
-        // Prefer selectedChat.coworker when it has avatar (set by useChatSync from API list)
         if (
           selectedChat?.coworker &&
           matches(selectedChat.coworker) &&
@@ -804,6 +819,7 @@ export default function ChatInterface({
             status="ready"
             stop={handleStop}
             coworkers={coworkers}
+            initialCoworker={initialWelcomeCoworker}
           />
         )}
       </div>

@@ -97,13 +97,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let conversation: Awaited<
         ReturnType<typeof prisma.conversation.findFirst>
       > = null;
-      let selectedModel: string | null = model ?? null;
-      let conversation: Awaited<
-        ReturnType<typeof prisma.conversation.findFirst>
-      > = null;
 
       if (conversationId) {
-        conversation = await prisma.conversation.findFirst({
         conversation = await prisma.conversation.findFirst({
           where: {
             id: conversationId,
@@ -119,8 +114,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         internalConversationId = conversation.id;
 
         if (!selectedModel) {
-          const meta = conversation.metadata as Record<string, unknown> | null;
-          const modelId = meta?.model_id as string | undefined;
           const meta = conversation.metadata as Record<string, unknown> | null;
           const modelId = meta?.model_id as string | undefined;
           if (modelId) {
@@ -202,7 +195,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (internalConversationId && messages.length > 0) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.role === "user" || lastMessage.role === "system") {
-          const extractedText = lastUserMessageText ?? "";
           const extractedText = lastUserMessageText ?? "";
           const formattedContent =
             formatMessageContentForConversation(extractedText);
