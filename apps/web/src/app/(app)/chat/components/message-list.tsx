@@ -8,7 +8,7 @@ import {
   isDifferentDay,
 } from "@/app/chat/utils/date-utils";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
-import type { Chat } from "@/app/chat/utils/types";
+import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import ChatMessage from "./chat-message";

@@ -196,9 +196,12 @@ export default function ChatInterface({
     });
   }
 
+  // Slot transports read slotPayloadRef only inside prepareSendMessagesRequest (on send), not during render
+  /* eslint-disable react-hooks/refs */
   const transport0 = useMemo(() => makeSlotTransport(0), []);
   const transport1 = useMemo(() => makeSlotTransport(1), []);
   const transport2 = useMemo(() => makeSlotTransport(2), []);
+  /* eslint-enable react-hooks/refs */
 
   const onFinishForSlot = useCallback(
     (slotIndex: number) =>
