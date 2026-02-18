@@ -125,8 +125,7 @@ export function useChatSelection({
       return;
     }
 
-    const conversation =
-      loadedConversation ?? conversations.find((c) => c.id === chatId);
+    const conversation = loadedConversation;
     if (conversation) {
       setSelectedModelFromConversation(
         conversation,

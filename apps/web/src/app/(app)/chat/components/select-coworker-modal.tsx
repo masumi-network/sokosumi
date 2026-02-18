@@ -140,14 +140,16 @@ export default function SelectCoworkerModal({
                   </p>
                 </div>
               </div>
-              <div className="text-sm">
-                <span className="font-medium">
-                  {t("selectCoworker.useCase")}:{" "}
-                </span>
-                <span className="text-muted-foreground">
-                  {selectedCoworker.useCase}
-                </span>
-              </div>
+              {selectedCoworker.useCase ? (
+                <div className="text-sm">
+                  <span className="font-medium">
+                    {t("selectCoworker.useCase")}:{" "}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {selectedCoworker.useCase}
+                  </span>
+                </div>
+              ) : null}
             </div>
           )}
         </div>

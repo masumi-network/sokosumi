@@ -7,7 +7,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type SyntheticEvent, useEffect, useMemo, useState } from "react";
 
-import { useCoworkers } from "@/app/chat/hooks/use-coworkers";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import {
@@ -38,6 +37,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useConversationsContext } from "@/contexts/conversations-context";
+import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { cn } from "@/lib/utils";
 
 // Helper function to truncate names longer than 12 characters
@@ -56,7 +56,7 @@ export default function ChatListsClient() {
     deleteConversationById,
     selectedConversation,
   } = useConversationsContext();
-  const { coworkers } = useCoworkers();
+  const { coworkers } = useCoworkersContext();
   const searchParams = useSearchParams();
   const conversationId = searchParams?.get("conversationId");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);

@@ -23,10 +23,10 @@ import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatScroll } from "@/app/chat/hooks/use-chat-scroll";
 import { useChatSelection } from "@/app/chat/hooks/use-chat-selection";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
-import { useCoworkers } from "@/app/chat/hooks/use-coworkers";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useConversationsContext } from "@/contexts/conversations-context";
+import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { addConversationItem } from "@/lib/actions/conversation/core-api-actions";
 
 import ChatInputContainer from "./chat-input-container";
@@ -99,7 +99,7 @@ export default function ChatInterface({
     void selectConversation(selectedChatId);
   }, [pathname, selectedChatId, selectedConversation?.id, selectConversation]);
 
-  const { coworkers: apiCoworkers } = useCoworkers();
+  const { coworkers: apiCoworkers } = useCoworkersContext();
   const defaultCoworkersFallback = useMemo<Coworker[]>(
     () => [
       {

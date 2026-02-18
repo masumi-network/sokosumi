@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ConversationsProvider } from "@/contexts/conversations-context";
+import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { chatUIEnabled } from "@/lib/flags/chat";
@@ -89,7 +90,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   return (
     <QueryProvider>
       {isChatUIEnabled ? (
-        <ConversationsProvider>{content}</ConversationsProvider>
+        <ConversationsProvider>
+          <CoworkersProvider>{content}</CoworkersProvider>
+        </ConversationsProvider>
       ) : (
         content
       )}

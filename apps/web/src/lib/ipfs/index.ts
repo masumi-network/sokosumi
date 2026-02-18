@@ -9,5 +9,5 @@ export const ipfsUrlResolver = (url: string): string => {
   if (trimmed.startsWith("Qm") || trimmed.startsWith("bafy")) {
     return IPFS_GATEWAY + trimmed;
   }
-  return url;
+  return trimmed;
 };
