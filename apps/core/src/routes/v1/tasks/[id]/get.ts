@@ -47,7 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.$transaction(async (tx) => {
       await requireScopedTaskReadAccess(authContext, id, scope, tx);
       return tx.task.findUnique({
-        where: { id },
+        where: { id, archivedAt: null },
         include: taskInclude,
       });
     });

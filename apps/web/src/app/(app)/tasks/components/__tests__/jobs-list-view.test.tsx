@@ -52,7 +52,7 @@ const columnLabels: Record<KanbanColumnId, string> = {
   todo: "Todo",
   "in-progress": "In Progress",
   "input-required": "Input Required",
-  complete: "Complete",
+  done: "Done",
 };
 
 describe("JobsListView", () => {

@@ -94,8 +94,8 @@ function getAllowedTransitions(
 
   if (authContext.userId) {
     return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY],
-      [TaskStatus.READY]: [TaskStatus.DRAFT],
+      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+      [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
       [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
       [TaskStatus.OUT_OF_CREDITS]: [
@@ -137,10 +137,12 @@ export function validateTaskCoworkerAssignment({
   coworkerId,
 }: ValidateTaskCoworkerAssignmentParams): void {
   const hasCoworkerId = coworkerId !== null && coworkerId !== undefined;
+  const allowsMissingCoworker =
+    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (status !== TaskStatus.DRAFT && !hasCoworkerId) {
+  if (!allowsMissingCoworker && !hasCoworkerId) {
     throw unprocessableEntity(
-      "coworkerId is required for non-draft task statuses",
+      "coworkerId is required for statuses other than draft or canceled",
     );
   }
 }
@@ -153,17 +155,27 @@ export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
   };
 }
 
-export function isChargeableTaskStatus(
+export function isTaskStatusChargable(
   status: TaskStatus | null | undefined,
 ): boolean {
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
+}
+
+export function isTaskArchivableStatus(status: TaskStatus): boolean {
+  return (
+    status === TaskStatus.DRAFT ||
+    status === TaskStatus.READY ||
+    status === TaskStatus.CANCELED ||
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.FAILED
+  );
 }
 
 export function mapTask(task: TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
   const events = task.events.map((event) => mapTaskEvent(event));
   const credits = events.reduce((total, event) => {
-    if (!isChargeableTaskStatus(event.status)) return total;
+    if (!isTaskStatusChargable(event.status)) return total;
     return total + (event.credits ?? 0);
   }, 0);
   return {

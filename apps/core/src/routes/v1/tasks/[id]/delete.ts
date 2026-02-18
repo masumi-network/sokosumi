@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
 
 import { requireUserTaskAccess } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { isTaskArchivableStatus, mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { taskSchema } from "@/schemas/task.schema";
@@ -21,14 +20,15 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "delete",
   path: "/{id}",
-  description: "Delete task",
+  description: "Archive task",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
   },
   responses: {
-    200: jsonSuccessResponse(taskSchema, "Delete task"),
+    200: jsonSuccessResponse(taskSchema, "Archive task"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
   },
 });
@@ -39,18 +39,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const task = await requireUserTaskAccess(authContext, id, tx);
-      if (
-        task.status !== TaskStatus.DRAFT &&
-        task.status !== TaskStatus.READY
-      ) {
-        throw forbidden("You can only delete draft or ready tasks");
+      const currentTask = await requireUserTaskAccess(authContext, id, tx);
+
+      if (!isTaskArchivableStatus(currentTask.status)) {
+        throw forbidden(
+          "You can only archive tasks in DRAFT, READY, CANCELED, COMPLETED, or FAILED state",
+        );
       }
-      return tx.task.delete({
+
+      return tx.task.update({
         where: {
           id,
           userId: authContext.userId,
-          status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
+          organizationId: authContext.organizationId,
+          archivedAt: null,
+          status: currentTask.status,
+        },
+        data: {
+          archivedAt: new Date(),
         },
         include: taskInclude,
       });

@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
-import { isCreditableTaskStatus } from "./helper";
+import { isTaskStatusCreditable } from "./helper";
 
 export const createTaskEventRequestSchema = z
   .object({
@@ -17,7 +17,7 @@ export const createTaskEventRequestSchema = z
       .httpUrl()
       .optional()
       .openapi({ example: "https://example.com/oauth/authorize" }),
-    credits: z.number().min(0).optional().openapi({ example: 5 }),
+    credits: z.number().positive().nullish().openapi({ example: 5 }),
     origin: z
       .enum(TaskEventOrigin)
       .optional()
@@ -37,7 +37,7 @@ export const createTaskEventRequestSchema = z
       });
     }
 
-    if (!isCreditableTaskStatus(data.status) && data.credits !== undefined) {
+    if (!isTaskStatusCreditable(data.status) && data.credits != null) {
       ctx.addIssue({
         code: "custom",
         message:

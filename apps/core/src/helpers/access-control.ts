@@ -137,6 +137,7 @@ export async function requireUserTaskAccess(
       id: taskId,
       userId: authContext.userId,
       organizationId: authContext.organizationId,
+      archivedAt: null,
     },
   });
 
@@ -173,7 +174,11 @@ export async function requireCoworkerTaskAccess(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   const task = await tx.task.findUnique({
-    where: { id: taskId, status: { not: TaskStatus.DRAFT } },
+    where: {
+      id: taskId,
+      status: { not: TaskStatus.DRAFT },
+      archivedAt: null,
+    },
   });
   if (!task) {
     throw notFound("Task not found");
@@ -250,6 +255,7 @@ export async function requireScopedTaskReadAccess(
   const task = await tx.task.findFirst({
     where: {
       id: taskId,
+      archivedAt: null,
       OR: scopeFilters,
     },
   });

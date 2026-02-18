@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
+  isTaskArchivableStatus,
   mapTask,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
@@ -358,12 +359,32 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("DRAFT → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.DRAFT,
+          TaskStatus.CANCELED,
+        ),
+      ).not.toThrow();
+    });
+
     it("READY → DRAFT", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
           TaskStatus.READY,
           TaskStatus.DRAFT,
+        ),
+      ).not.toThrow();
+    });
+
+    it("READY → CANCELED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.READY,
+          TaskStatus.CANCELED,
         ),
       ).not.toThrow();
     });
@@ -522,6 +543,15 @@ describe("validateTaskCoworkerAssignment", () => {
     ).not.toThrow();
   });
 
+  it("allows CANCELED tasks without a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.CANCELED,
+        coworkerId: null,
+      }),
+    ).not.toThrow();
+  });
+
   it("allows non-DRAFT tasks with a coworker", () => {
     expect(() =>
       validateTaskCoworkerAssignment({
@@ -547,6 +577,28 @@ describe("validateTaskCoworkerAssignment", () => {
         coworkerId: "   ",
       }),
     ).not.toThrow();
+  });
+});
+
+describe("isTaskArchivableStatus", () => {
+  it("returns true only for archivable statuses", () => {
+    expect(isTaskArchivableStatus(TaskStatus.DRAFT)).toBe(true);
+    expect(isTaskArchivableStatus(TaskStatus.READY)).toBe(true);
+    expect(isTaskArchivableStatus(TaskStatus.CANCELED)).toBe(true);
+    expect(isTaskArchivableStatus(TaskStatus.COMPLETED)).toBe(true);
+    expect(isTaskArchivableStatus(TaskStatus.FAILED)).toBe(true);
+  });
+
+  it("returns false for non-archivable statuses", () => {
+    expect(isTaskArchivableStatus(TaskStatus.INPUT_REQUIRED)).toBe(false);
+    expect(isTaskArchivableStatus(TaskStatus.AUTHENTICATION_REQUIRED)).toBe(
+      false,
+    );
+    expect(isTaskArchivableStatus(TaskStatus.OUT_OF_CREDITS)).toBe(false);
+    expect(isTaskArchivableStatus(TaskStatus.CREDITS_TOPPED_UP)).toBe(false);
+    expect(isTaskArchivableStatus(TaskStatus.RUNNING)).toBe(false);
+    expect(isTaskArchivableStatus(TaskStatus.AWAITING_EXTERNAL)).toBe(false);
+    expect(isTaskArchivableStatus(TaskStatus.CANCEL_REQUESTED)).toBe(false);
   });
 });
 
