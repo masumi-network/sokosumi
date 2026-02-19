@@ -1,10 +1,16 @@
 import { z } from "@hono/zod-openapi";
+import { NoticeKind as DatabaseNoticeKind } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+
+export const noticeKindSchema = z
+  .enum(DatabaseNoticeKind)
+  .openapi({ example: "LEGAL_TERMS" });
 
 export const noticeSchema = z
   .object({
     id: z.string().openapi({ example: "notice_123" }),
+    kind: noticeKindSchema.openapi({ example: "LEGAL_TERMS" }),
     bodyMarkdown: z
       .string()
       .openapi({ example: "## Notice\nPlease review this announcement." }),
@@ -16,6 +22,7 @@ export const noticeSchema = z
   .openapi("Notice");
 
 export type Notice = z.infer<typeof noticeSchema>;
+export type NoticeKind = z.infer<typeof noticeKindSchema>;
 
 export const pendingNoticesResponseSchema = z.object({
   pendingNotices: z.array(noticeSchema),

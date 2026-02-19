@@ -1,6 +1,10 @@
+-- CreateEnum
+CREATE TYPE "NoticeKind" AS ENUM ('LEGAL_TERMS', 'ANNOUNCEMENT');
+
 -- CreateTable
 CREATE TABLE "notice" (
     "id" TEXT NOT NULL,
+    "kind" "NoticeKind" NOT NULL DEFAULT 'ANNOUNCEMENT',
     "bodyMarkdown" TEXT NOT NULL,
     "effectiveAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "isActive" BOOLEAN NOT NULL DEFAULT true,

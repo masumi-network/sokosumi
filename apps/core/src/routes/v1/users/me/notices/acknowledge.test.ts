@@ -23,6 +23,7 @@ const CREATED_ACKNOWLEDGED_AT = new Date("2026-02-20T09:05:00.000Z");
 
 interface NoticeRecord {
   id: string;
+  kind: "LEGAL_TERMS" | "ANNOUNCEMENT";
   bodyMarkdown: string;
   effectiveAt: Date;
   isActive: boolean;
@@ -47,6 +48,7 @@ interface TransactionMock {
 function createNotice(overrides: Partial<NoticeRecord> = {}): NoticeRecord {
   return {
     id: NOTICE_ID,
+    kind: "LEGAL_TERMS",
     bodyMarkdown: "# Notice",
     effectiveAt: new Date("2026-01-10T00:00:00.000Z"),
     isActive: true,

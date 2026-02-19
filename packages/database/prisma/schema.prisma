@@ -240,6 +240,7 @@ model UTMAttribution {
 
 model Notice {
   id           String   @id @default(cuid())
+  kind         NoticeKind @default(ANNOUNCEMENT)
   bodyMarkdown String
   effectiveAt  DateTime @default(now())
   isActive     Boolean  @default(true)
@@ -265,6 +266,11 @@ model NoticeAcknowledgment {
   @@index([userId, acknowledgedAt])
   @@index([noticeId, acknowledgedAt])
   @@map("noticeAcknowledgment")
+}
+
+enum NoticeKind {
+  LEGAL_TERMS
+  ANNOUNCEMENT
 }
 
 model RateLimit {

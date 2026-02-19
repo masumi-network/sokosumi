@@ -21,6 +21,7 @@ const route = createRoute({
           pendingNotices: [
             {
               id: "notice_123",
+              kind: "LEGAL_TERMS",
               bodyMarkdown: "## Terms update\nPlease review the latest terms.",
               effectiveAt: "2026-02-20T09:00:00.000Z",
               isActive: true,
