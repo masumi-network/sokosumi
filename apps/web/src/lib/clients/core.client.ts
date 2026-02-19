@@ -163,7 +163,7 @@ export function toCoreApiActionError(error: unknown): ActionError {
       error.status === 503 &&
       !message.toLowerCase().includes("unavailable")
     ) {
-      message = "The conversation service is currently unavailable.";
+      message = "The service is currently unavailable.";
     }
 
     return {

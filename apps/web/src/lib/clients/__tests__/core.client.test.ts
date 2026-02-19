@@ -130,7 +130,7 @@ describe("core.client", () => {
       ),
     ).toEqual({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message: "The conversation service is currently unavailable.",
+      message: "The service is currently unavailable.",
     });
   });
 });

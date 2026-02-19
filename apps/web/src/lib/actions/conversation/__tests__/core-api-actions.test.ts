@@ -177,7 +177,7 @@ describe("core conversation api actions", () => {
     );
     toCoreApiActionErrorMock.mockReturnValue({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message: "The conversation service is currently unavailable.",
+      message: "The service is currently unavailable.",
     });
 
     const { listConversations } = await import("../core-api-actions");
@@ -187,7 +187,7 @@ describe("core conversation api actions", () => {
       ok: false,
       error: {
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: "The conversation service is currently unavailable.",
+        message: "The service is currently unavailable.",
       },
     });
   });
