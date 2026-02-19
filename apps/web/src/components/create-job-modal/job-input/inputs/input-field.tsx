@@ -17,6 +17,7 @@ import {
   JobInputComponentProps,
   MonthInput,
   MultiselectInput,
+  NoneInput,
   NumberInput,
   OptionInput,
   PasswordInput,
@@ -37,6 +38,7 @@ type InputComponent = ComponentType<
 >;
 
 const INPUT_COMPONENT_REGISTRY: Partial<Record<InputType, InputComponent>> = {
+  [InputType.NONE]: NoneInput as InputComponent,
   [InputType.TEXT]: TextInput as InputComponent,
   [InputType.STRING]: StringInput as InputComponent,
   [InputType.TEL]: TelInput as InputComponent,
@@ -76,10 +78,6 @@ export function InputField({
   form,
 }: InputFieldProps) {
   const { type } = jobInputSchema;
-
-  if (type === InputType.NONE) {
-    return null;
-  }
 
   const Component = INPUT_COMPONENT_REGISTRY[type];
 

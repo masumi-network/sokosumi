@@ -124,13 +124,34 @@ export default function ChatInterface({
 
   const welcomeCoworkerSlug = searchParams?.get("coworker") ?? null;
   const initialWelcomeCoworker = useMemo(() => {
-    if (!welcomeCoworkerSlug) return undefined;
-    const slug = welcomeCoworkerSlug.toLowerCase();
+    if (welcomeCoworkerSlug) {
+      const slug = welcomeCoworkerSlug.toLowerCase();
+      return (
+        coworkers.find((c) => c.slug?.toLowerCase() === slug) ??
+        coworkers.find((c) => c.id.toLowerCase() === slug)
+      );
+    }
     return (
-      coworkers.find((c) => c.slug?.toLowerCase() === slug) ??
-      coworkers.find((c) => c.id.toLowerCase() === slug)
+      defaultCoworkersFallback.find((c) => c.id === "elena") ??
+      defaultCoworkersFallback[0]
     );
-  }, [coworkers, welcomeCoworkerSlug]);
+  }, [coworkers, welcomeCoworkerSlug, defaultCoworkersFallback]);
+
+  const [welcomeSelectedCoworker, setWelcomeSelectedCoworker] =
+    useState<Coworker | null>(null);
+  const [welcomeSelectedModel, setWelcomeSelectedModel] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const effectiveWelcomeCoworker =
+    welcomeCoworkerSlug != null
+      ? initialWelcomeCoworker
+      : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
+
+  const handleWelcomeCoworkerChange = useCallback((coworker: Coworker) => {
+    setWelcomeSelectedCoworker(coworker);
+    setWelcomeSelectedModel(null);
+  }, []);
 
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
@@ -151,6 +172,9 @@ export default function ChatInterface({
   >(new Map());
   const [cachedMessagesByConversation, setCachedMessagesByConversation] =
     useState<Record<string, UIMessage[]>>({});
+  const [reasoningBySlot, setReasoningBySlot] = useState<
+    Record<number, Array<{ id: string; message: string }>>
+  >({});
   const slotPayloadRef = useRef<SlotPayload[]>(
     Array.from({ length: NUM_SLOTS }, () => ({
       conversationId: null,
@@ -203,9 +227,32 @@ export default function ChatInterface({
   const transport2 = useMemo(() => makeSlotTransport(2), []);
   /* eslint-enable react-hooks/refs */
 
+  const onDataForSlot = useCallback((slotIndex: number) => {
+    return (dataPart: { type: string; data: unknown }) => {
+      if (dataPart.type !== "data-reasoning" || dataPart.data == null) return;
+      const data = dataPart.data as { message?: string; id?: string };
+      const message =
+        typeof data.message === "string" ? data.message : undefined;
+      if (!message) return;
+      const id =
+        typeof data.id === "string"
+          ? data.id
+          : `reasoning-${slotIndex}-${Date.now()}`;
+      setReasoningBySlot((prev) => ({
+        ...prev,
+        [slotIndex]: [...(prev[slotIndex] ?? []), { id, message }],
+      }));
+    };
+  }, []);
+
   const onFinishForSlot = useCallback(
     (slotIndex: number) =>
       ({ messages: finishedMessages }: { messages: UIMessage[] }) => {
+        setReasoningBySlot((prev) => {
+          const next = { ...prev };
+          delete next[slotIndex];
+          return next;
+        });
         const payload = slotPayloadRef.current[slotIndex];
         const conversationId = payload?.conversationId ?? null;
         if (!conversationId || finishedMessages.length === 0) return;
@@ -251,18 +298,21 @@ export default function ChatInterface({
 
   const chat0 = useChat({
     transport: transport0,
+    onData: onDataForSlot(0),
     onError: (error: unknown) =>
       console.error("Chat API error (slot 0):", error),
     onFinish: onFinishForSlot(0),
   });
   const chat1 = useChat({
     transport: transport1,
+    onData: onDataForSlot(1),
     onError: (error: unknown) =>
       console.error("Chat API error (slot 1):", error),
     onFinish: onFinishForSlot(1),
   });
   const chat2 = useChat({
     transport: transport2,
+    onData: onDataForSlot(2),
     onError: (error: unknown) =>
       console.error("Chat API error (slot 2):", error),
     onFinish: onFinishForSlot(2),
@@ -377,6 +427,11 @@ export default function ChatInterface({
     (slot: number) => {
       const convId = slotToConversation.get(slot);
       if (convId === undefined) return;
+      setReasoningBySlot((prev) => {
+        const next = { ...prev };
+        delete next[slot];
+        return next;
+      });
       const msgs = slotMessages[slot] as UIMessage[];
       if (msgs?.length > 0) {
         setCachedMessagesByConversation((prev) => ({
@@ -466,6 +521,20 @@ export default function ChatInterface({
   const isLoading = isSelectedChatLoading;
   const isConversationLoading =
     Boolean(selectedChatId) && selectedConversation?.id !== selectedChatId;
+
+  const selectedChatReasoningMessages = useMemo(() => {
+    if (!selectedChatId) return [];
+    const slot = conversationToSlot.get(selectedChatId);
+    return slot !== undefined ? (reasoningBySlot[slot] ?? []) : [];
+  }, [selectedChatId, conversationToSlot, reasoningBySlot]);
+
+  const isSelectedChatCoworker = Boolean(
+    selectedChatId &&
+    ((selectedConversation?.id === selectedChatId &&
+      (selectedConversation.metadata as Record<string, unknown> | null)
+        ?.type === "coworker") ||
+      Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
+  );
 
   useChatSelection({
     urlConversationId,
@@ -779,6 +848,8 @@ export default function ChatInterface({
                     userName={userName}
                     isLoading={isLoading}
                     scrollAreaRef={scrollAreaRef}
+                    reasoningMessages={selectedChatReasoningMessages}
+                    isCoworker={isSelectedChatCoworker}
                   />
                 )}
               </>
@@ -815,7 +886,10 @@ export default function ChatInterface({
             status="ready"
             stop={handleStop}
             coworkers={coworkers}
-            initialCoworker={initialWelcomeCoworker}
+            initialCoworker={effectiveWelcomeCoworker}
+            onCoworkerChange={handleWelcomeCoworkerChange}
+            selectedModel={welcomeSelectedModel}
+            onSelectModel={setWelcomeSelectedModel}
           />
         )}
       </div>

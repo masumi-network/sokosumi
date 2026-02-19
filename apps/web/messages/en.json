@@ -353,7 +353,9 @@
           "failedToParseInput": "Failed to parse input",
           "none": "No input",
           "expand": "Expand",
-          "collapse": "Show less"
+          "collapse": "Show less",
+          "yes": "Yes",
+          "no": "No"
         },
         "Output": {
           "result": "Result",
@@ -1082,7 +1084,20 @@
           "question": "How can we help you today?",
           "title": "Welcome! How can we help you today?",
           "titleWithName": "Welcome {name}! How can we help you today?",
-          "placeholder": "What's on your mind?"
+          "placeholder": "What's on your mind?",
+          "suggestionsLabel": "Try asking",
+          "prompts": {
+            "hannah": {
+              "1": "Can you research our competitive landscape and show me how we compare to key competitors?",
+              "2": "Analyze our website's SEO performance and how we are mentioned by ChatGPT.",
+              "3": "I want to better understand our target audience - what are their needs, behaviors, and media habits?"
+            },
+            "elena": {
+              "1": "Based on what you know about my business, what could I use Sokosumi for and where should I start?",
+              "2": "Show me the status of all my open tasks and what needs my attention.",
+              "3": "Which agents and capabilities are available that could help me improve my website?"
+            }
+          }
         },
         "introducingCoworkers": "Introducing: Agentic Coworkers",
         "emptyTitle": "Start a conversation",
@@ -1129,6 +1144,12 @@
         "modelAlt": "Model",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "User avatar",
+        "reasoning": {
+          "processing": "Processing...",
+          "thinking": "Thinking...",
+          "searchingFiles": "Searching files...",
+          "callingTools": "Calling tools..."
+        },
         "chatErrorTitle": "Chat Error",
         "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",
         "promptPlaceholder": "What would you like to know?",
