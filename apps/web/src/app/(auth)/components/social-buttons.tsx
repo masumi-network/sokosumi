@@ -12,6 +12,10 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
 
+interface SocialButtonsProps {
+  returnUrl?: string;
+}
+
 const socialButtons: Array<{
   key: SocialProviderId;
   name: string;
@@ -29,7 +33,17 @@ const socialButtons: Array<{
   },
 ];
 
-export default function SocialButtons() {
+function buildCallbackUrl(
+  path: string,
+  provider: SocialProviderId,
+  returnUrl?: string,
+) {
+  const params = new URLSearchParams({ provider });
+  if (returnUrl) params.set("returnUrl", returnUrl);
+  return `${path}?${params.toString()}`;
+}
+
+export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
 
   const handleClick = async (key: SocialProviderId) => {
@@ -37,8 +51,12 @@ export default function SocialButtons() {
 
     const result = await authClient.signIn.social({
       provider: key,
-      callbackURL: `/auth/callback/signin?provider=${key}`,
-      newUserCallbackURL: `/auth/callback/signup?provider=${key}`,
+      callbackURL: buildCallbackUrl("/auth/callback/signin", key, returnUrl),
+      newUserCallbackURL: buildCallbackUrl(
+        "/auth/callback/signup",
+        key,
+        returnUrl,
+      ),
     });
     if (result.error) {
       const errorMessage = result.error.message ?? t("error");

@@ -1,6 +1,7 @@
 "use client";
 
 import { track } from "@vercel/analytics";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +9,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
+
+function buildCallbackUrl(
+  path: string,
+  provider: SocialProviderId,
+  returnUrl?: string,
+) {
+  const params = new URLSearchParams({ provider });
+  if (returnUrl) params.set("returnUrl", returnUrl);
+  return `${path}?${params.toString()}`;
+}
 
 interface SocialSignupAutoInitiatorProps {
   provider: SocialProviderId;
@@ -19,6 +30,8 @@ export default function SocialSignupAutoInitiator({
   providerName,
 }: SocialSignupAutoInitiatorProps) {
   const t = useTranslations("Auth.Pages.SignUp");
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl") ?? undefined;
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
 
@@ -29,8 +42,16 @@ export default function SocialSignupAutoInitiator({
 
         const result = await authClient.signIn.social({
           provider,
-          callbackURL: `/auth/callback/signin?provider=${provider}`,
-          newUserCallbackURL: `/auth/callback/signup?provider=${provider}`,
+          callbackURL: buildCallbackUrl(
+            "/auth/callback/signin",
+            provider,
+            returnUrl,
+          ),
+          newUserCallbackURL: buildCallbackUrl(
+            "/auth/callback/signup",
+            provider,
+            returnUrl,
+          ),
         });
 
         if (result.error) {
@@ -49,7 +70,7 @@ export default function SocialSignupAutoInitiator({
     };
 
     initiateOAuth();
-  }, [provider, providerName, t]);
+  }, [provider, providerName, returnUrl, t]);
 
   const handleRetry = () => {
     setError(null);

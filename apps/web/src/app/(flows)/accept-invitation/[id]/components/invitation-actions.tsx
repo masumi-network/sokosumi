@@ -78,7 +78,9 @@ export default function InvitationActions({
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
-              router.push("/login");
+              const returnUrl =
+                window.location.pathname + window.location.search;
+              router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
             },
           },
         });
@@ -110,7 +112,9 @@ export default function InvitationActions({
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
-              router.push("/login");
+              const returnUrl =
+                window.location.pathname + window.location.search;
+              router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
             },
           },
         });
@@ -130,7 +134,9 @@ export default function InvitationActions({
     setLoading(true);
     setAction("logout");
     await authClient.signOut();
-    router.push("/login");
+    const returnUrl =
+      window.location.pathname + window.location.search || "/chat";
+    router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
     setLoading(false);
     setAction(null);
   };
