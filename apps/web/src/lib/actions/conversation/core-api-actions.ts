@@ -90,8 +90,8 @@ function toConversation(conversation: {
   userId: string;
   title?: string | null;
   metadata?: Record<string, unknown> | null;
-  createdAt: unknown;
-  updatedAt: unknown;
+  createdAt: Date;
+  updatedAt: Date;
 }): Conversation {
   return {
     ...conversation,
@@ -134,8 +134,8 @@ export const listConversations = withAuthContext<
         userId: string;
         title?: string | null;
         metadata?: Record<string, unknown> | null;
-        createdAt: unknown;
-        updatedAt: unknown;
+        createdAt: Date;
+        updatedAt: Date;
       },
     ),
   );
@@ -228,8 +228,8 @@ export const getConversation = withAuthContext<
             userId: string;
             title?: string | null;
             metadata?: Record<string, unknown> | null;
-            createdAt: unknown;
-            updatedAt: unknown;
+            createdAt: Date;
+            updatedAt: Date;
           },
         ),
         items: [],
@@ -259,8 +259,8 @@ export const getConversation = withAuthContext<
           userId: string;
           title?: string | null;
           metadata?: Record<string, unknown> | null;
-          createdAt: unknown;
-          updatedAt: unknown;
+          createdAt: Date;
+          updatedAt: Date;
         },
       ),
       items,
@@ -299,8 +299,8 @@ export const createConversation = withAuthContext<
         userId: string;
         title?: string | null;
         metadata?: Record<string, unknown> | null;
-        createdAt: unknown;
-        updatedAt: unknown;
+        createdAt: Date;
+        updatedAt: Date;
       },
     ),
   } as unknown as Result<Conversation, ActionError>;
@@ -336,8 +336,8 @@ export const updateConversation = withAuthContext<
         userId: string;
         title?: string | null;
         metadata?: Record<string, unknown> | null;
-        createdAt: unknown;
-        updatedAt: unknown;
+        createdAt: Date;
+        updatedAt: Date;
       },
     ),
   } as unknown as Result<Conversation, ActionError>;
@@ -370,8 +370,8 @@ export const deleteConversation = withAuthContext<
         userId: string;
         title?: string | null;
         metadata?: Record<string, unknown> | null;
-        createdAt: unknown;
-        updatedAt: unknown;
+        createdAt: Date;
+        updatedAt: Date;
       },
     ),
   } as unknown as Result<Conversation, ActionError>;
