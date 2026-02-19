@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import ChatMessage from "./chat-message";
 import DaySeparator from "./day-separator";
 import LoadingIndicator from "./loading-indicator";
+import ReasoningLoaders from "./reasoning-loaders";
 
 interface MessageListProps {
   messages: UIMessage[];
@@ -24,6 +25,8 @@ interface MessageListProps {
   userName?: string;
   isLoading: boolean;
   scrollAreaRef: React.RefObject<HTMLDivElement | null>;
+  reasoningMessages?: Array<{ id: string; message: string }>;
+  isCoworker?: boolean;
 }
 
 export default function MessageList({
@@ -35,6 +38,8 @@ export default function MessageList({
   userName,
   isLoading,
   scrollAreaRef,
+  reasoningMessages = [],
+  isCoworker = false,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -49,10 +54,21 @@ export default function MessageList({
     };
   });
 
-  // Check if the last message is an assistant message being streamed
   const lastMessage = messagesWithTimestamps[messagesWithTimestamps.length - 1];
-  const showLoadingIndicator =
-    isLoading && (!lastMessage || lastMessage.role !== "assistant");
+  const lastMessageContent =
+    lastMessage && lastMessage.role === "assistant"
+      ? extractMessageContent(lastMessage)
+      : "";
+  const lastAssistantHasNoContent =
+    lastMessage?.role === "assistant" && !lastMessageContent.trim();
+  const showLoadingArea =
+    isLoading &&
+    (!lastMessage ||
+      lastMessage.role !== "assistant" ||
+      lastAssistantHasNoContent);
+  const showReasoningLoaders =
+    showLoadingArea && isCoworker && reasoningMessages.length > 0;
+  const showLoadingIndicator = showLoadingArea && !showReasoningLoaders;
 
   return (
     <div className="absolute inset-x-0 top-0 bottom-[100px] overflow-hidden">
@@ -129,6 +145,12 @@ export default function MessageList({
               const isLastMessage = index === messagesWithTimestamps.length - 1;
               const isStreaming =
                 isLoading && isLastMessage && role === "assistant";
+              const hideEmptyAssistantWhileLoading =
+                isLastMessage &&
+                role === "assistant" &&
+                !content.trim() &&
+                isLoading &&
+                (showReasoningLoaders || showLoadingIndicator);
 
               return (
                 <div
@@ -140,24 +162,34 @@ export default function MessageList({
                       formatDaySeparator={formatDaySeparator}
                     />
                   )}
-                  <div className="mb-1">
-                    <ChatMessage
-                      role={role}
-                      content={content}
-                      userImageUrl={userImageUrl}
-                      userName={userName}
-                      createdAt={createdAt}
-                      coworkerName={coworkerName}
-                      coworkerId={coworkerId}
-                      coworkerImageUrl={coworkerImageUrl}
-                      modelName={modelName}
-                      modelId={modelId}
-                      isStreaming={isStreaming}
-                    />
-                  </div>
+                  {!hideEmptyAssistantWhileLoading && (
+                    <div className="mb-1">
+                      <ChatMessage
+                        role={role}
+                        content={content}
+                        userImageUrl={userImageUrl}
+                        userName={userName}
+                        createdAt={createdAt}
+                        coworkerName={coworkerName}
+                        coworkerId={coworkerId}
+                        coworkerImageUrl={coworkerImageUrl}
+                        modelName={modelName}
+                        modelId={modelId}
+                        isStreaming={isStreaming}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
+            {showReasoningLoaders && (
+              <ReasoningLoaders
+                reasoningMessages={reasoningMessages}
+                selectedChatId={selectedChatId}
+                chats={chats}
+                coworkers={coworkers}
+              />
+            )}
             {showLoadingIndicator && (
               <LoadingIndicator
                 selectedChatId={selectedChatId}

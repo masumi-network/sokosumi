@@ -176,6 +176,12 @@ export default function ChatMessage({
             >
               {displayContent && displayContent.trim() ? (
                 <Markdown>{displayContent}</Markdown>
+              ) : isAssistantStreaming ? (
+                <div className="flex gap-1">
+                  <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full" />
+                  <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-75" />
+                  <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-150" />
+                </div>
               ) : (
                 <span className="text-muted-foreground italic">
                   {isUser ? "(Empty message)" : "(No response yet)"}

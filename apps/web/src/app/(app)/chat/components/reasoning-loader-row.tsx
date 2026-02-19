@@ -8,18 +8,32 @@ import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-interface LoadingIndicatorProps {
+interface ReasoningLoaderRowProps {
+  message: string;
   selectedChatId: string | null;
   chats: Chat[];
   coworkers?: Coworker[];
 }
 
-export default function LoadingIndicator({
+const REASONING_MESSAGE_KEYS: Record<
+  string,
+  "processing" | "thinking" | "searchingFiles" | "callingTools"
+> = {
+  "Processing...": "processing",
+  "Thinking...": "thinking",
+  "Searching files...": "searchingFiles",
+  "Calling tools...": "callingTools",
+};
+
+export default function ReasoningLoaderRow({
+  message,
   selectedChatId,
   chats,
   coworkers = [],
-}: LoadingIndicatorProps) {
+}: ReasoningLoaderRowProps) {
   const t = useTranslations("App.Chat.Chat");
+  const key = REASONING_MESSAGE_KEYS[message];
+  const displayMessage = key ? t(`reasoning.${key}`) : message;
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const coworkerId = selectedChat?.coworker?.id;
   const coworkerFromList = coworkerId
@@ -31,9 +45,7 @@ export default function LoadingIndicator({
   const modelName = selectedChat?.model?.name;
   const coworkerName = selectedChat?.coworker?.name;
 
-  // Get avatar content
-  const getAvatarContent = () => {
-    // If it's a model conversation, show model logo
+  function getAvatarContent() {
     if (modelId) {
       const modelImageUrls = getModelImageUrl(modelId);
       if (modelImageUrls) {
@@ -63,15 +75,12 @@ export default function LoadingIndicator({
           </>
         );
       }
-      // Fallback to model name initial
       return (
         <AvatarFallback className="bg-primary text-primary-foreground">
           {modelName ? modelName.charAt(0).toUpperCase() : "M"}
         </AvatarFallback>
       );
     }
-
-    // If it's a coworker conversation, show coworker image
     if (coworkerId) {
       const imageUrl = coworkerImageUrl ?? getCoworkerImageUrl(coworkerId);
       if (imageUrl) {
@@ -87,8 +96,6 @@ export default function LoadingIndicator({
         );
       }
     }
-
-    // Default fallback
     return (
       <AvatarFallback className="bg-primary text-primary-foreground">
         {coworkerName
@@ -98,10 +105,10 @@ export default function LoadingIndicator({
             : "A"}
       </AvatarFallback>
     );
-  };
+  }
 
   return (
-    <div className="flex gap-3 px-4 py-0">
+    <div className="flex gap-3 px-4 py-1.5">
       <Avatar
         className={`size-8 shrink-0 overflow-hidden rounded-full ${
           modelId ? "bg-white dark:bg-black" : ""
@@ -109,12 +116,8 @@ export default function LoadingIndicator({
       >
         {getAvatarContent()}
       </Avatar>
-      <div className="flex items-center">
-        <div className="flex gap-1">
-          <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full" />
-          <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-75" />
-          <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-150" />
-        </div>
+      <div className="flex min-w-0 flex-1 items-center">
+        <span className="reasoning-text-shine text-sm">{displayMessage}</span>
       </div>
     </div>
   );
