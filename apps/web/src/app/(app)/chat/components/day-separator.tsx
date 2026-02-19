@@ -11,7 +11,7 @@ export default function DaySeparator({
 }: DaySeparatorProps) {
   return (
     <div className="flex items-center justify-center py-4">
-      <span className="text-muted-foreground rounded-full bg-gray-200 px-3 py-1 text-xs font-medium dark:bg-gray-900">
+      <span className="text-muted-foreground bg-muted-foreground/10 rounded-full px-3 py-1 text-xs font-medium">
         {formatDaySeparator(date)}
       </span>
     </div>

@@ -104,7 +104,7 @@ export default function ChatInput({
                 onClick={onStop}
                 variant="default"
                 size="icon"
-                className="h-8 w-8 rounded-lg"
+                className="h-8 w-8 rounded-full"
                 type="button"
               >
                 <Square className="size-4" />
@@ -115,7 +115,7 @@ export default function ChatInput({
                 disabled={!canSubmit}
                 variant="primary"
                 size="icon"
-                className="h-8 w-8 rounded-lg"
+                className="h-8 w-8 rounded-full"
               >
                 {isLoading ? (
                   <Loader2 className="size-4 animate-spin" />
