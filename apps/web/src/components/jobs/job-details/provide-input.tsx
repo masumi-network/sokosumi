@@ -26,6 +26,7 @@ import {
   flattenInputs,
   normalizeAndValidateInputSchema,
 } from "@/lib/schemas/job";
+import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
 
 interface JobDetailsProvideInputProps {
   job: JobWithSokosumiStatus;
@@ -55,9 +56,7 @@ export default function JobDetailsProvideInput({
     return flattenInputs(parseResult);
   }, [parseResult]);
 
-  const formKey = useMemo(() => {
-    return flatInputs.map((s) => s.id).join(",");
-  }, [flatInputs]);
+  const formKey = flatInputs.map((s) => s.id).join(",");
 
   if (!parseResult || flatInputs.length === 0) {
     return (
@@ -93,9 +92,23 @@ function ProvideInputForm({
   const inputs = useInputs({ inputSchema });
   const { os, isMobile } = useOSDetection();
 
+  const inputFields = useMemo(() => {
+    return flattenInputs(inputSchema);
+  }, [inputSchema]);
+
+  const readonlyInputValues = useMemo(() => {
+    return getReadonlyNoneInputValues(inputFields);
+  }, [inputFields]);
+
+  const inputFieldIdsInOrder = useMemo(() => {
+    return inputFields.map((inputField) => inputField.id);
+  }, [inputFields]);
+
   const { handleSubmit, isSubmitting } = useProvideJobInput({
     jobId,
     statusId,
+    readonlyInputValues,
+    inputFieldIdsInOrder,
   });
 
   // Handle group clear - the generic form manages accumulated values internally

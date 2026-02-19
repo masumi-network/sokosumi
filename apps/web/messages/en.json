@@ -353,7 +353,9 @@
           "failedToParseInput": "Failed to parse input",
           "none": "No input",
           "expand": "Expand",
-          "collapse": "Show less"
+          "collapse": "Show less",
+          "yes": "Yes",
+          "no": "No"
         },
         "Output": {
           "result": "Result",

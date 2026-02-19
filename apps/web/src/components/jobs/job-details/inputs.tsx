@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
+import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -84,7 +85,31 @@ function mapIndexToLabel(index: unknown, values: string[]): string {
   return String(index);
 }
 
-function renderInputValue(value: unknown, type: InputType, values?: string[]) {
+interface BooleanLabels {
+  yes: string;
+  no: string;
+}
+
+function renderInputValue(
+  value: unknown,
+  type: InputType,
+  values: string[] | undefined,
+  booleanLabels: BooleanLabels,
+) {
+  if (
+    typeof value === "string" &&
+    (type === InputType.STRING ||
+      type === InputType.TEXT ||
+      type === InputType.TEXTAREA ||
+      type === InputType.NONE)
+  ) {
+    return (
+      <Markdown className="text-foreground/80 wrap-break-word">
+        {value}
+      </Markdown>
+    );
+  }
+
   if (type === InputType.FILE) {
     if (isUrlString(value)) {
       return <FileChipWithMetadata url={value} />;
@@ -126,6 +151,14 @@ function renderInputValue(value: unknown, type: InputType, values?: string[]) {
     if (typeof value === "string") {
       return <span className="break-all">{value}</span>;
     }
+  }
+
+  if (type === InputType.BOOLEAN && typeof value === "boolean") {
+    return (
+      <span className="break-all">
+        {value ? booleanLabels.yes : booleanLabels.no}
+      </span>
+    );
   }
 
   return (
@@ -243,7 +276,10 @@ function JobDetailsInputsInner({
                         {label}
                       </span>
                       <div className="break-all">
-                        {renderInputValue(value, type, values)}
+                        {renderInputValue(value, type, values, {
+                          yes: t("yes"),
+                          no: t("no"),
+                        })}
                       </div>
                     </div>
                   );

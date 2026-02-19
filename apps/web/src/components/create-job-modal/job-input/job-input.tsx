@@ -47,9 +47,11 @@ export default function JobInput({
               form={form}
             />
           </FormControl>
-          {jobInputSchema.type !== InputType.HIDDEN && data?.description && (
-            <FormDescription>{data.description}</FormDescription>
-          )}
+          {jobInputSchema.type !== InputType.HIDDEN &&
+            jobInputSchema.type !== InputType.NONE &&
+            data?.description && (
+              <FormDescription>{data.description}</FormDescription>
+            )}
           <FormMessage />
         </FormItem>
       )}
