@@ -142,8 +142,8 @@ describe("core conversation api actions", () => {
         userId: "user-1",
         title: "Chat title",
         metadata: null,
-        createdAt: "2026-02-19T10:00:00.000Z",
-        updatedAt: "2026-02-19T11:00:00.000Z",
+        createdAt: new Date("2026-02-19T10:00:00.000Z"),
+        updatedAt: new Date("2026-02-19T11:00:00.000Z"),
       },
     });
     coreClientMock.getConversationItems.mockRejectedValue(
@@ -198,7 +198,7 @@ describe("core conversation api actions", () => {
         id: "item-123",
         role: "user",
         content: "hello",
-        createdAt: 1700000000,
+        createdAt: new Date(1700000000),
       },
     });
 

@@ -8,10 +8,27 @@ import {
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
+import type {
+  Conversation as CoreConversation,
+  ConversationItem,
+} from "@/lib/clients/generated/core/types.gen";
 import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
+
+/** Conversation shape returned by server actions (dates serialized as ISO strings). */
+export type Conversation = Omit<CoreConversation, "createdAt" | "updatedAt"> & {
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type { ConversationItem };
+
+/** Conversation with optional items (e.g. from getConversation). */
+export interface ConversationWithItems extends Conversation {
+  items?: ConversationItem[];
+}
 
 interface CreateConversationParameters extends AuthenticatedRequest {
   conversationId?: string; // Optional conversation ID
@@ -46,57 +63,12 @@ interface GetConversationItemsParameters extends AuthenticatedRequest {
   cursor?: string | null;
 }
 
-export interface Conversation {
-  id: string;
-  userId: string;
-  title?: string | null;
-  metadata?: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ConversationItem {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: Array<{ type: string; text?: string }> | string;
-  createdAt: number;
-}
-
-export interface ConversationWithItems extends Conversation {
-  items?: ConversationItem[];
-}
-
-/**
- * Normalize date fields to ISO strings. coreClient returns Date instances;
- * we convert to string for the Conversation type (server action result / JSON).
- */
-function toIsoString(value: Date | string | unknown): string {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  const parsedDate = new Date(String(value));
-  return Number.isNaN(parsedDate.getTime())
-    ? new Date(0).toISOString()
-    : parsedDate.toISOString();
-}
-
-function toConversation(conversation: {
-  id: string;
-  userId: string;
-  title?: string | null;
-  metadata?: Record<string, unknown> | null;
-  createdAt: Date;
-  updatedAt: Date;
-}): Conversation {
+/** API response may have optional title/metadata; we normalize to Conversation. */
+function toConversation(conversation: CoreConversation): Conversation {
   return {
     ...conversation,
-    createdAt: toIsoString(conversation.createdAt),
-    updatedAt: toIsoString(conversation.updatedAt),
+    createdAt: conversation.createdAt.toISOString(),
+    updatedAt: conversation.updatedAt.toISOString(),
   };
 }
 
@@ -128,16 +100,7 @@ export const listConversations = withAuthContext<
   }
 
   const conversations = (result.value.data ?? []).map((conversation) =>
-    toConversation(
-      conversation as {
-        id: string;
-        userId: string;
-        title?: string | null;
-        metadata?: Record<string, unknown> | null;
-        createdAt: Date;
-        updatedAt: Date;
-      },
-    ),
+    toConversation(conversation),
   );
 
   return {
@@ -222,16 +185,7 @@ export const getConversation = withAuthContext<
     return {
       ok: true,
       data: {
-        ...toConversation(
-          conversationResult.value.data as {
-            id: string;
-            userId: string;
-            title?: string | null;
-            metadata?: Record<string, unknown> | null;
-            createdAt: Date;
-            updatedAt: Date;
-          },
-        ),
+        ...toConversation(conversationResult.value.data),
         items: [],
       },
     } as unknown as Result<ConversationWithItems, ActionError>;
@@ -253,16 +207,7 @@ export const getConversation = withAuthContext<
   return {
     ok: true,
     data: {
-      ...toConversation(
-        conversationResult.value.data as {
-          id: string;
-          userId: string;
-          title?: string | null;
-          metadata?: Record<string, unknown> | null;
-          createdAt: Date;
-          updatedAt: Date;
-        },
-      ),
+      ...toConversation(conversationResult.value.data),
       items,
     },
   } as unknown as Result<ConversationWithItems, ActionError>;
@@ -293,16 +238,7 @@ export const createConversation = withAuthContext<
 
   return {
     ok: true,
-    data: toConversation(
-      result.value.data as {
-        id: string;
-        userId: string;
-        title?: string | null;
-        metadata?: Record<string, unknown> | null;
-        createdAt: Date;
-        updatedAt: Date;
-      },
-    ),
+    data: toConversation(result.value.data),
   } as unknown as Result<Conversation, ActionError>;
 });
 
@@ -330,16 +266,7 @@ export const updateConversation = withAuthContext<
 
   return {
     ok: true,
-    data: toConversation(
-      result.value.data as {
-        id: string;
-        userId: string;
-        title?: string | null;
-        metadata?: Record<string, unknown> | null;
-        createdAt: Date;
-        updatedAt: Date;
-      },
-    ),
+    data: toConversation(result.value.data),
   } as unknown as Result<Conversation, ActionError>;
 });
 
@@ -364,16 +291,7 @@ export const deleteConversation = withAuthContext<
 
   return {
     ok: true,
-    data: toConversation(
-      result.value.data as {
-        id: string;
-        userId: string;
-        title?: string | null;
-        metadata?: Record<string, unknown> | null;
-        createdAt: Date;
-        updatedAt: Date;
-      },
-    ),
+    data: toConversation(result.value.data),
   } as unknown as Result<Conversation, ActionError>;
 });
 
