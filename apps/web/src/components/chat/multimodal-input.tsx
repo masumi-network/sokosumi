@@ -56,6 +56,7 @@ interface MultimodalInputProps {
   showSuggestedActions?: boolean;
   coworker?: Coworker;
   coworkers?: Coworker[];
+  onCoworkerChange?: (coworker: Coworker) => void;
 }
 
 function PureMultimodalInput({
@@ -74,15 +75,17 @@ function PureMultimodalInput({
   onSelectModel,
   selectedModel: propSelectedModel,
   coworkers: propCoworkers,
+  onCoworkerChange,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const defaultCoworker = useMemo<Coworker>(
     () => ({
-      id: "hannah",
-      name: t("coworkers.hannah.name"),
-      description: t("coworkers.hannah.description"),
-      useCase: t("coworkers.hannah.useCase"),
+      id: "elena",
+      slug: "elena",
+      name: t("coworkers.elena.name"),
+      description: t("coworkers.elena.description"),
+      useCase: t("coworkers.elena.useCase"),
     }),
     [t],
   );
@@ -96,7 +99,7 @@ function PureMultimodalInput({
   } | null>(propSelectedModel ?? null);
 
   // Sync selected agent from props when switching conversations (model vs coworker).
-  // When no model is selected and no coworker is passed (e.g. new chat), default to Hannah.
+  // When no model is selected and no coworker is passed (e.g. new chat), default to Elena.
   useEffect(() => {
     setSelectedCoworker(
       propCoworker ?? (propSelectedModel ? null : defaultCoworker),
@@ -250,8 +253,9 @@ function PureMultimodalInput({
       setSelectedCoworker(coworker);
       setSelectedModel(null); // Clear model when selecting coworker
       onSelectModel?.(null);
+      onCoworkerChange?.(coworker);
     },
-    [onSelectModel],
+    [onSelectModel, onCoworkerChange],
   );
 
   const handleModelSelect = useCallback(

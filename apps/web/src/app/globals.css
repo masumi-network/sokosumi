@@ -131,6 +131,9 @@
   --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
 
+  /* Reasoning state text: darker default, shine sweeps left-to-right (lighter) */
+  --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
+
   @keyframes accordion-down {
     from {
       height: 0;
@@ -183,6 +186,15 @@
     }
     50% {
       left: 100%;
+    }
+  }
+
+  @keyframes reasoning-text-shine {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
     }
   }
 
@@ -546,4 +558,37 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
       animation: none;
     }
   }
+}
+
+/* Welcome screen: staggered suggestion items */
+@keyframes welcome-suggestion-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.welcome-suggestion-item {
+  animation: welcome-suggestion-in 0.3s ease-out both;
+}
+
+/* Reasoning state: darker text with left-to-right lighter shine */
+@utility reasoning-text-shine {
+  background: linear-gradient(
+    90deg,
+    var(--muted-foreground) 0%,
+    var(--muted-foreground) 38%,
+    var(--foreground) 50%,
+    var(--muted-foreground) 62%,
+    var(--muted-foreground) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: var(--animate-reasoning-text-shine);
 }

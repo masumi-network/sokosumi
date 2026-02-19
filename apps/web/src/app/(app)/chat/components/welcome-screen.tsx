@@ -7,6 +7,9 @@ import type { Dispatch, SetStateAction } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
+import { cn } from "@/lib/utils";
+
+const PROMPT_KEYS = ["1", "2", "3"] as const;
 
 interface WelcomeScreenProps {
   userName?: string;
@@ -21,6 +24,9 @@ interface WelcomeScreenProps {
   stop: () => void;
   coworkers?: Coworker[];
   initialCoworker?: Coworker;
+  onCoworkerChange?: (coworker: Coworker) => void;
+  selectedModel?: { id: string; name: string } | null;
+  onSelectModel?: (model: { id: string; name: string } | null) => void;
 }
 
 export default function WelcomeScreen({
@@ -35,20 +41,79 @@ export default function WelcomeScreen({
   stop,
   coworkers,
   initialCoworker,
+  onCoworkerChange,
+  selectedModel,
+  onSelectModel,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
+  const promptKey =
+    initialCoworker?.slug?.toLowerCase() ||
+    initialCoworker?.id?.toLowerCase() ||
+    "";
+  const promptsList =
+    promptKey === "hannah" || promptKey === "elena"
+      ? PROMPT_KEYS.map((key) =>
+          t(`welcomeScreen.prompts.${promptKey}.${key}`),
+        ).filter(Boolean)
+      : [];
+  const showSuggestions = promptsList.length > 0 && selectedModel == null;
+
+  function handleSuggestionClick(text: string) {
+    if (!text.trim() || !initialCoworker) return;
+    onSendMessage(text.trim(), initialCoworker);
+  }
 
   return (
     <div className="relative flex h-full w-full flex-col">
       <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center px-8 text-center">
-        <h1 className="mb-2 text-3xl font-medium">
-          {userName
-            ? t("welcomeScreen.greetingWithName", { name: userName })
-            : t("welcomeScreen.greeting")}
-        </h1>
-        <p className="text-muted-foreground text-2xl">
-          {t("welcomeScreen.question")}
-        </p>
+        <div className="welcome-message-block transition-all duration-300 ease-out">
+          <h1 className="mb-2 text-3xl font-medium">
+            {userName
+              ? t("welcomeScreen.greetingWithName", { name: userName })
+              : t("welcomeScreen.greeting")}
+          </h1>
+          <p className="text-muted-foreground text-2xl">
+            {t("welcomeScreen.question")}
+          </p>
+        </div>
+        {promptsList.length > 0 && (
+          <div
+            key={`suggestions-${promptKey}`}
+            className={cn(
+              "w-full max-w-[33.6rem] overflow-hidden transition-[max-height,opacity] duration-300 ease-out",
+              showSuggestions
+                ? "max-h-[500px] opacity-100"
+                : "max-h-0 opacity-0",
+            )}
+          >
+            <p className="text-muted-foreground mt-8 mb-3 text-sm font-medium">
+              {t("welcomeScreen.suggestionsLabel")}
+            </p>
+            <ul className="flex flex-col gap-2">
+              {promptsList.map((text, index) => (
+                <li
+                  key={`${promptKey}-${index}`}
+                  className="welcome-suggestion-item"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSuggestionClick(text)}
+                    className={cn(
+                      "border-border/60 bg-muted/30 w-full rounded-xl border px-4 py-3 text-left text-sm",
+                      "hover:border-border hover:bg-muted/50 transition-colors",
+                      "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                    )}
+                  >
+                    <span className="text-muted-foreground leading-snug">
+                      {text}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 flex shrink-0 justify-center px-4 py-2 backdrop-blur-sm">
         <div className="w-full max-w-[33.6rem]">
@@ -64,6 +129,9 @@ export default function WelcomeScreen({
             showSuggestedActions={true}
             coworkers={coworkers}
             coworker={initialCoworker}
+            onCoworkerChange={onCoworkerChange}
+            selectedModel={selectedModel ?? undefined}
+            onSelectModel={onSelectModel}
           />
         </div>
       </div>
