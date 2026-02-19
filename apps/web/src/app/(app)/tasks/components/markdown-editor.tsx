@@ -8,34 +8,65 @@ import {
   Link2,
   List,
   ListOrdered,
+  Loader2,
+  Paperclip,
 } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  formatHeading,
-  formatInlineCodeSnippet,
-  formatMarkdownLink,
   getBacktickFence,
   normalizeUrl,
 } from "@/lib/utils/markdown-editor-utils";
+import {
+  createMarkdownLinkRegex,
+  escapeMarkdownLinkUrl,
+  unescapeMarkdownLinkUrl,
+} from "@/lib/utils/markdown-links";
 
 interface MarkdownEditorProps {
   id?: string;
   value: string;
   onChange: (value: string) => void;
+  onSubmitShortcut?: () => void;
   placeholder?: string;
   className?: string;
+  style?: React.CSSProperties;
+  onAttachClick?: () => void;
+  attachLabel?: string;
+  isAttachmentUploading?: boolean;
 }
 
-export function MarkdownEditor({
-  id,
-  value,
-  onChange,
-  placeholder = "Enter details...",
-  className,
-}: MarkdownEditorProps) {
+export interface MarkdownEditorHandle {
+  insertText: (text: string) => void;
+  insertLink: (label: string, url: string) => void;
+}
+
+export const MarkdownEditor = forwardRef<
+  MarkdownEditorHandle,
+  MarkdownEditorProps
+>(function MarkdownEditor(
+  {
+    id,
+    value,
+    onChange,
+    onSubmitShortcut,
+    placeholder = "Enter details...",
+    className,
+    style,
+    onAttachClick,
+    attachLabel,
+    isAttachmentUploading = false,
+  }: MarkdownEditorProps,
+  ref,
+) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
 
@@ -75,27 +106,46 @@ export function MarkdownEditor({
       },
     );
 
-    const html = withCodeBlockTokens
+    const linkTokens: Array<{
+      token: string;
+      html: string;
+    }> = [];
+
+    const withLinkTokens = withCodeBlockTokens.replace(
+      createMarkdownLinkRegex(),
+      (match, label: string, rawUrl: string) => {
+        const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
+        if (!normalizedUrl) {
+          return match;
+        }
+
+        const token = `@@LINK_${linkTokens.length}@@`;
+        linkTokens.push({
+          token,
+          html: `<a href="${normalizedUrl}">${label}</a>`,
+        });
+        return token;
+      },
+    );
+
+    const html = withLinkTokens
       .replace(/^### (.+)$/gm, "<h3>$1</h3>")
       .replace(/^## (.+)$/gm, "<h2>$1</h2>")
       .replace(/^# (.+)$/gm, "<h1>$1</h1>")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/_(.+?)_/g, "<em>$1</em>")
       .replace(/`(.+?)`/g, "<code>$1</code>")
-      .replace(/\[(.+?)\]\((.+?)\)/g, (_match, label: string, url: string) => {
-        const normalizedUrl = normalizeUrl(url);
-        if (!normalizedUrl) {
-          return `[${label}](${url})`;
-        }
-        return `<a href="${normalizedUrl}">${label}</a>`;
-      })
       .replace(/^[-*] (.+)$/gm, "<ul><li>$1</li></ul>")
       .replace(/^(\d+)\. (.+)$/gm, "<ol><li>$2</li></ol>")
       .replace(/\n/g, "<br>");
 
+    const withRestoredLinks = linkTokens.reduce((result, link) => {
+      return result.replace(link.token, link.html);
+    }, html);
+
     return codeBlocks.reduce((result, block) => {
       return result.replace(block.token, block.html);
-    }, html);
+    }, withRestoredLinks);
   }, []);
 
   // Convert HTML to markdown (on every change)
@@ -133,7 +183,9 @@ export function MarkdownEditor({
           case "code":
             return `\`${content}\``;
           case "a":
-            return `[${content}](${el.getAttribute("href") || ""})`;
+            return `[${content}](${escapeMarkdownLinkUrl(
+              el.getAttribute("href") || "",
+            )})`;
           case "h1":
             return `# ${content}\n`;
           case "h2":
@@ -189,7 +241,12 @@ export function MarkdownEditor({
       result += processNode(node);
     });
 
-    return result.trim();
+    const normalized = result.replace(/\r/g, "");
+    if (normalized.trim().length === 0) {
+      return "";
+    }
+
+    return normalized;
   }, []);
 
   // Initialize editor content from value prop
@@ -197,12 +254,11 @@ export function MarkdownEditor({
     if (editorRef.current && !isInternalChange.current) {
       const currentHtml = editorRef.current.innerHTML;
       const newHtml = markdownToHtml(value);
+      const isFocused = editorRef.current.contains(document.activeElement);
+      const isExternalClear = value.trim().length === 0;
 
       // Only update if content actually changed (avoid cursor jumping)
-      if (
-        currentHtml !== newHtml &&
-        !editorRef.current.contains(document.activeElement)
-      ) {
+      if (currentHtml !== newHtml && (!isFocused || isExternalClear)) {
         editorRef.current.innerHTML = newHtml || "";
       }
     }
@@ -255,25 +311,84 @@ export function MarkdownEditor({
     [handleInput],
   );
 
+  const insertHtml = useCallback(
+    (html: string) => {
+      editorRef.current?.focus();
+      let didInsert = false;
+      try {
+        didInsert = document.execCommand("insertHTML", false, html);
+      } catch (_error) {
+        didInsert = false;
+      }
+
+      if (!didInsert && editorRef.current) {
+        editorRef.current.insertAdjacentHTML("beforeend", html);
+      }
+
+      handleInput();
+    },
+    [handleInput],
+  );
+
+  const insertLink = useCallback(
+    (label: string, url: string) => {
+      editorRef.current?.focus();
+      const safeLabel = label.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const safeUrl = url.replace(/"/g, "&quot;");
+      const anchorHtml = `<a href="${safeUrl}">${safeLabel}</a>`;
+
+      let didInsert = false;
+      try {
+        didInsert = document.execCommand("insertHTML", false, anchorHtml);
+      } catch (_error) {
+        didInsert = false;
+      }
+
+      if (!didInsert) {
+        insertHtml(anchorHtml);
+        return;
+      }
+
+      handleInput();
+    },
+    [handleInput, insertHtml],
+  );
+
   const handleBold = useCallback(() => execCommand("bold"), [execCommand]);
   const handleItalic = useCallback(() => execCommand("italic"), [execCommand]);
   const handleCode = () => {
     const text = window.getSelection()?.toString() ?? "";
-    insertText(formatInlineCodeSnippet(text));
+    const escapedText = (text || "code")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    if (text.includes("\n")) {
+      insertHtml(`<pre><code>${escapedText}</code></pre>`);
+      return;
+    }
+    insertHtml(`<code>${escapedText}</code>`);
   };
   const handleLink = () => {
     const url = prompt("Enter URL:");
-    if (url) {
-      const text = window.getSelection()?.toString() ?? "";
-      const link = formatMarkdownLink(text, url);
-      if (link) {
-        insertText(link);
-      }
+    if (!url) {
+      return;
     }
+
+    const normalizedUrl = normalizeUrl(url);
+    if (!normalizedUrl) {
+      return;
+    }
+
+    const selectedText = window.getSelection()?.toString() ?? "";
+    if (selectedText.trim().length > 0) {
+      execCommand("createLink", normalizedUrl);
+      return;
+    }
+
+    insertLink("link", normalizedUrl);
   };
   const handleHeading = () => {
-    const text = window.getSelection()?.toString() ?? "";
-    insertText(formatHeading(text));
+    execCommand("formatBlock", "h2");
   };
   const handleBulletList = () => {
     execCommand("insertUnorderedList");
@@ -285,6 +400,15 @@ export function MarkdownEditor({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const key = e.key.toLowerCase();
+
+      // Cmd/Ctrl + Enter to submit parent form when provided.
+      if ((e.metaKey || e.ctrlKey) && key === "enter") {
+        if (!e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          onSubmitShortcut?.();
+          return;
+        }
+      }
 
       // Cmd/Ctrl + B for bold
       if ((e.metaKey || e.ctrlKey) && key === "b") {
@@ -299,11 +423,20 @@ export function MarkdownEditor({
         handleItalic();
       }
     },
-    [handleBold, handleItalic],
+    [handleBold, handleItalic, onSubmitShortcut],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertText,
+      insertLink,
+    }),
+    [insertText, insertLink],
   );
 
   return (
-    <div className={cn("rounded-md border", className)}>
+    <div className={cn("rounded-md border", className)} style={style}>
       {/* Toolbar */}
       <div className="bg-muted/30 flex items-center gap-0.5 border-b px-2 py-1.5">
         <Button
@@ -376,6 +509,27 @@ export function MarkdownEditor({
         >
           <ListOrdered className="size-3.5" />
         </Button>
+        {onAttachClick ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={onAttachClick}
+            title={attachLabel}
+            aria-label={attachLabel}
+          >
+            <Paperclip className="size-3.5" />
+          </Button>
+        ) : null}
+        {isAttachmentUploading ? (
+          <div className="ml-auto inline-flex items-center pr-1">
+            <Loader2
+              className="text-muted-foreground size-3.5 animate-spin"
+              aria-hidden
+            />
+          </div>
+        ) : null}
       </div>
 
       {/* Single editable area */}
@@ -404,4 +558,4 @@ export function MarkdownEditor({
       />
     </div>
   );
-}
+});
