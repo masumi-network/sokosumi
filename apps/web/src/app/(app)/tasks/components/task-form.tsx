@@ -4,21 +4,32 @@ import { TaskStatus } from "@sokosumi/database";
 import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
-// TODO: Add file attachment
-// import { FileUploadButton } from "@/app/tasks/new/components/file-upload-button";
+import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadTrigger,
+} from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import {
+  extractTaskAttachmentUrls,
+  formatTaskAttachmentMarkdown,
+  removeTaskAttachmentLinks,
+  sanitizeTaskAttachmentLabel,
+  uploadTaskAttachment,
+} from "@/lib/utils/task-attachments";
 
-import { MarkdownEditor } from "./markdown-editor";
+import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 
 export interface TaskFormLabels {
   details: string;
@@ -36,6 +47,8 @@ export interface TaskFormLabels {
   revertToDraft?: string;
   back: string;
   uploadFile: string;
+  uploadFileError?: string;
+  removeAttachment?: string;
   submit: string;
   saveAsDraft?: string;
   createTask?: string;
@@ -88,6 +101,14 @@ export function TaskForm({
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+  const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
+  const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
+  const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
+  const attachmentUrls = useMemo(
+    () => extractTaskAttachmentUrls(description),
+    [description],
+  );
   const isSubmittingAny = isSubmitting || isSubmittingDraft;
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny);
@@ -96,8 +117,12 @@ export function TaskForm({
   const { os, isMobile } = useOSDetection();
 
   const isNameRequired = mode === "edit";
+  const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const isSaveDisabled =
-    !description.trim() || (isNameRequired && !name.trim()) || isSubmittingAny;
+    !description.trim() ||
+    (isNameRequired && !name.trim()) ||
+    isSubmittingAny ||
+    isUploadingAttachments;
   const shouldShowEditToggle = mode === "edit";
   const statusToggleLabel =
     status === TaskStatus.DRAFT
@@ -170,21 +195,59 @@ export function TaskForm({
   );
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.isComposing) return;
-
-      const isSubmitKey =
-        event.key === "Enter" && (event.metaKey || event.ctrlKey);
-      if (!isSubmitKey) return;
-
-      event.preventDefault();
-      const shortcutStatus = mode === "create" ? TaskStatus.READY : undefined;
-      handleSave(shortcutStatus);
-    };
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key === "Enter" &&
+        !isSaveDisabled
+      ) {
+        event.preventDefault();
+        const shortcutStatus = mode === "create" ? TaskStatus.READY : undefined;
+        void handleSave(shortcutStatus);
+      }
+    }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave, mode]);
+  }, [handleSave, isSaveDisabled, mode]);
+
+  const handleAttachFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+
+      setUploadingAttachmentsCount((count) => count + 1);
+      try {
+        for (const file of files) {
+          const uploadedUrl = await uploadTaskAttachment(file);
+          const safeName = sanitizeTaskAttachmentLabel(file.name, "file");
+          if (markdownEditorRef.current) {
+            markdownEditorRef.current.insertLink(safeName, uploadedUrl);
+            markdownEditorRef.current.insertText("\n");
+            continue;
+          }
+          const markdownLink = formatTaskAttachmentMarkdown(
+            safeName,
+            uploadedUrl,
+          );
+          setDescription(
+            (prev) =>
+              `${prev}${prev.endsWith("\n") ? "" : "\n"}${markdownLink}`,
+          );
+        }
+      } catch (_error) {
+        toast.error(labels.uploadFileError ?? "Failed to upload file");
+      } finally {
+        setPendingUploadFiles([]);
+        setUploadingAttachmentsCount((count) => count - 1);
+      }
+    },
+    [labels.uploadFileError],
+  );
+
+  const handleRemoveAttachment = useCallback((url: string) => {
+    setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
+  }, []);
 
   const handleCancel = () => {
     if (onCancel) {
@@ -245,21 +308,59 @@ export function TaskForm({
 
           <div className="space-y-2">
             <Label htmlFor="task-description">{labels.details}</Label>
-            <MarkdownEditor
-              id="task-description"
-              placeholder={labels.descriptionPlaceholder}
-              value={description}
-              onChange={setDescription}
-            />
+            <FileUpload
+              value={pendingUploadFiles}
+              onValueChange={setPendingUploadFiles}
+              onAccept={(files) => {
+                void handleAttachFiles(files);
+              }}
+              multiple
+            >
+              <FileUploadDropzone
+                className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+                onClick={(event) => event.preventDefault()}
+              >
+                <MarkdownEditor
+                  ref={markdownEditorRef}
+                  id="task-description"
+                  placeholder={labels.descriptionPlaceholder}
+                  className="w-full"
+                  value={description}
+                  onChange={setDescription}
+                  onSubmitShortcut={() => {
+                    const shortcutStatus =
+                      mode === "create" ? TaskStatus.READY : undefined;
+                    void handleSave(shortcutStatus);
+                  }}
+                  onAttachClick={() => attachmentTriggerRef.current?.click()}
+                  attachLabel={labels.uploadFile}
+                  isAttachmentUploading={isUploadingAttachments}
+                />
+                <FileUploadTrigger asChild>
+                  <button
+                    ref={attachmentTriggerRef}
+                    type="button"
+                    className="sr-only"
+                    aria-label={labels.uploadFile}
+                  >
+                    {labels.uploadFile}
+                  </button>
+                </FileUploadTrigger>
+              </FileUploadDropzone>
+            </FileUpload>
+            {attachmentUrls.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {attachmentUrls.map((url) => (
+                  <FileChipMiniPreviewWithMetadata
+                    key={url}
+                    url={url}
+                    onRemove={() => handleRemoveAttachment(url)}
+                    removeLabel={labels.removeAttachment ?? labels.cancel}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
-
-          {/* TODO: Add file attachment */}
-          {/* <div className="flex w-full items-center justify-end gap-2">
-            <FileUploadButton
-              label={labels.uploadFile}
-              onClick={handleFileUpload}
-            />
-          </div> */}
         </div>
 
         <div className={isModal ? "border-t px-6 py-5" : "border-t px-6 py-6"}>

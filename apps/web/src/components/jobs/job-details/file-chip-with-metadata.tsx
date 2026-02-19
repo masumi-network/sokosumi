@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { FileChip, type FileChipProps } from "@/components/ui/file-chip";
+import {
+  FileChipMiniPreview,
+  type FileChipMiniPreviewProps,
+} from "@/components/ui/file-chip-mini-preview";
 import { parseContentDispositionFilename } from "@/lib/utils/content-disposition";
 
 interface FileHeadMetadata {
@@ -23,11 +27,7 @@ function parseContentLength(value: string | null): number | undefined {
   return parsed;
 }
 
-export function FileChipWithMetadata({
-  url,
-  title,
-  ...props
-}: Omit<FileChipProps, "fileName" | "size">) {
+function useFileHeadMetadata(url: string) {
   const [metadataState, setMetadataState] = useState<FileHeadMetadataState>();
   const currentUrlMetadata =
     metadataState?.url === url ? metadataState.metadata : undefined;
@@ -42,9 +42,7 @@ export function FileChipWithMetadata({
           method: "HEAD",
           signal: abortController.signal,
         });
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         if (!response.ok) {
           setMetadataState({ url });
@@ -76,12 +74,39 @@ export function FileChipWithMetadata({
     };
   }, [url]);
 
+  return currentUrlMetadata;
+}
+
+export function FileChipWithMetadata({
+  url,
+  title,
+  ...props
+}: Omit<FileChipProps, "fileName" | "size">) {
+  const metadata = useFileHeadMetadata(url);
+
   return (
     <FileChip
       url={url}
-      fileName={currentUrlMetadata?.fileName}
-      size={currentUrlMetadata?.size ?? undefined}
-      title={title ?? currentUrlMetadata?.contentType}
+      fileName={metadata?.fileName}
+      size={metadata?.size ?? undefined}
+      title={title ?? metadata?.contentType}
+      {...props}
+    />
+  );
+}
+
+export function FileChipMiniPreviewWithMetadata({
+  url,
+  fileName,
+  ...props
+}: Omit<FileChipMiniPreviewProps, "fileName"> & { fileName?: string | null }) {
+  const metadata = useFileHeadMetadata(url);
+
+  return (
+    <FileChipMiniPreview
+      url={url}
+      fileName={fileName ?? metadata?.fileName}
+      size={metadata?.size}
       {...props}
     />
   );

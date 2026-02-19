@@ -1,5 +1,7 @@
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
+import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import { extractTaskAttachmentUrls } from "@/lib/utils/task-attachments";
 
 interface TaskDescriptionProps {
   title: string;
@@ -20,18 +22,28 @@ export function TaskDescription({
   const content = description
     ? formatMentionsAsMarkdownLinks(description, agentNameById)
     : null;
+  const attachmentUrls = content ? extractTaskAttachmentUrls(content) : [];
 
   return (
     <section className="space-y-2">
       <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
       {content ? (
-        <ExpandableMarkdown
-          content={content}
-          className="text-foreground/80"
-          expandLabel={expandLabel}
-          collapseLabel={collapseLabel}
-          fadeClassName="to-background"
-        />
+        <div className="space-y-2">
+          <ExpandableMarkdown
+            content={content}
+            className="text-foreground/80"
+            expandLabel={expandLabel}
+            collapseLabel={collapseLabel}
+            fadeClassName="to-background"
+          />
+          {attachmentUrls.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {attachmentUrls.map((url) => (
+                <FileChipMiniPreviewWithMetadata key={url} url={url} />
+              ))}
+            </div>
+          ) : null}
+        </div>
       ) : (
         <p className="text-muted-foreground/40 text-sm">—</p>
       )}

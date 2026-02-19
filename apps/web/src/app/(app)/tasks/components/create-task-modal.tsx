@@ -85,6 +85,8 @@ export function CreateTaskModal({ coworkerOptions }: CreateTaskModalProps) {
           statusReady: t("statusReady"),
           back: t("back"),
           uploadFile: t("uploadFile"),
+          uploadFileError: t("uploadFileError"),
+          removeAttachment: t("removeAttachment"),
           submit: t("saveDraft"),
           saveAsDraft: t("saveAsDraft"),
           createTask: t("createTask"),
