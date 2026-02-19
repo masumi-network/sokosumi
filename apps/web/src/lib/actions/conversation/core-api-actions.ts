@@ -23,8 +23,6 @@ export type Conversation = Omit<CoreConversation, "createdAt" | "updatedAt"> & {
   updatedAt: string;
 };
 
-export type { ConversationItem };
-
 /** Conversation with optional items (e.g. from getConversation). */
 export interface ConversationWithItems extends Conversation {
   items?: ConversationItem[];
