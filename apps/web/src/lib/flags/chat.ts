@@ -5,14 +5,12 @@ import { flag } from "flags/next";
 import { getSession } from "@/lib/auth/utils";
 import { getEmailDomain } from "@/lib/utils/email";
 
-const CHAT_DOMAIN = "nmkr.io";
-const CHAT_EMAIL_ALLOWLIST = new Set([
-  "s.kuepers@house-of-communication.com",
-  "thinkngrowcrypto@gmail.com",
-]);
+const CHAT_DOMAINS = new Set(["nmkr.io", "house-of-communication.com"]);
+const CHAT_EMAIL_ALLOWLIST = new Set(["thinkngrowcrypto@gmail.com"]);
 
 function isChatDomain(email: string): boolean {
-  return getEmailDomain(email) === CHAT_DOMAIN;
+  const domain = getEmailDomain(email);
+  return domain !== null && CHAT_DOMAINS.has(domain);
 }
 
 function isChatEmailAllowlisted(email: string): boolean {
