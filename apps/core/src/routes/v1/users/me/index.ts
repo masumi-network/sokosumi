@@ -6,6 +6,8 @@ import mountPostMeFiles from "./files/post.js";
 import mountGetMe from "./get.js";
 import mountGetMeOnboarding from "./onboarding/get.js";
 import mountPostMeOnboarding from "./onboarding/post.js";
+import mountPostNoticeAcknowledge from "./notices/[id]/acknowledge/post.js";
+import mountGetPendingNotices from "./notices/pending/get.js";
 import mountGetMeOrganizationCredits from "./organizations/[id]/credits/get.js";
 import mountGetMeOrganization from "./organizations/[id]/get.js";
 import mountGetMeOrganizations from "./organizations/get.js";
@@ -23,6 +25,8 @@ mountGetMePreferences(app);
 mountPatchMePreferences(app);
 mountGetMeOnboarding(app);
 mountPostMeOnboarding(app);
+mountGetPendingNotices(app);
+mountPostNoticeAcknowledge(app);
 mountGetMeFiles(app);
 mountPostMeFiles(app);
 
