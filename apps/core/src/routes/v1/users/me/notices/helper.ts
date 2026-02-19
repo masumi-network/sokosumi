@@ -1,5 +1,3 @@
-import { conflict } from "@/helpers/error";
-
 export interface NoticeRecord {
   id: string;
   bodyMarkdown: string;
@@ -71,17 +69,6 @@ export function getNoticeIneligibilityReason(
   }
 
   return null;
-}
-
-export function assertNoticeIsAcknowledgeableForUser(
-  notice: NoticeRecord,
-  userCreatedAt: Date,
-  now: Date = new Date(),
-): void {
-  const reason = getNoticeIneligibilityReason(notice, userCreatedAt, now);
-  if (reason) {
-    throw conflict(reason);
-  }
 }
 
 export function getAcknowledgmentState(
