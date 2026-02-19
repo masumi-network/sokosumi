@@ -69,7 +69,8 @@ model User {
   creditBuckets CreditBucket[]
 
   // Conversations
-  conversations Conversation[]
+  conversations         Conversation[]
+  noticeAcknowledgments NoticeAcknowledgment[]
 
   @@unique([email])
   @@unique([stripeCustomerId])
@@ -235,6 +236,41 @@ model UTMAttribution {
   @@index([capturedAt])
   @@index([convertedAt])
   @@map("utmAttribution")
+}
+
+model Notice {
+  id           String   @id @default(cuid())
+  kind         NoticeKind @default(ANNOUNCEMENT)
+  bodyMarkdown String
+  effectiveAt  DateTime @default(now())
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  acknowledgments NoticeAcknowledgment[]
+
+  @@index([isActive, effectiveAt])
+  @@map("notice")
+}
+
+model NoticeAcknowledgment {
+  id             String   @id @default(cuid())
+  userId         String
+  noticeId       String
+  acknowledgedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notice Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, noticeId])
+  @@index([userId, acknowledgedAt])
+  @@index([noticeId, acknowledgedAt])
+  @@map("noticeAcknowledgment")
+}
+
+enum NoticeKind {
+  LEGAL_TERMS
+  ANNOUNCEMENT
 }
 
 model RateLimit {
