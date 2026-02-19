@@ -9,16 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
-
-function buildCallbackUrl(
-  path: string,
-  provider: SocialProviderId,
-  returnUrl?: string,
-) {
-  const params = new URLSearchParams({ provider });
-  if (returnUrl) params.set("returnUrl", returnUrl);
-  return `${path}?${params.toString()}`;
-}
+import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 interface SocialSignupAutoInitiatorProps {
   provider: SocialProviderId;
@@ -42,12 +33,12 @@ export default function SocialSignupAutoInitiator({
 
         const result = await authClient.signIn.social({
           provider,
-          callbackURL: buildCallbackUrl(
+          callbackURL: buildAuthCallbackUrl(
             "/auth/callback/signin",
             provider,
             returnUrl,
           ),
-          newUserCallbackURL: buildCallbackUrl(
+          newUserCallbackURL: buildAuthCallbackUrl(
             "/auth/callback/signup",
             provider,
             returnUrl,

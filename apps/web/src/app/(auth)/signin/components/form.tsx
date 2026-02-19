@@ -103,7 +103,6 @@ export default function SignInForm({
     toast.success(t("success"));
 
     // Redirect to the original URL if provided, otherwise go to root
-    // Root page will handle flag-based redirect (chat for nmkr.io, agents for others)
     // Validate returnUrl to prevent open redirect attacks
     let redirectUrl = "/";
     if (returnUrl) {

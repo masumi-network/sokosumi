@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
+import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 interface SocialButtonsProps {
   returnUrl?: string;
@@ -33,16 +34,6 @@ const socialButtons: Array<{
   },
 ];
 
-function buildCallbackUrl(
-  path: string,
-  provider: SocialProviderId,
-  returnUrl?: string,
-) {
-  const params = new URLSearchParams({ provider });
-  if (returnUrl) params.set("returnUrl", returnUrl);
-  return `${path}?${params.toString()}`;
-}
-
 export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
 
@@ -51,8 +42,12 @@ export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
 
     const result = await authClient.signIn.social({
       provider: key,
-      callbackURL: buildCallbackUrl("/auth/callback/signin", key, returnUrl),
-      newUserCallbackURL: buildCallbackUrl(
+      callbackURL: buildAuthCallbackUrl(
+        "/auth/callback/signin",
+        key,
+        returnUrl,
+      ),
+      newUserCallbackURL: buildAuthCallbackUrl(
         "/auth/callback/signup",
         key,
         returnUrl,

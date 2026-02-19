@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth/auth.client";
+import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface InvitationActionsProps {
   invitation: Invitation;
@@ -78,8 +79,7 @@ export default function InvitationActions({
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
-              const returnUrl =
-                window.location.pathname + window.location.search;
+              const returnUrl = getReturnUrlFromCurrentLocation();
               router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
             },
           },
@@ -112,8 +112,7 @@ export default function InvitationActions({
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
-              const returnUrl =
-                window.location.pathname + window.location.search;
+              const returnUrl = getReturnUrlFromCurrentLocation();
               router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
             },
           },
@@ -134,8 +133,7 @@ export default function InvitationActions({
     setLoading(true);
     setAction("logout");
     await authClient.signOut();
-    const returnUrl =
-      window.location.pathname + window.location.search || "/chat";
+    const returnUrl = getReturnUrlFromCurrentLocation();
     router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
     setLoading(false);
     setAction(null);
