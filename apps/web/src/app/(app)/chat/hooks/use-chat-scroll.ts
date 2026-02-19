@@ -82,7 +82,7 @@ export function useChatScroll({
     };
 
     const handleWheel = (e: WheelEvent) => {
-      if (e.deltaY < 0) userHasScrolledUpRef.current = true;
+      if (e.deltaY > 0) userHasScrolledUpRef.current = true;
     };
     let lastTouchY: number | null = null;
     const handleTouchStart = (e: TouchEvent) => {
@@ -91,7 +91,7 @@ export function useChatScroll({
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1 || lastTouchY === null) return;
       const touchY = e.touches[0].clientY;
-      if (touchY > lastTouchY) userHasScrolledUpRef.current = true;
+      if (touchY < lastTouchY) userHasScrolledUpRef.current = true;
       lastTouchY = touchY;
     };
     const handleTouchEnd = () => {

@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
-
-import { AssistantAvatar } from "./assistant-avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ReasoningLoaderRowProps {
   message: string;
@@ -43,17 +45,77 @@ export default function ReasoningLoaderRow({
   const modelName = selectedChat?.model?.name;
   const coworkerName = selectedChat?.coworker?.name;
 
+  function getAvatarContent() {
+    if (modelId) {
+      const modelImageUrls = getModelImageUrl(modelId);
+      if (modelImageUrls) {
+        const alt = modelName || t("modelAlt");
+        return (
+          <>
+            <Image
+              src={modelImageUrls.light}
+              alt={alt}
+              width={32}
+              height={32}
+              className="block size-full object-contain p-0.5 dark:hidden"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+            <Image
+              src={modelImageUrls.dark}
+              alt={alt}
+              width={32}
+              height={32}
+              className="hidden size-full object-contain p-0.5 dark:block"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </>
+        );
+      }
+      return (
+        <AvatarFallback className="bg-primary text-primary-foreground">
+          {modelName ? modelName.charAt(0).toUpperCase() : "M"}
+        </AvatarFallback>
+      );
+    }
+    if (coworkerId) {
+      const imageUrl = coworkerImageUrl ?? getCoworkerImageUrl(coworkerId);
+      if (imageUrl) {
+        return (
+          <AvatarImage
+            src={imageUrl}
+            alt={coworkerName || t("coworkerAlt")}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        );
+      }
+    }
+    return (
+      <AvatarFallback className="bg-primary text-primary-foreground">
+        {coworkerName
+          ? coworkerName.charAt(0).toUpperCase()
+          : modelName
+            ? modelName.charAt(0).toUpperCase()
+            : "A"}
+      </AvatarFallback>
+    );
+  }
+
   return (
     <div className="flex gap-3 px-4 py-1.5">
-      <AssistantAvatar
-        modelId={modelId}
-        modelName={modelName}
-        coworkerId={coworkerId}
-        coworkerImageUrl={coworkerImageUrl}
-        coworkerName={coworkerName}
-        modelAltText={t("modelAlt")}
-        coworkerAltText={t("coworkerAlt")}
-      />
+      <Avatar
+        className={`size-8 shrink-0 overflow-hidden rounded-full ${
+          modelId ? "bg-white dark:bg-black" : ""
+        }`}
+      >
+        {getAvatarContent()}
+      </Avatar>
       <div className="flex min-w-0 flex-1 items-center">
         <span className="reasoning-text-shine text-sm">{displayMessage}</span>
       </div>
