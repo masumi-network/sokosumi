@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import { chatUIEnabled } from "@/lib/flags/chat";
 import { userService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -16,8 +15,7 @@ export async function completeOnboarding(): Promise<
     await userService.markOnboardingCompleteForMe();
 
     revalidatePath("/");
-    const isChatEnabled = await chatUIEnabled();
-    return Ok({ redirectUrl: isChatEnabled ? "/chat" : "/agents" });
+    return Ok({ redirectUrl: "/chat" });
   } catch (error) {
     console.error("Error completing onboarding:", error);
     const t = await getTranslations("Onboarding.Actions.Errors");

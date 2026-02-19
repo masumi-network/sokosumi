@@ -7,7 +7,6 @@ import { getTranslations } from "next-intl/server";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { getSession } from "@/lib/auth/utils";
-import { chatUIEnabled } from "@/lib/flags/chat";
 
 import AuthBackground from "./components/auth-background";
 
@@ -40,8 +39,7 @@ export default async function AuthLayout({
       pathname.startsWith("/auth/callback/") || pathname.startsWith("/oauth");
 
     if (!shouldSkipRedirect) {
-      const isChatEnabled = await chatUIEnabled();
-      redirect(isChatEnabled ? "/chat" : "/agents");
+      redirect("/chat");
     }
   }
 

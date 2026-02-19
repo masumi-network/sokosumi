@@ -23,11 +23,7 @@ interface MenuItemConfig {
   hasIndicator?: boolean;
 }
 
-interface MenuItemsProps {
-  taskManagerMenuEnabled: boolean;
-}
-
-export default function MenuItems({ taskManagerMenuEnabled }: MenuItemsProps) {
+export default function MenuItems() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
 
@@ -46,16 +42,12 @@ export default function MenuItems({ taskManagerMenuEnabled }: MenuItemsProps) {
       label: t("exploreAgents"),
       Icon: Search,
     },
-    ...(taskManagerMenuEnabled
-      ? [
-          {
-            key: "task-manager",
-            href: "/tasks",
-            label: t("taskManager"),
-            Icon: SquareCheckBig,
-          },
-        ]
-      : []),
+    {
+      key: "task-manager",
+      href: "/tasks",
+      label: t("taskManager"),
+      Icon: SquareCheckBig,
+    },
     {
       key: "scheduled-agents",
       href: "/schedules",
