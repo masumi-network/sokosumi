@@ -6,11 +6,6 @@ import { type TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
-type TaskWithFlexibleDates = Omit<Task, "createdAt" | "updatedAt"> & {
-  createdAt: Date | string;
-  updatedAt: Date | string;
-};
-
 function getColumnId(status: TaskStatus): TaskWithCoworker["columnId"] {
   switch (status) {
     case TaskStatus.DRAFT:
@@ -95,7 +90,7 @@ function replaceMentionsWithAgentNames(
 }
 
 export function mapTaskToTaskWithCoworker(
-  task: TaskWithFlexibleDates,
+  task: Task,
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, AgentWithCreditsPrice>,
 ): TaskWithCoworker {
@@ -109,10 +104,8 @@ export function mapTaskToTaskWithCoworker(
   const descriptionPlain = stripMarkdownToText(
     replaceMentionsWithAgentNames(task.description, agentsById),
   )?.slice(0, 200);
-  const createdAt =
-    task.createdAt instanceof Date ? task.createdAt.toISOString() : task.createdAt;
-  const updatedAt =
-    task.updatedAt instanceof Date ? task.updatedAt.toISOString() : task.updatedAt;
+  const createdAt = task.createdAt.toISOString();
+  const updatedAt = task.updatedAt.toISOString();
 
   return {
     id: task.id,

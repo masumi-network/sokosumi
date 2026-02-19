@@ -66,7 +66,11 @@ export interface ConversationWithItems extends Conversation {
   items?: ConversationItem[];
 }
 
-function toIsoString(value: unknown): string {
+/**
+ * Normalize date fields to ISO strings. coreClient returns Date instances;
+ * we convert to string for the Conversation type (server action result / JSON).
+ */
+function toIsoString(value: Date | string | unknown): string {
   if (value instanceof Date) {
     return value.toISOString();
   }

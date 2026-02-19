@@ -92,7 +92,9 @@ describe("core.client", () => {
       cache: "no-store",
       client: mockClient,
     });
-    expect(response.meta?.timestamp).toBe("2026-02-19T12:00:00.000Z");
+    expect(response.meta?.timestamp).toEqual(
+      new Date("2026-02-19T12:00:00.000Z"),
+    );
   });
 
   it("maps status codes and service-unavailable errors to action errors", async () => {

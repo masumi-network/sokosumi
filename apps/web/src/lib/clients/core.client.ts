@@ -97,27 +97,6 @@ function extractErrorMessage(error: unknown, status?: number): string {
   return "Failed to communicate with Core API";
 }
 
-function normalizeDates<T>(value: T): T {
-  if (value instanceof Date) {
-    return value.toISOString() as T;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeDates(item)) as T;
-  }
-
-  if (value && typeof value === "object") {
-    const objectValue = value as Record<string, unknown>;
-    const normalizedEntries = Object.entries(objectValue).map(([key, item]) => [
-      key,
-      normalizeDates(item),
-    ]);
-    return Object.fromEntries(normalizedEntries) as T;
-  }
-
-  return value;
-}
-
 type CoreOperationResult<TData, TError> = {
   data?: TData;
   error?: TError;
@@ -157,7 +136,7 @@ async function executeOperation<TData, TError>(
     });
   }
 
-  return normalizeDates(result.data);
+  return result.data;
 }
 
 export function mapCoreApiStatusToCommonErrorCode(
