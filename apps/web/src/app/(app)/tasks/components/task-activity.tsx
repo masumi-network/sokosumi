@@ -13,13 +13,19 @@ import {
   useState,
   useTransition,
 } from "react";
+import { toast } from "sonner";
 
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
+import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadTrigger,
+} from "@/components/ui/file-upload";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
 import {
@@ -34,8 +40,16 @@ import type { TaskEvent } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import {
+  extractTaskAttachmentUrls,
+  formatTaskAttachmentMarkdown,
+  removeTaskAttachmentLinks,
+  sanitizeTaskAttachmentLabel,
+  uploadTaskAttachment,
+} from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
 
+import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import {
   getTaskStatusDotColorClass,
   TaskStatusBadge,
@@ -136,10 +150,18 @@ export function TaskActivitySection({
   const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
+  const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
+  const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const [comment, setComment] = useState("");
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+  const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
+  const attachmentUrls = useMemo(
+    () => extractTaskAttachmentUrls(comment),
+    [comment],
+  );
 
   useEffect(() => {
     setLocalEvents(events);
@@ -152,29 +174,12 @@ export function TaskActivitySection({
   }, [localEvents]);
 
   const trimmedComment = comment.trim();
+  const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const isSubmitDisabled =
-    isPending || trimmedComment.length === 0 || !currentUser?.id;
-
-  function handleTextareaKeyDown(
-    event: React.KeyboardEvent<HTMLTextAreaElement>,
-  ) {
-    if (event.key !== "Enter") {
-      return;
-    }
-
-    const isSubmitCombo = event.metaKey || event.ctrlKey;
-    if (!isSubmitCombo || event.shiftKey || event.altKey) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (isSubmitDisabled) {
-      return;
-    }
-
-    formRef.current?.requestSubmit();
-  }
+    isPending ||
+    trimmedComment.length === 0 ||
+    !currentUser?.id ||
+    isUploadingAttachments;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -218,6 +223,35 @@ export function TaskActivitySection({
     });
   }
 
+  const handleAttachFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    setUploadingAttachmentsCount((count) => count + 1);
+    try {
+      for (const file of files) {
+        const uploadedUrl = await uploadTaskAttachment(file);
+        const safeName = sanitizeTaskAttachmentLabel(file.name, t("fileLabel"));
+        if (markdownEditorRef.current) {
+          markdownEditorRef.current.insertLink(safeName, uploadedUrl);
+          markdownEditorRef.current.insertText("\n");
+          continue;
+        }
+        const markdownLink = formatTaskAttachmentMarkdown(
+          safeName,
+          uploadedUrl,
+        );
+        setComment(
+          (prev) => `${prev}${prev.endsWith("\n") ? "" : "\n"}${markdownLink}`,
+        );
+      }
+    } catch (_error) {
+      toast.error(t("uploadFileErrorRetry"));
+    } finally {
+      setPendingUploadFiles([]);
+      setUploadingAttachmentsCount((count) => count - 1);
+    }
+  };
+
   return (
     <section className="space-y-4">
       <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
@@ -227,13 +261,55 @@ export function TaskActivitySection({
         onSubmit={handleSubmit}
         className="border-border/50 rounded-lg border p-3"
       >
-        <Textarea
-          placeholder={placeholder}
-          className="min-h-16 resize-none border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-          value={comment}
-          onChange={(event) => setComment(event.target.value)}
-          onKeyDown={handleTextareaKeyDown}
-        />
+        <FileUpload
+          value={pendingUploadFiles}
+          onValueChange={setPendingUploadFiles}
+          onAccept={(files) => {
+            void handleAttachFiles(files);
+          }}
+          multiple
+        >
+          <FileUploadDropzone
+            className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+            onClick={(event) => event.preventDefault()}
+          >
+            <MarkdownEditor
+              ref={markdownEditorRef}
+              placeholder={placeholder}
+              className="border-border/50 bg-muted-foreground/5 w-full rounded-lg border"
+              value={comment}
+              onChange={setComment}
+              onSubmitShortcut={() => formRef.current?.requestSubmit()}
+              onAttachClick={() => attachmentTriggerRef.current?.click()}
+              attachLabel={_attachLabel}
+              isAttachmentUploading={isUploadingAttachments}
+            />
+            <FileUploadTrigger asChild>
+              <button
+                ref={attachmentTriggerRef}
+                type="button"
+                className="sr-only"
+                aria-label={_attachLabel}
+              >
+                {_attachLabel}
+              </button>
+            </FileUploadTrigger>
+          </FileUploadDropzone>
+        </FileUpload>
+        {attachmentUrls.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-3">
+            {attachmentUrls.map((url) => (
+              <FileChipMiniPreviewWithMetadata
+                key={url}
+                url={url}
+                onRemove={() =>
+                  setComment((prev) => removeTaskAttachmentLinks(prev, [url]))
+                }
+                removeLabel={t("removeAttachment")}
+              />
+            ))}
+          </div>
+        ) : null}
         <div className="mt-2 flex items-center gap-3">
           {!isMobile ? (
             <div className="text-muted-foreground flex items-center gap-2 text-xs">

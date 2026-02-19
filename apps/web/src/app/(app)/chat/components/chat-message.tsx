@@ -150,7 +150,7 @@ export default function ChatMessage({
             className={cn(
               "min-h-6 rounded-lg",
               isUser
-                ? "bg-gray-200 px-3 py-3 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
+                ? "bg-muted-foreground/10 text-foreground px-3 py-3"
                 : "text-foreground bg-transparent pr-10 pb-3",
             )}
           >

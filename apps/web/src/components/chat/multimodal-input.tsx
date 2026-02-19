@@ -381,7 +381,7 @@ function PureMultimodalInput({
             <StopButton setMessages={setMessages} stop={stop} />
           ) : (
             <PromptInputSubmit
-              className="disabled:bg-muted disabled:text-muted-foreground size-8 rounded-md bg-black text-white transition-colors duration-200 hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
+              className="size-8 rounded-full transition-colors duration-200"
               data-testid="send-button"
               disabled={!input.trim()}
               status={status}

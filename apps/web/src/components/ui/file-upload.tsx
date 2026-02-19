@@ -758,9 +758,6 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
 
       if (event.defaultPrevented) return;
 
-      event.preventDefault();
-      store.dispatch({ type: "SET_DRAG_OVER", dragOver: false });
-
       const items = event.clipboardData?.items;
       if (!items) return;
 
@@ -776,6 +773,9 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
       }
 
       if (files.length === 0) return;
+
+      event.preventDefault();
+      store.dispatch({ type: "SET_DRAG_OVER", dragOver: false });
 
       const inputElement = context.inputRef.current;
       if (!inputElement) return;
@@ -794,6 +794,9 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
   const onKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       onKeyDownProp?.(event);
+
+      // Ignore key events originating from nested controls/editors.
+      if (event.currentTarget !== event.target) return;
 
       if (
         !event.defaultPrevented &&
