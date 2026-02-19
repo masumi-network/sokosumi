@@ -8,6 +8,7 @@ export { FileInput } from "./file-input";
 export { HiddenInput } from "./hidden-input";
 export { MonthInput } from "./month-input";
 export { MultiselectInput } from "./multiselect-input";
+export { NoneInput } from "./none-input";
 export { NumberInput } from "./number-input";
 export { OptionInput } from "./option-input";
 export { PasswordInput } from "./password-input";

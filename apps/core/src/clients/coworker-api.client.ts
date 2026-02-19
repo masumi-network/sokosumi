@@ -162,6 +162,19 @@ function createResponsesApiUiStream(
     controller.close();
   }
 
+  function emitDataReasoning(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    message: string,
+    id: string,
+  ) {
+    if (streamClosed || textStarted) return;
+    const event = {
+      type: "data-reasoning",
+      data: { message, id },
+    };
+    controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+  }
+
   function handleTextDelta(
     delta: string,
     controller: ReadableStreamDefaultController<Uint8Array>,
@@ -205,7 +218,21 @@ function createResponsesApiUiStream(
         text?: string;
         id?: string;
         status?: string;
+        item?: { type?: string; id?: string };
       };
+
+      if (!textStarted) {
+        if (lastEventLine === "response.created") {
+          emitDataReasoning(controller, "Processing...", "reasoning-init");
+        } else if (lastEventLine === "response.output_item.added") {
+          const itemType = chunk.item?.type;
+          if (itemType === "reasoning") {
+            const id =
+              typeof chunk.item?.id === "string" ? chunk.item.id : "reasoning";
+            emitDataReasoning(controller, "Thinking...", id);
+          }
+        }
+      }
 
       const deltaValue =
         typeof chunk.delta === "string"

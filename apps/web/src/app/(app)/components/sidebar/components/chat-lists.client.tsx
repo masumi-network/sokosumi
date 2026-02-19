@@ -3,7 +3,7 @@
 import { ChevronDown, MessageSquare, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type SyntheticEvent, useEffect, useMemo, useState } from "react";
 
@@ -50,13 +50,10 @@ export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const router = useRouter();
   const { open, isMobile, toggleSidebar } = useSidebar();
-  const {
-    conversations,
-    refreshConversations,
-    deleteConversationById,
-    selectedConversation,
-  } = useConversationsContext();
+  const { conversations, refreshConversations, deleteConversationById } =
+    useConversationsContext();
   const { coworkers } = useCoworkersContext();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const conversationId = searchParams?.get("conversationId");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
@@ -138,12 +135,11 @@ export default function ChatListsClient() {
   }, [conversations]);
 
   const effectiveConversationId =
-    conversationId && conversations.some((c) => c.id === conversationId)
+    pathname === "/chat" &&
+    conversationId &&
+    conversations.some((c) => c.id === conversationId)
       ? conversationId
-      : (selectedConversation?.id ??
-        sortedConversations[0]?.id ??
-        conversationId ??
-        null);
+      : null;
 
   return (
     <Collapsible
