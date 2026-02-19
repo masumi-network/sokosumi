@@ -664,12 +664,12 @@ export default function ChatInterface({
             conversationId = await handleModelSelected(modelToUse);
           }
         } else {
-          // Use provided coworker or default to Hannah
+          // Use provided coworker or default to Elena
           const selectedCoworker: Coworker = coworker || {
-            id: "hannah",
-            name: t("coworkers.hannah.name"),
-            description: t("coworkers.hannah.description"),
-            useCase: t("coworkers.hannah.useCase"),
+            id: "elena",
+            name: t("coworkers.elena.name"),
+            description: t("coworkers.elena.description"),
+            useCase: t("coworkers.elena.useCase"),
           };
           conversationId = await handleCoworkerSelected(selectedCoworker);
         }
