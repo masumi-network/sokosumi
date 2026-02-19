@@ -1,13 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { forbidden, internalServerError, notFound } from "@/helpers/error";
+import {
+  conflict,
+  forbidden,
+  internalServerError,
+  notFound,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { noticeAcknowledgmentResponseSchema } from "@/schemas/notice.schema";
-
-import { assertNoticeIsAcknowledgeableForUser } from "../../helper";
 
 const requestParamsSchema = z.object({
   id: z.string().openapi({
@@ -72,15 +75,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw internalServerError("Failed to retrieve user");
       }
 
-      const notice = await tx.notice.findUnique({
-        where: {
-          id: noticeId,
-        },
-      });
-      if (!notice) {
-        throw notFound("Notice not found");
-      }
-
       const existingAcknowledgment = await tx.noticeAcknowledgment.findUnique({
         where: {
           userId_noticeId: {
@@ -101,20 +95,68 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       }
 
-      assertNoticeIsAcknowledgeableForUser(notice, user.createdAt);
+      const applicableNotice = await tx.notice.findFirst({
+        where: {
+          id: noticeId,
+          isActive: true,
+          effectiveAt: {
+            lte: now,
+            gt: user.createdAt,
+          },
+        },
+        select: { id: true },
+      });
 
-      const acknowledgment = await tx.noticeAcknowledgment.create({
-        data: {
-          userId: authContext.userId,
+      if (!applicableNotice) {
+        const noticeExists = await tx.notice.findUnique({
+          where: { id: noticeId },
+          select: { id: true },
+        });
+        if (!noticeExists) {
+          throw notFound("Notice not found");
+        }
+        throw conflict("Notice is not currently applicable");
+      }
+
+      const createResult = await tx.noticeAcknowledgment.createMany({
+        data: [
+          {
+            userId: authContext.userId,
+            noticeId,
+            acknowledgedAt: now,
+          },
+        ],
+        skipDuplicates: true,
+      });
+
+      if (createResult.count === 1) {
+        return {
           noticeId,
           acknowledgedAt: now,
+          alreadyAcknowledged: false,
+        };
+      }
+
+      const acknowledgedAfterRace = await tx.noticeAcknowledgment.findUnique({
+        where: {
+          userId_noticeId: {
+            userId: authContext.userId,
+            noticeId,
+          },
+        },
+        select: {
+          acknowledgedAt: true,
         },
       });
 
+      if (!acknowledgedAfterRace) {
+        throw internalServerError("Failed to acknowledge notice");
+      }
+
       return {
         noticeId,
-        acknowledgedAt: acknowledgment.acknowledgedAt,
-        alreadyAcknowledged: false,
+        acknowledgedAt: acknowledgedAfterRace.acknowledgedAt,
+        alreadyAcknowledged: true,
       };
     });
 

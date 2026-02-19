@@ -180,6 +180,54 @@ describe("POST /notices/{id}/acknowledge", () => {
     });
   });
 
+  it("returns existing acknowledgment when create is skipped due to race", async () => {
+    const tx: TransactionMock = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        }),
+      },
+      notice: {
+        findFirst: vi.fn().mockResolvedValue({ id: NOTICE_ID }),
+        findUnique: vi.fn(),
+      },
+      noticeAcknowledgment: {
+        findUnique: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({
+          acknowledgedAt: EXISTING_ACKNOWLEDGED_AT,
+        }),
+        createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/notices/${NOTICE_ID}/acknowledge`,
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(tx.noticeAcknowledgment.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          userId: USER_ID,
+          noticeId: NOTICE_ID,
+          acknowledgedAt: CREATED_ACKNOWLEDGED_AT,
+        },
+      ],
+      skipDuplicates: true,
+    });
+
+    const body = await response.json();
+    expect(body.data).toEqual({
+      noticeId: NOTICE_ID,
+      acknowledgedAt: EXISTING_ACKNOWLEDGED_AT.toISOString(),
+      alreadyAcknowledged: true,
+    });
+  });
+
   it("returns 404 when notice does not exist", async () => {
     const tx: TransactionMock = {
       user: {
