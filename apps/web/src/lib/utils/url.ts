@@ -1,4 +1,5 @@
 import { siteConfig } from "@/config/site";
+import type { SocialProviderId } from "@/lib/schemas";
 
 export function getHostname(rawUrl: string): string | null {
   try {
