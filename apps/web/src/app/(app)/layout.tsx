@@ -9,8 +9,6 @@ import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import { chatUIEnabled } from "@/lib/flags/chat";
-import { taskManagerMenuEnabled } from "@/lib/flags/task-manager";
 import { userService } from "@/lib/services";
 
 import Header from "./components/header";
@@ -37,16 +35,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStorePromise = cookies();
   const session = await getSessionOrRedirect();
 
-  const [
-    cookieStore,
-    isTaskManagerMenuEnabled,
-    pendingInvitationId,
-    isChatUIEnabled,
-  ] = await Promise.all([
+  const [cookieStore, pendingInvitationId] = await Promise.all([
     cookieStorePromise,
-    taskManagerMenuEnabled(),
     userService.getFirstPendingInvitationId(),
-    chatUIEnabled(),
   ]);
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
@@ -61,11 +52,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       data-app-shell
       className="flex max-w-svw overflow-clip"
     >
-      <Sidebar
-        session={session}
-        taskManagerMenuEnabled={isTaskManagerMenuEnabled}
-        chatUIEnabled={isChatUIEnabled}
-      />
+      <Sidebar session={session} />
       <div
         className="flex min-w-0 flex-1 flex-col overflow-clip"
         data-app-content
@@ -89,13 +76,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <QueryProvider>
-      {isChatUIEnabled ? (
-        <ConversationsProvider>
-          <CoworkersProvider>{content}</CoworkersProvider>
-        </ConversationsProvider>
-      ) : (
-        content
-      )}
+      <ConversationsProvider>
+        <CoworkersProvider>{content}</CoworkersProvider>
+      </ConversationsProvider>
       {shouldShowOnboarding && <OnboardingDialog />}
     </QueryProvider>
   );
