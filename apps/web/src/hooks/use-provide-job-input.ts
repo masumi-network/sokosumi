@@ -8,10 +8,13 @@ import { toast } from "sonner";
 import { CommonErrorCode } from "@/lib/actions";
 import { provideJobInput } from "@/lib/actions/job/action";
 import { JobInputsFormSchemaType, prepareInputValues } from "@/lib/job-input";
+import { mergeReadonlyInputValues } from "@/lib/utils/job-input-transformers";
 
 export interface UseProvideJobInputOptions {
   jobId: string;
   statusId: string | null | undefined;
+  readonlyInputValues?: Record<string, string>;
+  inputFieldIdsInOrder?: string[];
   onSuccess?: () => void;
 }
 
@@ -23,6 +26,8 @@ export interface UseProvideJobInputReturn {
 export function useProvideJobInput({
   jobId,
   statusId,
+  readonlyInputValues,
+  inputFieldIdsInOrder,
   onSuccess,
 }: UseProvideJobInputOptions): UseProvideJobInputReturn {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
@@ -37,6 +42,11 @@ export function useProvideJobInput({
 
       try {
         const transformedInputData = prepareInputValues(allValues);
+        const inputData = mergeReadonlyInputValues(
+          transformedInputData,
+          readonlyInputValues,
+          inputFieldIdsInOrder,
+        );
 
         if (!statusId) {
           throw new Error("Status ID is required");
@@ -46,7 +56,7 @@ export function useProvideJobInput({
           input: {
             jobId,
             statusId,
-            inputData: transformedInputData,
+            inputData,
           },
         });
         setIsSubmitting(false);
@@ -73,7 +83,16 @@ export function useProvideJobInput({
         toast.error(t("submitError"));
       }
     },
-    [jobId, statusId, t, tForm, router, onSuccess],
+    [
+      inputFieldIdsInOrder,
+      jobId,
+      onSuccess,
+      readonlyInputValues,
+      router,
+      statusId,
+      t,
+      tForm,
+    ],
   );
 
   return { handleSubmit, isSubmitting };
