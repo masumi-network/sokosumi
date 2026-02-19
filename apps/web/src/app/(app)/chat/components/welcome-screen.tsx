@@ -86,7 +86,7 @@ export default function WelcomeScreen({
                 : "max-h-0 opacity-0",
             )}
           >
-            <p className="text-muted-foreground mt-8 mb-3 text-sm font-medium">
+            <p className="text-muted-foreground mt-8 mb-2 text-xs font-medium">
               {t("welcomeScreen.suggestionsLabel")}
             </p>
             <ul className="flex flex-col gap-2">

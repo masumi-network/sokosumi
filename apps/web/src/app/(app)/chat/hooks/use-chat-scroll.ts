@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface UseChatScrollProps {
   messages: UIMessage[];
@@ -9,74 +9,41 @@ interface UseChatScrollProps {
   selectedChatId: string | null;
 }
 
-/**
- * Hook to handle auto-scrolling to bottom when new messages arrive
- */
+const NEAR_BOTTOM_THRESHOLD_PX = 120;
+
+/** Auto-scroll to bottom when new messages arrive; respects user scroll-up. */
 export function useChatScroll({
   messages,
   isLoading,
   selectedChatId,
 }: UseChatScrollProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const userHasScrolledUpRef = useRef(false);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    const scrollToBottom = () => {
-      if (scrollAreaRef.current) {
-        const scrollContainer = scrollAreaRef.current?.querySelector(
-          '[data-slot="scroll-area-viewport"]',
-        ) as HTMLElement | null;
-        if (scrollContainer) {
-          scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        }
-      }
-    };
+  const isNearBottom = useCallback((container: HTMLElement): boolean => {
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollTop + clientHeight >= scrollHeight - NEAR_BOTTOM_THRESHOLD_PX;
+  }, []);
 
-    // Scroll immediately
-    scrollToBottom();
-
-    // Use requestAnimationFrame for smooth scrolling
-    requestAnimationFrame(() => {
-      scrollToBottom();
-    });
-
-    // During streaming, continuously scroll to bottom more aggressively
-    if (isLoading) {
-      const interval = setInterval(() => {
-        scrollToBottom();
-      }, 50); // Check every 50ms during streaming for smoother updates
-
-      return () => clearInterval(interval);
-    }
-  }, [messages, isLoading, selectedChatId]);
-
-  // Also use MutationObserver to catch DOM changes during streaming
-  useEffect(() => {
-    if (!selectedChatId || messages.length === 0) return;
+  const scrollToBottomIfNear = useCallback(() => {
     if (!scrollAreaRef.current) return;
-
+    if (userHasScrolledUpRef.current) return;
     const scrollContainer = scrollAreaRef.current.querySelector(
       '[data-slot="scroll-area-viewport"]',
     ) as HTMLElement | null;
-
     if (!scrollContainer) return;
-
-    const scrollToBottom = () => {
+    if (isNearBottom(scrollContainer)) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
-    };
+    }
+  }, [isNearBottom]);
 
-    const observer = new MutationObserver(() => {
-      requestAnimationFrame(scrollToBottom);
-    });
+  useEffect(() => {
+    if (!isLoading) userHasScrolledUpRef.current = false;
+  }, [isLoading]);
 
-    observer.observe(scrollContainer, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-
-    return () => observer.disconnect();
-  }, [selectedChatId, messages.length]);
+  useEffect(() => {
+    userHasScrolledUpRef.current = false;
+  }, [selectedChatId]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -88,6 +55,87 @@ export function useChatScroll({
       }
     }
   };
+
+  useEffect(() => {
+    if (isLoading) {
+      const interval = setInterval(scrollToBottomIfNear, 50);
+      return () => clearInterval(interval);
+    }
+    scrollToBottom();
+    requestAnimationFrame(() => {
+      scrollToBottom();
+    });
+  }, [messages, isLoading, selectedChatId, scrollToBottomIfNear]);
+
+  useEffect(() => {
+    if (!selectedChatId || messages.length === 0) return;
+    if (!scrollAreaRef.current) return;
+
+    const scrollContainer = scrollAreaRef.current.querySelector(
+      '[data-slot="scroll-area-viewport"]',
+    ) as HTMLElement | null;
+
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      userHasScrolledUpRef.current = !isNearBottom(scrollContainer);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY > 0) userHasScrolledUpRef.current = true;
+    };
+    let lastTouchY: number | null = null;
+    const handleTouchStart = (e: TouchEvent) => {
+      lastTouchY = e.touches.length === 1 ? e.touches[0].clientY : null;
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || lastTouchY === null) return;
+      const touchY = e.touches[0].clientY;
+      if (touchY < lastTouchY) userHasScrolledUpRef.current = true;
+      lastTouchY = touchY;
+    };
+    const handleTouchEnd = () => {
+      lastTouchY = null;
+    };
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+    scrollContainer.addEventListener("wheel", handleWheel, { passive: true });
+    scrollContainer.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    scrollContainer.addEventListener("touchmove", handleTouchMove, {
+      passive: true,
+    });
+    scrollContainer.addEventListener("touchend", handleTouchEnd, {
+      passive: true,
+    });
+
+    const onMutation = () => {
+      requestAnimationFrame(() => {
+        if (userHasScrolledUpRef.current) return;
+        if (isNearBottom(scrollContainer)) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      });
+    };
+
+    const observer = new MutationObserver(onMutation);
+
+    observer.observe(scrollContainer, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll);
+      scrollContainer.removeEventListener("wheel", handleWheel);
+      scrollContainer.removeEventListener("touchstart", handleTouchStart);
+      scrollContainer.removeEventListener("touchmove", handleTouchMove);
+      scrollContainer.removeEventListener("touchend", handleTouchEnd);
+      observer.disconnect();
+    };
+  }, [selectedChatId, messages.length, isNearBottom]);
 
   return { scrollAreaRef, scrollToBottom };
 }

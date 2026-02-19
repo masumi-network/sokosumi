@@ -54,7 +54,6 @@ export default function MessageList({
     };
   });
 
-  // Check if the last message is an assistant message being streamed (or empty and still loading)
   const lastMessage = messagesWithTimestamps[messagesWithTimestamps.length - 1];
   const lastMessageContent =
     lastMessage && lastMessage.role === "assistant"

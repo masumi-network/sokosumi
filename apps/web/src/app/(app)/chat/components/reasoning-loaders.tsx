@@ -19,7 +19,6 @@ export default function ReasoningLoaders({
 }: ReasoningLoadersProps) {
   if (reasoningMessages.length === 0) return null;
 
-  // Show only the latest reasoning state on a single line (replaces previous)
   const latest = reasoningMessages[reasoningMessages.length - 1];
   return (
     <div className="flex flex-col gap-0">

@@ -131,7 +131,6 @@
   --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
 
-  /* Reasoning state text: darker default, shine sweeps left-to-right (lighter) */
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
 
   @keyframes accordion-down {
@@ -560,7 +559,6 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   }
 }
 
-/* Welcome screen: staggered suggestion items */
 @keyframes welcome-suggestion-in {
   from {
     opacity: 0;
@@ -576,7 +574,6 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   animation: welcome-suggestion-in 0.3s ease-out both;
 }
 
-/* Reasoning state: darker text with left-to-right lighter shine */
 @utility reasoning-text-shine {
   background: linear-gradient(
     90deg,
