@@ -6,10 +6,7 @@ import { getSession } from "@/lib/auth/utils";
 import { getEmailDomain } from "@/lib/utils/email";
 
 const TASK_MANAGER_DOMAINS = new Set(["nmkr.io", "house-of-communication.com"]);
-const TASK_MANAGER_EMAIL_ALLOWLIST = new Set([
-  "s.kuepers@house-of-communication.com",
-  "thinkngrowcrypto@gmail.com",
-]);
+const TASK_MANAGER_EMAIL_ALLOWLIST = new Set(["thinkngrowcrypto@gmail.com"]);
 
 function isTaskManagerDomain(email: string): boolean {
   const domain = getEmailDomain(email);
