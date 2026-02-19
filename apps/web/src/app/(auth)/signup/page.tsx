@@ -20,17 +20,18 @@ interface SignUpPageProps {
   searchParams: Promise<{
     email?: string;
     invitationId?: string;
+    returnUrl?: string;
   }>;
 }
 
 export default async function SignUp({ searchParams }: SignUpPageProps) {
-  const { email, invitationId } = await searchParams;
+  const { email, invitationId, returnUrl } = await searchParams;
 
   return (
     <div className="flex flex-1 flex-col">
       <SignUpHeader invitationId={invitationId} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <SocialButtons />
+        <SocialButtons returnUrl={returnUrl} />
         <Divider />
         <SignUpForm prefilledEmail={email} invitationId={invitationId} />
       </div>

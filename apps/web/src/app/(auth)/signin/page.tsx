@@ -27,7 +27,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
     <div className="flex flex-1 flex-col">
       <SignInHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <SocialButtons />
+        <SocialButtons returnUrl={returnUrl} />
         <Divider />
         <SignInForm returnUrl={returnUrl} prefilledEmail={email} />
       </div>
