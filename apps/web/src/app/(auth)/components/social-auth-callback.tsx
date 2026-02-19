@@ -10,19 +10,30 @@ interface SocialAuthCallbackProps {
   eventType: "signUp" | "signIn";
 }
 
+function getValidRedirectUrl(returnUrl: string | null): string {
+  // Normalize root to /chat (our initial page) so social login matches credential behavior
+  const normalized = returnUrl?.trim() || "";
+  if (!normalized || normalized === "/") return "/chat";
+  try {
+    const url = new URL(normalized, window.location.origin);
+    return url.origin === window.location.origin ? normalized : "/chat";
+  } catch {
+    return "/chat";
+  }
+}
+
 export default function SocialAuthCallback({
   eventType,
 }: SocialAuthCallbackProps) {
   const router = useRouter();
 
   useEffect(() => {
-    const provider = new URLSearchParams(window.location.search).get(
-      "provider",
-    );
+    const params = new URLSearchParams(window.location.search);
+    const provider = params.get("provider");
+    const returnUrl = params.get("returnUrl");
     const validationResult = socialProviderIdSchema.safeParse(provider);
 
     if (validationResult.success && validationResult.data !== "credential") {
-      // Fire the appropriate GTM event based on whether it's sign-up or sign-in
       switch (eventType) {
         case "signUp":
           fireGTMEvent.signUp(validationResult.data);
@@ -33,8 +44,8 @@ export default function SocialAuthCallback({
       }
     }
 
-    // Immediately redirect to root so the app handles routing
-    router.replace("/");
+    const redirectUrl = getValidRedirectUrl(returnUrl);
+    router.replace(redirectUrl);
   }, [router, eventType]);
 
   return (

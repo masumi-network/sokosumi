@@ -41,7 +41,9 @@ export default function LogoutModal({
           toast.error(t("error"));
         },
         onSuccess: () => {
-          router.push("/login");
+          const returnUrl =
+            window.location.pathname + window.location.search || "/chat";
+          router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
         },
       },
     });
