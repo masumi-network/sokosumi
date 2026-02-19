@@ -10,8 +10,8 @@ function buildTask(
 ): TaskInput {
   return {
     id: "task-1",
-    createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     userId: "user-1",
     organizationId: null,
     coworkerId: null,
