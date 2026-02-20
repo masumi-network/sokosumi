@@ -32,6 +32,8 @@ import {
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 
+const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
+
 export interface TaskFormLabels {
   details: string;
   detailsDescription: string;
@@ -82,7 +84,7 @@ export function TaskForm({
   mode,
   labels,
   coworkerOptions,
-  agentNameById = new Map<string, string>(),
+  agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
   variant = "page",

@@ -26,12 +26,22 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import {
   createMentionSpan,
+  deslugifyMentionSlug,
+  findPositionForOffset,
+  getActiveTrigger,
+  getCaretRect,
   getMentionToken,
-  isLineBreak,
+  getPopupPositionFromRect,
   isMentionSpan,
-  isWhitespaceChar,
-  serializeEditorText,
+  MENTION_CLASSNAME,
+  type MentionRecordEntry,
+  type NormalizedMention,
+  serializeEditor,
+  setCaretAfterNode,
   shouldAppendTrailingSpace,
+  type TriggerPosition,
+  UNKNOWN_MENTION_CLASSNAME,
+  VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -44,19 +54,6 @@ import {
   unescapeMarkdownLinkUrl,
 } from "@/lib/utils/markdown-links";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
-
-interface MentionRecordEntry<TData = unknown> {
-  value: string;
-  slug?: string | null;
-  data?: TData;
-}
-
-interface NormalizedMention<TData = unknown> {
-  key: string;
-  value: string;
-  slug: string;
-  data?: TData;
-}
 
 interface MarkdownEditorProps {
   id?: string;
@@ -81,22 +78,7 @@ export interface MarkdownEditorHandle {
   insertLink: (label: string, url: string) => void;
 }
 
-interface TriggerPosition {
-  top: number;
-  left: number;
-}
-
-const POPUP_HEIGHT_PX = 240;
-const POPUP_WIDTH_PX = 288;
-const VIEWPORT_PADDING_PX = 8;
-const MENTION_CLASSNAME =
-  "text-primary cursor-pointer font-semibold hover:underline";
-const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
 const PERSISTED_INTERNAL_MENTION_REGEX = /@@MENTION_?(\d+)@@/g;
-
-function deslugifyMentionSlug(slug: string): string {
-  return slug.replace(/-/g, " ");
-}
 
 function normalizePersistedInternalMentions(text: string): string {
   return text.replace(
@@ -104,227 +86,6 @@ function normalizePersistedInternalMentions(text: string): string {
     (_match, mentionIndex: string) =>
       `@unknown-mention-${mentionIndex}:unknown-mention-${mentionIndex}`,
   );
-}
-
-function getMentionTokenLength(span: HTMLSpanElement): number {
-  return getMentionToken(
-    span.dataset.mentionKey ?? "",
-    span.dataset.mentionSlug ?? "",
-  ).length;
-}
-
-function getSerializedLength(node: Node): number {
-  if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent?.length ?? 0;
-  }
-
-  if (isMentionSpan(node)) {
-    return getMentionTokenLength(node);
-  }
-
-  if (isLineBreak(node)) {
-    return 1;
-  }
-
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    let result = 0;
-    node.childNodes.forEach((child) => {
-      result += getSerializedLength(child);
-    });
-    return result;
-  }
-
-  return 0;
-}
-
-function getSerializedOffset(
-  root: HTMLElement,
-  targetNode: Node,
-  targetOffset: number,
-): number {
-  let offset = 0;
-
-  function traverse(node: Node): boolean {
-    if (node === targetNode) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        offset += targetOffset;
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const children = Array.from(node.childNodes);
-        for (let index = 0; index < targetOffset; index += 1) {
-          offset += getSerializedLength(children[index]);
-        }
-      }
-      return true;
-    }
-
-    if (
-      node.nodeType === Node.TEXT_NODE ||
-      isMentionSpan(node) ||
-      isLineBreak(node)
-    ) {
-      offset += getSerializedLength(node);
-      return false;
-    }
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      for (const child of Array.from(node.childNodes)) {
-        if (traverse(child)) return true;
-      }
-    }
-
-    return false;
-  }
-
-  traverse(root);
-  return offset;
-}
-
-function getCaretOffset(root: HTMLElement): number | null {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return null;
-  const range = selection.getRangeAt(0);
-  if (!root.contains(range.endContainer)) return null;
-  return getSerializedOffset(root, range.endContainer, range.endOffset);
-}
-
-function serializeEditor(root: HTMLElement): { text: string; caret: number } {
-  const serializedText = serializeEditorText(root);
-  const caret = getCaretOffset(root) ?? serializedText.length;
-  return { text: serializedText, caret };
-}
-
-function findPositionForOffset(
-  root: HTMLElement,
-  targetOffset: number,
-): { node: Node; offset: number } {
-  let remaining = targetOffset;
-
-  function walk(node: Node): { node: Node; offset: number } | null {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const length = node.textContent?.length ?? 0;
-      if (remaining <= length) {
-        return { node, offset: remaining };
-      }
-      remaining -= length;
-      return null;
-    }
-
-    if (isMentionSpan(node)) {
-      const length = getMentionTokenLength(node);
-      if (remaining <= length) {
-        const parent = node.parentNode ?? root;
-        const index = Array.from(parent.childNodes).indexOf(node);
-        return {
-          node: parent,
-          offset: remaining === length ? index + 1 : index,
-        };
-      }
-      remaining -= length;
-      return null;
-    }
-
-    if (isLineBreak(node)) {
-      if (remaining <= 1) {
-        const parent = node.parentNode ?? root;
-        const index = Array.from(parent.childNodes).indexOf(node);
-        return { node: parent, offset: remaining === 1 ? index + 1 : index };
-      }
-      remaining -= 1;
-      return null;
-    }
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const children = Array.from(node.childNodes);
-      for (const child of children) {
-        const result = walk(child);
-        if (result) return result;
-      }
-    }
-
-    return null;
-  }
-
-  return walk(root) ?? { node: root, offset: root.childNodes.length };
-}
-
-function setCaretAfterNode(root: HTMLElement, node: Node): void {
-  const selection = window.getSelection();
-  if (!selection) return;
-  const range = document.createRange();
-  if (node.nodeType === Node.TEXT_NODE) {
-    range.setStart(node, node.textContent?.length ?? 0);
-  } else {
-    const parent = node.parentNode ?? root;
-    const index = Array.from(parent.childNodes).indexOf(node as ChildNode);
-    range.setStart(parent, index + 1);
-  }
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
-function getActiveTrigger(
-  text: string,
-  caret: number,
-): { query: string; triggerStart: number } | null {
-  const clampedCaret = Math.max(0, Math.min(caret, text.length));
-  if (clampedCaret === 0) return null;
-
-  let tokenStart = clampedCaret;
-  while (tokenStart > 0 && !isWhitespaceChar(text[tokenStart - 1] ?? "")) {
-    tokenStart -= 1;
-  }
-
-  if (text[tokenStart] !== "@") return null;
-
-  const query = text.slice(tokenStart + 1, clampedCaret);
-  if (query.includes("@")) return null;
-
-  return { query, triggerStart: tokenStart };
-}
-
-function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
-  let top = rect.bottom;
-  let left = rect.left;
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
-
-  if (top + POPUP_HEIGHT_PX > viewportHeight - VIEWPORT_PADDING_PX) {
-    top = rect.top - POPUP_HEIGHT_PX;
-    if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
-  }
-
-  if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
-
-  if (left < VIEWPORT_PADDING_PX) left = VIEWPORT_PADDING_PX;
-  const maxLeft = viewportWidth - POPUP_WIDTH_PX - VIEWPORT_PADDING_PX;
-  if (left > maxLeft && maxLeft > 0) left = maxLeft;
-
-  return { top, left };
-}
-
-function getCaretRect(root: HTMLElement): DOMRect | null {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return null;
-  const range = selection.getRangeAt(0);
-  if (!root.contains(range.endContainer)) return null;
-
-  const rect = range.getBoundingClientRect();
-  if (rect.width !== 0 || rect.height !== 0) return rect;
-
-  const marker = document.createElement("span");
-  marker.textContent = "\u200b";
-
-  const markerRange = range.cloneRange();
-  markerRange.collapse(true);
-  markerRange.insertNode(marker);
-  const markerRect = marker.getBoundingClientRect();
-  marker.remove();
-
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  return markerRect;
 }
 
 export const MarkdownEditor = forwardRef<
