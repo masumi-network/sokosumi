@@ -7,6 +7,7 @@ import { ok } from "@/helpers/response";
 import { isTaskArchivableStatus, mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
@@ -35,7 +36,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {

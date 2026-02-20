@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { requireCoworkerExists } from "@/helpers/access-control";
-import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
@@ -11,6 +10,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
@@ -66,20 +66,15 @@ const route = withGlobalHeaderParameters(
       201: jsonSuccessResponse(taskSchema, "Create task"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
     },
   }),
 );
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const body = c.req.valid("json");
-
-    if (authContext.coworkerId) {
-      throw forbidden(
-        "A coworker cannot create tasks. Please use the users authToken to create tasks.",
-      );
-    }
 
     const task = await prisma.$transaction(async (tx) => {
       validateTaskCoworkerAssignment({

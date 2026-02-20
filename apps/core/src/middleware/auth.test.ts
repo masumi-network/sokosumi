@@ -91,8 +91,7 @@ describe("authMiddleware", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      userId: "user_api_key",
-      organizationId: "org_api_key",
+      actor: "coworker",
       coworkerId: "cow_123",
     });
     expect(getSessionMock).not.toHaveBeenCalled();
@@ -121,9 +120,9 @@ describe("authMiddleware", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
+      actor: "user",
       userId: "user_oauth",
       organizationId: null,
-      coworkerId: null,
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
@@ -163,9 +162,9 @@ describe("authMiddleware", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
+      actor: "user",
       userId: "user_session",
       organizationId: "org_session",
-      coworkerId: null,
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();

@@ -2,6 +2,7 @@ import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { describe, expect, it } from "vitest";
 
+import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
@@ -11,16 +12,15 @@ import {
   validateTaskCoworkerAssignment,
 } from "./task";
 
-const coworkerContext = {
-  userId: "user_123",
-  organizationId: null,
+const coworkerContext: AuthenticationContext = {
+  actor: "coworker",
   coworkerId: "cow_123",
 };
 
-const userContext = {
+const userContext: AuthenticationContext = {
+  actor: "user",
   userId: "user_123",
   organizationId: null,
-  coworkerId: null,
 };
 
 describe("validateStatusTransition", () => {

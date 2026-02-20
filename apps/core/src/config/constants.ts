@@ -56,6 +56,9 @@ export const LIMITS = {
 
   /** Maximum upload size for user files (25MB) */
   USER_UPLOAD_MAX_SIZE_BYTES: 25 * 1024 * 1024,
+
+  /** Minimum chargeable credits */
+  MIN_CHARGEABLE_CREDITS: 1e-10,
 } as const;
 
 /**

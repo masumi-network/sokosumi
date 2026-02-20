@@ -2,6 +2,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import type { AuthenticationContext } from "@/middleware/auth";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import type { TaskWithIncludes } from "@/types/task";
 
@@ -24,7 +25,7 @@ interface ValidateTaskCoworkerAssignmentParams {
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
-  if (authContext.coworkerId) {
+  if (isCoworkerAuthContext(authContext)) {
     return {
       [TaskStatus.DRAFT]: [],
       [TaskStatus.READY]: [
@@ -98,27 +99,23 @@ function getAllowedTransitions(
     };
   }
 
-  if (authContext.userId) {
-    return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
-      [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
-      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.OUT_OF_CREDITS]: [
-        TaskStatus.CREDITS_TOPPED_UP,
-        TaskStatus.CANCEL_REQUESTED,
-      ],
-      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.COMPLETED]: [],
-      [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
-      [TaskStatus.CANCEL_REQUESTED]: [],
-    };
-  }
-
-  throw unprocessableEntity("Invalid authentication context");
+  return {
+    [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+    [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
+    [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.OUT_OF_CREDITS]: [
+      TaskStatus.CREDITS_TOPPED_UP,
+      TaskStatus.CANCEL_REQUESTED,
+    ],
+    [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.COMPLETED]: [],
+    [TaskStatus.FAILED]: [],
+    [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
+    [TaskStatus.CANCEL_REQUESTED]: [],
+  };
 }
 
 export function validateStatusTransition(

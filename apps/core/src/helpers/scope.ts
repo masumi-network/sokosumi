@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 
-import type { AuthenticationContext } from "@/middleware/auth";
+import type { UserAuthenticationContext } from "@/middleware/auth";
 
 export const DEFAULT_SCOPE = "context" as const;
 
@@ -36,22 +36,11 @@ function deduplicateScopes<T extends string>(
   return Array.from(new Set(scopes));
 }
 
-function getEffectiveScopes<T extends string>(
-  authContext: AuthenticationContext,
-  scopes: readonly T[] | undefined,
-): T[] {
-  if (authContext.coworkerId) {
-    return [DEFAULT_SCOPE as T];
-  }
-
-  return deduplicateScopes(scopes);
-}
-
 export function buildTaskScopeFilters(
-  authContext: AuthenticationContext,
+  authContext: UserAuthenticationContext,
   scopes: readonly TaskScope[] | undefined,
 ): Prisma.TaskWhereInput[] {
-  const uniqueScopes = new Set(getEffectiveScopes(authContext, scopes));
+  const uniqueScopes = new Set(deduplicateScopes(scopes));
   const filters: Prisma.TaskWhereInput[] = [];
 
   if (uniqueScopes.has("context")) {
@@ -71,10 +60,10 @@ export function buildTaskScopeFilters(
 }
 
 export function buildJobScopeFilters(
-  authContext: AuthenticationContext,
+  authContext: UserAuthenticationContext,
   scopes: readonly JobScope[] | undefined,
 ): Prisma.JobWhereInput[] {
-  const uniqueScopes = new Set(getEffectiveScopes(authContext, scopes));
+  const uniqueScopes = new Set(deduplicateScopes(scopes));
   const filters: Prisma.JobWhereInput[] = [];
 
   if (uniqueScopes.has("context")) {

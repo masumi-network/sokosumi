@@ -1,12 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireCoworkerTaskAccess } from "@/helpers/access-control";
-import { forbidden } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { jobSchema } from "@/schemas/job.schema";
 import { createTaskJobRequestSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
@@ -46,22 +46,18 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireCoworkerAuthContext(c.var.authContext);
     const { id: taskId } = c.req.valid("param");
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");
-
-    if (!authContext.coworkerId) {
-      throw forbidden("Only the coworker can create jobs for a task");
-    }
 
     const job = await prisma.$transaction(async (tx) => {
       const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
       const job = await createAgentJobForUser({
         authContext: {
+          actor: "user",
           userId: task.userId,
           organizationId: task.organizationId,
-          coworkerId: null,
         },
         agentInput: {
           agentId,

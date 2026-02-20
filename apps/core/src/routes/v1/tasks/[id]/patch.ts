@@ -11,6 +11,7 @@ import { ok } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
@@ -61,13 +62,14 @@ const route = createRoute({
     200: jsonSuccessResponse(taskSchema, "Update task"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { name, description, coworkerId } = c.req.valid("json");
 
