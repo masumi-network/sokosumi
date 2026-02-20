@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { Prisma } from "@sokosumi/database";
+import { Prisma, TaskStatus } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
 import { requireTaskAccess } from "@/helpers/access-control";
@@ -8,19 +8,18 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
-  isTaskStatusChargable,
+  isTaskStatusSpendable,
   mapTaskEvent,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "@/helpers/task";
-import { createTaskEventTransaction } from "@/helpers/task-credits";
+import { createTaskEventTransactionCappedByBalance } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { isTaskStatusCreditable } from "./helper";
 import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
@@ -56,6 +55,14 @@ const route = createRoute({
   },
 });
 
+interface ResolveCoworkerStatusEventInput {
+  credits: number | null | undefined;
+  userId: string;
+  organizationId: string | null;
+  status: TaskStatus;
+  tx: Prisma.TransactionClient;
+}
+
 function getActorData(authContext: AuthenticationContext) {
   if (authContext.coworkerId) {
     return {
@@ -68,6 +75,43 @@ function getActorData(authContext: AuthenticationContext) {
       coworkerId: null,
     };
   }
+}
+
+async function resolveCoworkerStatusEvent({
+  credits,
+  userId,
+  organizationId,
+  status,
+  tx,
+}: ResolveCoworkerStatusEventInput): Promise<{
+  cents: bigint | undefined;
+  effectiveStatus: TaskStatus;
+  transactionId: string | null;
+}> {
+  let effectiveStatus = status;
+  let transactionId: string | null = null;
+  let cents: bigint | undefined;
+
+  if (isTaskStatusSpendable(status) && credits != null && credits > 0) {
+    cents = convertCreditsToCents(credits);
+    const cappedResult = await createTaskEventTransactionCappedByBalance({
+      userId,
+      organizationId,
+      requestedCents: cents,
+      tx,
+    });
+    transactionId = cappedResult.transactionId;
+
+    if (cappedResult.consumedCents < cents) {
+      effectiveStatus = TaskStatus.OUT_OF_CREDITS;
+    }
+  }
+
+  return {
+    cents,
+    effectiveStatus,
+    transactionId,
+  };
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -88,28 +132,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             coworkerId: task.coworkerId,
           });
 
+          let effectiveStatus = status;
+          let cents: bigint | undefined;
           let transactionId: string | null = null;
-          let cents: bigint | undefined = undefined;
-          if (isTaskStatusCreditable(status) && credits != null) {
-            cents = convertCreditsToCents(credits);
-          }
-          if (
-            isTaskStatusChargable(status) &&
-            cents !== undefined &&
-            cents > 0n
-          ) {
-            transactionId = await createTaskEventTransaction({
+
+          if (authContext.coworkerId) {
+            const resolvedEvent = await resolveCoworkerStatusEvent({
+              credits,
               userId: task.userId,
               organizationId: task.organizationId,
-              cents,
+              status,
               tx,
             });
+            effectiveStatus = resolvedEvent.effectiveStatus;
+            cents = resolvedEvent.cents;
+            transactionId = resolvedEvent.transactionId;
           }
 
           const event = await tx.taskEvent.create({
             data: {
               taskId,
-              status,
+              status: effectiveStatus,
               comment,
               authenticationUrl,
               origin,
@@ -121,7 +164,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
-            data: { status },
+            data: { status: effectiveStatus },
           });
           // Verify that exactly one row was updated to prevent race conditions
           // If another transaction already completed the task, this will be 0
