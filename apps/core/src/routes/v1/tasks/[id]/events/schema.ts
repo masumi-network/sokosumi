@@ -1,10 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
+import { LIMITS } from "@/config/constants";
 import { isTaskStatusSpendable } from "@/helpers/task";
-
-/** Smallest chargeable amount (1 credit = 10^10 cents). Values below this round to 0. */
-export const MIN_CHARGEABLE_CREDITS = 1e-10;
 
 export const createTaskEventRequestSchema = z
   .object({
@@ -51,11 +49,11 @@ export const createTaskEventRequestSchema = z
     if (
       isTaskStatusSpendable(data.status) &&
       data.credits != null &&
-      data.credits < MIN_CHARGEABLE_CREDITS
+      data.credits < LIMITS.MIN_CHARGEABLE_CREDITS
     ) {
       ctx.addIssue({
         code: "custom",
-        message: `Credit amount is below the minimum chargeable value (${MIN_CHARGEABLE_CREDITS})`,
+        message: `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
         path: ["credits"],
       });
     }
