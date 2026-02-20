@@ -67,6 +67,7 @@ interface TaskFormProps {
   mode: "create" | "edit";
   labels: TaskFormLabels;
   coworkerOptions: CoworkerOption[];
+  agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
   variant?: "page" | "modal";
@@ -80,6 +81,7 @@ export function TaskForm({
   mode,
   labels,
   coworkerOptions,
+  agentNameById = new Map<string, string>(),
   taskId,
   initialValues,
   variant = "page",
@@ -108,6 +110,16 @@ export function TaskForm({
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
+  );
+  const mentionOptions = useMemo(
+    () =>
+      Object.fromEntries(
+        Array.from(agentNameById.entries()).map(([agentId, name]) => [
+          agentId,
+          { value: name },
+        ]),
+      ),
+    [agentNameById],
   );
   const isSubmittingAny = isSubmitting || isSubmittingDraft;
   useEffect(() => {
@@ -335,6 +347,7 @@ export function TaskForm({
                   onAttachClick={() => attachmentTriggerRef.current?.click()}
                   attachLabel={labels.uploadFile}
                   isAttachmentUploading={isUploadingAttachments}
+                  mentions={mentionOptions}
                 />
                 <FileUploadTrigger asChild>
                   <button

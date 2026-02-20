@@ -147,7 +147,10 @@ export function TaskActivitySection({
   isFreePlan = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
-  const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
+  const resolvedAgentNameById = useMemo(
+    () => agentNameById ?? new Map<string, string>(),
+    [agentNameById],
+  );
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
@@ -158,6 +161,16 @@ export function TaskActivitySection({
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
+  const mentionOptions = useMemo(
+    () =>
+      Object.fromEntries(
+        Array.from(resolvedAgentNameById.entries()).map(([agentId, name]) => [
+          agentId,
+          { value: name },
+        ]),
+      ),
+    [resolvedAgentNameById],
+  );
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(comment),
     [comment],
@@ -283,6 +296,7 @@ export function TaskActivitySection({
               onAttachClick={() => attachmentTriggerRef.current?.click()}
               attachLabel={_attachLabel}
               isAttachmentUploading={isUploadingAttachments}
+              mentions={mentionOptions}
             />
             <FileUploadTrigger asChild>
               <button

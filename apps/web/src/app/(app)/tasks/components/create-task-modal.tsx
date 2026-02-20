@@ -47,9 +47,13 @@ export function CreateTaskModalProvider({
 
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
+  agentNameById: Map<string, string>;
 }
 
-export function CreateTaskModal({ coworkerOptions }: CreateTaskModalProps) {
+export function CreateTaskModal({
+  coworkerOptions,
+  agentNameById,
+}: CreateTaskModalProps) {
   const { open, handleClose } = useCreateTaskModal();
   const router = useRouter();
   const t = useTranslations("App.Tasks.NewTask");
@@ -94,6 +98,7 @@ export function CreateTaskModal({ coworkerOptions }: CreateTaskModalProps) {
           ctrl: t("ctrl"),
         }}
         coworkerOptions={coworkerOptions}
+        agentNameById={agentNameById}
         onCancel={handleClose}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={(taskId) => {

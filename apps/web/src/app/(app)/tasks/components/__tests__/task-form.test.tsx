@@ -7,6 +7,8 @@ import { forwardRef, useImperativeHandle } from "react";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 
+const markdownEditorPropsSpy = jest.fn();
+
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -34,6 +36,7 @@ jest.mock("../markdown-editor", () => ({
       placeholder,
       onAttachClick,
       attachLabel,
+      mentions,
     }: {
       value: string;
       onChange: (value: string) => void;
@@ -41,9 +44,18 @@ jest.mock("../markdown-editor", () => ({
       placeholder: string;
       onAttachClick?: () => void;
       attachLabel?: string;
+      mentions?: Record<string, { value: string }>;
     },
     ref,
   ) {
+    markdownEditorPropsSpy({
+      value,
+      id,
+      placeholder,
+      attachLabel,
+      mentions,
+    });
+
     useImperativeHandle(ref, () => ({
       insertText: (text: string) => onChange(`${value}${text}`),
       insertLink: (label: string, url: string) =>
@@ -100,6 +112,10 @@ const coworkerOptions = [
 ];
 
 describe("TaskForm", () => {
+  beforeEach(() => {
+    markdownEditorPropsSpy.mockClear();
+  });
+
   it("submits draft and ready from create modal actions", async () => {
     const user = userEvent.setup();
     const createTaskMock = jest.mocked(createTask);
@@ -169,6 +185,30 @@ describe("TaskForm", () => {
         taskId: "task-1",
         currentStatus: TaskStatus.DRAFT,
         desiredStatus: TaskStatus.READY,
+      }),
+    );
+  });
+
+  it("passes agent mention options to MarkdownEditor", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        agentNameById={new Map([["agent-1", "Writer Agent"]])}
+        onSuccess={jest.fn()}
+      />,
+    );
+
+    expect(markdownEditorPropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mentions: {
+          "agent-1": {
+            value: "Writer Agent",
+          },
+        },
       }),
     );
   });

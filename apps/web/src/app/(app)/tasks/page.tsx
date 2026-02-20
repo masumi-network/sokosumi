@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import { getSession } from "@/lib/auth/utils";
+import { getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -44,6 +45,10 @@ export default async function TasksPage() {
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
+  const agentNameById = new Map<string, string>();
+  for (const agent of agents) {
+    agentNameById.set(agent.id, getAgentName(agent));
+  }
   const tasksById = new Map(tasksResult.tasks.map((task) => [task.id, task]));
   const tasks = tasksResult.tasks.map((task) =>
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
@@ -74,6 +79,7 @@ export default async function TasksPage() {
         nextCursor={tasksResult.pagination?.nextCursor ?? null}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
+        agentNameById={agentNameById}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         defaultViewMode={defaultViewMode}

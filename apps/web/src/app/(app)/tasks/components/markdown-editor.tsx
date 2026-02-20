@@ -11,15 +11,28 @@ import {
   Loader2,
   Paperclip,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
+  useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
+import {
+  createMentionSpan,
+  getMentionToken,
+  isLineBreak,
+  isMentionSpan,
+  isWhitespaceChar,
+  serializeEditorText,
+  shouldAppendTrailingSpace,
+} from "@/components/ui/mention-textarea-utils";
 import { cn } from "@/lib/utils";
 import {
   getBacktickFence,
@@ -30,6 +43,20 @@ import {
   escapeMarkdownLinkUrl,
   unescapeMarkdownLinkUrl,
 } from "@/lib/utils/markdown-links";
+import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+
+interface MentionRecordEntry<TData = unknown> {
+  value: string;
+  slug?: string | null;
+  data?: TData;
+}
+
+interface NormalizedMention<TData = unknown> {
+  key: string;
+  value: string;
+  slug: string;
+  data?: TData;
+}
 
 interface MarkdownEditorProps {
   id?: string;
@@ -42,11 +69,262 @@ interface MarkdownEditorProps {
   onAttachClick?: () => void;
   attachLabel?: string;
   isAttachmentUploading?: boolean;
+  mentions?: Record<string, MentionRecordEntry>;
+  renderMentionItem?: (
+    mention: NormalizedMention,
+    isActive: boolean,
+  ) => ReactNode;
 }
 
 export interface MarkdownEditorHandle {
   insertText: (text: string) => void;
   insertLink: (label: string, url: string) => void;
+}
+
+interface TriggerPosition {
+  top: number;
+  left: number;
+}
+
+const POPUP_HEIGHT_PX = 240;
+const POPUP_WIDTH_PX = 288;
+const VIEWPORT_PADDING_PX = 8;
+const MENTION_CLASSNAME =
+  "text-primary cursor-pointer font-semibold hover:underline";
+const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
+const PERSISTED_INTERNAL_MENTION_REGEX = /@@MENTION_?(\d+)@@/g;
+
+function deslugifyMentionSlug(slug: string): string {
+  return slug.replace(/-/g, " ");
+}
+
+function normalizePersistedInternalMentions(text: string): string {
+  return text.replace(
+    PERSISTED_INTERNAL_MENTION_REGEX,
+    (_match, mentionIndex: string) =>
+      `@unknown-mention-${mentionIndex}:unknown-mention-${mentionIndex}`,
+  );
+}
+
+function getMentionTokenLength(span: HTMLSpanElement): number {
+  return getMentionToken(
+    span.dataset.mentionKey ?? "",
+    span.dataset.mentionSlug ?? "",
+  ).length;
+}
+
+function getSerializedLength(node: Node): number {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent?.length ?? 0;
+  }
+
+  if (isMentionSpan(node)) {
+    return getMentionTokenLength(node);
+  }
+
+  if (isLineBreak(node)) {
+    return 1;
+  }
+
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    let result = 0;
+    node.childNodes.forEach((child) => {
+      result += getSerializedLength(child);
+    });
+    return result;
+  }
+
+  return 0;
+}
+
+function getSerializedOffset(
+  root: HTMLElement,
+  targetNode: Node,
+  targetOffset: number,
+): number {
+  let offset = 0;
+
+  function traverse(node: Node): boolean {
+    if (node === targetNode) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += targetOffset;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const children = Array.from(node.childNodes);
+        for (let index = 0; index < targetOffset; index += 1) {
+          offset += getSerializedLength(children[index]);
+        }
+      }
+      return true;
+    }
+
+    if (
+      node.nodeType === Node.TEXT_NODE ||
+      isMentionSpan(node) ||
+      isLineBreak(node)
+    ) {
+      offset += getSerializedLength(node);
+      return false;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      for (const child of Array.from(node.childNodes)) {
+        if (traverse(child)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  traverse(root);
+  return offset;
+}
+
+function getCaretOffset(root: HTMLElement): number | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.endContainer)) return null;
+  return getSerializedOffset(root, range.endContainer, range.endOffset);
+}
+
+function serializeEditor(root: HTMLElement): { text: string; caret: number } {
+  const serializedText = serializeEditorText(root);
+  const caret = getCaretOffset(root) ?? serializedText.length;
+  return { text: serializedText, caret };
+}
+
+function findPositionForOffset(
+  root: HTMLElement,
+  targetOffset: number,
+): { node: Node; offset: number } {
+  let remaining = targetOffset;
+
+  function walk(node: Node): { node: Node; offset: number } | null {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const length = node.textContent?.length ?? 0;
+      if (remaining <= length) {
+        return { node, offset: remaining };
+      }
+      remaining -= length;
+      return null;
+    }
+
+    if (isMentionSpan(node)) {
+      const length = getMentionTokenLength(node);
+      if (remaining <= length) {
+        const parent = node.parentNode ?? root;
+        const index = Array.from(parent.childNodes).indexOf(node);
+        return {
+          node: parent,
+          offset: remaining === length ? index + 1 : index,
+        };
+      }
+      remaining -= length;
+      return null;
+    }
+
+    if (isLineBreak(node)) {
+      if (remaining <= 1) {
+        const parent = node.parentNode ?? root;
+        const index = Array.from(parent.childNodes).indexOf(node);
+        return { node: parent, offset: remaining === 1 ? index + 1 : index };
+      }
+      remaining -= 1;
+      return null;
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const children = Array.from(node.childNodes);
+      for (const child of children) {
+        const result = walk(child);
+        if (result) return result;
+      }
+    }
+
+    return null;
+  }
+
+  return walk(root) ?? { node: root, offset: root.childNodes.length };
+}
+
+function setCaretAfterNode(root: HTMLElement, node: Node): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  if (node.nodeType === Node.TEXT_NODE) {
+    range.setStart(node, node.textContent?.length ?? 0);
+  } else {
+    const parent = node.parentNode ?? root;
+    const index = Array.from(parent.childNodes).indexOf(node as ChildNode);
+    range.setStart(parent, index + 1);
+  }
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function getActiveTrigger(
+  text: string,
+  caret: number,
+): { query: string; triggerStart: number } | null {
+  const clampedCaret = Math.max(0, Math.min(caret, text.length));
+  if (clampedCaret === 0) return null;
+
+  let tokenStart = clampedCaret;
+  while (tokenStart > 0 && !isWhitespaceChar(text[tokenStart - 1] ?? "")) {
+    tokenStart -= 1;
+  }
+
+  if (text[tokenStart] !== "@") return null;
+
+  const query = text.slice(tokenStart + 1, clampedCaret);
+  if (query.includes("@")) return null;
+
+  return { query, triggerStart: tokenStart };
+}
+
+function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
+  let top = rect.bottom;
+  let left = rect.left;
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+
+  if (top + POPUP_HEIGHT_PX > viewportHeight - VIEWPORT_PADDING_PX) {
+    top = rect.top - POPUP_HEIGHT_PX;
+    if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
+  }
+
+  if (top < VIEWPORT_PADDING_PX) top = VIEWPORT_PADDING_PX;
+
+  if (left < VIEWPORT_PADDING_PX) left = VIEWPORT_PADDING_PX;
+  const maxLeft = viewportWidth - POPUP_WIDTH_PX - VIEWPORT_PADDING_PX;
+  if (left > maxLeft && maxLeft > 0) left = maxLeft;
+
+  return { top, left };
+}
+
+function getCaretRect(root: HTMLElement): DOMRect | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.endContainer)) return null;
+
+  const rect = range.getBoundingClientRect();
+  if (rect.width !== 0 || rect.height !== 0) return rect;
+
+  const marker = document.createElement("span");
+  marker.textContent = "\u200b";
+
+  const markerRange = range.cloneRange();
+  markerRange.collapse(true);
+  markerRange.insertNode(marker);
+  const markerRect = marker.getBoundingClientRect();
+  marker.remove();
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  return markerRect;
 }
 
 export const MarkdownEditor = forwardRef<
@@ -64,89 +342,246 @@ export const MarkdownEditor = forwardRef<
     onAttachClick,
     attachLabel,
     isAttachmentUploading = false,
+    mentions = {},
+    renderMentionItem,
   }: MarkdownEditorProps,
   ref,
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [triggerPosition, setTriggerPosition] =
+    useState<TriggerPosition | null>(null);
+
+  const normalizedMentions = useMemo(() => {
+    const entries = Object.entries(mentions);
+    const normalized: NormalizedMention[] = [];
+
+    for (const [key, mention] of entries) {
+      if (!mention.value) continue;
+      const slug = mention.slug
+        ? mention.slug
+        : slugifyMentionValue(mention.value);
+      if (!slug) continue;
+      normalized.push({
+        key,
+        value: mention.value,
+        slug,
+        data: mention.data,
+      });
+    }
+
+    return normalized;
+  }, [mentions]);
+
+  const keyToValue = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const mention of normalizedMentions) {
+      map.set(mention.key, mention.value);
+    }
+    return map;
+  }, [normalizedMentions]);
+
+  const slugToValue = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const mention of normalizedMentions) {
+      map.set(mention.slug, mention.value);
+    }
+    return map;
+  }, [normalizedMentions]);
+
+  const resolveMentionDisplay = useCallback(
+    (mentionKey: string, mentionSlug: string) => {
+      const isKnown =
+        keyToValue.has(mentionKey) || slugToValue.has(mentionSlug);
+      const displayName =
+        keyToValue.get(mentionKey) ??
+        slugToValue.get(mentionSlug) ??
+        slugToValue.get(slugifyMentionValue(mentionKey)) ??
+        deslugifyMentionSlug(mentionSlug);
+
+      return { displayName, isKnown };
+    },
+    [keyToValue, slugToValue],
+  );
+
+  const filteredMentions = useMemo(() => {
+    if (query === null || query === "") return normalizedMentions;
+    const normalizedQuery = query.toLowerCase();
+    return normalizedMentions.filter((mention) =>
+      mention.value.toLowerCase().includes(normalizedQuery),
+    );
+  }, [normalizedMentions, query]);
+
+  const openSuggestions = useCallback(
+    ({
+      nextQuery,
+      nextTriggerPosition,
+      nextActiveIndex = 0,
+    }: {
+      nextQuery: string;
+      nextTriggerPosition: TriggerPosition | null;
+      nextActiveIndex?: number;
+    }) => {
+      setQuery(nextQuery);
+      setIsOpen(true);
+      setActiveIndex(nextActiveIndex);
+      setTriggerPosition(nextTriggerPosition);
+    },
+    [],
+  );
+
+  const closeSuggestions = useCallback(() => {
+    setIsOpen(false);
+    setQuery(null);
+    setActiveIndex(0);
+    setTriggerPosition(null);
+  }, []);
 
   // Convert markdown to HTML (only on initial load or external value changes)
-  const markdownToHtml = useCallback((text: string): string => {
-    if (!text) return "";
+  const markdownToHtml = useCallback(
+    (text: string): string => {
+      if (!text) return "";
 
-    const escaped = text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+      const escaped = normalizePersistedInternalMentions(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 
-    // Extract fenced code blocks before other markdown transforms, so inline
-    // patterns don't accidentally rewrite code content.
-    const codeBlocks: Array<{
-      token: string;
-      html: string;
-    }> = [];
+      // Extract fenced code blocks before other markdown transforms, so inline
+      // patterns don't accidentally rewrite code content.
+      const codeBlocks: Array<{
+        token: string;
+        html: string;
+      }> = [];
 
-    const withCodeBlockTokens = escaped.replace(
-      /(^|\n)(`{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g,
-      (
-        _match,
-        leadingNewline: string,
-        fence: string,
-        info: string,
-        code: string,
-      ) => {
-        const token = `@@CODEBLOCK_${codeBlocks.length}@@`;
-        const language = info.trim();
-        const html = `<pre><code${
-          language ? ` data-language="${language}"` : ""
-        }>${code}</code></pre>`;
+      const withCodeBlockTokens = escaped.replace(
+        /(^|\n)(`{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g,
+        (
+          _match,
+          leadingNewline: string,
+          fence: string,
+          info: string,
+          code: string,
+        ) => {
+          const token = `@@CODEBLOCKTOKEN${codeBlocks.length}@@`;
+          const language = info.trim();
+          const html = `<pre><code${
+            language ? ` data-language="${language}"` : ""
+          }>${code}</code></pre>`;
 
-        codeBlocks.push({ token, html });
-        return `${leadingNewline}${token}`;
-      },
-    );
+          codeBlocks.push({ token, html });
+          return `${leadingNewline}${token}`;
+        },
+      );
 
-    const linkTokens: Array<{
-      token: string;
-      html: string;
-    }> = [];
+      const linkTokens: Array<{
+        token: string;
+        html: string;
+      }> = [];
 
-    const withLinkTokens = withCodeBlockTokens.replace(
-      createMarkdownLinkRegex(),
-      (match, label: string, rawUrl: string) => {
-        const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
-        if (!normalizedUrl) {
-          return match;
+      const withLinkTokens = withCodeBlockTokens.replace(
+        createMarkdownLinkRegex(),
+        (match, label: string, rawUrl: string) => {
+          const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
+          if (!normalizedUrl) {
+            return match;
+          }
+
+          const token = `@@LINKTOKEN${linkTokens.length}@@`;
+          linkTokens.push({
+            token,
+            html: `<a href="${normalizedUrl}">${label}</a>`,
+          });
+          return token;
+        },
+      );
+
+      const mentionTokens: Array<{
+        token: string;
+        html: string;
+      }> = [];
+
+      let withMentionTokens = withLinkTokens;
+      const parsedMentions = parseMentions(withLinkTokens);
+      if (parsedMentions.length > 0) {
+        let lastIndex = 0;
+        let rebuilt = "";
+
+        for (const mention of parsedMentions) {
+          if (mention.start > lastIndex) {
+            rebuilt += withLinkTokens.slice(lastIndex, mention.start);
+          }
+
+          const rawMentionToken = withLinkTokens.slice(
+            mention.start,
+            mention.end,
+          );
+          if (rawMentionToken.startsWith("@@")) {
+            rebuilt += rawMentionToken;
+            lastIndex = mention.end;
+            continue;
+          }
+
+          const token = `@@MENTIONTOKEN${mentionTokens.length}@@`;
+          const { displayName, isKnown } = resolveMentionDisplay(
+            mention.id,
+            mention.slug,
+          );
+          const mentionSpan = createMentionSpan(
+            mention.id,
+            mention.slug,
+            displayName,
+            isKnown,
+            {
+              mentionClassName: MENTION_CLASSNAME,
+              unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+            },
+          );
+          mentionTokens.push({
+            token,
+            html: mentionSpan.outerHTML,
+          });
+          rebuilt += token;
+          lastIndex = mention.end;
         }
 
-        const token = `@@LINK_${linkTokens.length}@@`;
-        linkTokens.push({
-          token,
-          html: `<a href="${normalizedUrl}">${label}</a>`,
-        });
-        return token;
-      },
-    );
+        if (lastIndex < withLinkTokens.length) {
+          rebuilt += withLinkTokens.slice(lastIndex);
+        }
 
-    const html = withLinkTokens
-      .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-      .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-      .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/_(.+?)_/g, "<em>$1</em>")
-      .replace(/`(.+?)`/g, "<code>$1</code>")
-      .replace(/^[-*] (.+)$/gm, "<ul><li>$1</li></ul>")
-      .replace(/^(\d+)\. (.+)$/gm, "<ol><li>$2</li></ol>")
-      .replace(/\n/g, "<br>");
+        withMentionTokens = rebuilt;
+      }
 
-    const withRestoredLinks = linkTokens.reduce((result, link) => {
-      return result.replace(link.token, link.html);
-    }, html);
+      const html = withMentionTokens
+        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/_(.+?)_/g, "<em>$1</em>")
+        .replace(/`(.+?)`/g, "<code>$1</code>")
+        .replace(/^[-*] (.+)$/gm, "<ul><li>$1</li></ul>")
+        .replace(/^(\d+)\. (.+)$/gm, "<ol><li>$2</li></ol>")
+        .replace(/\n/g, "<br>");
 
-    return codeBlocks.reduce((result, block) => {
-      return result.replace(block.token, block.html);
-    }, withRestoredLinks);
-  }, []);
+      const withRestoredMentions = mentionTokens.reduce((result, mention) => {
+        return result.replace(mention.token, () => mention.html);
+      }, html);
+
+      const withRestoredLinks = linkTokens.reduce((result, link) => {
+        return result.replace(link.token, () => link.html);
+      }, withRestoredMentions);
+
+      return codeBlocks.reduce((result, block) => {
+        return result.replace(block.token, () => block.html);
+      }, withRestoredLinks);
+    },
+    [resolveMentionDisplay],
+  );
 
   // Convert HTML to markdown (on every change)
   const htmlToMarkdown = useCallback((element: HTMLElement): string => {
@@ -161,15 +596,24 @@ export const MarkdownEditor = forwardRef<
         const el = node as HTMLElement;
         const tag = el.tagName.toLowerCase();
 
+        if (isMentionSpan(el)) {
+          return getMentionToken(
+            el.dataset.mentionKey ?? "",
+            el.dataset.mentionSlug ?? "",
+          );
+        }
+
+        const element = el as HTMLElement;
+
         if (tag === "pre") {
-          const content = el.textContent || "";
+          const content = element.textContent || "";
           const fence = getBacktickFence(content);
           return `${fence}\n${content}\n${fence}`;
         }
 
         let content = "";
 
-        el.childNodes.forEach((child) => {
+        element.childNodes.forEach((child: Node) => {
           content += processNode(child);
         });
 
@@ -184,7 +628,7 @@ export const MarkdownEditor = forwardRef<
             return `\`${content}\``;
           case "a":
             return `[${content}](${escapeMarkdownLinkUrl(
-              el.getAttribute("href") || "",
+              element.getAttribute("href") || "",
             )})`;
           case "h1":
             return `# ${content}\n`;
@@ -195,13 +639,13 @@ export const MarkdownEditor = forwardRef<
           case "li":
             return `- ${content}\n`;
           case "ul": {
-            const items = Array.from(el.children).filter(
+            const items = Array.from(element.children).filter(
               (child) => child.tagName.toLowerCase() === "li",
             );
             return items
               .map((child) => {
                 let itemContent = "";
-                child.childNodes.forEach((grandchild) => {
+                child.childNodes.forEach((grandchild: Node) => {
                   itemContent += processNode(grandchild);
                 });
                 return `- ${itemContent.trim()}`;
@@ -210,13 +654,13 @@ export const MarkdownEditor = forwardRef<
               .concat("\n");
           }
           case "ol": {
-            const items = Array.from(el.children).filter(
+            const items = Array.from(element.children).filter(
               (child) => child.tagName.toLowerCase() === "li",
             );
             return items
               .map((child, index) => {
                 let itemContent = "";
-                child.childNodes.forEach((grandchild) => {
+                child.childNodes.forEach((grandchild: Node) => {
                   itemContent += processNode(grandchild);
                 });
                 return `${index + 1}. ${itemContent.trim()}`;
@@ -249,6 +693,22 @@ export const MarkdownEditor = forwardRef<
     return normalized;
   }, []);
 
+  const syncFromEditor = useCallback(() => {
+    if (!editorRef.current) {
+      return {
+        markdown: "",
+        text: "",
+        caret: 0,
+      };
+    }
+
+    const markdown = htmlToMarkdown(editorRef.current);
+    const { text, caret } = serializeEditor(editorRef.current);
+    onChange(markdown);
+
+    return { markdown, text, caret };
+  }, [htmlToMarkdown, onChange]);
+
   // Initialize editor content from value prop
   useEffect(() => {
     if (editorRef.current && !isInternalChange.current) {
@@ -268,10 +728,92 @@ export const MarkdownEditor = forwardRef<
   const handleInput = useCallback(() => {
     if (editorRef.current) {
       isInternalChange.current = true;
-      const markdown = htmlToMarkdown(editorRef.current);
-      onChange(markdown);
+      const { text, caret } = syncFromEditor();
+
+      if (normalizedMentions.length === 0) {
+        closeSuggestions();
+        return;
+      }
+
+      const trigger = getActiveTrigger(text, caret);
+      if (trigger) {
+        const caretRect = getCaretRect(editorRef.current);
+        const fallbackRect = editorRef.current.getBoundingClientRect();
+        const position = caretRect
+          ? getPopupPositionFromRect(caretRect)
+          : getPopupPositionFromRect(fallbackRect);
+        openSuggestions({
+          nextQuery: trigger.query,
+          nextTriggerPosition: position,
+          nextActiveIndex: 0,
+        });
+        return;
+      }
+
+      closeSuggestions();
     }
-  }, [htmlToMarkdown, onChange]);
+  }, [
+    closeSuggestions,
+    normalizedMentions.length,
+    openSuggestions,
+    syncFromEditor,
+  ]);
+
+  const insertMention = useCallback(
+    (mention: NormalizedMention) => {
+      if (!editorRef.current) {
+        return;
+      }
+
+      const { text, caret } = serializeEditor(editorRef.current);
+      const trigger = getActiveTrigger(text, caret);
+      if (!trigger) {
+        closeSuggestions();
+        return;
+      }
+
+      const range = document.createRange();
+      const startPos = findPositionForOffset(
+        editorRef.current,
+        trigger.triggerStart,
+      );
+      const endPos = findPositionForOffset(editorRef.current, caret);
+      range.setStart(startPos.node, startPos.offset);
+      range.setEnd(endPos.node, endPos.offset);
+      range.deleteContents();
+
+      const nextChar = text[caret];
+      const { displayName, isKnown } = resolveMentionDisplay(
+        mention.key,
+        mention.slug,
+      );
+      const mentionSpan = createMentionSpan(
+        mention.key,
+        mention.slug,
+        displayName,
+        isKnown,
+        {
+          mentionClassName: MENTION_CLASSNAME,
+          unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+        },
+      );
+
+      range.insertNode(mentionSpan);
+      let caretNode: Node = mentionSpan;
+      if (shouldAppendTrailingSpace(nextChar)) {
+        const spaceNode = document.createTextNode(" ");
+        mentionSpan.after(spaceNode);
+        caretNode = spaceNode;
+      }
+
+      setCaretAfterNode(editorRef.current, caretNode);
+      isInternalChange.current = true;
+      syncFromEditor();
+      closeSuggestions();
+      editorRef.current.focus();
+    },
+    [closeSuggestions, resolveMentionDisplay, syncFromEditor],
+  );
 
   const execCommand = useCallback(
     (command: string, value?: string) => {
@@ -401,6 +943,41 @@ export const MarkdownEditor = forwardRef<
     (e: React.KeyboardEvent) => {
       const key = e.key.toLowerCase();
 
+      if (isOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (key === "escape") {
+          e.preventDefault();
+          closeSuggestions();
+          return;
+        }
+
+        if (filteredMentions.length > 0) {
+          if (key === "arrowdown") {
+            e.preventDefault();
+            setActiveIndex((prev) =>
+              prev + 1 < filteredMentions.length ? prev + 1 : 0,
+            );
+            return;
+          }
+
+          if (key === "arrowup") {
+            e.preventDefault();
+            setActiveIndex((prev) =>
+              prev - 1 >= 0 ? prev - 1 : filteredMentions.length - 1,
+            );
+            return;
+          }
+
+          if (key === "enter" || key === "tab") {
+            e.preventDefault();
+            const mention = filteredMentions[activeIndex];
+            if (mention) {
+              insertMention(mention);
+            }
+            return;
+          }
+        }
+      }
+
       // Cmd/Ctrl + Enter to submit parent form when provided.
       if ((e.metaKey || e.ctrlKey) && key === "enter") {
         if (!e.shiftKey && !e.altKey) {
@@ -423,8 +1000,46 @@ export const MarkdownEditor = forwardRef<
         handleItalic();
       }
     },
-    [handleBold, handleItalic, onSubmitShortcut],
+    [
+      activeIndex,
+      closeSuggestions,
+      filteredMentions,
+      handleBold,
+      handleItalic,
+      insertMention,
+      isOpen,
+      onSubmitShortcut,
+    ],
   );
+
+  const handleBlur = useCallback(() => {
+    setTimeout(() => {
+      if (!isSelectingRef.current) {
+        closeSuggestions();
+      }
+      isSelectingRef.current = false;
+    }, 150);
+  }, [closeSuggestions]);
+
+  const handleItemMouseDown = useCallback(() => {
+    isSelectingRef.current = true;
+  }, []);
+
+  const handleItemClick = useCallback(
+    (mention: NormalizedMention) => {
+      insertMention(mention);
+      isSelectingRef.current = false;
+    },
+    [insertMention],
+  );
+
+  useEffect(() => {
+    if (!isOpen || !listRef.current) return;
+    const activeItem = listRef.current.querySelector(
+      `[data-index="${activeIndex}"]`,
+    );
+    activeItem?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, isOpen]);
 
   useImperativeHandle(
     ref,
@@ -539,7 +1154,10 @@ export const MarkdownEditor = forwardRef<
         contentEditable
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
         data-placeholder={placeholder}
+        role="textbox"
+        aria-multiline="true"
         className={cn(
           "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2 text-sm",
           "outline-none focus:outline-none",
@@ -554,8 +1172,55 @@ export const MarkdownEditor = forwardRef<
           "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
           "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",
           "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
+          "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
         )}
       />
+      {typeof window !== "undefined" &&
+        isOpen &&
+        filteredMentions.length > 0 &&
+        createPortal(
+          <div
+            ref={listRef}
+            role="listbox"
+            style={
+              triggerPosition
+                ? { top: triggerPosition.top, left: triggerPosition.left }
+                : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
+            }
+            className={cn(
+              "bg-popover text-popover-foreground fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              !triggerPosition && "mt-1",
+            )}
+          >
+            {filteredMentions.map((mention, index) => (
+              <div
+                key={mention.key}
+                data-index={index}
+                role="option"
+                aria-selected={index === activeIndex}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                  index === activeIndex && "bg-accent text-accent-foreground",
+                )}
+                onMouseDown={handleItemMouseDown}
+                onClick={() => handleItemClick(mention)}
+                onMouseEnter={() => setActiveIndex(index)}
+              >
+                {renderMentionItem ? (
+                  renderMentionItem(mention, index === activeIndex)
+                ) : (
+                  <>
+                    <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                      {mention.value.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="truncate">{mention.value}</span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 });
