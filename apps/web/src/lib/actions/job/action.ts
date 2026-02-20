@@ -686,14 +686,18 @@ export const deleteJobShare = withAuthContext<
 
 export const getActiveOrganization = withAuthContext<
   AuthenticatedRequest,
-  Result<{ id: string; name: string } | null, ActionError>
+  Result<{ id: string; name: string; slug: string } | null, ActionError>
 >(async () => {
   try {
     const organization = await userService.getActiveOrganization();
     if (!organization) {
       return Ok(null);
     }
-    return Ok({ id: organization.id, name: organization.name });
+    return Ok({
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+    });
   } catch (error) {
     console.error("Failed to get active organization", error);
     return Err({

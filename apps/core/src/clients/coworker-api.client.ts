@@ -51,6 +51,8 @@ export interface StreamResponsesApiOptions {
   previousResponseId?: string | null;
   instructions?: string;
   onResponseCompleted?: (responseId: string) => void;
+  /** Organization slug for the user's current scope; used to debit credits for the correct account. */
+  orgSlug?: string | null;
 }
 
 export async function streamResponsesApi(
@@ -89,16 +91,21 @@ export async function streamResponsesApi(
   }
 
   const url = `${baseUrl.replace(/\/$/, "")}/responses`;
+  const requestHeaders: Record<string, string> = {
+    Authorization: `Bearer ${serviceKey}`,
+    "Content-Type": "application/json",
+    "X-Sokosumi-User-Id": options.sokosumiUserId,
+    ...(options.agentId
+      ? { "X-Agent-Id": options.agentId }
+      : { "X-Agent-Id": "hannah" }),
+  };
+  if (options.orgSlug) {
+    requestHeaders["X-Organization-Slug"] = options.orgSlug;
+  }
+
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${serviceKey}`,
-      "Content-Type": "application/json",
-      "X-Sokosumi-User-Id": options.sokosumiUserId,
-      ...(options.agentId
-        ? { "X-Agent-Id": options.agentId }
-        : { "X-Agent-Id": "hannah" }),
-    },
+    headers: requestHeaders,
     body: JSON.stringify(body),
   });
 
@@ -219,7 +226,9 @@ function createResponsesApiUiStream(
         id?: string;
         status?: string;
         item?: { type?: string; id?: string };
+        response?: { id?: string };
       };
+      const responseId = (chunk.response?.id ?? chunk.id) as string | undefined;
 
       if (!textStarted) {
         if (lastEventLine === "response.created") {
@@ -251,11 +260,13 @@ function createResponsesApiUiStream(
         return false;
       }
 
-      if (
-        (chunk.type === "response.completed" || chunk.status === "completed") &&
-        chunk.id
-      ) {
-        onResponseCompleted?.(chunk.id);
+      const isCompleted =
+        (chunk.type === "response.completed" ||
+          chunk.status === "completed" ||
+          lastEventLine === "response.completed") &&
+        typeof responseId === "string";
+      if (isCompleted) {
+        onResponseCompleted?.(responseId);
         closeStream(controller);
         return true;
       }
