@@ -95,7 +95,8 @@ async function prepareConsumptions(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { credits, idempotencyKey, referenceId, userId } = c.req.valid("json");
+    const { credits, idempotencyKey, referenceId, userId } =
+      c.req.valid("json");
     const coworkerId = requireCoworkerId(authContext);
 
     const result = await prisma.$transaction(
@@ -113,7 +114,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const requestedCents = convertCreditsToCents(credits);
 
           if (existing.userId !== userId) {
-            throw conflict("Idempotency key already used with different user id");
+            throw conflict(
+              "Idempotency key already used with different user id",
+            );
           }
           if (existing.cents !== requestedCents) {
             throw conflict(
