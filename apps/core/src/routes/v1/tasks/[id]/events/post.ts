@@ -17,7 +17,10 @@ import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  isCoworkerAuthContext,
+} from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
 import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
@@ -55,21 +58,25 @@ const route = createRoute({
   },
 });
 
+function getActorData(authContext: AuthenticationContext) {
+  if (isCoworkerAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: authContext.coworkerId,
+    };
+  } else {
+    return {
+      userId: authContext.userId,
+      coworkerId: null,
+    };
+  }
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
-    const isCoworkerActor = isCoworkerAuthContext(authContext);
-    const actorData = isCoworkerActor
-      ? {
-          userId: null,
-          coworkerId: authContext.coworkerId,
-        }
-      : {
-          userId: authContext.userId,
-          coworkerId: null,
-        };
 
     const { event, userId } = await prisma.$transaction(
       async (tx) => {
@@ -86,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
-          if (isCoworkerActor) {
+          if (isCoworkerAuthContext(authContext)) {
             if (
               isTaskStatusSpendable(status) &&
               credits != null &&
@@ -116,7 +123,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               origin,
               cents,
               transactionId,
-              ...actorData,
+              ...getActorData(authContext),
             },
           });
 
@@ -145,7 +152,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             status: null,
             comment,
             origin,
-            ...actorData,
+            ...getActorData(authContext),
           },
         });
 
