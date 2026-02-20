@@ -48,10 +48,13 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     return redirect(`/accept-invitation/${pendingInvitationId}`);
   }
 
-  const [shouldShowOnboarding, pendingNotices] = await Promise.all([
+  const [shouldShowOnboarding, pendingNoticesResult] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
   ]);
+  const pendingNotices = pendingNoticesResult.isOk()
+    ? pendingNoticesResult.value
+    : [];
   const legalNotices = pendingNotices.filter(
     (notice) => notice.kind === NoticeKind.LEGAL_TERMS,
   );
