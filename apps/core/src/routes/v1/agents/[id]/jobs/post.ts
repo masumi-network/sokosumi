@@ -37,6 +37,8 @@ const route = withGlobalHeaderParameters(
     responses: {
       201: jsonSuccessResponse(jobSchema, "Job created successfully"),
       400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Agent not found"),
       422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),

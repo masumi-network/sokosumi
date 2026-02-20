@@ -62,6 +62,7 @@ const route = createRoute({
     ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
   },
 });
 

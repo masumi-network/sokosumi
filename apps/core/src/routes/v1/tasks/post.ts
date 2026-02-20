@@ -66,6 +66,7 @@ const route = withGlobalHeaderParameters(
       201: jsonSuccessResponse(taskSchema, "Create task"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
     },
   }),
 );

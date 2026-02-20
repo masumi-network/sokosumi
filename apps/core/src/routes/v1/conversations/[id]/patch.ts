@@ -58,6 +58,7 @@ const route = createRoute({
       },
     ),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Conversation not found"),
     500: jsonErrorResponse("Internal Server Error"),
   },

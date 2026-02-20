@@ -62,6 +62,7 @@ const route = createRoute({
     200: jsonSuccessResponse(taskSchema, "Update task"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
   },
 });
