@@ -8,6 +8,7 @@ import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
+import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import {
   type ActiveSubscription,
@@ -15,7 +16,6 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { auth } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
-import { getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -66,11 +66,7 @@ export default async function TaskDetailPage({
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
-  const agentNameById = new Map<string, string>();
-  for (const agent of agents) {
-    const name = getAgentName(agent);
-    agentNameById.set(agent.id, name);
-  }
+  const agentNameById = buildAgentNameById(agents);
   const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
   const currentUser = session?.user
     ? {

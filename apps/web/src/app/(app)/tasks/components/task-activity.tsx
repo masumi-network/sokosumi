@@ -15,6 +15,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
@@ -147,7 +148,10 @@ export function TaskActivitySection({
   isFreePlan = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
-  const resolvedAgentNameById = agentNameById ?? new Map<string, string>();
+  const resolvedAgentNameById = useMemo(
+    () => agentNameById ?? new Map<string, string>(),
+    [agentNameById],
+  );
   const router = useRouter();
   const formRef = useRef<HTMLFormElement | null>(null);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
@@ -158,6 +162,10 @@ export function TaskActivitySection({
   const [isPending, startTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
+  const mentionOptions = useMemo(
+    () => convertAgentNamesToMentionOptions(resolvedAgentNameById),
+    [resolvedAgentNameById],
+  );
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(comment),
     [comment],
@@ -283,6 +291,7 @@ export function TaskActivitySection({
               onAttachClick={() => attachmentTriggerRef.current?.click()}
               attachLabel={_attachLabel}
               isAttachmentUploading={isUploadingAttachments}
+              mentions={mentionOptions}
             />
             <FileUploadTrigger asChild>
               <button

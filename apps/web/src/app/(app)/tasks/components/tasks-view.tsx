@@ -172,6 +172,7 @@ interface TasksViewProps {
   nextCursor?: string | null;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
+  agentNameById: Map<string, string>;
   userId?: string | null;
   activeOrganizationId: string | null;
   defaultViewMode?: TasksViewMode;
@@ -217,6 +218,7 @@ export function TasksView({
   nextCursor: initialNextCursor,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
+  agentNameById,
   userId,
   activeOrganizationId,
   defaultViewMode,
@@ -697,7 +699,10 @@ export function TasksView({
       ) : (
         tabsContent
       )}
-      <CreateTaskModal coworkerOptions={coworkerOptions} />
+      <CreateTaskModal
+        coworkerOptions={coworkerOptions}
+        agentNameById={agentNameById}
+      />
     </CreateTaskModalProvider>
   );
 }
