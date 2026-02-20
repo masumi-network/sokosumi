@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
+import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import {
@@ -112,13 +113,7 @@ export function TaskForm({
     [description],
   );
   const mentionOptions = useMemo(
-    () =>
-      Object.fromEntries(
-        Array.from(agentNameById.entries()).map(([agentId, name]) => [
-          agentId,
-          { value: name },
-        ]),
-      ),
+    () => convertAgentNamesToMentionOptions(agentNameById),
     [agentNameById],
   );
   const isSubmittingAny = isSubmitting || isSubmittingDraft;

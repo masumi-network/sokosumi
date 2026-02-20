@@ -1,8 +1,8 @@
 import { getTranslations } from "next-intl/server";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
+import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
@@ -17,10 +17,7 @@ export default async function NewTaskPage() {
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
   const coworkerOptions = getCoworkerOptions(coworkers);
-  const agentNameById = new Map<string, string>();
-  for (const agent of agents) {
-    agentNameById.set(agent.id, getAgentName(agent));
-  }
+  const agentNameById = buildAgentNameById(agents);
 
   return (
     <div className="min-h-full w-full">

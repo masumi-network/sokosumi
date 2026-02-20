@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
 import { getSession } from "@/lib/auth/utils";
-import { getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -17,6 +16,7 @@ import {
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 import { TasksView } from "./components/tasks-view";
+import { buildAgentNameById } from "./utils/agent-names";
 import { getCoworkerOptions } from "./utils/coworker-options";
 
 export const metadata = {
@@ -45,10 +45,7 @@ export default async function TasksPage() {
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
-  const agentNameById = new Map<string, string>();
-  for (const agent of agents) {
-    agentNameById.set(agent.id, getAgentName(agent));
-  }
+  const agentNameById = buildAgentNameById(agents);
   const tasksById = new Map(tasksResult.tasks.map((task) => [task.id, task]));
   const tasks = tasksResult.tasks.map((task) =>
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),

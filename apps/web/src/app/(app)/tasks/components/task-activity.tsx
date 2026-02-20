@@ -15,6 +15,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
@@ -162,13 +163,7 @@ export function TaskActivitySection({
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const { os, isMobile } = useOSDetection();
   const mentionOptions = useMemo(
-    () =>
-      Object.fromEntries(
-        Array.from(resolvedAgentNameById.entries()).map(([agentId, name]) => [
-          agentId,
-          { value: name },
-        ]),
-      ),
+    () => convertAgentNamesToMentionOptions(resolvedAgentNameById),
     [resolvedAgentNameById],
   );
   const attachmentUrls = useMemo(

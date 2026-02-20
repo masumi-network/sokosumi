@@ -3,8 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
+import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -37,10 +37,7 @@ export default async function EditTaskPage({
   }
 
   const coworkerOptions = getCoworkerOptions(coworkers);
-  const agentNameById = new Map<string, string>();
-  for (const agent of agents) {
-    agentNameById.set(agent.id, getAgentName(agent));
-  }
+  const agentNameById = buildAgentNameById(agents);
 
   const [tEdit, tActions] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),
