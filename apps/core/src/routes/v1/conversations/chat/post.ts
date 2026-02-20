@@ -216,10 +216,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (useResponsesApi) {
-        const result = await streamResponsesApi(lastUserMessageText, {
+        const orgSlug = c.req.header("x-organization-slug") ?? null;
+        const result = await streamResponsesApi(lastUserMessageText as string, {
           sokosumiUserId: authContext.userId,
           agentId: agentId as "hannah" | "elena",
           previousResponseId: lastResponsesApiResponseId ?? null,
+          orgSlug,
           onResponseCompleted: async (responseId: string) => {
             if (!internalConversationId) return;
             try {
