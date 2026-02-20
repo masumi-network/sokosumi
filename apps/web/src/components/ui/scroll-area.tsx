@@ -13,6 +13,7 @@ const ScrollArea = React.forwardRef<
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
       className={cn("relative", className)}
+      {...props}
     >
       <ScrollAreaPrimitive.Viewport
         ref={ref}
