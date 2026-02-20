@@ -113,7 +113,9 @@ describe("createTaskEventTransaction", () => {
       creditBucketRepository.prepareConsumption,
     );
     prepareConsumption.mockRejectedValue(
-      new Error("Insufficient balance: tried to consume 500 but only 200 available"),
+      new Error(
+        "Insufficient balance: tried to consume 500 but only 200 available",
+      ),
     );
 
     const tx = {

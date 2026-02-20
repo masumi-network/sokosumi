@@ -179,4 +179,13 @@ describe("createTaskEventRequestSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("rejects credits when status is omitted (comment-only request)", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      comment: "hello",
+      credits: 5,
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

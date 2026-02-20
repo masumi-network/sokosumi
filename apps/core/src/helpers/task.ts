@@ -161,7 +161,11 @@ export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
   };
 }
 
-export function isTaskStatusSpendable(status: TaskStatus): boolean {
+export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
+  if (status === undefined) {
+    return false;
+  }
+
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
