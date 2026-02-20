@@ -55,6 +55,14 @@ const route = createRoute({
   },
 });
 
+interface ResolveCoworkerStatusEventInput {
+  credits: number | null | undefined;
+  userId: string;
+  organizationId: string | null;
+  status: TaskStatus;
+  tx: Prisma.TransactionClient;
+}
+
 function getActorData(authContext: AuthenticationContext) {
   if (authContext.coworkerId) {
     return {
@@ -67,6 +75,43 @@ function getActorData(authContext: AuthenticationContext) {
       coworkerId: null,
     };
   }
+}
+
+async function resolveCoworkerStatusEvent({
+  credits,
+  userId,
+  organizationId,
+  status,
+  tx,
+}: ResolveCoworkerStatusEventInput): Promise<{
+  cents: bigint | undefined;
+  effectiveStatus: TaskStatus;
+  transactionId: string | null;
+}> {
+  let effectiveStatus = status;
+  let transactionId: string | null = null;
+  let cents: bigint | undefined;
+
+  if (isTaskStatusSpendable(status) && credits != null && credits > 0) {
+    cents = convertCreditsToCents(credits);
+    const cappedResult = await createTaskEventTransactionCappedByBalance({
+      userId,
+      organizationId,
+      requestedCents: cents,
+      tx,
+    });
+    transactionId = cappedResult.transactionId;
+
+    if (cappedResult.consumedCents < cents) {
+      effectiveStatus = TaskStatus.OUT_OF_CREDITS;
+    }
+  }
+
+  return {
+    cents,
+    effectiveStatus,
+    transactionId,
+  };
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -83,32 +128,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
           validateTaskCoworkerAssignment({
-            status: status,
+            status,
             coworkerId: task.coworkerId,
           });
 
-          let effectiveStatus: TaskStatus = status;
+          let effectiveStatus = status;
+          let cents: bigint | undefined;
           let transactionId: string | null = null;
-          let cents: bigint | undefined = undefined;
-          if (
-            authContext.coworkerId &&
-            isTaskStatusSpendable(status) &&
-            credits != null &&
-            credits > 0
-          ) {
-            cents = convertCreditsToCents(credits);
-            const cappedResult =
-              await createTaskEventTransactionCappedByBalance({
-                userId: task.userId,
-                organizationId: task.organizationId,
-                requestedCents: cents,
-                tx,
-              });
-            transactionId = cappedResult.transactionId;
 
-            if (cappedResult.consumedCents < cents) {
-              effectiveStatus = TaskStatus.OUT_OF_CREDITS;
-            }
+          if (authContext.coworkerId) {
+            const resolvedEvent = await resolveCoworkerStatusEvent({
+              credits,
+              userId: task.userId,
+              organizationId: task.organizationId,
+              status,
+              tx,
+            });
+            effectiveStatus = resolvedEvent.effectiveStatus;
+            cents = resolvedEvent.cents;
+            transactionId = resolvedEvent.transactionId;
           }
 
           const event = await tx.taskEvent.create({
