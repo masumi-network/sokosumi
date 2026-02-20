@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import {
   formatDaySeparator,
@@ -9,7 +9,6 @@ import {
 } from "@/app/chat/utils/date-utils";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 import ChatMessage from "./chat-message";
 import DaySeparator from "./day-separator";
@@ -24,7 +23,6 @@ interface MessageListProps {
   userImageUrl: string;
   userName?: string;
   isLoading: boolean;
-  scrollAreaRef: React.RefObject<HTMLDivElement | null>;
   reasoningMessages?: Array<{ id: string; message: string }>;
   isCoworker?: boolean;
 }
@@ -37,11 +35,27 @@ export default function MessageList({
   userImageUrl,
   userName,
   isLoading,
-  scrollAreaRef,
   reasoningMessages = [],
   isCoworker = false,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrolledChatIdRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (
+      !selectedChatId ||
+      lastScrolledChatIdRef.current === selectedChatId ||
+      messages.length === 0
+    ) {
+      return;
+    }
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    container.scrollTop = maxScroll;
+    lastScrolledChatIdRef.current = selectedChatId;
+  }, [selectedChatId, messages.length]);
 
   // Add timestamps to messages that don't have them
   const messagesWithTimestamps = messages.map((message) => {
@@ -72,7 +86,10 @@ export default function MessageList({
 
   return (
     <div className="absolute inset-x-0 top-0 bottom-[100px] overflow-hidden">
-      <ScrollArea ref={scrollAreaRef} className="h-full w-full">
+      <div
+        ref={scrollContainerRef}
+        className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div className="flex flex-col items-center pt-4 pb-20">
           <div className="flex w-full max-w-4xl flex-col">
             {messagesWithTimestamps.map((message, index) => {
@@ -155,6 +172,7 @@ export default function MessageList({
               return (
                 <div
                   key={`${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`}
+                  data-message-role={role}
                 >
                   {showDaySeparator && currentCreatedAt && (
                     <DaySeparator
@@ -197,10 +215,17 @@ export default function MessageList({
                 coworkers={coworkers}
               />
             )}
+            {showLoadingArea && (
+              <div
+                className="min-h-[75vh] shrink-0"
+                aria-hidden
+                data-slot="scroll-spacer"
+              />
+            )}
             <div ref={messagesEndRef} />
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

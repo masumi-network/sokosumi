@@ -20,7 +20,6 @@ import { toast } from "sonner";
 import { useChatCreation } from "@/app/chat/hooks/use-chat-creation";
 import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
-import { useChatScroll } from "@/app/chat/hooks/use-chat-scroll";
 import { useChatSelection } from "@/app/chat/hooks/use-chat-selection";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
@@ -42,11 +41,13 @@ interface SlotPayload {
 }
 
 interface ChatInterfaceProps {
+  organizationSlug: string | null;
   userImageUrl: string;
   userName?: string;
 }
 
 export default function ChatInterface({
+  organizationSlug,
   userImageUrl,
   userName,
 }: ChatInterfaceProps) {
@@ -86,6 +87,11 @@ export default function ChatInterface({
       setSelectedChatId(urlConversationId);
     }
   }, [urlConversationId, selectedChatId, urlIdInList]);
+
+  const organizationSlugRef = useRef<string | null>(organizationSlug);
+  useEffect(() => {
+    organizationSlugRef.current = organizationSlug;
+  }, [organizationSlug]);
 
   const loadingConversationIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -201,6 +207,12 @@ export default function ChatInterface({
   function makeSlotTransport(slotIndex: number) {
     return new DefaultChatTransport({
       api: "/api/chat",
+      headers: () => {
+        const slug = organizationSlugRef.current;
+        return slug
+          ? { "x-organization-slug": slug }
+          : ({} as Record<string, string>);
+      },
       prepareSendMessagesRequest(request: {
         messages: unknown[];
         body?: Record<string, unknown>;
@@ -613,12 +625,6 @@ export default function ChatInterface({
     coworkers,
   });
 
-  const { scrollAreaRef, scrollToBottom } = useChatScroll({
-    messages: displayedMessages,
-    isLoading,
-    selectedChatId,
-  });
-
   const handleModelSelected = useCallback(
     async (
       model: { id: string; name: string } | null,
@@ -690,14 +696,11 @@ export default function ChatInterface({
           }
         }
 
-        scrollToBottom();
-        requestAnimationFrame(() => {
-          scrollToBottom();
-        });
-
         const cid = currentChatIdRef.current ?? conversationId;
         const sent = cid ? sendInConversation(cid, trimmedMessage) : false;
-        if (sent) setInput("");
+        if (sent) {
+          setInput("");
+        }
         return;
       }
 
@@ -716,13 +719,10 @@ export default function ChatInterface({
         );
       }
 
-      scrollToBottom();
-      requestAnimationFrame(() => {
-        scrollToBottom();
-      });
-
       const sent = sendInConversation(selectedChatId, trimmedMessage);
-      if (sent) setInput("");
+      if (sent) {
+        setInput("");
+      }
     },
     [
       isLoading,
@@ -733,7 +733,6 @@ export default function ChatInterface({
       handleModelSelected,
       selectedModel,
       t,
-      scrollToBottom,
       setIsWelcomeTransitioning,
       currentChatIdRef,
       setChats,
@@ -847,7 +846,6 @@ export default function ChatInterface({
                     userImageUrl={userImageUrl}
                     userName={userName}
                     isLoading={isLoading}
-                    scrollAreaRef={scrollAreaRef}
                     reasoningMessages={selectedChatReasoningMessages}
                     isCoworker={isSelectedChatCoworker}
                   />
