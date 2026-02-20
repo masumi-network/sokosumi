@@ -1,20 +1,32 @@
 "use server";
 
 import { err, ok, type Result } from "neverthrow";
-import { headers } from "next/headers";
 
-import { getEnvSecrets } from "@/config/env.secrets";
-import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
-  buildAuthHeaders,
   type CoreApiPagination,
-  type CoreApiResponse,
   coreClient,
+  toCoreApiActionError,
 } from "@/lib/clients/core.client";
+import type {
+  Conversation as CoreConversation,
+  ConversationItem,
+} from "@/lib/clients/generated/core/types.gen";
 import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
+
+/** Conversation shape returned by server actions (dates serialized as ISO strings). */
+export type Conversation = Omit<CoreConversation, "createdAt" | "updatedAt"> & {
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Conversation with optional items (e.g. from getConversation). */
+export interface ConversationWithItems extends Conversation {
+  items?: ConversationItem[];
+}
 
 interface CreateConversationParameters extends AuthenticatedRequest {
   conversationId?: string; // Optional conversation ID
@@ -49,127 +61,22 @@ interface GetConversationItemsParameters extends AuthenticatedRequest {
   cursor?: string | null;
 }
 
-export interface Conversation {
-  id: string;
-  userId: string;
-  title?: string | null;
-  metadata?: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
+/** API response may have optional title/metadata; we normalize to Conversation. */
+function toConversation(conversation: CoreConversation): Conversation {
+  return {
+    ...conversation,
+    createdAt: conversation.createdAt.toISOString(),
+    updatedAt: conversation.updatedAt.toISOString(),
+  };
 }
 
-export interface ConversationItem {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: Array<{ type: string; text?: string }> | string;
-  createdAt: number;
-}
-
-export interface ConversationWithItems extends Conversation {
-  items?: ConversationItem[];
-}
-
-/**
- * Helper function to make authenticated requests to Core API
- * Uses the same auth header building logic as coreClient but with better error handling
- */
 async function makeCoreApiRequest<T>(
-  path: string,
-  options: RequestInit = {},
+  request: () => Promise<T>,
 ): Promise<Result<T, ActionError>> {
   try {
-    const requestHeaders = await headers();
-    const authHeaders = buildAuthHeaders(requestHeaders);
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-
-    const coreApiUrl = getEnvSecrets().CORE_API_URL;
-    const fullUrl = `${coreApiUrl}${normalizedPath}`;
-    let response: Response;
-    try {
-      response = await fetch(fullUrl, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-          ...options.headers,
-        },
-      });
-    } catch (fetchError) {
-      throw fetchError;
-    }
-
-    if (!response.ok) {
-      // Try to parse error response
-      let errorMessage = `API error: ${response.status}`;
-      let errorCode = CommonErrorCode.INTERNAL_SERVER_ERROR;
-
-      try {
-        const errorData = (await response.json()) as {
-          error?: string;
-          message?: string;
-        };
-
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch {
-        // If we can't parse the error response, use status code
-      }
-
-      // Map HTTP status codes to error codes
-      const status = response.status;
-      if (status === 401) {
-        errorCode = CommonErrorCode.UNAUTHORIZED;
-      } else if (status === 403) {
-        errorCode = CommonErrorCode.UNAUTHORIZED;
-      } else if (status === 404) {
-        errorCode = CommonErrorCode.BAD_INPUT;
-      } else if (status === 409) {
-        errorCode = CommonErrorCode.BAD_INPUT;
-      } else if (status === 422) {
-        errorCode = CommonErrorCode.BAD_INPUT;
-      } else if (status === 500) {
-        // Internal Server Error - could be API key configuration issue
-        errorCode = CommonErrorCode.INTERNAL_SERVER_ERROR;
-        // Check if it's an API key configuration error
-        if (
-          errorMessage.includes("API key") ||
-          errorMessage.includes("api key") ||
-          errorMessage.includes("invalid_api_key") ||
-          errorMessage.includes("missing_api_key")
-        ) {
-          // Keep the specific API key error message from backend
-          // Don't override it with generic message
-        }
-      } else if (status === 503) {
-        // Service Unavailable - API is down
-        errorCode = CommonErrorCode.INTERNAL_SERVER_ERROR;
-        // Enhance error message for API unavailability
-        if (!errorMessage.includes("unavailable")) {
-          errorMessage = "The conversation service is currently unavailable.";
-        }
-      }
-
-      return err({
-        message: errorMessage,
-        code: errorCode,
-      } as ActionError);
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return ok({} as T);
-    }
-
-    const jsonData = await response.json();
-    const data = jsonData as { data: T; meta?: unknown };
-    return ok(data.data);
+    return ok(await request());
   } catch (error) {
-    return err({
-      message:
-        error instanceof Error
-          ? error.message
-          : "Failed to communicate with Core API",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    } as ActionError);
+    return err(toCoreApiActionError(error));
   }
 }
 
@@ -181,9 +88,7 @@ export const listConversations = withAuthContext<
   ListConversationsParameters,
   Result<Conversation[], ActionError>
 >(async () => {
-  const result = await makeCoreApiRequest<Conversation[]>("/v1/conversations", {
-    method: "GET",
-  });
+  const result = await makeCoreApiRequest(() => coreClient.getConversations());
 
   if (result.isErr()) {
     return {
@@ -192,9 +97,13 @@ export const listConversations = withAuthContext<
     } as unknown as Result<Conversation[], ActionError>;
   }
 
+  const conversations = (result.value.data ?? []).map((conversation) =>
+    toConversation(conversation),
+  );
+
   return {
     ok: true,
-    data: result.value,
+    data: conversations,
   } as unknown as Result<Conversation[], ActionError>;
 });
 
@@ -210,61 +119,33 @@ export const getConversationItems = withAuthContext<
     ActionError
   >
 >(async ({ conversationId, limit, cursor }) => {
-  const queryParams = new URLSearchParams();
-  if (limit !== undefined) {
-    queryParams.append("limit", limit.toString());
-  }
-  if (cursor) {
-    queryParams.append("cursor", cursor);
-  }
-  const queryString = queryParams.toString();
-  const path = `/v1/conversations/${conversationId}/items${
-    queryString ? `?${queryString}` : ""
-  }`;
+  const result = await makeCoreApiRequest(() =>
+    coreClient.getConversationItems(conversationId, {
+      limit,
+      cursor: cursor ?? undefined,
+    }),
+  );
 
-  try {
-    const json: CoreApiResponse<ConversationItem[]> = await coreClient.request(
-      path,
-      {
-        method: "GET",
-        cache: "no-store",
-      },
-    );
-
-    return {
-      ok: true,
-      data: {
-        items: json.data ?? [],
-        pagination: json.meta?.pagination ?? null,
-      },
-    } as unknown as Result<
-      { items: ConversationItem[]; pagination: CoreApiPagination | null },
-      ActionError
-    >;
-  } catch (error) {
-    // Handle errors similar to makeCoreApiRequest pattern
-    let errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Failed to communicate with Core API";
-    const errorCode = CommonErrorCode.INTERNAL_SERVER_ERROR;
-
-    // Check if it's a service unavailable error
-    if (errorMessage.includes("Failed to fetch from Core API")) {
-      errorMessage = "The conversation service is currently unavailable.";
-    }
-
+  if (result.isErr()) {
     return {
       ok: false,
-      error: {
-        message: errorMessage,
-        code: errorCode,
-      } as ActionError,
+      error: result.error,
     } as unknown as Result<
       { items: ConversationItem[]; pagination: CoreApiPagination | null },
       ActionError
     >;
   }
+
+  return {
+    ok: true,
+    data: {
+      items: (result.value.data ?? []) as ConversationItem[],
+      pagination: result.value.meta?.pagination ?? null,
+    },
+  } as unknown as Result<
+    { items: ConversationItem[]; pagination: CoreApiPagination | null },
+    ActionError
+  >;
 });
 
 /**
@@ -277,11 +158,8 @@ export const getConversation = withAuthContext<
   Result<ConversationWithItems, ActionError>
 >(async ({ id }) => {
   // Fetch conversation metadata
-  const conversationResult = await makeCoreApiRequest<Conversation>(
-    `/v1/conversations/${id}`,
-    {
-      method: "GET",
-    },
+  const conversationResult = await makeCoreApiRequest(() =>
+    coreClient.getConversation(id),
   );
 
   if (conversationResult.isErr()) {
@@ -305,7 +183,7 @@ export const getConversation = withAuthContext<
     return {
       ok: true,
       data: {
-        ...conversationResult.value,
+        ...toConversation(conversationResult.value.data),
         items: [],
       },
     } as unknown as Result<ConversationWithItems, ActionError>;
@@ -327,7 +205,7 @@ export const getConversation = withAuthContext<
   return {
     ok: true,
     data: {
-      ...conversationResult.value,
+      ...toConversation(conversationResult.value.data),
       items,
     },
   } as unknown as Result<ConversationWithItems, ActionError>;
@@ -345,10 +223,9 @@ export const createConversation = withAuthContext<
     title,
     metadata,
   };
-  const result = await makeCoreApiRequest<Conversation>("/v1/conversations", {
-    method: "POST",
-    body: JSON.stringify(requestBody),
-  });
+  const result = await makeCoreApiRequest(() =>
+    coreClient.createConversation(requestBody),
+  );
 
   if (result.isErr()) {
     return {
@@ -359,7 +236,7 @@ export const createConversation = withAuthContext<
 
   return {
     ok: true,
-    data: result.value,
+    data: toConversation(result.value.data),
   } as unknown as Result<Conversation, ActionError>;
 });
 
@@ -371,15 +248,11 @@ export const updateConversation = withAuthContext<
   UpdateConversationParameters,
   Result<Conversation, ActionError>
 >(async ({ id, metadata, title }) => {
-  const result = await makeCoreApiRequest<Conversation>(
-    `/v1/conversations/${id}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({
-        title,
-        metadata,
-      }),
-    },
+  const result = await makeCoreApiRequest(() =>
+    coreClient.updateConversation(id, {
+      title,
+      metadata,
+    }),
   );
 
   if (result.isErr()) {
@@ -391,7 +264,7 @@ export const updateConversation = withAuthContext<
 
   return {
     ok: true,
-    data: result.value,
+    data: toConversation(result.value.data),
   } as unknown as Result<Conversation, ActionError>;
 });
 
@@ -403,12 +276,8 @@ export const deleteConversation = withAuthContext<
   GetConversationParameters,
   Result<Conversation, ActionError>
 >(async ({ id }) => {
-  const result = await makeCoreApiRequest<Conversation>(
-    `/v1/conversations/${id}/archive`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ archived: true }),
-    },
+  const result = await makeCoreApiRequest(() =>
+    coreClient.archiveConversation(id, true),
   );
 
   if (result.isErr()) {
@@ -420,7 +289,7 @@ export const deleteConversation = withAuthContext<
 
   return {
     ok: true,
-    data: result.value,
+    data: toConversation(result.value.data),
   } as unknown as Result<Conversation, ActionError>;
 });
 
@@ -434,12 +303,7 @@ export const getConversationId = withAuthContext<
   Result<{ conversationId: string }, ActionError>
 >(async ({ id }) => {
   // Validate ownership by getting the conversation
-  const result = await makeCoreApiRequest<Conversation>(
-    `/v1/conversations/${id}`,
-    {
-      method: "GET",
-    },
-  );
+  const result = await makeCoreApiRequest(() => coreClient.getConversation(id));
 
   if (result.isErr()) {
     return err({
@@ -460,15 +324,11 @@ export const addConversationItem = withAuthContext<
   AddConversationItemParameters,
   Result<{ id: string }, ActionError>
 >(async ({ conversationId, role, content }) => {
-  const result = await makeCoreApiRequest<{ id: string }>(
-    `/v1/conversations/${conversationId}/items`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        role,
-        content,
-      }),
-    },
+  const result = await makeCoreApiRequest(() =>
+    coreClient.addConversationItem(conversationId, {
+      role,
+      content,
+    }),
   );
 
   if (result.isErr()) {
@@ -478,8 +338,19 @@ export const addConversationItem = withAuthContext<
     } as unknown as Result<{ id: string }, ActionError>;
   }
 
+  const item = result.value.data as ConversationItem | undefined;
+  if (!item?.id) {
+    return {
+      ok: false,
+      error: {
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Failed to add conversation item",
+      },
+    } as unknown as Result<{ id: string }, ActionError>;
+  }
+
   return {
     ok: true,
-    data: result.value,
+    data: { id: item.id },
   } as unknown as Result<{ id: string }, ActionError>;
 });

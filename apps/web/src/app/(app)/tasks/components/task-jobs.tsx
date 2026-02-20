@@ -1,11 +1,14 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type {
+  AgentWithCreditsPrice,
+  SokosumiJobStatus,
+} from "@sokosumi/database";
 import Link from "next/link";
 
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { makeAgentJobsChannelName } from "@/lib/ably";
+import type { Job } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
-import type { TaskWithEvents } from "@/lib/services/task.service";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 
 import { TaskJobStatusBadge } from "./task-job-status-badge.client";
@@ -17,7 +20,7 @@ import {
 interface TaskJobsProps {
   title: string;
   agents: AgentWithCreditsPrice[];
-  jobs: TaskWithEvents["jobs"];
+  jobs: Job[];
   userId: string | null;
   emptyLabel: string;
   untitledLabel: string;
@@ -62,14 +65,14 @@ export function TaskJobs({
               key={`${job.id}-${job.status}-real-time-badge`}
               channelName={channelName}
               jobId={job.id}
-              initialStatus={job.status}
+              initialStatus={job.status as SokosumiJobStatus}
               jobType={job.jobType}
               className="shrink-0"
             />
           </TaskJobStatusChannelProvider>
         ) : (
           <JobStatusBadge
-            status={job.status}
+            status={job.status as SokosumiJobStatus}
             jobType={job.jobType}
             className="shrink-0"
           />
