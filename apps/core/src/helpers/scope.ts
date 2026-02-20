@@ -36,17 +36,11 @@ function deduplicateScopes<T extends string>(
   return Array.from(new Set(scopes));
 }
 
-function getEffectiveScopes<T extends string>(
-  scopes: readonly T[] | undefined,
-): T[] {
-  return deduplicateScopes(scopes);
-}
-
 export function buildTaskScopeFilters(
   authContext: UserAuthenticationContext,
   scopes: readonly TaskScope[] | undefined,
 ): Prisma.TaskWhereInput[] {
-  const uniqueScopes = new Set(getEffectiveScopes(scopes));
+  const uniqueScopes = new Set(deduplicateScopes(scopes));
   const filters: Prisma.TaskWhereInput[] = [];
 
   if (uniqueScopes.has("context")) {
@@ -69,7 +63,7 @@ export function buildJobScopeFilters(
   authContext: UserAuthenticationContext,
   scopes: readonly JobScope[] | undefined,
 ): Prisma.JobWhereInput[] {
-  const uniqueScopes = new Set(getEffectiveScopes(scopes));
+  const uniqueScopes = new Set(deduplicateScopes(scopes));
   const filters: Prisma.JobWhereInput[] = [];
 
   if (uniqueScopes.has("context")) {

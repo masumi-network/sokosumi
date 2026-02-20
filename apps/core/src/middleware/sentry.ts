@@ -40,9 +40,7 @@ export function sentryMiddleware(): MiddlewareHandler<{
               id: authContext.userId,
               organizationId: authContext.organizationId || undefined,
             });
-          }
-
-          if (isCoworkerAuthContext(authContext)) {
+          } else if (isCoworkerAuthContext(authContext)) {
             Sentry.getCurrentScope().setUser({
               id: `coworker:${authContext.coworkerId}`,
               coworkerId: authContext.coworkerId,

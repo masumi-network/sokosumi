@@ -68,7 +68,6 @@ export const organizationHeaderMiddleware = createMiddleware<AuthEnv>(
 
     if (
       isAuthenticated &&
-      authContext &&
       isUserAuthContext(authContext) &&
       !authContext.organizationId
     ) {
