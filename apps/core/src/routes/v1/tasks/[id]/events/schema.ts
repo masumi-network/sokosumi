@@ -37,11 +37,14 @@ export const createTaskEventRequestSchema = z
       });
     }
 
-    if (!isTaskStatusSpendable(data.status) && data.credits != null) {
+    if (
+      data.status !== undefined &&
+      !isTaskStatusSpendable(data.status) &&
+      data.credits != null
+    ) {
       ctx.addIssue({
         code: "custom",
-        message:
-          "Credits can only be set when completing or canceling a task",
+        message: "Credits can only be set when completing or canceling a task",
         path: ["credits"],
       });
     }
