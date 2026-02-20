@@ -102,6 +102,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
           }
 
+          if (effectiveStatus !== status) {
+            validateStatusTransition(authContext, task.status, effectiveStatus);
+          }
+
           validateTaskCoworkerAssignment({
             status: effectiveStatus,
             coworkerId: task.coworkerId,
