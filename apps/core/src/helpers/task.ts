@@ -131,8 +131,7 @@ export function validateTaskCoworkerAssignment({
   coworkerId,
 }: ValidateTaskCoworkerAssignmentParams): void {
   const hasCoworkerId = coworkerId !== null && coworkerId !== undefined;
-  const allowsMissingCoworker =
-    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
+  const allowsMissingCoworker = status === TaskStatus.DRAFT;
 
   if (!allowsMissingCoworker && !hasCoworkerId) {
     throw unprocessableEntity(
