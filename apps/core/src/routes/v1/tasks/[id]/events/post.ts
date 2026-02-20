@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { Prisma, TaskStatus } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
 import { requireTaskAccess } from "@/helpers/access-control";
@@ -13,7 +13,7 @@ import {
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "@/helpers/task";
-import { createTaskEventTransactionCappedByBalance } from "@/helpers/task-credits";
+import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -55,14 +55,6 @@ const route = createRoute({
   },
 });
 
-interface ResolveCoworkerStatusEventInput {
-  credits: number | null | undefined;
-  userId: string;
-  organizationId: string | null;
-  status: TaskStatus;
-  tx: Prisma.TransactionClient;
-}
-
 function getActorData(authContext: AuthenticationContext) {
   if (authContext.coworkerId) {
     return {
@@ -75,43 +67,6 @@ function getActorData(authContext: AuthenticationContext) {
       coworkerId: null,
     };
   }
-}
-
-async function resolveCoworkerStatusEvent({
-  credits,
-  userId,
-  organizationId,
-  status,
-  tx,
-}: ResolveCoworkerStatusEventInput): Promise<{
-  cents: bigint | undefined;
-  effectiveStatus: TaskStatus;
-  transactionId: string | null;
-}> {
-  let effectiveStatus = status;
-  let transactionId: string | null = null;
-  let cents: bigint | undefined;
-
-  if (isTaskStatusSpendable(status) && credits != null && credits > 0) {
-    cents = convertCreditsToCents(credits);
-    const cappedResult = await createTaskEventTransactionCappedByBalance({
-      userId,
-      organizationId,
-      requestedCents: cents,
-      tx,
-    });
-    transactionId = cappedResult.transactionId;
-
-    if (cappedResult.consumedCents < cents) {
-      effectiveStatus = TaskStatus.OUT_OF_CREDITS;
-    }
-  }
-
-  return {
-    cents,
-    effectiveStatus,
-    transactionId,
-  };
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -132,27 +87,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             coworkerId: task.coworkerId,
           });
 
-          let effectiveStatus = status;
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
           if (authContext.coworkerId) {
-            const resolvedEvent = await resolveCoworkerStatusEvent({
-              credits,
-              userId: task.userId,
-              organizationId: task.organizationId,
-              status,
-              tx,
-            });
-            effectiveStatus = resolvedEvent.effectiveStatus;
-            cents = resolvedEvent.cents;
-            transactionId = resolvedEvent.transactionId;
+            if (
+              isTaskStatusSpendable(status) &&
+              credits != null &&
+              credits > 0
+            ) {
+              cents = convertCreditsToCents(credits);
+              transactionId = await createTaskEventTransaction({
+                userId: task.userId,
+                organizationId: task.organizationId,
+                cents,
+                tx,
+              });
+            }
           }
 
           const event = await tx.taskEvent.create({
             data: {
               taskId,
-              status: effectiveStatus,
+              status,
               comment,
               authenticationUrl,
               origin,
@@ -164,7 +121,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
-            data: { status: effectiveStatus },
+            data: { status },
           });
           // Verify that exactly one row was updated to prevent race conditions
           // If another transaction already completed the task, this will be 0

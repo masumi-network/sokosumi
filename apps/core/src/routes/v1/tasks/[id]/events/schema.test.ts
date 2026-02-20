@@ -98,21 +98,21 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts credits for running tasks", () => {
+  it("rejects credits for running tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
       credits: 3,
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
-  it("rejects out-of-credits tasks", () => {
+  it("accepts out-of-credits tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.OUT_OF_CREDITS,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("accepts completed tasks without credits", () => {
@@ -123,7 +123,7 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it.each([TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.CANCELED])(
+  it.each([TaskStatus.COMPLETED, TaskStatus.CANCELED])(
     "accepts fractional credits for %s tasks",
     (status) => {
       const result = createTaskEventRequestSchema.safeParse({
