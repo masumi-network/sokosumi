@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
+import { LIMITS } from "@/config/constants";
 import { requireTaskAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -23,7 +24,7 @@ import {
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
+import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -102,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               cents = convertCreditsToCents(credits);
               if (cents === 0n) {
                 throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${MIN_CHARGEABLE_CREDITS} credits`,
+                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
                 );
               }
               transactionId = await createTaskEventTransaction({
