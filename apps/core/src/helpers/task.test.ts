@@ -75,6 +75,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("READY → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.READY,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).not.toThrow();
+    });
+
     it("INPUT_REQUIRED → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -235,6 +245,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("RUNNING → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.RUNNING,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).not.toThrow();
+    });
+
     it("AWAITING_EXTERNAL → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -262,6 +282,46 @@ describe("validateStatusTransition", () => {
           TaskStatus.CANCEL_REQUESTED,
           TaskStatus.CANCELED,
         ),
+      ).not.toThrow();
+    });
+
+    it("CANCEL_REQUESTED → OUT_OF_CREDITS", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.CANCEL_REQUESTED,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).not.toThrow();
+    });
+
+    it.each([
+      [TaskStatus.READY, TaskStatus.AWAITING_EXTERNAL],
+      [TaskStatus.READY, TaskStatus.INPUT_REQUIRED],
+      [TaskStatus.READY, TaskStatus.FAILED],
+      [TaskStatus.INPUT_REQUIRED, TaskStatus.AWAITING_EXTERNAL],
+      [TaskStatus.INPUT_REQUIRED, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.AWAITING_EXTERNAL],
+      [TaskStatus.AUTHENTICATION_REQUIRED, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.OUT_OF_CREDITS, TaskStatus.CANCELED],
+      [TaskStatus.OUT_OF_CREDITS, TaskStatus.FAILED],
+      [TaskStatus.OUT_OF_CREDITS, TaskStatus.COMPLETED],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.AWAITING_EXTERNAL],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.INPUT_REQUIRED],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.AUTHENTICATION_REQUIRED],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.COMPLETED],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.FAILED],
+      [TaskStatus.CREDITS_TOPPED_UP, TaskStatus.CANCELED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.INPUT_REQUIRED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.AUTHENTICATION_REQUIRED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.OUT_OF_CREDITS],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.COMPLETED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.FAILED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.CANCELED],
+    ])("accepts %s → %s", (from, to) => {
+      expect(() =>
+        validateStatusTransition(coworkerContext, from, to),
       ).not.toThrow();
     });
   });
@@ -307,26 +367,6 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
-    it("READY → OUT_OF_CREDITS is invalid for coworkers", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.READY,
-          TaskStatus.OUT_OF_CREDITS,
-        ),
-      ).toThrow();
-    });
-
-    it("RUNNING → OUT_OF_CREDITS is invalid for coworkers", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.RUNNING,
-          TaskStatus.OUT_OF_CREDITS,
-        ),
-      ).toThrow();
-    });
-
     it("OUT_OF_CREDITS → CREDITS_TOPPED_UP is invalid for coworkers", () => {
       expect(() =>
         validateStatusTransition(
@@ -335,6 +375,16 @@ describe("validateStatusTransition", () => {
           TaskStatus.CREDITS_TOPPED_UP,
         ),
       ).toThrow();
+    });
+
+    it("OUT_OF_CREDITS → OUT_OF_CREDITS is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.OUT_OF_CREDITS,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).toThrow("Invalid status transition: same status");
     });
 
     it("CANCEL_REQUESTED → RUNNING is invalid for coworkers", () => {

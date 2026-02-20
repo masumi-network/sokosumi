@@ -31,6 +31,7 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.INPUT_REQUIRED,
@@ -40,6 +41,7 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -48,6 +50,7 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -62,6 +65,7 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -70,6 +74,7 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -78,13 +83,17 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCEL_REQUESTED]: [TaskStatus.CANCELED],
+      [TaskStatus.CANCEL_REQUESTED]: [
+        TaskStatus.CANCELED,
+        TaskStatus.OUT_OF_CREDITS,
+      ],
       [TaskStatus.CANCELED]: [],
     };
   }
@@ -152,14 +161,12 @@ export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
   };
 }
 
-export function isTaskStatusSpendable(
-  status: TaskStatus | null | undefined,
-): boolean {
-  return (
-    status === TaskStatus.RUNNING ||
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.CANCELED
-  );
+export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
+  if (status === undefined) {
+    return false;
+  }
+
+  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
 export function isTaskArchivableStatus(status: TaskStatus): boolean {

@@ -4,19 +4,12 @@ import {
   creditBucketRepository,
 } from "@sokosumi/database/repositories";
 
-import { badRequest } from "./error";
+import { unprocessableEntity } from "./error";
 
 interface CreateTaskEventTransactionInput {
   userId: string;
   organizationId: string | null;
   cents: bigint;
-  tx: Prisma.TransactionClient;
-}
-
-interface CreateTaskEventTransactionCappedByBalanceInput {
-  userId: string;
-  organizationId: string | null;
-  requestedCents: bigint;
   tx: Prisma.TransactionClient;
 }
 
@@ -37,7 +30,7 @@ export async function createTaskEventTransaction(
     );
   } catch (error) {
     if (error instanceof Error) {
-      throw badRequest(error.message);
+      throw unprocessableEntity(error.message);
     }
     throw error;
   }
@@ -64,42 +57,4 @@ export async function createTaskEventTransaction(
   });
 
   return transaction.id;
-}
-
-export async function createTaskEventTransactionCappedByBalance(
-  input: CreateTaskEventTransactionCappedByBalanceInput,
-): Promise<{ transactionId: string | null; consumedCents: bigint }> {
-  if (input.requestedCents <= 0n) {
-    return {
-      transactionId: null,
-      consumedCents: 0n,
-    };
-  }
-
-  const balance = await creditBucketRepository.getBalance(
-    input.userId,
-    input.organizationId,
-    input.tx,
-  );
-  const consumedCents =
-    balance < input.requestedCents ? balance : input.requestedCents;
-
-  if (consumedCents <= 0n) {
-    return {
-      transactionId: null,
-      consumedCents: 0n,
-    };
-  }
-
-  const transactionId = await createTaskEventTransaction({
-    userId: input.userId,
-    organizationId: input.organizationId,
-    cents: consumedCents,
-    tx: input.tx,
-  });
-
-  return {
-    transactionId,
-    consumedCents,
-  };
 }

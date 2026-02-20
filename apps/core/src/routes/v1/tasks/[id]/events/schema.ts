@@ -3,6 +3,9 @@ import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
 import { isTaskStatusSpendable } from "@/helpers/task";
 
+/** Smallest chargeable amount (1 credit = 10^10 cents). Values below this round to 0. */
+export const MIN_CHARGEABLE_CREDITS = 1e-10;
+
 export const createTaskEventRequestSchema = z
   .object({
     status: z
@@ -40,8 +43,19 @@ export const createTaskEventRequestSchema = z
     if (!isTaskStatusSpendable(data.status) && data.credits != null) {
       ctx.addIssue({
         code: "custom",
-        message:
-          "Credits can only be set when running, completing, or canceling a task",
+        message: "Credits can only be set when completing or canceling a task",
+        path: ["credits"],
+      });
+    }
+
+    if (
+      isTaskStatusSpendable(data.status) &&
+      data.credits != null &&
+      data.credits < MIN_CHARGEABLE_CREDITS
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Credit amount is below the minimum chargeable value (${MIN_CHARGEABLE_CREDITS})`,
         path: ["credits"],
       });
     }
@@ -66,15 +80,6 @@ export const createTaskEventRequestSchema = z
         message:
           "authenticationUrl is only allowed for authentication requests",
         path: ["authenticationUrl"],
-      });
-    }
-
-    if (data.status === TaskStatus.OUT_OF_CREDITS) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "Out-of-credits tasks cannot be set by coworkers. Please try to complete the task instead.",
-        path: ["status"],
       });
     }
   });
