@@ -1,6 +1,6 @@
 import { base64Url } from "@better-auth/utils/base64";
 import { createHash } from "@better-auth/utils/hash";
-import type { Context, MiddlewareHandler } from "hono";
+import type { Context } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 
@@ -68,22 +68,6 @@ export function requireCoworkerAuthContext(
 
   return authContext;
 }
-
-export const requireUserActorMiddleware: MiddlewareHandler<AuthEnv> = async (
-  c,
-  next,
-) => {
-  requireUserAuthContext(c.var.authContext);
-  return await next();
-};
-
-export const requireCoworkerActorMiddleware: MiddlewareHandler<AuthEnv> = async (
-  c,
-  next,
-) => {
-  requireCoworkerAuthContext(c.var.authContext);
-  return await next();
-};
 
 /**
  * Verifies a Better Auth API key and sets the authentication context if valid.

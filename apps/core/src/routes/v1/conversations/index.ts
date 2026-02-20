@@ -1,5 +1,4 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserActorMiddleware } from "@/middleware/auth";
 
 import mountArchiveConversation from "./[id]/archive.js";
 import mountGetConversation from "./[id]/get.js";
@@ -11,7 +10,6 @@ import mountGetConversations from "./get.js";
 import mountPostConversation from "./post.js";
 
 const app = new OpenAPIHonoWithAuth();
-app.use("*", requireUserActorMiddleware);
 
 mountGetConversations(app);
 mountPostConversation(app);
