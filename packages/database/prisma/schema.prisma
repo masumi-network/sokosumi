@@ -239,13 +239,13 @@ model UTMAttribution {
 }
 
 model Notice {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   kind         NoticeKind @default(ANNOUNCEMENT)
   bodyMarkdown String
-  effectiveAt  DateTime @default(now())
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  effectiveAt  DateTime   @default(now())
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   acknowledgments NoticeAcknowledgment[]
 
@@ -1142,8 +1142,8 @@ model TaskEvent {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  status            TaskStatus?
-  transactionId     String?
+  status TaskStatus?
+
   comment           String?
   cents             BigInt?
   authenticationUrl String?
@@ -1155,7 +1155,8 @@ model TaskEvent {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
-  transaction Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
+  transactionId String?
+  transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([transactionId])
   @@map("taskEvent")

@@ -55,16 +55,6 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("READY → OUT_OF_CREDITS", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.READY,
-          TaskStatus.OUT_OF_CREDITS,
-        ),
-      ).not.toThrow();
-    });
-
     it("READY → CANCELED", () => {
       expect(() =>
         validateStatusTransition(
@@ -171,16 +161,6 @@ describe("validateStatusTransition", () => {
           coworkerContext,
           TaskStatus.AUTHENTICATION_REQUIRED,
           TaskStatus.CANCELED,
-        ),
-      ).not.toThrow();
-    });
-
-    it("RUNNING → OUT_OF_CREDITS", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.RUNNING,
-          TaskStatus.OUT_OF_CREDITS,
         ),
       ).not.toThrow();
     });
@@ -323,6 +303,26 @@ describe("validateStatusTransition", () => {
           coworkerContext,
           TaskStatus.READY,
           TaskStatus.COMPLETED,
+        ),
+      ).toThrow();
+    });
+
+    it("READY → OUT_OF_CREDITS is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.READY,
+          TaskStatus.OUT_OF_CREDITS,
+        ),
+      ).toThrow();
+    });
+
+    it("RUNNING → OUT_OF_CREDITS is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.RUNNING,
+          TaskStatus.OUT_OF_CREDITS,
         ),
       ).toThrow();
     });
@@ -729,5 +729,44 @@ describe("mapTask", () => {
     expect(result.events).toHaveLength(2);
     expect(result.events[0]?.credits).toBe(3);
     expect(result.events[1]?.credits).toBe(10);
+  });
+
+  it("aggregates consumed transaction credits for out-of-credits fallback events", () => {
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      userId: "user_123",
+      organizationId: null,
+      coworkerId: "cow_123",
+      name: "Task with partial charge",
+      description: null,
+      status: TaskStatus.OUT_OF_CREDITS,
+      jobs: [],
+      events: [
+        {
+          id: "evt_partial",
+          taskId: "tsk_123",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          status: TaskStatus.OUT_OF_CREDITS,
+          comment: null,
+          authenticationUrl: null,
+          origin: TaskEventOrigin.SOKOSUMI,
+          userId: null,
+          coworkerId: "cow_123",
+          transactionId: "txn_partial",
+          cents: convertCreditsToCents(5),
+          transaction: {
+            amount: convertCreditsToCents(2) * -1n,
+          },
+        },
+      ],
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.credits).toBe(2);
+    expect(result.events[0]?.credits).toBe(5);
   });
 });

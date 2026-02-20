@@ -31,14 +31,12 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -47,7 +45,6 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -62,7 +59,6 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -71,7 +67,6 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -80,7 +75,6 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
-        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -174,9 +168,17 @@ export function isTaskArchivableStatus(status: TaskStatus): boolean {
 export function mapTask(task: TaskWithIncludes) {
   const jobs = task.jobs.map((job) => flattenJob(job));
   const events = task.events.map((event) => mapTaskEvent(event));
-  const credits = events.reduce((total, event) => {
-    if (!isTaskStatusChargable(event.status)) return total;
-    return total + (event.credits ?? 0);
+  const credits = task.events.reduce((total, event) => {
+    const amount = event.transaction?.amount;
+    if (amount === undefined || amount === null) {
+      return total;
+    }
+
+    if (amount >= 0n) {
+      return total;
+    }
+
+    return total + convertCentsToCredits(amount * -1n);
   }, 0);
   return {
     id: task.id,
