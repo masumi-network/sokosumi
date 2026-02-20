@@ -1,23 +1,9 @@
 import "server-only";
 
-import { type JobWithSokosumiStatus, TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/database";
 
-import { type CoreApiResponse, coreClient } from "@/lib/clients/core.client";
-import type { TaskEvent } from "@/lib/types/task";
-
-export interface TaskWithEvents {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-  userId: string;
-  organizationId: string | null;
-  coworkerId?: string | null;
-  name: string;
-  description?: string | null;
-  status: TaskStatus;
-  events: TaskEvent[];
-  jobs: JobWithSokosumiStatus[];
-}
+import { coreClient } from "@/lib/clients/core.client";
+import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
 interface ListTasksParams {
   status?: TaskStatus;
@@ -30,7 +16,7 @@ interface CreateTaskInput {
   name: string;
   description: string | null;
   coworkerId: string | null;
-  status?: TaskStatus;
+  status?: Extract<TaskStatus, "DRAFT" | "READY">;
 }
 
 interface PatchTaskInput {
@@ -44,116 +30,74 @@ interface CreateTaskEventInput {
   comment?: string;
 }
 
-function buildQuery(params: ListTasksParams): string {
-  const query = new URLSearchParams();
-  if (params.status) query.set("status", params.status);
-  if (params.coworkerId) query.set("coworkerId", params.coworkerId);
-  if (params.cursor) query.set("cursor", params.cursor);
-  if (params.limit) query.set("limit", params.limit.toString());
-  const queryString = query.toString();
-  return queryString ? `?${queryString}` : "";
-}
-
 export const taskService = (() => {
   async function listTasks(params: ListTasksParams = {}) {
-    const json: CoreApiResponse<TaskWithEvents[]> = await coreClient.request(
-      `/v1/tasks${buildQuery(params)}`,
-      {
-        method: "GET",
-        cache: "no-store",
-      },
-    );
+    const result = await coreClient.getTasks({
+      status: params.status,
+      coworkerId: params.coworkerId,
+      cursor: params.cursor ?? undefined,
+      limit: params.limit,
+    });
+
     return {
-      tasks: json.data ?? [],
-      pagination: json.meta?.pagination ?? null,
+      tasks: result.data,
+      pagination: result.meta?.pagination ?? null,
     };
   }
 
-  async function getTaskById(taskId: string) {
+  async function getTaskById(taskId: string): Promise<Task | null> {
     try {
-      const json: CoreApiResponse<TaskWithEvents> = await coreClient.request(
-        `/v1/tasks/${encodeURIComponent(taskId)}`,
-        {
-          method: "GET",
-          cache: "no-store",
-        },
-      );
-      return json.data ?? null;
+      const result = await coreClient.getTaskById(taskId);
+      return result.data;
     } catch {
       return null;
     }
   }
 
-  async function createTask(input: CreateTaskInput) {
-    const json: CoreApiResponse<TaskWithEvents> = await coreClient.request(
-      "/v1/tasks",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(input),
-      },
-    );
+  async function createTask(input: CreateTaskInput): Promise<Task> {
+    const result = await coreClient.createTask(input);
 
-    if (!json.data) {
+    if (!result.data) {
       throw new Error("Failed to create task");
     }
 
-    return json.data;
+    return result.data;
   }
 
-  async function createTaskEvent(taskId: string, input: CreateTaskEventInput) {
-    const json: CoreApiResponse<TaskEvent> = await coreClient.request(
-      `/v1/tasks/${encodeURIComponent(taskId)}/events`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(input),
-      },
-    );
+  async function createTaskEvent(
+    taskId: string,
+    input: CreateTaskEventInput,
+  ): Promise<TaskEvent> {
+    const result = await coreClient.createTaskEvent(taskId, input);
 
-    if (!json.data) {
+    if (!result.data) {
       throw new Error("Failed to create task event");
     }
 
-    return json.data;
+    return result.data;
   }
 
-  async function patchTask(taskId: string, input: PatchTaskInput) {
-    const json: CoreApiResponse<TaskWithEvents> = await coreClient.request(
-      `/v1/tasks/${encodeURIComponent(taskId)}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(input),
-      },
-    );
+  async function patchTask(
+    taskId: string,
+    input: PatchTaskInput,
+  ): Promise<Task> {
+    const result = await coreClient.patchTask(taskId, input);
 
-    if (!json.data) {
+    if (!result.data) {
       throw new Error("Failed to update task");
     }
 
-    return json.data;
+    return result.data;
   }
 
-  async function deleteTask(taskId: string) {
-    const json: CoreApiResponse<TaskWithEvents> = await coreClient.request(
-      `/v1/tasks/${encodeURIComponent(taskId)}`,
-      {
-        method: "DELETE",
-      },
-    );
+  async function deleteTask(taskId: string): Promise<Task> {
+    const result = await coreClient.deleteTask(taskId);
 
-    if (!json.data) {
+    if (!result.data) {
       throw new Error("Failed to delete task");
     }
 
-    return json.data;
+    return result.data;
   }
 
   return {

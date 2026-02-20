@@ -1,21 +1,27 @@
 import { TaskStatus } from "@sokosumi/database";
 
-import type { TaskWithEvents } from "@/lib/services/task.service";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
-function buildTask(status: TaskStatus): TaskWithEvents {
+type TaskInput = Parameters<typeof mapTaskToTaskWithCoworker>[0];
+
+function buildTask(
+  status: TaskStatus,
+  overrides?: Partial<TaskInput>,
+): TaskInput {
   return {
     id: "task-1",
-    createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     userId: "user-1",
     organizationId: null,
     coworkerId: null,
     name: "Test task",
     description: null,
     status,
+    credits: 0,
     events: [],
     jobs: [],
+    ...overrides,
   };
 }
 
@@ -59,5 +65,19 @@ describe("mapTaskToTaskWithCoworker", () => {
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
     expect(mapped.columnId).toBe("input-required");
+  });
+
+  it("serializes Date timestamps to ISO strings", () => {
+    const createdAt = new Date("2026-01-01T00:00:00.000Z");
+    const updatedAt = new Date("2026-01-01T01:00:00.000Z");
+    const task = buildTask(TaskStatus.READY, {
+      createdAt,
+      updatedAt,
+    });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
   });
 });

@@ -13,7 +13,7 @@ import {
 interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
   coworkerId: string | null;
-  status: TaskStatus;
+  status: Extract<TaskStatus, "DRAFT" | "READY">;
 }
 
 interface UpdateTaskParameters extends AuthenticatedRequest {

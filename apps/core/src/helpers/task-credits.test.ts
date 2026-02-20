@@ -1,4 +1,5 @@
 import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTaskEventTransaction } from "./task-credits";
@@ -104,6 +105,40 @@ describe("createTaskEventTransaction", () => {
 
     expect(result).toBeNull();
     expect(prepareConsumption).not.toHaveBeenCalled();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("throws bad request when credits are insufficient", async () => {
+    const prepareConsumption = vi.mocked(
+      creditBucketRepository.prepareConsumption,
+    );
+    prepareConsumption.mockRejectedValue(
+      new Error(
+        "Insufficient balance: tried to consume 500 but only 200 available",
+      ),
+    );
+
+    const tx = {
+      transaction: {
+        create: vi.fn(),
+      },
+    } as const;
+
+    await expect(
+      createTaskEventTransaction({
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        tx: tx as unknown as Parameters<
+          typeof createTaskEventTransaction
+        >[0]["tx"],
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message:
+        "Insufficient balance: tried to consume 500 but only 200 available",
+    } satisfies Pick<HTTPException, "status" | "message">);
+
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 });

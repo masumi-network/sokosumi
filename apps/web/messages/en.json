@@ -1265,6 +1265,8 @@
         "sourcesLinks": "Links",
         "commentPlaceholder": "Write a comment...",
         "attach": "Attach",
+        "fileLabel": "File",
+        "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "removeAttachment": "Remove attachment",
         "submit": "Submit",
         "sendWith": "Send with",

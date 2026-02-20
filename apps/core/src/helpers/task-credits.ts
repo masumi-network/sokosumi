@@ -4,7 +4,7 @@ import {
   creditBucketRepository,
 } from "@sokosumi/database/repositories";
 
-import { badRequest } from "./error";
+import { unprocessableEntity } from "./error";
 
 interface CreateTaskEventTransactionInput {
   userId: string;
@@ -30,7 +30,7 @@ export async function createTaskEventTransaction(
     );
   } catch (error) {
     if (error instanceof Error) {
-      throw badRequest(error.message);
+      throw unprocessableEntity(error.message);
     }
     throw error;
   }

@@ -8,7 +8,7 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
-  isTaskStatusChargable,
+  isTaskStatusSpendable,
   mapTaskEvent,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
@@ -20,8 +20,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { isTaskStatusCreditable } from "./helper";
-import { createTaskEventRequestSchema } from "./schema";
+import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -88,22 +87,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             coworkerId: task.coworkerId,
           });
 
+          let cents: bigint | undefined;
           let transactionId: string | null = null;
-          let cents: bigint | undefined = undefined;
-          if (isTaskStatusCreditable(status) && credits != null) {
-            cents = convertCreditsToCents(credits);
-          }
-          if (
-            isTaskStatusChargable(status) &&
-            cents !== undefined &&
-            cents > 0n
-          ) {
-            transactionId = await createTaskEventTransaction({
-              userId: task.userId,
-              organizationId: task.organizationId,
-              cents,
-              tx,
-            });
+
+          if (authContext.coworkerId) {
+            if (
+              isTaskStatusSpendable(status) &&
+              credits != null &&
+              credits > 0
+            ) {
+              cents = convertCreditsToCents(credits);
+              if (cents === 0n) {
+                throw unprocessableEntity(
+                  `Credit amount rounds to zero; minimum chargeable amount is ${MIN_CHARGEABLE_CREDITS} credits`,
+                );
+              }
+              transactionId = await createTaskEventTransaction({
+                userId: task.userId,
+                organizationId: task.organizationId,
+                cents,
+                tx,
+              });
+            }
           }
 
           const event = await tx.taskEvent.create({

@@ -28,6 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTaskComment } from "@/lib/actions/task/action";
+import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import {
   ORIGIN_APP_NAME_KEY_MAP,
   ORIGIN_ICON_MAP,
@@ -36,7 +37,6 @@ import {
   extractFileLikeLinks,
   extractHttpLinks,
 } from "@/lib/data/markdown/links";
-import type { TaskEvent } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
@@ -199,7 +199,7 @@ export function TaskActivitySection({
       userId: currentUser?.id ?? null,
       coworkerId: null,
       transactionId: null,
-      cents: null,
+      credits: null,
     };
 
     setLocalEvents((prev) => [optimisticEvent, ...prev]);

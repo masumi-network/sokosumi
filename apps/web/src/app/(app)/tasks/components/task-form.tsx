@@ -140,11 +140,11 @@ export function TaskForm({
       try {
         const trimmedDescription = description.trim();
         const desiredStatus = overrideStatus ?? status;
-        if (mode === "create") {
+        if (mode === "create" && ["DRAFT", "READY"].includes(desiredStatus)) {
           const result = await createTask({
             description: trimmedDescription,
             coworkerId,
-            status: desiredStatus,
+            status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
           });
           if (onSuccess) {
             onSuccess(result.taskId);
