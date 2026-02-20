@@ -8,6 +8,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountPostTaskEvents from "./post";
+import { MIN_CHARGEABLE_CREDITS } from "./schema";
 
 const {
   createTaskEventTransactionMock,
@@ -298,6 +299,36 @@ describe("POST /{id}/events", () => {
       body: JSON.stringify({
         status: TaskStatus.RUNNING,
         credits: 2,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects COMPLETED with credits below minimum (rounds to zero)", async () => {
+    const tx: TransactionMock = {
+      taskEvent: { create: vi.fn() },
+      task: { updateMany: vi.fn() },
+    };
+
+    mockTransaction(tx);
+    requireTaskAccessMock.mockResolvedValue(createTask());
+
+    const app = createApp({
+      userId: USER_ID,
+      organizationId: null,
+      coworkerId: COWORKER_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        credits: MIN_CHARGEABLE_CREDITS / 10,
       }),
     });
 

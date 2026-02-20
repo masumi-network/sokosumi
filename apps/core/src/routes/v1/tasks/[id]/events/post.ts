@@ -20,7 +20,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { createTaskEventRequestSchema } from "./schema";
+import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -97,6 +97,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               credits > 0
             ) {
               cents = convertCreditsToCents(credits);
+              if (cents === 0n) {
+                throw unprocessableEntity(
+                  `Credit amount rounds to zero; minimum chargeable amount is ${MIN_CHARGEABLE_CREDITS} credits`,
+                );
+              }
               transactionId = await createTaskEventTransaction({
                 userId: task.userId,
                 organizationId: task.organizationId,
