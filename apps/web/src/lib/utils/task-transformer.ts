@@ -1,8 +1,8 @@
 import type { AgentWithCreditsPrice, Coworker } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/database";
 
-import type { TaskWithEvents } from "@/lib/services/task.service";
-import type { TaskEvent, TaskWithCoworker } from "@/lib/types/task";
+import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
+import { type TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
@@ -90,7 +90,7 @@ function replaceMentionsWithAgentNames(
 }
 
 export function mapTaskToTaskWithCoworker(
-  task: TaskWithEvents,
+  task: Task,
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, AgentWithCreditsPrice>,
 ): TaskWithCoworker {
@@ -104,14 +104,16 @@ export function mapTaskToTaskWithCoworker(
   const descriptionPlain = stripMarkdownToText(
     replaceMentionsWithAgentNames(task.description, agentsById),
   )?.slice(0, 200);
+  const createdAt = task.createdAt.toISOString();
+  const updatedAt = task.updatedAt.toISOString();
 
   return {
     id: task.id,
     name: task.name,
     status: task.status,
     userId: task.userId,
-    createdAt: task.createdAt,
-    updatedAt: task.updatedAt,
+    createdAt,
+    updatedAt,
     coworker,
     agents,
     commentsCount: getCommentsCount(task.events),
