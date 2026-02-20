@@ -51,7 +51,6 @@ export interface StreamResponsesApiOptions {
   previousResponseId?: string | null;
   instructions?: string;
   onResponseCompleted?: (responseId: string) => void;
-  /** Organization slug for the user's current scope; used to debit credits for the correct account. */
   orgSlug?: string | null;
 }
 
