@@ -82,11 +82,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
+          validateTaskCoworkerAssignment({
+            status: status,
+            coworkerId: task.coworkerId,
+          });
 
           let effectiveStatus: TaskStatus = status;
           let transactionId: string | null = null;
           let cents: bigint | undefined = undefined;
-          if (isTaskStatusSpendable(status) && credits != null && credits > 0) {
+          if (
+            authContext.coworkerId &&
+            isTaskStatusSpendable(status) &&
+            credits != null &&
+            credits > 0
+          ) {
             cents = convertCreditsToCents(credits);
             const cappedResult =
               await createTaskEventTransactionCappedByBalance({
@@ -101,15 +110,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               effectiveStatus = TaskStatus.OUT_OF_CREDITS;
             }
           }
-
-          if (effectiveStatus !== status) {
-            validateStatusTransition(authContext, task.status, effectiveStatus);
-          }
-
-          validateTaskCoworkerAssignment({
-            status: effectiveStatus,
-            coworkerId: task.coworkerId,
-          });
 
           const event = await tx.taskEvent.create({
             data: {
