@@ -7,6 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { creditsResponseSchema } from "@/schemas/user.schema";
 
 const route = withGlobalHeaderParameters(
@@ -37,7 +38,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
 
     const credits = await getCredits(
       authContext.userId,

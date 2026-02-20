@@ -153,8 +153,7 @@ describe("POST /{id}/events", () => {
     requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -203,9 +202,9 @@ describe("POST /{id}/events", () => {
     requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
+      actor: "user",
       userId: USER_ID,
       organizationId: null,
-      coworkerId: null,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -242,8 +241,7 @@ describe("POST /{id}/events", () => {
     );
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -286,8 +284,7 @@ describe("POST /{id}/events", () => {
     );
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -318,8 +315,7 @@ describe("POST /{id}/events", () => {
     requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 

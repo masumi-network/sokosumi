@@ -5,6 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import {
   conversationItemSchema,
   createConversationItemRequestSchema,
@@ -62,7 +63,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 

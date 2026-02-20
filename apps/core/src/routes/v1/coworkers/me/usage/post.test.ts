@@ -23,7 +23,6 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-const AUTH_USER_ID = "auth_user_123";
 const COWORKER_ID = "cow_123";
 const TARGET_USER_ID = "user_456";
 const ORGANIZATION_ID = "org_123";
@@ -42,6 +41,9 @@ interface UsageRecord {
 }
 
 interface TransactionMock {
+  member: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
   coworkerUsage: {
     findUnique: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
@@ -75,8 +77,7 @@ function createApp() {
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
-      userId: AUTH_USER_ID,
-      organizationId: ORGANIZATION_ID,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -121,8 +122,32 @@ describe("POST /me/usage", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when organizationId is missing", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/me/usage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "usage_missing_org",
+        credits: 2.5,
+        userId: TARGET_USER_ID,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
   it("creates usage and bills the request userId", async () => {
     const tx: TransactionMock = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: TARGET_USER_ID,
+        }),
+      },
       coworkerUsage: {
         findUnique: vi.fn().mockResolvedValue(null),
         create: vi
@@ -150,6 +175,7 @@ describe("POST /me/usage", () => {
         idempotencyKey: "usage_456",
         credits: 2.5,
         userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
       }),
     });
 
@@ -179,6 +205,11 @@ describe("POST /me/usage", () => {
 
   it("returns 409 when idempotency key is reused with a different userId", async () => {
     const tx: TransactionMock = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: TARGET_USER_ID,
+        }),
+      },
       coworkerUsage: {
         findUnique: vi
           .fn()
@@ -203,11 +234,91 @@ describe("POST /me/usage", () => {
         idempotencyKey: "usage_456",
         credits: 2.5,
         userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
       }),
     });
 
     expect(response.status).toBe(409);
     expect(tx.transaction.create).not.toHaveBeenCalled();
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when idempotency key is reused with a different organizationId", async () => {
+    const tx: TransactionMock = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: TARGET_USER_ID,
+        }),
+      },
+      coworkerUsage: {
+        findUnique: vi.fn().mockResolvedValue(
+          createUsage({
+            userId: TARGET_USER_ID,
+            organizationId: "org_original",
+          }),
+        ),
+        create: vi.fn(),
+      },
+      transaction: {
+        create: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+
+    const response = await app.request("http://localhost/me/usage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "usage_456",
+        credits: 2.5,
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when user is not a member of the provided organization", async () => {
+    const tx: TransactionMock = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+      coworkerUsage: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+      },
+      transaction: {
+        create: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+
+    const response = await app.request("http://localhost/me/usage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "usage_456",
+        credits: 2.5,
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(tx.coworkerUsage.findUnique).not.toHaveBeenCalled();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 });

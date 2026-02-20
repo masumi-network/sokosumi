@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserActorMiddleware } from "@/middleware/auth";
 
 import mountGetMeCredits from "./credits/get.js";
 import mountGetMeFiles from "./files/get.js";
@@ -15,6 +16,7 @@ import mountGetMePreferences from "./preferences/get.js";
 import mountPatchMePreferences from "./preferences/patch.js";
 
 const app = new OpenAPIHonoWithAuth();
+app.use("*", requireUserActorMiddleware);
 
 mountGetMe(app);
 mountGetMeOrganizations(app);

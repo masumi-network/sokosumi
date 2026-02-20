@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireCoworkerAuthContext } from "@/middleware/auth";
 
 const querySchema = z.object({
   email: z.email().openapi({
@@ -56,12 +56,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    requireCoworkerAuthContext(c.var.authContext);
     const { email } = c.req.valid("query");
-
-    if (!authContext.coworkerId) {
-      throw forbidden("Only coworkers can access the registered user lookup");
-    }
 
     const user = await prisma.user.findUnique({
       where: { email },

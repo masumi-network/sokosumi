@@ -6,6 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import {
   conversationSchema,
   createConversationRequestSchema,
@@ -53,7 +54,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const { authContext } = c.var;
+      const authContext = requireUserAuthContext(c.var.authContext);
       const body = c.req.valid("json");
 
       // Database is the source of truth - create conversation directly in DB

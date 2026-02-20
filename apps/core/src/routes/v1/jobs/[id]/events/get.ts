@@ -10,6 +10,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { jobEventsSchema } from "@/schemas/job.schema.js";
 
 const params = z.object({
@@ -74,7 +75,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const events = await prisma.$transaction(async (tx) => {

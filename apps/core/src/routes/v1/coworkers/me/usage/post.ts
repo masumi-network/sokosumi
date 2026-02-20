@@ -13,41 +13,36 @@ import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import {
-  type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
-} from "@/lib/hono";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
 
-import { requireCoworkerId } from "../helper";
 import { createCoworkerUsageRequestSchema } from "./schema";
 
-const route = withGlobalHeaderParameters(
-  createRoute({
-    method: "post",
-    path: "/me/usage",
-    description: "Create usage for the current coworker",
-    tags: ["Coworkers"],
-    request: {
-      body: {
-        content: {
-          "application/json": {
-            schema: createCoworkerUsageRequestSchema,
-          },
+const route = createRoute({
+  method: "post",
+  path: "/me/usage",
+  description: "Create usage for the current coworker",
+  tags: ["Coworkers"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: createCoworkerUsageRequestSchema,
         },
       },
     },
-    responses: {
-      200: jsonSuccessResponse(coworkerUsageSchema, "Retrieve usage"),
-      201: jsonSuccessResponse(coworkerUsageSchema, "Create usage"),
-      400: jsonErrorResponse("Bad Request"),
-      401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
-      409: jsonErrorResponse("Conflict"),
-      422: jsonErrorResponse("Unprocessable Entity"),
-    },
-  }),
-);
+  },
+  responses: {
+    200: jsonSuccessResponse(coworkerUsageSchema, "Retrieve usage"),
+    201: jsonSuccessResponse(coworkerUsageSchema, "Create usage"),
+    400: jsonErrorResponse("Bad Request"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    409: jsonErrorResponse("Conflict"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
 
 function serializeUsage(usage: {
   id: string;
@@ -94,13 +89,31 @@ async function prepareConsumptions(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const { credits, idempotencyKey, referenceId, userId } =
+    const authContext = requireCoworkerAuthContext(c.var.authContext);
+    const { credits, idempotencyKey, referenceId, userId, organizationId } =
       c.req.valid("json");
-    const coworkerId = requireCoworkerId(authContext);
+    const coworkerId = authContext.coworkerId;
 
     const result = await prisma.$transaction(
       async (tx) => {
+        if (organizationId !== null) {
+          const member = await tx.member.findUnique({
+            where: {
+              userId_organizationId: {
+                userId,
+                organizationId,
+              },
+            },
+            select: { userId: true },
+          });
+
+          if (!member) {
+            throw badRequest(
+              "User is not a member of the specified organization",
+            );
+          }
+        }
+
         const existing = await tx.coworkerUsage.findUnique({
           where: {
             coworkerId_idempotencyKey: {
@@ -128,6 +141,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               "Idempotency key already used with different reference id",
             );
           }
+          if (existing.organizationId !== organizationId) {
+            throw conflict(
+              "Idempotency key already used with different organization id",
+            );
+          }
 
           return { usage: existing, created: false };
         }
@@ -135,7 +153,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const cents = convertCreditsToCents(credits);
         const consumptions = await prepareConsumptions(
           userId,
-          authContext.organizationId,
+          organizationId,
           cents,
           tx,
         );
@@ -144,9 +162,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             amount: cents * BigInt(-1),
             user: { connect: { id: userId } },
-            ...(authContext.organizationId
+            ...(organizationId
               ? {
-                  organization: { connect: { id: authContext.organizationId } },
+                  organization: { connect: { id: organizationId } },
                 }
               : {}),
             creditConsumptions: {
@@ -170,9 +188,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             cents,
             coworker: { connect: { id: coworkerId } },
             user: { connect: { id: userId } },
-            ...(authContext.organizationId
+            ...(organizationId
               ? {
-                  organization: { connect: { id: authContext.organizationId } },
+                  organization: { connect: { id: organizationId } },
                 }
               : {}),
             transaction: { connect: { id: transaction.id } },

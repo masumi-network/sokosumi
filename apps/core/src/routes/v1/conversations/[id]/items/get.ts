@@ -12,6 +12,7 @@ import {
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { conversationItemSchema } from "@/schemas/conversation-item.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -70,7 +71,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const { authContext } = c.var;
+      const authContext = requireUserAuthContext(c.var.authContext);
       const { id } = c.req.valid("param");
       const queryParams = c.req.valid("query");
 

@@ -58,18 +58,25 @@ function createNotice(overrides: Partial<NoticeRecord> = {}): NoticeRecord {
   };
 }
 
-function createApp(coworkerId: string | null = null) {
+function createApp(actor: "user" | "coworker" = "user") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      userId: USER_ID,
-      organizationId: null,
-      coworkerId,
-    });
+    if (actor === "coworker") {
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cow_123",
+      });
+    } else {
+      c.set("authContext", {
+        actor: "user",
+        userId: USER_ID,
+        organizationId: null,
+      });
+    }
 
     return await next();
   });
@@ -291,7 +298,7 @@ describe("POST /notices/{id}/acknowledge", () => {
   });
 
   it("returns 403 for coworker-authenticated requests", async () => {
-    const app = createApp("cow_123");
+    const app = createApp("coworker");
     const response = await app.request(
       `http://localhost/notices/${NOTICE_ID}/acknowledge`,
       {

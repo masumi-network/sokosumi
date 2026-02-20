@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "../../../lib/hono";
+import { requireUserActorMiddleware } from "../../../middleware/auth";
 import mountGetEventsByJobId from "./[id]/events/get.js";
 import mountGetFilesByJobId from "./[id]/files/get.js";
 import mountGetJobById from "./[id]/get.js";
@@ -8,6 +9,7 @@ import mountGetLinksByJobId from "./[id]/links/get.js";
 import mountGetJobs from "./get.js";
 
 const app = new OpenAPIHonoWithAuth();
+app.use("*", requireUserActorMiddleware);
 
 mountGetJobs(app);
 mountGetJobById(app);

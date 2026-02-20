@@ -17,7 +17,10 @@ import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  isCoworkerAuthContext,
+} from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
 import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
@@ -56,7 +59,7 @@ const route = createRoute({
 });
 
 function getActorData(authContext: AuthenticationContext) {
-  if (authContext.coworkerId) {
+  if (isCoworkerAuthContext(authContext)) {
     return {
       userId: null,
       coworkerId: authContext.coworkerId,
@@ -90,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
-          if (authContext.coworkerId) {
+          if (isCoworkerAuthContext(authContext)) {
             if (
               isTaskStatusSpendable(status) &&
               credits != null &&

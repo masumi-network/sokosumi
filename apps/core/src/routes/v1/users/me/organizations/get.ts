@@ -6,6 +6,7 @@ import { ok } from "@/helpers/response";
 import { mapSubscription } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { organizationsSchema } from "@/schemas/organization.schema";
 
 const route = createRoute({
@@ -49,7 +50,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
 
     const organizations = await prisma.$transaction(async (tx) => {
       const members = await tx.member.findMany({

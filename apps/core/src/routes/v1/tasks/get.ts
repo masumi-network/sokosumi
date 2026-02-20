@@ -18,6 +18,10 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import {
+  isCoworkerAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
@@ -72,7 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     let where: Prisma.TaskWhereInput;
-    if (authContext.coworkerId) {
+    if (isCoworkerAuthContext(authContext)) {
       if (status === TaskStatus.DRAFT) {
         throw badRequest(
           "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
@@ -85,9 +89,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
+      const userAuthContext = requireUserAuthContext(authContext);
       where = {
         archivedAt: null,
-        OR: buildTaskScopeFilters(authContext, scope),
+        OR: buildTaskScopeFilters(userAuthContext, scope),
         ...(status ? { status } : {}),
         ...(coworkerId ? { coworkerId } : {}),
       };

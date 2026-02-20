@@ -4,6 +4,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { userOnboardingResponseSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
@@ -32,7 +33,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
 
     const onboarding = await prisma.$transaction(async (tx) => {
       const updatedUser = await tx.user.update({

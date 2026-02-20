@@ -2,7 +2,7 @@ import { createMiddleware } from "hono/factory";
 
 import { forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import type { AuthEnv } from "@/middleware/auth";
+import { type AuthEnv, isUserAuthContext } from "@/middleware/auth";
 import { setAuthContext } from "@/middleware/auth";
 
 /**
@@ -66,8 +66,12 @@ export const organizationHeaderMiddleware = createMiddleware<AuthEnv>(
   async (c, next) => {
     const { authContext, isAuthenticated } = c.var;
 
-    // Only apply if organizationId is null
-    if (isAuthenticated && authContext && !authContext.organizationId) {
+    if (
+      isAuthenticated &&
+      authContext &&
+      isUserAuthContext(authContext) &&
+      !authContext.organizationId
+    ) {
       const organizationSlug = c.req.header("x-organization-slug");
 
       if (organizationSlug) {

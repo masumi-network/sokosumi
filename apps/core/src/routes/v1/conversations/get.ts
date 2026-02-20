@@ -5,6 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { conversationListResponseSchema } from "@/schemas/conversation.schema";
 
 const route = createRoute({
@@ -41,7 +42,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     try {
-      const { authContext } = c.var;
+      const authContext = requireUserAuthContext(c.var.authContext);
 
       // Database is the source of truth - fetch conversations
       const conversations = await prisma.conversation.findMany({
