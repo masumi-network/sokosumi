@@ -13,10 +13,7 @@ import {
   validateStatusTransition,
   validateTaskCoworkerAssignment,
 } from "@/helpers/task";
-import {
-  createTaskEventTransaction,
-  createTaskEventTransactionCappedByBalance,
-} from "@/helpers/task-credits";
+import { createTaskEventTransactionCappedByBalance } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -95,26 +92,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let cents: bigint | undefined = undefined;
           if (isTaskStatusSpendable(status) && credits != null && credits > 0) {
             cents = convertCreditsToCents(credits);
-            if (authContext.coworkerId && status === TaskStatus.COMPLETED) {
-              const cappedResult =
-                await createTaskEventTransactionCappedByBalance({
-                  userId: task.userId,
-                  organizationId: task.organizationId,
-                  requestedCents: cents,
-                  tx,
-                });
-              transactionId = cappedResult.transactionId;
-
-              if (cappedResult.consumedCents < cents) {
-                effectiveStatus = TaskStatus.OUT_OF_CREDITS;
-              }
-            } else {
-              transactionId = await createTaskEventTransaction({
+            const cappedResult =
+              await createTaskEventTransactionCappedByBalance({
                 userId: task.userId,
                 organizationId: task.organizationId,
-                cents,
+                requestedCents: cents,
                 tx,
               });
+            transactionId = cappedResult.transactionId;
+
+            if (cappedResult.consumedCents < cents) {
+              effectiveStatus = TaskStatus.OUT_OF_CREDITS;
             }
           }
 
