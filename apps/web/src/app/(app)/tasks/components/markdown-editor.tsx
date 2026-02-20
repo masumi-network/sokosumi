@@ -351,6 +351,7 @@ export const MarkdownEditor = forwardRef<
   const listRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -1013,7 +1014,7 @@ export const MarkdownEditor = forwardRef<
   );
 
   const handleBlur = useCallback(() => {
-    setTimeout(() => {
+    blurTimeoutRef.current = setTimeout(() => {
       if (!isSelectingRef.current) {
         closeSuggestions();
       }
@@ -1040,6 +1041,14 @@ export const MarkdownEditor = forwardRef<
     );
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useImperativeHandle(
     ref,
