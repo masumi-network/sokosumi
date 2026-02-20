@@ -1,3 +1,4 @@
+import { NoticeKind } from "@sokosumi/database";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -8,10 +9,12 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
+import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
 import Header from "./components/header";
+import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { OnboardingDialog } from "./components/onboarding-dialog";
 import Sidebar from "./components/sidebar";
 
@@ -45,33 +48,51 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     return redirect(`/accept-invitation/${pendingInvitationId}`);
   }
 
-  const shouldShowOnboarding = await userService.showOnboarding(session);
+  const [shouldShowOnboarding, pendingNoticesResult] = await Promise.all([
+    userService.showOnboarding(session),
+    getPendingNoticesAction(),
+  ]);
+  const pendingNotices = pendingNoticesResult.isOk()
+    ? pendingNoticesResult.value
+    : [];
+  const legalNotices = pendingNotices.filter(
+    (notice) => notice.kind === NoticeKind.LEGAL_TERMS,
+  );
+  const announcementNotices = pendingNotices.filter(
+    (notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
+  );
+
   const content = (
-    <SidebarProvider
-      defaultOpen={defaultOpen}
-      data-app-shell
-      className="flex max-w-svw overflow-clip"
+    <NoticeDialogProvider
+      legalNotices={legalNotices}
+      announcementNotices={announcementNotices}
     >
-      <Sidebar session={session} />
-      <div
-        className="flex min-w-0 flex-1 flex-col overflow-clip"
-        data-app-content
+      <SidebarProvider
+        defaultOpen={defaultOpen}
+        data-app-shell
+        className="flex max-w-svw overflow-clip"
       >
-        <Header session={session} className="h-16 p-4" />
-        <main
-          className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4"
-          data-app-main
+        <Sidebar session={session} />
+        <div
+          className="flex min-w-0 flex-1 flex-col overflow-clip"
+          data-app-content
         >
-          <EmergencyDialog />
-          <div
-            className="flex h-full flex-1 flex-col overflow-hidden"
-            data-app-main-inner
+          <Header session={session} className="h-16 p-4" />
+          <main
+            className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4"
+            data-app-main
           >
-            {children}
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+            <EmergencyDialog />
+            <div
+              className="flex h-full flex-1 flex-col overflow-hidden"
+              data-app-main-inner
+            >
+              {children}
+            </div>
+          </main>
+        </div>
+      </SidebarProvider>
+    </NoticeDialogProvider>
   );
 
   return (
