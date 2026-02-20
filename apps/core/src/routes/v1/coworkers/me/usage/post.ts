@@ -95,7 +95,7 @@ async function prepareConsumptions(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const { credits, idempotencyKey, referenceId } = c.req.valid("json");
+    const { credits, idempotencyKey, referenceId, userId } = c.req.valid("json");
     const coworkerId = requireCoworkerId(authContext);
 
     const result = await prisma.$transaction(
@@ -112,6 +112,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (existing) {
           const requestedCents = convertCreditsToCents(credits);
 
+          if (existing.userId !== userId) {
+            throw conflict("Idempotency key already used with different user id");
+          }
           if (existing.cents !== requestedCents) {
             throw conflict(
               "Idempotency key already used with different parameters",
@@ -128,7 +131,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         const cents = convertCreditsToCents(credits);
         const consumptions = await prepareConsumptions(
-          authContext.userId,
+          userId,
           authContext.organizationId,
           cents,
           tx,
@@ -137,7 +140,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const transaction = await tx.transaction.create({
           data: {
             amount: cents * BigInt(-1),
-            user: { connect: { id: authContext.userId } },
+            user: { connect: { id: userId } },
             ...(authContext.organizationId
               ? {
                   organization: { connect: { id: authContext.organizationId } },
@@ -163,7 +166,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             referenceId: referenceId ?? null,
             cents,
             coworker: { connect: { id: coworkerId } },
-            user: { connect: { id: authContext.userId } },
+            user: { connect: { id: userId } },
             ...(authContext.organizationId
               ? {
                   organization: { connect: { id: authContext.organizationId } },
