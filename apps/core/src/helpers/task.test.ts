@@ -24,7 +24,7 @@ const userContext = {
 };
 
 describe("validateStatusTransition", () => {
-  it("rejects same-status transition for non out-of-credits coworker statuses", () => {
+  it("rejects same-status transition", () => {
     expect(() => {
       validateStatusTransition(
         coworkerContext,
