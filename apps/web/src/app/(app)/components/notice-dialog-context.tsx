@@ -46,15 +46,20 @@ export function NoticeDialogProvider({
   }
 
   async function handleNoticeAcknowledged() {
-    const pendingNotices = await getPendingNoticesAction();
-    setLegalNotices(
-      pendingNotices.filter((notice) => notice.kind === NoticeKind.LEGAL_TERMS),
-    );
-    setAnnouncementNotices(
-      pendingNotices.filter(
-        (notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
-      ),
-    );
+    const result = await getPendingNoticesAction();
+    if (result.isOk()) {
+      const pendingNotices = result.value;
+      setLegalNotices(
+        pendingNotices.filter(
+          (notice) => notice.kind === NoticeKind.LEGAL_TERMS,
+        ),
+      );
+      setAnnouncementNotices(
+        pendingNotices.filter(
+          (notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
+        ),
+      );
+    }
   }
 
   return (

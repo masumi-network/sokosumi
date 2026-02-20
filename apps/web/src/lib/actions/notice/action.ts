@@ -1,6 +1,7 @@
 "use server";
 
 import type { Notice, NoticeKind } from "@sokosumi/database";
+import { err, ok, type Result } from "neverthrow";
 
 import { type ActionError } from "@/lib/actions/errors";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
@@ -12,11 +13,12 @@ export type NoticeAcknowledgment = Awaited<
 
 export async function getPendingNoticesAction(
   kind?: NoticeKind,
-): Promise<PendingNotice[]> {
+): Promise<Result<PendingNotice[], ActionError>> {
   try {
-    return await coreClient.getPendingNotices(kind);
-  } catch (_error) {
-    return [];
+    const notices = await coreClient.getPendingNotices(kind);
+    return ok(notices);
+  } catch (error) {
+    return err(toCoreApiActionError(error));
   }
 }
 
