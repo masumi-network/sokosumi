@@ -751,6 +751,11 @@ export const MarkdownEditor = forwardRef<
             }
             return;
           }
+        } else if (key === "enter") {
+          e.preventDefault();
+          closeSuggestions();
+          insertLineBreak();
+          return;
         }
       }
 
