@@ -14,7 +14,9 @@ import {
   getCoworkers as coreGetCoworkers,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
+  getUsersMeCredits as coreGetUsersMeCredits,
   getUsersMeNoticesPending as coreGetUsersMeNoticesPending,
+  getUsersMeOrganizations as coreGetUsersMeOrganizations,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchTasksById as corePatchTasksById,
@@ -444,6 +446,28 @@ export const coreClient = (() => {
     return response.data;
   }
 
+  async function getMyCredits() {
+    return executeOperation(
+      (client) =>
+        coreGetUsersMeCredits({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch user credits",
+    );
+  }
+
+  async function getMyOrganizations() {
+    return executeOperation(
+      (client) =>
+        coreGetUsersMeOrganizations({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch user organizations",
+    );
+  }
+
   return {
     acknowledgeNotice,
     addConversationItem,
@@ -457,6 +481,8 @@ export const coreClient = (() => {
     getConversations,
     getCoworkers,
     getPendingNotices,
+    getMyCredits,
+    getMyOrganizations,
     getTaskById,
     getTasks,
     patchTask,

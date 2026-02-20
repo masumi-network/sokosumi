@@ -4,15 +4,24 @@ import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 
-import { unauthorized } from "@/helpers/error";
+import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 
-export interface AuthenticationContext {
+export interface UserAuthenticationContext {
+  actor: "user";
   userId: string;
   organizationId: string | null;
-  coworkerId: string | null;
 }
+
+export interface CoworkerAuthenticationContext {
+  actor: "coworker";
+  coworkerId: string;
+}
+
+export type AuthenticationContext =
+  | UserAuthenticationContext
+  | CoworkerAuthenticationContext;
 
 export type AuthVariables = {
   isAuthenticated: boolean;
@@ -26,6 +35,38 @@ export type AuthEnv = {
 export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
   c.set("authContext", context.authContext);
+}
+
+export function isUserAuthContext(
+  authContext: AuthenticationContext,
+): authContext is UserAuthenticationContext {
+  return authContext.actor === "user";
+}
+
+export function isCoworkerAuthContext(
+  authContext: AuthenticationContext,
+): authContext is CoworkerAuthenticationContext {
+  return authContext.actor === "coworker";
+}
+
+export function requireUserAuthContext(
+  authContext: AuthenticationContext,
+): UserAuthenticationContext {
+  if (!isUserAuthContext(authContext)) {
+    throw forbidden("User authentication required");
+  }
+
+  return authContext;
+}
+
+export function requireCoworkerAuthContext(
+  authContext: AuthenticationContext,
+): CoworkerAuthenticationContext {
+  if (!isCoworkerAuthContext(authContext)) {
+    throw forbidden("Coworker authentication required");
+  }
+
+  return authContext;
 }
 
 /**
@@ -44,12 +85,25 @@ async function verifyApiKey(
   });
 
   if (apiKeyResult.valid && apiKeyResult.key) {
+    const coworkerId = apiKeyResult.key.metadata?.coworkerId;
+
+    if (typeof coworkerId === "string" && coworkerId.length > 0) {
+      setAuthContext(c, {
+        isAuthenticated: true,
+        authContext: {
+          actor: "coworker",
+          coworkerId,
+        },
+      });
+      return true;
+    }
+
     setAuthContext(c, {
       isAuthenticated: true,
       authContext: {
+        actor: "user",
         userId: apiKeyResult.key.userId,
         organizationId: apiKeyResult.key.metadata?.organizationId ?? null,
-        coworkerId: apiKeyResult.key.metadata?.coworkerId ?? null,
       },
     });
     return true;
@@ -137,9 +191,9 @@ async function verifyOAuthToken(
   setAuthContext(c, {
     isAuthenticated: true,
     authContext: {
+      actor: "user",
       userId: oauthToken.userId,
       organizationId: null,
-      coworkerId: null,
     },
   });
   return true;
@@ -176,9 +230,9 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   setAuthContext(c, {
     isAuthenticated: true,
     authContext: {
+      actor: "user",
       userId: user.id,
       organizationId: session.activeOrganizationId ?? null,
-      coworkerId: null,
     },
   });
 

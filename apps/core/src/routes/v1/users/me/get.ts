@@ -7,6 +7,7 @@ import { mapSubscription } from "@/helpers/subscription";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { type User, userSchema } from "@/schemas/user.schema";
 
 const route = createRoute({
@@ -39,13 +40,14 @@ const route = createRoute({
       },
     }),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
 
     const user: User = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({

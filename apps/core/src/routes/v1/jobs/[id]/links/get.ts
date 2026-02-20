@@ -8,6 +8,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { linksSchema } from "@/schemas/link.schema";
 import { flattenLinkJobId, linkWithJobIdInclude } from "@/types/link";
 
@@ -62,7 +63,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const links = await prisma.$transaction(async (tx) => {

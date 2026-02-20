@@ -2,6 +2,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import type { AuthenticationContext } from "@/middleware/auth";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import type { TaskWithIncludes } from "@/types/task";
 
@@ -24,13 +25,14 @@ interface ValidateTaskCoworkerAssignmentParams {
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
-  if (authContext.coworkerId) {
+  if (isCoworkerAuthContext(authContext)) {
     return {
       [TaskStatus.DRAFT]: [],
       [TaskStatus.READY]: [
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.INPUT_REQUIRED,
@@ -40,6 +42,7 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -48,6 +51,7 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -62,6 +66,7 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -70,6 +75,7 @@ function getAllowedTransitions(
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
@@ -78,38 +84,38 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.COMPLETED]: [],
       [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCEL_REQUESTED]: [TaskStatus.CANCELED],
+      [TaskStatus.CANCEL_REQUESTED]: [
+        TaskStatus.CANCELED,
+        TaskStatus.OUT_OF_CREDITS,
+      ],
       [TaskStatus.CANCELED]: [],
     };
   }
 
-  if (authContext.userId) {
-    return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
-      [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
-      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.OUT_OF_CREDITS]: [
-        TaskStatus.CREDITS_TOPPED_UP,
-        TaskStatus.CANCEL_REQUESTED,
-      ],
-      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
-      [TaskStatus.COMPLETED]: [],
-      [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
-      [TaskStatus.CANCEL_REQUESTED]: [],
-    };
-  }
-
-  throw unprocessableEntity("Invalid authentication context");
+  return {
+    [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+    [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
+    [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.OUT_OF_CREDITS]: [
+      TaskStatus.CREDITS_TOPPED_UP,
+      TaskStatus.CANCEL_REQUESTED,
+    ],
+    [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.RUNNING]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.COMPLETED]: [],
+    [TaskStatus.FAILED]: [],
+    [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
+    [TaskStatus.CANCEL_REQUESTED]: [],
+  };
 }
 
 export function validateStatusTransition(
@@ -152,14 +158,12 @@ export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
   };
 }
 
-export function isTaskStatusSpendable(
-  status: TaskStatus | null | undefined,
-): boolean {
-  return (
-    status === TaskStatus.RUNNING ||
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.CANCELED
-  );
+export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
+  if (status === undefined) {
+    return false;
+  }
+
+  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
 export function isTaskArchivableStatus(status: TaskStatus): boolean {

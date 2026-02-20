@@ -15,16 +15,33 @@ vi.mock("@/middleware/auth", () => ({
     },
     context: {
       isAuthenticated: boolean;
-      authContext: {
-        userId: string;
-        organizationId: string | null;
-        coworkerId: string | null;
-      };
+      authContext:
+        | {
+            actor: "user";
+            userId: string;
+            organizationId: string | null;
+          }
+        | {
+            actor: "coworker";
+            coworkerId: string;
+          };
     },
   ) => {
     c.set("isAuthenticated", context.isAuthenticated);
     c.set("authContext", context.authContext);
   },
+  isUserAuthContext: (
+    authContext:
+      | {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+        }
+      | {
+          actor: "coworker";
+          coworkerId: string;
+        },
+  ) => authContext.actor === "user",
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -40,14 +57,19 @@ vi.mock("@/lib/db/prisma", () => ({
 
 type Variables = {
   isAuthenticated: boolean;
-  authContext: {
-    userId: string;
-    organizationId: string | null;
-    coworkerId: string | null;
-  };
+  authContext:
+    | {
+        actor: "user";
+        userId: string;
+        organizationId: string | null;
+      }
+    | {
+        actor: "coworker";
+        coworkerId: string;
+      };
 };
 
-function createApp(initialOrganizationId: string | null) {
+function createUserApp(initialOrganizationId: string | null) {
   const app = new Hono<{
     Variables: Variables;
   }>();
@@ -55,9 +77,32 @@ function createApp(initialOrganizationId: string | null) {
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
+      actor: "user",
       userId: "user_123",
       organizationId: initialOrganizationId,
-      coworkerId: null,
+    });
+    return await next();
+  });
+
+  app.use("*", organizationHeaderMiddleware);
+
+  app.get("/", (c) => {
+    return c.json(c.var.authContext);
+  });
+
+  return app;
+}
+
+function createCoworkerApp() {
+  const app = new Hono<{
+    Variables: Variables;
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "coworker",
+      coworkerId: "cow_123",
     });
     return await next();
   });
@@ -77,7 +122,7 @@ describe("organizationHeaderMiddleware", () => {
   });
 
   it("does not query organization when organizationId is already set", async () => {
-    const app = createApp("org_existing");
+    const app = createUserApp("org_existing");
     const response = await app.request("http://localhost/", {
       headers: {
         "x-organization-slug": "new-org",
@@ -86,23 +131,23 @@ describe("organizationHeaderMiddleware", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
+      actor: "user",
       userId: "user_123",
       organizationId: "org_existing",
-      coworkerId: null,
     });
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("does not query organization when header is missing", async () => {
-    const app = createApp(null);
+    const app = createUserApp(null);
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
+      actor: "user",
       userId: "user_123",
       organizationId: null,
-      coworkerId: null,
     });
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
@@ -116,7 +161,7 @@ describe("organizationHeaderMiddleware", () => {
       organizationId: "org_new",
     });
 
-    const app = createApp(null);
+    const app = createUserApp(null);
     const response = await app.request("http://localhost/", {
       headers: {
         "x-organization-slug": "new-org",
@@ -125,9 +170,9 @@ describe("organizationHeaderMiddleware", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
+      actor: "user",
       userId: "user_123",
       organizationId: "org_new",
-      coworkerId: null,
     });
     expect(organizationFindUniqueMock).toHaveBeenCalledWith({
       where: { slug: "new-org" },
@@ -144,10 +189,27 @@ describe("organizationHeaderMiddleware", () => {
     });
   });
 
+  it("does not resolve organization for coworker auth", async () => {
+    const app = createCoworkerApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        "x-organization-slug": "new-org",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "coworker",
+      coworkerId: "cow_123",
+    });
+    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("returns 403 when organization slug does not exist", async () => {
     organizationFindUniqueMock.mockResolvedValue(null);
 
-    const app = createApp(null);
+    const app = createUserApp(null);
     const response = await app.request("http://localhost/", {
       headers: {
         "x-organization-slug": "missing-org",
@@ -164,7 +226,7 @@ describe("organizationHeaderMiddleware", () => {
     });
     memberFindUniqueMock.mockResolvedValue(null);
 
-    const app = createApp(null);
+    const app = createUserApp(null);
     const response = await app.request("http://localhost/", {
       headers: {
         "x-organization-slug": "new-org",

@@ -36,7 +36,7 @@ import {
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type { UserAuthenticationContext } from "@/middleware/auth";
 import {
   flattenInputs,
   type StartPaidJobResponseSchemaType,
@@ -221,7 +221,7 @@ async function createFreeJob(
  */
 export async function shareJob(
   jobId: string,
-  authContext: AuthenticationContext,
+  authContext: UserAuthenticationContext,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
   // Verify job exists and user owns it
@@ -274,7 +274,7 @@ export async function shareJob(
 }
 
 interface CreateAgentJobInput {
-  authContext: AuthenticationContext;
+  authContext: UserAuthenticationContext;
   agentInput: {
     agentId: string;
     inputData: InputSchemaType;
@@ -497,7 +497,7 @@ export async function createAgentJobForUser(
  * });
  */
 export async function getUserJobs(
-  authContext: AuthenticationContext,
+  authContext: UserAuthenticationContext,
   options: {
     agentId?: string;
     cursor?: string;

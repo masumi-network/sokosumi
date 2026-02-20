@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
+import { LIMITS } from "@/config/constants";
 import { isTaskStatusSpendable } from "@/helpers/task";
 
 export const createTaskEventRequestSchema = z
@@ -40,8 +41,19 @@ export const createTaskEventRequestSchema = z
     if (!isTaskStatusSpendable(data.status) && data.credits != null) {
       ctx.addIssue({
         code: "custom",
-        message:
-          "Credits can only be set when running, completing, or canceling a task",
+        message: "Credits can only be set when completing or canceling a task",
+        path: ["credits"],
+      });
+    }
+
+    if (
+      isTaskStatusSpendable(data.status) &&
+      data.credits != null &&
+      data.credits < LIMITS.MIN_CHARGEABLE_CREDITS
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
         path: ["credits"],
       });
     }
@@ -66,15 +78,6 @@ export const createTaskEventRequestSchema = z
         message:
           "authenticationUrl is only allowed for authentication requests",
         path: ["authenticationUrl"],
-      });
-    }
-
-    if (data.status === TaskStatus.OUT_OF_CREDITS) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "Out-of-credits tasks cannot be set by coworkers. Please try to complete the task instead.",
-        path: ["status"],
       });
     }
   });

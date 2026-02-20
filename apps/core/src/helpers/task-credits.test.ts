@@ -1,14 +1,11 @@
 import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  createTaskEventTransaction,
-  createTaskEventTransactionCappedByBalance,
-} from "./task-credits";
+import { createTaskEventTransaction } from "./task-credits";
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
-    getBalance: vi.fn(),
     prepareConsumption: vi.fn(),
   },
 }));
@@ -110,91 +107,16 @@ describe("createTaskEventTransaction", () => {
     expect(prepareConsumption).not.toHaveBeenCalled();
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
-});
 
-describe("createTaskEventTransactionCappedByBalance", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("consumes full requested cents when balance is sufficient", async () => {
-    const getBalance = vi.mocked(creditBucketRepository.getBalance);
+  it("throws bad request when credits are insufficient", async () => {
     const prepareConsumption = vi.mocked(
       creditBucketRepository.prepareConsumption,
     );
-    getBalance.mockResolvedValue(700n);
-    prepareConsumption.mockResolvedValue([
-      { bucketId: "bucket_1", amount: 500n },
-    ]);
-
-    const tx = {
-      transaction: {
-        create: vi.fn().mockResolvedValue({ id: "trx_full" }),
-      },
-    } as const;
-
-    const result = await createTaskEventTransactionCappedByBalance({
-      userId: "user_1",
-      organizationId: null,
-      requestedCents: 500n,
-      tx: tx as unknown as Parameters<
-        typeof createTaskEventTransactionCappedByBalance
-      >[0]["tx"],
-    });
-
-    expect(result).toEqual({
-      transactionId: "trx_full",
-      consumedCents: 500n,
-    });
-    expect(getBalance).toHaveBeenCalledWith("user_1", null, tx);
-    expect(prepareConsumption).toHaveBeenCalledWith("user_1", null, 500n, tx);
-
-    const createCall = vi.mocked(tx.transaction.create).mock.calls[0]?.[0];
-    expect(createCall?.data.amount).toBe(-500n);
-  });
-
-  it("consumes only available cents when balance is insufficient", async () => {
-    const getBalance = vi.mocked(creditBucketRepository.getBalance);
-    const prepareConsumption = vi.mocked(
-      creditBucketRepository.prepareConsumption,
+    prepareConsumption.mockRejectedValue(
+      new Error(
+        "Insufficient balance: tried to consume 500 but only 200 available",
+      ),
     );
-    getBalance.mockResolvedValue(200n);
-    prepareConsumption.mockResolvedValue([
-      { bucketId: "bucket_1", amount: 200n },
-    ]);
-
-    const tx = {
-      transaction: {
-        create: vi.fn().mockResolvedValue({ id: "trx_partial" }),
-      },
-    } as const;
-
-    const result = await createTaskEventTransactionCappedByBalance({
-      userId: "user_1",
-      organizationId: null,
-      requestedCents: 500n,
-      tx: tx as unknown as Parameters<
-        typeof createTaskEventTransactionCappedByBalance
-      >[0]["tx"],
-    });
-
-    expect(result).toEqual({
-      transactionId: "trx_partial",
-      consumedCents: 200n,
-    });
-    expect(getBalance).toHaveBeenCalledWith("user_1", null, tx);
-    expect(prepareConsumption).toHaveBeenCalledWith("user_1", null, 200n, tx);
-
-    const createCall = vi.mocked(tx.transaction.create).mock.calls[0]?.[0];
-    expect(createCall?.data.amount).toBe(-200n);
-  });
-
-  it("creates no transaction when available balance is zero", async () => {
-    const getBalance = vi.mocked(creditBucketRepository.getBalance);
-    const prepareConsumption = vi.mocked(
-      creditBucketRepository.prepareConsumption,
-    );
-    getBalance.mockResolvedValue(0n);
 
     const tx = {
       transaction: {
@@ -202,21 +124,21 @@ describe("createTaskEventTransactionCappedByBalance", () => {
       },
     } as const;
 
-    const result = await createTaskEventTransactionCappedByBalance({
-      userId: "user_1",
-      organizationId: null,
-      requestedCents: 500n,
-      tx: tx as unknown as Parameters<
-        typeof createTaskEventTransactionCappedByBalance
-      >[0]["tx"],
-    });
+    await expect(
+      createTaskEventTransaction({
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        tx: tx as unknown as Parameters<
+          typeof createTaskEventTransaction
+        >[0]["tx"],
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      message:
+        "Insufficient balance: tried to consume 500 but only 200 available",
+    } satisfies Pick<HTTPException, "status" | "message">);
 
-    expect(result).toEqual({
-      transactionId: null,
-      consumedCents: 0n,
-    });
-    expect(getBalance).toHaveBeenCalledWith("user_1", null, tx);
-    expect(prepareConsumption).not.toHaveBeenCalled();
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 });

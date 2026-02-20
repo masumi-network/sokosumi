@@ -17,6 +17,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { jobsSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -89,6 +90,7 @@ const route = withGlobalHeaderParameters(
         },
       }),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -96,7 +98,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
     const { agentId, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);

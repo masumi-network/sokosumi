@@ -12,10 +12,9 @@ import {
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
-
-import { requireCoworkerId } from "../helper";
 
 const route = createRoute({
   method: "get",
@@ -64,16 +63,15 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireCoworkerAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const coworkerId = requireCoworkerId(authContext);
 
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
 
     const where = {
       task: {
-        coworkerId,
+        coworkerId: authContext.coworkerId,
         status: { not: TaskStatus.DRAFT },
       },
     };

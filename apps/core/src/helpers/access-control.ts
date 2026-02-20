@@ -7,7 +7,12 @@ import {
 } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
-import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  type CoworkerAuthenticationContext,
+  isCoworkerAuthContext,
+  type UserAuthenticationContext,
+} from "@/middleware/auth";
 
 import { forbidden, notFound } from "./error";
 import {
@@ -41,7 +46,7 @@ import {
  * });
  */
 export async function requireJobAccess(
-  authContext: AuthenticationContext,
+  authContext: UserAuthenticationContext,
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
@@ -125,13 +130,10 @@ export async function requireUserAccess(
  * });
  */
 export async function requireUserTaskAccess(
-  authContext: AuthenticationContext,
+  authContext: UserAuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (authContext.coworkerId) {
-    throw forbidden("Only the user is allowed to do this operation");
-  }
   const task = await tx.task.findUnique({
     where: {
       id: taskId,
@@ -169,7 +171,7 @@ export async function requireUserTaskAccess(
  * });
  */
 export async function requireCoworkerTaskAccess(
-  authContext: AuthenticationContext,
+  authContext: CoworkerAuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
@@ -231,7 +233,7 @@ export async function requireTaskAccess(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (authContext.coworkerId) {
+  if (isCoworkerAuthContext(authContext)) {
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
   return await requireUserTaskAccess(authContext, taskId, tx);
@@ -243,7 +245,7 @@ export async function requireScopedTaskReadAccess(
   scopes: TaskScope[] | undefined,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  if (authContext.coworkerId) {
+  if (isCoworkerAuthContext(authContext)) {
     return await requireCoworkerTaskAccess(authContext, taskId, tx);
   }
 
@@ -268,7 +270,7 @@ export async function requireScopedTaskReadAccess(
 }
 
 export async function requireScopedJobReadAccess(
-  authContext: AuthenticationContext,
+  authContext: UserAuthenticationContext,
   jobId: string,
   scopes: JobScope[] | undefined,
   tx: Prisma.TransactionClient = prisma,

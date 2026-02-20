@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AuthenticationContext } from "@/middleware/auth";
+import type { UserAuthenticationContext } from "@/middleware/auth";
 
 import {
   buildJobScopeFilters,
@@ -9,16 +9,10 @@ import {
   taskScopeQuerySchema,
 } from "./scope";
 
-const userAuthContext: AuthenticationContext = {
+const userAuthContext: UserAuthenticationContext = {
+  actor: "user",
   userId: "user_123",
   organizationId: "org_123",
-  coworkerId: null,
-};
-
-const coworkerAuthContext: AuthenticationContext = {
-  userId: "user_123",
-  organizationId: "org_123",
-  coworkerId: "cow_123",
 };
 
 describe("scope query schema", () => {
@@ -63,19 +57,13 @@ describe("buildJobScopeFilters", () => {
   });
 
   it("omits shared filter when organization context is missing", () => {
-    const personalContext: AuthenticationContext = {
+    const personalContext: UserAuthenticationContext = {
+      actor: "user",
       userId: "user_123",
       organizationId: null,
-      coworkerId: null,
     };
 
     expect(buildJobScopeFilters(personalContext, ["shared"])).toEqual([]);
-  });
-
-  it("forces coworker-authenticated requests to context scope", () => {
-    expect(
-      buildJobScopeFilters(coworkerAuthContext, ["owned", "shared"]),
-    ).toEqual([{ userId: "user_123", organizationId: "org_123" }]);
   });
 });
 

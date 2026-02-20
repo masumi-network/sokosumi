@@ -4,6 +4,8 @@ const headersMock = jest.fn();
 const getConversationsMock = jest.fn();
 const getUsersMeNoticesPendingMock = jest.fn();
 const postUsersMeNoticesByIdAcknowledgeMock = jest.fn();
+const getUsersMeCreditsMock = jest.fn();
+const getUsersMeOrganizationsMock = jest.fn();
 const getEnvSecretsMock = jest.fn();
 const mockClient = { id: "core-client" } as never;
 const createClientMock = jest.fn(() => mockClient);
@@ -26,6 +28,9 @@ jest.mock("@/lib/clients/generated/core", () => ({
     getUsersMeNoticesPendingMock(...args),
   postUsersMeNoticesByIdAcknowledge: (...args: unknown[]) =>
     postUsersMeNoticesByIdAcknowledgeMock(...args),
+  getUsersMeCredits: (...args: unknown[]) => getUsersMeCreditsMock(...args),
+  getUsersMeOrganizations: (...args: unknown[]) =>
+    getUsersMeOrganizationsMock(...args),
 }));
 
 describe("core.client", () => {
@@ -101,6 +106,35 @@ describe("core.client", () => {
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
     );
+  });
+
+  it("executes user credit and organization operations through the generated client", async () => {
+    getUsersMeCreditsMock.mockResolvedValue({
+      data: {
+        data: { credits: 42 },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+    getUsersMeOrganizationsMock.mockResolvedValue({
+      data: {
+        data: [{ id: "org_1", name: "Acme", slug: "acme" }],
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+
+    await coreClient.getMyCredits();
+    await coreClient.getMyOrganizations();
+
+    expect(getUsersMeCreditsMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+    });
+    expect(getUsersMeOrganizationsMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+    });
   });
 
   it("maps status codes and service-unavailable errors to action errors", async () => {

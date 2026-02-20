@@ -5,7 +5,6 @@ import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
   badRequest,
-  forbidden,
   payloadTooLarge,
   serviceUnavailable,
 } from "@/helpers/error";
@@ -13,6 +12,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { uploadUserFile } from "@/lib/blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { blobFileSchema } from "@/schemas/blob-file.schema";
 
 const MULTIPART_FORM_OVERHEAD_BYTES = 256 * 1024;
@@ -85,11 +85,7 @@ export function extractAndValidateFile(formData: FormData): File {
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-
-    if (authContext.coworkerId) {
-      throw forbidden("Coworkers are not allowed to upload user files");
-    }
+    const authContext = requireUserAuthContext(c.var.authContext);
 
     const token = getEnv().BLOB_READ_WRITE_TOKEN;
     if (!token) {

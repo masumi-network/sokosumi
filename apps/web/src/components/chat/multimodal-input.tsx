@@ -304,7 +304,7 @@ function PureMultimodalInput({
                 <TooltipContent
                   side="top"
                   hideArrow
-                  className="bg-popover text-popover-foreground border-border max-w-xs rounded-lg border p-3 shadow-lg"
+                  className="bg-popover text-popover-foreground border-border max-w-xs rounded-lg border p-3"
                 >
                   <div className="flex flex-col gap-2">
                     <div>
@@ -338,7 +338,7 @@ function PureMultimodalInput({
       )}
 
       <PromptInput
-        className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border p-3 shadow-xs transition-all duration-200"
+        className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border p-3 transition-all duration-200"
         onSubmit={(event) => {
           event.preventDefault();
           if (!input.trim()) {
@@ -365,7 +365,7 @@ function PureMultimodalInput({
             value={input}
           />
         </div>
-        <PromptInputToolbar className="border-top-0! border-t-0! p-0 shadow-none dark:border-0 dark:border-transparent!">
+        <PromptInputToolbar className="border-top-0! border-t-0! p-0 dark:border-0 dark:border-transparent!">
           <PromptInputTools className="gap-0 sm:gap-0.5">
             <CoworkerModelSelector
               selectedCoworker={selectedCoworker}
@@ -383,7 +383,7 @@ function PureMultimodalInput({
             <PromptInputSubmit
               className="size-8 rounded-full transition-colors duration-200"
               data-testid="send-button"
-              disabled={!input.trim()}
+              disabled={!input.trim() || status === "streaming"}
               status={status}
             >
               <ArrowUpIcon size={14} />

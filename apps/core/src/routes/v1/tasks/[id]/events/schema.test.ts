@@ -1,7 +1,7 @@
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import { createTaskEventRequestSchema } from "./schema";
+import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
 
 describe("createTaskEventRequestSchema", () => {
   it("accepts a valid origin", () => {
@@ -98,21 +98,21 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts credits for running tasks", () => {
+  it("rejects credits for running tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
       credits: 3,
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
-  it("rejects out-of-credits tasks", () => {
+  it("accepts out-of-credits tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
       status: TaskStatus.OUT_OF_CREDITS,
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("accepts completed tasks without credits", () => {
@@ -123,7 +123,7 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it.each([TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.CANCELED])(
+  it.each([TaskStatus.COMPLETED, TaskStatus.CANCELED])(
     "accepts fractional credits for %s tasks",
     (status) => {
       const result = createTaskEventRequestSchema.safeParse({
@@ -178,5 +178,41 @@ describe("createTaskEventRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("rejects credits when status is omitted (comment-only request)", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      comment: "hello",
+      credits: 5,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects credits below minimum for completed tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      credits: MIN_CHARGEABLE_CREDITS / 10,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects credits below minimum for canceled tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.CANCELED,
+      credits: 1e-11,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts credits at minimum for completed tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      credits: MIN_CHARGEABLE_CREDITS,
+    });
+
+    expect(result.success).toBe(true);
   });
 });
