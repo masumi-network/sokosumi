@@ -52,8 +52,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     userService.showOnboarding(session),
     getPendingNoticesAction(),
   ]);
-  const pendingNotices = pendingNoticesResult.isOk()
-    ? pendingNoticesResult.value
+  const pendingNotices = pendingNoticesResult.ok
+    ? pendingNoticesResult.data
     : [];
   const legalNotices = pendingNotices.filter(
     (notice) => notice.kind === NoticeKind.LEGAL_TERMS,

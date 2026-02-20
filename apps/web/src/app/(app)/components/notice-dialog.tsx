@@ -80,6 +80,8 @@ export function NoticeDialog({
 
     if (isExternalNotice && closeExternal) {
       onNoticeClose?.();
+    } else if (!isExternalNotice) {
+      setIsOpen(false);
     }
 
     return true;
