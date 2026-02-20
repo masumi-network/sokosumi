@@ -65,6 +65,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("READY → COMPLETED", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.READY,
+          TaskStatus.COMPLETED,
+        ),
+      ).not.toThrow();
+    });
+
     it("INPUT_REQUIRED → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -293,16 +303,6 @@ describe("validateStatusTransition", () => {
           coworkerContext,
           TaskStatus.CANCELED,
           TaskStatus.RUNNING,
-        ),
-      ).toThrow();
-    });
-
-    it("READY → COMPLETED is invalid", () => {
-      expect(() =>
-        validateStatusTransition(
-          coworkerContext,
-          TaskStatus.READY,
-          TaskStatus.COMPLETED,
         ),
       ).toThrow();
     });

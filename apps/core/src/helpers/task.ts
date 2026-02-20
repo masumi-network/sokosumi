@@ -31,6 +31,9 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+        TaskStatus.INPUT_REQUIRED,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.INPUT_REQUIRED]: [
