@@ -658,6 +658,20 @@ export const MarkdownEditor = forwardRef<
     [handleInput, insertHtml],
   );
 
+  const insertLineBreak = useCallback(() => {
+    if (!editorRef.current) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current.contains(range.startContainer)) return;
+
+    range.deleteContents();
+    const br = document.createElement("br");
+    range.insertNode(br);
+    setCaretAfterNode(editorRef.current, br);
+    handleInput();
+  }, [handleInput]);
+
   const handleBold = useCallback(() => execCommand("bold"), [execCommand]);
   const handleItalic = useCallback(() => execCommand("italic"), [execCommand]);
   const handleCode = () => {
@@ -740,6 +754,13 @@ export const MarkdownEditor = forwardRef<
         }
       }
 
+      // Plain Enter when mention popup is not open
+      if (key === "enter" && !isOpen && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        insertLineBreak();
+        return;
+      }
+
       // Cmd/Ctrl + Enter to submit parent form when provided.
       if ((e.metaKey || e.ctrlKey) && key === "enter") {
         if (!e.shiftKey && !e.altKey) {
@@ -768,6 +789,7 @@ export const MarkdownEditor = forwardRef<
       filteredMentions,
       handleBold,
       handleItalic,
+      insertLineBreak,
       insertMention,
       isOpen,
       onSubmitShortcut,
