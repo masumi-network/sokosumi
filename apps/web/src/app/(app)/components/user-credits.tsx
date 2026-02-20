@@ -1,8 +1,3 @@
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
-import {
-  creditBucketRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
 import { Sparkles } from "lucide-react";
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
@@ -13,8 +8,7 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { auth, Session } from "@/lib/auth/auth";
-import prisma from "@/lib/db/prisma";
-import { userService } from "@/lib/services/user.service";
+import { coreClient } from "@/lib/clients/core.client";
 
 import BuyCreditsButton from "./buy-credits-button";
 import UserAvatar from "./user-avatar";
@@ -24,48 +18,60 @@ interface UserCreditsProps {
 }
 
 export default async function UserCredits({ session }: UserCreditsProps) {
-  const user = await userRepository.getUserById(session.user.id, prisma);
-
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const tSubscriptions = await getTranslations("App.Subscriptions");
-
-  if (!user) {
-    return (
-      <div className="text-muted-foreground text-sm">{t("unavailable")}</div>
-    );
-  }
-
-  // Check for active organization
-  const activeOrganization = await userService.getActiveOrganization();
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  const hasActiveOrganization = activeOrganizationId !== null;
+  const primaryLabel =
+    session.user.name ?? session.user.email ?? t("unavailable");
 
   // Get appropriate credits based on context
   let planLabel: string;
   let currentPlan: string | null = null;
+  let credits: number | null = null;
+  let activeOrganizationName: string | null = null;
 
-  const cents = await creditBucketRepository.getBalance(
-    user.id,
-    activeOrganization?.id ?? null,
-    prisma,
-  );
+  try {
+    const [creditsResult, organizationsResult] = await Promise.all([
+      coreClient.getMyCredits(),
+      activeOrganizationId ? coreClient.getMyOrganizations() : null,
+    ]);
 
-  const credits = convertCentsToCredits(cents);
-  const displayCredits = Math.trunc(credits);
-  const creditsLabel = activeOrganization
-    ? t("organizationBalance", {
-        credits: displayCredits,
-        organization: activeOrganization.name,
-      })
-    : t("userBalance", { credits: displayCredits });
+    credits = creditsResult.data?.credits ?? 0;
+
+    if (activeOrganizationId && organizationsResult?.data) {
+      const foundOrganization = organizationsResult.data.find(
+        (organization) => organization.id === activeOrganizationId,
+      );
+
+      if (foundOrganization) {
+        activeOrganizationName = foundOrganization.name;
+      }
+    }
+  } catch (_error) {
+    credits = null;
+  }
+
+  const displayCredits = Math.trunc(credits ?? 0);
+  const creditsLabel =
+    credits === null
+      ? t("unavailable")
+      : hasActiveOrganization
+        ? t("organizationBalance", {
+            credits: displayCredits,
+            organization: activeOrganizationName ?? t("unavailable"),
+          })
+        : t("userBalance", { credits: displayCredits });
 
   try {
     const requestHeaders = await headers();
     const activeSubscriptions = await auth.api.listActiveSubscriptions({
       headers: requestHeaders,
-      query: activeOrganization
+      query: hasActiveOrganization
         ? {
             customerType: "organization",
-            referenceId: activeOrganization.id,
+            referenceId: activeOrganizationId,
           }
         : {
             customerType: "user",
@@ -77,10 +83,10 @@ export default async function UserCredits({ session }: UserCreditsProps) {
       "free";
     const planName = tSubscriptions(`Plans.${currentPlan}.name`);
 
-    planLabel = activeOrganization
+    planLabel = hasActiveOrganization
       ? tPlan("organizationPlan", {
           plan: planName,
-          organization: activeOrganization.name,
+          organization: activeOrganizationName ?? t("unavailable"),
         })
       : tPlan("userPlan", { plan: planName });
   } catch (_error) {
@@ -89,7 +95,8 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   const creditsButtonThreshold =
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  const hasLowCredits = credits < creditsButtonThreshold;
+  const hasLowCredits =
+    typeof credits === "number" && credits < creditsButtonThreshold;
   const shouldShowUpgradePlanCta =
     currentPlan !== null && currentPlan !== "pro";
   const shouldShowAddCreditsCta =
@@ -109,7 +116,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
       ) : null}
       <UserAvatar
         session={session}
-        primaryLabel={user.name}
+        primaryLabel={primaryLabel}
         secondaryLabel={planLabel}
         creditsLabel={creditsLabel}
       />
