@@ -13,6 +13,13 @@ interface CreateTaskEventTransactionInput {
   tx: Prisma.TransactionClient;
 }
 
+interface CreateTaskEventTransactionCappedByBalanceInput {
+  userId: string;
+  organizationId: string | null;
+  requestedCents: bigint;
+  tx: Prisma.TransactionClient;
+}
+
 export async function createTaskEventTransaction(
   input: CreateTaskEventTransactionInput,
 ): Promise<string | null> {
@@ -57,4 +64,42 @@ export async function createTaskEventTransaction(
   });
 
   return transaction.id;
+}
+
+export async function createTaskEventTransactionCappedByBalance(
+  input: CreateTaskEventTransactionCappedByBalanceInput,
+): Promise<{ transactionId: string | null; consumedCents: bigint }> {
+  if (input.requestedCents <= 0n) {
+    return {
+      transactionId: null,
+      consumedCents: 0n,
+    };
+  }
+
+  const balance = await creditBucketRepository.getBalance(
+    input.userId,
+    input.organizationId,
+    input.tx,
+  );
+  const consumedCents =
+    balance < input.requestedCents ? balance : input.requestedCents;
+
+  if (consumedCents <= 0n) {
+    return {
+      transactionId: null,
+      consumedCents: 0n,
+    };
+  }
+
+  const transactionId = await createTaskEventTransaction({
+    userId: input.userId,
+    organizationId: input.organizationId,
+    cents: consumedCents,
+    tx: input.tx,
+  });
+
+  return {
+    transactionId,
+    consumedCents,
+  };
 }

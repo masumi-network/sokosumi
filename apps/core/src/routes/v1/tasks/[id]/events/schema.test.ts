@@ -98,13 +98,21 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts credits for out-of-credits tasks", () => {
+  it("accepts credits for running tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
-      status: TaskStatus.OUT_OF_CREDITS,
+      status: TaskStatus.RUNNING,
       credits: 3,
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("rejects out-of-credits tasks", () => {
+    const result = createTaskEventRequestSchema.safeParse({
+      status: TaskStatus.OUT_OF_CREDITS,
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("accepts completed tasks without credits", () => {
@@ -115,18 +123,17 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it.each([
-    TaskStatus.COMPLETED,
-    TaskStatus.CANCELED,
-    TaskStatus.OUT_OF_CREDITS,
-  ])("accepts fractional credits for %s tasks", (status) => {
-    const result = createTaskEventRequestSchema.safeParse({
-      status,
-      credits: 0.25,
-    });
+  it.each([TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.CANCELED])(
+    "accepts fractional credits for %s tasks",
+    (status) => {
+      const result = createTaskEventRequestSchema.safeParse({
+        status,
+        credits: 0.25,
+      });
 
-    expect(result.success).toBe(true);
-  });
+      expect(result.success).toBe(true);
+    },
+  );
 
   it("accepts null credits for completed tasks", () => {
     const result = createTaskEventRequestSchema.safeParse({
@@ -146,18 +153,18 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("accepts null credits for non-chargeable statuses", () => {
+  it("accepts null credits for non-spendable statuses", () => {
     const result = createTaskEventRequestSchema.safeParse({
-      status: TaskStatus.RUNNING,
+      status: TaskStatus.INPUT_REQUIRED,
       credits: null,
     });
 
     expect(result.success).toBe(true);
   });
 
-  it("rejects credits for non-chargeable statuses", () => {
+  it("rejects credits for non-spendable statuses", () => {
     const result = createTaskEventRequestSchema.safeParse({
-      status: TaskStatus.RUNNING,
+      status: TaskStatus.INPUT_REQUIRED,
       credits: 2,
     });
 
