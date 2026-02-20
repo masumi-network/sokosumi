@@ -82,10 +82,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);
-          validateTaskCoworkerAssignment({
-            status,
-            coworkerId: task.coworkerId,
-          });
 
           let effectiveStatus: TaskStatus = status;
           let transactionId: string | null = null;
@@ -105,6 +101,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               effectiveStatus = TaskStatus.OUT_OF_CREDITS;
             }
           }
+
+          validateTaskCoworkerAssignment({
+            status: effectiveStatus,
+            coworkerId: task.coworkerId,
+          });
 
           const event = await tx.taskEvent.create({
             data: {
