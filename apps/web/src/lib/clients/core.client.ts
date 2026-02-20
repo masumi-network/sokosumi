@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Notice, NoticeKind } from "@sokosumi/database";
 import { headers } from "next/headers";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -13,6 +14,7 @@ import {
   getCoworkers as coreGetCoworkers,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
+  getUsersMeNoticesPending as coreGetUsersMeNoticesPending,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchTasksById as corePatchTasksById,
@@ -20,6 +22,7 @@ import {
   postConversationsByIdItems as corePostConversationsByIdItems,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
+  postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
 } from "@/lib/clients/generated/core";
 import { type Client, createClient } from "@/lib/clients/generated/core/client";
 
@@ -412,7 +415,37 @@ export const coreClient = (() => {
     );
   }
 
+  async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
+    const response = await executeOperation(
+      (client) =>
+        coreGetUsersMeNoticesPending({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch pending notices",
+    );
+
+    const pendingNotices = response.data.pendingNotices;
+    return kind
+      ? pendingNotices.filter((notice) => notice.kind === kind)
+      : pendingNotices;
+  }
+
+  async function acknowledgeNotice(id: string) {
+    const response = await executeOperation(
+      (client) =>
+        corePostUsersMeNoticesByIdAcknowledge({
+          client,
+          path: { id },
+        }),
+      "Failed to acknowledge notice",
+    );
+
+    return response.data;
+  }
+
   return {
+    acknowledgeNotice,
     addConversationItem,
     archiveConversation,
     createConversation,
@@ -423,6 +456,7 @@ export const coreClient = (() => {
     getConversationItems,
     getConversations,
     getCoworkers,
+    getPendingNotices,
     getTaskById,
     getTasks,
     patchTask,

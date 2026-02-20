@@ -2,6 +2,8 @@ jest.mock("server-only", () => ({}));
 
 const headersMock = jest.fn();
 const getConversationsMock = jest.fn();
+const getUsersMeNoticesPendingMock = jest.fn();
+const postUsersMeNoticesByIdAcknowledgeMock = jest.fn();
 const getEnvSecretsMock = jest.fn();
 const mockClient = { id: "core-client" } as never;
 const createClientMock = jest.fn(() => mockClient);
@@ -20,6 +22,10 @@ jest.mock("@/lib/clients/generated/core/client", () => ({
 
 jest.mock("@/lib/clients/generated/core", () => ({
   getConversations: (...args: unknown[]) => getConversationsMock(...args),
+  getUsersMeNoticesPending: (...args: unknown[]) =>
+    getUsersMeNoticesPendingMock(...args),
+  postUsersMeNoticesByIdAcknowledge: (...args: unknown[]) =>
+    postUsersMeNoticesByIdAcknowledgeMock(...args),
 }));
 
 describe("core.client", () => {
@@ -132,5 +138,57 @@ describe("core.client", () => {
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       message: "The service is currently unavailable.",
     });
+  });
+
+  it("fetches pending notices through the generated core operation", async () => {
+    getUsersMeNoticesPendingMock.mockResolvedValue({
+      data: {
+        data: {
+          pendingNotices: [
+            {
+              id: "notice_1",
+              kind: "ANNOUNCEMENT",
+              bodyMarkdown: "# Hello",
+              effectiveAt: new Date("2026-02-20T10:00:00.000Z"),
+              isActive: true,
+              createdAt: new Date("2026-02-19T10:00:00.000Z"),
+              updatedAt: new Date("2026-02-19T10:00:00.000Z"),
+            },
+          ],
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.getPendingNotices();
+
+    expect(getUsersMeNoticesPendingMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+    });
+    expect(response).toHaveLength(1);
+  });
+
+  it("acknowledges notices through the generated core operation", async () => {
+    postUsersMeNoticesByIdAcknowledgeMock.mockResolvedValue({
+      data: {
+        data: {
+          noticeId: "notice_1",
+          acknowledgedAt: new Date("2026-02-20T11:00:00.000Z"),
+          alreadyAcknowledged: false,
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.acknowledgeNotice("notice_1");
+
+    expect(postUsersMeNoticesByIdAcknowledgeMock).toHaveBeenCalledWith({
+      client: mockClient,
+      path: { id: "notice_1" },
+    });
+    expect(response.noticeId).toBe("notice_1");
   });
 });
