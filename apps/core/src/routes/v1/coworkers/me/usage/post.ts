@@ -96,24 +96,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const result = await prisma.$transaction(
       async (tx) => {
-        if (organizationId !== null) {
-          const member = await tx.member.findUnique({
-            where: {
-              userId_organizationId: {
-                userId,
-                organizationId,
-              },
-            },
-            select: { userId: true },
-          });
-
-          if (!member) {
-            throw badRequest(
-              "User is not a member of the specified organization",
-            );
-          }
-        }
-
         const existing = await tx.coworkerUsage.findUnique({
           where: {
             coworkerId_idempotencyKey: {
@@ -148,6 +130,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
 
           return { usage: existing, created: false };
+        }
+
+        if (organizationId !== null) {
+          const member = await tx.member.findUnique({
+            where: {
+              userId_organizationId: {
+                userId,
+                organizationId,
+              },
+            },
+            select: { userId: true },
+          });
+
+          if (!member) {
+            throw badRequest(
+              "User is not a member of the specified organization",
+            );
+          }
         }
 
         const cents = convertCreditsToCents(credits);

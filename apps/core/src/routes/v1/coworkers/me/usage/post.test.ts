@@ -286,6 +286,50 @@ describe("POST /me/usage", () => {
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
   });
 
+  it("replays existing usage even when membership no longer exists", async () => {
+    const tx: TransactionMock = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+      coworkerUsage: {
+        findUnique: vi.fn().mockResolvedValue(
+          createUsage({
+            userId: TARGET_USER_ID,
+            organizationId: ORGANIZATION_ID,
+          }),
+        ),
+        create: vi.fn(),
+      },
+      transaction: {
+        create: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+
+    const response = await app.request("http://localhost/me/usage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "usage_456",
+        credits: 2.5,
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(tx.coworkerUsage.findUnique).toHaveBeenCalledTimes(1);
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when user is not a member of the provided organization", async () => {
     const tx: TransactionMock = {
       member: {
@@ -318,7 +362,11 @@ describe("POST /me/usage", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(tx.coworkerUsage.findUnique).not.toHaveBeenCalled();
+    expect(tx.coworkerUsage.findUnique).toHaveBeenCalledTimes(1);
+    expect(tx.member.findUnique).toHaveBeenCalledTimes(1);
+    expect(
+      tx.coworkerUsage.findUnique.mock.invocationCallOrder[0],
+    ).toBeLessThan(tx.member.findUnique.mock.invocationCallOrder[0] ?? Infinity);
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 });
