@@ -2,10 +2,7 @@ import * as Sentry from "@sentry/node";
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 
-import {
-  isCoworkerAuthContext,
-  isUserAuthContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
 
 import type { AuthVariables } from "./auth.js";
 

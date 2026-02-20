@@ -18,10 +18,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  requireUserAuthContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
@@ -89,10 +86,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
-      const userAuthContext = requireUserAuthContext(authContext);
       where = {
         archivedAt: null,
-        OR: buildTaskScopeFilters(userAuthContext, scope),
+        OR: buildTaskScopeFilters(authContext, scope),
         ...(status ? { status } : {}),
         ...(coworkerId ? { coworkerId } : {}),
       };

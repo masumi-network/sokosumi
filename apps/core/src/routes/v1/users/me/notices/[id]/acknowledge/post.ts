@@ -1,10 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  conflict,
-  internalServerError,
-  notFound,
-} from "@/helpers/error";
+import { conflict, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";

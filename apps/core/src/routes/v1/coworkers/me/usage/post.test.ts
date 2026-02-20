@@ -366,7 +366,9 @@ describe("POST /me/usage", () => {
     expect(tx.member.findUnique).toHaveBeenCalledTimes(1);
     expect(
       tx.coworkerUsage.findUnique.mock.invocationCallOrder[0],
-    ).toBeLessThan(tx.member.findUnique.mock.invocationCallOrder[0] ?? Infinity);
+    ).toBeLessThan(
+      tx.member.findUnique.mock.invocationCallOrder[0] ?? Infinity,
+    );
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 });
