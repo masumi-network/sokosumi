@@ -8,7 +8,7 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
-  isTaskStatusChargable,
+  isTaskStatusSpendable,
   mapTaskEvent,
   validateStatusTransition,
   validateTaskCoworkerAssignment,
@@ -93,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let effectiveStatus: TaskStatus = status;
           let transactionId: string | null = null;
           let cents: bigint | undefined = undefined;
-          if (isTaskStatusChargable(status) && credits != null && credits > 0) {
+          if (isTaskStatusSpendable(status) && credits != null && credits > 0) {
             cents = convertCreditsToCents(credits);
             if (authContext.coworkerId && status === TaskStatus.COMPLETED) {
               const cappedResult =

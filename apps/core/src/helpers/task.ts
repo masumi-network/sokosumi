@@ -149,10 +149,14 @@ export function mapTaskEvent(event: TaskEventWithOptionalTransaction) {
   };
 }
 
-export function isTaskStatusChargable(
+export function isTaskStatusSpendable(
   status: TaskStatus | null | undefined,
 ): boolean {
-  return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
+  return (
+    status === TaskStatus.RUNNING ||
+    status === TaskStatus.COMPLETED ||
+    status === TaskStatus.CANCELED
+  );
 }
 
 export function isTaskArchivableStatus(status: TaskStatus): boolean {
