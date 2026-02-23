@@ -20,5 +20,5 @@ export function isSlugUniqueConstraintError(error: unknown): boolean {
     return target.includes("slug");
   }
 
-  return true;
+  return false;
 }
