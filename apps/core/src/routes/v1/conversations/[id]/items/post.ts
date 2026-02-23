@@ -89,52 +89,58 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Database is the source of truth - validate ownership and create item
-    const item = await prisma.$transaction(async (tx) => {
-      // Validate ownership
-      const conversation = await tx.conversation.findFirst({
-        where: {
-          id,
-          userId: authContext.userId,
-          archivedAt: null,
-        },
-        include: {
-          _count: { select: { items: true } },
-        },
-      });
+    const { item, shouldGenerateTitle, conversationId } =
+      await prisma.$transaction(async (tx) => {
+        // Validate ownership
+        const conversation = await tx.conversation.findFirst({
+          where: {
+            id,
+            userId: authContext.userId,
+            archivedAt: null,
+          },
+          include: {
+            _count: { select: { items: true } },
+          },
+        });
 
-      if (!conversation) {
-        throw notFound("Conversation not found");
-      }
-
-      // Create conversation item in database
-      const item = await tx.conversationItem.create({
-        data: {
-          conversationId: conversation.id,
-          role: body.role,
-          contentType,
-          contentText,
-        },
-      });
-
-      // Generate and set conversation title from first user message
-      const isFirstItem = conversation._count.items === 0;
-      if (
-        isFirstItem &&
-        body.role === "user" &&
-        contentText.trim().length > 0
-      ) {
-        const generatedTitle =
-          await openrouterClient.generateChatTitle(contentText);
-        if (generatedTitle) {
-          await tx.conversation.update({
-            where: { id: conversation.id },
-            data: { title: generatedTitle },
-          });
+        if (!conversation) {
+          throw notFound("Conversation not found");
         }
-      }
 
-      return item;
-    });
+        // Create conversation item in database
+        const item = await tx.conversationItem.create({
+          data: {
+            conversationId: conversation.id,
+            role: body.role,
+            contentType,
+            contentText,
+          },
+        });
+
+        // Check if we should generate title after transaction commits
+        const isFirstItem = conversation._count.items === 0;
+        const shouldGenerateTitle =
+          isFirstItem && body.role === "user" && contentText.trim().length > 0;
+
+        return { item, shouldGenerateTitle, conversationId: conversation.id };
+      });
+
+    // Generate and set conversation title from first user message
+    // This is done outside the transaction to avoid timeout issues with the external API call
+    if (shouldGenerateTitle) {
+      openrouterClient.generateChatTitle(contentText).then((generatedTitle) => {
+        if (generatedTitle) {
+          prisma.conversation
+            .update({
+              where: { id: conversationId },
+              data: { title: generatedTitle },
+            })
+            .catch(() => {
+              // Title generation is best-effort, don't fail the request
+            });
+        }
+      });
+    }
 
     // Map to response schema - reconstruct content format from normalized columns
     const content: string | Array<{ type: string; text: string }> =

@@ -7,7 +7,11 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type SyntheticEvent, useEffect, useMemo } from "react";
 
-import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
+import {
+  displaySlugFromMetadata,
+  getBucketKeyFromMetadata,
+  slugify,
+} from "@/app/chat/utils/bucket-slug";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,21 +34,6 @@ import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
 import { cn } from "@/lib/utils";
-
-type ConversationMetadata = {
-  coworker_name?: string;
-  coworker_id?: string;
-  model_id?: string;
-  model_name?: string;
-  type?: string;
-};
-
-function getGroupKey(metadata: ConversationMetadata | null): string {
-  if (!metadata) return "other";
-  if (metadata.model_id) return `model:${metadata.model_id}`;
-  if (metadata.coworker_id) return `coworker:${metadata.coworker_id}`;
-  return "other";
-}
 
 interface ChatGroup {
   key: string;
@@ -75,12 +64,12 @@ function buildChatGroups(
   >();
 
   for (const conv of conversations) {
-    const meta = (conv.metadata as ConversationMetadata | null) ?? null;
-    const key = getGroupKey(meta);
-    const modelId = meta?.model_id ?? null;
-    const modelName = meta?.model_name ?? null;
-    const coworkerId = meta?.coworker_id ?? null;
-    const coworkerName = meta?.coworker_name ?? null;
+    const meta = (conv.metadata as Record<string, unknown> | null) ?? null;
+    const key = getBucketKeyFromMetadata(meta);
+    const modelId = (meta?.model_id as string | undefined) ?? null;
+    const modelName = (meta?.model_name as string | undefined) ?? null;
+    const coworkerId = (meta?.coworker_id as string | undefined) ?? null;
+    const coworkerName = (meta?.coworker_name as string | undefined) ?? null;
     const displayName = modelName ?? coworkerName ?? untitledLabel;
 
     let entry = byKey.get(key);
@@ -106,7 +95,7 @@ function buildChatGroups(
       return tb - ta;
     });
     const firstMeta =
-      (sorted[0]?.metadata as ConversationMetadata | null) ?? null;
+      (sorted[0]?.metadata as Record<string, unknown> | null) ?? null;
     const displaySlug =
       displaySlugFromMetadata(firstMeta) || slugify(entry.displayName) || key;
     const latestUpdatedAt =
