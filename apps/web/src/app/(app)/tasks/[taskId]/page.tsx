@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
@@ -19,6 +20,8 @@ import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
+import { userService } from "@/lib/services/user.service";
+import { resolveAccountName } from "@/lib/utils/account-name";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 export default async function TaskDetailPage({
@@ -27,12 +30,22 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, coworkers, agents, session, t] = await Promise.all([
-    taskService.getTaskById(taskId),
+  const [
+    taskResult,
+    coworkers,
+    agents,
+    members,
+    session,
+    t,
+    tOrganizationSwitcher,
+  ] = await Promise.all([
+    taskService.getTaskById(taskId, ["owned"]),
     coworkerService.listCoworkers(),
     agentService.getAvailableAgentsWithCreditsPrice(),
+    userService.getMyMembersWithOrganizations(),
     getSession(),
     getTranslations("App.Tasks.Detail"),
+    getTranslations("Components.OrganizationSwitcher"),
   ]);
 
   if (!taskResult) {
@@ -68,6 +81,13 @@ export default async function TaskDetailPage({
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = buildAgentNameById(agents);
   const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
+  const targetOrganizationId = taskResult.organizationId;
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const targetAccountName = resolveAccountName(
+    targetOrganizationId,
+    members,
+    tOrganizationSwitcher("personalAccount"),
+  );
   const currentUser = session?.user
     ? {
         id: session.user.id,
@@ -90,6 +110,13 @@ export default async function TaskDetailPage({
     <div className="min-h-full w-full md:pr-60">
       {/* Centered content */}
       <div className="mx-auto max-w-4xl px-4">
+        <AutoContextSwitch
+          activeOrganizationId={activeOrganizationId}
+          targetOrganizationId={targetOrganizationId}
+          successMessage={t("switchedWorkspace", {
+            account: targetAccountName,
+          })}
+        />
         {session?.user.id ? (
           <TaskStatusRealtimeListener
             userId={session.user.id}

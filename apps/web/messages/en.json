@@ -1314,7 +1314,8 @@
           "revertToDraft": "Revert to Draft",
           "cancelRequest": "Cancel Request",
           "updateStatusSuccess": "Task status updated"
-        }
+        },
+        "switchedWorkspace": "Switched to {account} account"
       },
       "NewTask": {
         "title": "New Task",
@@ -2044,6 +2045,7 @@
       },
       "Jobs": {
         "newJob": "New Job",
+        "switchedWorkspace": "Switched to {account} account",
         "Header": {
           "back": "Back to agents",
           "newJob": "New Job",
