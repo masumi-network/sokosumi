@@ -78,6 +78,7 @@ export default async function AgentDetailPage({
             ratingsWithComments={ratingsWithComments}
             canRate={canRate}
             existingRating={existingRating}
+            showBackButton={true}
           />
         </div>
       </div>

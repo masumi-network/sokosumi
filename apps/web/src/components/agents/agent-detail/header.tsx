@@ -88,7 +88,7 @@ function AgentDetailHeader({
           <AgentActionButtons
             agent={agent}
             favoriteAgents={favoriteAgents}
-            showBackButton={showBackButton ?? false}
+            showBackButton={false}
             showCloseButton={showCloseButton}
             onClose={onClose}
           />
