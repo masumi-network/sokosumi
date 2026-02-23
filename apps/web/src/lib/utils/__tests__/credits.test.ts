@@ -1,6 +1,6 @@
 import { CouponTypeError } from "@/lib/errors/coupon-errors";
 
-import { getCreditsForCoupon } from "../credits";
+import { formatCreditsForDisplay, getCreditsForCoupon } from "../credits";
 
 function createCoupon(params: {
   credits?: string;
@@ -32,5 +32,13 @@ describe("getCreditsForCoupon", () => {
     expect(() => getCreditsForCoupon(coupon)).toThrow(
       "Coupon must have percent_off",
     );
+  });
+});
+
+describe("formatCreditsForDisplay", () => {
+  it("truncates decimal values", () => {
+    expect(formatCreditsForDisplay(2.4)).toBe(2);
+    expect(formatCreditsForDisplay(2.5)).toBe(2);
+    expect(formatCreditsForDisplay(2.9)).toBe(2);
   });
 });

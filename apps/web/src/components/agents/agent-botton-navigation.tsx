@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { AgentBookmarkButton, AgentHireButton } from "@/components/agents";
 import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import VerticalDivider from "@/components/vertical-divider";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface AgentBottomNavigationProps {
   agent: AgentWithCreditsPrice;
@@ -36,7 +37,9 @@ export default function AgentBottomNavigation({
         <VerticalDivider />
         <div className="w-full text-center text-sm font-semibold">
           {t("price", {
-            price: convertCentsToCredits(agent.creditsPrice.cents),
+            price: formatCreditsForDisplay(
+              convertCentsToCredits(agent.creditsPrice.cents),
+            ),
           })}
         </div>
         <VerticalDivider />

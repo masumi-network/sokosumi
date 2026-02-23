@@ -21,6 +21,7 @@ import {
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
 import { cn, generateGradientBorder } from "@/lib/utils";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 import { AgentDetailLink } from "./agent-detail-link";
@@ -303,7 +304,9 @@ function AgentCard({
             <div className={cn(agentCardPricingVariants({ size }))}>
               <p className="text-foreground pb-3">
                 {t("pricing", {
-                  price: convertCentsToCredits(agent.creditsPrice.cents),
+                  price: formatCreditsForDisplay(
+                    convertCentsToCredits(agent.creditsPrice.cents),
+                  ),
                 })}
               </p>
             </div>

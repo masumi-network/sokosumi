@@ -29,6 +29,7 @@ import { defaultValues, JobInputsFormSchemaType } from "@/lib/job-input";
 import { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
 import { JobScheduleSelectionType } from "@/lib/types/job";
 import { cn, formatDuration } from "@/lib/utils";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import { AcceptTermsOfService } from "./accept-terms-of-service";
 import {
@@ -255,7 +256,9 @@ function JobInputsGroupedFormStandard({
                     {t("price", {
                       price: isDemo
                         ? 0
-                        : convertCentsToCredits(creditsPrice.cents),
+                        : formatCreditsForDisplay(
+                            convertCentsToCredits(creditsPrice.cents),
+                          ),
                     })}
                   </div>
                 )}
