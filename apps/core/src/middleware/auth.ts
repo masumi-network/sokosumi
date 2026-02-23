@@ -2,7 +2,6 @@ import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 
-import { getEnv } from "@/config/env";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
@@ -85,35 +84,12 @@ async function verifyApiKey(
   });
 
   if (apiKeyResult.valid && apiKeyResult.key) {
-    const coworkerId = apiKeyResult.key.metadata?.coworkerId;
-    const allowLegacyCoworkerFallback =
-      getEnv().ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS;
-    const hasCoworkerMetadata =
-      typeof coworkerId === "string" && coworkerId.length > 0;
-
-    if (allowLegacyCoworkerFallback && hasCoworkerMetadata) {
-      setAuthContext(c, {
-        isAuthenticated: true,
-        authContext: {
-          actor: "coworker",
-          coworkerId,
-        },
-      });
-      return true;
-    }
-
-    if (hasCoworkerMetadata && !allowLegacyCoworkerFallback) {
-      throw unauthorized(
-        "Legacy coworker API keys are disabled; use a dedicated coworker API key",
-      );
-    }
-
     setAuthContext(c, {
       isAuthenticated: true,
       authContext: {
         actor: "user",
         userId: apiKeyResult.key.userId,
-        organizationId: apiKeyResult.key.metadata?.organizationId ?? null,
+        organizationId: null,
       },
     });
     return true;

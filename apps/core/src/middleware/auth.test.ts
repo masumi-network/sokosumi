@@ -7,7 +7,6 @@ import { authMiddleware } from "./auth";
 const {
   verifyApiKeyMock,
   getSessionMock,
-  getEnvMock,
   coworkerApiKeyFindUniqueMock,
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
@@ -15,15 +14,10 @@ const {
 } = vi.hoisted(() => ({
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
-  getEnvMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
-}));
-
-vi.mock("@/config/env", () => ({
-  getEnv: getEnvMock,
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -60,10 +54,6 @@ function createApp() {
 describe("authMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    getEnvMock.mockReturnValue({
-      ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS: true,
-    });
 
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
 
@@ -190,7 +180,7 @@ describe("authMiddleware", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("authenticates Better Auth coworker-metadata key as coworker when legacy fallback is enabled", async () => {
+  it("authenticates Better Auth API key as user and ignores deprecated metadata", async () => {
     verifyApiKeyMock.mockResolvedValue({
       valid: true,
       key: {
@@ -211,38 +201,10 @@ describe("authMiddleware", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      actor: "coworker",
-      coworkerId: "cow_123",
+      actor: "user",
+      userId: "user_api_key",
+      organizationId: null,
     });
-    expect(getSessionMock).not.toHaveBeenCalled();
-    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects Better Auth coworker-metadata key when legacy fallback is disabled (fail closed)", async () => {
-    getEnvMock.mockReturnValue({
-      ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS: false,
-    });
-
-    verifyApiKeyMock.mockResolvedValue({
-      valid: true,
-      key: {
-        userId: "user_api_key",
-        metadata: {
-          organizationId: "org_api_key",
-          coworkerId: "cow_123",
-        },
-      },
-    });
-
-    const app = createApp();
-    const response = await app.request("http://localhost/", {
-      headers: {
-        authorization: "Bearer token",
-      },
-    });
-
-    expect(response.status).toBe(401);
-    expect(verifyApiKeyMock).toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });

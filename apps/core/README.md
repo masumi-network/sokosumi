@@ -56,9 +56,6 @@ BETTER_AUTH_URL=                    # Better Auth base URL
 ```bash
 # Sentry Configuration (Error Tracking & Performance Monitoring)
 SENTRY_DSN=                         # Sentry project DSN
-
-# Auth migration toggle (legacy Better Auth coworker metadata fallback)
-ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS=true
 ```
 
 ## Sentry Integration
@@ -180,15 +177,6 @@ Public endpoints (no authentication required):
 - `/v1/agents` - List agents
 
 All other endpoints require authentication.
-
-### Legacy Better Auth coworker fallback
-
-For migration compatibility, Better Auth API keys that include `metadata.coworkerId`
-can still authenticate as coworkers while
-`ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS=true` (default).
-
-Set `ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS=false` to disable this fallback after
-all coworker callers have migrated to dedicated coworker API keys.
 
 ## Troubleshooting
 
