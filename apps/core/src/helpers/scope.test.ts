@@ -13,6 +13,7 @@ const userAuthContext: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
+  isAdmin: false,
 };
 
 describe("scope query schema", () => {
@@ -61,6 +62,7 @@ describe("buildJobScopeFilters", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      isAdmin: false,
     };
 
     expect(buildJobScopeFilters(personalContext, ["shared"])).toEqual([]);

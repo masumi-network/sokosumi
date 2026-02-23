@@ -205,6 +205,7 @@ describe("POST /{id}/events", () => {
       actor: "user",
       userId: USER_ID,
       organizationId: null,
+      isAdmin: false,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {

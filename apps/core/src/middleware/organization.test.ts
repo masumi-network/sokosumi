@@ -20,6 +20,7 @@ vi.mock("@/middleware/auth", () => ({
             actor: "user";
             userId: string;
             organizationId: string | null;
+            isAdmin: boolean;
           }
         | {
             actor: "coworker";
@@ -36,6 +37,7 @@ vi.mock("@/middleware/auth", () => ({
           actor: "user";
           userId: string;
           organizationId: string | null;
+          isAdmin: boolean;
         }
       | {
           actor: "coworker";
@@ -62,6 +64,7 @@ type Variables = {
         actor: "user";
         userId: string;
         organizationId: string | null;
+        isAdmin: boolean;
       }
     | {
         actor: "coworker";
@@ -80,6 +83,7 @@ function createUserApp(initialOrganizationId: string | null) {
       actor: "user",
       userId: "user_123",
       organizationId: initialOrganizationId,
+      isAdmin: false,
     });
     return await next();
   });
@@ -134,6 +138,7 @@ describe("organizationHeaderMiddleware", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_existing",
+      isAdmin: false,
     });
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
@@ -148,6 +153,7 @@ describe("organizationHeaderMiddleware", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      isAdmin: false,
     });
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
@@ -173,6 +179,7 @@ describe("organizationHeaderMiddleware", () => {
       actor: "user",
       userId: "user_123",
       organizationId: "org_new",
+      isAdmin: false,
     });
     expect(organizationFindUniqueMock).toHaveBeenCalledWith({
       where: { slug: "new-org" },

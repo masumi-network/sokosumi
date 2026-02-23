@@ -29,6 +29,7 @@ const userAuthContext: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
+  isAdmin: false,
 };
 
 describe("requireUserTaskAccess", () => {
@@ -194,6 +195,7 @@ describe("requireScopedJobReadAccess", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      isAdmin: false,
     };
 
     await expect(

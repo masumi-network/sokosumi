@@ -274,7 +274,7 @@ export async function shareJob(
 }
 
 interface CreateAgentJobInput {
-  authContext: UserAuthenticationContext;
+  owner: CreateAgentJobOwner;
   agentInput: {
     agentId: string;
     inputData: InputSchemaType;
@@ -287,10 +287,15 @@ interface CreateAgentJobInput {
   };
 }
 
+export interface CreateAgentJobOwner {
+  userId: string;
+  organizationId: string | null;
+}
+
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const { authContext, agentInput, taskContext } = input;
+  const { owner, agentInput, taskContext } = input;
   const flatInputSchema = flattenInputs(agentInput.inputSchema);
   const maxCents = agentInput.maxCredits
     ? convertCreditsToCents(agentInput.maxCredits)
@@ -339,8 +344,8 @@ export async function createAgentJobForUser(
 
   const jobInput = {
     agentId: agentInput.agentId,
-    userId: authContext.userId,
-    organizationId: authContext.organizationId,
+    userId: owner.userId,
+    organizationId: owner.organizationId,
     inputData: agentInput.inputData,
     inputSchema: flatInputSchema,
     taskId: taskContext?.taskId,
@@ -400,8 +405,8 @@ export async function createAgentJobForUser(
   const job = await prisma.$transaction(
     async (tx) => {
       await validateCreditBalance(
-        authContext.userId,
-        authContext.organizationId,
+        owner.userId,
+        owner.organizationId,
         cost.cents,
         tx,
       );

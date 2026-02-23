@@ -8,6 +8,7 @@ const {
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
+  userFindUniqueMock,
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
@@ -15,6 +16,7 @@ const {
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
@@ -33,6 +35,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
+    },
+    user: {
+      findUnique: userFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -62,6 +67,9 @@ describe("authMiddleware", () => {
       key: null,
     });
     getSessionMock.mockResolvedValue(null);
+    userFindUniqueMock.mockResolvedValue({
+      role: "user",
+    });
     oauthAccessTokenFindUniqueMock.mockResolvedValue(null);
     oauthConsentFindFirstMock.mockResolvedValue(null);
 
@@ -204,6 +212,39 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_api_key",
       organizationId: null,
+      isAdmin: false,
+    });
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("authenticates Better Auth API key as admin when user role is admin", async () => {
+    userFindUniqueMock.mockResolvedValueOnce({
+      role: "admin",
+    });
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: {
+        userId: "user_admin",
+        metadata: {
+          organizationId: "org_admin",
+        },
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer token_admin",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_admin",
+      organizationId: null,
+      isAdmin: true,
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
@@ -234,6 +275,7 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_oauth",
       organizationId: null,
+      isAdmin: false,
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
@@ -276,6 +318,7 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_session",
       organizationId: "org_session",
+      isAdmin: false,
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();

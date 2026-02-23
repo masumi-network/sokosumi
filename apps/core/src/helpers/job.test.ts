@@ -18,6 +18,7 @@ const orgAuthContext: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
+  isAdmin: false,
 };
 
 describe("getUserJobs", () => {
@@ -84,6 +85,7 @@ describe("getUserJobs", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
+      isAdmin: false,
     };
 
     const result = await getUserJobs(personalContext, {
