@@ -8,7 +8,7 @@ import { createPrismaClient } from "@sokosumi/database/client";
 import {
   COWORKER_API_KEY_PREFIX,
   COWORKER_API_KEY_START_LENGTH,
-  hashCoworkerApiKey,
+  hashApiKey,
 } from "../src/lib/coworker-api-key.js";
 
 const COWORKER_API_KEY_RANDOM_BYTES = 32;
@@ -117,7 +117,7 @@ async function createCoworkerApiKey(
   const expiresAt = parseExpiresAt(options["expires-at"]);
   const coworker = await resolveCoworker(prisma, coworkerIdentifier);
   const token = generateCoworkerApiKeyToken();
-  const keyHash = await hashCoworkerApiKey(token);
+  const keyHash = await hashApiKey(token);
   const keyStart = token.slice(0, COWORKER_API_KEY_START_LENGTH);
 
   const key = await prisma.coworkerApiKey.create({

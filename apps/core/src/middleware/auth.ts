@@ -5,10 +5,7 @@ import { createMiddleware } from "hono/factory";
 import { getEnv } from "@/config/env";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
-import {
-  COWORKER_API_KEY_PREFIX,
-  hashCoworkerApiKey,
-} from "@/lib/coworker-api-key";
+import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 
 export interface UserAuthenticationContext {
@@ -138,7 +135,7 @@ async function verifyCoworkerApiKey(
     return false;
   }
 
-  const keyHash = await hashCoworkerApiKey(token);
+  const keyHash = await hashApiKey(token);
   const coworkerApiKey = await prisma.coworkerApiKey.findUnique({
     where: {
       keyHash,
@@ -174,7 +171,7 @@ async function verifyCoworkerApiKey(
 
 const hashAccessToken = async (value: string) => {
   const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
-  return await hashCoworkerApiKey(tokenWithoutPrefix);
+  return await hashApiKey(tokenWithoutPrefix);
 };
 
 /**

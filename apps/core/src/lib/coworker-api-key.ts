@@ -11,7 +11,7 @@ export const COWORKER_API_KEY_START_LENGTH = COWORKER_API_KEY_PREFIX.length + 8;
  * Hashes a coworker API key token (SHA-256 + base64url, no padding).
  * Single source of truth for key creation (CLI) and verification (auth middleware).
  */
-export async function hashCoworkerApiKey(token: string): Promise<string> {
+export async function hashApiKey(token: string): Promise<string> {
   const hash = await createHash("SHA-256").digest(
     new TextEncoder().encode(token),
   );
