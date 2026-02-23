@@ -105,6 +105,8 @@ export function useChatSelection({
   pendingUrlConversationIdRef,
   stopStreaming: _stopStreaming,
   isConversationsLoading = false,
+  isSelectedChatStreaming = false,
+  isConversationLoading: isConversationLoadingProp = false,
 }: UseChatSelectionProps) {
   const router = useRouter();
   const params = useParams<{ bucketSlug?: string }>();
@@ -332,6 +334,10 @@ export function useChatSelection({
       selectedChatId &&
       pathname.startsWith("/chat")
     ) {
+      // Don't clear while the selected chat is streaming/submitted or conversation is loading (avoids blank flash when URL briefly has no conversationId)
+      if (isSelectedChatStreaming || isConversationLoadingProp) {
+        return;
+      }
       // Don't clear if we're waiting for our own router.push to complete (e.g. new chat creation)
       // When creating, selectedChatId is the new conversation not yet in the list
       // When conversations is empty, we're not creating (e.g. deleted last chat) – always clear

@@ -126,7 +126,7 @@ export function ChatLayoutClient({
     <div
       className={
         showTwoColumn
-          ? "-mt-20 -mr-4 -mb-4 -ml-4 flex h-full w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
+          ? "-mt-20 -mr-4 -mb-4 flex h-full w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
           : "flex h-full w-full flex-1 flex-col"
       }
     >

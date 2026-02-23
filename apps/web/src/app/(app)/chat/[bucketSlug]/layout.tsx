@@ -69,17 +69,19 @@ export default function ChatBucketLayout({
   }, [bucket, conversations]);
 
   return (
-    <div className="-mt-20 -mr-4 -mb-4 -ml-4 flex h-full w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0">
-      <div className="border-border max-h-[45vh] w-full shrink-0 overflow-hidden rounded-lg border lg:h-full lg:max-h-none lg:min-h-[calc(100svh-64px)] lg:w-72 lg:rounded-none lg:border-t-0 lg:border-r lg:border-b-0 lg:border-l-0">
-        <ChatConversationsSidebar
-          bucketSlug={bucketSlug ?? ""}
-          bucket={bucket ?? ""}
-          displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
-          conversations={bucketData?.conversations ?? []}
-        />
-      </div>
-      <div className="mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col px-2 pt-20 pr-4 pb-4 pl-4 md:pt-4 lg:min-w-0">
-        {children}
+    <div className="flex h-full w-full flex-col">
+      <div className="-mt-20 -mb-4 flex min-h-[calc(100svh-64px)] w-full flex-col gap-4 md:-mt-4 lg:flex-row lg:items-stretch">
+        <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
+          <ChatConversationsSidebar
+            bucketSlug={bucketSlug ?? ""}
+            bucket={bucket ?? ""}
+            displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
+            conversations={bucketData?.conversations ?? []}
+          />
+        </div>
+        <div className="h-full min-h-0 min-w-0 flex-1 pt-20 pb-4 md:pt-4">
+          <div className="mx-auto h-full min-h-0 w-full px-4">{children}</div>
+        </div>
       </div>
     </div>
   );

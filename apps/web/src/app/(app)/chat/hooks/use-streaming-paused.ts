@@ -24,7 +24,7 @@ export function useStreamingPaused(
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      setIsPaused(false);
+      queueMicrotask(() => setIsPaused(false));
       lastLengthRef.current = content.length;
       return;
     }
@@ -36,7 +36,7 @@ export function useStreamingPaused(
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      setIsPaused(false);
+      queueMicrotask(() => setIsPaused(false));
     }
 
     if (currentLength === 0) {

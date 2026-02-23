@@ -752,9 +752,7 @@ export default function ChatInterface({
 
         const cid = currentChatIdRef.current ?? conversationId;
         const sent = cid ? sendInConversation(cid, trimmedMessage) : false;
-        if (sent) {
-          setInput("");
-        }
+        if (sent) setInput("");
         return;
       }
 
@@ -774,9 +772,7 @@ export default function ChatInterface({
       }
 
       const sent = sendInConversation(selectedChatId, trimmedMessage);
-      if (sent) {
-        setInput("");
-      }
+      if (sent) setInput("");
     },
     [
       isLoading,
@@ -885,7 +881,9 @@ export default function ChatInterface({
           <>
             {showMessagesAfterTransition && (
               <>
-                {isConversationLoading ? (
+                {isConversationLoading &&
+                displayedMessages.length === 0 &&
+                conversationToSlot.get(selectedChatId) === undefined ? (
                   <div className="flex h-full min-h-[300px] flex-1 items-center justify-center">
                     <Loader2
                       className="text-muted-foreground size-8 animate-spin"

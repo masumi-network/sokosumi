@@ -60,6 +60,93 @@ function buildConversationDayGroups(
   return Array.from(groupsMap, ([key, list]) => ({ key, conversations: list }));
 }
 
+interface ConversationRowProps {
+  displayTitle: string;
+  fullTitle: string;
+  isTitleTruncated: boolean;
+  isActive: boolean;
+  updatedAt: Date | string;
+  onSelect: () => void;
+  onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  deleteAriaLabel: string;
+}
+
+function ConversationRow({
+  displayTitle,
+  fullTitle,
+  isTitleTruncated,
+  isActive,
+  updatedAt,
+  onSelect,
+  onDelete,
+  deleteAriaLabel,
+}: ConversationRowProps) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "hover:bg-muted bg-muted/30 group flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-2 text-left transition-colors",
+        isActive && "bg-primary text-primary-foreground hover:bg-primary/90",
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        {isTitleTruncated ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p
+                className={cn(
+                  "truncate text-sm font-medium",
+                  isActive && "text-primary-foreground",
+                )}
+              >
+                {displayTitle}
+              </p>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs wrap-break-word">
+              {fullTitle}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <p
+            className={cn(
+              "truncate text-sm font-medium",
+              isActive && "text-primary-foreground",
+            )}
+          >
+            {displayTitle}
+          </p>
+        )}
+        <p
+          className={cn(
+            "text-muted-foreground truncate text-xs",
+            isActive && "text-primary-foreground/80",
+          )}
+        >
+          {formatTimeAgo(updatedAt)}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDelete(e);
+        }}
+        aria-label={deleteAriaLabel}
+        className={cn(
+          "opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 focus:outline-none",
+          isActive
+            ? "text-primary-foreground hover:bg-primary/20"
+            : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
+        )}
+      >
+        <Trash2 className="size-3.5" />
+      </button>
+    </button>
+  );
+}
+
 interface ChatConversationsSidebarProps {
   bucket: string;
   bucketSlug: string;
@@ -70,7 +157,7 @@ interface ChatConversationsSidebarProps {
 export function ChatConversationsSidebar({
   bucket: _bucket,
   bucketSlug,
-  displayName,
+  displayName: _displayName,
   conversations,
 }: ChatConversationsSidebarProps) {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
@@ -164,53 +251,52 @@ export function ChatConversationsSidebar({
 
   return (
     <>
-      <aside className="border-border flex h-full min-h-0 w-full flex-col border-r py-4 lg:w-72 lg:flex-none lg:self-stretch">
-        <div className="flex flex-col gap-2 px-2 pb-2">
-          <h2 className="text-foreground truncate px-2 text-sm font-medium">
-            {displayName}
-          </h2>
-          <div className="relative w-full">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
-            <Input
-              className="pr-8 pl-8"
-              placeholder={tSearch("searchPlaceholder")}
-              value={searchValue}
-              onChange={(e) =>
-                setSearchValue(e.target.value.slice(0, MAX_QUERY_LENGTH))
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setSearchValue("");
-              }}
-            />
-            {searchValue ? (
-              <button
-                type="button"
-                aria-label={tSearch("clearSearch")}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
-                onClick={() => setSearchValue("")}
-              >
-                <X className="size-4" />
-              </button>
-            ) : null}
+      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
+        <div className="flex w-full flex-col items-start justify-between px-2 pb-2 md:flex-row md:items-center md:px-0 md:pr-4">
+          <div className="flex w-full flex-col">
+            <div className="relative w-full">
+              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
+              <Input
+                className="pr-8 pl-8"
+                placeholder={tSearch("searchPlaceholder")}
+                value={searchValue}
+                onChange={(e) =>
+                  setSearchValue(e.target.value.slice(0, MAX_QUERY_LENGTH))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setSearchValue("");
+                }}
+              />
+              {searchValue ? (
+                <button
+                  type="button"
+                  aria-label={tSearch("clearSearch")}
+                  className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
+                  onClick={() => setSearchValue("")}
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
           </div>
           {searchValue && (
-            <p className="text-muted-foreground px-2 text-xs">
+            <div className="text-muted-foreground px-1 text-xs whitespace-nowrap md:text-sm">
               {tSearch("resultsCount", {
                 found: filteredConversations.length,
                 total: conversations.length,
               })}
-            </p>
+            </div>
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 lg:pb-2">
           {dayGroups.length > 0 ? (
             dayGroups.map((group) => (
               <section key={group.key} className="mb-4">
                 <div className="text-muted-foreground px-2 pb-2 text-xs font-medium">
                   {group.key}
                 </div>
-                <ul className="space-y-1">
+                <ul className="space-y-2">
                   {group.conversations.map((conv) => {
                     const isActive = conversationId === conv.id;
                     const title =
@@ -228,75 +314,16 @@ export function ChatConversationsSidebar({
                       title.length > CONVERSATION_TITLE_MAX_CHARS;
                     return (
                       <li key={conv.id}>
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => handleConversationClick(conv.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              handleConversationClick(conv.id);
-                            }
-                          }}
-                          className={cn(
-                            "hover:bg-muted bg-muted/30 group flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-2 text-left transition-colors",
-                            isActive &&
-                              "bg-primary text-primary-foreground hover:bg-primary/90",
-                          )}
-                        >
-                          <div className="min-w-0 flex-1">
-                            {isTitleTruncated ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <p
-                                    className={cn(
-                                      "truncate text-sm font-medium",
-                                      isActive && "text-primary-foreground",
-                                    )}
-                                  >
-                                    {displayTitle}
-                                  </p>
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  side="right"
-                                  className="max-w-xs wrap-break-word"
-                                >
-                                  {title}
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <p
-                                className={cn(
-                                  "truncate text-sm font-medium",
-                                  isActive && "text-primary-foreground",
-                                )}
-                              >
-                                {displayTitle}
-                              </p>
-                            )}
-                            <p
-                              className={cn(
-                                "text-muted-foreground truncate text-xs",
-                                isActive && "text-primary-foreground/80",
-                              )}
-                            >
-                              {formatTimeAgo(conv.updatedAt)}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteClick(e, conv.id)}
-                            aria-label={t("deleteChatAriaLabel")}
-                            className={cn(
-                              "opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 focus:outline-none",
-                              isActive
-                                ? "text-primary-foreground hover:bg-primary/20"
-                                : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
-                            )}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
+                        <ConversationRow
+                          displayTitle={displayTitle}
+                          fullTitle={title}
+                          isTitleTruncated={isTitleTruncated}
+                          isActive={isActive}
+                          updatedAt={conv.updatedAt}
+                          onSelect={() => handleConversationClick(conv.id)}
+                          onDelete={(e) => handleDeleteClick(e, conv.id)}
+                          deleteAriaLabel={t("deleteChatAriaLabel")}
+                        />
                       </li>
                     );
                   })}
