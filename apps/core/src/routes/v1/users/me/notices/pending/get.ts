@@ -1,10 +1,11 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { forbidden, internalServerError } from "@/helpers/error";
+import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { pendingNoticesResponseSchema } from "@/schemas/notice.schema";
 
 const route = createRoute({
@@ -44,11 +45,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-
-    if (authContext.coworkerId) {
-      throw forbidden("Coworkers are not allowed to access notices");
-    }
+    const authContext = requireUserAuthContext(c.var.authContext);
 
     const now = new Date();
     const pendingNotices = await prisma.$transaction(async (tx) => {

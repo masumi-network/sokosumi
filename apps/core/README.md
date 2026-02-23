@@ -163,11 +163,15 @@ The API supports requests from any origin while maintaining authentication:
 
 The API supports multiple authentication methods:
 
-- **Bearer Tokens**: API keys issued via Better Auth
+- **User Bearer Tokens**:
+  - Better Auth API keys
+  - Better Auth OAuth access tokens
+- **Coworker Bearer Tokens**:
+  - Dedicated coworker API keys (`coworker_*`)
 - **Session Cookies**: Better Auth session cookies (web app)
-- **Internal Tokens**: Static API keys for automation
 
 Public endpoints (no authentication required):
+
 - `/openapi.json` - OpenAPI specification
 - `/doc` - Swagger UI documentation
 - `/v1/agents` - List agents
@@ -186,8 +190,9 @@ All other endpoints require authentication.
 ### Authentication Issues
 
 1. Verify `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set
-2. Check that Bearer token or session cookie is valid
-3. Review auth middleware logs
+2. Verify coworker callers use dedicated `coworker_*` API keys
+3. Check that Bearer token or session cookie is valid
+4. Review auth middleware logs
 
 ### Build Errors
 

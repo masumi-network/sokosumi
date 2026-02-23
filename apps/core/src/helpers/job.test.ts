@@ -1,7 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AuthenticationContext } from "@/middleware/auth";
+import type { UserAuthenticationContext } from "@/middleware/auth";
 
 import { getUserJobs } from "./job";
 
@@ -14,10 +14,10 @@ function createTransactionClient() {
   } as unknown as Prisma.TransactionClient;
 }
 
-const orgAuthContext: AuthenticationContext = {
+const orgAuthContext: UserAuthenticationContext = {
+  actor: "user",
   userId: "user_123",
   organizationId: "org_123",
-  coworkerId: null,
 };
 
 describe("getUserJobs", () => {
@@ -80,10 +80,10 @@ describe("getUserJobs", () => {
 
   it("returns empty result for shared-only scope without organization", async () => {
     const tx = createTransactionClient();
-    const personalContext: AuthenticationContext = {
+    const personalContext: UserAuthenticationContext = {
+      actor: "user",
       userId: "user_123",
       organizationId: null,
-      coworkerId: null,
     };
 
     const result = await getUserJobs(personalContext, {

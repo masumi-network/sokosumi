@@ -3,9 +3,14 @@ import { createRoute } from "@hono/zod-openapi";
 import { attachCreditsToOrganizations } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapSubscription } from "@/helpers/subscription";
+import {
+  getCurrentOrganizationSubscriptionCreditsMap,
+  getCurrentSubscriptionPeriod,
+  mapSubscription,
+} from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { organizationsSchema } from "@/schemas/organization.schema";
 
 const route = createRoute({
@@ -33,6 +38,11 @@ const route = createRoute({
               periodStart: "2025-01-01T00:00:00.000Z",
               periodEnd: "2025-02-01T00:00:00.000Z",
               cancelAtPeriodEnd: false,
+              credits: {
+                total: 100,
+                remaining: 57.5,
+                used: 42.5,
+              },
             },
           },
         ],
@@ -43,13 +53,14 @@ const route = createRoute({
       },
     ),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
 
     const organizations = await prisma.$transaction(async (tx) => {
       const members = await tx.member.findMany({
@@ -99,13 +110,54 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
       }
+      const now = new Date();
+      const currentOrganizationPeriods = Array.from(
+        subscriptionsByOrganizationId.entries(),
+      ).flatMap(([organizationId, subscription]) => {
+        const period = getCurrentSubscriptionPeriod(subscription, now);
+        return period
+          ? [
+              {
+                organizationId,
+                periodStart: period.periodStart,
+                periodEnd: period.periodEnd,
+              },
+            ]
+          : [];
+      });
+      const currentCreditsByOrganizationId =
+        await getCurrentOrganizationSubscriptionCreditsMap({
+          periods: currentOrganizationPeriods,
+          tx,
+          now,
+        });
 
-      return organizationsWithCredits.map((organization) => ({
-        ...organization,
-        subscription: mapSubscription(
-          subscriptionsByOrganizationId.get(organization.id) ?? null,
-        ),
-      }));
+      const organizationsWithSubscriptionUsage: Array<
+        (typeof organizationsWithCredits)[number] & {
+          subscription: ReturnType<typeof mapSubscription>;
+        }
+      > = [];
+      for (const organization of organizationsWithCredits) {
+        const subscription =
+          subscriptionsByOrganizationId.get(organization.id) ?? null;
+        const subscriptionCredits = subscription
+          ? (currentCreditsByOrganizationId.get(organization.id) ?? null)
+          : null;
+
+        organizationsWithSubscriptionUsage.push({
+          ...organization,
+          subscription: mapSubscription(
+            subscription
+              ? {
+                  ...subscription,
+                  credits: subscriptionCredits,
+                }
+              : null,
+          ),
+        });
+      }
+
+      return organizationsWithSubscriptionUsage;
     });
     return ok(c, organizationsSchema.parse(organizations));
   });

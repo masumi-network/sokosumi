@@ -16,6 +16,7 @@ import {
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 import { TasksView } from "./components/tasks-view";
+import { buildAgentNameById } from "./utils/agent-names";
 import { getCoworkerOptions } from "./utils/coworker-options";
 
 export const metadata = {
@@ -44,6 +45,7 @@ export default async function TasksPage() {
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
+  const agentNameById = buildAgentNameById(agents);
   const tasksById = new Map(tasksResult.tasks.map((task) => [task.id, task]));
   const tasks = tasksResult.tasks.map((task) =>
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
@@ -74,6 +76,7 @@ export default async function TasksPage() {
         nextCursor={tasksResult.pagination?.nextCursor ?? null}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
+        agentNameById={agentNameById}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         defaultViewMode={defaultViewMode}

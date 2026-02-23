@@ -17,6 +17,7 @@ import {
 import { Session } from "@/lib/auth/auth";
 
 import AgentLists from "./components/agent-lists";
+import AnnouncementCards from "./components/announcement-cards";
 import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
@@ -58,6 +59,7 @@ export default function Sidebar({ session }: SidebarProps) {
         <AgentLists userId={session.user.id} />
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
+        <AnnouncementCards />
         <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden">
           <UserCredits session={session} />
         </div>

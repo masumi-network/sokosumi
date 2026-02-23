@@ -1,10 +1,200 @@
-interface SubscriptionRecord {
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/database/helpers";
+
+interface SubscriptionPeriodRecord {
+  periodStart: Date | null;
+  periodEnd: Date | null;
+}
+
+interface SubscriptionCredits {
+  remaining: number;
+  total: number;
+  used: number;
+}
+
+interface SubscriptionRecord extends SubscriptionPeriodRecord {
   id: string;
   plan: string;
   status: string;
-  periodStart: Date | null;
-  periodEnd: Date | null;
   cancelAtPeriodEnd: boolean | null;
+  credits?: SubscriptionCredits | null;
+}
+
+interface CurrentSubscriptionPeriod {
+  periodEnd: Date;
+  periodStart: Date;
+}
+
+interface OrganizationCurrentSubscriptionPeriod extends CurrentSubscriptionPeriod {
+  organizationId: string;
+}
+
+export function getCurrentSubscriptionPeriod(
+  subscription: SubscriptionPeriodRecord | null,
+  now: Date,
+): CurrentSubscriptionPeriod | null {
+  if (!subscription) {
+    return null;
+  }
+
+  const { periodStart, periodEnd } = subscription;
+  if (!periodStart || !periodEnd || periodEnd <= periodStart) {
+    return null;
+  }
+
+  if (periodStart > now || periodEnd <= now) {
+    return null;
+  }
+
+  return { periodStart, periodEnd };
+}
+
+export async function getCurrentSubscriptionCredits(params: {
+  subscription: SubscriptionPeriodRecord | null;
+  userId: string;
+  organizationId: string | null;
+  tx: Prisma.TransactionClient;
+  now?: Date;
+}): Promise<SubscriptionCredits | null> {
+  const now = params.now ?? new Date();
+  const period = getCurrentSubscriptionPeriod(params.subscription, now);
+  if (!period) {
+    return null;
+  }
+
+  const currentPeriodBucketWhere = params.organizationId
+    ? {
+        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+        organizationId: params.organizationId,
+        expiresAt: {
+          gt: period.periodStart,
+          lte: period.periodEnd,
+        },
+        createdAt: {
+          lt: now,
+        },
+      }
+    : {
+        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+        userId: params.userId,
+        organizationId: null,
+        expiresAt: {
+          gt: period.periodStart,
+          lte: period.periodEnd,
+        },
+        createdAt: {
+          lt: now,
+        },
+      };
+
+  const [totalAggregateResult, usedAggregateResult] = await Promise.all([
+    params.tx.creditBucket.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: currentPeriodBucketWhere,
+    }),
+    params.tx.creditConsumption.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        createdAt: {
+          gte: period.periodStart,
+          lt: now,
+        },
+        bucket: {
+          is: currentPeriodBucketWhere,
+        },
+      },
+    }),
+  ]);
+
+  const totalCents = totalAggregateResult._sum.amount ?? 0n;
+  const usedCents = usedAggregateResult._sum.amount ?? 0n;
+  const remainingCents = totalCents > usedCents ? totalCents - usedCents : 0n;
+
+  return {
+    total: convertCentsToCredits(totalCents),
+    used: convertCentsToCredits(usedCents),
+    remaining: convertCentsToCredits(remainingCents),
+  };
+}
+
+export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
+  periods: OrganizationCurrentSubscriptionPeriod[];
+  tx: Prisma.TransactionClient;
+  now?: Date;
+}): Promise<Map<string, SubscriptionCredits>> {
+  if (params.periods.length === 0) {
+    return new Map();
+  }
+
+  const now = params.now ?? new Date();
+  const organizationIds = params.periods.map((period) => period.organizationId);
+  const periodStarts = params.periods.map((period) => period.periodStart);
+  const periodEnds = params.periods.map((period) => period.periodEnd);
+
+  const rows = await params.tx.$queryRaw<
+    Array<{
+      organization_id: string;
+      total_cents: bigint;
+      used_cents: bigint;
+    }>
+  >`
+    WITH input(organization_id, period_start, period_end) AS (
+      SELECT *
+      FROM UNNEST(
+        ${organizationIds}::text[],
+        ${periodStarts}::timestamptz[],
+        ${periodEnds}::timestamptz[]
+      )
+    )
+    SELECT
+      i.organization_id,
+      COALESCE((
+        SELECT SUM(cb.amount)::bigint
+        FROM credit_bucket cb
+        WHERE cb."organizationId" = i.organization_id
+          AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
+          AND cb."expiresAt" IS NOT NULL
+          AND cb."expiresAt" > i.period_start
+          AND cb."expiresAt" <= i.period_end
+          AND cb."createdAt" < ${now}
+      ), 0)::bigint AS total_cents,
+      COALESCE((
+        SELECT SUM(cc.amount)::bigint
+        FROM credit_consumption cc
+        INNER JOIN credit_bucket cb ON cb.id = cc."bucketId"
+        WHERE cb."organizationId" = i.organization_id
+          AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
+          AND cb."expiresAt" IS NOT NULL
+          AND cb."expiresAt" > i.period_start
+          AND cb."expiresAt" <= i.period_end
+          AND cb."createdAt" < ${now}
+          AND cc."createdAt" >= i.period_start
+          AND cc."createdAt" < ${now}
+      ), 0)::bigint AS used_cents
+    FROM input i
+  `;
+
+  return new Map(
+    rows.map((row) => {
+      const remainingCents =
+        row.total_cents > row.used_cents
+          ? row.total_cents - row.used_cents
+          : 0n;
+
+      return [
+        row.organization_id,
+        {
+          total: convertCentsToCredits(row.total_cents),
+          used: convertCentsToCredits(row.used_cents),
+          remaining: convertCentsToCredits(remainingCents),
+        },
+      ];
+    }),
+  );
 }
 
 export function mapSubscription(subscription: SubscriptionRecord | null) {
@@ -19,5 +209,6 @@ export function mapSubscription(subscription: SubscriptionRecord | null) {
     periodStart: subscription.periodStart,
     periodEnd: subscription.periodEnd,
     cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+    credits: subscription.credits ?? null,
   };
 }

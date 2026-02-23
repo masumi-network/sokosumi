@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
+import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,8 @@ import {
 } from "@/lib/utils/task-attachments";
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+
+const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
 export interface TaskFormLabels {
   details: string;
@@ -67,6 +70,7 @@ interface TaskFormProps {
   mode: "create" | "edit";
   labels: TaskFormLabels;
   coworkerOptions: CoworkerOption[];
+  agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
   variant?: "page" | "modal";
@@ -80,6 +84,7 @@ export function TaskForm({
   mode,
   labels,
   coworkerOptions,
+  agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
   variant = "page",
@@ -108,6 +113,10 @@ export function TaskForm({
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
+  );
+  const mentionOptions = useMemo(
+    () => convertAgentNamesToMentionOptions(agentNameById),
+    [agentNameById],
   );
   const isSubmittingAny = isSubmitting || isSubmittingDraft;
   useEffect(() => {
@@ -335,6 +344,7 @@ export function TaskForm({
                   onAttachClick={() => attachmentTriggerRef.current?.click()}
                   attachLabel={labels.uploadFile}
                   isAttachmentUploading={isUploadingAttachments}
+                  mentions={mentionOptions}
                 />
                 <FileUploadTrigger asChild>
                   <button

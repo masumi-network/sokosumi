@@ -21,7 +21,9 @@
     "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json src",
     "test": "vitest run",
     "test:ci": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "coworker-keys:create": "tsx scripts/coworker-api-keys.ts create",
+    "coworker-keys:revoke": "tsx scripts/coworker-api-keys.ts revoke"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.18",
@@ -37,12 +39,12 @@
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.3.0",
     "ably": "2.17.1",
-    "ai": "6.0.94",
+    "ai": "6.0.97",
     "better-auth": "1.4.18",
     "better-auth-localization": "2.2.3",
     "dotenv": "17.3.1",
-    "hono": "4.12.0",
-    "i18next": "25.8.11",
+    "hono": "4.12.2",
+    "i18next": "25.8.13",
     "i18next-fs-backend": "2.6.1",
     "neverthrow": "8.2.0",
     "uuid": "13.0.0"

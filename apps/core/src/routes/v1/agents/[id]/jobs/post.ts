@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { forbidden } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -8,6 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { createJobRequestSchema, jobSchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
@@ -37,6 +37,8 @@ const route = withGlobalHeaderParameters(
     responses: {
       201: jsonSuccessResponse(jobSchema, "Job created successfully"),
       400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Agent not found"),
       422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
@@ -46,13 +48,9 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id: agentId } = c.req.valid("param");
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
-
-    if (authContext.coworkerId) {
-      throw forbidden("Only a user is allowed to do this action");
-    }
 
     const job = await createAgentJobForUser({
       authContext,

@@ -32,9 +32,36 @@ describe("organizationWithRoleSchema", () => {
         periodStart: "2025-01-01T00:00:00.000Z",
         periodEnd: "2025-02-01T00:00:00.000Z",
         cancelAtPeriodEnd: false,
+        credits: {
+          total: 100,
+          remaining: 76,
+          used: 24,
+        },
       },
     });
 
     expect(result.subscription?.id).toBe("sub_123");
+  });
+
+  it("accepts populated subscription with null usage", () => {
+    const result = organizationWithRoleSchema.parse({
+      id: "org_123",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      name: "My Organization",
+      slug: "my-org",
+      role: "member",
+      credits: 100,
+      subscription: {
+        id: "sub_123",
+        plan: "starter",
+        status: "active",
+        periodStart: "2025-01-01T00:00:00.000Z",
+        periodEnd: "2025-02-01T00:00:00.000Z",
+        cancelAtPeriodEnd: false,
+        credits: null,
+      },
+    });
+
+    expect(result.subscription?.credits).toBeNull();
   });
 });

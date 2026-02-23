@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
@@ -9,6 +8,7 @@ import {
 import { getEnvPublicConfig } from "@/config/env.public";
 import { auth, Session } from "@/lib/auth/auth";
 import { coreClient } from "@/lib/clients/core.client";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import BuyCreditsButton from "./buy-credits-button";
 import UserAvatar from "./user-avatar";
@@ -53,7 +53,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     credits = null;
   }
 
-  const displayCredits = Math.trunc(credits ?? 0);
+  const displayCredits = formatCreditsForDisplay(credits ?? 0);
   const creditsLabel =
     credits === null
       ? t("unavailable")
@@ -108,7 +108,6 @@ export default async function UserCredits({ session }: UserCreditsProps) {
         <BuyCreditsButton
           label={tPlan("upgradeCta")}
           path="/billing?tab=subscription"
-          iconRight={<Sparkles className="size-4" aria-hidden />}
         />
       ) : null}
       {shouldShowAddCreditsCta ? (

@@ -46,3 +46,7 @@ export const creditsResponseSchema = z.object({
     example: 100.0,
   }),
 });
+
+export const subscriptionResponseSchema = z.object({
+  subscription: subscriptionSchema.nullable(),
+});

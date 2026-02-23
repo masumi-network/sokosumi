@@ -1,7 +1,10 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  CoworkerAuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
 
 import {
   requireScopedJobReadAccess,
@@ -22,10 +25,10 @@ function createTransactionClient() {
   } as unknown as Prisma.TransactionClient;
 }
 
-const userAuthContext: AuthenticationContext = {
+const userAuthContext: UserAuthenticationContext = {
+  actor: "user",
   userId: "user_123",
   organizationId: "org_123",
-  coworkerId: null,
 };
 
 describe("requireUserTaskAccess", () => {
@@ -97,9 +100,8 @@ describe("requireScopedTaskReadAccess", () => {
 describe("requireTaskAccess", () => {
   it("keeps coworker access path unchanged", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: AuthenticationContext = {
-      userId: "user_123",
-      organizationId: "org_123",
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
       coworkerId: "cow_123",
     };
 
@@ -188,10 +190,10 @@ describe("requireScopedJobReadAccess", () => {
 
   it("rejects shared-only scope when organization context is missing", async () => {
     const tx = createTransactionClient();
-    const personalContext: AuthenticationContext = {
+    const personalContext: UserAuthenticationContext = {
+      actor: "user",
       userId: "user_123",
       organizationId: null,
-      coworkerId: null,
     };
 
     await expect(

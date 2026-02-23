@@ -20,6 +20,7 @@ interface TaskEditModalProps {
     status: TaskStatus;
   };
   coworkerOptions: CoworkerOption[];
+  agentNameById: Map<string, string>;
   labels: TaskFormLabels;
 }
 
@@ -28,6 +29,7 @@ export function TaskEditModal({
   title,
   initialValues,
   coworkerOptions,
+  agentNameById,
   labels,
 }: TaskEditModalProps) {
   const router = useRouter();
@@ -55,6 +57,7 @@ export function TaskEditModal({
         showCancel={false}
         labels={labels}
         coworkerOptions={coworkerOptions}
+        agentNameById={agentNameById}
         taskId={taskId}
         initialValues={initialValues}
         onCancel={handleClose}

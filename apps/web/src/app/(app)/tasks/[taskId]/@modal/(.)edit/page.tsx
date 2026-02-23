@@ -3,7 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
+import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
@@ -13,9 +15,10 @@ export default async function TaskEditModalPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, coworkers] = await Promise.all([
+  const [taskResult, coworkers, agents] = await Promise.all([
     taskService.getTaskById(taskId),
     coworkerService.listCoworkers(),
+    agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
 
   if (!taskResult) {
@@ -30,6 +33,7 @@ export default async function TaskEditModalPage({
   }
 
   const coworkerOptions = getCoworkerOptions(coworkers);
+  const agentNameById = buildAgentNameById(agents);
 
   const [tEdit, tActions] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),
@@ -63,6 +67,7 @@ export default async function TaskEditModalPage({
         ctrl: tEdit("ctrl"),
       }}
       coworkerOptions={coworkerOptions}
+      agentNameById={agentNameById}
       initialValues={{
         name: taskResult.name,
         description: taskResult.description ?? "",

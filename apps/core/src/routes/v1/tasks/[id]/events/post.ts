@@ -3,6 +3,7 @@ import * as Sentry from "@sentry/node";
 import { Prisma } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 
+import { LIMITS } from "@/config/constants";
 import { requireTaskAccess } from "@/helpers/access-control";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -17,10 +18,13 @@ import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  isCoworkerAuthContext,
+} from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
-import { createTaskEventRequestSchema, MIN_CHARGEABLE_CREDITS } from "./schema";
+import { createTaskEventRequestSchema } from "./schema";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -56,7 +60,7 @@ const route = createRoute({
 });
 
 function getActorData(authContext: AuthenticationContext) {
-  if (authContext.coworkerId) {
+  if (isCoworkerAuthContext(authContext)) {
     return {
       userId: null,
       coworkerId: authContext.coworkerId,
@@ -90,7 +94,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
-          if (authContext.coworkerId) {
+          if (isCoworkerAuthContext(authContext)) {
             if (
               isTaskStatusSpendable(status) &&
               credits != null &&
@@ -99,7 +103,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               cents = convertCreditsToCents(credits);
               if (cents === 0n) {
                 throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${MIN_CHARGEABLE_CREDITS} credits`,
+                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
                 );
               }
               transactionId = await createTaskEventTransaction({

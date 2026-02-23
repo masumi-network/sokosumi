@@ -3,10 +3,14 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { mapSubscription } from "@/helpers/subscription";
+import {
+  getCurrentSubscriptionCredits,
+  mapSubscription,
+} from "@/helpers/subscription";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { organizationWithRoleSchema } from "@/schemas/organization.schema";
 
 const params = z.object({
@@ -44,6 +48,11 @@ const route = createRoute({
             periodStart: "2025-01-01T00:00:00.000Z",
             periodEnd: "2025-02-01T00:00:00.000Z",
             cancelAtPeriodEnd: false,
+            credits: {
+              total: 100,
+              remaining: 57.5,
+              used: 42.5,
+            },
           },
         },
         meta: {
@@ -63,7 +72,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const organization = await prisma.$transaction(async (tx) => {
@@ -79,12 +88,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { referenceId: organization.id },
         orderBy: { updatedAt: "desc" },
       });
+      const subscriptionCredits = await getCurrentSubscriptionCredits({
+        subscription,
+        userId: authContext.userId,
+        organizationId: organization.id,
+        tx,
+      });
 
       return {
         ...organization,
         role,
         credits,
-        subscription: mapSubscription(subscription),
+        subscription: mapSubscription(
+          subscription
+            ? {
+                ...subscription,
+                credits: subscriptionCredits,
+              }
+            : null,
+        ),
       };
     });
 

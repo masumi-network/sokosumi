@@ -2,6 +2,8 @@ import * as Sentry from "@sentry/node";
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 
+import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
+
 import type { AuthVariables } from "./auth.js";
 
 export function sentryMiddleware(): MiddlewareHandler<{
@@ -30,11 +32,17 @@ export function sentryMiddleware(): MiddlewareHandler<{
 
         const authContext = c.var.authContext;
         if (authContext && c.var.isAuthenticated) {
-          Sentry.getCurrentScope().setUser({
-            id: authContext.userId,
-            organizationId: authContext.organizationId || undefined,
-            coworkerId: authContext.coworkerId || undefined,
-          });
+          if (isUserAuthContext(authContext)) {
+            Sentry.getCurrentScope().setUser({
+              id: authContext.userId,
+              organizationId: authContext.organizationId || undefined,
+            });
+          } else if (isCoworkerAuthContext(authContext)) {
+            Sentry.getCurrentScope().setUser({
+              id: `coworker:${authContext.coworkerId}`,
+              coworkerId: authContext.coworkerId,
+            });
+          }
         }
 
         try {

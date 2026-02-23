@@ -1,15 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  conflict,
-  forbidden,
-  internalServerError,
-  notFound,
-} from "@/helpers/error";
+import { conflict, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { noticeAcknowledgmentResponseSchema } from "@/schemas/notice.schema";
 
 const requestParamsSchema = z.object({
@@ -57,12 +53,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
+    const authContext = requireUserAuthContext(c.var.authContext);
     const { id: noticeId } = c.req.valid("param");
-
-    if (authContext.coworkerId) {
-      throw forbidden("Coworkers are not allowed to acknowledge notices");
-    }
 
     const now = new Date();
 

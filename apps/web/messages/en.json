@@ -1431,6 +1431,17 @@
         }
       }
     },
+    "NoticeDialog": {
+      "defaultTitle": "Notice",
+      "actions": {
+        "confirm": "Confirm",
+        "seeMore": "See more",
+        "openLink": "Open link"
+      },
+      "errors": {
+        "acknowledgeFailed": "Failed to acknowledge notice"
+      }
+    },
     "Header": {
       "Credit": {
         "buy": "Add credits",

@@ -14,6 +14,7 @@ import {
 import { jsonErrorResponse } from "@/helpers/openapi";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 
 const chatRequestSchema = z.object({
   messages: z.array(
@@ -79,7 +80,7 @@ const _route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.post("/chat", async (c) => {
     try {
-      const { authContext } = c.var;
+      const authContext = requireUserAuthContext(c.var.authContext);
 
       const body = await c.req.json();
       const parsedBody = chatRequestSchema.safeParse(body);

@@ -5,9 +5,8 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/task.schema";
-
-import { requireCoworkerId } from "./helper";
 
 const route = createRoute({
   method: "get",
@@ -43,11 +42,10 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const coworkerId = requireCoworkerId(authContext);
+    const authContext = requireCoworkerAuthContext(c.var.authContext);
 
     const coworker = await prisma.coworker.findUnique({
-      where: { id: coworkerId },
+      where: { id: authContext.coworkerId },
     });
 
     if (!coworker) {

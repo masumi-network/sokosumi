@@ -4,11 +4,11 @@ import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountPostTaskEvents from "./post";
-import { MIN_CHARGEABLE_CREDITS } from "./schema";
 
 const {
   createTaskEventTransactionMock,
@@ -153,8 +153,7 @@ describe("POST /{id}/events", () => {
     requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -203,9 +202,9 @@ describe("POST /{id}/events", () => {
     requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
+      actor: "user",
       userId: USER_ID,
       organizationId: null,
-      coworkerId: null,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -242,8 +241,7 @@ describe("POST /{id}/events", () => {
     );
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -286,8 +284,7 @@ describe("POST /{id}/events", () => {
     );
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -318,8 +315,7 @@ describe("POST /{id}/events", () => {
     requireTaskAccessMock.mockResolvedValue(createTask());
 
     const app = createApp({
-      userId: USER_ID,
-      organizationId: null,
+      actor: "coworker",
       coworkerId: COWORKER_ID,
     });
 
@@ -328,7 +324,7 @@ describe("POST /{id}/events", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status: TaskStatus.COMPLETED,
-        credits: MIN_CHARGEABLE_CREDITS / 10,
+        credits: LIMITS.MIN_CHARGEABLE_CREDITS / 10,
       }),
     });
 
