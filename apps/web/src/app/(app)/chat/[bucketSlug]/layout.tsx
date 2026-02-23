@@ -1,3 +1,31 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useMemo } from "react";
+
+import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
+import {
+  bucketKeyFromDisplaySlug,
+  slugify,
+  slugToBucketKey,
+} from "@/app/chat/utils/bucket-slug";
+import { useConversationsContext } from "@/contexts/conversations-context";
+import { useCoworkersContext } from "@/contexts/coworkers-context";
+
+type ConversationMetadata = {
+  coworker_id?: string;
+  coworker_name?: string;
+  model_id?: string;
+  model_name?: string;
+};
+
+function getGroupKey(metadata: ConversationMetadata | null): string {
+  if (!metadata) return "other";
+  if (metadata.model_id) return `model:${metadata.model_id}`;
+  if (metadata.coworker_id) return `coworker:${metadata.coworker_id}`;
+  return "other";
+}
+
 export default function ChatBucketLayout({
   children,
 }: {
