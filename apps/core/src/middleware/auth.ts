@@ -91,12 +91,10 @@ async function verifyApiKey(
     const coworkerId = apiKeyResult.key.metadata?.coworkerId;
     const allowLegacyCoworkerFallback =
       getEnv().ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS;
+    const hasCoworkerMetadata =
+      typeof coworkerId === "string" && coworkerId.length > 0;
 
-    if (
-      allowLegacyCoworkerFallback &&
-      typeof coworkerId === "string" &&
-      coworkerId.length > 0
-    ) {
+    if (allowLegacyCoworkerFallback && hasCoworkerMetadata) {
       setAuthContext(c, {
         isAuthenticated: true,
         authContext: {
@@ -105,6 +103,10 @@ async function verifyApiKey(
         },
       });
       return true;
+    }
+
+    if (hasCoworkerMetadata && !allowLegacyCoworkerFallback) {
+      return false;
     }
 
     setAuthContext(c, {

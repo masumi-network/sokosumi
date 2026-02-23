@@ -218,7 +218,7 @@ describe("authMiddleware", () => {
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("authenticates Better Auth coworker-metadata key as user when legacy fallback is disabled", async () => {
+  it("rejects Better Auth coworker-metadata key when legacy fallback is disabled (fail closed)", async () => {
     getEnvMock.mockReturnValue({
       ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS: false,
     });
@@ -241,14 +241,9 @@ describe("authMiddleware", () => {
       },
     });
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "user",
-      userId: "user_api_key",
-      organizationId: "org_api_key",
-    });
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
-    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("falls back to OAuth token when API key is invalid", async () => {
