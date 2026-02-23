@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { openrouterClient } from "@/clients/openrouter.client";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -94,6 +95,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userId: authContext.userId,
           archivedAt: null,
         },
+        include: {
+          _count: { select: { items: true } },
+        },
       });
 
       if (!conversation) {
@@ -109,6 +113,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           contentText,
         },
       });
+
+      // Generate and set conversation title from first user message
+      const isFirstItem = conversation._count.items === 0;
+      if (
+        isFirstItem &&
+        body.role === "user" &&
+        contentText.trim().length > 0
+      ) {
+        const generatedTitle =
+          await openrouterClient.generateChatTitle(contentText);
+        if (generatedTitle) {
+          await tx.conversation.update({
+            where: { id: conversation.id },
+            data: { title: generatedTitle },
+          });
+        }
+      }
 
       return item;
     });

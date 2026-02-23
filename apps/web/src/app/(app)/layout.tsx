@@ -64,7 +64,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         >
           <EmergencyDialog />
           <div
-            className="flex h-full flex-1 flex-col overflow-hidden"
+            className="flex h-full flex-1 flex-col overflow-visible"
             data-app-main-inner
           >
             {children}

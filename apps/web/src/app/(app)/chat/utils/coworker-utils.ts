@@ -38,15 +38,21 @@ export interface DbCoworker {
   updatedAt: string;
 }
 
-/**
- * Get coworker image URL. Profile pictures come only from the coworker service (DB);
- * when resolvedImageUrl (e.g. from DB/avatar) is provided, return it; otherwise null.
- */
+const DEFAULT_COWORKER_AVATARS: Record<string, string> = {
+  elena: "/images/coworkers/elena.webp",
+  hannah: "/images/coworkers/hannah.webp",
+};
+
+/** Prefer resolvedImageUrl; fallback to static avatar for default coworker ids. */
 export function getCoworkerImageUrl(
-  _idOrSlug: string,
+  idOrSlug: string,
   resolvedImageUrl?: string | null,
 ): string | null {
-  return resolvedImageUrl ?? null;
+  if (resolvedImageUrl != null && resolvedImageUrl !== "") {
+    return resolvedImageUrl;
+  }
+  const key = idOrSlug?.trim().toLowerCase();
+  return (key && DEFAULT_COWORKER_AVATARS[key]) ?? null;
 }
 
 /**

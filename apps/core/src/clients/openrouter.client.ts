@@ -70,6 +70,42 @@ export const openrouterClient = (() => {
       }
     },
 
+    async generateChatTitle(firstPrompt: string): Promise<string | null> {
+      if (!defaultOpenrouter) {
+        return null;
+      }
+
+      const trimmed = firstPrompt.trim().slice(0, 2000);
+      if (!trimmed) {
+        return null;
+      }
+
+      const systemPrompt = `Generate a very short chat title from the user's first message. Rules:
+        - Maximum 50 characters (including spaces and punctuation)
+        - Language: Match the input
+        - Format: Single phrase or sentence fragment, no quotes
+        - Output: Title only, no other text
+      `;
+      const userPrompt = `First message: ${trimmed}`;
+
+      try {
+        const { text } = await generateText({
+          model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.5,
+          maxOutputTokens: 40,
+        });
+
+        if (!text) return null;
+        const title = text.trim().slice(0, 50);
+        return title || null;
+      } catch (error) {
+        console.error("OpenRouter chat title generation failed:", error);
+        return null;
+      }
+    },
+
     async streamChatResponse(messages: unknown[], modelId: string | null) {
       const chatApiKey = getEnv().OPENROUTER_CHAT_API_KEY;
       if (!chatApiKey) {
