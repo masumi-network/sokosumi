@@ -6,6 +6,7 @@ const envDefaults: Record<string, string> = {
   BETTER_AUTH_SECRET: "test-secret",
   BETTER_AUTH_URL: "https://example.com/auth",
   BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
+  ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS: "true",
   PAYMENT_API_URL: "https://example.com/payment",
   PAYMENT_API_KEY: "test-payment-key",
   REGISTRY_API_URL: "https://example.com/registry",

@@ -22,6 +22,10 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_TRUSTED_ORIGIN: z.url(),
+  ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),

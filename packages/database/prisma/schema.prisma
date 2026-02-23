@@ -1068,11 +1068,33 @@ model Coworker {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  coworkerApiKeys CoworkerApiKey[]
+
   tasks          Task[]
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
   @@map("coworker")
+}
+
+model CoworkerApiKey {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String?
+  keyHash  String @unique
+  keyStart String
+
+  expiresAt DateTime?
+  revokedAt DateTime?
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  @@index([coworkerId])
+  @@index([revokedAt, expiresAt])
+  @@map("coworker_api_key")
 }
 
 model Task {

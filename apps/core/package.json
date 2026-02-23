@@ -21,7 +21,9 @@
     "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json src",
     "test": "vitest run",
     "test:ci": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "coworker-keys:create": "tsx scripts/coworker-api-keys.ts create",
+    "coworker-keys:revoke": "tsx scripts/coworker-api-keys.ts revoke"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.4.18",

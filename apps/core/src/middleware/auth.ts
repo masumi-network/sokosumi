@@ -1,11 +1,11 @@
-import { base64Url } from "@better-auth/utils/base64";
-import { createHash } from "@better-auth/utils/hash";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 
+import { getEnv } from "@/config/env";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
+import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 
 export interface UserAuthenticationContext {
@@ -86,8 +86,12 @@ async function verifyApiKey(
 
   if (apiKeyResult.valid && apiKeyResult.key) {
     const coworkerId = apiKeyResult.key.metadata?.coworkerId;
+    const allowLegacyCoworkerFallback =
+      getEnv().ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS;
+    const hasCoworkerMetadata =
+      typeof coworkerId === "string" && coworkerId.length > 0;
 
-    if (typeof coworkerId === "string" && coworkerId.length > 0) {
+    if (allowLegacyCoworkerFallback && hasCoworkerMetadata) {
       setAuthContext(c, {
         isAuthenticated: true,
         authContext: {
@@ -96,6 +100,12 @@ async function verifyApiKey(
         },
       });
       return true;
+    }
+
+    if (hasCoworkerMetadata && !allowLegacyCoworkerFallback) {
+      throw unauthorized(
+        "Legacy coworker API keys are disabled; use a dedicated coworker API key",
+      );
     }
 
     setAuthContext(c, {
@@ -112,19 +122,56 @@ async function verifyApiKey(
   return false;
 }
 
+/**
+ * Verifies a dedicated coworker API key and sets coworker auth context if valid.
+ *
+ * Expected token format: coworker_<secret>
+ */
+async function verifyCoworkerApiKey(
+  token: string,
+  c: Context<AuthEnv>,
+): Promise<boolean> {
+  if (!token.startsWith(COWORKER_API_KEY_PREFIX)) {
+    return false;
+  }
+
+  const keyHash = await hashApiKey(token);
+  const coworkerApiKey = await prisma.coworkerApiKey.findUnique({
+    where: {
+      keyHash,
+    },
+    select: {
+      coworkerId: true,
+      revokedAt: true,
+      expiresAt: true,
+    },
+  });
+
+  if (!coworkerApiKey) {
+    return false;
+  }
+
+  if (coworkerApiKey.revokedAt) {
+    return false;
+  }
+
+  if (coworkerApiKey.expiresAt && coworkerApiKey.expiresAt <= new Date()) {
+    return false;
+  }
+
+  setAuthContext(c, {
+    isAuthenticated: true,
+    authContext: {
+      actor: "coworker",
+      coworkerId: coworkerApiKey.coworkerId,
+    },
+  });
+  return true;
+}
+
 const hashAccessToken = async (value: string) => {
   const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
-  return await defaultHasher(tokenWithoutPrefix);
-};
-
-const defaultHasher = async (value: string) => {
-  const hash = await createHash("SHA-256").digest(
-    new TextEncoder().encode(value),
-  );
-  const hashed = base64Url.encode(new Uint8Array(hash), {
-    padding: false,
-  });
-  return hashed;
+  return await hashApiKey(tokenWithoutPrefix);
 };
 
 /**
@@ -201,13 +248,24 @@ async function verifyOAuthToken(
 
 const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
   verifyToken: async (token, c) => {
-    // Check 1: API Key
+    // Check 1: Dedicated coworker API key
+    // Coworker-prefixed tokens must not fall back to user auth schemes.
+    if (token.startsWith(COWORKER_API_KEY_PREFIX)) {
+      const coworkerApiKeyValid = await verifyCoworkerApiKey(token, c);
+      if (coworkerApiKeyValid) {
+        return true;
+      }
+
+      throw unauthorized("Invalid or expired coworker token");
+    }
+
+    // Check 2: Better Auth API key
     const apiKeyValid = await verifyApiKey(token, c);
     if (apiKeyValid) {
       return true;
     }
 
-    // Check 2: OAuth Access Token
+    // Check 3: OAuth Access Token
     const oauthTokenValid = await verifyOAuthToken(token, c);
     if (oauthTokenValid) {
       return true;
