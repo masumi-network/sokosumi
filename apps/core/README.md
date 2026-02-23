@@ -56,6 +56,9 @@ BETTER_AUTH_URL=                    # Better Auth base URL
 ```bash
 # Sentry Configuration (Error Tracking & Performance Monitoring)
 SENTRY_DSN=                         # Sentry project DSN
+
+# Auth migration toggle (legacy Better Auth coworker metadata fallback)
+ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS=true
 ```
 
 ## Sentry Integration
@@ -163,9 +166,12 @@ The API supports requests from any origin while maintaining authentication:
 
 The API supports multiple authentication methods:
 
-- **Bearer Tokens**: API keys issued via Better Auth
+- **User Bearer Tokens**:
+  - Better Auth API keys
+  - Better Auth OAuth access tokens
+- **Coworker Bearer Tokens**:
+  - Dedicated coworker API keys (`soko_coworker_*`)
 - **Session Cookies**: Better Auth session cookies (web app)
-- **Internal Tokens**: Static API keys for automation
 
 Public endpoints (no authentication required):
 - `/openapi.json` - OpenAPI specification
@@ -173,6 +179,15 @@ Public endpoints (no authentication required):
 - `/v1/agents` - List agents
 
 All other endpoints require authentication.
+
+### Legacy Better Auth coworker fallback
+
+For migration compatibility, Better Auth API keys that include `metadata.coworkerId`
+can still authenticate as coworkers while
+`ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS=true` (default).
+
+Set `ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS=false` to disable this fallback after
+all coworker callers have migrated to dedicated coworker API keys.
 
 ## Troubleshooting
 
@@ -186,8 +201,9 @@ All other endpoints require authentication.
 ### Authentication Issues
 
 1. Verify `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set
-2. Check that Bearer token or session cookie is valid
-3. Review auth middleware logs
+2. Verify coworker callers use dedicated `soko_coworker_*` API keys
+3. Check that Bearer token or session cookie is valid
+4. Review auth middleware logs
 
 ### Build Errors
 

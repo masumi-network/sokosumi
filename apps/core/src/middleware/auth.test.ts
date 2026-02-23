@@ -7,15 +7,23 @@ import { authMiddleware } from "./auth";
 const {
   verifyApiKeyMock,
   getSessionMock,
+  getEnvMock,
+  coworkerApiKeyFindUniqueMock,
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
 } = vi.hoisted(() => ({
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
+  getEnvMock: vi.fn(),
+  coworkerApiKeyFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
+}));
+
+vi.mock("@/config/env", () => ({
+  getEnv: getEnvMock,
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -29,6 +37,9 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    coworkerApiKey: {
+      findUnique: coworkerApiKeyFindUniqueMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -50,6 +61,12 @@ describe("authMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    getEnvMock.mockReturnValue({
+      ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS: true,
+    });
+
+    coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
+
     verifyApiKeyMock.mockResolvedValue({
       valid: false,
       key: null,
@@ -70,7 +87,75 @@ describe("authMiddleware", () => {
     });
   });
 
-  it("authenticates from API key bearer token", async () => {
+  it("authenticates from dedicated coworker API key bearer token", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_123",
+      revokedAt: null,
+      expiresAt: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_coworker_validtoken",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "coworker",
+      coworkerId: "cow_123",
+    });
+    expect(coworkerApiKeyFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        keyHash: expect.any(String),
+      },
+      select: {
+        coworkerId: true,
+        revokedAt: true,
+        expiresAt: true,
+      },
+    });
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for revoked dedicated coworker API key", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_123",
+      revokedAt: new Date(),
+      expiresAt: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_coworker_revoked",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 for expired dedicated coworker API key", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_123",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() - 1_000),
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_coworker_expired",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("authenticates Better Auth coworker-metadata key as coworker when legacy fallback is enabled", async () => {
     verifyApiKeyMock.mockResolvedValue({
       valid: true,
       key: {
@@ -93,6 +178,39 @@ describe("authMiddleware", () => {
     expect(await response.json()).toEqual({
       actor: "coworker",
       coworkerId: "cow_123",
+    });
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("authenticates Better Auth coworker-metadata key as user when legacy fallback is disabled", async () => {
+    getEnvMock.mockReturnValue({
+      ALLOW_LEGACY_BETTER_AUTH_COWORKER_KEYS: false,
+    });
+
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: {
+        userId: "user_api_key",
+        metadata: {
+          organizationId: "org_api_key",
+          coworkerId: "cow_123",
+        },
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer token",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_api_key",
+      organizationId: "org_api_key",
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
