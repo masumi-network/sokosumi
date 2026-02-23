@@ -1,7 +1,4 @@
-import {
-  CreditBucketReferenceType,
-  type Prisma,
-} from "@sokosumi/database";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { describe, expect, it, vi } from "vitest";
 

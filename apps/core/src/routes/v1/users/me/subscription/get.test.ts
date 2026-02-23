@@ -12,7 +12,8 @@ describe("users/me subscription routes OpenAPI contract", () => {
       },
     });
 
-    const meSubscriptionResponses = doc.paths?.["/subscription"]?.get?.responses;
+    const meSubscriptionResponses =
+      doc.paths?.["/subscription"]?.get?.responses;
     const organizationSubscriptionResponses =
       doc.paths?.["/organizations/{id}/subscription"]?.get?.responses;
 

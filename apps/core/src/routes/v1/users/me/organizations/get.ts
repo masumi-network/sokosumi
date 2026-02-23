@@ -5,6 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
   getCurrentOrganizationSubscriptionCreditsMap,
+  getCurrentSubscriptionPeriod,
   mapSubscription,
 } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
@@ -113,25 +114,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const currentOrganizationPeriods = Array.from(
         subscriptionsByOrganizationId.entries(),
       ).flatMap(([organizationId, subscription]) => {
-        if (!subscription.periodStart || !subscription.periodEnd) {
-          return [];
-        }
-
-        if (
-          subscription.periodEnd <= subscription.periodStart ||
-          subscription.periodStart > now ||
-          subscription.periodEnd <= now
-        ) {
-          return [];
-        }
-
-        return [
-          {
-            organizationId,
-            periodStart: subscription.periodStart,
-            periodEnd: subscription.periodEnd,
-          },
-        ];
+        const period = getCurrentSubscriptionPeriod(subscription, now);
+        return period
+          ? [
+              {
+                organizationId,
+                periodStart: period.periodStart,
+                periodEnd: period.periodEnd,
+              },
+            ]
+          : [];
       });
       const currentCreditsByOrganizationId =
         await getCurrentOrganizationSubscriptionCreditsMap({
@@ -149,7 +141,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const subscription =
           subscriptionsByOrganizationId.get(organization.id) ?? null;
         const subscriptionCredits = subscription
-          ? currentCreditsByOrganizationId.get(organization.id) ?? null
+          ? (currentCreditsByOrganizationId.get(organization.id) ?? null)
           : null;
 
         organizationsWithSubscriptionUsage.push({

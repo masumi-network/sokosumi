@@ -1,7 +1,4 @@
-import {
-  CreditBucketReferenceType,
-  type Prisma,
-} from "@sokosumi/database";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 interface SubscriptionPeriodRecord {
@@ -32,7 +29,7 @@ interface OrganizationCurrentSubscriptionPeriod extends CurrentSubscriptionPerio
   organizationId: string;
 }
 
-function getCurrentSubscriptionPeriod(
+export function getCurrentSubscriptionPeriod(
   subscription: SubscriptionPeriodRecord | null,
   now: Date,
 ): CurrentSubscriptionPeriod | null {
@@ -184,7 +181,9 @@ export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
   return new Map(
     rows.map((row) => {
       const remainingCents =
-        row.total_cents > row.used_cents ? row.total_cents - row.used_cents : 0n;
+        row.total_cents > row.used_cents
+          ? row.total_cents - row.used_cents
+          : 0n;
 
       return [
         row.organization_id,
