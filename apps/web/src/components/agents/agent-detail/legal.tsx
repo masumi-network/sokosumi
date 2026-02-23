@@ -7,8 +7,10 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
   const t = useTranslations("Components.Agents.AgentDetail.Legal");
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs uppercase">{t("title")}</p>
+    <div className="border-border flex flex-col gap-2 rounded-lg border px-4 py-4">
+      <h2 className="text-muted-foreground/60 text-xs font-medium">
+        {t("title")}
+      </h2>
       <div className="flex flex-wrap gap-4">
         {legal?.privacyPolicy && (
           <a
@@ -44,8 +46,8 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
 
 function AgentDetailLegalSkeleton() {
   return (
-    <div>
-      <Skeleton className="mb-2 h-4 w-12" />
+    <div className="border-border space-y-2 rounded-lg border px-4 py-4">
+      <Skeleton className="h-4 w-12" />
       <div className="flex flex-wrap gap-4">
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-4 w-24" />

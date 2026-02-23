@@ -120,6 +120,11 @@ async function verifyCoworkerApiKey(
       coworkerId: true,
       revokedAt: true,
       expiresAt: true,
+      coworker: {
+        select: {
+          archivedAt: true,
+        },
+      },
     },
   });
 
@@ -132,6 +137,10 @@ async function verifyCoworkerApiKey(
   }
 
   if (coworkerApiKey.expiresAt && coworkerApiKey.expiresAt <= new Date()) {
+    return false;
+  }
+
+  if (coworkerApiKey.coworker.archivedAt) {
     return false;
   }
 

@@ -104,6 +104,9 @@ importers:
       neverthrow:
         specifier: 8.2.0
         version: 8.2.0
+      slugify:
+        specifier: 1.6.6
+        version: 1.6.6
       uuid:
         specifier: 13.0.0
         version: 13.0.0

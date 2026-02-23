@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
 
@@ -20,17 +21,32 @@ export function useWorkspaceSwitcher() {
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
-  const handleSelectWorkspace = (organizationId: string | null) => {
+  const handleSelectWorkspace = (
+    organizationId: string | null,
+    options?: {
+      shouldRedirectAgentJobsBasePath?: boolean;
+      successMessage?: string;
+    },
+  ) => {
     startTransition(async () => {
       try {
         await authClient.organization.setActive({
           organizationId,
         });
-        const jobsBasePath = getAgentJobsBasePath(pathname);
-        if (jobsBasePath) {
-          router.replace(jobsBasePath);
-          router.refresh();
-          return;
+
+        if (options?.successMessage) {
+          toast.success(options.successMessage);
+        }
+
+        const shouldRedirectAgentJobsBasePath =
+          options?.shouldRedirectAgentJobsBasePath ?? true;
+        if (shouldRedirectAgentJobsBasePath) {
+          const jobsBasePath = getAgentJobsBasePath(pathname);
+          if (jobsBasePath) {
+            router.replace(jobsBasePath);
+            router.refresh();
+            return;
+          }
         }
 
         router.refresh();

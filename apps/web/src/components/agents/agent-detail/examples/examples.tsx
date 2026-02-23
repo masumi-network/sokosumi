@@ -16,8 +16,10 @@ function AgentDetailExamples({
   const t = useTranslations("Components.Agents.AgentDetail.Examples");
 
   return (
-    <div className="w-full">
-      <p className="mb-2 text-xs uppercase">{t("title")}</p>
+    <div className="border-border w-full space-y-2 rounded-lg border px-4 py-4">
+      <h2 className="text-muted-foreground/60 text-xs font-medium">
+        {t("title")}
+      </h2>
       <ScrollArea className="h-60 w-full">
         <div className="flex h-full gap-2">
           {exampleOutputs.map((exampleOutput) => (
@@ -34,8 +36,8 @@ function AgentDetailExamples({
 
 function AgentDetailExamplesSkeleton() {
   return (
-    <div className="w-full">
-      <Skeleton className="mb-2 h-4 w-12" />
+    <div className="border-border w-full space-y-2 rounded-lg border px-4 py-4">
+      <Skeleton className="h-4 w-12" />
       <ScrollArea className="h-60 w-full">
         <div className="flex h-full gap-2">
           {[1, 2, 3, 4].map((i) => (

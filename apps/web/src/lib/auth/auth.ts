@@ -9,7 +9,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { apiKey, jwt, organization } from "better-auth/plugins";
+import { admin, apiKey, jwt, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
@@ -275,6 +275,7 @@ export const auth = betterAuth({
     storage: "database",
   },
   plugins: [
+    admin(),
     apiKey({
       rateLimit: {
         enabled: true,

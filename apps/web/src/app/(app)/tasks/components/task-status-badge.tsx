@@ -36,6 +36,14 @@ export function getTaskStatusDotColorClass(status: TaskStatus): string {
   return STATUS_DOT_COLORS[status] ?? "bg-muted-foreground";
 }
 
+export function getTaskStatusBorderColorClass(status: TaskStatus): string {
+  if (status === TaskStatus.COMPLETED) {
+    return "border-emerald-500/40";
+  }
+
+  return "border-border/50";
+}
+
 function getTaskStatusLabel(status: TaskStatus): string {
   return STATUS_LABELS[status] ?? "Unknown";
 }

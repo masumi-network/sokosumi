@@ -2,44 +2,61 @@ import { AgentWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
-import Markdown from "@/components/markdown";
+import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentDescription, getAgentTags } from "@/lib/helpers/agent";
 
 function AgentDetailOverview({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentDetail.Overview");
+  const tTaskDetail = useTranslations("App.Tasks.Detail");
   const agentDescription = getAgentDescription(agent);
   const tags = getAgentTags(agent);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8">
       {agentDescription && (
-        <div>
-          <p className="mb-2 text-xs uppercase">{t("description")}</p>
-          <Markdown>{agentDescription}</Markdown>
-        </div>
+        <section className="space-y-2">
+          <h2 className="text-muted-foreground/60 text-xs font-medium">
+            {t("description")}
+          </h2>
+          <ExpandableMarkdown
+            content={agentDescription}
+            className="text-foreground/80"
+            expandLabel={tTaskDetail("expand")}
+            collapseLabel={tTaskDetail("collapse")}
+            fadeClassName="to-background"
+          />
+        </section>
       )}
-      {tags.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs uppercase">{t("tags")}</p>
+      <section className="space-y-2">
+        <h2 className="text-muted-foreground/60 text-xs font-medium">
+          {t("tags")}
+        </h2>
+        {tags.length > 0 ? (
           <AgentBadgeCloud tags={tags} />
-        </div>
-      )}
+        ) : (
+          <p className="text-muted-foreground/40 text-sm">—</p>
+        )}
+      </section>
     </div>
   );
 }
 
 function AgentDetailOverviewSkeleton() {
   return (
-    <div>
-      <Skeleton className="h-4 w-12" />
-      <Skeleton className="mt-2 mb-10 h-32 w-full" />
-      <Skeleton className="h-4 w-12" />
-      <div className="mt-2 flex gap-2">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-4 w-8" />
-        ))}
-      </div>
+    <div className="space-y-8">
+      <section className="space-y-2">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-32 w-full" />
+      </section>
+      <section className="space-y-2">
+        <Skeleton className="h-4 w-12" />
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-4 w-8" />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

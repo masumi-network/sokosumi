@@ -54,8 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const job = await prisma.$transaction(async (tx) => {
       const task = await requireCoworkerTaskAccess(authContext, taskId, tx);
       const job = await createAgentJobForUser({
-        authContext: {
-          actor: "user",
+        owner: {
           userId: task.userId,
           organizationId: task.organizationId,
         },

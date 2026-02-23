@@ -53,7 +53,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { maxCredits, inputData, inputSchema, name } = c.req.valid("json");
 
     const job = await createAgentJobForUser({
-      authContext,
+      owner: {
+        userId: authContext.userId,
+        organizationId: authContext.organizationId,
+      },
       agentInput: {
         agentId,
         inputData,
