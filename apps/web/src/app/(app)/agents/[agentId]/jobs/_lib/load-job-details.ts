@@ -40,7 +40,8 @@ async function canAccessJob(
   session: Session,
 ): Promise<boolean> {
   if (job.userId === session.user.id) {
-    return job.organizationId === session.session.activeOrganizationId;
+    // Allow access to all jobs for the user, regardless of organization
+    return true;
   }
 
   if (

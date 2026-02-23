@@ -318,12 +318,16 @@ export const coreClient = (() => {
     );
   }
 
-  async function getTaskById(id: string) {
+  async function getTaskById(
+    id: string,
+    scope: Array<"context" | "owned"> = ["context"],
+  ) {
     return executeOperation(
       (client) =>
         coreGetTasksById({
           client,
           path: { id },
+          query: { scope },
           cache: "no-store",
         }),
       "Failed to fetch task",

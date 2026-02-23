@@ -53,6 +53,7 @@ import { getInitials } from "@/lib/utils/text";
 
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import {
+  getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
   TaskStatusBadge,
 } from "./task-status-badge";
@@ -425,6 +426,8 @@ export function TaskActivitySection({
             const shouldShowBillingPlaceholder =
               isBillingEvent && !formattedComment;
             const isCardEvent = isCommentEvent || isAuthEvent || isBillingEvent;
+            const shouldHighlightDoneBorder =
+              isCommentEvent && event.status === TaskStatus.COMPLETED;
             const isStatusOnlyEvent = !isCardEvent && Boolean(event.status);
 
             const row = (
@@ -433,6 +436,8 @@ export function TaskActivitySection({
                 className={cn(
                   "rounded-lg pr-3 pl-3",
                   isCardEvent && "bg-muted/20 border-border/50 border",
+                  shouldHighlightDoneBorder &&
+                    getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                 )}
               >
                 <div
