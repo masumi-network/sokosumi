@@ -5,6 +5,7 @@ import { loadJobDetails } from "@/app/agents/[agentId]/jobs/_lib/load-job-detail
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { JobDetails } from "@/components/jobs";
 import { userService } from "@/lib/services/user.service";
+import { resolveAccountName } from "@/lib/utils/account-name";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -27,10 +28,11 @@ export default async function JobDetailsPage({
   );
   const { activeOrganizationId, dehydratedState, job, readOnly } = jobDetails;
   const targetOrganizationId = job.organizationId;
-  const targetAccountName = targetOrganizationId
-    ? (members.find((member) => member.organizationId === targetOrganizationId)
-        ?.organization.name ?? targetOrganizationId)
-    : tOrganizationSwitcher("personalAccount");
+  const targetAccountName = resolveAccountName(
+    targetOrganizationId,
+    members,
+    tOrganizationSwitcher("personalAccount"),
+  );
 
   return (
     <HydrationBoundary state={dehydratedState}>

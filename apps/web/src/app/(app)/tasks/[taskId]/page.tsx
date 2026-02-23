@@ -21,6 +21,7 @@ import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
+import { resolveAccountName } from "@/lib/utils/account-name";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 export default async function TaskDetailPage({
@@ -82,10 +83,11 @@ export default async function TaskDetailPage({
   const task = mapTaskToTaskWithCoworker(taskResult, coworkersById, agentsById);
   const targetOrganizationId = taskResult.organizationId;
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const targetAccountName = targetOrganizationId
-    ? (members.find((member) => member.organizationId === targetOrganizationId)
-        ?.organization.name ?? targetOrganizationId)
-    : tOrganizationSwitcher("personalAccount");
+  const targetAccountName = resolveAccountName(
+    targetOrganizationId,
+    members,
+    tOrganizationSwitcher("personalAccount"),
+  );
   const currentUser = session?.user
     ? {
         id: session.user.id,
