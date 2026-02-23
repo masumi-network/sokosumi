@@ -503,18 +503,6 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
     color-mix(in oklab, var(--muted-foreground) 30%, transparent);
 }
 
-@utility agent-detail-card {
-  background: var(--material-thin, rgba(245, 245, 245, 0.48));
-  border-radius: var(--border-radius-xl, 12px);
-  border: 1px solid var(--base-senary, rgba(10, 10, 10, 0.03));
-
-  @variant dark {
-    background: var(--material-thin, rgba(38, 38, 38, 0.7));
-    border-radius: var(--border-radius-xl, 12px);
-    border: 1px solid var(--base-senary, rgba(255, 255, 255, 0.05));
-  }
-}
-
 @utility agent-modal-card {
   background: var(--material-regular, rgba(255, 255, 255, 0.85));
   border-radius: var(--border-radius-xl, 12px);

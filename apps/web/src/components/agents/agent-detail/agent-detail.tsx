@@ -7,7 +7,6 @@ import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { getAgentExampleOutput, getAgentLegal } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 
-import { CardSection } from "./card-section";
 import {
   AgentDetailExamples,
   AgentDetailExamplesSkeleton,
@@ -39,7 +38,6 @@ interface AgentDetailProps {
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
   className?: string | undefined;
-  cardClassName?: string | undefined;
 }
 
 export function AgentDetail({
@@ -56,14 +54,18 @@ export function AgentDetail({
   showCloseButton,
   onClose,
   className,
-  cardClassName = "agent-detail-card p-3 md:p-6",
 }: AgentDetailProps) {
   const exampleOutputs = getAgentExampleOutput(agent);
   const legal = getAgentLegal(agent);
 
   return (
-    <div className={cn("flex w-full flex-col gap-1.5", className)}>
-      <CardSection className={cardClassName}>
+    <div
+      className={cn(
+        "mt-4 flex w-full flex-col space-y-8 px-4 pb-8 md:px-0",
+        className,
+      )}
+    >
+      <section className="space-y-4">
         <AgentDetailHeader
           agent={agent}
           favoriteAgents={favoriteAgents}
@@ -71,32 +73,32 @@ export function AgentDetail({
           showCloseButton={showCloseButton}
           onClose={onClose}
         />
-      </CardSection>
-      <CardSection className={cardClassName}>
+      </section>
+      <section className="space-y-4">
         <AgentDetailStats
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           ratingStats={ratingStats}
         />
-      </CardSection>
-      <CardSection className={cardClassName}>
+      </section>
+      <section className="space-y-4">
         <AgentDetailOverview agent={agent} />
-      </CardSection>
+      </section>
       {exampleOutputs.length > 0 && (
-        <CardSection className={cardClassName}>
+        <section className="space-y-4">
           <AgentDetailExamples exampleOutputs={exampleOutputs} />
-        </CardSection>
+        </section>
       )}
       {legal && (
-        <CardSection className={cardClassName}>
+        <section className="space-y-4">
           <AgentDetailLegal legal={legal} />
-        </CardSection>
+        </section>
       )}
-      <CardSection className={cardClassName}>
+      <section className="space-y-4">
         <AgentDetailRisk agent={agent} />
-      </CardSection>
+      </section>
       {(ratingStats.totalRatings > 0 || canRate) && (
-        <CardSection className={cardClassName}>
+        <section className="space-y-4">
           <AgentDetailReviews
             agentId={agent.id}
             ratingStats={ratingStats}
@@ -105,7 +107,7 @@ export function AgentDetail({
             canRate={canRate ?? false}
             existingRating={existingRating ?? null}
           />
-        </CardSection>
+        </section>
       )}
     </div>
   );
@@ -117,28 +119,28 @@ export function AgentDetailSkeleton({
   className?: string | undefined;
 }) {
   return (
-    <div className={cn("flex w-full flex-col gap-1.5", className)}>
-      <CardSection>
+    <div className={cn("mt-6 flex w-full flex-col space-y-8", className)}>
+      <section className="space-y-4">
         <AgentDetailHeaderSkeleton />
-      </CardSection>
-      <CardSection>
+      </section>
+      <section className="space-y-4">
         <AgentDetailStatsSkeleton />
-      </CardSection>
-      <CardSection>
+      </section>
+      <section className="space-y-4">
         <AgentDetailOverviewSkeleton />
-      </CardSection>
-      <CardSection>
+      </section>
+      <section className="space-y-4">
         <AgentDetailExamplesSkeleton />
-      </CardSection>
-      <CardSection>
+      </section>
+      <section className="space-y-4">
         <AgentDetailLegalSkeleton />
-      </CardSection>
-      <CardSection>
+      </section>
+      <section className="space-y-4">
         <AgentDetailRiskSkeleton />
-      </CardSection>
-      <CardSection>
+      </section>
+      <section className="space-y-4">
         <AgentDetailReviewsSkeleton />
-      </CardSection>
+      </section>
     </div>
   );
 }

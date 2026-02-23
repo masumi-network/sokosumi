@@ -8,8 +8,10 @@ function AgentDetailRisk({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentDetail.Risk");
 
   return (
-    <div>
-      <p className="mb-2 text-xs uppercase">{t("title")}</p>
+    <div className="space-y-2">
+      <h2 className="text-muted-foreground/60 text-xs font-medium">
+        {t("title")}
+      </h2>
       <RiskClassificationBadge riskClassification={agent.riskClassification} />
     </div>
   );
@@ -17,9 +19,8 @@ function AgentDetailRisk({ agent }: { agent: AgentWithRelations }) {
 
 function AgentDetailRiskSkeleton() {
   return (
-    <div>
-      <Skeleton className="mb-2 h-4 w-40" />
-      <Skeleton className="h-6 w-32" />
+    <div className="space-y-2">
+      <Skeleton className="h-4 w-40" />
     </div>
   );
 }

@@ -23,7 +23,7 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "bg-agent-verified-background flex items-center gap-1 rounded-md p-2",
+            "bg-agent-verified-background flex items-center gap-1 rounded-md p-1",
             className,
           )}
         >
