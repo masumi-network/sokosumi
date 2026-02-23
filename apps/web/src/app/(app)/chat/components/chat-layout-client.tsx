@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import ChatInterface from "@/app/chat/components/chat-interface";
@@ -53,7 +53,10 @@ export function ChatLayoutClient({
     [pathname],
   );
 
-  const showSecondarySidebar = getShowSecondarySidebar();
+  const [showSecondarySidebar, setShowSecondarySidebar] = useState(false);
+  useEffect(() => {
+    setShowSecondarySidebar(getShowSecondarySidebar());
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

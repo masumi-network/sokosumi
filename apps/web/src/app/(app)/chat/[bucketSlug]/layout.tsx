@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import {
@@ -11,6 +11,17 @@ import {
 } from "@/app/chat/utils/bucket-slug";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
+
+const SHOW_SECONDARY_SIDEBAR_KEY = "chat-show-secondary-sidebar";
+
+function getShowSecondarySidebar(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return sessionStorage.getItem(SHOW_SECONDARY_SIDEBAR_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 type ConversationMetadata = {
   coworker_id?: string;
@@ -68,17 +79,24 @@ export default function ChatBucketLayout({
     return { displayName, conversations: list };
   }, [bucket, conversations]);
 
+  const [showSidebar, setShowSidebar] = useState(false);
+  useEffect(() => {
+    setShowSidebar(getShowSecondarySidebar());
+  }, [bucketSlug]);
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="-mt-20 -mb-4 flex min-h-[calc(100svh-64px)] w-full flex-col gap-4 md:-mt-4 lg:flex-row lg:items-stretch">
-        <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
-          <ChatConversationsSidebar
-            bucketSlug={bucketSlug ?? ""}
-            bucket={bucket ?? ""}
-            displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
-            conversations={bucketData?.conversations ?? []}
-          />
-        </div>
+        {showSidebar && (
+          <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
+            <ChatConversationsSidebar
+              bucketSlug={bucketSlug ?? ""}
+              bucket={bucket ?? ""}
+              displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
+              conversations={bucketData?.conversations ?? []}
+            />
+          </div>
+        )}
         <div className="h-full min-h-0 min-w-0 flex-1 pt-20 pb-4 md:pt-4">
           <div className="mx-auto h-full min-h-0 w-full px-4">{children}</div>
         </div>
