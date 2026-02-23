@@ -3,7 +3,10 @@ import { createRoute } from "@hono/zod-openapi";
 import { attachCreditsToOrganizations } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapSubscription } from "@/helpers/subscription";
+import {
+  getCurrentSubscriptionCredits,
+  mapSubscription,
+} from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -34,6 +37,11 @@ const route = createRoute({
               periodStart: "2025-01-01T00:00:00.000Z",
               periodEnd: "2025-02-01T00:00:00.000Z",
               cancelAtPeriodEnd: false,
+              credits: {
+                total: 100,
+                remaining: 57.5,
+                used: 42.5,
+              },
             },
           },
         ],
@@ -102,12 +110,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      return organizationsWithCredits.map((organization) => ({
-        ...organization,
-        subscription: mapSubscription(
-          subscriptionsByOrganizationId.get(organization.id) ?? null,
-        ),
-      }));
+      const organizationsWithSubscriptionUsage: Array<
+        (typeof organizationsWithCredits)[number] & {
+          subscription: ReturnType<typeof mapSubscription>;
+        }
+      > = [];
+      for (const organization of organizationsWithCredits) {
+        const subscription =
+          subscriptionsByOrganizationId.get(organization.id) ?? null;
+        const subscriptionCredits = await getCurrentSubscriptionCredits({
+          subscription,
+          userId: authContext.userId,
+          organizationId: organization.id,
+          tx,
+        });
+
+        organizationsWithSubscriptionUsage.push({
+          ...organization,
+          subscription: mapSubscription(
+            subscription
+              ? {
+                  ...subscription,
+                  credits: subscriptionCredits,
+                }
+              : null,
+          ),
+        });
+      }
+
+      return organizationsWithSubscriptionUsage;
     });
     return ok(c, organizationsSchema.parse(organizations));
   });
