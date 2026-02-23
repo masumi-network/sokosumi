@@ -71,26 +71,39 @@ function AgentActionButtons({
 
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {showBackButton && (
-          <Button size="icon" variant="secondary" onClick={onBack}>
-            <ArrowLeft />
+          <Button
+            size="icon"
+            variant="secondary"
+            className="size-8 md:size-7"
+            onClick={onBack}
+          >
+            <ArrowLeft className="size-4" />
           </Button>
         )}
         {showCloseButton && !!onClose && (
-          <Button size="icon" variant="secondary" onClick={onClose}>
-            <X />
+          <Button
+            size="icon"
+            variant="secondary"
+            className="size-8 md:size-7"
+            onClick={onClose}
+          >
+            <X className="size-4" />
           </Button>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {favoriteAgents && (
           <AgentBookmarkButton
             agentId={agent.id}
             isFavorite={isFavorite ?? false}
+            className="size-8 md:size-7"
           />
         )}
-        {showShareButton && url && <ShareButton url={url} />}
+        {showShareButton && url ? (
+          <ShareButton url={url} className="size-8 md:size-7" />
+        ) : null}
       </div>
     </div>
   );

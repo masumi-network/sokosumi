@@ -30,8 +30,8 @@ interface HeaderProps {
 
 export default function AgentMobileHeader({ agent }: HeaderProps) {
   return (
-    <div className="flex flex-col items-center gap-4 pt-8 md:hidden md:pt-0 lg:flex-row lg:gap-6 xl:gap-8">
-      <div className="bg-background/95 fixed top-[64px] z-50 flex w-full flex-row items-center justify-between gap-4 p-4">
+    <div className="flex flex-col gap-4 pt-14 md:hidden lg:gap-6 xl:gap-8">
+      <div className="bg-background/95 fixed top-[64px] left-0 z-50 flex w-full flex-row items-center justify-between gap-4 p-4">
         <AgentActionButtons
           agent={agent}
           showBackButton={true}
