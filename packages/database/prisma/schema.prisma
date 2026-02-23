@@ -15,13 +15,13 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String
   email         String
   emailVerified Boolean
   image         String?
-  role          String   @default("user")
-  banned        Boolean? @default(false)
+  role          String    @default("user")
+  banned        Boolean?  @default(false)
   banReason     String?
   banExpires    DateTime?
   createdAt     DateTime
@@ -1056,9 +1056,9 @@ model Jwks {
 }
 
 model Coworker {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
   slug        String  @unique
@@ -1090,7 +1090,7 @@ model CoworkerApiKey {
   updatedAt DateTime @updatedAt
 
   name     String?
-  keyHash  String @unique
+  keyHash  String  @unique
   keyStart String
 
   expiresAt DateTime?

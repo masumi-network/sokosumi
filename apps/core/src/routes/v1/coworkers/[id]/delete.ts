@@ -33,21 +33,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const coworker = await prisma.$transaction(async (tx) => {
-      const existingCoworker = await tx.coworker.findFirst({
+      const archivedAt = new Date();
+
+      const archiveResult = await tx.coworker.updateMany({
         where: {
           id,
           archivedAt: null,
         },
-        select: {
-          id: true,
+        data: {
+          archivedAt,
         },
       });
 
-      if (!existingCoworker) {
+      if (archiveResult.count === 0) {
         throw notFound("Coworker not found");
       }
-
-      const archivedAt = new Date();
 
       await tx.coworkerApiKey.updateMany({
         where: {
@@ -59,14 +59,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      return await tx.coworker.update({
-        where: {
-          id,
-        },
-        data: {
-          archivedAt,
-        },
+      const archived = await tx.coworker.findFirst({
+        where: { id },
       });
+
+      if (!archived) {
+        throw notFound("Coworker not found");
+      }
+
+      return archived;
     });
 
     return ok(c, coworkerSchema.parse(coworker));

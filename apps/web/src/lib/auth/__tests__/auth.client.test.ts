@@ -1,7 +1,9 @@
 const createAuthClientMock = jest.fn();
 const adminClientMock = jest.fn(() => "admin-plugin");
 const apiKeyClientMock = jest.fn(() => "api-key-plugin");
-const inferAdditionalFieldsMock = jest.fn(() => "infer-additional-fields-plugin");
+const inferAdditionalFieldsMock = jest.fn(
+  () => "infer-additional-fields-plugin",
+);
 const inferOrgAdditionalFieldsMock = jest.fn(
   () => "infer-org-additional-fields-plugin",
 );
@@ -26,8 +28,7 @@ jest.mock("better-auth/client/plugins", () => ({
 }));
 
 jest.mock("@better-auth/oauth-provider/client", () => ({
-  oauthProviderClient: (...args: unknown[]) =>
-    oauthProviderClientMock(...args),
+  oauthProviderClient: (...args: unknown[]) => oauthProviderClientMock(...args),
 }));
 
 jest.mock("@better-auth/stripe/client", () => ({

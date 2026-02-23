@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext,AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountDeleteCoworkerApiKey from "./[id]/api-keys/delete";
 import mountGetCoworkerApiKeys from "./[id]/api-keys/get";

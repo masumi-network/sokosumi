@@ -262,20 +262,21 @@ describe("coworker admin CRUD endpoints", () => {
   });
 
   it("archives coworker and revokes active API keys in one transaction", async () => {
+    const archivedRecord = createCoworkerRecord({
+      archivedAt: new Date("2026-02-20T11:00:00.000Z"),
+    });
     const tx: TransactionMock = {
       coworker: {
         findUnique: coworkerFindUniqueMock,
-        findFirst: coworkerFindFirstMock.mockResolvedValue({ id: "cow_123" }),
+        findFirst: coworkerFindFirstMock.mockResolvedValue(archivedRecord),
         create: coworkerCreateMock,
-        updateMany: coworkerUpdateManyMock,
-        update: coworkerUpdateMock.mockResolvedValue(
-          createCoworkerRecord({
-            archivedAt: new Date("2026-02-20T11:00:00.000Z"),
-          }),
-        ),
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
+        update: coworkerUpdateMock,
       },
       coworkerApiKey: {
-        updateMany: coworkerApiKeyUpdateManyMock.mockResolvedValue({ count: 2 }),
+        updateMany: coworkerApiKeyUpdateManyMock.mockResolvedValue({
+          count: 2,
+        }),
       },
     };
 
@@ -287,6 +288,15 @@ describe("coworker admin CRUD endpoints", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+      },
+      data: {
+        archivedAt: expect.any(Date),
+      },
+    });
     expect(coworkerApiKeyUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -298,15 +308,42 @@ describe("coworker admin CRUD endpoints", () => {
         },
       }),
     );
-    expect(coworkerUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          id: "cow_123",
-        },
-        data: {
-          archivedAt: expect.any(Date),
-        },
-      }),
-    );
+    expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "cow_123" },
+    });
+  });
+
+  it("returns 404 when archiving already-archived coworker (atomic update)", async () => {
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock,
+        findFirst: coworkerFindFirstMock,
+        create: coworkerCreateMock,
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 0 }),
+        update: coworkerUpdateMock,
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+      },
+      data: {
+        archivedAt: expect.any(Date),
+      },
+    });
+    expect(coworkerApiKeyUpdateManyMock).not.toHaveBeenCalled();
   });
 });

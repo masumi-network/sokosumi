@@ -84,8 +84,6 @@ describe("core auth config", () => {
       [{ plugins: unknown[] }]
     >;
 
-    expect(config.plugins).toEqual(
-      expect.arrayContaining(["admin-plugin"]),
-    );
+    expect(config.plugins).toEqual(expect.arrayContaining(["admin-plugin"]));
   });
 });

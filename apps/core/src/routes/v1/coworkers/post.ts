@@ -74,7 +74,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = await requireCoworkerAdminAuthContext(c.var.authContext);
+    const authContext = await requireCoworkerAdminAuthContext(
+      c.var.authContext,
+    );
     const body = c.req.valid("json");
 
     const coworker = await prisma.$transaction(async (tx) => {
