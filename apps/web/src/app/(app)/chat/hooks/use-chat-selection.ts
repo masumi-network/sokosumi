@@ -2,9 +2,14 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import {
+  bucketKeyFromDisplaySlug,
+  displaySlugFromMetadata,
+  getBucketKeyFromMetadata,
+} from "@/app/chat/utils/bucket-slug";
 import type { Conversation } from "@/lib/actions/conversation";
 
 interface UseChatSelectionProps {
@@ -25,6 +30,40 @@ interface UseChatSelectionProps {
   pendingUrlConversationIdRef: React.MutableRefObject<string | null>;
   stopStreaming: () => void;
   isConversationsLoading?: boolean;
+  isSelectedChatStreaming?: boolean;
+  isConversationLoading?: boolean;
+}
+
+function getNextConversationAfterDelete(
+  conversations: Conversation[],
+  bucketSlug: string | undefined,
+): { nextId: string | null; nextSlug: string } {
+  if (conversations.length === 0) {
+    return { nextId: null, nextSlug: bucketSlug ?? "" };
+  }
+  const bucketKey = bucketSlug
+    ? bucketKeyFromDisplaySlug(conversations, bucketSlug)
+    : null;
+  const sameBucket = bucketKey
+    ? conversations.filter(
+        (c) =>
+          getBucketKeyFromMetadata(
+            (c.metadata as Record<string, unknown> | null) ?? null,
+          ) === bucketKey,
+      )
+    : [];
+  const candidates = sameBucket.length > 0 ? sameBucket : conversations;
+  const sorted = [...candidates].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+  const nextConv = sorted[0] ?? null;
+  const nextId = nextConv?.id ?? null;
+  const nextSlug = nextConv
+    ? displaySlugFromMetadata(
+        (nextConv.metadata as Record<string, unknown> | null) ?? null,
+      )
+    : "";
+  return { nextId, nextSlug: nextSlug || bucketSlug || "" };
 }
 
 /**
@@ -67,8 +106,12 @@ export function useChatSelection({
   pendingUrlConversationIdRef,
   stopStreaming: _stopStreaming,
   isConversationsLoading = false,
+  isSelectedChatStreaming = false,
+  isConversationLoading: isConversationLoadingProp = false,
 }: UseChatSelectionProps) {
   const router = useRouter();
+  const params = useParams<{ bucketSlug?: string }>();
+  const bucketSlug = params?.bucketSlug;
 
   const handleSelectChat = async (chatId: string | null) => {
     // Do not stop streaming when switching chats so multiple conversations can stream in parallel
@@ -80,16 +123,27 @@ export function useChatSelection({
       setSelectedModel(null);
       selectedModelRef.current = null;
       isUpdatingUrlRef.current = true;
-      router.push("/chat", { scroll: false });
+      router.push(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
+        scroll: false,
+      });
       return;
     }
+
+    const conv = conversations.find((c) => c.id === chatId);
+    const slug = conv
+      ? displaySlugFromMetadata(conv.metadata as Record<string, unknown> | null)
+      : "";
 
     // Optimistic update: switch view and URL immediately so conversation switching doesn't lag
     setSelectedChatId(chatId);
     currentChatIdRef.current = chatId;
     pendingUrlConversationIdRef.current = chatId;
     isUpdatingUrlRef.current = true;
-    router.push(`/chat?conversationId=${chatId}`, { scroll: false });
+    const targetPath =
+      slug !== ""
+        ? `/chat/${slug}/conversation/${chatId}`
+        : `/chat?conversationId=${chatId}`;
+    router.push(targetPath, { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
     const listConversation = conversations.find((c) => c.id === chatId);
@@ -121,7 +175,9 @@ export function useChatSelection({
       setMessages([]);
       setInput("");
       isUpdatingUrlRef.current = true;
-      router.replace("/chat", { scroll: false });
+      router.replace(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
+        scroll: false,
+      });
       return;
     }
 
@@ -157,8 +213,7 @@ export function useChatSelection({
       pendingUrlConversationIdRef.current = null;
     }
 
-    // Only process if we're on the /chat route
-    if (pathname !== "/chat") {
+    if (!pathname.startsWith("/chat")) {
       return;
     }
 
@@ -178,7 +233,9 @@ export function useChatSelection({
         if (conversations.length === 0) {
           pendingUrlConversationIdRef.current = null;
           if (!isConversationsLoading) {
-            router.replace("/chat", { scroll: false });
+            router.replace(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
+              scroll: false,
+            });
             setSelectedChatId(null);
             currentChatIdRef.current = null;
             setSelectedModel(null);
@@ -190,17 +247,20 @@ export function useChatSelection({
           handleSelectChat(currentUrlConversationId);
           return;
         }
-        const sorted = [...conversations].sort(
-          (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        const { nextId, nextSlug } = getNextConversationAfterDelete(
+          conversations,
+          bucketSlug ?? undefined,
         );
-        const nextId = sorted[0]?.id ?? null;
+        const targetPathForNext = nextId
+          ? nextSlug
+            ? `/chat/${nextSlug}/conversation/${nextId}`
+            : `/chat?conversationId=${nextId}`
+          : bucketSlug
+            ? `/chat/${bucketSlug}`
+            : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          const targetPath = nextId
-            ? `/chat?conversationId=${nextId}`
-            : "/chat";
-          router.replace(targetPath, { scroll: false });
+          router.replace(targetPathForNext, { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -212,8 +272,7 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        const targetPath = nextId ? `/chat?conversationId=${nextId}` : "/chat";
-        router.replace(targetPath, { scroll: false });
+        router.replace(targetPathForNext, { scroll: false });
         handleSelectChat(nextId);
         return;
       }
@@ -224,7 +283,9 @@ export function useChatSelection({
         if (conversations.length === 0) {
           pendingUrlConversationIdRef.current = null;
           if (!isConversationsLoading) {
-            router.replace("/chat", { scroll: false });
+            router.replace(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
+              scroll: false,
+            });
             setSelectedChatId(null);
             currentChatIdRef.current = null;
             setSelectedModel(null);
@@ -236,17 +297,20 @@ export function useChatSelection({
           handleSelectChat(currentUrlConversationId);
           return;
         }
-        const sorted = [...conversations].sort(
-          (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        const { nextId, nextSlug } = getNextConversationAfterDelete(
+          conversations,
+          bucketSlug ?? undefined,
         );
-        const nextId = sorted[0]?.id ?? null;
+        const targetPathForNext = nextId
+          ? nextSlug
+            ? `/chat/${nextSlug}/conversation/${nextId}`
+            : `/chat?conversationId=${nextId}`
+          : bucketSlug
+            ? `/chat/${bucketSlug}`
+            : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          const targetPath = nextId
-            ? `/chat?conversationId=${nextId}`
-            : "/chat";
-          router.replace(targetPath, { scroll: false });
+          router.replace(targetPathForNext, { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -258,8 +322,7 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        const targetPath = nextId ? `/chat?conversationId=${nextId}` : "/chat";
-        router.replace(targetPath, { scroll: false });
+        router.replace(targetPathForNext, { scroll: false });
         handleSelectChat(nextId);
         return;
       }
@@ -269,8 +332,11 @@ export function useChatSelection({
     } else if (
       !currentUrlConversationId &&
       selectedChatId &&
-      pathname === "/chat"
+      pathname.startsWith("/chat")
     ) {
+      if (isSelectedChatStreaming || isConversationLoadingProp) {
+        return;
+      }
       // Don't clear if we're waiting for our own router.push to complete (e.g. new chat creation)
       // When creating, selectedChatId is the new conversation not yet in the list
       // When conversations is empty, we're not creating (e.g. deleted last chat) – always clear
@@ -303,9 +369,11 @@ export function useChatSelection({
   }, [
     urlConversationId,
     pathname,
+    bucketSlug,
     selectedChatId,
     selectedConversation?.id,
     isConversationsLoading,
+    conversations,
   ]);
 
   return {

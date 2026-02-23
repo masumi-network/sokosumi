@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import type { Conversation } from "@/lib/actions/conversation";
 
@@ -99,7 +100,18 @@ export function useChatCreation({
       setSelectedModel(model);
       pendingUrlConversationIdRef.current = conversation.id;
       isUpdatingUrlRef.current = true;
-      router.push(`/chat?conversationId=${conversation.id}`, { scroll: false });
+      try {
+        sessionStorage.setItem("chat-pending-conversation-id", conversation.id);
+        sessionStorage.removeItem("chat-show-secondary-sidebar");
+      } catch {
+        // ignore
+      }
+      const slug =
+        displaySlugFromMetadata(conversation.metadata ?? null) ||
+        `model-${model.id.replace(/\//g, "-")}`;
+      router.push(`/chat/${slug}/conversation/${conversation.id}`, {
+        scroll: false,
+      });
 
       return conversation;
     },
@@ -169,7 +181,20 @@ export function useChatCreation({
       currentChatIdRef.current = conversation.id;
       pendingUrlConversationIdRef.current = conversation.id;
       isUpdatingUrlRef.current = true;
-      router.push(`/chat?conversationId=${conversation.id}`, { scroll: false });
+      try {
+        sessionStorage.setItem("chat-pending-conversation-id", conversation.id);
+        sessionStorage.removeItem("chat-show-secondary-sidebar");
+      } catch {
+        // ignore
+      }
+      const slug =
+        displaySlugFromMetadata(conversation.metadata ?? null) ||
+        (coworker.slug ? slugify(coworker.slug) : null) ||
+        slugify(coworker.name) ||
+        `coworker-${coworker.id}`;
+      router.push(`/chat/${slug}/conversation/${conversation.id}`, {
+        scroll: false,
+      });
 
       return conversation;
     },
