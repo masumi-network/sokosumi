@@ -1,8 +1,10 @@
 import "dotenv/config";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
+import { base64Url } from "@better-auth/utils/base64";
+import { createHash } from "@better-auth/utils/hash";
 import { createPrismaClient } from "@sokosumi/database/client";
 
 const COWORKER_API_KEY_PREFIX = "soko_coworker_";
@@ -41,8 +43,11 @@ function parseOptions(args: string[]): Record<string, string> {
   return options;
 }
 
-function hashCoworkerApiKey(token: string): string {
-  return createHash("sha256").update(token).digest("base64url");
+async function hashCoworkerApiKey(token: string): Promise<string> {
+  const hash = await createHash("SHA-256").digest(
+    new TextEncoder().encode(token),
+  );
+  return base64Url.encode(new Uint8Array(hash), { padding: false });
 }
 
 function generateCoworkerApiKeyToken(): string {
@@ -117,7 +122,7 @@ async function createCoworkerApiKey(
   const expiresAt = parseExpiresAt(options["expires-at"]);
   const coworker = await resolveCoworker(prisma, coworkerIdentifier);
   const token = generateCoworkerApiKeyToken();
-  const keyHash = hashCoworkerApiKey(token);
+  const keyHash = await hashCoworkerApiKey(token);
   const keyStart = token.slice(0, COWORKER_API_KEY_START_LENGTH);
 
   const key = await prisma.coworkerApiKey.create({
