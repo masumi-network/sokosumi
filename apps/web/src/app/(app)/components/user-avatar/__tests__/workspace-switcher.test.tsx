@@ -7,6 +7,7 @@ import {
   useWorkspaceSwitcher,
 } from "@/app/components/user-avatar/workspace-switcher";
 import { authClient } from "@/lib/auth/auth.client";
+import { toast } from "sonner";
 
 const replaceMock = jest.fn();
 const refreshMock = jest.fn();
@@ -28,6 +29,12 @@ jest.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
+jest.mock("sonner", () => ({
+  toast: {
+    success: jest.fn(),
+  },
+}));
+
 function WorkspaceSwitcherTestComponent() {
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
 
@@ -44,6 +51,7 @@ describe("workspace switcher", () => {
     replaceMock.mockClear();
     refreshMock.mockClear();
     jest.mocked(authClient.organization.setActive).mockReset();
+    jest.mocked(toast.success).mockReset();
   });
 
   describe("getAgentJobsBasePath", () => {
@@ -97,6 +105,48 @@ describe("workspace switcher", () => {
       });
       expect(refreshMock).toHaveBeenCalled();
       expect(replaceMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("supports disabling job route replacement and shows success toast", async () => {
+    pathnameMock = "/agents/agent-1/jobs/job-9";
+    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    function WorkspaceSwitcherWithOptionsTestComponent() {
+      const { handleSelectWorkspace } = useWorkspaceSwitcher();
+
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            handleSelectWorkspace("org-1", {
+              shouldRedirectAgentJobsBasePath: false,
+              successMessage: "Switched to Org One account",
+            })
+          }
+        >
+          Auto switch workspace
+        </button>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherWithOptionsTestComponent />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Auto switch workspace" }),
+    );
+
+    await waitFor(() => {
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(replaceMock).not.toHaveBeenCalled();
+      expect(refreshMock).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith("Switched to Org One account");
     });
   });
 });
