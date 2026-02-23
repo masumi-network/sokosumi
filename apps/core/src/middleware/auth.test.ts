@@ -250,6 +250,38 @@ describe("authMiddleware", () => {
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
+  it("authenticates Better Auth API key as admin when role list includes admin", async () => {
+    userFindUniqueMock.mockResolvedValueOnce({
+      role: "admin,user",
+    });
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: {
+        userId: "user_admin_multi_role",
+        metadata: {
+          organizationId: "org_admin",
+        },
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer token_admin_multi_role",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_admin_multi_role",
+      organizationId: null,
+      isAdmin: true,
+    });
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to OAuth token when API key is invalid", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",

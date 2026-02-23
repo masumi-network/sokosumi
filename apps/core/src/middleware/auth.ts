@@ -33,7 +33,13 @@ export type AuthEnv = {
 };
 
 function isAdminRole(role: string | null | undefined): boolean {
-  return role?.trim().toLowerCase() === "admin";
+  if (!role) {
+    return false;
+  }
+
+  return role
+    .split(",")
+    .some((value) => value.trim().toLowerCase() === "admin");
 }
 
 async function getIsAdmin(userId: string): Promise<boolean> {
