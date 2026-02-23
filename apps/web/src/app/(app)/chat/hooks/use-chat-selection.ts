@@ -30,9 +30,10 @@ interface UseChatSelectionProps {
   pendingUrlConversationIdRef: React.MutableRefObject<string | null>;
   stopStreaming: () => void;
   isConversationsLoading?: boolean;
+  isSelectedChatStreaming?: boolean;
+  isConversationLoading?: boolean;
 }
 
-/** Prefer next conversation in same bucket after delete; else most recent any. */
 function getNextConversationAfterDelete(
   conversations: Conversation[],
   bucketSlug: string | undefined,
@@ -212,7 +213,6 @@ export function useChatSelection({
       pendingUrlConversationIdRef.current = null;
     }
 
-    // Only process if we're on a chat route
     if (!pathname.startsWith("/chat")) {
       return;
     }
@@ -334,7 +334,6 @@ export function useChatSelection({
       selectedChatId &&
       pathname.startsWith("/chat")
     ) {
-      // Don't clear while the selected chat is streaming/submitted or conversation is loading (avoids blank flash when URL briefly has no conversationId)
       if (isSelectedChatStreaming || isConversationLoadingProp) {
         return;
       }

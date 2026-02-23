@@ -16,7 +16,6 @@ import DaySeparator from "./day-separator";
 import LoadingIndicator from "./loading-indicator";
 import ReasoningLoaders from "./reasoning-loaders";
 
-/** Ref handle for MessageList; no methods, kept for forwardRef compatibility. */
 export type MessageListHandle = Record<string, never>;
 
 interface MessageListProps {
@@ -50,7 +49,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
 
     useImperativeHandle(ref, () => ({}), []);
 
-    // Add timestamps to messages that don't have them
     const messagesWithTimestamps = messages.map((message) => {
       if ("createdAt" in message && message.createdAt) {
         return message;
@@ -89,7 +87,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               {messagesWithTimestamps.map((message, index) => {
                 const role = message.role as "user" | "assistant" | "system";
 
-                // Get createdAt for current message
                 let currentCreatedAt: Date | undefined;
                 if ("createdAt" in message) {
                   const createdAtValue = message.createdAt;
@@ -103,7 +100,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                   }
                 }
 
-                // Get createdAt for previous message
                 let previousCreatedAt: Date | undefined;
                 if (index > 0) {
                   const prevMessage = messagesWithTimestamps[index - 1];
@@ -120,13 +116,11 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                   }
                 }
 
-                // Check if we need to show a day separator
                 const showDaySeparator =
                   index === 0 ||
                   (currentCreatedAt &&
                     isDifferentDay(currentCreatedAt, previousCreatedAt));
 
-                // Extract content from message
                 const content = extractMessageContent(message);
 
                 let createdAt: Date | undefined;

@@ -4,10 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 const BOTTOM_THRESHOLD_PX = 100;
 
-/**
- * Provides a scrollable container ref and optional isAtBottom state.
- * No automatic scrolling — avoids scroll jump glitches when sending.
- */
 export function useScrollToBottom() {
   const containerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);

@@ -184,9 +184,7 @@ export default function ChatInterface({
       pendingFromStorage = sessionStorage.getItem(
         PENDING_CONVERSATION_STORAGE_KEY,
       );
-    } catch {
-      // ignore
-    }
+    } catch {}
     const skipSync =
       willSync &&
       (pending != null
@@ -198,9 +196,7 @@ export default function ChatInterface({
     ) {
       try {
         sessionStorage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
     if (willSync && !skipSync) {
       setSelectedChatId(urlConversationId);
@@ -463,7 +459,7 @@ export default function ChatInterface({
         chatMessagesRef.current.set(convId, msgs);
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- slotMessages ref changes every render; signature is stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- slotMessages ref identity; signature is stable
   }, [slotToConversation, slotMessagesSignature]);
 
   const getOrAssignSlot = useCallback(

@@ -4,11 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 const DEFAULT_PAUSE_DELAY_MS = 800;
 
-/**
- * Returns true when the assistant is streaming but no new content has arrived
- * for a short period (e.g. backend is thinking/processing). Hides as soon as
- * content length increases again.
- */
 export function useStreamingPaused(
   content: string,
   isStreaming: boolean,
