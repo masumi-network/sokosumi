@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
@@ -108,7 +107,6 @@ export default async function UserCredits({ session }: UserCreditsProps) {
         <BuyCreditsButton
           label={tPlan("upgradeCta")}
           path="/billing?tab=subscription"
-          iconRight={<Sparkles className="size-4" aria-hidden />}
         />
       ) : null}
       {shouldShowAddCreditsCta ? (
