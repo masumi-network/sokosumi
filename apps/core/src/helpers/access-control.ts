@@ -195,8 +195,11 @@ export async function requireCoworkerExists(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const coworker = await tx.coworker.findUnique({
-    where: { id: coworkerId },
+  const coworker = await tx.coworker.findFirst({
+    where: {
+      id: coworkerId,
+      archivedAt: null,
+    },
     select: { id: true },
   });
 

@@ -44,8 +44,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireCoworkerAuthContext(c.var.authContext);
 
-    const coworker = await prisma.coworker.findUnique({
-      where: { id: authContext.coworkerId },
+    const coworker = await prisma.coworker.findFirst({
+      where: {
+        id: authContext.coworkerId,
+        archivedAt: null,
+      },
     });
 
     if (!coworker) {

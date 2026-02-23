@@ -7,6 +7,7 @@ import type {
 } from "@/middleware/auth";
 
 import {
+  requireCoworkerExists,
   requireScopedJobReadAccess,
   requireScopedTaskReadAccess,
   requireTaskAccess,
@@ -29,7 +30,6 @@ const userAuthContext: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
-  isAdmin: false,
 };
 
 describe("requireUserTaskAccess", () => {
@@ -125,6 +125,28 @@ describe("requireTaskAccess", () => {
   });
 });
 
+describe("requireCoworkerExists", () => {
+  it("only accepts active coworkers", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({ id: "cow_123" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await requireCoworkerExists("cow_123", tx);
+
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+  });
+});
+
 describe("requireScopedJobReadAccess", () => {
   it("uses context scope without implicit shared fallback", async () => {
     const tx = createTransactionClient();
@@ -195,7 +217,6 @@ describe("requireScopedJobReadAccess", () => {
       actor: "user",
       userId: "user_123",
       organizationId: null,
-      isAdmin: false,
     };
 
     await expect(

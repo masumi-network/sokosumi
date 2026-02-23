@@ -11,7 +11,6 @@ export interface UserAuthenticationContext {
   actor: "user";
   userId: string;
   organizationId: string | null;
-  isAdmin: boolean;
 }
 
 export interface CoworkerAuthenticationContext {
@@ -31,29 +30,6 @@ export type AuthVariables = {
 export type AuthEnv = {
   Variables: AuthVariables;
 };
-
-function isAdminRole(role: string | null | undefined): boolean {
-  if (!role) {
-    return false;
-  }
-
-  return role
-    .split(",")
-    .some((value) => value.trim().toLowerCase() === "admin");
-}
-
-async function getIsAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-    select: {
-      role: true,
-    },
-  });
-
-  return isAdminRole(user?.role);
-}
 
 export function setAuthContext(c: Context<AuthEnv>, context: AuthVariables) {
   c.set("isAuthenticated", context.isAuthenticated);
@@ -108,14 +84,12 @@ async function verifyApiKey(
   });
 
   if (apiKeyResult.valid && apiKeyResult.key) {
-    const isAdmin = await getIsAdmin(apiKeyResult.key.userId);
     setAuthContext(c, {
       isAuthenticated: true,
       authContext: {
         actor: "user",
         userId: apiKeyResult.key.userId,
         organizationId: null,
-        isAdmin,
       },
     });
     return true;
@@ -146,6 +120,11 @@ async function verifyCoworkerApiKey(
       coworkerId: true,
       revokedAt: true,
       expiresAt: true,
+      coworker: {
+        select: {
+          archivedAt: true,
+        },
+      },
     },
   });
 
@@ -158,6 +137,10 @@ async function verifyCoworkerApiKey(
   }
 
   if (coworkerApiKey.expiresAt && coworkerApiKey.expiresAt <= new Date()) {
+    return false;
+  }
+
+  if (coworkerApiKey.coworker.archivedAt) {
     return false;
   }
 
@@ -237,14 +220,12 @@ async function verifyOAuthToken(
     return false;
   }
 
-  const isAdmin = await getIsAdmin(oauthToken.userId);
   setAuthContext(c, {
     isAuthenticated: true,
     authContext: {
       actor: "user",
       userId: oauthToken.userId,
       organizationId: null,
-      isAdmin,
     },
   });
   return true;
@@ -289,14 +270,12 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   }
 
   const { session, user } = response;
-  const isAdmin = await getIsAdmin(user.id);
   setAuthContext(c, {
     isAuthenticated: true,
     authContext: {
       actor: "user",
       userId: user.id,
       organizationId: session.activeOrganizationId ?? null,
-      isAdmin,
     },
   });
 

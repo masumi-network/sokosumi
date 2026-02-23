@@ -1059,6 +1059,7 @@ model Coworker {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  archivedAt DateTime?
 
   slug        String  @unique
   name        String
@@ -1079,6 +1080,7 @@ model Coworker {
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
+  @@index([archivedAt])
   @@map("coworker")
 }
 

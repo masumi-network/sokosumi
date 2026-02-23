@@ -8,7 +8,6 @@ const {
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
-  userFindUniqueMock,
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
@@ -16,7 +15,6 @@ const {
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
@@ -35,9 +33,6 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
-    },
-    user: {
-      findUnique: userFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -67,9 +62,6 @@ describe("authMiddleware", () => {
       key: null,
     });
     getSessionMock.mockResolvedValue(null);
-    userFindUniqueMock.mockResolvedValue({
-      role: "user",
-    });
     oauthAccessTokenFindUniqueMock.mockResolvedValue(null);
     oauthConsentFindFirstMock.mockResolvedValue(null);
 
@@ -90,6 +82,9 @@ describe("authMiddleware", () => {
       coworkerId: "cow_123",
       revokedAt: null,
       expiresAt: null,
+      coworker: {
+        archivedAt: null,
+      },
     });
 
     const app = createApp();
@@ -112,6 +107,11 @@ describe("authMiddleware", () => {
         coworkerId: true,
         revokedAt: true,
         expiresAt: true,
+        coworker: {
+          select: {
+            archivedAt: true,
+          },
+        },
       },
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
@@ -124,6 +124,9 @@ describe("authMiddleware", () => {
       coworkerId: "cow_123",
       revokedAt: new Date(),
       expiresAt: null,
+      coworker: {
+        archivedAt: null,
+      },
     });
 
     const app = createApp();
@@ -141,6 +144,9 @@ describe("authMiddleware", () => {
       coworkerId: "cow_123",
       revokedAt: null,
       expiresAt: new Date(Date.now() - 1_000),
+      coworker: {
+        archivedAt: null,
+      },
     });
 
     const app = createApp();
@@ -212,74 +218,32 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_api_key",
       organizationId: null,
-      isAdmin: false,
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("authenticates Better Auth API key as admin when user role is admin", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({
-      role: "admin",
-    });
-    verifyApiKeyMock.mockResolvedValue({
-      valid: true,
-      key: {
-        userId: "user_admin",
-        metadata: {
-          organizationId: "org_admin",
-        },
+  it("returns 401 for dedicated coworker API key tied to archived coworker", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_123",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: {
+        archivedAt: new Date(),
       },
     });
 
     const app = createApp();
     const response = await app.request("http://localhost/", {
       headers: {
-        authorization: "Bearer token_admin",
+        authorization: "Bearer coworker_archived",
       },
     });
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "user",
-      userId: "user_admin",
-      organizationId: null,
-      isAdmin: true,
-    });
-    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
-  });
-
-  it("authenticates Better Auth API key as admin when role list includes admin", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({
-      role: "admin,user",
-    });
-    verifyApiKeyMock.mockResolvedValue({
-      valid: true,
-      key: {
-        userId: "user_admin_multi_role",
-        metadata: {
-          organizationId: "org_admin",
-        },
-      },
-    });
-
-    const app = createApp();
-    const response = await app.request("http://localhost/", {
-      headers: {
-        authorization: "Bearer token_admin_multi_role",
-      },
-    });
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "user",
-      userId: "user_admin_multi_role",
-      organizationId: null,
-      isAdmin: true,
-    });
-    expect(getSessionMock).not.toHaveBeenCalled();
-    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("falls back to OAuth token when API key is invalid", async () => {
@@ -307,7 +271,6 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_oauth",
       organizationId: null,
-      isAdmin: false,
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
@@ -350,7 +313,6 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_session",
       organizationId: "org_session",
-      isAdmin: false,
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();

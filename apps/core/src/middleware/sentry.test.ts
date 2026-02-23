@@ -77,7 +77,6 @@ describe("sentryMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: "org_123",
-        isAdmin: false,
       },
     });
 
@@ -117,7 +116,6 @@ describe("sentryMiddleware", () => {
         actor: "user",
         userId: "user_123",
         organizationId: null,
-        isAdmin: false,
       },
     });
 

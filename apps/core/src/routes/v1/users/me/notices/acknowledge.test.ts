@@ -75,7 +75,6 @@ function createApp(actor: "user" | "coworker" = "user") {
         actor: "user",
         userId: USER_ID,
         organizationId: null,
-        isAdmin: false,
       });
     }
 
