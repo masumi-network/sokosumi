@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "azurecontainerapps.io",
+        hostname: "*.azurecontainerapps.io",
       },
     ],
   },
