@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -9,27 +10,6 @@ import { coworkerSchema } from "@/schemas/task.schema";
 
 import { requireCoworkerAdminAuthContext } from "./admin-guard";
 import { createCoworkerRequestSchema } from "./schema";
-
-function isSlugUniqueConstraintError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const code = (error as { code?: unknown }).code;
-  if (code !== "P2002") {
-    return false;
-  }
-
-  const target = (error as { meta?: { target?: unknown } }).meta?.target;
-  if (Array.isArray(target)) {
-    return target.includes("slug");
-  }
-  if (typeof target === "string") {
-    return target.includes("slug");
-  }
-
-  return true;
-}
 
 const route = createRoute({
   method: "post",
