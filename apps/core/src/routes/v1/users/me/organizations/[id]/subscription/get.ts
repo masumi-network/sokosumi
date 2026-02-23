@@ -7,11 +7,10 @@ import {
   getCurrentSubscriptionCredits,
   mapSubscription,
 } from "@/helpers/subscription";
-import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { organizationWithRoleSchema } from "@/schemas/organization.schema";
+import { subscriptionResponseSchema } from "@/schemas/user.schema";
 
 const params = z.object({
   id: z.string().openapi({
@@ -23,24 +22,18 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/organizations/{id}",
-  description: "Get organization details by ID or slug",
+  path: "/organizations/{id}/subscription",
+  description: "Get organization latest subscription by ID or slug",
   tags: ["Users"],
   request: {
     params,
   },
   responses: {
     200: jsonSuccessResponse(
-      organizationWithRoleSchema,
-      "Retrieve organization by ID or slug",
+      subscriptionResponseSchema,
+      "Retrieve organization subscription",
       {
         data: {
-          id: "org_123",
-          name: "My Organization",
-          slug: "my-org",
-          createdAt: "2025-01-01T00:00:00.000Z",
-          role: "member",
-          credits: 100.0,
           subscription: {
             id: "sub_123",
             plan: "starter",
@@ -75,41 +68,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const authContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const organization = await prisma.$transaction(async (tx) => {
-      const { organization, role } = await resolveMemberOrganizationByIdOrSlug({
+    const subscription = await prisma.$transaction(async (tx) => {
+      const { organization } = await resolveMemberOrganizationByIdOrSlug({
         idOrSlug: id,
         userId: authContext.userId,
         tx,
       });
 
-      // Get organization credits
-      const credits = await getCredits(authContext.userId, organization.id, tx);
-      const subscription = await tx.subscription.findFirst({
+      const latestSubscription = await tx.subscription.findFirst({
         where: { referenceId: organization.id },
         orderBy: { updatedAt: "desc" },
       });
       const subscriptionCredits = await getCurrentSubscriptionCredits({
-        subscription,
+        subscription: latestSubscription,
         userId: authContext.userId,
         organizationId: organization.id,
         tx,
       });
 
-      return {
-        ...organization,
-        role,
-        credits,
-        subscription: mapSubscription(
-          subscription
-            ? {
-                ...subscription,
-                credits: subscriptionCredits,
-              }
-            : null,
-        ),
-      };
+      return mapSubscription(
+        latestSubscription
+          ? {
+              ...latestSubscription,
+              credits: subscriptionCredits,
+            }
+          : null,
+      );
     });
 
-    return ok(c, organizationWithRoleSchema.parse(organization));
+    return ok(c, subscriptionResponseSchema.parse({ subscription }));
   });
 }

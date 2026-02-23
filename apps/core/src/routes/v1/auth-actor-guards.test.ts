@@ -8,6 +8,7 @@ import mountGetAgentJobs from "./agents/[id]/jobs/get";
 import mountGetConversations from "./conversations/get";
 import mountGetJobs from "./jobs/get";
 import mountGetMeCredits from "./users/me/credits/get";
+import mountGetMeSubscription from "./users/me/subscription/get";
 
 function createCoworkerContextApp(
   mount: (app: OpenAPIHonoWithAuth) => void,
@@ -40,6 +41,13 @@ describe("route actor guards", () => {
   it("returns 403 for coworker auth on users/me routes", async () => {
     const app = createCoworkerContextApp(mountGetMeCredits);
     const response = await app.request("http://localhost/credits");
+
+    expect(response.status).toBe(403);
+  });
+
+  it("returns 403 for coworker auth on users/me subscription route", async () => {
+    const app = createCoworkerContextApp(mountGetMeSubscription);
+    const response = await app.request("http://localhost/subscription");
 
     expect(response.status).toBe(403);
   });
