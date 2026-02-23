@@ -1,5 +1,3 @@
-import { base64Url } from "@better-auth/utils/base64";
-import { createHash } from "@better-auth/utils/hash";
 import type { Context, MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
@@ -7,6 +5,10 @@ import { createMiddleware } from "hono/factory";
 import { getEnv } from "@/config/env";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
+import {
+  COWORKER_API_KEY_PREFIX,
+  hashCoworkerApiKey,
+} from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 
 export interface UserAuthenticationContext {
@@ -69,8 +71,6 @@ export function requireCoworkerAuthContext(
 
   return authContext;
 }
-
-const COWORKER_API_KEY_PREFIX = "coworker_";
 
 /**
  * Verifies a Better Auth API key and sets the authentication context if valid.
@@ -136,7 +136,7 @@ async function verifyCoworkerApiKey(
     return false;
   }
 
-  const keyHash = await defaultHasher(token);
+  const keyHash = await hashCoworkerApiKey(token);
   const coworkerApiKey = await prisma.coworkerApiKey.findUnique({
     where: {
       keyHash,
@@ -172,17 +172,7 @@ async function verifyCoworkerApiKey(
 
 const hashAccessToken = async (value: string) => {
   const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
-  return await defaultHasher(tokenWithoutPrefix);
-};
-
-const defaultHasher = async (value: string) => {
-  const hash = await createHash("SHA-256").digest(
-    new TextEncoder().encode(value),
-  );
-  const hashed = base64Url.encode(new Uint8Array(hash), {
-    padding: false,
-  });
-  return hashed;
+  return await hashCoworkerApiKey(tokenWithoutPrefix);
 };
 
 /**

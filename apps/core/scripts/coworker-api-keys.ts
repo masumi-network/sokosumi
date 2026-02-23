@@ -3,13 +3,15 @@ import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
-import { base64Url } from "@better-auth/utils/base64";
-import { createHash } from "@better-auth/utils/hash";
 import { createPrismaClient } from "@sokosumi/database/client";
 
-const COWORKER_API_KEY_PREFIX = "coworker_";
+import {
+  COWORKER_API_KEY_PREFIX,
+  COWORKER_API_KEY_START_LENGTH,
+  hashCoworkerApiKey,
+} from "../src/lib/coworker-api-key.js";
+
 const COWORKER_API_KEY_RANDOM_BYTES = 32;
-const COWORKER_API_KEY_START_LENGTH = COWORKER_API_KEY_PREFIX.length + 8;
 
 function printUsage() {
   console.error(
@@ -41,13 +43,6 @@ function parseOptions(args: string[]): Record<string, string> {
   }
 
   return options;
-}
-
-async function hashCoworkerApiKey(token: string): Promise<string> {
-  const hash = await createHash("SHA-256").digest(
-    new TextEncoder().encode(token),
-  );
-  return base64Url.encode(new Uint8Array(hash), { padding: false });
 }
 
 function generateCoworkerApiKeyToken(): string {
