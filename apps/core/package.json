@@ -37,7 +37,7 @@
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.3.0",
     "ably": "2.17.1",
-    "ai": "6.0.94",
+    "ai": "6.0.97",
     "better-auth": "1.4.18",
     "better-auth-localization": "2.2.3",
     "dotenv": "17.3.1",
