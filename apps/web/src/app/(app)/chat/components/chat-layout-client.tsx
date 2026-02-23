@@ -8,25 +8,12 @@ import ChatInterface from "@/app/chat/components/chat-interface";
 import {
   bucketKeyFromDisplaySlug,
   bucketKeyToSlug,
+  getBucketKeyFromMetadata,
   slugify,
   slugToBucketKey,
 } from "@/app/chat/utils/bucket-slug";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
-
-type ConversationMetadata = {
-  coworker_id?: string;
-  coworker_name?: string;
-  model_id?: string;
-  model_name?: string;
-};
-
-function getGroupKey(metadata: ConversationMetadata | null): string {
-  if (!metadata) return "other";
-  if (metadata.model_id) return `model:${metadata.model_id}`;
-  if (metadata.coworker_id) return `coworker:${metadata.coworker_id}`;
-  return "other";
-}
 
 function getBucketSlugFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
@@ -108,15 +95,18 @@ export function ChatLayoutClient({
   const bucketData = useMemo(() => {
     if (!bucket) return null;
     const list = conversations.filter((c) => {
-      const meta = (c.metadata as ConversationMetadata | null) ?? null;
-      return getGroupKey(meta) === bucket;
+      const meta = (c.metadata as Record<string, unknown> | null) ?? null;
+      return getBucketKeyFromMetadata(meta) === bucket;
     });
     const meta =
       list.length > 0
-        ? ((list[0].metadata as ConversationMetadata | null) ?? null)
+        ? ((list[0].metadata as Record<string, unknown> | null) ?? null)
         : null;
     const displayName =
-      meta?.model_name ?? meta?.coworker_name ?? bucket ?? "Chat";
+      (meta?.model_name as string | undefined) ??
+      (meta?.coworker_name as string | undefined) ??
+      bucket ??
+      "Chat";
     return { displayName, conversations: list };
   }, [bucket, conversations]);
 
