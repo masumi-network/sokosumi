@@ -51,8 +51,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { id } = c.req.valid("param");
 
-    const coworker = await prisma.coworker.findUnique({
-      where: { id },
+    const coworker = await prisma.coworker.findFirst({
+      where: {
+        id,
+        archivedAt: null,
+      },
     });
 
     if (!coworker) {

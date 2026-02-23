@@ -15,6 +15,7 @@ export const userSchema = z
       .string()
       .nullish()
       .openapi({ example: "https://example.com/image.png" }),
+    role: z.string().openapi({ example: "user" }),
     credits: z.number().openapi({ example: 100.0 }),
     subscription: subscriptionSchema.nullable(),
   })

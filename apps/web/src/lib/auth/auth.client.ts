@@ -1,6 +1,7 @@
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { stripeClient } from "@better-auth/stripe/client";
 import {
+  adminClient,
   apiKeyClient,
   inferAdditionalFields,
   inferOrgAdditionalFields,
@@ -13,6 +14,7 @@ import { auth } from "./auth";
 
 export const authClient = createAuthClient({
   plugins: [
+    adminClient(),
     apiKeyClient(),
     inferAdditionalFields<typeof auth>(),
     organizationClient({
