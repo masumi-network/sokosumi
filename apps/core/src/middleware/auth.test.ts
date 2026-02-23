@@ -97,7 +97,7 @@ describe("authMiddleware", () => {
     const app = createApp();
     const response = await app.request("http://localhost/", {
       headers: {
-        authorization: "Bearer soko_coworker_validtoken",
+        authorization: "Bearer coworker_validtoken",
       },
     });
 
@@ -131,7 +131,7 @@ describe("authMiddleware", () => {
     const app = createApp();
     const response = await app.request("http://localhost/", {
       headers: {
-        authorization: "Bearer soko_coworker_revoked",
+        authorization: "Bearer coworker_revoked",
       },
     });
 
@@ -148,7 +148,7 @@ describe("authMiddleware", () => {
     const app = createApp();
     const response = await app.request("http://localhost/", {
       headers: {
-        authorization: "Bearer soko_coworker_expired",
+        authorization: "Bearer coworker_expired",
       },
     });
 
@@ -180,7 +180,7 @@ describe("authMiddleware", () => {
     const app = createApp();
     const response = await app.request("http://localhost/", {
       headers: {
-        authorization: "Bearer soko_coworker_invalid",
+        authorization: "Bearer coworker_invalid",
       },
     });
 

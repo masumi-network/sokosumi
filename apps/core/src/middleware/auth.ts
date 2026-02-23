@@ -70,7 +70,7 @@ export function requireCoworkerAuthContext(
   return authContext;
 }
 
-const COWORKER_API_KEY_PREFIX = "soko_coworker_";
+const COWORKER_API_KEY_PREFIX = "coworker_";
 
 /**
  * Verifies a Better Auth API key and sets the authentication context if valid.
@@ -126,7 +126,7 @@ async function verifyApiKey(
 /**
  * Verifies a dedicated coworker API key and sets coworker auth context if valid.
  *
- * Expected token format: soko_coworker_<secret>
+ * Expected token format: coworker_<secret>
  */
 async function verifyCoworkerApiKey(
   token: string,

@@ -170,10 +170,11 @@ The API supports multiple authentication methods:
   - Better Auth API keys
   - Better Auth OAuth access tokens
 - **Coworker Bearer Tokens**:
-  - Dedicated coworker API keys (`soko_coworker_*`)
+  - Dedicated coworker API keys (`coworker_*`)
 - **Session Cookies**: Better Auth session cookies (web app)
 
 Public endpoints (no authentication required):
+
 - `/openapi.json` - OpenAPI specification
 - `/doc` - Swagger UI documentation
 - `/v1/agents` - List agents
@@ -201,7 +202,7 @@ all coworker callers have migrated to dedicated coworker API keys.
 ### Authentication Issues
 
 1. Verify `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are set
-2. Verify coworker callers use dedicated `soko_coworker_*` API keys
+2. Verify coworker callers use dedicated `coworker_*` API keys
 3. Check that Bearer token or session cookie is valid
 4. Review auth middleware logs
 
