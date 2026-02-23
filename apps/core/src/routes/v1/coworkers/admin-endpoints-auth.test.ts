@@ -94,8 +94,8 @@ const ADMIN_ENDPOINTS: Array<{
     method: "POST",
     path: "/",
     body: {
-      slug: "ops-agent",
       name: "Ops Agent",
+      email: "ops@example.com",
     },
   },
   {

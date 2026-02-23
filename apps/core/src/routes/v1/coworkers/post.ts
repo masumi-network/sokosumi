@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
+import slugify from "slugify";
 
-import { conflict } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -58,11 +59,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.var.authContext,
     );
     const body = c.req.valid("json");
+    const slug = slugify(body.name, {
+      lower: true,
+      strict: true,
+      trim: true,
+    });
+
+    if (!slug) {
+      throw badRequest(
+        "Coworker name must contain at least one valid character",
+      );
+    }
 
     const coworker = await prisma.$transaction(async (tx) => {
       const existingCoworker = await tx.coworker.findUnique({
         where: {
-          slug: body.slug,
+          slug,
         },
         select: {
           id: true,
@@ -70,14 +82,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       if (existingCoworker) {
-        throw conflict("Coworker slug already exists");
+        throw conflict(
+          "Coworker slug already exists. Please choose a different name.",
+        );
       }
 
       try {
         return await tx.coworker.create({
           data: {
             userId: authContext.userId,
-            slug: body.slug,
+            slug,
             name: body.name,
             caption: body.caption ?? null,
             company: body.company ?? null,
@@ -90,7 +104,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       } catch (error) {
         if (isSlugUniqueConstraintError(error)) {
-          throw conflict("Coworker slug already exists");
+          throw conflict(
+            "Coworker slug already exists. Please choose a different name.",
+          );
         }
         throw error;
       }

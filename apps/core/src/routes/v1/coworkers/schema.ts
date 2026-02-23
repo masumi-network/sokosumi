@@ -1,8 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 const coworkerEditableFieldsSchema = z.object({
-  slug: z.string().trim().min(1).openapi({ example: "ops-agent" }),
-  name: z.string().trim().min(1).openapi({ example: "Ops Agent" }),
+  name: z.string().trim().min(3).openapi({ example: "Ops Agent" }),
   caption: z
     .string()
     .trim()
@@ -18,24 +17,11 @@ const coworkerEditableFieldsSchema = z.object({
     .nullish()
     .openapi({ example: "Serviceplan" }),
   companyLogo: z
-    .string()
-    .trim()
-    .min(1)
+    .httpUrl()
     .nullish()
     .openapi({ example: "https://example.com/company-logo.png" }),
-  url: z
-    .string()
-    .trim()
-    .min(1)
-    .nullish()
-    .openapi({ example: "https://example.com" }),
-  email: z
-    .string()
-    .trim()
-    .min(1)
-    .max(255)
-    .nullish()
-    .openapi({ example: "ops@example.com" }),
+  url: z.httpUrl().nullish().openapi({ example: "https://example.com" }),
+  email: z.email().openapi({ example: "ops@example.com" }),
   description: z
     .string()
     .trim()
@@ -43,9 +29,7 @@ const coworkerEditableFieldsSchema = z.object({
     .nullish()
     .openapi({ example: "Ops helper" }),
   image: z
-    .string()
-    .trim()
-    .min(1)
+    .httpUrl()
     .nullish()
     .openapi({ example: "https://example.com/logo.png" }),
 });
@@ -56,7 +40,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
   .partial()
   .refine(
     (data) =>
-      data.slug !== undefined ||
       data.name !== undefined ||
       data.caption !== undefined ||
       data.company !== undefined ||
@@ -68,7 +51,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
     {
       message: "At least one coworker field is required",
       path: [
-        "slug",
         "name",
         "caption",
         "company",

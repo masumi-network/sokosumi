@@ -130,8 +130,8 @@ describe("coworker admin CRUD endpoints", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        slug: "ops-agent",
         name: "Ops Agent",
+        email: "ops@example.com",
       }),
     });
 
@@ -173,12 +173,47 @@ describe("coworker admin CRUD endpoints", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        slug: "ops-agent",
         name: "Ops Agent",
+        email: "ops@example.com",
       }),
     });
 
     expect(response.status).toBe(409);
+  });
+
+  it("rejects create when name is shorter than 3 characters", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "ab",
+        email: "ops@example.com",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects create when companyLogo is not a valid HTTP URL", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ops Agent",
+        email: "ops@example.com",
+        companyLogo: "not-a-url",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("updates coworker metadata", async () => {
@@ -224,29 +259,15 @@ describe("coworker admin CRUD endpoints", () => {
         }),
       }),
     );
+
+    const updateCall = coworkerUpdateManyMock.mock.calls[0]?.[0] as {
+      data?: Record<string, unknown>;
+    };
+    expect(updateCall.data).not.toHaveProperty("slug");
+    expect(coworkerFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when update hits a slug unique race (P2002)", async () => {
-    const tx: TransactionMock = {
-      coworker: {
-        findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
-        findFirst: coworkerFindFirstMock,
-        create: coworkerCreateMock,
-        updateMany: coworkerUpdateManyMock.mockRejectedValue({
-          code: "P2002",
-          meta: {
-            target: ["slug"],
-          },
-        }),
-        update: coworkerUpdateMock,
-      },
-      coworkerApiKey: {
-        updateMany: coworkerApiKeyUpdateManyMock,
-      },
-    };
-
-    mockTransaction(tx);
-
+  it("rejects update when name is shorter than 3 characters", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/cow_123", {
       method: "PATCH",
@@ -254,11 +275,28 @@ describe("coworker admin CRUD endpoints", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        slug: "new-ops-agent",
+        name: "ab",
       }),
     });
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(400);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects update when url is not a valid HTTP URL", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: "mailto:ops@example.com",
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("archives coworker and revokes active API keys in one transaction", async () => {
