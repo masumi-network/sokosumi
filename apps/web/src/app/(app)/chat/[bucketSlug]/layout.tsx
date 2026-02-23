@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useParams, usePathname } from "next/navigation";
+import { useMemo } from "react";
 
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import {
@@ -12,7 +12,15 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
+const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
 const SHOW_SECONDARY_SIDEBAR_KEY = "chat-show-secondary-sidebar";
+
+function getConversationIdFromPathname(pathname: string): string | null {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] !== "chat" || segments[2] !== "conversation" || !segments[3])
+    return null;
+  return segments[3] ?? null;
+}
 
 function getShowSecondarySidebar(): boolean {
   if (typeof window === "undefined") return false;
@@ -79,10 +87,22 @@ export default function ChatBucketLayout({
     return { displayName, conversations: list };
   }, [bucket, conversations]);
 
-  const [showSidebar, setShowSidebar] = useState(false);
-  useEffect(() => {
-    setShowSidebar(getShowSecondarySidebar());
-  }, [bucketSlug]);
+  const pathname = usePathname();
+  const isJustCreatedConversation =
+    typeof window !== "undefined" &&
+    (() => {
+      const conversationId = getConversationIdFromPathname(pathname ?? "");
+      if (!conversationId) return false;
+      try {
+        return (
+          sessionStorage.getItem(PENDING_CONVERSATION_KEY) === conversationId
+        );
+      } catch {
+        return false;
+      }
+    })();
+
+  const showSidebar = getShowSecondarySidebar() && !isJustCreatedConversation;
 
   return (
     <div className="flex h-full w-full flex-col">

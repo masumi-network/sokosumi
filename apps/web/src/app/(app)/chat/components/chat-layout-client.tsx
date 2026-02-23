@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import ChatInterface from "@/app/chat/components/chat-interface";
@@ -15,13 +15,21 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
+const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
+const SHOW_SECONDARY_SIDEBAR_KEY = "chat-show-secondary-sidebar";
+
 function getBucketSlugFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
   if (segments[0] !== "chat" || segments.length < 2) return null;
   return segments[1] ?? null;
 }
 
-const SHOW_SECONDARY_SIDEBAR_KEY = "chat-show-secondary-sidebar";
+function getConversationIdFromPathname(pathname: string): string | null {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] !== "chat" || segments[2] !== "conversation" || !segments[3])
+    return null;
+  return segments[3] ?? null;
+}
 
 function getShowSecondarySidebar(): boolean {
   if (typeof window === "undefined") return false;
@@ -53,10 +61,22 @@ export function ChatLayoutClient({
     [pathname],
   );
 
-  const [showSecondarySidebar, setShowSecondarySidebar] = useState(false);
-  useEffect(() => {
-    setShowSecondarySidebar(getShowSecondarySidebar());
-  }, [pathname]);
+  const isJustCreatedConversation =
+    typeof window !== "undefined" &&
+    (() => {
+      const conversationId = getConversationIdFromPathname(pathname ?? "");
+      if (!conversationId) return false;
+      try {
+        return (
+          sessionStorage.getItem(PENDING_CONVERSATION_KEY) === conversationId
+        );
+      } catch {
+        return false;
+      }
+    })();
+
+  const showSecondarySidebar =
+    getShowSecondarySidebar() && !isJustCreatedConversation;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
