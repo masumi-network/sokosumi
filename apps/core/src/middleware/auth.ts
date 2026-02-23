@@ -106,7 +106,9 @@ async function verifyApiKey(
     }
 
     if (hasCoworkerMetadata && !allowLegacyCoworkerFallback) {
-      return false;
+      throw unauthorized(
+        "Legacy coworker API keys are disabled; use a dedicated coworker API key",
+      );
     }
 
     setAuthContext(c, {

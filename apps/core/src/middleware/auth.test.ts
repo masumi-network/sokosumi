@@ -244,6 +244,7 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(401);
     expect(verifyApiKeyMock).toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("falls back to OAuth token when API key is invalid", async () => {
