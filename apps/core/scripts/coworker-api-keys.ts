@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { createHash, randomBytes } from "node:crypto";
+import { pathToFileURL } from "node:url";
 
 import { createPrismaClient } from "@sokosumi/database/client";
 
@@ -50,7 +51,7 @@ function generateCoworkerApiKeyToken(): string {
   ).toString("base64url")}`;
 }
 
-function parseExpiresAt(rawExpiresAt: string | undefined): Date | null {
+export function parseExpiresAt(rawExpiresAt: string | undefined): Date | null {
   if (!rawExpiresAt) {
     return null;
   }
@@ -58,6 +59,10 @@ function parseExpiresAt(rawExpiresAt: string | undefined): Date | null {
   const expiresAt = new Date(rawExpiresAt);
   if (Number.isNaN(expiresAt.getTime())) {
     throw new Error(`Invalid --expires-at value: ${rawExpiresAt}`);
+  }
+
+  if (expiresAt.getTime() <= Date.now()) {
+    throw new Error("--expires-at must be a future ISO datetime");
   }
 
   return expiresAt;
@@ -109,8 +114,8 @@ async function createCoworkerApiKey(
     throw new Error("Missing required option --coworker");
   }
 
-  const coworker = await resolveCoworker(prisma, coworkerIdentifier);
   const expiresAt = parseExpiresAt(options["expires-at"]);
+  const coworker = await resolveCoworker(prisma, coworkerIdentifier);
   const token = generateCoworkerApiKeyToken();
   const keyHash = hashCoworkerApiKey(token);
   const keyStart = token.slice(0, COWORKER_API_KEY_START_LENGTH);
@@ -212,9 +217,13 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(
-    error instanceof Error ? error.message : "Unknown error while running command",
-  );
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(
+      error instanceof Error
+        ? error.message
+        : "Unknown error while running command",
+    );
+    process.exit(1);
+  });
+}
