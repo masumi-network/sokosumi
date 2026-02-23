@@ -258,9 +258,14 @@ async function verifyOAuthToken(
 const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: Dedicated coworker API key
-    const coworkerApiKeyValid = await verifyCoworkerApiKey(token, c);
-    if (coworkerApiKeyValid) {
-      return true;
+    // Coworker-prefixed tokens must not fall back to user auth schemes.
+    if (token.startsWith(COWORKER_API_KEY_PREFIX)) {
+      const coworkerApiKeyValid = await verifyCoworkerApiKey(token, c);
+      if (coworkerApiKeyValid) {
+        return true;
+      }
+
+      throw unauthorized("Invalid or expired coworker token");
     }
 
     // Check 2: Better Auth API key

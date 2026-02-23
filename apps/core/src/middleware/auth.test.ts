@@ -155,6 +155,41 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(401);
   });
 
+  it("does not fall back to user auth schemes for invalid coworker-prefixed token", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: {
+        userId: "user_api_key",
+        metadata: {
+          organizationId: "org_api_key",
+        },
+      },
+    });
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+    });
+    oauthConsentFindFirstMock.mockResolvedValue({
+      id: "consent_123",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_coworker_invalid",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
   it("authenticates Better Auth coworker-metadata key as coworker when legacy fallback is enabled", async () => {
     verifyApiKeyMock.mockResolvedValue({
       valid: true,
