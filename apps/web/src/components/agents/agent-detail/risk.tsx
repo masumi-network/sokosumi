@@ -21,6 +21,7 @@ function AgentDetailRiskSkeleton() {
   return (
     <div className="space-y-2">
       <Skeleton className="h-4 w-40" />
+      <Skeleton className="h-6 w-32" />
     </div>
   );
 }

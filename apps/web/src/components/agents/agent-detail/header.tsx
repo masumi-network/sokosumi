@@ -41,7 +41,7 @@ interface AgentDetailHeaderProps {
 function AgentDetailHeader({
   agent,
   favoriteAgents,
-  showBackButton: _showBackButton,
+  showBackButton,
   showCloseButton,
   onClose,
 }: AgentDetailHeaderProps) {
@@ -76,17 +76,19 @@ function AgentDetailHeader({
     <div className="flex flex-col gap-4">
       <div className="hidden w-full md:block">
         <div className="flex w-full items-center justify-between">
-          <Link
-            href="/agents"
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm text-nowrap transition-colors"
-          >
-            <ArrowLeft className="size-4" />
-            <span>{tJobsHeader("back")}</span>
-          </Link>
+          {showBackButton && (
+            <Link
+              href="/agents"
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm text-nowrap transition-colors"
+            >
+              <ArrowLeft className="size-4" />
+              <span>{tJobsHeader("back")}</span>
+            </Link>
+          )}
           <AgentActionButtons
             agent={agent}
             favoriteAgents={favoriteAgents}
-            showBackButton={false}
+            showBackButton={showBackButton ?? false}
             showCloseButton={showCloseButton}
             onClose={onClose}
           />
