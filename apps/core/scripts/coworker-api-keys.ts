@@ -7,9 +7,9 @@ import { base64Url } from "@better-auth/utils/base64";
 import { createHash } from "@better-auth/utils/hash";
 import { createPrismaClient } from "@sokosumi/database/client";
 
-const COWORKER_API_KEY_PREFIX = "soko_coworker_";
+const COWORKER_API_KEY_PREFIX = "coworker_";
 const COWORKER_API_KEY_RANDOM_BYTES = 32;
-const COWORKER_API_KEY_START_LENGTH = 16;
+const COWORKER_API_KEY_START_LENGTH = COWORKER_API_KEY_PREFIX.length + 8;
 
 function printUsage() {
   console.error(
@@ -222,7 +222,10 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((error) => {
     console.error(
       error instanceof Error
