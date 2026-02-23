@@ -12,6 +12,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { cn } from "@/lib/utils";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { buildJobTransactionUrl } from "@/lib/utils/url";
 
 export interface JobMetaDetailsProps {
@@ -59,7 +60,9 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         {job.transaction ? (
           <KeyValueRow label={t("credits")}>
             <span className="text-muted-foreground text-sm">
-              {Math.abs(convertCentsToCredits(job.transaction.amount))}
+              {formatCreditsForDisplay(
+                Math.abs(convertCentsToCredits(job.transaction.amount)),
+              )}
             </span>
           </KeyValueRow>
         ) : null}

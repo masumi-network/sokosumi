@@ -39,6 +39,7 @@ import {
   extractHttpLinks,
 } from "@/lib/data/markdown/links";
 import { cn } from "@/lib/utils";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 import {
@@ -402,7 +403,9 @@ export function TaskActivitySection({
               sourceFiles.length > 0 || sourceLinks.length > 0;
             const chargedLabel =
               event.credits != null
-                ? t("actionChargedCredits", { credits: event.credits })
+                ? t("actionChargedCredits", {
+                    credits: formatCreditsForDisplay(event.credits),
+                  })
                 : null;
             const shouldShowAuthenticateButton =
               index === 0 &&

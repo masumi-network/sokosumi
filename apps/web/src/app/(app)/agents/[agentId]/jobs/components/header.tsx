@@ -13,6 +13,7 @@ import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -96,7 +97,9 @@ export default function Header({
           <div className="flex items-center gap-1.5">
             <div className="text-sm font-semibold">
               {t("price", {
-                price: convertCentsToCredits(agent.creditsPrice.cents),
+                price: formatCreditsForDisplay(
+                  convertCentsToCredits(agent.creditsPrice.cents),
+                ),
               })}
             </div>
             {canRate && (

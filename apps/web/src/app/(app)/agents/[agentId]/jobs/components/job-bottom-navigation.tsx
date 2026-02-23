@@ -8,6 +8,7 @@ import { AgentBookmarkButton } from "@/components/agents";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import VerticalDivider from "@/components/vertical-divider";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface JobBottomNavigationProps {
   agent: AgentWithCreditsPrice;
@@ -37,7 +38,9 @@ export default function JobBottomNavigation({
         <VerticalDivider />
         <div className="w-full text-center text-sm font-semibold">
           {t("price", {
-            price: convertCentsToCredits(agent.creditsPrice.cents),
+            price: formatCreditsForDisplay(
+              convertCentsToCredits(agent.creditsPrice.cents),
+            ),
           })}
         </div>
         <VerticalDivider />
