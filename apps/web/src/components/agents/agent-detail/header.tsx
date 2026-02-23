@@ -20,6 +20,7 @@ import {
   isAgentNew,
 } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;
@@ -96,7 +97,9 @@ function AgentDetailHeader({
             <div className="text-sm md:text-base">
               <span className="font-medium">
                 {t("pricing", {
-                  credits: convertCentsToCredits(agent.creditsPrice.cents),
+                  credits: formatCreditsForDisplay(
+                    convertCentsToCredits(agent.creditsPrice.cents),
+                  ),
                 })}
               </span>
             </div>

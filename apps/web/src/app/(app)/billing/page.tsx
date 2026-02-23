@@ -28,6 +28,7 @@ import {
   getSubscriptionCatalog,
   type SubscriptionPlanName,
 } from "@/lib/stripe/subscription-catalog";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const PLAN_ORDER: SubscriptionPlanName[] = [
@@ -137,7 +138,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       activeOrganization._count.members,
     );
     const credits = convertCentsToCredits(balanceInCents);
-    const displayCredits = Math.trunc(credits);
+    const displayCredits = formatCreditsForDisplay(credits);
 
     const orgPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
       const plan = subscriptionCatalog[planName];
@@ -238,7 +239,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   );
   const currentPlan = parsePlanName(latestPersonalSubscription?.plan) ?? "free";
   const credits = convertCentsToCredits(balanceInCents);
-  const displayCredits = Math.trunc(credits);
+  const displayCredits = formatCreditsForDisplay(credits);
   const personalPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
     const plan = subscriptionCatalog[planName];
     return {
