@@ -4,7 +4,7 @@ import { attachCreditsToOrganizations } from "@/helpers/credits";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
-  getCurrentSubscriptionCredits,
+  getCurrentOrganizationSubscriptionCreditsMap,
   mapSubscription,
 } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
@@ -109,6 +109,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
       }
+      const now = new Date();
+      const currentOrganizationPeriods = Array.from(
+        subscriptionsByOrganizationId.entries(),
+      ).flatMap(([organizationId, subscription]) => {
+        if (!subscription.periodStart || !subscription.periodEnd) {
+          return [];
+        }
+
+        if (
+          subscription.periodEnd <= subscription.periodStart ||
+          subscription.periodStart > now ||
+          subscription.periodEnd <= now
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            organizationId,
+            periodStart: subscription.periodStart,
+            periodEnd: subscription.periodEnd,
+          },
+        ];
+      });
+      const currentCreditsByOrganizationId =
+        await getCurrentOrganizationSubscriptionCreditsMap({
+          periods: currentOrganizationPeriods,
+          tx,
+          now,
+        });
 
       const organizationsWithSubscriptionUsage: Array<
         (typeof organizationsWithCredits)[number] & {
@@ -118,12 +148,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       for (const organization of organizationsWithCredits) {
         const subscription =
           subscriptionsByOrganizationId.get(organization.id) ?? null;
-        const subscriptionCredits = await getCurrentSubscriptionCredits({
-          subscription,
-          userId: authContext.userId,
-          organizationId: organization.id,
-          tx,
-        });
+        const subscriptionCredits = subscription
+          ? currentCreditsByOrganizationId.get(organization.id) ?? null
+          : null;
 
         organizationsWithSubscriptionUsage.push({
           ...organization,
