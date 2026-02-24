@@ -8,6 +8,7 @@ import {
 import { getEnvPublicConfig } from "@/config/env.public";
 import { auth, Session } from "@/lib/auth/auth";
 import { coreClient } from "@/lib/clients/core.client";
+import { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import BuyCreditsButton from "./buy-credits-button";
@@ -15,14 +16,6 @@ import UserAvatar from "./user-avatar";
 
 interface UserCreditsProps {
   session: Session;
-}
-
-export interface CreditUsage {
-  hasUsageData: boolean;
-  percentageUsed: number;
-  remaining: number;
-  total: number;
-  used: number;
 }
 
 export default async function UserCredits({ session }: UserCreditsProps) {
@@ -43,32 +36,44 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   try {
     const [creditsResult, organizationsResult, subscriptionResult] =
-      await Promise.all([
+      await Promise.allSettled([
         coreClient.getMyCredits(),
         activeOrganizationId ? coreClient.getMyOrganizations() : null,
         coreClient.getMySubscription(),
       ]);
 
-    credits = creditsResult.data?.credits ?? 0;
-    const subscriptionCredits = subscriptionResult.data?.subscription?.credits;
-
-    if (subscriptionCredits && subscriptionCredits.total > 0) {
-      const total = Math.max(subscriptionCredits.total, 0);
-      const used = Math.min(Math.max(subscriptionCredits.used, 0), total);
-      const remaining = Math.max(subscriptionCredits.remaining, 0);
-      const percentageUsed = Math.min(Math.max((used / total) * 100, 0), 100);
-
-      creditUsage = {
-        hasUsageData: true,
-        percentageUsed,
-        remaining,
-        total,
-        used,
-      };
+    if (creditsResult.status === "fulfilled") {
+      credits = creditsResult.value.data?.credits ?? 0;
     }
 
-    if (activeOrganizationId && organizationsResult?.data) {
-      const foundOrganization = organizationsResult.data.find(
+    if (
+      subscriptionResult.status === "fulfilled" &&
+      subscriptionResult.value.data?.subscription?.credits
+    ) {
+      const subscriptionCredits =
+        subscriptionResult.value.data.subscription.credits;
+      if (subscriptionCredits.total > 0) {
+        const total = Math.max(subscriptionCredits.total, 0);
+        const used = Math.min(Math.max(subscriptionCredits.used, 0), total);
+        const remaining = Math.max(subscriptionCredits.remaining, 0);
+        const percentageUsed = Math.min(Math.max((used / total) * 100, 0), 100);
+
+        creditUsage = {
+          hasUsageData: true,
+          percentageUsed,
+          remaining,
+          total,
+          used,
+        };
+      }
+    }
+
+    if (
+      activeOrganizationId &&
+      organizationsResult.status === "fulfilled" &&
+      organizationsResult.value?.data
+    ) {
+      const foundOrganization = organizationsResult.value.data.find(
         (organization) => organization.id === activeOrganizationId,
       );
 

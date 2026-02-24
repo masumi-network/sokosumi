@@ -9,18 +9,13 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { auth, Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
+import { CreditUsage } from "@/lib/types/credit";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";
 
 interface UserAvatarProps {
-  creditUsage?: {
-    hasUsageData: boolean;
-    percentageUsed: number;
-    remaining: number;
-    total: number;
-    used: number;
-  } | null;
+  creditUsage?: CreditUsage | null;
   creditsLabel?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
@@ -120,16 +115,7 @@ async function UserAvatarInner({
   primaryLabel,
   secondaryLabel,
 }: {
-  creditUsage:
-    | {
-        hasUsageData: boolean;
-        percentageUsed: number;
-        remaining: number;
-        total: number;
-        used: number;
-      }
-    | null
-    | undefined;
+  creditUsage: CreditUsage | null | undefined;
   creditsLabel: string | undefined;
   primaryLabel: string | undefined;
   secondaryLabel: string | undefined;

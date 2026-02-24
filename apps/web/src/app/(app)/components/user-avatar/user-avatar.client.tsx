@@ -53,6 +53,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { SessionUser } from "@/lib/auth/auth";
+import { CreditUsage } from "@/lib/types/credit";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -68,14 +69,6 @@ interface UserAvatarClientProps {
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
   workspacePlanLabels: Record<string, string>;
-}
-
-export interface CreditUsage {
-  hasUsageData: boolean;
-  percentageUsed: number;
-  remaining: number;
-  total: number;
-  used: number;
 }
 
 interface WorkspaceItem {
