@@ -254,7 +254,7 @@ async function syncSingleJob(initialJob: JobWithSokosumiStatus): Promise<void> {
 
   const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
     agentJobIdToSync
-      ? agentClient.fetchAgentJobStatus(agentJobIdToSync)
+      ? agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
       : Promise.resolve(err("No agent job ID to sync")),
     purchaseIdToSync
       ? paymentClient().getPurchaseById(purchaseIdToSync)
