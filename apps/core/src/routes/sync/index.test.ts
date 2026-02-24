@@ -40,6 +40,12 @@ vi.mock("@/services/agent-sync.service", () => ({
   },
 }));
 
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    void promise;
+  },
+}));
+
 async function createApp() {
   const { default: syncRouter } = await import("./index");
   const app = new Hono();

@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import type { Context } from "hono";
 
 import { getEnv } from "@/config/env";
@@ -66,10 +67,15 @@ async function withTimeout<T>(
   }
 }
 
-function startBackgroundSync(
+/**
+ * Returns a promise that runs the sync operation with heartbeat and releases
+ * the lock when done. Pass this to Vercel's waitUntil() so the serverless
+ * runtime keeps the invocation alive until the sync completes.
+ */
+function runBackgroundSync(
   lock: AcquiredSyncLock,
   syncOperation: () => Promise<void>,
-) {
+): Promise<void> {
   const heartbeatIntervalMs = Math.max(
     1000,
     Math.min(
@@ -96,7 +102,7 @@ function startBackgroundSync(
     })();
   }, heartbeatIntervalMs);
 
-  void (async () => {
+  return (async () => {
     try {
       const timeoutMs = Math.max(
         1,
@@ -158,7 +164,8 @@ export async function handleSyncRequest(
     });
   }
 
-  startBackgroundSync(acquiredLock, syncOperation);
+  const backgroundPromise = runBackgroundSync(acquiredLock, syncOperation);
+  waitUntil(backgroundPromise);
 
   return new Response(JSON.stringify({ message: "Syncing started" }), {
     status: 200,
