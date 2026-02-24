@@ -1,31 +1,32 @@
 import Stripe from "stripe";
 
+import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const STRIPE_CUSTOMER_SYNC_CONCURRENCY = 5;
 
-
-function getStripeSecretKey(): string {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-
-  if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY is required for stripe customer sync");
-  }
-
-  return secretKey;
-}
-
 function createStripeClient(): Stripe {
-  return new Stripe(getStripeSecretKey());
+  const env = getEnv();
+
+  return new Stripe(env.STRIPE_SECRET_KEY);
 }
 
 async function processInBatches<T>(
   entities: T[],
   handler: (entity: T) => Promise<void>,
 ): Promise<void> {
-  for (let index = 0; index < entities.length; index += STRIPE_CUSTOMER_SYNC_CONCURRENCY) {
-    const batch = entities.slice(index, index + STRIPE_CUSTOMER_SYNC_CONCURRENCY);
-    await Promise.allSettled(batch.map(async (entity) => await handler(entity)));
+  for (
+    let index = 0;
+    index < entities.length;
+    index += STRIPE_CUSTOMER_SYNC_CONCURRENCY
+  ) {
+    const batch = entities.slice(
+      index,
+      index + STRIPE_CUSTOMER_SYNC_CONCURRENCY,
+    );
+    await Promise.allSettled(
+      batch.map(async (entity) => await handler(entity)),
+    );
   }
 }
 
@@ -83,7 +84,9 @@ async function createStripeCustomerForOrganization(
 
   await stripe.customers.create(
     {
-      ...(organization.invoiceEmail ? { email: organization.invoiceEmail } : {}),
+      ...(organization.invoiceEmail
+        ? { email: organization.invoiceEmail }
+        : {}),
       metadata: {
         customerType: "organization",
         organizationId: organization.id,
