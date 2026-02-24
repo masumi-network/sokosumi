@@ -55,7 +55,7 @@ const envSchema = z.object({
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
     .transform((val: string) => val.trim().toLowerCase() === "true")
-    .default("false"),
+    .default(false),
 
   // Coworkers API
   COWORKERS_API_SERVICE_KEY: z.string().min(1).optional(),
