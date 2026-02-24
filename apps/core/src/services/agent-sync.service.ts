@@ -127,7 +127,9 @@ async function syncRegistryAgents(
     `[sync/agents] Starting registry sync (metadataKey=${metadataKey})`,
   );
 
-  if (shouldStopSync(options, "registry sync canceled before metadata lookup")) {
+  if (
+    shouldStopSync(options, "registry sync canceled before metadata lookup")
+  ) {
     return;
   }
 
@@ -149,7 +151,10 @@ async function syncRegistryAgents(
     50,
   );
   if (entriesResult.isErr()) {
-    console.error("[sync/agents] Error in diff sync operation:", entriesResult.error);
+    console.error(
+      "[sync/agents] Error in diff sync operation:",
+      entriesResult.error,
+    );
     return;
   }
 
@@ -259,7 +264,9 @@ async function syncRegistryAgents(
     });
   }
 
-  if (shouldStopSync(options, "registry sync canceled before metadata update")) {
+  if (
+    shouldStopSync(options, "registry sync canceled before metadata update")
+  ) {
     return;
   }
 
@@ -333,7 +340,9 @@ async function syncAgentSummaries(
         continue;
       }
 
-      if (shouldStopSync(options, "summary sync canceled before summary write")) {
+      if (
+        shouldStopSync(options, "summary sync canceled before summary write")
+      ) {
         return;
       }
 
