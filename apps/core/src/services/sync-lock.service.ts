@@ -1,10 +1,15 @@
-import type { Lock } from "@sokosumi/database";
+import { randomUUID } from "node:crypto";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
+export interface AcquiredSyncLock {
+  key: string;
+  ownerToken: string;
+}
+
 export const syncLockService = {
-  async acquireLock(key: string): Promise<Lock> {
+  async acquireLock(key: string): Promise<AcquiredSyncLock> {
     return await prisma.$transaction(async (tx) => {
       await tx.lock.upsert({
         where: { key },
@@ -16,6 +21,7 @@ export const syncLockService = {
       const lockExpirationThreshold = new Date(
         lockAcquiredAt.getTime() - getEnv().LOCK_TIMEOUT,
       );
+      const ownerToken = `${getEnv().INSTANCE_ID}:${randomUUID()}`;
 
       const acquireResult = await tx.lock.updateMany({
         where: {
@@ -33,7 +39,7 @@ export const syncLockService = {
         },
         data: {
           isLocked: true,
-          lockedBy: getEnv().INSTANCE_ID,
+          lockedBy: ownerToken,
           lockedAt: lockAcquiredAt,
         },
       });
@@ -42,24 +48,42 @@ export const syncLockService = {
         throw new Error("LOCK_IS_LOCKED");
       }
 
-      return await tx.lock.findUniqueOrThrow({
-        where: {
-          key,
-        },
-      });
+      return {
+        key,
+        ownerToken,
+      };
     });
   },
 
-  async releaseLock(key: string): Promise<void> {
-    await prisma.$transaction(async (tx) => {
-      await tx.lock.update({
-        where: { key },
-        data: {
-          isLocked: false,
-          lockedBy: null,
-          lockedAt: null,
-        },
-      });
+  async heartbeatLock(key: string, ownerToken: string): Promise<boolean> {
+    const heartbeatResult = await prisma.lock.updateMany({
+      where: {
+        key,
+        isLocked: true,
+        lockedBy: ownerToken,
+      },
+      data: {
+        lockedAt: new Date(),
+      },
     });
+
+    return heartbeatResult.count > 0;
+  },
+
+  async releaseLock(key: string, ownerToken: string): Promise<boolean> {
+    const releaseResult = await prisma.lock.updateMany({
+      where: {
+        key,
+        isLocked: true,
+        lockedBy: ownerToken,
+      },
+      data: {
+        isLocked: false,
+        lockedBy: null,
+        lockedAt: null,
+      },
+    });
+
+    return releaseResult.count > 0;
   },
 };

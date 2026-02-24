@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acquireLockMock,
+  heartbeatLockMock,
   releaseLockMock,
   syncAgentSummariesMock,
   syncRegistryAgentsMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
+  heartbeatLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/services/sync-lock.service", () => ({
   syncLockService: {
     acquireLock: acquireLockMock,
+    heartbeatLock: heartbeatLockMock,
     releaseLock: releaseLockMock,
   },
 }));
@@ -58,8 +61,12 @@ async function flushPromises() {
 describe("sync routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    acquireLockMock.mockResolvedValue({ key: "lock-key" });
-    releaseLockMock.mockResolvedValue(undefined);
+    acquireLockMock.mockResolvedValue({
+      key: "lock-key",
+      ownerToken: "owner-token",
+    });
+    heartbeatLockMock.mockResolvedValue(true);
+    releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
   });
@@ -127,7 +134,7 @@ describe("sync routes", () => {
 
     resolveSync?.();
     await flushMicrotasks();
-    expect(releaseLockMock).toHaveBeenCalledWith("agents-sync");
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
   it("returns 200 and starts summary sync exactly once in background", async () => {
@@ -183,7 +190,7 @@ describe("sync routes", () => {
       resolveSync?.();
       await flushPromises();
 
-      expect(releaseLockMock).toHaveBeenCalledWith("agents-sync");
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
     } finally {
       consoleErrorSpy.mockRestore();
       vi.useRealTimers();
