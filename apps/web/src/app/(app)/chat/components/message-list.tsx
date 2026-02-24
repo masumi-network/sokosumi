@@ -1,7 +1,14 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { forwardRef, useImperativeHandle } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import { useScrollToBottom } from "@/app/chat/hooks/use-scroll-to-bottom";
 import {
@@ -17,6 +24,26 @@ import LoadingIndicator from "./loading-indicator";
 import ReasoningLoaders from "./reasoning-loaders";
 
 export type MessageListHandle = Record<string, never>;
+
+function groupMessagesIntoSection(messages: UIMessage[]): UIMessage[][] {
+  if (messages.length === 0) return [];
+  const sections: UIMessage[][] = [];
+  let current: UIMessage[] = [];
+  for (const msg of messages) {
+    const role = msg.role as string;
+    if (role === "user") {
+      if (current.length > 0) {
+        sections.push(current);
+        current = [];
+      }
+      current.push(msg);
+    } else {
+      current.push(msg);
+    }
+  }
+  if (current.length > 0) sections.push(current);
+  return sections;
+}
 
 interface MessageListProps {
   messages: UIMessage[];
@@ -45,9 +72,31 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     },
     ref,
   ) {
-    const { containerRef: scrollContainerRef, endRef } = useScrollToBottom();
+    const {
+      containerRef: scrollContainerRef,
+      endRef,
+      scrollToMax,
+    } = useScrollToBottom();
+    const wrapperRef = useRef<HTMLDivElement | null>(null);
+    const roRef = useRef<ResizeObserver | null>(null);
+    const [contentHeight, setContentHeight] = useState(0);
 
     useImperativeHandle(ref, () => ({}), []);
+
+    const setWrapperRef = useCallback((el: HTMLDivElement | null) => {
+      if (wrapperRef.current && roRef.current) {
+        roRef.current.disconnect();
+        roRef.current = null;
+      }
+      wrapperRef.current = el;
+      if (el) {
+        setContentHeight(el.clientHeight);
+        roRef.current = new ResizeObserver(() => {
+          setContentHeight(el.clientHeight);
+        });
+        roRef.current.observe(el);
+      }
+    }, []);
 
     const messagesWithTimestamps = messages.map((message) => {
       if ("createdAt" in message && message.createdAt) {
@@ -76,141 +125,201 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       showLoadingArea && isCoworker && reasoningMessages.length > 0;
     const showLoadingIndicator = showLoadingArea && !showReasoningLoaders;
 
+    const sections = groupMessagesIntoSection(messagesWithTimestamps);
+
+    useEffect(() => {
+      if (sections.length > 1) scrollToMax();
+    }, [sections.length, scrollToMax]);
+
+    const selectedChat = chats.find((c) => c.id === selectedChatId);
+    const coworkerId = selectedChat?.coworker?.id;
+    const coworkerName = selectedChat?.coworker?.name;
+    const coworkerFromList = coworkerId
+      ? coworkers.find((c) => c.id === coworkerId)
+      : undefined;
+    const coworkerImageUrl =
+      selectedChat?.coworker?.avatar ?? coworkerFromList?.avatar;
+    const modelName = selectedChat?.model?.name;
+    const modelId = selectedChat?.model?.id;
+
+    function renderMessage(
+      message: (typeof messagesWithTimestamps)[number],
+      index: number,
+    ) {
+      const role = message.role as "user" | "assistant" | "system";
+      let currentCreatedAt: Date | undefined;
+      if ("createdAt" in message) {
+        const createdAtValue = message.createdAt;
+        if (createdAtValue instanceof Date) {
+          currentCreatedAt = createdAtValue;
+        } else if (
+          typeof createdAtValue === "string" ||
+          typeof createdAtValue === "number"
+        ) {
+          currentCreatedAt = new Date(createdAtValue);
+        }
+      }
+      let previousCreatedAt: Date | undefined;
+      if (index > 0) {
+        const prevMessage = messagesWithTimestamps[index - 1];
+        if ("createdAt" in prevMessage) {
+          const createdAtValue = prevMessage.createdAt;
+          if (createdAtValue instanceof Date) {
+            previousCreatedAt = createdAtValue;
+          } else if (
+            typeof createdAtValue === "string" ||
+            typeof createdAtValue === "number"
+          ) {
+            previousCreatedAt = new Date(createdAtValue);
+          }
+        }
+      }
+      const showDaySeparator =
+        index === 0 ||
+        (currentCreatedAt &&
+          isDifferentDay(currentCreatedAt, previousCreatedAt));
+      const content = extractMessageContent(message);
+      let createdAt: Date | undefined;
+      if ("createdAt" in message) {
+        const createdAtValue = message.createdAt;
+        if (createdAtValue instanceof Date) {
+          createdAt = createdAtValue;
+        } else if (
+          typeof createdAtValue === "string" ||
+          typeof createdAtValue === "number"
+        ) {
+          createdAt = new Date(createdAtValue);
+        }
+      }
+      const isLastMessage = index === messagesWithTimestamps.length - 1;
+      const isStreaming = isLoading && isLastMessage && role === "assistant";
+      const hideEmptyAssistantWhileLoading =
+        isLastMessage &&
+        role === "assistant" &&
+        !content.trim() &&
+        isLoading &&
+        (showReasoningLoaders || showLoadingIndicator);
+
+      return (
+        <div
+          key={`${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`}
+          data-message-role={role}
+        >
+          {showDaySeparator && currentCreatedAt && (
+            <DaySeparator
+              date={currentCreatedAt}
+              formatDaySeparator={formatDaySeparator}
+            />
+          )}
+          {!hideEmptyAssistantWhileLoading && (
+            <div className="mb-1">
+              <ChatMessage
+                role={role}
+                content={content}
+                userImageUrl={userImageUrl}
+                userName={userName}
+                createdAt={createdAt}
+                coworkerName={coworkerName}
+                coworkerId={coworkerId}
+                coworkerImageUrl={coworkerImageUrl}
+                modelName={modelName}
+                modelId={modelId}
+                isStreaming={isStreaming}
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
-      <div className="absolute inset-x-0 top-0 bottom-[100px] overflow-hidden">
+      <div
+        ref={setWrapperRef}
+        className="absolute inset-x-0 top-0 bottom-[100px] overflow-hidden"
+      >
         <div
           ref={scrollContainerRef}
-          className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{ overflowAnchor: "none" }}
         >
           <div className="flex flex-col items-center pt-4 pb-20">
             <div className="flex w-full max-w-4xl flex-col">
-              {messagesWithTimestamps.map((message, index) => {
-                const role = message.role as "user" | "assistant" | "system";
-
-                let currentCreatedAt: Date | undefined;
-                if ("createdAt" in message) {
-                  const createdAtValue = message.createdAt;
-                  if (createdAtValue instanceof Date) {
-                    currentCreatedAt = createdAtValue;
-                  } else if (
-                    typeof createdAtValue === "string" ||
-                    typeof createdAtValue === "number"
-                  ) {
-                    currentCreatedAt = new Date(createdAtValue);
-                  }
-                }
-
-                let previousCreatedAt: Date | undefined;
-                if (index > 0) {
-                  const prevMessage = messagesWithTimestamps[index - 1];
-                  if ("createdAt" in prevMessage) {
-                    const createdAtValue = prevMessage.createdAt;
-                    if (createdAtValue instanceof Date) {
-                      previousCreatedAt = createdAtValue;
-                    } else if (
-                      typeof createdAtValue === "string" ||
-                      typeof createdAtValue === "number"
-                    ) {
-                      previousCreatedAt = new Date(createdAtValue);
-                    }
-                  }
-                }
-
-                const showDaySeparator =
-                  index === 0 ||
-                  (currentCreatedAt &&
-                    isDifferentDay(currentCreatedAt, previousCreatedAt));
-
-                const content = extractMessageContent(message);
-
-                let createdAt: Date | undefined;
-                if ("createdAt" in message) {
-                  const createdAtValue = message.createdAt;
-                  if (createdAtValue instanceof Date) {
-                    createdAt = createdAtValue;
-                  } else if (
-                    typeof createdAtValue === "string" ||
-                    typeof createdAtValue === "number"
-                  ) {
-                    createdAt = new Date(createdAtValue);
-                  }
-                }
-
-                const selectedChat = chats.find((c) => c.id === selectedChatId);
-                const coworkerId = selectedChat?.coworker?.id;
-                const coworkerName = selectedChat?.coworker?.name;
-                const coworkerFromList = coworkerId
-                  ? coworkers.find((c) => c.id === coworkerId)
+              {sections.length === 0 && showLoadingArea && (
+                <>
+                  {showReasoningLoaders && (
+                    <ReasoningLoaders
+                      reasoningMessages={reasoningMessages}
+                      selectedChatId={selectedChatId}
+                      chats={chats}
+                      coworkers={coworkers}
+                    />
+                  )}
+                  {showLoadingIndicator && (
+                    <LoadingIndicator
+                      selectedChatId={selectedChatId}
+                      chats={chats}
+                      coworkers={coworkers}
+                    />
+                  )}
+                  <div
+                    className="min-h-[160px] shrink-0"
+                    aria-hidden
+                    data-slot="scroll-spacer"
+                  />
+                </>
+              )}
+              {sections.map((section, sectionIndex) => {
+                const isActiveNewSection =
+                  sectionIndex > 0 && sectionIndex === sections.length - 1;
+                const sectionHeight =
+                  isActiveNewSection && contentHeight > 0
+                    ? contentHeight
+                    : undefined;
+                const sectionStyle = sectionHeight
+                  ? { height: `${sectionHeight}px` }
                   : undefined;
-                const coworkerImageUrl =
-                  selectedChat?.coworker?.avatar ?? coworkerFromList?.avatar;
-                const modelName = selectedChat?.model?.name;
-                const modelId = selectedChat?.model?.id;
-
-                const isLastMessage =
-                  index === messagesWithTimestamps.length - 1;
-                const isStreaming =
-                  isLoading && isLastMessage && role === "assistant";
-                const hideEmptyAssistantWhileLoading =
-                  isLastMessage &&
-                  role === "assistant" &&
-                  !content.trim() &&
-                  isLoading &&
-                  (showReasoningLoaders || showLoadingIndicator);
+                const globalStart = sections
+                  .slice(0, sectionIndex)
+                  .reduce((sum, sec) => sum + sec.length, 0);
 
                 return (
                   <div
-                    key={`${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`}
-                    data-message-role={role}
+                    key={`section-${sectionIndex}`}
+                    style={sectionStyle}
+                    className="flex flex-col justify-start pt-4"
                   >
-                    {showDaySeparator && currentCreatedAt && (
-                      <DaySeparator
-                        date={currentCreatedAt}
-                        formatDaySeparator={formatDaySeparator}
-                      />
+                    {section.map((message, i) =>
+                      renderMessage(message, globalStart + i),
                     )}
-                    {!hideEmptyAssistantWhileLoading && (
-                      <div className="mb-1">
-                        <ChatMessage
-                          role={role}
-                          content={content}
-                          userImageUrl={userImageUrl}
-                          userName={userName}
-                          createdAt={createdAt}
-                          coworkerName={coworkerName}
-                          coworkerId={coworkerId}
-                          coworkerImageUrl={coworkerImageUrl}
-                          modelName={modelName}
-                          modelId={modelId}
-                          isStreaming={isStreaming}
-                        />
-                      </div>
+                    {sectionIndex === sections.length - 1 && (
+                      <>
+                        {showReasoningLoaders && (
+                          <ReasoningLoaders
+                            reasoningMessages={reasoningMessages}
+                            selectedChatId={selectedChatId}
+                            chats={chats}
+                            coworkers={coworkers}
+                          />
+                        )}
+                        {showLoadingIndicator && (
+                          <LoadingIndicator
+                            selectedChatId={selectedChatId}
+                            chats={chats}
+                            coworkers={coworkers}
+                          />
+                        )}
+                        {showLoadingArea && (
+                          <div
+                            className="min-h-[160px] shrink-0"
+                            aria-hidden
+                            data-slot="scroll-spacer"
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 );
               })}
-              {showReasoningLoaders && (
-                <ReasoningLoaders
-                  reasoningMessages={reasoningMessages}
-                  selectedChatId={selectedChatId}
-                  chats={chats}
-                  coworkers={coworkers}
-                />
-              )}
-              {showLoadingIndicator && (
-                <LoadingIndicator
-                  selectedChatId={selectedChatId}
-                  chats={chats}
-                  coworkers={coworkers}
-                />
-              )}
-              {showLoadingArea && (
-                <div
-                  className="min-h-[160px] shrink-0"
-                  aria-hidden
-                  data-slot="scroll-spacer"
-                />
-              )}
               <div className="min-h-px shrink-0" ref={endRef} />
             </div>
           </div>
