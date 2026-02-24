@@ -116,11 +116,11 @@ export const stripeCustomerSyncService = {
       "organizations without Stripe customers",
     );
 
-    const userLimit = pLimit(STRIPE_CUSTOMER_SYNC_CONCURRENCY);
-    const userSyncPromises: Promise<void>[] = [];
+    const limit = pLimit(STRIPE_CUSTOMER_SYNC_CONCURRENCY);
+    const runningSyncPromises: Promise<void>[] = [];
     for (const user of usersWithoutStripeCustomer) {
-      userSyncPromises.push(
-        userLimit(async () => {
+      runningSyncPromises.push(
+        limit(async () => {
           try {
             await createStripeCustomerForUser(stripe, user.id);
           } catch (error) {
@@ -132,24 +132,21 @@ export const stripeCustomerSyncService = {
         }),
       );
     }
-    await Promise.allSettled(userSyncPromises);
 
-    const organizationLimit = pLimit(STRIPE_CUSTOMER_SYNC_CONCURRENCY);
-    const organizationSyncPromises: Promise<void>[] = [];
     for (const organization of organizationsWithoutStripeCustomer) {
-      organizationSyncPromises.push(
-        organizationLimit(async () => {
-        try {
-          await createStripeCustomerForOrganization(stripe, organization.id);
-        } catch (error) {
-          console.error(
-            `Failed to create Stripe customer for organization ${organization.id}:`,
-            error,
-          );
-        }
+      runningSyncPromises.push(
+        limit(async () => {
+          try {
+            await createStripeCustomerForOrganization(stripe, organization.id);
+          } catch (error) {
+            console.error(
+              `Failed to create Stripe customer for organization ${organization.id}:`,
+              error,
+            );
+          }
         }),
       );
     }
-    await Promise.allSettled(organizationSyncPromises);
+    await Promise.allSettled(runningSyncPromises);
   },
 };

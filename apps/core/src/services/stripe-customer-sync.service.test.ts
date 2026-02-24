@@ -97,9 +97,8 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
 
     expect(stripeConstructorMock).toHaveBeenCalledTimes(1);
     expect(stripeConstructorMock).toHaveBeenCalledWith("sk_test_sync");
-    expect(pLimitMock).toHaveBeenCalledTimes(2);
-    expect(pLimitMock).toHaveBeenNthCalledWith(1, 5);
-    expect(pLimitMock).toHaveBeenNthCalledWith(2, 5);
+    expect(pLimitMock).toHaveBeenCalledTimes(1);
+    expect(pLimitMock).toHaveBeenCalledWith(5);
 
     expect(stripeCustomersCreateMock).toHaveBeenCalledTimes(3);
     expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
