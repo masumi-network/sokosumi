@@ -995,6 +995,10 @@
       },
       "coworkerTooltip": "{name} · {role}",
       "coworkers": {
+        "alex": {
+          "name": "Alex",
+          "role": "Assistant"
+        },
         "elena": {
           "name": "Elena",
           "role": "Project Management"
@@ -1087,6 +1091,11 @@
           "placeholder": "What's on your mind?",
           "suggestionsLabel": "Try asking",
           "prompts": {
+            "alex": {
+              "1": "What can you help me with?",
+              "2": "Tell me about your capabilities.",
+              "3": "How do you work with the rest of the team?"
+            },
             "hannah": {
               "1": "Research our competitors and compare us to them.",
               "2": "Analyze website SEO performance and how we're mentioned by ChatGPT.",
@@ -1170,6 +1179,11 @@
           "mixtral8x7b": "Mixtral 8x7B"
         },
         "coworkers": {
+          "alex": {
+            "name": "Alex",
+            "description": "AI Assistant",
+            "useCase": "Answer questions and assist with a wide range of tasks"
+          },
           "hannah": {
             "name": "Hannah",
             "description": "Data Analysis & Research Specialist",

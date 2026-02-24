@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import {
   isResponsesApiAgentId,
+  type ResponsesApiAgentId,
   streamResponsesApi,
 } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
@@ -243,7 +244,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const orgSlug = c.req.header("x-organization-slug") ?? null;
         const result = await streamResponsesApi(lastUserMessageText as string, {
           sokosumiUserId: authContext.userId,
-          agentId: agentId as "hannah" | "elena",
+          agentId: agentId as ResponsesApiAgentId,
           previousResponseId: lastResponsesApiResponseId ?? null,
           orgSlug,
           onResponseCompleted: async (responseId: string) => {

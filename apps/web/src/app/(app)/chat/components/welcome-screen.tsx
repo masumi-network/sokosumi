@@ -51,7 +51,7 @@ export default function WelcomeScreen({
     initialCoworker?.id?.toLowerCase() ||
     "";
   const promptsList =
-    promptKey === "hannah" || promptKey === "elena"
+    promptKey === "alex" || promptKey === "hannah" || promptKey === "elena"
       ? PROMPT_KEYS.map((key) =>
           t(`welcomeScreen.prompts.${promptKey}.${key}`),
         ).filter(Boolean)

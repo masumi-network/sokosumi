@@ -4,27 +4,6 @@
 import type { Coworker } from "@/app/chat/utils/types";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
-export function getCoworkerSuggestions(coworkerId?: string): string[] {
-  if (!coworkerId) return [];
-
-  const suggestionMap: Record<string, string[]> = {
-    hannah: [
-      "How can I analyze data effectively?",
-      "What are the best practices for data visualization?",
-      "How do I identify trends in my data?",
-      "What statistical methods should I use?",
-    ],
-    john: [
-      "How can I improve my code quality?",
-      "What are common debugging techniques?",
-      "How do I write more maintainable code?",
-      "What's the best way to structure my project?",
-    ],
-  };
-
-  return suggestionMap[coworkerId] || [];
-}
-
 /** DB coworker shape as returned by GET /api/coworkers (and Core GET /v1/coworkers) */
 export interface DbCoworker {
   id: string;
@@ -39,6 +18,7 @@ export interface DbCoworker {
 }
 
 const DEFAULT_COWORKER_AVATARS: Record<string, string> = {
+  alex: "/images/coworkers/alex.webp",
   elena: "/images/coworkers/elena.webp",
   hannah: "/images/coworkers/hannah.webp",
 };

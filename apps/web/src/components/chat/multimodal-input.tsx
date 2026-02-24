@@ -231,6 +231,12 @@ function PureMultimodalInput({
 
   const coworkersFallback: Coworker[] = [
     {
+      id: "alex",
+      name: t("coworkers.alex.name"),
+      description: t("coworkers.alex.description"),
+      useCase: t("coworkers.alex.useCase"),
+    },
+    {
       id: "hannah",
       name: t("coworkers.hannah.name"),
       description: t("coworkers.hannah.description"),

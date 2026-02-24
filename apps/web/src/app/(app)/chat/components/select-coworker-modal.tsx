@@ -44,6 +44,13 @@ export default function SelectCoworkerModal({
 
   const coworkersFallback: Coworker[] = [
     {
+      id: "alex",
+      slug: "alex",
+      name: t("coworkers.alex.name"),
+      description: t("coworkers.alex.description"),
+      useCase: t("coworkers.alex.useCase"),
+    },
+    {
       id: "hannah",
       slug: "hannah",
       name: t("coworkers.hannah.name"),

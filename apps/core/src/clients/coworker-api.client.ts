@@ -4,7 +4,7 @@ import {
   isResponsesApiConfigured,
 } from "@/config/env";
 
-export const RESPONSES_API_AGENT_IDS = ["hannah", "elena"] as const;
+export const RESPONSES_API_AGENT_IDS = ["alex", "elena", "hannah"] as const;
 
 export type ResponsesApiAgentId = (typeof RESPONSES_API_AGENT_IDS)[number];
 
