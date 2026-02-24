@@ -142,10 +142,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const modelName = selectedChat?.model?.name;
     const modelId = selectedChat?.model?.id;
 
-    function renderMessage(
-      message: (typeof messagesWithTimestamps)[number],
-      index: number,
-    ) {
+    function renderMessage(message: UIMessage, index: number) {
       const role = message.role as "user" | "assistant" | "system";
       let currentCreatedAt: Date | undefined;
       if ("createdAt" in message) {
