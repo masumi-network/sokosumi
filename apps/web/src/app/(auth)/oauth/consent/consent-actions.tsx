@@ -58,10 +58,10 @@ export function ConsentActions({ redirectUri }: ConsentActionsProps) {
       return;
     }
 
-    const { redirect, uri } = result.data;
+    const { redirect, url } = result.data;
 
-    if (redirect && uri) {
-      window.location.href = uri;
+    if (redirect && url) {
+      window.location.href = url;
     }
   }
 
