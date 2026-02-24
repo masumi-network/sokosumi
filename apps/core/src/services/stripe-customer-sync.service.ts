@@ -1,3 +1,4 @@
+import pLimit from "p-limit";
 import Stripe from "stripe";
 
 import { getEnv } from "@/config/env";
@@ -9,25 +10,6 @@ function createStripeClient(): Stripe {
   const env = getEnv();
 
   return new Stripe(env.STRIPE_SECRET_KEY);
-}
-
-async function processInBatches<T>(
-  entities: T[],
-  handler: (entity: T) => Promise<void>,
-): Promise<void> {
-  for (
-    let index = 0;
-    index < entities.length;
-    index += STRIPE_CUSTOMER_SYNC_CONCURRENCY
-  ) {
-    const batch = entities.slice(
-      index,
-      index + STRIPE_CUSTOMER_SYNC_CONCURRENCY,
-    );
-    await Promise.allSettled(
-      batch.map(async (entity) => await handler(entity)),
-    );
-  }
 }
 
 async function createStripeCustomerForUser(
@@ -134,20 +116,29 @@ export const stripeCustomerSyncService = {
       "organizations without Stripe customers",
     );
 
-    await processInBatches(usersWithoutStripeCustomer, async (user) => {
-      try {
-        await createStripeCustomerForUser(stripe, user.id);
-      } catch (error) {
-        console.error(
-          `Failed to create Stripe customer for user ${user.id}:`,
-          error,
-        );
-      }
-    });
+    const userLimit = pLimit(STRIPE_CUSTOMER_SYNC_CONCURRENCY);
+    const userSyncPromises: Promise<void>[] = [];
+    for (const user of usersWithoutStripeCustomer) {
+      userSyncPromises.push(
+        userLimit(async () => {
+          try {
+            await createStripeCustomerForUser(stripe, user.id);
+          } catch (error) {
+            console.error(
+              `Failed to create Stripe customer for user ${user.id}:`,
+              error,
+            );
+          }
+        }),
+      );
+    }
+    await Promise.allSettled(userSyncPromises);
 
-    await processInBatches(
-      organizationsWithoutStripeCustomer,
-      async (organization) => {
+    const organizationLimit = pLimit(STRIPE_CUSTOMER_SYNC_CONCURRENCY);
+    const organizationSyncPromises: Promise<void>[] = [];
+    for (const organization of organizationsWithoutStripeCustomer) {
+      organizationSyncPromises.push(
+        organizationLimit(async () => {
         try {
           await createStripeCustomerForOrganization(stripe, organization.id);
         } catch (error) {
@@ -156,7 +147,9 @@ export const stripeCustomerSyncService = {
             error,
           );
         }
-      },
-    );
+        }),
+      );
+    }
+    await Promise.allSettled(organizationSyncPromises);
   },
 };
