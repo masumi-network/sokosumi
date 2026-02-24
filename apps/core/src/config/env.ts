@@ -44,6 +44,7 @@ const envSchema = z.object({
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().min(1),
 
   // Sync lock configuration
   LOCK_TIMEOUT: z.coerce
