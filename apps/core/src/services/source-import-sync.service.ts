@@ -6,6 +6,11 @@ import prisma from "@/lib/db/prisma";
 
 const MAX_CONCURRENT_IMPORTS = 5;
 
+/** Sanitize filename for blob storage path (matches web's uploadFileForBlob behavior). */
+function sanitizePathSegment(name: string): string {
+  return name.replace(/ /g, "_");
+}
+
 function getBasename(url: string): string | null {
   try {
     const parsedUrl = new URL(url);
@@ -77,11 +82,16 @@ async function importBlob(blobId: string): Promise<void> {
       throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
     }
 
-    const uploadResult = await put(`blobs/${blob.id}/${suggestedName}`, sourceFile, {
-      access: "public",
-      addRandomSuffix: true,
-      token: blobToken,
-    });
+    const pathSegment = sanitizePathSegment(suggestedName);
+    const uploadResult = await put(
+      `blobs/${blob.id}/${pathSegment}`,
+      sourceFile,
+      {
+        access: "public",
+        addRandomSuffix: true,
+        token: blobToken,
+      },
+    );
     const blobMetadata = await head(uploadResult.url, { token: blobToken });
 
     await prisma.blob.update({

@@ -190,11 +190,14 @@ describe("sync routes", () => {
   it("returns 200 and starts stripe customer sync exactly once in background", async () => {
     const app = await createApp();
 
-    const response = await app.request("http://localhost/sync/stripe-customers", {
-      headers: {
-        Authorization: "Bearer test-cron-secret",
+    const response = await app.request(
+      "http://localhost/sync/stripe-customers",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
       },
-    });
+    );
 
     expect(response.status).toBe(200);
     expect(acquireLockMock).toHaveBeenCalledWith("stripe-customers-sync");
