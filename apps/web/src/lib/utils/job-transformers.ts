@@ -6,10 +6,6 @@ import {
   OnChainTransactionStatus,
 } from "@sokosumi/database";
 
-import {
-  PostPurchaseResolveBlockchainIdentifierResponses,
-  PostPurchaseResponses,
-} from "@/lib/clients/generated/payment";
 import type { JobStatusValue } from "@/lib/schemas";
 
 /**
@@ -154,13 +150,25 @@ export function transactionStatusToOnChainTransactionStatus(
 }
 
 /**
+ * Minimal purchase shape used for job update. Accepts both web-generated (Date
+ * fields) and @sokosumi/masumi client (string dates) response types.
+ */
+interface PurchaseForJobUpdate {
+  id: string;
+  onChainState: PurchaseOnChainState;
+  inputHash: string;
+  resultHash: string | null;
+  NextAction: PurchaseNextAction;
+  CurrentTransaction: {
+    txHash: string | null;
+    status: "Pending" | "Confirmed" | "FailedViaTimeout" | "RolledBack";
+  } | null;
+}
+
+/**
  * Transform a Purchase from external API to database update data structure.
  */
-export function transformPurchaseToJobUpdate(
-  purchase:
-    | PostPurchaseResponses[200]["data"]
-    | PostPurchaseResolveBlockchainIdentifierResponses[200]["data"],
-): {
+export function transformPurchaseToJobUpdate(purchase: PurchaseForJobUpdate): {
   externalId: string;
   onChainStatus: OnChainJobStatus | null;
   inputHash: string | null;

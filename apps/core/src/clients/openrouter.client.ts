@@ -106,6 +106,45 @@ export const openrouterClient = (() => {
       }
     },
 
+    async generateAgentSummary(description: string): Promise<string | null> {
+      if (!defaultOpenrouter) {
+        return null;
+      }
+
+      const systemPrompt = `You are a summary generator. Output ONLY the summary text—no questions, no explanations, no preamble.
+
+        Task: Write a one-sentence agent summary (11-14 words maximum).
+        
+        Requirements:
+        - Start with an action verb (Analyzes, Generates, Processes, Automates, etc.)
+        - No agent name in output
+        - Match input language
+        - One sentence only
+        
+        Do NOT:
+        - Ask clarifying questions
+        - Add quotes around the output
+        - Include any text besides the summary itself
+        - Output phrases like "Unable to", "I cannot", "I'm sorry", or any refusal messages
+      `;
+
+      const userPrompt = `Agent Description: ${description}`;
+
+      try {
+        const { text } = await generateText({
+          model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.3,
+        });
+
+        return text || null;
+      } catch (error) {
+        console.error("OpenRouter agent summary generation failed:", error);
+        return null;
+      }
+    },
+
     async streamChatResponse(messages: unknown[], modelId: string | null) {
       const chatApiKey = getEnv().OPENROUTER_CHAT_API_KEY;
       if (!chatApiKey) {

@@ -209,6 +209,7 @@ export type User = {
     email: string;
     emailVerified: boolean;
     image?: string | null;
+    role: string;
     credits: number;
     subscription: {
         id: string;
@@ -217,6 +218,20 @@ export type User = {
         periodStart?: Date | null;
         periodEnd?: Date | null;
         cancelAtPeriodEnd?: boolean | null;
+        credits: {
+            /**
+             * Total subscription-period credits granted this period
+             */
+            total: number;
+            /**
+             * Remaining subscription-period credits this period
+             */
+            remaining: number;
+            /**
+             * Used subscription-period credits consumed during this period
+             */
+            used: number;
+        } | null;
     } | null;
 };
 
@@ -237,6 +252,20 @@ export type Organization = {
         periodStart?: Date | null;
         periodEnd?: Date | null;
         cancelAtPeriodEnd?: boolean | null;
+        credits: {
+            /**
+             * Total subscription-period credits granted this period
+             */
+            total: number;
+            /**
+             * Remaining subscription-period credits this period
+             */
+            remaining: number;
+            /**
+             * Used subscription-period credits consumed during this period
+             */
+            used: number;
+        } | null;
     } | null;
 };
 
@@ -383,6 +412,21 @@ export type CoworkerUsage = {
     organizationId: string | null;
     credits: number;
     transactionId: string;
+};
+
+export type CoworkerApiKey = {
+    id: string;
+    coworkerId: string;
+    name?: string | null;
+    keyStart: string;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CoworkerApiKeyWithToken = CoworkerApiKey & {
+    token: string;
 };
 
 export type Task = {
@@ -2553,6 +2597,32 @@ export type PostAgentsByIdJobsErrors = {
         };
     };
     /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Agent not found
      */
     404: {
@@ -2633,6 +2703,19 @@ export type GetConversationsErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -2677,6 +2760,19 @@ export type PostConversationsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -2759,6 +2855,19 @@ export type GetConversationsByIdErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Conversation not found
      */
     404: {
@@ -2831,6 +2940,19 @@ export type PatchConversationsByIdErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Conversation not found
      */
     404: {
@@ -2893,6 +3015,19 @@ export type PatchConversationsByIdArchiveErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -2984,6 +3119,19 @@ export type GetConversationsByIdItemsErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Conversation not found
      */
     404: {
@@ -3046,6 +3194,19 @@ export type PostConversationsByIdItemsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -3123,6 +3284,19 @@ export type GetUsersMeErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -3167,6 +3341,19 @@ export type GetUsersMeOrganizationsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -3384,6 +3571,114 @@ export type GetUsersMeOrganizationsByIdCreditsResponses = {
 
 export type GetUsersMeOrganizationsByIdCreditsResponse = GetUsersMeOrganizationsByIdCreditsResponses[keyof GetUsersMeOrganizationsByIdCreditsResponses];
 
+export type GetUsersMeOrganizationsByIdSubscriptionData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID or slug
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/me/organizations/{id}/subscription';
+};
+
+export type GetUsersMeOrganizationsByIdSubscriptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersMeOrganizationsByIdSubscriptionError = GetUsersMeOrganizationsByIdSubscriptionErrors[keyof GetUsersMeOrganizationsByIdSubscriptionErrors];
+
+export type GetUsersMeOrganizationsByIdSubscriptionResponses = {
+    /**
+     * Retrieve organization subscription
+     */
+    200: {
+        data: {
+            subscription: {
+                id: string;
+                plan: string;
+                status: string;
+                periodStart?: Date | null;
+                periodEnd?: Date | null;
+                cancelAtPeriodEnd?: boolean | null;
+                credits: {
+                    /**
+                     * Total subscription-period credits granted this period
+                     */
+                    total: number;
+                    /**
+                     * Remaining subscription-period credits this period
+                     */
+                    remaining: number;
+                    /**
+                     * Used subscription-period credits consumed during this period
+                     */
+                    used: number;
+                } | null;
+            } | null;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersMeOrganizationsByIdSubscriptionResponse = GetUsersMeOrganizationsByIdSubscriptionResponses[keyof GetUsersMeOrganizationsByIdSubscriptionResponses];
+
 export type GetUsersMeCreditsData = {
     body?: never;
     headers?: {
@@ -3402,6 +3697,19 @@ export type GetUsersMeCreditsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -3449,6 +3757,102 @@ export type GetUsersMeCreditsResponses = {
 
 export type GetUsersMeCreditsResponse = GetUsersMeCreditsResponses[keyof GetUsersMeCreditsResponses];
 
+export type GetUsersMeSubscriptionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/users/me/subscription';
+};
+
+export type GetUsersMeSubscriptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersMeSubscriptionError = GetUsersMeSubscriptionErrors[keyof GetUsersMeSubscriptionErrors];
+
+export type GetUsersMeSubscriptionResponses = {
+    /**
+     * Retrieve the current user's or organization's subscription
+     */
+    200: {
+        data: {
+            subscription: {
+                id: string;
+                plan: string;
+                status: string;
+                periodStart?: Date | null;
+                periodEnd?: Date | null;
+                cancelAtPeriodEnd?: boolean | null;
+                credits: {
+                    /**
+                     * Total subscription-period credits granted this period
+                     */
+                    total: number;
+                    /**
+                     * Remaining subscription-period credits this period
+                     */
+                    remaining: number;
+                    /**
+                     * Used subscription-period credits consumed during this period
+                     */
+                    used: number;
+                } | null;
+            } | null;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersMeSubscriptionResponse = GetUsersMeSubscriptionResponses[keyof GetUsersMeSubscriptionResponses];
+
 export type GetUsersMePreferencesData = {
     body?: never;
     path?: never;
@@ -3461,6 +3865,19 @@ export type GetUsersMePreferencesErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -3555,6 +3972,19 @@ export type PatchUsersMePreferencesErrors = {
             method: string;
         };
     };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PatchUsersMePreferencesError = PatchUsersMePreferencesErrors[keyof PatchUsersMePreferencesErrors];
@@ -3596,6 +4026,19 @@ export type GetUsersMeOnboardingErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -3668,6 +4111,19 @@ export type PostUsersMeOnboardingErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -4175,6 +4631,19 @@ export type GetJobsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -4825,6 +5294,19 @@ export type GetCoworkersErrors = {
             method: string;
         };
     };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type GetCoworkersError = GetCoworkersErrors[keyof GetCoworkersErrors];
@@ -4844,6 +5326,82 @@ export type GetCoworkersResponses = {
 };
 
 export type GetCoworkersResponse = GetCoworkersResponses[keyof GetCoworkersResponses];
+
+export type PostCoworkersData = {
+    body?: {
+        name: string;
+        caption?: string | null;
+        company?: string | null;
+        companyLogo?: string | null;
+        url?: string | null;
+        email: string;
+        description?: string | null;
+        image?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/coworkers';
+};
+
+export type PostCoworkersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostCoworkersError = PostCoworkersErrors[keyof PostCoworkersErrors];
+
+export type PostCoworkersResponses = {
+    /**
+     * Create coworker
+     */
+    201: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostCoworkersResponse = PostCoworkersResponses[keyof PostCoworkersResponses];
 
 export type GetCoworkersMeData = {
     body?: never;
@@ -4990,15 +5548,11 @@ export type GetCoworkersMeEventsResponse = GetCoworkersMeEventsResponses[keyof G
 
 export type PostCoworkersMeUsageData = {
     body?: {
+        userId: string;
+        organizationId: string | null;
         idempotencyKey: string;
         credits: number;
         referenceId?: string;
-    };
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
     };
     path?: never;
     query?: never;
@@ -5102,6 +5656,359 @@ export type PostCoworkersMeUsageResponses = {
 
 export type PostCoworkersMeUsageResponse = PostCoworkersMeUsageResponses[keyof PostCoworkersMeUsageResponses];
 
+export type GetCoworkersByIdApiKeysData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/api-keys';
+};
+
+export type GetCoworkersByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCoworkersByIdApiKeysError = GetCoworkersByIdApiKeysErrors[keyof GetCoworkersByIdApiKeysErrors];
+
+export type GetCoworkersByIdApiKeysResponses = {
+    /**
+     * Retrieve coworker API keys
+     */
+    200: {
+        data: Array<CoworkerApiKey>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCoworkersByIdApiKeysResponse = GetCoworkersByIdApiKeysResponses[keyof GetCoworkersByIdApiKeysResponses];
+
+export type PostCoworkersByIdApiKeysData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/api-keys';
+};
+
+export type PostCoworkersByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostCoworkersByIdApiKeysError = PostCoworkersByIdApiKeysErrors[keyof PostCoworkersByIdApiKeysErrors];
+
+export type PostCoworkersByIdApiKeysResponses = {
+    /**
+     * Create coworker API key
+     */
+    201: {
+        data: CoworkerApiKeyWithToken;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostCoworkersByIdApiKeysResponse = PostCoworkersByIdApiKeysResponses[keyof PostCoworkersByIdApiKeysResponses];
+
+export type DeleteCoworkersByIdApiKeysByKeyIdData = {
+    body?: never;
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/api-keys/{keyId}';
+};
+
+export type DeleteCoworkersByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteCoworkersByIdApiKeysByKeyIdError = DeleteCoworkersByIdApiKeysByKeyIdErrors[keyof DeleteCoworkersByIdApiKeysByKeyIdErrors];
+
+export type DeleteCoworkersByIdApiKeysByKeyIdResponses = {
+    /**
+     * Revoke coworker API key
+     */
+    200: {
+        data: CoworkerApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteCoworkersByIdApiKeysByKeyIdResponse = DeleteCoworkersByIdApiKeysByKeyIdResponses[keyof DeleteCoworkersByIdApiKeysByKeyIdResponses];
+
+export type PatchCoworkersByIdApiKeysByKeyIdData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/api-keys/{keyId}';
+};
+
+export type PatchCoworkersByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchCoworkersByIdApiKeysByKeyIdError = PatchCoworkersByIdApiKeysByKeyIdErrors[keyof PatchCoworkersByIdApiKeysByKeyIdErrors];
+
+export type PatchCoworkersByIdApiKeysByKeyIdResponses = {
+    /**
+     * Update coworker API key
+     */
+    200: {
+        data: CoworkerApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchCoworkersByIdApiKeysByKeyIdResponse = PatchCoworkersByIdApiKeysByKeyIdResponses[keyof PatchCoworkersByIdApiKeysByKeyIdResponses];
+
+export type DeleteCoworkersByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}';
+};
+
+export type DeleteCoworkersByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteCoworkersByIdError = DeleteCoworkersByIdErrors[keyof DeleteCoworkersByIdErrors];
+
+export type DeleteCoworkersByIdResponses = {
+    /**
+     * Archive coworker
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteCoworkersByIdResponse = DeleteCoworkersByIdResponses[keyof DeleteCoworkersByIdResponses];
+
 export type GetCoworkersByIdData = {
     body?: never;
     path: {
@@ -5116,6 +6023,19 @@ export type GetCoworkersByIdErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -5157,6 +6077,84 @@ export type GetCoworkersByIdResponses = {
 };
 
 export type GetCoworkersByIdResponse = GetCoworkersByIdResponses[keyof GetCoworkersByIdResponses];
+
+export type PatchCoworkersByIdData = {
+    body?: {
+        name?: string;
+        caption?: string | null;
+        company?: string | null;
+        companyLogo?: string | null;
+        url?: string | null;
+        email?: string;
+        description?: string | null;
+        image?: string | null;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}';
+};
+
+export type PatchCoworkersByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchCoworkersByIdError = PatchCoworkersByIdErrors[keyof PatchCoworkersByIdErrors];
+
+export type PatchCoworkersByIdResponses = {
+    /**
+     * Update coworker
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchCoworkersByIdResponse = PatchCoworkersByIdResponses[keyof PatchCoworkersByIdResponses];
 
 export type GetTasksData = {
     body?: never;
@@ -5279,6 +6277,19 @@ export type PostTasksErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
@@ -5469,6 +6480,19 @@ export type PatchTasksByIdErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         meta: {
