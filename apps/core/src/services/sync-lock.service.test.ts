@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  lockUpdateMock,
-  lockUpsertMock,
-  prismaTransactionMock,
-} = vi.hoisted(() => ({
-  lockUpdateMock: vi.fn(),
-  lockUpsertMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-}));
+const { lockUpdateMock, lockUpsertMock, prismaTransactionMock } = vi.hoisted(
+  () => ({
+    lockUpdateMock: vi.fn(),
+    lockUpsertMock: vi.fn(),
+    prismaTransactionMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({

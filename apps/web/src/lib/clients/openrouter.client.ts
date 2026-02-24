@@ -74,6 +74,5 @@ export const openrouterClient = (() => {
         return null;
       }
     },
-
   };
 })();

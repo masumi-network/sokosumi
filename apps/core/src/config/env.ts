@@ -50,12 +50,15 @@ const envSchema = z.object({
     .number()
     .min(1 * 60 * 1000)
     .default(2 * 60 * 1000),
-  LOCK_TIMEOUT_BUFFER: z.coerce.number().min(1000).default(1000 * 25),
+  LOCK_TIMEOUT_BUFFER: z.coerce
+    .number()
+    .min(1000)
+    .default(1000 * 25),
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
-    .transform((val: string) => val.trim().toLowerCase() === "true")
-    .default(false),
+    .default("false")
+    .transform((val: string) => val.trim().toLowerCase() === "true"),
 
   // Coworkers API
   COWORKERS_API_SERVICE_KEY: z.string().min(1).optional(),

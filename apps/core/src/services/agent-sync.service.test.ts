@@ -178,7 +178,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentUpsertMock).toHaveBeenCalledTimes(3);
 
     const freeEntryCall = agentUpsertMock.mock.calls[0]?.[0];
-    expect(freeEntryCall.create.pricing.create.pricingType).toBe(PricingType.FREE);
+    expect(freeEntryCall.create.pricing.create.pricingType).toBe(
+      PricingType.FREE,
+    );
     expect(freeEntryCall.create.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
     expect(freeEntryCall.create.status).toBe(AgentStatus.ONLINE);
 
@@ -187,8 +189,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
       PricingType.FIXED,
     );
     expect(
-      fixedEntryCall.create.pricing.create.fixedPricing.create.amounts.createMany
-        .data,
+      fixedEntryCall.create.pricing.create.fixedPricing.create.amounts
+        .createMany.data,
     ).toEqual([{ amount: BigInt(42), unit: "TOKEN" }]);
 
     const invalidFixedEntryCall = agentUpsertMock.mock.calls[2]?.[0];
