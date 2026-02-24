@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * Environment variables schema for Core API
@@ -40,6 +41,21 @@ const envSchema = z.object({
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
   OPENROUTER_CHAT_API_KEY: z.string().startsWith("sk-or-").optional(),
+
+  // Internal cron authentication
+  CRON_SECRET: z.string().optional(),
+
+  // Sync lock configuration
+  LOCK_TIMEOUT: z.coerce
+    .number()
+    .min(1 * 60 * 1000)
+    .default(2 * 60 * 1000),
+  LOCK_TIMEOUT_BUFFER: z.coerce.number().min(1000).default(1000 * 25),
+  INSTANCE_ID: z.string().min(1).default(uuidv4()),
+  SHOW_AGENTS_BY_DEFAULT: z
+    .string()
+    .transform((val: string) => val.trim().toLowerCase() === "true")
+    .default("false"),
 
   // Coworkers API
   COWORKERS_API_SERVICE_KEY: z.string().min(1).optional(),
