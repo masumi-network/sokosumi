@@ -10,7 +10,13 @@ function unauthorizedResponse(message: string): Response {
   });
 }
 
-function authenticateCronSecret(authHeader: string | null): Response | null {
+function authenticateCronSecret(
+  authHeader: string | null | undefined,
+): Response | null {
+  if (!authHeader) {
+    return unauthorizedResponse("Authorization header not provided");
+  }
+
   const cronSecret = getEnv().CRON_SECRET;
 
   if (!cronSecret) {
@@ -44,7 +50,10 @@ async function withTimeout<T>(
   }
 }
 
-function startBackgroundSync(lockKey: string, syncOperation: () => Promise<void>) {
+function startBackgroundSync(
+  lockKey: string,
+  syncOperation: () => Promise<void>,
+) {
   void (async () => {
     try {
       const timeoutMs = Math.max(
@@ -65,7 +74,7 @@ function startBackgroundSync(lockKey: string, syncOperation: () => Promise<void>
 }
 
 export async function handleSyncRequest(
-  authHeader: string | null,
+  authHeader: string | null | undefined,
   lockKey: string,
   syncOperation: () => Promise<void>,
 ): Promise<Response> {

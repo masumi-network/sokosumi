@@ -6,10 +6,6 @@ import { getEnv } from "@/config/env";
 import { getAgentDescription } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
-export const AGENTS_SYNC_LOCK_KEY = "agents-sync";
-export const AGENTS_SUMMARY_SYNC_LOCK_KEY = "agents-summary-sync";
-export const AGENTS_SYNC_METADATA_KEY = "agents-sync-metadata";
-
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
 
 function isValidEmail(email: string | null | undefined): email is string {
@@ -102,10 +98,10 @@ function parseEntryAgentPricing(pricing: {
   }
 }
 
-async function syncRegistryAgents(): Promise<void> {
+async function syncRegistryAgents(metadataKey: string): Promise<void> {
   const metadata = await prisma.syncMetadata.findUnique({
     where: {
-      key: AGENTS_SYNC_METADATA_KEY,
+      key: metadataKey,
     },
   });
   const lastSyncedAt = metadata?.lastSyncedAt ?? new Date(0);
@@ -224,10 +220,10 @@ async function syncRegistryAgents(): Promise<void> {
   const lastEntry = entries[entries.length - 1];
   await prisma.syncMetadata.upsert({
     where: {
-      key: AGENTS_SYNC_METADATA_KEY,
+      key: metadataKey,
     },
     create: {
-      key: AGENTS_SYNC_METADATA_KEY,
+      key: metadataKey,
       cursorId: lastEntry.id,
       lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
     },
@@ -244,7 +240,10 @@ async function syncAgentSummaries(): Promise<void> {
       status: AgentStatus.ONLINE,
       isShown: true,
       summary: null,
-      OR: [{ description: { not: null } }, { overrideDescription: { not: null } }],
+      OR: [
+        { description: { not: null } },
+        { overrideDescription: { not: null } },
+      ],
     },
     take: AGENT_SUMMARY_SYNC_LIMIT,
   });
