@@ -3,44 +3,48 @@ import type { Lock } from "@sokosumi/database";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
-function isLockExpired(lockedAt: Date | null): boolean {
-  if (!lockedAt) {
-    return true;
-  }
-
-  return Date.now() - lockedAt.getTime() > getEnv().LOCK_TIMEOUT;
-}
-
 export const syncLockService = {
   async acquireLock(key: string): Promise<Lock> {
     return await prisma.$transaction(async (tx) => {
-      const lock = await tx.lock.upsert({
+      await tx.lock.upsert({
         where: { key },
         create: { key },
         update: {},
       });
 
-      if (lock.isLocked && !isLockExpired(lock.lockedAt)) {
-        throw new Error("LOCK_IS_LOCKED");
-      }
+      const lockAcquiredAt = new Date();
+      const lockExpirationThreshold = new Date(
+        lockAcquiredAt.getTime() - getEnv().LOCK_TIMEOUT,
+      );
 
-      if (lock.isLocked && isLockExpired(lock.lockedAt)) {
-        await tx.lock.update({
-          where: { key },
-          data: {
-            isLocked: false,
-            lockedBy: null,
-            lockedAt: null,
-          },
-        });
-      }
-
-      return await tx.lock.update({
-        where: { key },
+      const acquireResult = await tx.lock.updateMany({
+        where: {
+          key,
+          OR: [
+            { isLocked: false },
+            { isLocked: true, lockedAt: null },
+            {
+              isLocked: true,
+              lockedAt: {
+                lt: lockExpirationThreshold,
+              },
+            },
+          ],
+        },
         data: {
           isLocked: true,
           lockedBy: getEnv().INSTANCE_ID,
-          lockedAt: new Date(),
+          lockedAt: lockAcquiredAt,
+        },
+      });
+
+      if (acquireResult.count === 0) {
+        throw new Error("LOCK_IS_LOCKED");
+      }
+
+      return await tx.lock.findUniqueOrThrow({
+        where: {
+          key,
         },
       });
     });

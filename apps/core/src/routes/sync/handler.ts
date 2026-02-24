@@ -33,20 +33,33 @@ function authenticateCronSecret(c: Context): Response | null {
 }
 
 async function withTimeout<T>(
-  promise: Promise<T>,
+  operation: () => Promise<T>,
   milliseconds: number,
 ): Promise<T> {
+  const operationPromise = operation();
+
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
+  const timeoutPromise = new Promise<void>((resolve) => {
     timeoutId = setTimeout(() => {
-      reject(new Error("SYNC_TIMEOUT"));
+      resolve();
     }, milliseconds);
   });
 
+  const result = await Promise.race([
+    operationPromise.then(() => "completed" as const),
+    timeoutPromise.then(() => "timed-out" as const),
+  ]);
+
+  if (result === "timed-out") {
+    console.error(
+      `Sync operation exceeded timeout (${milliseconds}ms); waiting for completion before releasing lock`,
+    );
+  }
+
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await operationPromise;
   } finally {
-    if (timeoutId) {
+    if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
     }
   }
@@ -62,7 +75,7 @@ function startBackgroundSync(
         1,
         getEnv().LOCK_TIMEOUT - getEnv().LOCK_TIMEOUT_BUFFER,
       );
-      await withTimeout(syncOperation(), timeoutMs);
+      await withTimeout(syncOperation, timeoutMs);
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {

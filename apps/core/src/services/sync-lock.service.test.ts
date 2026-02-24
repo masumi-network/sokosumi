@@ -1,12 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { lockUpdateMock, lockUpsertMock, prismaTransactionMock } = vi.hoisted(
-  () => ({
-    lockUpdateMock: vi.fn(),
-    lockUpsertMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-  }),
-);
+const {
+  lockFindUniqueOrThrowMock,
+  lockUpdateManyMock,
+  lockUpdateMock,
+  lockUpsertMock,
+  prismaTransactionMock,
+} = vi.hoisted(() => ({
+  lockFindUniqueOrThrowMock: vi.fn(),
+  lockUpdateManyMock: vi.fn(),
+  lockUpdateMock: vi.fn(),
+  lockUpsertMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+}));
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
@@ -33,6 +39,8 @@ describe("syncLockService", () => {
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
           lock: {
+            findUniqueOrThrow: lockFindUniqueOrThrowMock,
+            updateMany: lockUpdateManyMock,
             upsert: lockUpsertMock,
             update: lockUpdateMock,
           },
@@ -41,17 +49,27 @@ describe("syncLockService", () => {
     );
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("creates and acquires a lock when lock does not exist", async () => {
     const syncLockService = await getSyncLockService();
+    const acquiredAt = new Date("2026-02-24T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(acquiredAt);
+
     lockUpsertMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: false,
       lockedAt: null,
     });
-    lockUpdateMock.mockResolvedValue({
+    lockUpdateManyMock.mockResolvedValue({ count: 1 });
+    lockFindUniqueOrThrowMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: true,
       lockedBy: "instance-test",
+      lockedAt: acquiredAt,
     });
 
     const lock = await syncLockService.acquireLock("agents-sync");
@@ -61,13 +79,28 @@ describe("syncLockService", () => {
       create: { key: "agents-sync" },
       update: {},
     });
-    expect(lockUpdateMock).toHaveBeenCalledWith({
-      where: { key: "agents-sync" },
-      data: expect.objectContaining({
+    expect(lockUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        key: "agents-sync",
+        OR: [
+          { isLocked: false },
+          { isLocked: true, lockedAt: null },
+          {
+            isLocked: true,
+            lockedAt: {
+              lt: new Date(acquiredAt.getTime() - 120000),
+            },
+          },
+        ],
+      },
+      data: {
         isLocked: true,
         lockedBy: "instance-test",
-        lockedAt: expect.any(Date),
-      }),
+        lockedAt: acquiredAt,
+      },
+    });
+    expect(lockFindUniqueOrThrowMock).toHaveBeenCalledWith({
+      where: { key: "agents-sync" },
     });
     expect(lock).toEqual(
       expect.objectContaining({
@@ -84,54 +117,44 @@ describe("syncLockService", () => {
       isLocked: true,
       lockedAt: new Date(),
     });
+    lockUpdateManyMock.mockResolvedValue({ count: 0 });
 
     await expect(syncLockService.acquireLock("agents-sync")).rejects.toThrow(
       "LOCK_IS_LOCKED",
     );
 
+    expect(lockFindUniqueOrThrowMock).not.toHaveBeenCalled();
     expect(lockUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("recovers an expired lock and reacquires it", async () => {
+  it("acquires lock when a stale lock exists", async () => {
     const syncLockService = await getSyncLockService();
-    const expired = new Date(Date.now() - 130000);
+    const acquiredAt = new Date("2026-02-24T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(acquiredAt);
+
     lockUpsertMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: true,
-      lockedAt: expired,
+      lockedAt: new Date("2026-02-24T11:55:00.000Z"),
     });
-    lockUpdateMock
-      .mockResolvedValueOnce({
-        key: "agents-sync",
-        isLocked: false,
-        lockedAt: null,
-        lockedBy: null,
-      })
-      .mockResolvedValueOnce({
-        key: "agents-sync",
-        isLocked: true,
-        lockedBy: "instance-test",
-        lockedAt: new Date(),
-      });
+    lockUpdateManyMock.mockResolvedValue({ count: 1 });
+    lockFindUniqueOrThrowMock.mockResolvedValue({
+      key: "agents-sync",
+      isLocked: true,
+      lockedBy: "instance-test",
+      lockedAt: acquiredAt,
+    });
 
     await syncLockService.acquireLock("agents-sync");
 
-    expect(lockUpdateMock).toHaveBeenNthCalledWith(1, {
-      where: { key: "agents-sync" },
-      data: {
-        isLocked: false,
-        lockedBy: null,
-        lockedAt: null,
-      },
-    });
-    expect(lockUpdateMock).toHaveBeenNthCalledWith(2, {
-      where: { key: "agents-sync" },
-      data: expect.objectContaining({
-        isLocked: true,
-        lockedBy: "instance-test",
-        lockedAt: expect.any(Date),
+    expect(lockUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          key: "agents-sync",
+        }),
       }),
-    });
+    );
   });
 
   it("releases a lock by key", async () => {

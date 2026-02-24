@@ -50,6 +50,11 @@ async function flushMicrotasks() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 describe("sync routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -139,5 +144,49 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps lock held until timed-out sync operation completes", async () => {
+    vi.useFakeTimers();
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      let resolveSync: (() => void) | null = null;
+      syncRegistryAgentsMock.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSync = resolve;
+          }),
+      );
+
+      const app = await createApp();
+      const response = await app.request("http://localhost/sync/agents", {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      });
+
+      expect(response.status).toBe(200);
+      await flushPromises();
+      expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(95000);
+      await flushPromises();
+
+      expect(releaseLockMock).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Sync operation exceeded timeout"),
+      );
+
+      resolveSync?.();
+      await flushPromises();
+
+      expect(releaseLockMock).toHaveBeenCalledWith("agents-sync");
+    } finally {
+      consoleErrorSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 });
