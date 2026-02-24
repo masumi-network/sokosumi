@@ -1,3 +1,5 @@
+import type { Context } from "hono";
+
 import { getEnv } from "@/config/env";
 import { syncLockService } from "@/services/sync-lock.service";
 
@@ -10,9 +12,9 @@ function unauthorizedResponse(message: string): Response {
   });
 }
 
-function authenticateCronSecret(
-  authHeader: string | null | undefined,
-): Response | null {
+function authenticateCronSecret(c: Context): Response | null {
+  const authHeader = c.req.header("authorization");
+
   if (!authHeader) {
     return unauthorizedResponse("Authorization header not provided");
   }
@@ -74,11 +76,11 @@ function startBackgroundSync(
 }
 
 export async function handleSyncRequest(
-  authHeader: string | null | undefined,
+  c: Context,
   lockKey: string,
   syncOperation: () => Promise<void>,
 ): Promise<Response> {
-  const unauthorized = authenticateCronSecret(authHeader);
+  const unauthorized = authenticateCronSecret(c);
   if (unauthorized) {
     return unauthorized;
   }

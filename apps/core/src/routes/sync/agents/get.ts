@@ -10,7 +10,7 @@ export const AGENTS_SYNC_METADATA_KEY = "agents-sync-metadata";
 export default function mount(app: Hono) {
   app.get("/agents", async (c) => {
     return await handleSyncRequest(
-      c.req.header("authorization"),
+      c,
       AGENTS_SYNC_LOCK_KEY,
       async () => {
         await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);

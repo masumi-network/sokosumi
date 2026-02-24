@@ -62,6 +62,8 @@ async function getAgentSyncService() {
   return module.agentSyncService;
 }
 
+const AGENTS_SYNC_METADATA_KEY = "agents-sync-metadata";
+
 function createRegistryEntry(
   id: string,
   overrides: Record<string, unknown> = {},
@@ -122,7 +124,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     const agentSyncService = await getAgentSyncService();
     getAgentsDiffMock.mockResolvedValue(ok([]));
 
-    await agentSyncService.syncRegistryAgents();
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentUpsertMock).not.toHaveBeenCalled();
@@ -133,7 +135,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     const agentSyncService = await getAgentSyncService();
     getAgentsDiffMock.mockResolvedValue(err("registry unavailable"));
 
-    await agentSyncService.syncRegistryAgents();
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentUpsertMock).not.toHaveBeenCalled();
@@ -170,7 +172,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     ];
     getAgentsDiffMock.mockResolvedValue(ok(entries));
 
-    await agentSyncService.syncRegistryAgents();
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
 
     expect(tagUpsertMock).toHaveBeenCalled();
     expect(agentUpsertMock).toHaveBeenCalledTimes(3);
@@ -225,7 +227,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     getAgentsDiffMock.mockResolvedValue(ok(entries));
 
     const agentSyncService = await getAgentSyncService();
-    await agentSyncService.syncRegistryAgents();
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
 
     expect(agentUpsertMock).toHaveBeenCalledTimes(1);
     const emptyFixedCall = agentUpsertMock.mock.calls[0]?.[0];
