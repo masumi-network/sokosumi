@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acquireLockMock,
   releaseLockMock,
+  executeDueSchedulesMock,
   syncAgentSummariesMock,
   syncRegistryAgentsMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
+  executeDueSchedulesMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
 }));
@@ -35,6 +37,12 @@ vi.mock("@/services/agent-sync.service", () => ({
   },
 }));
 
+
+vi.mock("@/services/job-schedule-sync.service", () => ({
+  jobScheduleSyncService: {
+    executeDueSchedules: executeDueSchedulesMock,
+  },
+}));
 vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => {
     void promise;
@@ -69,6 +77,7 @@ describe("sync routes", () => {
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
+    executeDueSchedulesMock.mockResolvedValue(undefined);
   });
 
   it("returns 401 for missing cron auth", async () => {
@@ -151,6 +160,23 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
+  });
+
+
+  it("returns 200 and starts job schedules sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/job-schedules", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("job-schedules-sync");
+
+    await flushMicrotasks();
+    expect(executeDueSchedulesMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not release lock while long-running sync is still pending", async () => {
