@@ -612,10 +612,6 @@ export const UserSchema = {
             ],
             example: 'https://example.com/image.png'
         },
-        role: {
-            type: 'string',
-            example: 'user'
-        },
         credits: {
             type: 'number',
             example: 100
@@ -660,41 +656,12 @@ export const UserSchema = {
                         'null'
                     ],
                     example: false
-                },
-                credits: {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    properties: {
-                        total: {
-                            type: 'number',
-                            description: 'Total subscription-period credits granted this period',
-                            example: 100
-                        },
-                        remaining: {
-                            type: 'number',
-                            description: 'Remaining subscription-period credits this period',
-                            example: 57.5
-                        },
-                        used: {
-                            type: 'number',
-                            description: 'Used subscription-period credits consumed during this period',
-                            example: 42.5
-                        }
-                    },
-                    required: [
-                        'total',
-                        'remaining',
-                        'used'
-                    ]
                 }
             },
             required: [
                 'id',
                 'plan',
-                'status',
-                'credits'
+                'status'
             ]
         }
     },
@@ -705,7 +672,6 @@ export const UserSchema = {
         'name',
         'email',
         'emailVerified',
-        'role',
         'credits',
         'subscription'
     ]
@@ -780,41 +746,12 @@ export const OrganizationSchema = {
                         'null'
                     ],
                     example: false
-                },
-                credits: {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    properties: {
-                        total: {
-                            type: 'number',
-                            description: 'Total subscription-period credits granted this period',
-                            example: 100
-                        },
-                        remaining: {
-                            type: 'number',
-                            description: 'Remaining subscription-period credits this period',
-                            example: 57.5
-                        },
-                        used: {
-                            type: 'number',
-                            description: 'Used subscription-period credits consumed during this period',
-                            example: 42.5
-                        }
-                    },
-                    required: [
-                        'total',
-                        'remaining',
-                        'used'
-                    ]
                 }
             },
             required: [
                 'id',
                 'plan',
-                'status',
-                'credits'
+                'status'
             ]
         }
     },
@@ -1429,86 +1366,6 @@ export const CoworkerUsageSchema = {
         'organizationId',
         'credits',
         'transactionId'
-    ]
-} as const;
-
-export const CoworkerApiKeySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'cokey_123'
-        },
-        coworkerId: {
-            type: 'string',
-            example: 'cow_123'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Production key'
-        },
-        keyStart: {
-            type: 'string',
-            example: 'coworker_abcdefgh'
-        },
-        expiresAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2026-12-31T23:59:59.000Z'
-        },
-        revokedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: null
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'coworkerId',
-        'keyStart',
-        'expiresAt',
-        'revokedAt',
-        'createdAt',
-        'updatedAt'
-    ]
-} as const;
-
-export const CoworkerApiKeyWithTokenSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/CoworkerApiKey'
-        },
-        {
-            type: 'object',
-            properties: {
-                token: {
-                    type: 'string',
-                    example: 'coworker_very_secret_value'
-                }
-            },
-            required: [
-                'token'
-            ]
-        }
     ]
 } as const;
 

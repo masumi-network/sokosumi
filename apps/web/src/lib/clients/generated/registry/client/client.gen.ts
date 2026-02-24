@@ -3,7 +3,12 @@
 import { createSseClient } from '../core/serverSentEvents.gen';
 import type { HttpMethod } from '../core/types.gen';
 import { getValidRequestBody } from '../core/utils.gen';
-import type { Client, Config, RequestOptions, ResolvedRequestOptions } from './types.gen';
+import type {
+  Client,
+  Config,
+  RequestOptions,
+  ResolvedRequestOptions,
+} from './types.gen';
 import {
   buildUrl,
   createConfig,
@@ -29,7 +34,11 @@ export const createClient = (config: Config = {}): Client => {
     return getConfig();
   };
 
-  const interceptors = createInterceptors<Response, unknown, ResolvedRequestOptions>();
+  const interceptors = createInterceptors<
+    Response,
+    unknown,
+    ResolvedRequestOptions
+  >();
 
   const beforeRequest = async (options: RequestOptions) => {
     const opts = {
@@ -102,7 +111,10 @@ export const createClient = (config: Config = {}): Client => {
           ? getParseAs(response.headers.get('Content-Type'))
           : opts.parseAs) ?? 'json';
 
-      if (response.status === 204 || response.headers.get('Content-Length') === '0') {
+      if (
+        response.status === 204 ||
+        response.headers.get('Content-Length') === '0'
+      ) {
         let emptyData: any;
         switch (parseAs) {
           case 'arrayBuffer':
@@ -132,16 +144,10 @@ export const createClient = (config: Config = {}): Client => {
         case 'arrayBuffer':
         case 'blob':
         case 'formData':
+        case 'json':
         case 'text':
           data = await response[parseAs]();
           break;
-        case 'json': {
-          // Some servers return 200 with no Content-Length and empty body.
-          // response.json() would throw; read as text and parse if non-empty.
-          const text = await response.text();
-          data = text ? JSON.parse(text) : {};
-          break;
-        }
         case 'stream':
           return {
             data: response.body,
@@ -195,35 +201,40 @@ export const createClient = (config: Config = {}): Client => {
     };
   };
 
-  const makeMethodFn = (method: Uppercase<HttpMethod>) => (options: RequestOptions) =>
-    request({ ...options, method });
+  const makeMethodFn =
+    (method: Uppercase<HttpMethod>) => (options: RequestOptions) =>
+      request({ ...options, method });
 
-  const makeSseFn = (method: Uppercase<HttpMethod>) => async (options: RequestOptions) => {
-    const { opts, url } = await beforeRequest(options);
-    return createSseClient({
-      ...opts,
-      body: opts.body as BodyInit | null | undefined,
-      headers: opts.headers as unknown as Record<string, string>,
-      method,
-      onRequest: async (url, init) => {
-        let request = new Request(url, init);
-        const requestInit = {
-          ...init,
-          method: init.method as Config['method'],
-          url,
-        };
-        for (const fn of interceptors.request.fns) {
-          if (fn) {
-            await fn(requestInit);
-            request = new Request(requestInit.url, requestInit);
+  const makeSseFn =
+    (method: Uppercase<HttpMethod>) => async (options: RequestOptions) => {
+      const { opts, url } = await beforeRequest(options);
+      return createSseClient({
+        ...opts,
+        body: opts.body as BodyInit | null | undefined,
+        headers: opts.headers as unknown as Record<string, string>,
+        method,
+        onRequest: async (url, init) => {
+          let request = new Request(url, init);
+          const requestInit = {
+            ...init,
+            method: init.method as Config['method'],
+            url,
+          };
+          for (const fn of interceptors.request.fns) {
+            if (fn) {
+              await fn(requestInit);
+              request = new Request(requestInit.url, requestInit);
+            }
           }
-        }
-        return request;
-      },
-      serializedBody: getValidRequestBody(opts) as BodyInit | null | undefined,
-      url,
-    });
-  };
+          return request;
+        },
+        serializedBody: getValidRequestBody(opts) as
+          | BodyInit
+          | null
+          | undefined,
+        url,
+      });
+    };
 
   return {
     buildUrl,

@@ -4,1602 +4,6 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type ApiKey = {
-    /**
-     * Unique identifier for the API key
-     */
-    id: string;
-    /**
-     * The API key token
-     */
-    token: string;
-    /**
-     * Permission level of the API key
-     */
-    permission: 'Read' | 'ReadAndPay' | 'Admin';
-    /**
-     * Whether the API key has usage limits
-     */
-    usageLimited: boolean;
-    /**
-     * List of Cardano networks this API key is allowed to access
-     */
-    networkLimit: Array<'Preprod' | 'Mainnet'>;
-    /**
-     * Remaining usage credits for this API key
-     */
-    RemainingUsageCredits: Array<{
-        /**
-         * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
-         */
-        unit: string;
-        /**
-         * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
-         */
-        amount: string;
-    }>;
-    /**
-     * Current status of the API key
-     */
-    status: 'Active' | 'Revoked';
-};
-
-export type Wallet = {
-    /**
-     * Wallet secret (mnemonic). Only included if includeSecret is true
-     */
-    Secret?: {
-        /**
-         * Timestamp when the secret was created
-         */
-        createdAt: Date;
-        /**
-         * Timestamp when the secret was last updated
-         */
-        updatedAt: Date;
-        /**
-         * Decrypted 24-word mnemonic phrase for the wallet
-         */
-        mnemonic: string;
-    };
-    /**
-     * Pending transaction for this wallet. Null if no transaction is pending
-     */
-    PendingTransaction: {
-        /**
-         * Timestamp when the pending transaction was created
-         */
-        createdAt: Date;
-        /**
-         * Timestamp when the pending transaction was last updated
-         */
-        updatedAt: Date;
-        /**
-         * Transaction hash of the pending transaction. Null if not yet submitted
-         */
-        hash: string | null;
-        /**
-         * Timestamp when the pending transaction was last checked. Null if never checked
-         */
-        lastCheckedAt: Date | null;
-    } | null;
-    /**
-     * Optional note about this wallet. Null if not set
-     */
-    note: string | null;
-    /**
-     * Payment key hash of the wallet
-     */
-    walletVkey: string;
-    /**
-     * Cardano address of the wallet
-     */
-    walletAddress: string;
-    /**
-     * Collection address for this wallet. Null if not set
-     */
-    collectionAddress: string | null;
-};
-
-export type GeneratedWalletSecret = {
-    /**
-     * 24-word mnemonic phrase for the newly generated wallet. IMPORTANT: Backup this mnemonic securely
-     */
-    walletMnemonic: string;
-    /**
-     * Cardano address of the newly generated wallet
-     */
-    walletAddress: string;
-    /**
-     * Payment key hash of the newly generated wallet
-     */
-    walletVkey: string;
-};
-
-export type Payment = {
-    /**
-     * Unique identifier for the payment
-     */
-    id: string;
-    /**
-     * Timestamp when the payment was created
-     */
-    createdAt: Date;
-    /**
-     * Timestamp when the payment was last updated
-     */
-    updatedAt: Date;
-    /**
-     * Unique blockchain identifier for the payment
-     */
-    blockchainIdentifier: string;
-    /**
-     * Identifier of the agent that is being paid
-     */
-    agentIdentifier: string | null;
-    /**
-     * Timestamp when the payment was last checked on-chain. Null if never checked
-     */
-    lastCheckedAt: Date | null;
-    /**
-     * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
-     */
-    payByTime: string | null;
-    /**
-     * Unix timestamp (in milliseconds) by which the seller must submit the result
-     */
-    submitResultTime: string;
-    /**
-     * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
-     */
-    unlockTime: string;
-    /**
-     * Amount of collateral to return in lovelace. Null if no collateral
-     */
-    collateralReturnLovelace: string | null;
-    /**
-     * Unix timestamp (in milliseconds) after which external dispute resolution can occur
-     */
-    externalDisputeUnlockTime: string;
-    /**
-     * ID of the API key that created this payment
-     */
-    requestedById: string;
-    /**
-     * SHA256 hash of the result submitted by the seller (hex string)
-     */
-    resultHash: string | null;
-    /**
-     * Timestamp when the next action was last changed
-     */
-    nextActionLastChangedAt: Date;
-    /**
-     * Timestamp when the on-chain state or result was last changed
-     */
-    onChainStateOrResultLastChangedAt: Date;
-    /**
-     * Timestamp when the next action or on-chain state or result was last changed
-     */
-    nextActionOrOnChainStateOrResultLastChangedAt: Date;
-    /**
-     * SHA256 hash of the input data for the payment (hex string)
-     */
-    inputHash: string | null;
-    /**
-     * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-     */
-    totalBuyerCardanoFees: number;
-    /**
-     * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-     */
-    totalSellerCardanoFees: number;
-    /**
-     * Cooldown period in milliseconds for the seller to dispute
-     */
-    cooldownTime: number;
-    /**
-     * Cooldown period in milliseconds for the buyer to dispute
-     */
-    cooldownTimeOtherParty: number;
-    /**
-     * Current state of the payment on the blockchain. Null if not yet on-chain
-     */
-    onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-    /**
-     * Next action required for this payment
-     */
-    NextAction: {
-        /**
-         * Next action required for this payment
-         */
-        requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'SubmitResultRequested' | 'SubmitResultInitiated' | 'WithdrawRequested' | 'WithdrawInitiated' | 'AuthorizeRefundRequested' | 'AuthorizeRefundInitiated';
-        /**
-         * Type of error that occurred, if any
-         */
-        errorType: 'NetworkError' | 'Unknown' | null;
-        /**
-         * Additional details about the error, if any
-         */
-        errorNote: string | null;
-        /**
-         * SHA256 hash of the result to be submitted (hex string). Null if not applicable
-         */
-        resultHash: string | null;
-    };
-    /**
-     * Historical list of all actions for this payment. Null if includeHistory is false
-     */
-    ActionHistory: Array<{
-        /**
-         * Unique identifier for the action
-         */
-        id: string;
-        /**
-         * Timestamp when the action was created
-         */
-        createdAt: Date;
-        /**
-         * Timestamp when the action was last updated
-         */
-        updatedAt: Date;
-        /**
-         * Cardano transaction hash
-         */
-        submittedTxHash: string | null;
-        /**
-         * Next action required for this payment
-         */
-        requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'SubmitResultRequested' | 'SubmitResultInitiated' | 'WithdrawRequested' | 'WithdrawInitiated' | 'AuthorizeRefundRequested' | 'AuthorizeRefundInitiated';
-        /**
-         * Type of error that occurred, if any
-         */
-        errorType: 'NetworkError' | 'Unknown' | null;
-        /**
-         * Additional details about the error, if any
-         */
-        errorNote: string | null;
-        /**
-         * SHA256 hash of the result to be submitted (hex string). Null if not applicable
-         */
-        resultHash: string | null;
-    }> | null;
-    /**
-     * Current active transaction for this payment. Null if no transaction in progress
-     */
-    CurrentTransaction: {
-        /**
-         * Unique identifier for the transaction
-         */
-        id: string;
-        /**
-         * Timestamp when the transaction was created
-         */
-        createdAt: Date;
-        /**
-         * Timestamp when the transaction was last updated
-         */
-        updatedAt: Date;
-        fees: string | null;
-        /**
-         * Block height of the transaction
-         */
-        blockHeight: number | null;
-        /**
-         * Block time of the transaction
-         */
-        blockTime: number | null;
-        /**
-         * Cardano transaction hash
-         */
-        txHash: string | null;
-        /**
-         * Current status of the transaction
-         */
-        status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-        /**
-         * Previous on-chain state before this transaction
-         */
-        previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * New on-chain state of this transaction
-         */
-        newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * Number of block confirmations for this transaction
-         */
-        confirmations: number | null;
-    } | null;
-    /**
-     * Historical list of all transactions for this payment. Null if includeHistory is false
-     */
-    TransactionHistory: Array<{
-        /**
-         * Unique identifier for the transaction
-         */
-        id: string;
-        /**
-         * Timestamp when the transaction was created
-         */
-        createdAt: Date;
-        /**
-         * Timestamp when the transaction was last updated
-         */
-        updatedAt: Date;
-        /**
-         * Cardano transaction hash
-         */
-        txHash: string | null;
-        /**
-         * Current status of the transaction
-         */
-        status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-        /**
-         * Fees of the transaction
-         */
-        fees: string | null;
-        /**
-         * Block height of the transaction
-         */
-        blockHeight: number | null;
-        /**
-         * Block time of the transaction
-         */
-        blockTime: number | null;
-        /**
-         * Previous on-chain state before this transaction
-         */
-        previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * New on-chain state of this transaction
-         */
-        newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * Number of block confirmations for this transaction
-         */
-        confirmations: number | null;
-    }> | null;
-    RequestedFunds: Array<{
-        /**
-         * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
-         */
-        amount: string;
-        /**
-         * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
-         */
-        unit: string;
-    }>;
-    /**
-     * List of assets and amounts withdrawn for the seller
-     */
-    WithdrawnForSeller: Array<{
-        /**
-         * Amount of the asset withdrawn (as string to handle large numbers)
-         */
-        amount: string;
-        /**
-         * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
-         */
-        unit: string;
-    }>;
-    /**
-     * List of assets and amounts withdrawn for the buyer (refunds)
-     */
-    WithdrawnForBuyer: Array<{
-        /**
-         * Amount of the asset withdrawn (as string to handle large numbers)
-         */
-        amount: string;
-        /**
-         * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
-         */
-        unit: string;
-    }>;
-    /**
-     * Payment source configuration for this payment
-     */
-    PaymentSource: {
-        /**
-         * Unique identifier for the payment source
-         */
-        id: string;
-        /**
-         * The Cardano network (Mainnet, Preprod, or Preview)
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * Address of the smart contract managing this payment
-         */
-        smartContractAddress: string;
-        /**
-         * Policy ID for the agent registry NFTs. Null if not applicable
-         */
-        policyId: string | null;
-    };
-    /**
-     * Buyer wallet information. Null if buyer has not yet submitted payment
-     */
-    BuyerWallet: {
-        /**
-         * Unique identifier for the buyer wallet
-         */
-        id: string;
-        /**
-         * Payment key hash of the buyer wallet
-         */
-        walletVkey: string;
-    } | null;
-    /**
-     * Smart contract wallet (seller wallet) managing this payment. Null if not set
-     */
-    SmartContractWallet: {
-        /**
-         * Unique identifier for the smart contract wallet
-         */
-        id: string;
-        /**
-         * Payment key hash of the smart contract wallet
-         */
-        walletVkey: string;
-        /**
-         * Cardano address of the smart contract wallet
-         */
-        walletAddress: string;
-    } | null;
-    /**
-     * Optional metadata stored with the payment for additional context. Null if not provided
-     */
-    metadata: string | null;
-};
-
-export type Purchase = {
-    /**
-     * Unique identifier for the purchase
-     */
-    id: string;
-    /**
-     * Timestamp when the purchase was created
-     */
-    createdAt: Date;
-    /**
-     * Timestamp when the purchase was last updated
-     */
-    updatedAt: Date;
-    /**
-     * Unique blockchain identifier for the purchase
-     */
-    blockchainIdentifier: string;
-    /**
-     * Identifier of the agent that is being purchased
-     */
-    agentIdentifier: string | null;
-    /**
-     * Timestamp when the purchase was last checked on-chain. Null if never checked
-     */
-    lastCheckedAt: Date | null;
-    /**
-     * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
-     */
-    payByTime: string | null;
-    /**
-     * Unix timestamp (in milliseconds) by which the seller must submit the result
-     */
-    submitResultTime: string;
-    /**
-     * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
-     */
-    unlockTime: string;
-    /**
-     * Unix timestamp (in milliseconds) after which external dispute resolution can occur
-     */
-    externalDisputeUnlockTime: string;
-    /**
-     * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-     */
-    totalBuyerCardanoFees: number;
-    /**
-     * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-     */
-    totalSellerCardanoFees: number;
-    /**
-     * Timestamp when the next action or on-chain state or result was last changed
-     */
-    nextActionOrOnChainStateOrResultLastChangedAt: Date;
-    /**
-     * Timestamp when the next action was last changed
-     */
-    nextActionLastChangedAt: Date;
-    /**
-     * Timestamp when the on-chain state or result was last changed
-     */
-    onChainStateOrResultLastChangedAt: Date;
-    /**
-     * ID of the API key that created this purchase
-     */
-    requestedById: string;
-    /**
-     * Current state of the purchase on the blockchain. Null if not yet on-chain
-     */
-    onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-    /**
-     * Amount of collateral to return in lovelace. Null if no collateral
-     */
-    collateralReturnLovelace: string | null;
-    /**
-     * Cooldown period in milliseconds for the buyer to dispute
-     */
-    cooldownTime: number;
-    /**
-     * Cooldown period in milliseconds for the seller to dispute
-     */
-    cooldownTimeOtherParty: number;
-    /**
-     * SHA256 hash of the input data for the purchase (hex string)
-     */
-    inputHash: string;
-    /**
-     * SHA256 hash of the result submitted by the seller (hex string)
-     */
-    resultHash: string | null;
-    /**
-     * Next action required for this purchase
-     */
-    NextAction: {
-        /**
-         * Next action required for this purchase
-         */
-        requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'FundsLockingRequested' | 'FundsLockingInitiated' | 'SetRefundRequestedRequested' | 'SetRefundRequestedInitiated' | 'UnSetRefundRequestedRequested' | 'UnSetRefundRequestedInitiated' | 'WithdrawRefundRequested' | 'WithdrawRefundInitiated';
-        /**
-         * Type of error that occurred, if any
-         */
-        errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown' | null;
-        /**
-         * Additional details about the error, if any
-         */
-        errorNote: string | null;
-    };
-    /**
-     * Historical list of all actions for this purchase. Null if includeHistory is false
-     */
-    ActionHistory: Array<{
-        /**
-         * Next action required for this purchase
-         */
-        requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'FundsLockingRequested' | 'FundsLockingInitiated' | 'SetRefundRequestedRequested' | 'SetRefundRequestedInitiated' | 'UnSetRefundRequestedRequested' | 'UnSetRefundRequestedInitiated' | 'WithdrawRefundRequested' | 'WithdrawRefundInitiated';
-        /**
-         * Type of error that occurred, if any
-         */
-        errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown' | null;
-        /**
-         * Additional details about the error, if any
-         */
-        errorNote: string | null;
-    }> | null;
-    /**
-     * Current active transaction for this purchase. Null if no transaction in progress
-     */
-    CurrentTransaction: {
-        /**
-         * Unique identifier for the transaction
-         */
-        id: string;
-        /**
-         * Timestamp when the transaction was created
-         */
-        createdAt: Date;
-        /**
-         * Timestamp when the transaction was last updated
-         */
-        updatedAt: Date;
-        /**
-         * Cardano transaction hash
-         */
-        txHash: string | null;
-        /**
-         * Current status of the transaction
-         */
-        status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-        /**
-         * Fees of the transaction
-         */
-        fees: string | null;
-        /**
-         * Block height of the transaction
-         */
-        blockHeight: number | null;
-        /**
-         * Block time of the transaction
-         */
-        blockTime: number | null;
-        /**
-         * Previous on-chain state before this transaction
-         */
-        previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * New on-chain state of this transaction
-         */
-        newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * Number of block confirmations for this transaction
-         */
-        confirmations: number | null;
-    } | null;
-    /**
-     * Historical list of all transactions for this purchase
-     */
-    TransactionHistory: Array<{
-        /**
-         * Unique identifier for the transaction
-         */
-        id: string;
-        /**
-         * Timestamp when the transaction was created
-         */
-        createdAt: Date;
-        /**
-         * Timestamp when the transaction was last updated
-         */
-        updatedAt: Date;
-        /**
-         * Cardano transaction hash
-         */
-        txHash: string | null;
-        /**
-         * Current status of the transaction
-         */
-        status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-        /**
-         * Fees of the transaction
-         */
-        fees: string | null;
-        /**
-         * Block height of the transaction
-         */
-        blockHeight: number | null;
-        /**
-         * Block time of the transaction
-         */
-        blockTime: number | null;
-        /**
-         * Previous on-chain state before this transaction
-         */
-        previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * New on-chain state of this transaction
-         */
-        newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-        /**
-         * Number of block confirmations for this transaction
-         */
-        confirmations: number | null;
-    }> | null;
-    PaidFunds: Array<{
-        amount: string;
-        unit: string;
-    }>;
-    WithdrawnForSeller: Array<{
-        amount: string;
-        unit: string;
-    }>;
-    WithdrawnForBuyer: Array<{
-        amount: string;
-        unit: string;
-    }>;
-    PaymentSource: {
-        id: string;
-        network: 'Preprod' | 'Mainnet';
-        smartContractAddress: string;
-        policyId: string | null;
-    };
-    /**
-     * Seller wallet information. Null if not set
-     */
-    SellerWallet: {
-        /**
-         * Unique identifier for the seller wallet
-         */
-        id: string;
-        /**
-         * Payment key hash of the seller wallet
-         */
-        walletVkey: string;
-    } | null;
-    /**
-     * Smart contract wallet (seller wallet) managing this purchase. Null if not set
-     */
-    SmartContractWallet: {
-        /**
-         * Unique identifier for the smart contract wallet
-         */
-        id: string;
-        /**
-         * Payment key hash of the smart contract wallet
-         */
-        walletVkey: string;
-        /**
-         * Cardano address of the smart contract wallet
-         */
-        walletAddress: string;
-    } | null;
-    /**
-     * Optional metadata stored with the purchase for additional context. Null if not provided
-     */
-    metadata: string | null;
-};
-
-export type AgentMetadata = {
-    /**
-     * Policy ID of the agent registry NFT
-     */
-    policyId: string;
-    /**
-     * Asset name of the agent registry NFT
-     */
-    assetName: string;
-    /**
-     * Full agent identifier (policy ID + asset name)
-     */
-    agentIdentifier: string;
-    /**
-     * On-chain metadata for the agent
-     */
-    Metadata: {
-        /**
-         * Name of the agent
-         */
-        name: string;
-        /**
-         * Description of the agent. Null if not provided
-         */
-        description?: string | null;
-        /**
-         * Base URL of the agent API for interactions
-         */
-        apiBaseUrl: string;
-        /**
-         * List of example outputs from the agent
-         */
-        ExampleOutputs: Array<{
-            /**
-             * Name of the example output
-             */
-            name: string;
-            /**
-             * MIME type of the example output (e.g., image/png, text/plain)
-             */
-            mimeType: string;
-            /**
-             * URL to the example output
-             */
-            url: string;
-        }>;
-        /**
-         * List of tags categorizing the agent
-         */
-        Tags: Array<string>;
-        /**
-         * Information about the AI model and version used by the agent. Null if not provided
-         */
-        Capability?: {
-            /**
-             * Name of the AI model/capability. Null if not provided
-             */
-            name?: string | null;
-            /**
-             * Version of the AI model/capability. Null if not provided
-             */
-            version?: string | null;
-        } | null;
-        /**
-         * Author information for the agent
-         */
-        Author: {
-            /**
-             * Name of the agent author
-             */
-            name: string;
-            /**
-             * Contact email of the author. Null if not provided
-             */
-            contactEmail?: string | null;
-            /**
-             * Other contact information for the author. Null if not provided
-             */
-            contactOther?: string | null;
-            /**
-             * Organization of the author. Null if not provided
-             */
-            organization?: string | null;
-        };
-        /**
-         * Legal information about the agent. Null if not provided
-         */
-        Legal?: {
-            /**
-             * URL to the privacy policy. Null if not provided
-             */
-            privacyPolicy?: string | null;
-            /**
-             * URL to the terms of service. Null if not provided
-             */
-            terms?: string | null;
-            /**
-             * Other legal information. Null if not provided
-             */
-            other?: string | null;
-        } | null;
-        /**
-         * Pricing information for the agent
-         */
-        AgentPricing: {
-            /**
-             * Pricing type for the agent (Fixed)
-             */
-            pricingType: 'Fixed';
-            /**
-             * List of assets and amounts for fixed pricing
-             */
-            Pricing: Array<{
-                /**
-                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
-                 */
-                amount: string;
-                /**
-                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
-                 */
-                unit: string;
-            }>;
-        } | {
-            /**
-             * Pricing type for the agent (Free)
-             */
-            pricingType: 'Free';
-        };
-        /**
-         * URL to the agent image/logo
-         */
-        image: string;
-        /**
-         * Version of the metadata schema (currently only version 1 is supported)
-         */
-        metadataVersion: number;
-    };
-};
-
-export type AgentIdentifierMetadata = {
-    /**
-     * Policy ID of the agent registry NFT
-     */
-    policyId: string;
-    /**
-     * Asset name of the agent registry NFT
-     */
-    assetName: string;
-    /**
-     * Full agent identifier (policy ID + asset name)
-     */
-    agentIdentifier: string;
-    /**
-     * On-chain metadata for the agent
-     */
-    Metadata: {
-        /**
-         * Name of the agent
-         */
-        name: string;
-        /**
-         * Description of the agent. Null if not provided
-         */
-        description?: string | null;
-        /**
-         * Base URL of the agent API for interactions
-         */
-        apiBaseUrl: string;
-        /**
-         * List of example outputs from the agent
-         */
-        ExampleOutputs: Array<{
-            /**
-             * Name of the example output
-             */
-            name: string;
-            /**
-             * MIME type of the example output (e.g., image/png, text/plain)
-             */
-            mimeType: string;
-            /**
-             * URL to the example output
-             */
-            url: string;
-        }>;
-        /**
-         * List of tags categorizing the agent
-         */
-        Tags: Array<string>;
-        /**
-         * Information about the AI model and version used by the agent. Null if not provided
-         */
-        Capability?: {
-            /**
-             * Name of the AI model/capability. Null if not provided
-             */
-            name?: string | null;
-            /**
-             * Version of the AI model/capability. Null if not provided
-             */
-            version?: string | null;
-        } | null;
-        /**
-         * Author information for the agent
-         */
-        Author: {
-            /**
-             * Name of the agent author
-             */
-            name: string;
-            /**
-             * Contact email of the author. Null if not provided
-             */
-            contactEmail?: string | null;
-            /**
-             * Other contact information for the author. Null if not provided
-             */
-            contactOther?: string | null;
-            /**
-             * Organization of the author. Null if not provided
-             */
-            organization?: string | null;
-        };
-        /**
-         * Legal information about the agent. Null if not provided
-         */
-        Legal?: {
-            /**
-             * URL to the privacy policy. Null if not provided
-             */
-            privacyPolicy?: string | null;
-            /**
-             * URL to the terms of service. Null if not provided
-             */
-            terms?: string | null;
-            /**
-             * Other legal information. Null if not provided
-             */
-            other?: string | null;
-        } | null;
-        /**
-         * Pricing information for the agent
-         */
-        AgentPricing: {
-            /**
-             * Pricing type for the agent (Fixed)
-             */
-            pricingType: 'Fixed';
-            /**
-             * List of assets and amounts for fixed pricing
-             */
-            Pricing: Array<{
-                /**
-                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
-                 */
-                amount: string;
-                /**
-                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
-                 */
-                unit: string;
-            }>;
-        } | {
-            /**
-             * Pricing type for the agent (Free)
-             */
-            pricingType: 'Free';
-        };
-        /**
-         * URL to the agent image/logo
-         */
-        image: string;
-        /**
-         * Version of the metadata schema (currently only version 1 is supported)
-         */
-        metadataVersion: number;
-    };
-};
-
-export type RegistryEntry = {
-    /**
-     * Error message if registration failed. Null if no error
-     */
-    error: string | null;
-    /**
-     * Unique identifier for the registry request
-     */
-    id: string;
-    /**
-     * Name of the agent
-     */
-    name: string;
-    /**
-     * Description of the agent. Null if not provided
-     */
-    description: string | null;
-    /**
-     * Base URL of the agent API for interactions
-     */
-    apiBaseUrl: string;
-    /**
-     * Information about the AI model and version used by the agent
-     */
-    Capability: {
-        /**
-         * Name of the AI model/capability. Null if not provided
-         */
-        name: string | null;
-        /**
-         * Version of the AI model/capability. Null if not provided
-         */
-        version: string | null;
-    };
-    /**
-     * Author information for the agent
-     */
-    Author: {
-        /**
-         * Name of the agent author
-         */
-        name: string;
-        /**
-         * Contact email of the author. Null if not provided
-         */
-        contactEmail: string | null;
-        /**
-         * Other contact information for the author. Null if not provided
-         */
-        contactOther: string | null;
-        /**
-         * Organization of the author. Null if not provided
-         */
-        organization: string | null;
-    };
-    /**
-     * Legal information about the agent
-     */
-    Legal: {
-        /**
-         * URL to the privacy policy. Null if not provided
-         */
-        privacyPolicy: string | null;
-        /**
-         * URL to the terms of service. Null if not provided
-         */
-        terms: string | null;
-        /**
-         * Other legal information. Null if not provided
-         */
-        other: string | null;
-    };
-    /**
-     * Current state of the registration process
-     */
-    state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
-    /**
-     * List of tags categorizing the agent
-     */
-    Tags: Array<string>;
-    /**
-     * Timestamp when the registry request was created
-     */
-    createdAt: Date;
-    /**
-     * Timestamp when the registry request was last updated
-     */
-    updatedAt: Date;
-    /**
-     * Timestamp when the registry was last checked. Null if never checked
-     */
-    lastCheckedAt: Date | null;
-    /**
-     * List of example outputs from the agent
-     */
-    ExampleOutputs: Array<{
-        /**
-         * Name of the example output
-         */
-        name: string;
-        /**
-         * URL to the example output
-         */
-        url: string;
-        /**
-         * MIME type of the example output (e.g., image/png, text/plain)
-         */
-        mimeType: string;
-    }>;
-    /**
-     * Full agent identifier (policy ID + asset name). Null if not yet minted
-     */
-    agentIdentifier: string | null;
-    /**
-     * Pricing information for the agent
-     */
-    AgentPricing: {
-        /**
-         * Pricing type for the agent
-         */
-        pricingType: 'Fixed';
-        /**
-         * List of assets and amounts for fixed pricing
-         */
-        Pricing: Array<{
-            /**
-             * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
-             */
-            amount: string;
-            /**
-             * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
-             */
-            unit: string;
-        }>;
-    } | {
-        /**
-         * Pricing type for the agent
-         */
-        pricingType: 'Free';
-    };
-    /**
-     * Smart contract wallet managing this agent registration
-     */
-    SmartContractWallet: {
-        /**
-         * Payment key hash of the smart contract wallet
-         */
-        walletVkey: string;
-        /**
-         * Cardano address of the smart contract wallet
-         */
-        walletAddress: string;
-    };
-    CurrentTransaction: {
-        /**
-         * Cardano transaction hash
-         */
-        txHash: string | null;
-        /**
-         * Current status of the transaction
-         */
-        status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-        /**
-         * Number of block confirmations for this transaction. Null if not yet confirmed
-         */
-        confirmations: number | null;
-        /**
-         * Fees of the transaction
-         */
-        fees: string | null;
-        /**
-         * Block height of the transaction
-         */
-        blockHeight: number | null;
-        /**
-         * Block time of the transaction
-         */
-        blockTime: number | null;
-    } | null;
-};
-
-export type PaymentSource = {
-    /**
-     * Unique identifier for the payment source
-     */
-    id: string;
-    /**
-     * Timestamp when the payment source was created
-     */
-    createdAt: Date;
-    /**
-     * Timestamp when the payment source was last updated
-     */
-    updatedAt: Date;
-    /**
-     * The Cardano network (Mainnet, Preprod, or Preview)
-     */
-    network: 'Preprod' | 'Mainnet';
-    /**
-     * Policy ID for the agent registry NFTs. Null if not applicable
-     */
-    policyId: string | null;
-    /**
-     * Address of the smart contract for this payment source
-     */
-    smartContractAddress: string;
-    /**
-     * Last agent identifier checked during registry sync. Null if not synced yet
-     */
-    lastIdentifierChecked: string | null;
-    /**
-     * Timestamp when the registry was last synced. Null if never synced
-     */
-    lastCheckedAt: Date | null;
-    /**
-     * List of admin wallets for dispute resolution
-     */
-    AdminWallets: Array<AdminWallet>;
-    /**
-     * List of wallets used for purchasing (buyer side)
-     */
-    PurchasingWallets: Array<PurchasingWallet>;
-    /**
-     * List of wallets used for selling (seller side)
-     */
-    SellingWallets: Array<SellingWallet>;
-    /**
-     * Wallet that receives network fees from transactions
-     */
-    FeeReceiverNetworkWallet: {
-        /**
-         * Cardano address that receives network fees
-         */
-        walletAddress: string;
-    };
-    /**
-     * Fee rate in permille
-     */
-    feeRatePermille: number;
-};
-
-export type AdminWallet = {
-    /**
-     * Cardano address of the admin wallet
-     */
-    walletAddress: string;
-    /**
-     * Order/index of this admin wallet
-     */
-    order: number;
-};
-
-export type PurchasingWallet = {
-    /**
-     * Unique identifier for the purchasing wallet
-     */
-    id: string;
-    /**
-     * Payment key hash of the purchasing wallet
-     */
-    walletVkey: string;
-    /**
-     * Cardano address of the purchasing wallet
-     */
-    walletAddress: string;
-    /**
-     * Optional collection address for this wallet. Null if not set
-     */
-    collectionAddress: string | null;
-    /**
-     * Optional note about this wallet. Null if not set
-     */
-    note: string | null;
-};
-
-export type SellingWallet = {
-    /**
-     * Unique identifier for the selling wallet
-     */
-    id: string;
-    /**
-     * Payment key hash of the selling wallet
-     */
-    walletVkey: string;
-    /**
-     * Cardano address of the selling wallet
-     */
-    walletAddress: string;
-    /**
-     * Optional collection address for this wallet. Null if not set
-     */
-    collectionAddress: string | null;
-    /**
-     * Optional note about this wallet. Null if not set
-     */
-    note: string | null;
-};
-
-export type PaymentSourceExtended = {
-    /**
-     * Unique identifier for the payment source
-     */
-    id: string;
-    /**
-     * Timestamp when the payment source was created
-     */
-    createdAt: Date;
-    /**
-     * Timestamp when the payment source was last updated
-     */
-    updatedAt: Date;
-    /**
-     * The Cardano network
-     */
-    network: 'Preprod' | 'Mainnet';
-    /**
-     * Policy ID for the agent registry NFTs. Null if not applicable
-     */
-    policyId: string | null;
-    /**
-     * Address of the smart contract for this payment source
-     */
-    smartContractAddress: string;
-    /**
-     * RPC provider configuration for blockchain interactions
-     */
-    PaymentSourceConfig: {
-        /**
-         * The RPC provider API key (e.g., Blockfrost project ID)
-         */
-        rpcProviderApiKey: string;
-        /**
-         * The RPC provider type (e.g., Blockfrost)
-         */
-        rpcProvider: 'Blockfrost';
-    };
-    /**
-     * Last agent identifier checked during registry sync. Null if not synced yet
-     */
-    lastIdentifierChecked: string | null;
-    /**
-     * Whether a registry sync is currently in progress
-     */
-    syncInProgress: boolean;
-    /**
-     * Timestamp when the registry was last synced. Null if never synced
-     */
-    lastCheckedAt: Date | null;
-    /**
-     * List of admin wallets for dispute resolution (exactly 3 required)
-     */
-    AdminWallets: Array<{
-        /**
-         * Cardano address of the admin wallet
-         */
-        walletAddress: string;
-        /**
-         * Order/index of this admin wallet (0-2)
-         */
-        order: number;
-    }>;
-    /**
-     * List of wallets used for purchasing (buyer side)
-     */
-    PurchasingWallets: Array<{
-        /**
-         * Unique identifier for the purchasing wallet
-         */
-        id: string;
-        /**
-         * Payment key hash of the purchasing wallet
-         */
-        walletVkey: string;
-        /**
-         * Cardano address of the purchasing wallet
-         */
-        walletAddress: string;
-        /**
-         * Optional collection address for this wallet. Null if not set
-         */
-        collectionAddress: string | null;
-        /**
-         * Optional note about this wallet. Null if not set
-         */
-        note: string | null;
-    }>;
-    /**
-     * List of wallets used for selling (seller side)
-     */
-    SellingWallets: Array<{
-        /**
-         * Unique identifier for the selling wallet
-         */
-        id: string;
-        /**
-         * Payment key hash of the selling wallet
-         */
-        walletVkey: string;
-        /**
-         * Cardano address of the selling wallet
-         */
-        walletAddress: string;
-        /**
-         * Optional collection address for this wallet. Null if not set
-         */
-        collectionAddress: string | null;
-        /**
-         * Optional note about this wallet. Null if not set
-         */
-        note: string | null;
-    }>;
-    /**
-     * Wallet that receives network fees from transactions
-     */
-    FeeReceiverNetworkWallet: {
-        /**
-         * Cardano address that receives network fees
-         */
-        walletAddress: string;
-    };
-    /**
-     * Fee rate in permille (per thousand). Example: 50 = 5%
-     */
-    feeRatePermille: number;
-};
-
-export type Utxo = {
-    /**
-     * Transaction hash containing this UTXO
-     */
-    txHash: string;
-    /**
-     * Cardano address holding this UTXO
-     */
-    address: string;
-    /**
-     * List of assets and amounts in this UTXO
-     */
-    Amounts: Array<UtxoAmount>;
-    /**
-     * Hash of the datum attached to this UTXO. Null if no datum
-     */
-    dataHash: string | null;
-    /**
-     * Inline datum data in CBOR hex format. Null if no inline datum
-     */
-    inlineDatum: string | null;
-    /**
-     * Hash of the reference script attached to this UTXO. Null if no reference script
-     */
-    referenceScriptHash: string | null;
-    /**
-     * Output index of this UTXO in the transaction
-     */
-    outputIndex: number | null;
-    /**
-     * Block hash where this UTXO was created
-     */
-    block: string;
-};
-
-export type UtxoAmount = {
-    /**
-     * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
-     */
-    unit: string;
-    /**
-     * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
-     */
-    quantity: number | null;
-};
-
-export type RpcProviderKey = {
-    /**
-     * Unique identifier for the RPC provider key
-     */
-    id: string;
-    /**
-     * The RPC provider API key
-     */
-    rpcProviderApiKey: string;
-    /**
-     * The RPC provider type
-     */
-    rpcProvider: 'Blockfrost';
-    /**
-     * Timestamp when the RPC provider key was created
-     */
-    createdAt: Date;
-    /**
-     * Timestamp when the RPC provider key was last updated
-     */
-    updatedAt: Date;
-    /**
-     * The Cardano network this RPC provider key is for
-     */
-    network: 'Preprod' | 'Mainnet';
-};
-
-export type MonitoringStatus = {
-    /**
-     * Current status of the blockchain state monitoring service
-     */
-    monitoringStatus: {
-        /**
-         * Whether the blockchain state monitoring service is currently running
-         */
-        isMonitoring: boolean;
-        /**
-         * Monitoring statistics. Null if monitoring is not active
-         */
-        stats: {
-            /**
-             * Number of entities being tracked by the monitoring service
-             */
-            trackedEntities: number;
-            /**
-             * Cursor position for purchase diff tracking
-             */
-            purchaseCursor: {
-                /**
-                 * Last processed purchase timestamp
-                 */
-                timestamp: string;
-                /**
-                 * Last processed purchase ID
-                 */
-                lastId: string | null;
-            };
-            /**
-             * Cursor position for payment diff tracking
-             */
-            paymentCursor: {
-                /**
-                 * Last processed payment timestamp
-                 */
-                timestamp: string;
-                /**
-                 * Last processed payment ID
-                 */
-                lastId: string | null;
-            };
-            /**
-             * Memory usage statistics for the monitoring service
-             */
-            memoryUsage: {
-                /**
-                 * Heap memory currently used by the monitoring service
-                 */
-                heapUsed: string;
-                /**
-                 * Total heap memory allocated for the monitoring service
-                 */
-                heapTotal: string;
-                /**
-                 * External memory used by the monitoring service
-                 */
-                external: string;
-            };
-        } | null;
-    };
-};
-
-export type TriggeredMonitoringCycle = {
-    /**
-     * Status message about the monitoring cycle trigger
-     */
-    message: string;
-    /**
-     * Whether the monitoring cycle was successfully triggered
-     */
-    triggered: boolean;
-};
-
-export type StartedMonitoring = {
-    /**
-     * Status message about starting the monitoring service
-     */
-    message: string;
-    /**
-     * Whether the monitoring service was successfully started
-     */
-    started: boolean;
-};
-
-export type StoppedMonitoring = {
-    /**
-     * Status message about stopping the monitoring service
-     */
-    message: string;
-    /**
-     * Whether the monitoring service was successfully stopped
-     */
-    stopped: boolean;
-};
-
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -1609,7 +13,7 @@ export type GetHealthData = {
 
 export type GetHealthResponses = {
     /**
-     * Object with status ok, if the server is up and healthy
+     * Object with status ok, if the server is running
      */
     200: {
         /**
@@ -1634,7 +38,41 @@ export type GetApiKeyStatusResponses = {
      */
     200: {
         status: string;
-        data: ApiKey;
+        data: {
+            /**
+             * The API key token
+             */
+            token: string;
+            /**
+             * Permission level of the API key
+             */
+            permission: 'Read' | 'ReadAndPay' | 'Admin';
+            /**
+             * Whether the API key has usage limits
+             */
+            usageLimited: boolean;
+            /**
+             * List of Cardano networks this API key is allowed to access
+             */
+            networkLimit: Array<'Preprod' | 'Mainnet'>;
+            /**
+             * Remaining usage credits for this API key
+             */
+            RemainingUsageCredits: Array<{
+                /**
+                 * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                 */
+                unit: string;
+                /**
+                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                 */
+                amount: string;
+            }>;
+            /**
+             * Current status of the API key
+             */
+            status: 'Active' | 'Revoked';
+        };
     };
 };
 
@@ -1666,7 +104,58 @@ export type GetWalletResponses = {
      */
     200: {
         status: string;
-        data: Wallet;
+        data: {
+            /**
+             * Wallet secret (mnemonic). Only included if includeSecret is true
+             */
+            Secret?: {
+                /**
+                 * Timestamp when the secret was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the secret was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Decrypted 24-word mnemonic phrase for the wallet
+                 */
+                mnemonic: string;
+            };
+            /**
+             * Pending transaction for this wallet. Null if no transaction is pending
+             */
+            PendingTransaction: {
+                /**
+                 * Timestamp when the pending transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the pending transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Transaction hash of the pending transaction. Null if not yet submitted
+                 */
+                hash: string | null;
+                /**
+                 * Timestamp when the pending transaction was last checked. Null if never checked
+                 */
+                lastCheckedAt: string | null;
+            } | null;
+            /**
+             * Optional note about this wallet. Null if not set
+             */
+            note: string | null;
+            /**
+             * Payment key hash of the wallet
+             */
+            walletVkey: string;
+            /**
+             * Cardano address of the wallet
+             */
+            walletAddress: string;
+        };
     };
 };
 
@@ -1692,7 +181,32 @@ export type PatchWalletResponses = {
     /**
      * Wallet updated
      */
-    200: Wallet & unknown;
+    200: {
+        /**
+         * Unique identifier for the wallet
+         */
+        id: string;
+        /**
+         * Payment key hash of the wallet
+         */
+        walletVkey: string;
+        /**
+         * Cardano address of the wallet
+         */
+        walletAddress: string;
+        /**
+         * Collection address for this wallet. Null if not set
+         */
+        collectionAddress: string | null;
+        /**
+         * Type of wallet (Selling or Purchasing)
+         */
+        type: 'Selling' | 'Purchasing';
+        /**
+         * Optional note about this wallet. Null if not set
+         */
+        note: string | null;
+    };
 };
 
 export type PatchWalletResponse = PatchWalletResponses[keyof PatchWalletResponses];
@@ -1713,7 +227,20 @@ export type PostWalletResponses = {
     /**
      * Wallet created
      */
-    200: GeneratedWalletSecret;
+    200: {
+        /**
+         * 24-word mnemonic phrase for the newly generated wallet. IMPORTANT: Backup this mnemonic securely
+         */
+        walletMnemonic: string;
+        /**
+         * Cardano address of the newly generated wallet
+         */
+        walletAddress: string;
+        /**
+         * Payment key hash of the newly generated wallet
+         */
+        walletVkey: string;
+    };
 };
 
 export type PostWalletResponse = PostWalletResponses[keyof PostWalletResponses];
@@ -1796,7 +323,36 @@ export type DeleteApiKeyResponses = {
      * API key deleted
      */
     200: {
-        data: ApiKey;
+        data: {
+            /**
+             * Unique identifier for the API key
+             */
+            id: string;
+            /**
+             * The API key token
+             */
+            token: string;
+            /**
+             * Permission level of the API key
+             */
+            permission: 'Read' | 'ReadAndPay' | 'Admin';
+            /**
+             * Whether the API key has usage limits
+             */
+            usageLimited: boolean;
+            /**
+             * List of Cardano networks this API key is allowed to access
+             */
+            networkLimit: Array<'Preprod' | 'Mainnet'>;
+            /**
+             * Current status of the API key
+             */
+            status: 'Active' | 'Revoked';
+            /**
+             * Timestamp when the API key was deleted. Null if not deleted
+             */
+            deletedAt: string | null;
+        };
         status: string;
     };
 };
@@ -1844,7 +400,45 @@ export type GetApiKeyResponses = {
             /**
              * List of API keys
              */
-            ApiKeys: Array<ApiKey>;
+            ApiKeys: Array<{
+                /**
+                 * Unique identifier for the API key
+                 */
+                id: string;
+                /**
+                 * The API key token
+                 */
+                token: string;
+                /**
+                 * Permission level of the API key
+                 */
+                permission: 'Read' | 'ReadAndPay' | 'Admin';
+                /**
+                 * Whether the API key has usage limits
+                 */
+                usageLimited: boolean;
+                /**
+                 * List of Cardano networks this API key is allowed to access
+                 */
+                networkLimit: Array<'Preprod' | 'Mainnet'>;
+                /**
+                 * Remaining usage credits for this API key
+                 */
+                RemainingUsageCredits: Array<{
+                    /**
+                     * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                     */
+                    unit: string;
+                    /**
+                     * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                     */
+                    amount: string;
+                }>;
+                /**
+                 * Current status of the API key
+                 */
+                status: 'Active' | 'Revoked';
+            }>;
         };
     };
 };
@@ -1912,7 +506,32 @@ export type PatchApiKeyResponses = {
      * API key deleted
      */
     200: {
-        data: ApiKey;
+        data: {
+            /**
+             * Unique identifier for the API key
+             */
+            id: string;
+            /**
+             * The API key token
+             */
+            token: string;
+            /**
+             * Permission level of the API key (Read, Pay, or Admin)
+             */
+            permission: 'Read' | 'ReadAndPay' | 'Admin';
+            /**
+             * List of Cardano networks this API key is allowed to access
+             */
+            networkLimit: Array<'Preprod' | 'Mainnet'>;
+            /**
+             * Whether the API key has usage limits
+             */
+            usageLimited: boolean;
+            /**
+             * Current status of the API key (Active, Revoked, etc.)
+             */
+            status: 'Active' | 'Revoked';
+        };
         status: string;
     };
 };
@@ -1972,7 +591,32 @@ export type PostApiKeyResponses = {
      * API key deleted
      */
     200: {
-        data: ApiKey;
+        data: {
+            /**
+             * Unique identifier for the API key
+             */
+            id: string;
+            /**
+             * The API key token.
+             */
+            token: string;
+            /**
+             * Permission level of the API key
+             */
+            permission: 'Read' | 'ReadAndPay' | 'Admin';
+            /**
+             * Whether the API key has usage limits
+             */
+            usageLimited: boolean;
+            /**
+             * List of Cardano networks this API key is allowed to access
+             */
+            networkLimit: Array<'Preprod' | 'Mainnet'>;
+            /**
+             * Current status of the API key (Active, Revoked, etc.)
+             */
+            status: 'Active' | 'Revoked';
+        };
         status: string;
     };
 };
@@ -2000,7 +644,7 @@ export type GetPaymentData = {
          */
         filterSmartContractAddress?: string | null;
         /**
-         * Whether to include the full transaction and action history of the payments
+         * Whether to include the full transaction and status history of the payments
          */
         includeHistory?: string;
     };
@@ -2029,7 +673,283 @@ export type GetPaymentResponses = {
     200: {
         status: string;
         data: {
-            Payments: Array<Payment>;
+            Payments: Array<{
+                /**
+                 * Unique identifier for the payment
+                 */
+                id: string;
+                /**
+                 * Timestamp when the payment was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the payment was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Unique blockchain identifier for the payment
+                 */
+                blockchainIdentifier: string;
+                /**
+                 * Identifier of the agent that is being paid
+                 */
+                agentIdentifier: string | null;
+                /**
+                 * Timestamp when the payment was last checked on-chain. Null if never checked
+                 */
+                lastCheckedAt: string | null;
+                /**
+                 * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
+                 */
+                payByTime: string | null;
+                /**
+                 * Unix timestamp (in milliseconds) by which the seller must submit the result
+                 */
+                submitResultTime: string;
+                /**
+                 * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
+                 */
+                unlockTime: string;
+                /**
+                 * Amount of collateral to return in lovelace. Null if no collateral
+                 */
+                collateralReturnLovelace: string | null;
+                /**
+                 * Unix timestamp (in milliseconds) after which external dispute resolution can occur
+                 */
+                externalDisputeUnlockTime: string;
+                /**
+                 * ID of the API key that created this payment
+                 */
+                requestedById: string;
+                /**
+                 * SHA256 hash of the result submitted by the seller (hex string)
+                 */
+                resultHash: string | null;
+                /**
+                 * SHA256 hash of the input data for the payment (hex string)
+                 */
+                inputHash: string | null;
+                /**
+                 * Cooldown period in milliseconds for the seller to dispute
+                 */
+                cooldownTime: number;
+                /**
+                 * Cooldown period in milliseconds for the buyer to dispute
+                 */
+                cooldownTimeOtherParty: number;
+                /**
+                 * Current state of the payment on the blockchain. Null if not yet on-chain
+                 */
+                onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                /**
+                 * Next action required for this payment
+                 */
+                NextAction: {
+                    /**
+                     * Next action required for this payment
+                     */
+                    requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'SubmitResultRequested' | 'SubmitResultInitiated' | 'WithdrawRequested' | 'WithdrawInitiated' | 'AuthorizeRefundRequested' | 'AuthorizeRefundInitiated';
+                    /**
+                     * Type of error that occurred, if any
+                     */
+                    errorType: 'NetworkError' | 'Unknown';
+                    /**
+                     * Additional details about the error, if any
+                     */
+                    errorNote: string | null;
+                    /**
+                     * SHA256 hash of the result to be submitted (hex string). Null if not applicable
+                     */
+                    resultHash: string | null;
+                };
+                /**
+                 * Current active transaction for this payment. Null if no transaction in progress
+                 */
+                CurrentTransaction: {
+                    /**
+                     * Unique identifier for the transaction
+                     */
+                    id: string;
+                    /**
+                     * Timestamp when the transaction was created
+                     */
+                    createdAt: string;
+                    /**
+                     * Timestamp when the transaction was last updated
+                     */
+                    updatedAt: string;
+                    fees: string | null;
+                    /**
+                     * Block height of the transaction
+                     */
+                    blockHeight: number | null;
+                    /**
+                     * Block time of the transaction
+                     */
+                    blockTime: number | null;
+                    /**
+                     * Cardano transaction hash
+                     */
+                    txHash: string | null;
+                    /**
+                     * Current status of the transaction
+                     */
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                    /**
+                     * Previous on-chain state before this transaction
+                     */
+                    previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * New on-chain state of this transaction
+                     */
+                    newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * Number of block confirmations for this transaction
+                     */
+                    confirmations: number | null;
+                } | null;
+                /**
+                 * Historical list of all transactions for this payment. Null or empty if includeHistory is false
+                 */
+                TransactionHistory: Array<{
+                    /**
+                     * Unique identifier for the transaction
+                     */
+                    id: string;
+                    /**
+                     * Timestamp when the transaction was created
+                     */
+                    createdAt: string;
+                    /**
+                     * Timestamp when the transaction was last updated
+                     */
+                    updatedAt: string;
+                    /**
+                     * Cardano transaction hash
+                     */
+                    txHash: string | null;
+                    /**
+                     * Current status of the transaction
+                     */
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                    /**
+                     * Fees of the transaction
+                     */
+                    fees: string | null;
+                    /**
+                     * Block height of the transaction
+                     */
+                    blockHeight: number | null;
+                    /**
+                     * Block time of the transaction
+                     */
+                    blockTime: number | null;
+                    /**
+                     * Previous on-chain state before this transaction
+                     */
+                    previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * New on-chain state of this transaction
+                     */
+                    newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * Number of block confirmations for this transaction
+                     */
+                    confirmations: number | null;
+                }> | null;
+                RequestedFunds: Array<{
+                    /**
+                     * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                     */
+                    amount: string;
+                    /**
+                     * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                     */
+                    unit: string;
+                }>;
+                /**
+                 * List of assets and amounts withdrawn for the seller
+                 */
+                WithdrawnForSeller: Array<{
+                    /**
+                     * Amount of the asset withdrawn (as string to handle large numbers)
+                     */
+                    amount: string;
+                    /**
+                     * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                     */
+                    unit: string;
+                }>;
+                /**
+                 * List of assets and amounts withdrawn for the buyer (refunds)
+                 */
+                WithdrawnForBuyer: Array<{
+                    /**
+                     * Amount of the asset withdrawn (as string to handle large numbers)
+                     */
+                    amount: string;
+                    /**
+                     * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                     */
+                    unit: string;
+                }>;
+                /**
+                 * Payment source configuration for this payment
+                 */
+                PaymentSource: {
+                    /**
+                     * Unique identifier for the payment source
+                     */
+                    id: string;
+                    /**
+                     * The Cardano network (Mainnet, Preprod, or Preview)
+                     */
+                    network: 'Preprod' | 'Mainnet';
+                    /**
+                     * Address of the smart contract managing this payment
+                     */
+                    smartContractAddress: string;
+                    /**
+                     * Policy ID for the agent registry NFTs. Null if not applicable
+                     */
+                    policyId: string | null;
+                };
+                /**
+                 * Buyer wallet information. Null if buyer has not yet submitted payment
+                 */
+                BuyerWallet: {
+                    /**
+                     * Unique identifier for the buyer wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the buyer wallet
+                     */
+                    walletVkey: string;
+                } | null;
+                /**
+                 * Smart contract wallet (seller wallet) managing this payment. Null if not set
+                 */
+                SmartContractWallet: {
+                    /**
+                     * Unique identifier for the smart contract wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the smart contract wallet
+                     */
+                    walletVkey: string;
+                    /**
+                     * Cardano address of the smart contract wallet
+                     */
+                    walletAddress: string;
+                } | null;
+                /**
+                 * Optional metadata stored with the payment for additional context. Null if not provided
+                 */
+                metadata: string | null;
+            }>;
         };
     };
 };
@@ -2121,27 +1041,19 @@ export type PostPaymentResponses = {
             /**
              * Timestamp when the payment was created
              */
-            createdAt: Date;
+            createdAt: string;
             /**
              * Timestamp when the payment was last updated
              */
-            updatedAt: Date;
+            updatedAt: string;
             /**
              * Unique blockchain identifier for the payment
              */
             blockchainIdentifier: string;
             /**
-             * Identifier of the agent that is being paid
+             * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction
              */
-            agentIdentifier: string | null;
-            /**
-             * Timestamp when the payment was last checked on-chain. Null if never checked
-             */
-            lastCheckedAt: Date | null;
-            /**
-             * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
-             */
-            payByTime: string | null;
+            payByTime: string;
             /**
              * Unix timestamp (in milliseconds) by which the seller must submit the result
              */
@@ -2151,57 +1063,29 @@ export type PostPaymentResponses = {
              */
             unlockTime: string;
             /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
              * Unix timestamp (in milliseconds) after which external dispute resolution can occur
              */
             externalDisputeUnlockTime: string;
+            /**
+             * Timestamp when the payment was last checked on-chain. Null if never checked
+             */
+            lastCheckedAt: string | null;
             /**
              * ID of the API key that created this payment
              */
             requestedById: string;
             /**
-             * SHA256 hash of the result submitted by the seller (hex string)
-             */
-            resultHash: string | null;
-            /**
-             * Timestamp when the next action was last changed
-             */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
              * SHA256 hash of the input data for the payment (hex string)
              */
             inputHash: string | null;
             /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
+             * SHA256 hash of the result submitted by the seller (hex string). Empty string if not yet submitted
              */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTimeOtherParty: number;
+            resultHash: string | null;
             /**
              * Current state of the payment on the blockchain. Null if not yet on-chain
              */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
             /**
              * Next action required for this payment
              */
@@ -2211,64 +1095,18 @@ export type PostPaymentResponses = {
                  */
                 requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'SubmitResultRequested' | 'SubmitResultInitiated' | 'WithdrawRequested' | 'WithdrawInitiated' | 'AuthorizeRefundRequested' | 'AuthorizeRefundInitiated';
                 /**
+                 * SHA256 hash of the result to be submitted (hex string). Null if not applicable
+                 */
+                resultHash: string | null;
+                /**
                  * Type of error that occurred, if any
                  */
-                errorType: 'NetworkError' | 'Unknown' | null;
+                errorType: 'NetworkError' | 'Unknown';
                 /**
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
-                /**
-                 * SHA256 hash of the result to be submitted (hex string). Null if not applicable
-                 */
-                resultHash: string | null;
             };
-            /**
-             * Current active transaction for this payment. Null if no transaction in progress
-             */
-            CurrentTransaction: {
-                /**
-                 * Unique identifier for the transaction
-                 */
-                id: string;
-                /**
-                 * Timestamp when the transaction was created
-                 */
-                createdAt: Date;
-                /**
-                 * Timestamp when the transaction was last updated
-                 */
-                updatedAt: Date;
-                fees: string | null;
-                /**
-                 * Block height of the transaction
-                 */
-                blockHeight: number | null;
-                /**
-                 * Block time of the transaction
-                 */
-                blockTime: number | null;
-                /**
-                 * Cardano transaction hash
-                 */
-                txHash: string | null;
-                /**
-                 * Current status of the transaction
-                 */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
-            } | null;
             RequestedFunds: Array<{
                 /**
                  * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
@@ -2339,9 +1177,6 @@ export type PostPaymentResponses = {
                  */
                 walletVkey: string;
             } | null;
-            /**
-             * Smart contract wallet (seller wallet) managing this payment. Null if not set
-             */
             SmartContractWallet: {
                 /**
                  * Unique identifier for the smart contract wallet
@@ -2356,9 +1191,74 @@ export type PostPaymentResponses = {
                  */
                 walletAddress: string;
             } | null;
-            /**
-             * Optional metadata stored with the payment for additional context. Null if not provided
-             */
+            CurrentTransaction: {
+                /**
+                 * Unique identifier for the transaction
+                 */
+                id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                /**
+                 * Fees of the transaction
+                 */
+                fees: string | null;
+                /**
+                 * Block height of the transaction
+                 */
+                blockHeight: number | null;
+                /**
+                 * Block time of the transaction
+                 */
+                blockTime: number | null;
+            } | null;
+            TransactionHistory: Array<{
+                /**
+                 * Unique identifier for the transaction
+                 */
+                id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                /**
+                 * Fees of the transaction
+                 */
+                fees: string | null;
+                /**
+                 * Block height of the transaction
+                 */
+                blockHeight: number | null;
+                /**
+                 * Block time of the transaction
+                 */
+                blockTime: number | null;
+            }> | null;
             metadata: string | null;
         };
         status: string;
@@ -2366,189 +1266,6 @@ export type PostPaymentResponses = {
 };
 
 export type PostPaymentResponse = PostPaymentResponses[keyof PostPaymentResponses];
-
-export type GetPaymentDiffData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * The number of payments to return
-         */
-        limit?: number;
-        /**
-         * Pagination cursor (payment id). Used as tie-breaker when lastUpdate equals a payment change timestamp
-         */
-        cursorId?: string;
-        /**
-         * Return payments whose selected status timestamp changed after this ISO timestamp
-         */
-        lastUpdate?: Date;
-        /**
-         * The network the payments were made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment source
-         */
-        filterSmartContractAddress?: string | null;
-        /**
-         * Whether to include the full transaction and status history of the payments
-         */
-        includeHistory?: string;
-    };
-    url: '/payment/diff';
-};
-
-export type GetPaymentDiffErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetPaymentDiffResponses = {
-    /**
-     * Payment diff
-     */
-    200: {
-        status: string;
-        data: {
-            Payments: Array<Payment>;
-        };
-    };
-};
-
-export type GetPaymentDiffResponse = GetPaymentDiffResponses[keyof GetPaymentDiffResponses];
-
-export type GetPaymentDiffNextActionData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * The number of payments to return
-         */
-        limit?: number;
-        /**
-         * Pagination cursor (payment id). Used as tie-breaker when lastUpdate equals a payment change timestamp
-         */
-        cursorId?: string;
-        /**
-         * Return payments whose selected status timestamp changed after this ISO timestamp
-         */
-        lastUpdate?: Date;
-        /**
-         * The network the payments were made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment source
-         */
-        filterSmartContractAddress?: string | null;
-        /**
-         * Whether to include the full transaction and status history of the payments
-         */
-        includeHistory?: string;
-    };
-    url: '/payment/diff/next-action';
-};
-
-export type GetPaymentDiffNextActionErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetPaymentDiffNextActionResponses = {
-    /**
-     * Payment diff
-     */
-    200: {
-        status: string;
-        data: {
-            Payments: Array<Payment>;
-        };
-    };
-};
-
-export type GetPaymentDiffNextActionResponse = GetPaymentDiffNextActionResponses[keyof GetPaymentDiffNextActionResponses];
-
-export type GetPaymentDiffOnchainStateOrResultData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * The number of payments to return
-         */
-        limit?: number;
-        /**
-         * Pagination cursor (payment id). Used as tie-breaker when lastUpdate equals a payment change timestamp
-         */
-        cursorId?: string;
-        /**
-         * Return payments whose selected status timestamp changed after this ISO timestamp
-         */
-        lastUpdate?: Date;
-        /**
-         * The network the payments were made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment source
-         */
-        filterSmartContractAddress?: string | null;
-        /**
-         * Whether to include the full transaction and status history of the payments
-         */
-        includeHistory?: string;
-    };
-    url: '/payment/diff/onchain-state-or-result';
-};
-
-export type GetPaymentDiffOnchainStateOrResultErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetPaymentDiffOnchainStateOrResultResponses = {
-    /**
-     * Payment diff
-     */
-    200: {
-        status: string;
-        data: {
-            Payments: Array<Payment>;
-        };
-    };
-};
-
-export type GetPaymentDiffOnchainStateOrResultResponse = GetPaymentDiffOnchainStateOrResultResponses[keyof GetPaymentDiffOnchainStateOrResultResponses];
 
 export type PostPaymentSubmitResultData = {
     body?: {
@@ -2598,23 +1315,15 @@ export type PostPaymentSubmitResultResponses = {
             /**
              * Timestamp when the payment was created
              */
-            createdAt: Date;
+            createdAt: string;
             /**
              * Timestamp when the payment was last updated
              */
-            updatedAt: Date;
+            updatedAt: string;
             /**
              * Unique blockchain identifier for the payment
              */
             blockchainIdentifier: string;
-            /**
-             * Identifier of the agent that is being paid
-             */
-            agentIdentifier: string | null;
-            /**
-             * Timestamp when the payment was last checked on-chain. Null if never checked
-             */
-            lastCheckedAt: Date | null;
             /**
              * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
              */
@@ -2628,57 +1337,29 @@ export type PostPaymentSubmitResultResponses = {
              */
             unlockTime: string;
             /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
              * Unix timestamp (in milliseconds) after which external dispute resolution can occur
              */
             externalDisputeUnlockTime: string;
+            /**
+             * Timestamp when the payment was last checked on-chain. Null if never checked
+             */
+            lastCheckedAt: string | null;
             /**
              * ID of the API key that created this payment
              */
             requestedById: string;
             /**
-             * SHA256 hash of the result submitted by the seller (hex string)
+             * SHA256 hash of the result submitted by the seller
              */
             resultHash: string | null;
             /**
-             * Timestamp when the next action was last changed
+             * SHA256 hash of the input data for the payment
              */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
-             * SHA256 hash of the input data for the payment (hex string)
-             */
-            inputHash: string | null;
-            /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-             */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTimeOtherParty: number;
+            inputHash: string;
             /**
              * Current state of the payment on the blockchain. Null if not yet on-chain
              */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
             /**
              * Next action required for this payment
              */
@@ -2690,62 +1371,16 @@ export type PostPaymentSubmitResultResponses = {
                 /**
                  * Type of error that occurred, if any
                  */
-                errorType: 'NetworkError' | 'Unknown' | null;
+                errorType: 'NetworkError' | 'Unknown';
                 /**
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
                 /**
-                 * SHA256 hash of the result to be submitted (hex string). Null if not applicable
+                 * SHA256 hash of the result to be submitted . Null if not applicable
                  */
                 resultHash: string | null;
             };
-            /**
-             * Current active transaction for this payment. Null if no transaction in progress
-             */
-            CurrentTransaction: {
-                /**
-                 * Unique identifier for the transaction
-                 */
-                id: string;
-                /**
-                 * Timestamp when the transaction was created
-                 */
-                createdAt: Date;
-                /**
-                 * Timestamp when the transaction was last updated
-                 */
-                updatedAt: Date;
-                fees: string | null;
-                /**
-                 * Block height of the transaction
-                 */
-                blockHeight: number | null;
-                /**
-                 * Block time of the transaction
-                 */
-                blockTime: number | null;
-                /**
-                 * Cardano transaction hash
-                 */
-                txHash: string | null;
-                /**
-                 * Current status of the transaction
-                 */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
-            } | null;
             RequestedFunds: Array<{
                 /**
                  * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
@@ -2761,7 +1396,7 @@ export type PostPaymentSubmitResultResponses = {
              */
             WithdrawnForSeller: Array<{
                 /**
-                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 * Amount of the asset withdrawn
                  */
                 amount: string;
                 /**
@@ -2774,7 +1409,7 @@ export type PostPaymentSubmitResultResponses = {
              */
             WithdrawnForBuyer: Array<{
                 /**
-                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 * Amount of the asset withdrawn
                  */
                 amount: string;
                 /**
@@ -2791,17 +1426,17 @@ export type PostPaymentSubmitResultResponses = {
                  */
                 id: string;
                 /**
-                 * The Cardano network (Mainnet, Preprod, or Preview)
+                 * The Cardano network
                  */
                 network: 'Preprod' | 'Mainnet';
-                /**
-                 * Address of the smart contract managing this payment
-                 */
-                smartContractAddress: string;
                 /**
                  * Policy ID for the agent registry NFTs. Null if not applicable
                  */
                 policyId: string | null;
+                /**
+                 * Address of the smart contract managing this payment
+                 */
+                smartContractAddress: string;
             };
             /**
              * Buyer wallet information. Null if buyer has not yet submitted payment
@@ -2888,23 +1523,15 @@ export type PostPaymentAuthorizeRefundResponses = {
             /**
              * Timestamp when the payment was created
              */
-            createdAt: Date;
+            createdAt: string;
             /**
              * Timestamp when the payment was last updated
              */
-            updatedAt: Date;
+            updatedAt: string;
             /**
              * Unique blockchain identifier for the payment
              */
             blockchainIdentifier: string;
-            /**
-             * Identifier of the agent that is being paid
-             */
-            agentIdentifier: string | null;
-            /**
-             * Timestamp when the payment was last checked on-chain. Null if never checked
-             */
-            lastCheckedAt: Date | null;
             /**
              * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
              */
@@ -2918,13 +1545,13 @@ export type PostPaymentAuthorizeRefundResponses = {
              */
             unlockTime: string;
             /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
              * Unix timestamp (in milliseconds) after which external dispute resolution can occur
              */
             externalDisputeUnlockTime: string;
+            /**
+             * Timestamp when the payment was last checked on-chain. Null if never checked
+             */
+            lastCheckedAt: string | null;
             /**
              * ID of the API key that created this payment
              */
@@ -2934,41 +1561,13 @@ export type PostPaymentAuthorizeRefundResponses = {
              */
             resultHash: string | null;
             /**
-             * Timestamp when the next action was last changed
-             */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
              * SHA256 hash of the input data for the payment (hex string)
              */
-            inputHash: string | null;
-            /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-             */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTimeOtherParty: number;
+            inputHash: string;
             /**
              * Current state of the payment on the blockchain. Null if not yet on-chain
              */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
             /**
              * Next action required for this payment
              */
@@ -2980,7 +1579,7 @@ export type PostPaymentAuthorizeRefundResponses = {
                 /**
                  * Type of error that occurred, if any
                  */
-                errorType: 'NetworkError' | 'Unknown' | null;
+                errorType: 'NetworkError' | 'Unknown';
                 /**
                  * Additional details about the error, if any
                  */
@@ -2990,52 +1589,6 @@ export type PostPaymentAuthorizeRefundResponses = {
                  */
                 resultHash: string | null;
             };
-            /**
-             * Current active transaction for this payment. Null if no transaction in progress
-             */
-            CurrentTransaction: {
-                /**
-                 * Unique identifier for the transaction
-                 */
-                id: string;
-                /**
-                 * Timestamp when the transaction was created
-                 */
-                createdAt: Date;
-                /**
-                 * Timestamp when the transaction was last updated
-                 */
-                updatedAt: Date;
-                fees: string | null;
-                /**
-                 * Block height of the transaction
-                 */
-                blockHeight: number | null;
-                /**
-                 * Block time of the transaction
-                 */
-                blockTime: number | null;
-                /**
-                 * Cardano transaction hash
-                 */
-                txHash: string | null;
-                /**
-                 * Current status of the transaction
-                 */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
-            } | null;
             RequestedFunds: Array<{
                 /**
                  * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
@@ -3051,7 +1604,7 @@ export type PostPaymentAuthorizeRefundResponses = {
              */
             WithdrawnForSeller: Array<{
                 /**
-                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 * Amount of the asset withdrawn
                  */
                 amount: string;
                 /**
@@ -3060,11 +1613,11 @@ export type PostPaymentAuthorizeRefundResponses = {
                 unit: string;
             }>;
             /**
-             * List of assets and amounts withdrawn for the buyer (refunds)
+             * List of assets and amounts withdrawn for the buyer
              */
             WithdrawnForBuyer: Array<{
                 /**
-                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 * Amount of the asset withdrawn
                  */
                 amount: string;
                 /**
@@ -3134,387 +1687,6 @@ export type PostPaymentAuthorizeRefundResponses = {
 
 export type PostPaymentAuthorizeRefundResponse = PostPaymentAuthorizeRefundResponses[keyof PostPaymentAuthorizeRefundResponses];
 
-export type PostPaymentErrorStateRecoveryData = {
-    /**
-     * Payment error recovery request details
-     */
-    body?: {
-        /**
-         * The blockchain identifier of the payment request
-         */
-        blockchainIdentifier: string;
-        /**
-         * The network the transaction was made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The time of the last update, to ensure you clear the correct error state
-         */
-        updatedAt: Date;
-    };
-    path?: never;
-    query?: never;
-    url: '/payment/error-state-recovery/';
-};
-
-export type PostPaymentErrorStateRecoveryErrors = {
-    /**
-     * Bad Request (not in WaitingForManualAction state, no error to clear, or invalid input)
-     */
-    400: {
-        status: string;
-        error: {
-            message: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Payment request not found
-     */
-    404: {
-        status: string;
-        error: {
-            message: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type PostPaymentErrorStateRecoveryError = PostPaymentErrorStateRecoveryErrors[keyof PostPaymentErrorStateRecoveryErrors];
-
-export type PostPaymentErrorStateRecoveryResponses = {
-    /**
-     * Error state cleared successfully for payment request
-     */
-    200: {
-        status: string;
-        data: {
-            /**
-             * Unique identifier for the payment
-             */
-            id: string;
-            /**
-             * Timestamp when the payment was created
-             */
-            createdAt: Date;
-            /**
-             * Timestamp when the payment was last updated
-             */
-            updatedAt: Date;
-            /**
-             * Unique blockchain identifier for the payment
-             */
-            blockchainIdentifier: string;
-            /**
-             * Identifier of the agent that is being paid
-             */
-            agentIdentifier: string | null;
-            /**
-             * Timestamp when the payment was last checked on-chain. Null if never checked
-             */
-            lastCheckedAt: Date | null;
-            /**
-             * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
-             */
-            payByTime: string | null;
-            /**
-             * Unix timestamp (in milliseconds) by which the seller must submit the result
-             */
-            submitResultTime: string;
-            /**
-             * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
-             */
-            unlockTime: string;
-            /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
-             * Unix timestamp (in milliseconds) after which external dispute resolution can occur
-             */
-            externalDisputeUnlockTime: string;
-            /**
-             * ID of the API key that created this payment
-             */
-            requestedById: string;
-            /**
-             * SHA256 hash of the result submitted by the seller (hex string)
-             */
-            resultHash: string | null;
-            /**
-             * Timestamp when the next action was last changed
-             */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
-             * SHA256 hash of the input data for the payment (hex string)
-             */
-            inputHash: string | null;
-            /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-             */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTimeOtherParty: number;
-            /**
-             * Current state of the payment on the blockchain. Null if not yet on-chain
-             */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-            /**
-             * Next action required for this payment
-             */
-            NextAction: {
-                /**
-                 * Next action required for this payment
-                 */
-                requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'SubmitResultRequested' | 'SubmitResultInitiated' | 'WithdrawRequested' | 'WithdrawInitiated' | 'AuthorizeRefundRequested' | 'AuthorizeRefundInitiated';
-                /**
-                 * Type of error that occurred, if any
-                 */
-                errorType: 'NetworkError' | 'Unknown' | null;
-                /**
-                 * Additional details about the error, if any
-                 */
-                errorNote: string | null;
-                /**
-                 * SHA256 hash of the result to be submitted (hex string). Null if not applicable
-                 */
-                resultHash: string | null;
-            };
-            /**
-             * Current active transaction for this payment. Null if no transaction in progress
-             */
-            CurrentTransaction: {
-                /**
-                 * Unique identifier for the transaction
-                 */
-                id: string;
-                /**
-                 * Timestamp when the transaction was created
-                 */
-                createdAt: Date;
-                /**
-                 * Timestamp when the transaction was last updated
-                 */
-                updatedAt: Date;
-                fees: string | null;
-                /**
-                 * Block height of the transaction
-                 */
-                blockHeight: number | null;
-                /**
-                 * Block time of the transaction
-                 */
-                blockTime: number | null;
-                /**
-                 * Cardano transaction hash
-                 */
-                txHash: string | null;
-                /**
-                 * Current status of the transaction
-                 */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
-            } | null;
-            RequestedFunds: Array<{
-                /**
-                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
-                 */
-                amount: string;
-                /**
-                 * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
-                 */
-                unit: string;
-            }>;
-            /**
-             * List of assets and amounts withdrawn for the seller
-             */
-            WithdrawnForSeller: Array<{
-                /**
-                 * Amount of the asset withdrawn (as string to handle large numbers)
-                 */
-                amount: string;
-                /**
-                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
-                 */
-                unit: string;
-            }>;
-            /**
-             * List of assets and amounts withdrawn for the buyer (refunds)
-             */
-            WithdrawnForBuyer: Array<{
-                /**
-                 * Amount of the asset withdrawn (as string to handle large numbers)
-                 */
-                amount: string;
-                /**
-                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
-                 */
-                unit: string;
-            }>;
-            /**
-             * Payment source configuration for this payment
-             */
-            PaymentSource: {
-                /**
-                 * Unique identifier for the payment source
-                 */
-                id: string;
-                /**
-                 * The Cardano network (Mainnet, Preprod, or Preview)
-                 */
-                network: 'Preprod' | 'Mainnet';
-                /**
-                 * Address of the smart contract managing this payment
-                 */
-                smartContractAddress: string;
-                /**
-                 * Policy ID for the agent registry NFTs. Null if not applicable
-                 */
-                policyId: string | null;
-            };
-            /**
-             * Buyer wallet information. Null if buyer has not yet submitted payment
-             */
-            BuyerWallet: {
-                /**
-                 * Unique identifier for the buyer wallet
-                 */
-                id: string;
-                /**
-                 * Payment key hash of the buyer wallet
-                 */
-                walletVkey: string;
-            } | null;
-            /**
-             * Smart contract wallet (seller wallet) managing this payment. Null if not set
-             */
-            SmartContractWallet: {
-                /**
-                 * Unique identifier for the smart contract wallet
-                 */
-                id: string;
-                /**
-                 * Payment key hash of the smart contract wallet
-                 */
-                walletVkey: string;
-                /**
-                 * Cardano address of the smart contract wallet
-                 */
-                walletAddress: string;
-            } | null;
-            /**
-             * Optional metadata stored with the payment for additional context. Null if not provided
-             */
-            metadata: string | null;
-        };
-    };
-};
-
-export type PostPaymentErrorStateRecoveryResponse = PostPaymentErrorStateRecoveryResponses[keyof PostPaymentErrorStateRecoveryResponses];
-
-export type PostPurchaseErrorStateRecoveryData = {
-    /**
-     * Purchase error recovery request details
-     */
-    body?: {
-        /**
-         * The blockchain identifier of the purchase request
-         */
-        blockchainIdentifier: string;
-        /**
-         * The network the transaction was made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The time of the last update, to ensure you clear the correct error state
-         */
-        updatedAt: Date;
-    };
-    path?: never;
-    query?: never;
-    url: '/purchase/error-state-recovery/';
-};
-
-export type PostPurchaseErrorStateRecoveryErrors = {
-    /**
-     * Bad Request (not in WaitingForManualAction state, no error to clear, or invalid input)
-     */
-    400: {
-        status: string;
-        error: {
-            message: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Purchase request not found
-     */
-    404: {
-        status: string;
-        error: {
-            message: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type PostPurchaseErrorStateRecoveryError = PostPurchaseErrorStateRecoveryErrors[keyof PostPurchaseErrorStateRecoveryErrors];
-
-export type PostPurchaseErrorStateRecoveryResponses = {
-    /**
-     * Error state cleared successfully for purchase request
-     */
-    200: {
-        status: string;
-        data: {
-            id: string;
-        };
-    };
-};
-
-export type PostPurchaseErrorStateRecoveryResponse = PostPurchaseErrorStateRecoveryResponses[keyof PostPurchaseErrorStateRecoveryResponses];
-
 export type GetPurchaseData = {
     body?: never;
     path?: never;
@@ -3536,7 +1708,7 @@ export type GetPurchaseData = {
          */
         filterSmartContractAddress?: string | null;
         /**
-         * Whether to include the full transaction and action history of the purchases
+         * Whether to include the full transaction and status history of the purchases
          */
         includeHistory?: string;
     };
@@ -3565,7 +1737,243 @@ export type GetPurchaseResponses = {
     200: {
         status: string;
         data: {
-            Purchases: Array<Purchase>;
+            Purchases: Array<{
+                /**
+                 * Unique identifier for the purchase
+                 */
+                id: string;
+                /**
+                 * Timestamp when the purchase was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the purchase was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Unique blockchain identifier for the purchase
+                 */
+                blockchainIdentifier: string;
+                /**
+                 * Identifier of the agent that is being purchased
+                 */
+                agentIdentifier: string | null;
+                /**
+                 * Timestamp when the purchase was last checked on-chain. Null if never checked
+                 */
+                lastCheckedAt: string | null;
+                /**
+                 * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
+                 */
+                payByTime: string | null;
+                /**
+                 * Unix timestamp (in milliseconds) by which the seller must submit the result
+                 */
+                submitResultTime: string;
+                /**
+                 * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
+                 */
+                unlockTime: string;
+                /**
+                 * Unix timestamp (in milliseconds) after which external dispute resolution can occur
+                 */
+                externalDisputeUnlockTime: string;
+                /**
+                 * ID of the API key that created this purchase
+                 */
+                requestedById: string;
+                /**
+                 * Current state of the purchase on the blockchain. Null if not yet on-chain
+                 */
+                onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                /**
+                 * Amount of collateral to return in lovelace. Null if no collateral
+                 */
+                collateralReturnLovelace: string | null;
+                /**
+                 * Cooldown period in milliseconds for the buyer to dispute
+                 */
+                cooldownTime: number;
+                /**
+                 * Cooldown period in milliseconds for the seller to dispute
+                 */
+                cooldownTimeOtherParty: number;
+                /**
+                 * SHA256 hash of the input data for the purchase (hex string)
+                 */
+                inputHash: string;
+                /**
+                 * SHA256 hash of the result submitted by the seller (hex string)
+                 */
+                resultHash: string | null;
+                /**
+                 * Next action required for this purchase
+                 */
+                NextAction: {
+                    /**
+                     * Next action required for this purchase
+                     */
+                    requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'FundsLockingRequested' | 'FundsLockingInitiated' | 'SetRefundRequestedRequested' | 'SetRefundRequestedInitiated' | 'UnSetRefundRequestedRequested' | 'UnSetRefundRequestedInitiated' | 'WithdrawRefundRequested' | 'WithdrawRefundInitiated';
+                    /**
+                     * Type of error that occurred, if any
+                     */
+                    errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
+                    /**
+                     * Additional details about the error, if any
+                     */
+                    errorNote: string | null;
+                };
+                /**
+                 * Current active transaction for this purchase. Null if no transaction in progress
+                 */
+                CurrentTransaction: {
+                    /**
+                     * Unique identifier for the transaction
+                     */
+                    id: string;
+                    /**
+                     * Timestamp when the transaction was created
+                     */
+                    createdAt: string;
+                    /**
+                     * Timestamp when the transaction was last updated
+                     */
+                    updatedAt: string;
+                    /**
+                     * Cardano transaction hash
+                     */
+                    txHash: string | null;
+                    /**
+                     * Current status of the transaction
+                     */
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                    /**
+                     * Fees of the transaction
+                     */
+                    fees: string | null;
+                    /**
+                     * Block height of the transaction
+                     */
+                    blockHeight: number | null;
+                    /**
+                     * Block time of the transaction
+                     */
+                    blockTime: number | null;
+                    /**
+                     * Previous on-chain state before this transaction
+                     */
+                    previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * New on-chain state of this transaction
+                     */
+                    newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * Number of block confirmations for this transaction
+                     */
+                    confirmations: number | null;
+                } | null;
+                /**
+                 * Historical list of all transactions for this purchase
+                 */
+                TransactionHistory: Array<{
+                    /**
+                     * Unique identifier for the transaction
+                     */
+                    id: string;
+                    /**
+                     * Timestamp when the transaction was created
+                     */
+                    createdAt: string;
+                    /**
+                     * Timestamp when the transaction was last updated
+                     */
+                    updatedAt: string;
+                    /**
+                     * Cardano transaction hash
+                     */
+                    txHash: string | null;
+                    /**
+                     * Current status of the transaction
+                     */
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                    /**
+                     * Fees of the transaction
+                     */
+                    fees: string | null;
+                    /**
+                     * Block height of the transaction
+                     */
+                    blockHeight: number | null;
+                    /**
+                     * Block time of the transaction
+                     */
+                    blockTime: number | null;
+                    /**
+                     * Previous on-chain state before this transaction
+                     */
+                    previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * New on-chain state of this transaction
+                     */
+                    newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                    /**
+                     * Number of block confirmations for this transaction
+                     */
+                    confirmations: number | null;
+                }>;
+                PaidFunds: Array<{
+                    amount: string;
+                    unit: string;
+                }>;
+                WithdrawnForSeller: Array<{
+                    amount: string;
+                    unit: string;
+                }>;
+                WithdrawnForBuyer: Array<{
+                    amount: string;
+                    unit: string;
+                }>;
+                PaymentSource: {
+                    id: string;
+                    network: 'Preprod' | 'Mainnet';
+                    smartContractAddress: string;
+                    policyId: string | null;
+                };
+                /**
+                 * Seller wallet information. Null if not set
+                 */
+                SellerWallet: {
+                    /**
+                     * Unique identifier for the seller wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the seller wallet
+                     */
+                    walletVkey: string;
+                } | null;
+                /**
+                 * Smart contract wallet (seller wallet) managing this purchase. Null if not set
+                 */
+                SmartContractWallet: {
+                    /**
+                     * Unique identifier for the smart contract wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the smart contract wallet
+                     */
+                    walletVkey: string;
+                    /**
+                     * Cardano address of the smart contract wallet
+                     */
+                    walletAddress: string;
+                } | null;
+                /**
+                 * Optional metadata stored with the purchase for additional context. Null if not provided
+                 */
+                metadata: string | null;
+            }>;
         };
     };
 };
@@ -3663,23 +2071,19 @@ export type PostPurchaseErrors = {
             /**
              * Timestamp when the purchase was created
              */
-            createdAt: Date;
+            createdAt: string;
             /**
              * Timestamp when the purchase was last updated
              */
-            updatedAt: Date;
+            updatedAt: string;
             /**
              * Unique blockchain identifier for the purchase
              */
             blockchainIdentifier: string;
             /**
-             * Identifier of the agent that is being purchased
-             */
-            agentIdentifier: string | null;
-            /**
              * Timestamp when the purchase was last checked on-chain. Null if never checked
              */
-            lastCheckedAt: Date | null;
+            lastCheckedAt: string | null;
             /**
              * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
              */
@@ -3697,53 +2101,21 @@ export type PostPurchaseErrors = {
              */
             externalDisputeUnlockTime: string;
             /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-             */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action was last changed
-             */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
-            /**
              * ID of the API key that created this purchase
              */
             requestedById: string;
             /**
-             * Current state of the purchase on the blockchain. Null if not yet on-chain
+             * SHA256 hash of the result submitted by the seller (hex string)
              */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-            /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTimeOtherParty: number;
+            resultHash: string | null;
             /**
              * SHA256 hash of the input data for the purchase (hex string)
              */
             inputHash: string;
             /**
-             * SHA256 hash of the result submitted by the seller (hex string)
+             * Current state of the purchase on the blockchain. Null if not yet on-chain
              */
-            resultHash: string | null;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
             /**
              * Next action required for this purchase
              */
@@ -3755,15 +2127,12 @@ export type PostPurchaseErrors = {
                 /**
                  * Type of error that occurred, if any
                  */
-                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown' | null;
+                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
                 /**
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
             };
-            /**
-             * Current active transaction for this purchase. Null if no transaction in progress
-             */
             CurrentTransaction: {
                 /**
                  * Unique identifier for the transaction
@@ -3772,11 +2141,11 @@ export type PostPurchaseErrors = {
                 /**
                  * Timestamp when the transaction was created
                  */
-                createdAt: Date;
+                createdAt: string;
                 /**
                  * Timestamp when the transaction was last updated
                  */
-                updatedAt: Date;
+                updatedAt: string;
                 /**
                  * Cardano transaction hash
                  */
@@ -3784,7 +2153,7 @@ export type PostPurchaseErrors = {
                 /**
                  * Current status of the transaction
                  */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
                 /**
                  * Fees of the transaction
                  */
@@ -3797,36 +2166,97 @@ export type PostPurchaseErrors = {
                  * Block time of the transaction
                  */
                 blockTime: number | null;
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
             } | null;
-            PaidFunds: Array<{
-                amount: string;
-                unit: string;
-            }>;
-            WithdrawnForSeller: Array<{
-                amount: string;
-                unit: string;
-            }>;
-            WithdrawnForBuyer: Array<{
-                amount: string;
-                unit: string;
-            }>;
-            PaymentSource: {
+            TransactionHistory: Array<{
+                /**
+                 * Unique identifier for the transaction
+                 */
                 id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                /**
+                 * Fees of the transaction
+                 */
+                fees: string | null;
+                /**
+                 * Block height of the transaction
+                 */
+                blockHeight: number | null;
+                /**
+                 * Block time of the transaction
+                 */
+                blockTime: number | null;
+            }> | null;
+            PaidFunds: Array<{
+                /**
+                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the seller
+             */
+            WithdrawnForSeller: Array<{
+                /**
+                 * Amount of the asset withdrawn
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the buyer (refunds)
+             */
+            WithdrawnForBuyer: Array<{
+                /**
+                 * Amount of the asset withdrawn
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * Payment source configuration for this purchase
+             */
+            PaymentSource: {
+                /**
+                 * Unique identifier for the payment source
+                 */
+                id: string;
+                /**
+                 * The Cardano network
+                 */
                 network: 'Preprod' | 'Mainnet';
-                smartContractAddress: string;
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
                 policyId: string | null;
+                /**
+                 * Address of the smart contract managing this purchase
+                 */
+                smartContractAddress: string;
             };
             /**
              * Seller wallet information. Null if not set
@@ -3885,23 +2315,19 @@ export type PostPurchaseResponses = {
             /**
              * Timestamp when the purchase was created
              */
-            createdAt: Date;
+            createdAt: string;
             /**
              * Timestamp when the purchase was last updated
              */
-            updatedAt: Date;
+            updatedAt: string;
             /**
              * Unique blockchain identifier for the purchase
              */
             blockchainIdentifier: string;
             /**
-             * Identifier of the agent that is being purchased
-             */
-            agentIdentifier: string | null;
-            /**
              * Timestamp when the purchase was last checked on-chain. Null if never checked
              */
-            lastCheckedAt: Date | null;
+            lastCheckedAt: string | null;
             /**
              * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
              */
@@ -3919,53 +2345,21 @@ export type PostPurchaseResponses = {
              */
             externalDisputeUnlockTime: string;
             /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-             */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action was last changed
-             */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
-            /**
              * ID of the API key that created this purchase
              */
             requestedById: string;
             /**
-             * Current state of the purchase on the blockchain. Null if not yet on-chain
+             * SHA256 hash of the result submitted by the seller (hex string)
              */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-            /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTimeOtherParty: number;
+            resultHash: string | null;
             /**
              * SHA256 hash of the input data for the purchase (hex string)
              */
             inputHash: string;
             /**
-             * SHA256 hash of the result submitted by the seller (hex string)
+             * Current state of the purchase on the blockchain. Null if not yet on-chain
              */
-            resultHash: string | null;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
             /**
              * Next action required for this purchase
              */
@@ -3977,15 +2371,12 @@ export type PostPurchaseResponses = {
                 /**
                  * Type of error that occurred, if any
                  */
-                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown' | null;
+                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
                 /**
                  * Additional details about the error, if any
                  */
                 errorNote: string | null;
             };
-            /**
-             * Current active transaction for this purchase. Null if no transaction in progress
-             */
             CurrentTransaction: {
                 /**
                  * Unique identifier for the transaction
@@ -3994,11 +2385,11 @@ export type PostPurchaseResponses = {
                 /**
                  * Timestamp when the transaction was created
                  */
-                createdAt: Date;
+                createdAt: string;
                 /**
                  * Timestamp when the transaction was last updated
                  */
-                updatedAt: Date;
+                updatedAt: string;
                 /**
                  * Cardano transaction hash
                  */
@@ -4006,7 +2397,7 @@ export type PostPurchaseResponses = {
                 /**
                  * Current status of the transaction
                  */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
                 /**
                  * Fees of the transaction
                  */
@@ -4019,36 +2410,97 @@ export type PostPurchaseResponses = {
                  * Block time of the transaction
                  */
                 blockTime: number | null;
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
             } | null;
-            PaidFunds: Array<{
-                amount: string;
-                unit: string;
-            }>;
-            WithdrawnForSeller: Array<{
-                amount: string;
-                unit: string;
-            }>;
-            WithdrawnForBuyer: Array<{
-                amount: string;
-                unit: string;
-            }>;
-            PaymentSource: {
+            TransactionHistory: Array<{
+                /**
+                 * Unique identifier for the transaction
+                 */
                 id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                /**
+                 * Fees of the transaction
+                 */
+                fees: string | null;
+                /**
+                 * Block height of the transaction
+                 */
+                blockHeight: number | null;
+                /**
+                 * Block time of the transaction
+                 */
+                blockTime: number | null;
+            }> | null;
+            PaidFunds: Array<{
+                /**
+                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the seller
+             */
+            WithdrawnForSeller: Array<{
+                /**
+                 * Amount of the asset withdrawn
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the buyer (refunds)
+             */
+            WithdrawnForBuyer: Array<{
+                /**
+                 * Amount of the asset withdrawn
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * Payment source configuration for this purchase
+             */
+            PaymentSource: {
+                /**
+                 * Unique identifier for the payment source
+                 */
+                id: string;
+                /**
+                 * The Cardano network
+                 */
                 network: 'Preprod' | 'Mainnet';
-                smartContractAddress: string;
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
                 policyId: string | null;
+                /**
+                 * Address of the smart contract managing this purchase
+                 */
+                smartContractAddress: string;
             };
             /**
              * Seller wallet information. Null if not set
@@ -4090,189 +2542,6 @@ export type PostPurchaseResponses = {
 };
 
 export type PostPurchaseResponse = PostPurchaseResponses[keyof PostPurchaseResponses];
-
-export type GetPurchaseDiffData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * The number of purchases to return
-         */
-        limit?: number;
-        /**
-         * Pagination cursor (purchase id). Used as tie-breaker when lastUpdate equals a purchase change timestamp
-         */
-        cursorId?: string;
-        /**
-         * Return purchases whose selected status timestamp changed at/after this ISO timestamp
-         */
-        lastUpdate?: string;
-        /**
-         * The network the purchases were made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment source
-         */
-        filterSmartContractAddress?: string | null;
-        /**
-         * Whether to include the full transaction and status history of the purchases
-         */
-        includeHistory?: string;
-    };
-    url: '/purchase/diff';
-};
-
-export type GetPurchaseDiffErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetPurchaseDiffResponses = {
-    /**
-     * Purchase diff
-     */
-    200: {
-        status: string;
-        data: {
-            Purchases: Array<Purchase>;
-        };
-    };
-};
-
-export type GetPurchaseDiffResponse = GetPurchaseDiffResponses[keyof GetPurchaseDiffResponses];
-
-export type GetPurchaseDiffNextActionData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * The number of purchases to return
-         */
-        limit?: number;
-        /**
-         * Pagination cursor (purchase id). Used as tie-breaker when lastUpdate equals a purchase change timestamp
-         */
-        cursorId?: string;
-        /**
-         * Return purchases whose selected status timestamp changed at/after this ISO timestamp
-         */
-        lastUpdate?: string;
-        /**
-         * The network the purchases were made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment source
-         */
-        filterSmartContractAddress?: string | null;
-        /**
-         * Whether to include the full transaction and status history of the purchases
-         */
-        includeHistory?: string;
-    };
-    url: '/purchase/diff/next-action';
-};
-
-export type GetPurchaseDiffNextActionErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetPurchaseDiffNextActionResponses = {
-    /**
-     * Purchase diff
-     */
-    200: {
-        status: string;
-        data: {
-            Purchases: Array<Purchase>;
-        };
-    };
-};
-
-export type GetPurchaseDiffNextActionResponse = GetPurchaseDiffNextActionResponses[keyof GetPurchaseDiffNextActionResponses];
-
-export type GetPurchaseDiffOnchainStateOrResultData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * The number of purchases to return
-         */
-        limit?: number;
-        /**
-         * Pagination cursor (purchase id). Used as tie-breaker when lastUpdate equals a purchase change timestamp
-         */
-        cursorId?: string;
-        /**
-         * Return purchases whose selected status timestamp changed at/after this ISO timestamp
-         */
-        lastUpdate?: string;
-        /**
-         * The network the purchases were made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment source
-         */
-        filterSmartContractAddress?: string | null;
-        /**
-         * Whether to include the full transaction and status history of the purchases
-         */
-        includeHistory?: string;
-    };
-    url: '/purchase/diff/onchain-state-or-result';
-};
-
-export type GetPurchaseDiffOnchainStateOrResultErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetPurchaseDiffOnchainStateOrResultResponses = {
-    /**
-     * Purchase diff
-     */
-    200: {
-        status: string;
-        data: {
-            Purchases: Array<Purchase>;
-        };
-    };
-};
-
-export type GetPurchaseDiffOnchainStateOrResultResponse = GetPurchaseDiffOnchainStateOrResultResponses[keyof GetPurchaseDiffOnchainStateOrResultResponses];
 
 export type PostPurchaseRequestRefundData = {
     body?: {
@@ -4318,87 +2587,47 @@ export type PostPurchaseRequestRefundResponses = {
             /**
              * Timestamp when the purchase was created
              */
-            createdAt: Date;
+            createdAt: string;
             /**
              * Timestamp when the purchase was last updated
              */
-            updatedAt: Date;
+            updatedAt: string;
             /**
              * Unique blockchain identifier for the purchase
              */
             blockchainIdentifier: string;
             /**
-             * Identifier of the agent that is being purchased
-             */
-            agentIdentifier: string | null;
-            /**
              * Timestamp when the purchase was last checked on-chain. Null if never checked
              */
-            lastCheckedAt: Date | null;
+            lastCheckedAt: string | null;
             /**
-             * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
+             * Unix timestamp by which the buyer must submit the payment transaction. Null if not set
              */
             payByTime: string | null;
             /**
-             * Unix timestamp (in milliseconds) by which the seller must submit the result
+             * Unix timestamp by which the seller must submit the result
              */
             submitResultTime: string;
             /**
-             * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
+             * Unix timestamp after which funds can be unlocked if no disputes
              */
             unlockTime: string;
             /**
-             * Unix timestamp (in milliseconds) after which external dispute resolution can occur
+             * Unix timestamp after which external dispute resolution can occur
              */
             externalDisputeUnlockTime: string;
-            /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-             */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action was last changed
-             */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
             /**
              * ID of the API key that created this purchase
              */
             requestedById: string;
             /**
-             * Current state of the purchase on the blockchain. Null if not yet on-chain
-             */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-            /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTimeOtherParty: number;
-            /**
-             * SHA256 hash of the input data for the purchase (hex string)
-             */
-            inputHash: string;
-            /**
              * SHA256 hash of the result submitted by the seller (hex string)
              */
             resultHash: string | null;
+            /**
+             * Current state of the purchase on the blockchain. Null if not yet on-chain
+             */
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
             /**
              * Next action required for this purchase
              */
@@ -4410,7 +2639,7 @@ export type PostPurchaseRequestRefundResponses = {
                 /**
                  * Type of error that occurred, if any
                  */
-                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown' | null;
+                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
                 /**
                  * Additional details about the error, if any
                  */
@@ -4427,11 +2656,11 @@ export type PostPurchaseRequestRefundResponses = {
                 /**
                  * Timestamp when the transaction was created
                  */
-                createdAt: Date;
+                createdAt: string;
                 /**
                  * Timestamp when the transaction was last updated
                  */
-                updatedAt: Date;
+                updatedAt: string;
                 /**
                  * Cardano transaction hash
                  */
@@ -4439,49 +2668,64 @@ export type PostPurchaseRequestRefundResponses = {
                 /**
                  * Current status of the transaction
                  */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-                /**
-                 * Fees of the transaction
-                 */
-                fees: string | null;
-                /**
-                 * Block height of the transaction
-                 */
-                blockHeight: number | null;
-                /**
-                 * Block time of the transaction
-                 */
-                blockTime: number | null;
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
             } | null;
             PaidFunds: Array<{
+                /**
+                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                 */
                 amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                 */
                 unit: string;
             }>;
+            /**
+             * List of assets and amounts withdrawn for the seller
+             */
             WithdrawnForSeller: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
                 amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
                 unit: string;
             }>;
+            /**
+             * List of assets and amounts withdrawn for the buyer (refunds)
+             */
             WithdrawnForBuyer: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
                 amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
                 unit: string;
             }>;
+            /**
+             * Payment source configuration for this purchase
+             */
             PaymentSource: {
+                /**
+                 * Unique identifier for the payment source
+                 */
                 id: string;
+                /**
+                 * The Cardano network
+                 */
                 network: 'Preprod' | 'Mainnet';
-                smartContractAddress: string;
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
                 policyId: string | null;
+                /**
+                 * Address of the smart contract managing this purchase
+                 */
+                smartContractAddress: string;
             };
             /**
              * Seller wallet information. Null if not set
@@ -4568,87 +2812,47 @@ export type PostPurchaseCancelRefundRequestResponses = {
             /**
              * Timestamp when the purchase was created
              */
-            createdAt: Date;
+            createdAt: string;
             /**
              * Timestamp when the purchase was last updated
              */
-            updatedAt: Date;
+            updatedAt: string;
             /**
              * Unique blockchain identifier for the purchase
              */
             blockchainIdentifier: string;
             /**
-             * Identifier of the agent that is being purchased
-             */
-            agentIdentifier: string | null;
-            /**
              * Timestamp when the purchase was last checked on-chain. Null if never checked
              */
-            lastCheckedAt: Date | null;
+            lastCheckedAt: string | null;
             /**
-             * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
+             * Unix timestamp by which the buyer must submit the payment transaction. Null if not set
              */
             payByTime: string | null;
             /**
-             * Unix timestamp (in milliseconds) by which the seller must submit the result
+             * Unix timestamp by which the seller must submit the result
              */
             submitResultTime: string;
             /**
-             * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
+             * Unix timestamp after which funds can be unlocked if no disputes
              */
             unlockTime: string;
             /**
-             * Unix timestamp (in milliseconds) after which external dispute resolution can occur
+             * Unix timestamp after which external dispute resolution can occur
              */
             externalDisputeUnlockTime: string;
-            /**
-             * Total Cardano transaction fees paid by the buyer in ADA (sum of all confirmed transactions initiated by buyer)
-             */
-            totalBuyerCardanoFees: number;
-            /**
-             * Total Cardano transaction fees paid by the seller in ADA (sum of all confirmed transactions initiated by seller)
-             */
-            totalSellerCardanoFees: number;
-            /**
-             * Timestamp when the next action or on-chain state or result was last changed
-             */
-            nextActionOrOnChainStateOrResultLastChangedAt: Date;
-            /**
-             * Timestamp when the next action was last changed
-             */
-            nextActionLastChangedAt: Date;
-            /**
-             * Timestamp when the on-chain state or result was last changed
-             */
-            onChainStateOrResultLastChangedAt: Date;
             /**
              * ID of the API key that created this purchase
              */
             requestedById: string;
             /**
-             * Current state of the purchase on the blockchain. Null if not yet on-chain
-             */
-            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-            /**
-             * Amount of collateral to return in lovelace. Null if no collateral
-             */
-            collateralReturnLovelace: string | null;
-            /**
-             * Cooldown period in milliseconds for the buyer to dispute
-             */
-            cooldownTime: number;
-            /**
-             * Cooldown period in milliseconds for the seller to dispute
-             */
-            cooldownTimeOtherParty: number;
-            /**
-             * SHA256 hash of the input data for the purchase (hex string)
-             */
-            inputHash: string;
-            /**
              * SHA256 hash of the result submitted by the seller (hex string)
              */
             resultHash: string | null;
+            /**
+             * Current state of the purchase on the blockchain. Null if not yet on-chain
+             */
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
             /**
              * Next action required for this purchase
              */
@@ -4660,7 +2864,7 @@ export type PostPurchaseCancelRefundRequestResponses = {
                 /**
                  * Type of error that occurred, if any
                  */
-                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown' | null;
+                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
                 /**
                  * Additional details about the error, if any
                  */
@@ -4677,11 +2881,11 @@ export type PostPurchaseCancelRefundRequestResponses = {
                 /**
                  * Timestamp when the transaction was created
                  */
-                createdAt: Date;
+                createdAt: string;
                 /**
                  * Timestamp when the transaction was last updated
                  */
-                updatedAt: Date;
+                updatedAt: string;
                 /**
                  * Cardano transaction hash
                  */
@@ -4689,49 +2893,64 @@ export type PostPurchaseCancelRefundRequestResponses = {
                 /**
                  * Current status of the transaction
                  */
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'FailedViaManualReset' | 'RolledBack';
-                /**
-                 * Fees of the transaction
-                 */
-                fees: string | null;
-                /**
-                 * Block height of the transaction
-                 */
-                blockHeight: number | null;
-                /**
-                 * Block time of the transaction
-                 */
-                blockTime: number | null;
-                /**
-                 * Previous on-chain state before this transaction
-                 */
-                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * New on-chain state of this transaction
-                 */
-                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn' | null;
-                /**
-                 * Number of block confirmations for this transaction
-                 */
-                confirmations: number | null;
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
             } | null;
             PaidFunds: Array<{
+                /**
+                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                 */
                 amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                 */
                 unit: string;
             }>;
+            /**
+             * List of assets and amounts withdrawn for the seller
+             */
             WithdrawnForSeller: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
                 amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
                 unit: string;
             }>;
+            /**
+             * List of assets and amounts withdrawn for the buyer (refunds)
+             */
             WithdrawnForBuyer: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
                 amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
                 unit: string;
             }>;
+            /**
+             * Payment source configuration for this purchase
+             */
             PaymentSource: {
+                /**
+                 * Unique identifier for the payment source
+                 */
                 id: string;
+                /**
+                 * The Cardano network (Mainnet, Preprod, or Preview)
+                 */
                 network: 'Preprod' | 'Mainnet';
-                smartContractAddress: string;
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
                 policyId: string | null;
+                /**
+                 * Address of the smart contract managing this purchase
+                 */
+                smartContractAddress: string;
             };
             /**
              * Seller wallet information. Null if not set
@@ -4823,7 +3042,254 @@ export type PostPaymentResolveBlockchainIdentifierResponses = {
      */
     200: {
         status: string;
-        data: Payment;
+        data: {
+            /**
+             * Unique identifier for the payment
+             */
+            id: string;
+            /**
+             * Timestamp when the payment was created
+             */
+            createdAt: string;
+            /**
+             * Timestamp when the payment was last updated
+             */
+            updatedAt: string;
+            /**
+             * Unique blockchain identifier for the payment
+             */
+            blockchainIdentifier: string;
+            /**
+             * Identifier of the agent that is being paid
+             */
+            agentIdentifier: string | null;
+            /**
+             * Timestamp when the payment was last checked on-chain. Null if never checked
+             */
+            lastCheckedAt: string | null;
+            /**
+             * Unix timestamp (in milliseconds) by which the buyer must submit the payment transaction. Null if not set
+             */
+            payByTime: string | null;
+            /**
+             * Unix timestamp (in milliseconds) by which the seller must submit the result
+             */
+            submitResultTime: string;
+            /**
+             * Unix timestamp (in milliseconds) after which funds can be unlocked if no disputes
+             */
+            unlockTime: string;
+            /**
+             * Amount of collateral to return in lovelace. Null if no collateral
+             */
+            collateralReturnLovelace: string | null;
+            /**
+             * Unix timestamp (in milliseconds) after which external dispute resolution can occur
+             */
+            externalDisputeUnlockTime: string;
+            /**
+             * ID of the API key that created this payment
+             */
+            requestedById: string;
+            /**
+             * SHA256 hash of the result submitted by the seller (hex string)
+             */
+            resultHash: string | null;
+            /**
+             * SHA256 hash of the input data for the payment (hex string)
+             */
+            inputHash: string | null;
+            /**
+             * Cooldown period in milliseconds for the seller to dispute
+             */
+            cooldownTime: number;
+            /**
+             * Cooldown period in milliseconds for the buyer to dispute
+             */
+            cooldownTimeOtherParty: number;
+            /**
+             * Current state of the payment on the blockchain. Null if not yet on-chain
+             */
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+            /**
+             * Next action required for this payment
+             */
+            NextAction: {
+                /**
+                 * Next action required for this payment
+                 */
+                requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'SubmitResultRequested' | 'SubmitResultInitiated' | 'WithdrawRequested' | 'WithdrawInitiated' | 'AuthorizeRefundRequested' | 'AuthorizeRefundInitiated';
+                /**
+                 * Type of error that occurred, if any
+                 */
+                errorType: 'NetworkError' | 'Unknown';
+                /**
+                 * Additional details about the error, if any
+                 */
+                errorNote: string | null;
+                /**
+                 * SHA256 hash of the result to be submitted (hex string). Null if not applicable
+                 */
+                resultHash: string | null;
+            };
+            /**
+             * Current active transaction for this payment. Null if no transaction in progress
+             */
+            CurrentTransaction: {
+                /**
+                 * Unique identifier for the transaction
+                 */
+                id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash. Null if transaction not yet submitted
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                /**
+                 * Previous on-chain state before this transaction. Null if not applicable
+                 */
+                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                /**
+                 * New on-chain state after this transaction. Null if not applicable
+                 */
+                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+            } | null;
+            /**
+             * Historical list of all transactions for this payment. Null or empty if includeHistory is false
+             */
+            TransactionHistory: Array<{
+                /**
+                 * Unique identifier for the transaction
+                 */
+                id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash. Null if transaction not yet submitted
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                /**
+                 * Previous on-chain state before this transaction. Null if not applicable
+                 */
+                previousOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+                /**
+                 * New on-chain state after this transaction. Null if not applicable
+                 */
+                newOnChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+            }> | null;
+            RequestedFunds: Array<{
+                /**
+                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the seller
+             */
+            WithdrawnForSeller: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the buyer (refunds)
+             */
+            WithdrawnForBuyer: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * Payment source configuration for this payment
+             */
+            PaymentSource: {
+                /**
+                 * Unique identifier for the payment source
+                 */
+                id: string;
+                /**
+                 * The Cardano network (Mainnet, Preprod, or Preview)
+                 */
+                network: 'Preprod' | 'Mainnet';
+                /**
+                 * Address of the smart contract managing this payment
+                 */
+                smartContractAddress: string;
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
+                policyId: string | null;
+            };
+            /**
+             * Buyer wallet information. Null if buyer has not yet submitted payment
+             */
+            BuyerWallet: {
+                /**
+                 * Unique identifier for the buyer wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the buyer wallet
+                 */
+                walletVkey: string;
+            } | null;
+            /**
+             * Smart contract wallet (seller wallet) managing this payment. Null if not set
+             */
+            SmartContractWallet: {
+                /**
+                 * Unique identifier for the smart contract wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the smart contract wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the smart contract wallet
+                 */
+                walletAddress: string;
+            } | null;
+            /**
+             * Optional metadata stored with the payment for additional context. Null if not provided
+             */
+            metadata: string | null;
+        };
     };
 };
 
@@ -4878,7 +3344,234 @@ export type PostPurchaseResolveBlockchainIdentifierResponses = {
      */
     200: {
         status: string;
-        data: Purchase;
+        data: {
+            /**
+             * Unique identifier for the purchase
+             */
+            id: string;
+            /**
+             * Timestamp when the purchase was created
+             */
+            createdAt: string;
+            /**
+             * Timestamp when the purchase was last updated
+             */
+            updatedAt: string;
+            /**
+             * Unique blockchain identifier for the purchase
+             */
+            blockchainIdentifier: string;
+            /**
+             * Identifier of the agent that is being purchased
+             */
+            agentIdentifier: string | null;
+            /**
+             * Timestamp when the purchase was last checked on-chain. Null if never checked
+             */
+            lastCheckedAt: string | null;
+            /**
+             * Unix timestamp by which the buyer must submit the payment transaction. Null if not set
+             */
+            payByTime: string | null;
+            /**
+             * Unix timestamp by which the seller must submit the result
+             */
+            submitResultTime: string;
+            /**
+             * Unix timestamp after which funds can be unlocked if no disputes
+             */
+            unlockTime: string;
+            /**
+             * Unix timestamp after which external dispute resolution can occur
+             */
+            externalDisputeUnlockTime: string;
+            /**
+             * ID of the API key that created this purchase
+             */
+            requestedById: string;
+            /**
+             * Current state of the purchase on the blockchain. Null if not yet on-chain
+             */
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+            /**
+             * Amount of collateral to return in lovelace. Null if no collateral
+             */
+            collateralReturnLovelace: string | null;
+            /**
+             * Cooldown period in milliseconds for the buyer to dispute
+             */
+            cooldownTime: number;
+            /**
+             * Cooldown period in milliseconds for the seller to dispute
+             */
+            cooldownTimeOtherParty: number;
+            /**
+             * SHA256 hash of the input data for the purchase (hex string)
+             */
+            inputHash: string;
+            /**
+             * SHA256 hash of the result submitted by the seller (hex string)
+             */
+            resultHash: string | null;
+            /**
+             * Next action required for this purchase
+             */
+            NextAction: {
+                /**
+                 * Next action required for this purchase
+                 */
+                requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'FundsLockingRequested' | 'FundsLockingInitiated' | 'SetRefundRequestedRequested' | 'SetRefundRequestedInitiated' | 'UnSetRefundRequestedRequested' | 'UnSetRefundRequestedInitiated' | 'WithdrawRefundRequested' | 'WithdrawRefundInitiated';
+                /**
+                 * Type of error that occurred, if any
+                 */
+                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
+                /**
+                 * Additional details about the error, if any
+                 */
+                errorNote: string | null;
+            };
+            /**
+             * Current active transaction for this purchase. Null if no transaction in progress
+             */
+            CurrentTransaction: {
+                /**
+                 * Unique identifier for the transaction
+                 */
+                id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+            } | null;
+            /**
+             * Historical list of all transactions for this purchase. Empty if includeHistory is false
+             */
+            TransactionHistory: Array<{
+                /**
+                 * Unique identifier for the transaction
+                 */
+                id: string;
+                /**
+                 * Timestamp when the transaction was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the transaction was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Cardano transaction hash
+                 */
+                txHash: string | null;
+                /**
+                 * Current status of the transaction
+                 */
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+            }>;
+            PaidFunds: Array<{
+                /**
+                 * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the seller
+             */
+            WithdrawnForSeller: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * List of assets and amounts withdrawn for the buyer (refunds)
+             */
+            WithdrawnForBuyer: Array<{
+                /**
+                 * Amount of the asset withdrawn (as string to handle large numbers)
+                 */
+                amount: string;
+                /**
+                 * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                 */
+                unit: string;
+            }>;
+            /**
+             * Payment source configuration for this purchase
+             */
+            PaymentSource: {
+                /**
+                 * Unique identifier for the payment source
+                 */
+                id: string;
+                /**
+                 * The Cardano network (Mainnet, Preprod, or Preview)
+                 */
+                network: 'Preprod' | 'Mainnet';
+                /**
+                 * Address of the smart contract managing this purchase
+                 */
+                smartContractAddress: string;
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
+                policyId: string | null;
+            };
+            /**
+             * Seller wallet information. Null if not set
+             */
+            SellerWallet: {
+                /**
+                 * Unique identifier for the seller wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the seller wallet
+                 */
+                walletVkey: string;
+            } | null;
+            /**
+             * Smart contract wallet (seller wallet) managing this purchase. Null if not set
+             */
+            SmartContractWallet: {
+                /**
+                 * Unique identifier for the smart contract wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the smart contract wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the smart contract wallet
+                 */
+                walletAddress: string;
+            } | null;
+            /**
+             * Optional metadata stored with the purchase for additional context. Null if not provided
+             */
+            metadata: string | null;
+        };
     };
 };
 
@@ -4914,63 +3607,149 @@ export type GetRegistryWalletResponses = {
             /**
              * List of agent assets registered to this wallet
              */
-            Assets: Array<AgentMetadata>;
+            Assets: Array<{
+                /**
+                 * Policy ID of the agent registry NFT
+                 */
+                policyId: string;
+                /**
+                 * Asset name of the agent registry NFT
+                 */
+                assetName: string;
+                /**
+                 * Full agent identifier (policy ID + asset name)
+                 */
+                agentIdentifier: string;
+                /**
+                 * On-chain metadata for the agent
+                 */
+                Metadata: {
+                    /**
+                     * Name of the agent
+                     */
+                    name: string;
+                    /**
+                     * Description of the agent. Null if not provided
+                     */
+                    description?: string | null;
+                    /**
+                     * Base URL of the agent API for interactions
+                     */
+                    apiBaseUrl: string;
+                    /**
+                     * List of example outputs from the agent
+                     */
+                    ExampleOutputs: Array<{
+                        /**
+                         * Name of the example output
+                         */
+                        name: string;
+                        /**
+                         * MIME type of the example output (e.g., image/png, text/plain)
+                         */
+                        mimeType: string;
+                        /**
+                         * URL to the example output
+                         */
+                        url: string;
+                    }>;
+                    /**
+                     * List of tags categorizing the agent
+                     */
+                    Tags: Array<string>;
+                    /**
+                     * Information about the AI model and version used by the agent. Null if not provided
+                     */
+                    Capability?: {
+                        /**
+                         * Name of the AI model/capability. Null if not provided
+                         */
+                        name?: string | null;
+                        /**
+                         * Version of the AI model/capability. Null if not provided
+                         */
+                        version?: string | null;
+                    } | null;
+                    /**
+                     * Author information for the agent
+                     */
+                    Author: {
+                        /**
+                         * Name of the agent author
+                         */
+                        name: string;
+                        /**
+                         * Contact email of the author. Null if not provided
+                         */
+                        contactEmail?: string | null;
+                        /**
+                         * Other contact information for the author. Null if not provided
+                         */
+                        contactOther?: string | null;
+                        /**
+                         * Organization of the author. Null if not provided
+                         */
+                        organization?: string | null;
+                    };
+                    /**
+                     * Legal information about the agent. Null if not provided
+                     */
+                    Legal?: {
+                        /**
+                         * URL to the privacy policy. Null if not provided
+                         */
+                        privacyPolicy?: string | null;
+                        /**
+                         * URL to the terms of service. Null if not provided
+                         */
+                        terms?: string | null;
+                        /**
+                         * Other legal information. Null if not provided
+                         */
+                        other?: string | null;
+                    } | null;
+                    /**
+                     * Pricing information for the agent
+                     */
+                    AgentPricing: {
+                        /**
+                         * Pricing type for the agent (Fixed or Free)
+                         */
+                        pricingType: 'Fixed';
+                        /**
+                         * List of assets and amounts for fixed pricing
+                         */
+                        Pricing: Array<{
+                            /**
+                             * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                             */
+                            amount: string;
+                            /**
+                             * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                             */
+                            unit: string;
+                        }>;
+                    } | {
+                        /**
+                         * Pricing type for the agent (Fixed or Free)
+                         */
+                        pricingType: 'Free';
+                    };
+                    /**
+                     * URL to the agent image/logo
+                     */
+                    image: string;
+                    /**
+                     * Version of the metadata schema (currently only version 1 is supported)
+                     */
+                    metadataVersion: number;
+                };
+            }>;
         };
     };
 };
 
 export type GetRegistryWalletResponse = GetRegistryWalletResponses[keyof GetRegistryWalletResponses];
-
-export type GetRegistryAgentIdentifierData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * Full agent identifier (policy ID + asset name in hex)
-         */
-        agentIdentifier: string;
-        /**
-         * The Cardano network (Preprod or Mainnet)
-         */
-        network: 'Preprod' | 'Mainnet';
-    };
-    url: '/registry/agent-identifier';
-};
-
-export type GetRegistryAgentIdentifierErrors = {
-    /**
-     * Bad Request (agent identifier is not a valid hex string)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Agent identifier not found or network/policyId combination not supported
-     */
-    404: unknown;
-    /**
-     * Agent metadata is invalid or malformed
-     */
-    422: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetRegistryAgentIdentifierResponses = {
-    /**
-     * Agent metadata retrieved successfully
-     */
-    200: {
-        status: string;
-        data: AgentIdentifierMetadata;
-    };
-};
-
-export type GetRegistryAgentIdentifierResponse = GetRegistryAgentIdentifierResponses[keyof GetRegistryAgentIdentifierResponses];
 
 export type DeleteRegistryData = {
     body?: {
@@ -5021,7 +3800,12 @@ export type DeleteRegistryResponses = {
      */
     200: {
         status: string;
-        data: RegistryEntry;
+        data: {
+            /**
+             * Unique identifier of the deleted agent registration
+             */
+            id: string;
+        };
     };
 };
 
@@ -5054,7 +3838,186 @@ export type GetRegistryResponses = {
     200: {
         status: string;
         data: {
-            Assets: Array<RegistryEntry>;
+            Assets: Array<{
+                /**
+                 * Error message if registration failed. Null if no error
+                 */
+                error: string | null;
+                /**
+                 * Unique identifier for the registry request
+                 */
+                id: string;
+                /**
+                 * Name of the agent
+                 */
+                name: string;
+                /**
+                 * Description of the agent. Null if not provided
+                 */
+                description: string | null;
+                /**
+                 * Base URL of the agent API for interactions
+                 */
+                apiBaseUrl: string;
+                /**
+                 * Information about the AI model and version used by the agent
+                 */
+                Capability: {
+                    /**
+                     * Name of the AI model/capability. Null if not provided
+                     */
+                    name: string | null;
+                    /**
+                     * Version of the AI model/capability. Null if not provided
+                     */
+                    version: string | null;
+                };
+                /**
+                 * Author information for the agent
+                 */
+                Author: {
+                    /**
+                     * Name of the agent author
+                     */
+                    name: string;
+                    /**
+                     * Contact email of the author. Null if not provided
+                     */
+                    contactEmail: string | null;
+                    /**
+                     * Other contact information for the author. Null if not provided
+                     */
+                    contactOther: string | null;
+                    /**
+                     * Organization of the author. Null if not provided
+                     */
+                    organization: string | null;
+                };
+                /**
+                 * Legal information about the agent
+                 */
+                Legal: {
+                    /**
+                     * URL to the privacy policy. Null if not provided
+                     */
+                    privacyPolicy: string | null;
+                    /**
+                     * URL to the terms of service. Null if not provided
+                     */
+                    terms: string | null;
+                    /**
+                     * Other legal information. Null if not provided
+                     */
+                    other: string | null;
+                };
+                /**
+                 * Current state of the registration process
+                 */
+                state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
+                /**
+                 * List of tags categorizing the agent
+                 */
+                Tags: Array<string>;
+                /**
+                 * Timestamp when the registry request was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the registry request was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * Timestamp when the registry was last checked. Null if never checked
+                 */
+                lastCheckedAt: string | null;
+                /**
+                 * List of example outputs from the agent
+                 */
+                ExampleOutputs: Array<{
+                    /**
+                     * Name of the example output
+                     */
+                    name: string;
+                    /**
+                     * URL to the example output
+                     */
+                    url: string;
+                    /**
+                     * MIME type of the example output (e.g., image/png, text/plain)
+                     */
+                    mimeType: string;
+                }>;
+                /**
+                 * Full agent identifier (policy ID + asset name). Null if not yet minted
+                 */
+                agentIdentifier: string | null;
+                /**
+                 * Pricing information for the agent
+                 */
+                AgentPricing: {
+                    /**
+                     * Pricing type for the agent
+                     */
+                    pricingType: 'Fixed';
+                    /**
+                     * List of assets and amounts for fixed pricing
+                     */
+                    Pricing: Array<{
+                        /**
+                         * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                         */
+                        amount: string;
+                        /**
+                         * Asset policy id + asset name concatenated. Uses an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                         */
+                        unit: string;
+                    }>;
+                } | {
+                    /**
+                     * Pricing type for the agent
+                     */
+                    pricingType: 'Free';
+                };
+                /**
+                 * Smart contract wallet managing this agent registration
+                 */
+                SmartContractWallet: {
+                    /**
+                     * Payment key hash of the smart contract wallet
+                     */
+                    walletVkey: string;
+                    /**
+                     * Cardano address of the smart contract wallet
+                     */
+                    walletAddress: string;
+                };
+                CurrentTransaction: {
+                    /**
+                     * Cardano transaction hash
+                     */
+                    txHash: string | null;
+                    /**
+                     * Current status of the transaction
+                     */
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+                    /**
+                     * Number of block confirmations for this transaction. Null if not yet confirmed
+                     */
+                    confirmations: number | null;
+                    /**
+                     * Fees of the transaction
+                     */
+                    fees: string | null;
+                    /**
+                     * Block height of the transaction
+                     */
+                    blockHeight: number | null;
+                    /**
+                     * Block time of the transaction
+                     */
+                    blockTime: number | null;
+                } | null;
+            }>;
         };
     };
 };
@@ -5194,68 +4157,144 @@ export type PostRegistryResponses = {
      */
     200: {
         status: string;
-        data: RegistryEntry;
-    };
-};
-
-export type PostRegistryResponse = PostRegistryResponses[keyof PostRegistryResponses];
-
-export type GetRegistryDiffData = {
-    body?: never;
-    path?: never;
-    query: {
-        /**
-         * The number of registry entries to return
-         */
-        limit?: number;
-        /**
-         * Pagination cursor (registry request id). Used as tie-breaker when lastUpdate equals a state-change timestamp
-         */
-        cursorId?: string;
-        /**
-         * Return registry entries whose registration state changed at/after this ISO timestamp
-         */
-        lastUpdate?: Date;
-        /**
-         * The Cardano network used to register the agent on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment source
-         */
-        filterSmartContractAddress?: string | null;
-    };
-    url: '/registry/diff';
-};
-
-export type GetRegistryDiffErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetRegistryDiffResponses = {
-    /**
-     * Agent metadata diff
-     */
-    200: {
-        status: string;
         data: {
-            Assets: Array<RegistryEntry>;
+            /**
+             * Unique identifier for the registry request
+             */
+            id: string;
+            /**
+             * Name of the agent
+             */
+            name: string;
+            /**
+             * Base URL of the agent API for interactions
+             */
+            apiBaseUrl: string;
+            /**
+             * Information about the AI model and version used by the agent
+             */
+            Capability: {
+                /**
+                 * Name of the AI model/capability. Null if not provided
+                 */
+                name: string | null;
+                /**
+                 * Version of the AI model/capability. Null if not provided
+                 */
+                version: string | null;
+            };
+            /**
+             * Legal information about the agent
+             */
+            Legal: {
+                /**
+                 * URL to the privacy policy. Null if not provided
+                 */
+                privacyPolicy: string | null;
+                /**
+                 * URL to the terms of service. Null if not provided
+                 */
+                terms: string | null;
+                /**
+                 * Other legal information. Null if not provided
+                 */
+                other: string | null;
+            };
+            /**
+             * Author information for the agent
+             */
+            Author: {
+                /**
+                 * Name of the agent author
+                 */
+                name: string;
+                /**
+                 * Contact email of the author. Null if not provided
+                 */
+                contactEmail: string | null;
+                /**
+                 * Other contact information for the author. Null if not provided
+                 */
+                contactOther: string | null;
+                /**
+                 * Organization of the author. Null if not provided
+                 */
+                organization: string | null;
+            };
+            /**
+             * Description of the agent. Null if not provided
+             */
+            description: string | null;
+            /**
+             * List of tags categorizing the agent
+             */
+            Tags: Array<string>;
+            /**
+             * Current state of the registration process
+             */
+            state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
+            /**
+             * Smart contract wallet managing this agent registration
+             */
+            SmartContractWallet: {
+                /**
+                 * Payment key hash of the smart contract wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the smart contract wallet
+                 */
+                walletAddress: string;
+            };
+            /**
+             * List of example outputs from the agent
+             */
+            ExampleOutputs: Array<{
+                /**
+                 * Name of the example output
+                 */
+                name: string;
+                /**
+                 * URL to the example output
+                 */
+                url: string;
+                /**
+                 * MIME type of the example output (e.g., image/png, text/plain)
+                 */
+                mimeType: string;
+            }>;
+            /**
+             * Pricing information for the agent
+             */
+            AgentPricing: {
+                /**
+                 * Pricing type for the agent
+                 */
+                pricingType: 'Fixed';
+                /**
+                 * List of assets and amounts for fixed pricing
+                 */
+                Pricing: Array<{
+                    /**
+                     * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                     */
+                    unit: string;
+                    /**
+                     * Amount of the asset in smallest unit (e.g., lovelace for ADA)
+                     */
+                    amount: string;
+                }>;
+            } | {
+                /**
+                 * Pricing type for the agent
+                 */
+                pricingType: 'Free';
+            };
         };
     };
 };
 
-export type GetRegistryDiffResponse = GetRegistryDiffResponses[keyof GetRegistryDiffResponses];
+export type PostRegistryResponse = PostRegistryResponses[keyof PostRegistryResponses];
 
 export type PostRegistryDeregisterData = {
     body?: {
@@ -5283,7 +4322,140 @@ export type PostRegistryDeregisterResponses = {
      */
     200: {
         status: string;
-        data: RegistryEntry;
+        data: {
+            /**
+             * Unique identifier for the registry request
+             */
+            id: string;
+            /**
+             * Name of the agent
+             */
+            name: string;
+            /**
+             * Base URL of the agent API for interactions
+             */
+            apiBaseUrl: string;
+            /**
+             * Information about the AI model and version used by the agent
+             */
+            Capability: {
+                /**
+                 * Name of the AI model/capability. Null if not provided
+                 */
+                name: string | null;
+                /**
+                 * Version of the AI model/capability. Null if not provided
+                 */
+                version: string | null;
+            };
+            /**
+             * Author information for the agent
+             */
+            Author: {
+                /**
+                 * Name of the agent author
+                 */
+                name: string;
+                /**
+                 * Contact email of the author. Null if not provided
+                 */
+                contactEmail: string | null;
+                /**
+                 * Other contact information for the author. Null if not provided
+                 */
+                contactOther: string | null;
+                /**
+                 * Organization of the author. Null if not provided
+                 */
+                organization: string | null;
+            };
+            /**
+             * Legal information about the agent
+             */
+            Legal: {
+                /**
+                 * URL to the privacy policy. Null if not provided
+                 */
+                privacyPolicy: string | null;
+                /**
+                 * URL to the terms of service. Null if not provided
+                 */
+                terms: string | null;
+                /**
+                 * Other legal information. Null if not provided
+                 */
+                other: string | null;
+            };
+            /**
+             * Description of the agent. Null if not provided
+             */
+            description: string | null;
+            /**
+             * List of tags categorizing the agent
+             */
+            Tags: Array<string>;
+            /**
+             * Smart contract wallet managing this agent registration
+             */
+            SmartContractWallet: {
+                /**
+                 * Payment key hash of the smart contract wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the smart contract wallet
+                 */
+                walletAddress: string;
+            };
+            /**
+             * Current state of the registration process (should be DeregistrationRequested)
+             */
+            state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
+            /**
+             * List of example outputs from the agent
+             */
+            ExampleOutputs: Array<{
+                /**
+                 * Name of the example output
+                 */
+                name: string;
+                /**
+                 * URL to the example output
+                 */
+                url: string;
+                /**
+                 * MIME type of the example output (e.g., image/png, text/plain)
+                 */
+                mimeType: string;
+            }>;
+            /**
+             * Pricing information for the agent
+             */
+            AgentPricing: {
+                /**
+                 * Pricing type for the agent (Fixed or Free)
+                 */
+                pricingType: 'Fixed';
+                /**
+                 * List of assets and amounts for fixed pricing
+                 */
+                Pricing: Array<{
+                    /**
+                     * Asset policy id + asset name concatenated. Empty string for ADA/lovelace
+                     */
+                    unit: string;
+                    /**
+                     * Amount of the asset in smallest unit (e.g., lovelace for ADA)
+                     */
+                    amount: string;
+                }>;
+            } | {
+                /**
+                 * Pricing type for the agent (Fixed or Free)
+                 */
+                pricingType: 'Free';
+            };
+        };
     };
 };
 
@@ -5315,7 +4487,116 @@ export type GetPaymentSourceResponses = {
             /**
              * List of payment sources
              */
-            PaymentSources: Array<PaymentSource>;
+            PaymentSources: Array<{
+                /**
+                 * Unique identifier for the payment source
+                 */
+                id: string;
+                /**
+                 * Timestamp when the payment source was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the payment source was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * The Cardano network (Mainnet, Preprod, or Preview)
+                 */
+                network: 'Preprod' | 'Mainnet';
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
+                policyId: string | null;
+                /**
+                 * Address of the smart contract for this payment source
+                 */
+                smartContractAddress: string;
+                /**
+                 * Last agent identifier checked during registry sync. Null if not synced yet
+                 */
+                lastIdentifierChecked: string | null;
+                /**
+                 * Timestamp when the registry was last synced. Null if never synced
+                 */
+                lastCheckedAt: string | null;
+                /**
+                 * List of admin wallets for dispute resolution
+                 */
+                AdminWallets: Array<{
+                    /**
+                     * Cardano address of the admin wallet
+                     */
+                    walletAddress: string;
+                    /**
+                     * Order/index of this admin wallet
+                     */
+                    order: number;
+                }>;
+                /**
+                 * List of wallets used for purchasing (buyer side)
+                 */
+                PurchasingWallets: Array<{
+                    /**
+                     * Unique identifier for the purchasing wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the purchasing wallet
+                     */
+                    walletVkey: string;
+                    /**
+                     * Cardano address of the purchasing wallet
+                     */
+                    walletAddress: string;
+                    /**
+                     * Optional collection address for this wallet. Null if not set
+                     */
+                    collectionAddress: string | null;
+                    /**
+                     * Optional note about this wallet. Null if not set
+                     */
+                    note: string | null;
+                }>;
+                /**
+                 * List of wallets used for selling (seller side)
+                 */
+                SellingWallets: Array<{
+                    /**
+                     * Unique identifier for the selling wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the selling wallet
+                     */
+                    walletVkey: string;
+                    /**
+                     * Cardano address of the selling wallet
+                     */
+                    walletAddress: string;
+                    /**
+                     * Optional collection address for this wallet. Null if not set
+                     */
+                    collectionAddress: string | null;
+                    /**
+                     * Optional note about this wallet. Null if not set
+                     */
+                    note: string | null;
+                }>;
+                /**
+                 * Wallet that receives network fees from transactions
+                 */
+                FeeReceiverNetworkWallet: {
+                    /**
+                     * Cardano address that receives network fees
+                     */
+                    walletAddress: string;
+                };
+                /**
+                 * Fee rate in permille
+                 */
+                feeRatePermille: number;
+            }>;
         };
     };
 };
@@ -5340,7 +4621,12 @@ export type DeletePaymentSourceExtendedResponses = {
      */
     200: {
         status: string;
-        data: PaymentSourceExtended;
+        data: {
+            /**
+             * Unique identifier of the deleted payment source
+             */
+            id: string;
+        };
     };
 };
 
@@ -5372,7 +4658,133 @@ export type GetPaymentSourceExtendedResponses = {
             /**
              * List of payment sources with extended details including RPC configuration
              */
-            ExtendedPaymentSources: Array<PaymentSourceExtended>;
+            ExtendedPaymentSources: Array<{
+                /**
+                 * Unique identifier for the payment source
+                 */
+                id: string;
+                /**
+                 * Timestamp when the payment source was created
+                 */
+                createdAt: string;
+                /**
+                 * Timestamp when the payment source was last updated
+                 */
+                updatedAt: string;
+                /**
+                 * The Cardano network
+                 */
+                network: 'Preprod' | 'Mainnet';
+                /**
+                 * Policy ID for the agent registry NFTs. Null if not applicable
+                 */
+                policyId: string | null;
+                /**
+                 * Address of the smart contract for this payment source
+                 */
+                smartContractAddress: string;
+                /**
+                 * RPC provider configuration for blockchain interactions
+                 */
+                PaymentSourceConfig: {
+                    /**
+                     * The RPC provider API key (e.g., Blockfrost project ID)
+                     */
+                    rpcProviderApiKey: string;
+                    /**
+                     * The RPC provider type (e.g., Blockfrost)
+                     */
+                    rpcProvider: 'Blockfrost';
+                };
+                /**
+                 * Last agent identifier checked during registry sync. Null if not synced yet
+                 */
+                lastIdentifierChecked: string | null;
+                /**
+                 * Whether a registry sync is currently in progress
+                 */
+                syncInProgress: boolean;
+                /**
+                 * Timestamp when the registry was last synced. Null if never synced
+                 */
+                lastCheckedAt: string | null;
+                /**
+                 * List of admin wallets for dispute resolution (exactly 3 required)
+                 */
+                AdminWallets: Array<{
+                    /**
+                     * Cardano address of the admin wallet
+                     */
+                    walletAddress: string;
+                    /**
+                     * Order/index of this admin wallet (0-2)
+                     */
+                    order: number;
+                }>;
+                /**
+                 * List of wallets used for purchasing (buyer side)
+                 */
+                PurchasingWallets: Array<{
+                    /**
+                     * Unique identifier for the purchasing wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the purchasing wallet
+                     */
+                    walletVkey: string;
+                    /**
+                     * Cardano address of the purchasing wallet
+                     */
+                    walletAddress: string;
+                    /**
+                     * Optional collection address for this wallet. Null if not set
+                     */
+                    collectionAddress: string | null;
+                    /**
+                     * Optional note about this wallet. Null if not set
+                     */
+                    note: string | null;
+                }>;
+                /**
+                 * List of wallets used for selling (seller side)
+                 */
+                SellingWallets: Array<{
+                    /**
+                     * Unique identifier for the selling wallet
+                     */
+                    id: string;
+                    /**
+                     * Payment key hash of the selling wallet
+                     */
+                    walletVkey: string;
+                    /**
+                     * Cardano address of the selling wallet
+                     */
+                    walletAddress: string;
+                    /**
+                     * Optional collection address for this wallet. Null if not set
+                     */
+                    collectionAddress: string | null;
+                    /**
+                     * Optional note about this wallet. Null if not set
+                     */
+                    note: string | null;
+                }>;
+                /**
+                 * Wallet that receives network fees from transactions
+                 */
+                FeeReceiverNetworkWallet: {
+                    /**
+                     * Cardano address that receives network fees
+                     */
+                    walletAddress: string;
+                };
+                /**
+                 * Fee rate in permille (per thousand). Example: 50 = 5%
+                 */
+                feeRatePermille: number;
+            }>;
         };
     };
 };
@@ -5463,7 +4875,129 @@ export type PatchPaymentSourceExtendedResponses = {
      */
     200: {
         status: string;
-        data: PaymentSourceExtended;
+        data: {
+            /**
+             * Unique identifier for the payment source
+             */
+            id: string;
+            /**
+             * Timestamp when the payment source was created
+             */
+            createdAt: string;
+            /**
+             * Timestamp when the payment source was last updated
+             */
+            updatedAt: string;
+            /**
+             * The Cardano network (Mainnet, Preprod, or Preview)
+             */
+            network: 'Preprod' | 'Mainnet';
+            /**
+             * Address of the smart contract for this payment source
+             */
+            smartContractAddress: string;
+            /**
+             * RPC provider configuration for blockchain interactions
+             */
+            PaymentSourceConfig: {
+                /**
+                 * The RPC provider API key (e.g., Blockfrost project ID)
+                 */
+                rpcProviderApiKey: string;
+                /**
+                 * The RPC provider type (e.g., Blockfrost)
+                 */
+                rpcProvider: 'Blockfrost';
+            };
+            /**
+             * Last agent identifier checked during registry sync. Null if not synced yet
+             */
+            lastIdentifierChecked: string | null;
+            /**
+             * Whether a registry sync is currently in progress
+             */
+            syncInProgress: boolean;
+            /**
+             * Timestamp when the registry was last synced. Null if never synced
+             */
+            lastCheckedAt: string | null;
+            /**
+             * List of admin wallets for dispute resolution
+             */
+            AdminWallets: Array<{
+                /**
+                 * Cardano address of the admin wallet
+                 */
+                walletAddress: string;
+                /**
+                 * Order/index of this admin wallet
+                 */
+                order: number;
+            }>;
+            /**
+             * List of wallets used for purchasing (buyer side)
+             */
+            PurchasingWallets: Array<{
+                /**
+                 * Unique identifier for the purchasing wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the purchasing wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the purchasing wallet
+                 */
+                walletAddress: string;
+                /**
+                 * Optional collection address for this wallet. Null if not set
+                 */
+                collectionAddress: string | null;
+                /**
+                 * Optional note about this wallet. Null if not set
+                 */
+                note: string | null;
+            }>;
+            /**
+             * List of wallets used for selling (seller side)
+             */
+            SellingWallets: Array<{
+                /**
+                 * Unique identifier for the selling wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the selling wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the selling wallet
+                 */
+                walletAddress: string;
+                /**
+                 * Optional collection address for this wallet. Null if not set
+                 */
+                collectionAddress: string | null;
+                /**
+                 * Optional note about this wallet. Null if not set
+                 */
+                note: string | null;
+            }>;
+            /**
+             * Wallet that receives network fees from transactions
+             */
+            FeeReceiverNetworkWallet: {
+                /**
+                 * Cardano address that receives network fees
+                 */
+                walletAddress: string;
+            };
+            /**
+             * Fee rate in permille (per thousand). Example: 50 = 5%
+             */
+            feeRatePermille: number;
+        };
     };
 };
 
@@ -5571,7 +5105,129 @@ export type PostPaymentSourceExtendedResponses = {
      */
     200: {
         status: string;
-        data: PaymentSourceExtended;
+        data: {
+            /**
+             * Unique identifier for the payment source
+             */
+            id: string;
+            /**
+             * Timestamp when the payment source was created
+             */
+            createdAt: string;
+            /**
+             * Timestamp when the payment source was last updated
+             */
+            updatedAt: string;
+            /**
+             * The Cardano network (Mainnet, Preprod, or Preview)
+             */
+            network: 'Preprod' | 'Mainnet';
+            /**
+             * Address of the smart contract for this payment source
+             */
+            smartContractAddress: string;
+            /**
+             * RPC provider configuration for blockchain interactions
+             */
+            PaymentSourceConfig: {
+                /**
+                 * The RPC provider API key (e.g., Blockfrost project ID)
+                 */
+                rpcProviderApiKey: string;
+                /**
+                 * The RPC provider type (e.g., Blockfrost)
+                 */
+                rpcProvider: 'Blockfrost';
+            };
+            /**
+             * Last agent identifier checked during registry sync. Null if not synced yet
+             */
+            lastIdentifierChecked: string | null;
+            /**
+             * Whether a registry sync is currently in progress
+             */
+            syncInProgress: boolean;
+            /**
+             * Timestamp when the registry was last synced. Null if never synced
+             */
+            lastCheckedAt: string | null;
+            /**
+             * List of admin wallets for dispute resolution (exactly 3 required)
+             */
+            AdminWallets: Array<{
+                /**
+                 * Cardano address of the admin wallet
+                 */
+                walletAddress: string;
+                /**
+                 * Order/index of this admin wallet (0-2)
+                 */
+                order: number;
+            }>;
+            /**
+             * List of wallets used for purchasing (buyer side)
+             */
+            PurchasingWallets: Array<{
+                /**
+                 * Unique identifier for the purchasing wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the purchasing wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the purchasing wallet
+                 */
+                walletAddress: string;
+                /**
+                 * Optional collection address for this wallet. Null if not set
+                 */
+                collectionAddress: string | null;
+                /**
+                 * Optional note about this wallet. Null if not set
+                 */
+                note: string | null;
+            }>;
+            /**
+             * List of wallets used for selling (seller side)
+             */
+            SellingWallets: Array<{
+                /**
+                 * Unique identifier for the selling wallet
+                 */
+                id: string;
+                /**
+                 * Payment key hash of the selling wallet
+                 */
+                walletVkey: string;
+                /**
+                 * Cardano address of the selling wallet
+                 */
+                walletAddress: string;
+                /**
+                 * Optional collection address for this wallet. Null if not set
+                 */
+                collectionAddress: string | null;
+                /**
+                 * Optional note about this wallet. Null if not set
+                 */
+                note: string | null;
+            }>;
+            /**
+             * Wallet that receives network fees from transactions
+             */
+            FeeReceiverNetworkWallet: {
+                /**
+                 * Cardano address that receives network fees
+                 */
+                walletAddress: string;
+            };
+            /**
+             * Fee rate in permille
+             */
+            feeRatePermille: number;
+        };
     };
 };
 
@@ -5615,7 +5271,49 @@ export type GetUtxosResponses = {
             /**
              * List of UTXOs for the specified address
              */
-            Utxos: Array<Utxo>;
+            Utxos: Array<{
+                /**
+                 * Transaction hash containing this UTXO
+                 */
+                txHash: string;
+                /**
+                 * Cardano address holding this UTXO
+                 */
+                address: string;
+                /**
+                 * List of assets and amounts in this UTXO
+                 */
+                Amounts: Array<{
+                    /**
+                     * Asset policy id + asset name concatenated. Use an empty string for ADA/lovelace e.g (1000000 lovelace = 1 ADA)
+                     */
+                    unit: string;
+                    /**
+                     * The quantity of the asset. Make sure to convert it from the underlying smallest unit (in case of decimals, multiply it by the decimal factor e.g. for 1 ADA = 10000000 lovelace)
+                     */
+                    quantity: number | null;
+                }>;
+                /**
+                 * Hash of the datum attached to this UTXO. Null if no datum
+                 */
+                dataHash: string | null;
+                /**
+                 * Inline datum data in CBOR hex format. Null if no inline datum
+                 */
+                inlineDatum: string | null;
+                /**
+                 * Hash of the reference script attached to this UTXO. Null if no reference script
+                 */
+                referenceScriptHash: string | null;
+                /**
+                 * Output index of this UTXO in the transaction
+                 */
+                outputIndex: number | null;
+                /**
+                 * Block hash where this UTXO was created
+                 */
+                block: string;
+            }>;
         };
     };
 };
@@ -5646,676 +5344,33 @@ export type GetRpcApiKeysResponses = {
         /**
          * List of RPC provider keys
          */
-        RpcProviderKeys: Array<RpcProviderKey>;
+        RpcProviderKeys: Array<{
+            /**
+             * Unique identifier for the RPC provider key
+             */
+            id: string;
+            /**
+             * The RPC provider API key
+             */
+            rpcProviderApiKey: string;
+            /**
+             * The RPC provider type
+             */
+            rpcProvider: 'Blockfrost';
+            /**
+             * Timestamp when the RPC provider key was created
+             */
+            createdAt: string;
+            /**
+             * Timestamp when the RPC provider key was last updated
+             */
+            updatedAt: string;
+            /**
+             * The Cardano network this RPC provider key is for
+             */
+            network: 'Preprod' | 'Mainnet';
+        }>;
     };
 };
 
 export type GetRpcApiKeysResponse = GetRpcApiKeysResponses[keyof GetRpcApiKeysResponses];
-
-export type PostPurchaseSpendingData = {
-    body?: {
-        /**
-         * The unique identifier of the agent to get purchase spending for, if not provided, will return spending for all agents
-         */
-        agentIdentifier: string | null;
-        /**
-         * Start date for spendings calculation (date format: 2024-01-01). If null, uses earliest available data. If provided, will be converted to the local time zone of the user
-         */
-        startDate?: Date | unknown;
-        /**
-         * End date for spendings calculation (date format: 2024-01-31). If null, uses current date. If provided, will be converted to the local time zone of the user
-         */
-        endDate?: Date | unknown;
-        /**
-         * The time zone to use for the spendings calculation. If not provided, will use the UTC time zone. Must be a valid IANA time zone name, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-         */
-        timeZone?: string;
-        /**
-         * The Cardano network to query spending from
-         */
-        network: 'Preprod' | 'Mainnet';
-    };
-    path?: never;
-    query?: never;
-    url: '/purchase/spending';
-};
-
-export type PostPurchaseSpendingErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Agent not found or no spendings data available
-     */
-    404: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type PostPurchaseSpendingResponses = {
-    /**
-     * Agent purchase spending analytics
-     */
-    200: {
-        status: string;
-        data: {
-            agentIdentifier: string | null;
-            periodStart: Date;
-            periodEnd: Date;
-            totalTransactions: number;
-            totalSpend: {
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            };
-            totalRefunded: {
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            };
-            totalPending: {
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            };
-            dailySpend: Array<{
-                /**
-                 * The day of the month
-                 */
-                day: number;
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            dailyRefunded: Array<{
-                /**
-                 * The day of the month
-                 */
-                day: number;
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            dailyPending: Array<{
-                /**
-                 * The day of the month
-                 */
-                day: number;
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            monthlySpend: Array<{
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            monthlyRefunded: Array<{
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            monthlyPending: Array<{
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-        };
-    };
-};
-
-export type PostPurchaseSpendingResponse = PostPurchaseSpendingResponses[keyof PostPurchaseSpendingResponses];
-
-export type PostPaymentIncomeData = {
-    body?: {
-        /**
-         * The unique identifier of the agent to get payment income for, if not provided, will return income for all agents
-         */
-        agentIdentifier: string | null;
-        /**
-         * Start date for income calculation (date format: 2024-01-01). If null, uses earliest available data. If provided, will be converted to the local time zone of the user
-         */
-        startDate?: Date | unknown;
-        /**
-         * End date for income calculation (date format: 2024-01-31). If null, uses current date. If provided, will be converted to the local time zone of the user
-         */
-        endDate?: Date | unknown;
-        /**
-         * The time zone to use for the income calculation. If not provided, will use the UTC time zone. Must be a valid IANA time zone name, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-         */
-        timeZone?: string;
-        /**
-         * The Cardano network to query income from
-         */
-        network: 'Preprod' | 'Mainnet';
-    };
-    path?: never;
-    query?: never;
-    url: '/payment/income';
-};
-
-export type PostPaymentIncomeErrors = {
-    /**
-     * Bad Request (possible parameters missing or invalid)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Agent not found or no income data available
-     */
-    404: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type PostPaymentIncomeResponses = {
-    /**
-     * Agent payment income analytics
-     */
-    200: {
-        status: string;
-        data: {
-            agentIdentifier: string | null;
-            periodStart: Date;
-            periodEnd: Date;
-            totalTransactions: number;
-            totalIncome: {
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            };
-            totalRefunded: {
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            };
-            totalPending: {
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            };
-            dailyIncome: Array<{
-                /**
-                 * The day of the month
-                 */
-                day: number;
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            dailyRefunded: Array<{
-                /**
-                 * The day of the month
-                 */
-                day: number;
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            dailyPending: Array<{
-                /**
-                 * The day of the month
-                 */
-                day: number;
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            monthlyIncome: Array<{
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            monthlyRefunded: Array<{
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-            monthlyPending: Array<{
-                /**
-                 * The month
-                 */
-                month: number;
-                /**
-                 * The year
-                 */
-                year: number;
-                units: Array<{
-                    unit: string;
-                    amount: number;
-                }>;
-                blockchainFees: number;
-            }>;
-        };
-    };
-};
-
-export type PostPaymentIncomeResponse = PostPaymentIncomeResponses[keyof PostPaymentIncomeResponses];
-
-export type DeleteWebhooksData = {
-    /**
-     * Webhook deletion request
-     */
-    body?: {
-        /**
-         * The ID of the webhook to delete
-         */
-        webhookId: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/webhooks/';
-};
-
-export type DeleteWebhooksErrors = {
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Forbidden (only creator or admin can delete)
-     */
-    403: unknown;
-    /**
-     * Webhook endpoint not found
-     */
-    404: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type DeleteWebhooksResponses = {
-    /**
-     * Webhook endpoint deleted successfully
-     */
-    200: {
-        status: string;
-        data: {
-            id: string;
-            url: string;
-            name: string | null;
-            deletedAt: Date;
-        };
-    };
-};
-
-export type DeleteWebhooksResponse = DeleteWebhooksResponses[keyof DeleteWebhooksResponses];
-
-export type GetWebhooksData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Filter by payment source ID
-         */
-        paymentSourceId?: string | null;
-        /**
-         * Cursor ID to paginate through the results
-         */
-        cursorId?: string;
-        /**
-         * Number of webhooks to return
-         */
-        limit?: number;
-    };
-    url: '/webhooks/';
-};
-
-export type GetWebhooksErrors = {
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type GetWebhooksResponses = {
-    /**
-     * List of webhook endpoints
-     */
-    200: {
-        status: string;
-        data: {
-            webhooks: Array<{
-                id: string;
-                url: string;
-                events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR'>;
-                name: string | null;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                paymentSourceId: string | null;
-                failureCount: number;
-                lastSuccessAt: Date | null;
-                disabledAt: Date | null;
-                createdBy: {
-                    apiKeyId: string;
-                    apiKeyToken: string;
-                } | null;
-            }>;
-        };
-    };
-};
-
-export type GetWebhooksResponse = GetWebhooksResponses[keyof GetWebhooksResponses];
-
-export type PostWebhooksData = {
-    /**
-     * Webhook registration details
-     */
-    body?: {
-        /**
-         * The webhook URL to receive notifications
-         */
-        url: string;
-        /**
-         * Authentication token for webhook requests
-         */
-        authToken: string;
-        /**
-         * Array of event types to subscribe to
-         */
-        events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR'>;
-        /**
-         * Human-readable name for the webhook
-         */
-        name?: string;
-        /**
-         * Optional: link webhook to specific payment source
-         */
-        paymentSourceId?: string | null;
-    };
-    path?: never;
-    query?: never;
-    url: '/webhooks/';
-};
-
-export type PostWebhooksErrors = {
-    /**
-     * Bad Request (invalid webhook URL or configuration)
-     */
-    400: unknown;
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Internal Server Error
-     */
-    500: unknown;
-};
-
-export type PostWebhooksResponses = {
-    /**
-     * Webhook endpoint registered successfully
-     */
-    201: {
-        status: string;
-        data: {
-            id: string;
-            url: string;
-            events: Array<'PURCHASE_ON_CHAIN_STATUS_CHANGED' | 'PAYMENT_ON_CHAIN_STATUS_CHANGED' | 'PURCHASE_ON_ERROR' | 'PAYMENT_ON_ERROR'>;
-            name: string | null;
-            isActive: boolean;
-            createdAt: Date;
-            paymentSourceId: string | null;
-        };
-    };
-};
-
-export type PostWebhooksResponse = PostWebhooksResponses[keyof PostWebhooksResponses];
-
-export type GetMonitoringData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/monitoring/';
-};
-
-export type GetMonitoringErrors = {
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Forbidden (admin access required)
-     */
-    403: unknown;
-};
-
-export type GetMonitoringResponses = {
-    /**
-     * Monitoring service status
-     */
-    200: MonitoringStatus;
-};
-
-export type GetMonitoringResponse = GetMonitoringResponses[keyof GetMonitoringResponses];
-
-export type PostMonitoringTriggerCycleData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/monitoring/trigger-cycle/';
-};
-
-export type PostMonitoringTriggerCycleErrors = {
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Forbidden (admin access required)
-     */
-    403: unknown;
-};
-
-export type PostMonitoringTriggerCycleResponses = {
-    /**
-     * Monitoring cycle trigger result
-     */
-    200: TriggeredMonitoringCycle;
-};
-
-export type PostMonitoringTriggerCycleResponse = PostMonitoringTriggerCycleResponses[keyof PostMonitoringTriggerCycleResponses];
-
-export type PostMonitoringStartData = {
-    /**
-     * Monitoring start configuration
-     */
-    body?: {
-        /**
-         * Monitoring interval in milliseconds
-         */
-        intervalMs?: number;
-    };
-    path?: never;
-    query?: never;
-    url: '/monitoring/start/';
-};
-
-export type PostMonitoringStartErrors = {
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Forbidden (admin access required)
-     */
-    403: unknown;
-};
-
-export type PostMonitoringStartResponses = {
-    /**
-     * Monitoring service start result
-     */
-    200: StartedMonitoring;
-};
-
-export type PostMonitoringStartResponse = PostMonitoringStartResponses[keyof PostMonitoringStartResponses];
-
-export type PostMonitoringStopData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/monitoring/stop/';
-};
-
-export type PostMonitoringStopErrors = {
-    /**
-     * Unauthorized
-     */
-    401: unknown;
-    /**
-     * Forbidden (admin access required)
-     */
-    403: unknown;
-};
-
-export type PostMonitoringStopResponses = {
-    /**
-     * Monitoring service stop result
-     */
-    200: StoppedMonitoring;
-};
-
-export type PostMonitoringStopResponse = PostMonitoringStopResponses[keyof PostMonitoringStopResponses];
