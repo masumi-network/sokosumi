@@ -83,6 +83,7 @@ async function createPaidJob(
     inputSchema: InputFieldSchemaType[];
     name: string | null;
     taskId?: string | null;
+    jobScheduleId?: string;
   },
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
@@ -107,6 +108,9 @@ async function createPaidJob(
       }),
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
+      }),
+      ...(input.jobScheduleId && {
+        jobSchedule: { connect: { id: input.jobScheduleId } },
       }),
       events: {
         create: {
@@ -170,6 +174,7 @@ async function createFreeJob(
     inputSchema: InputFieldSchemaType[];
     name: string | null;
     taskId?: string | null;
+    jobScheduleId?: string;
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
@@ -185,6 +190,9 @@ async function createFreeJob(
       }),
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
+      }),
+      ...(input.jobScheduleId && {
+        jobSchedule: { connect: { id: input.jobScheduleId } },
       }),
       events: {
         create: {
@@ -285,6 +293,9 @@ interface CreateAgentJobInput {
   taskContext?: {
     taskId: string;
   };
+  scheduleContext?: {
+    scheduleId: string;
+  };
 }
 
 export interface CreateAgentJobOwner {
@@ -296,6 +307,7 @@ export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
   const { owner, agentInput, taskContext } = input;
+  const scheduleId = input.scheduleContext?.scheduleId;
   const flatInputSchema = flattenInputs(agentInput.inputSchema);
   const maxCents = agentInput.maxCredits
     ? convertCreditsToCents(agentInput.maxCredits)
@@ -349,6 +361,7 @@ export async function createAgentJobForUser(
     inputData: agentInput.inputData,
     inputSchema: flatInputSchema,
     taskId: taskContext?.taskId,
+    jobScheduleId: scheduleId,
   };
 
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;

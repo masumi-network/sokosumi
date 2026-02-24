@@ -99,6 +99,9 @@ async function processSchedule(schedule: JobSchedule): Promise<boolean> {
         },
         maxCredits: convertCentsToCredits(schedule.maxAcceptedCents),
       },
+      scheduleContext: {
+        scheduleId: schedule.id,
+      },
     });
 
     if (isOneTime) {
