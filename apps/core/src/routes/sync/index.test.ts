@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   acquireLockMock,
   releaseLockMock,
+  syncJobsMock,
   syncAgentSummariesMock,
   syncRegistryAgentsMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
+  syncJobsMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
 }));
@@ -32,6 +34,12 @@ vi.mock("@/services/agent-sync.service", () => ({
   agentSyncService: {
     syncRegistryAgents: syncRegistryAgentsMock,
     syncAgentSummaries: syncAgentSummariesMock,
+  },
+}));
+
+vi.mock("@/services/job-sync.service", () => ({
+  jobSyncService: {
+    syncJobs: syncJobsMock,
   },
 }));
 
@@ -69,6 +77,7 @@ describe("sync routes", () => {
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
+    syncJobsMock.mockResolvedValue(undefined);
   });
 
   it("returns 401 for missing cron auth", async () => {
@@ -151,6 +160,22 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 200 and starts jobs sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/jobs", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("jobs-sync");
+
+    await flushMicrotasks();
+    expect(syncJobsMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not release lock while long-running sync is still pending", async () => {
