@@ -122,6 +122,11 @@ async function syncRegistryAgents(
   metadataKey: string,
   options: SyncExecutionOptions = {},
 ): Promise<void> {
+  const startedAt = Date.now();
+  console.info(
+    `[sync/agents] Starting registry sync (metadataKey=${metadataKey})`,
+  );
+
   if (shouldStopSync(options, "registry sync canceled before metadata lookup")) {
     return;
   }
@@ -144,13 +149,15 @@ async function syncRegistryAgents(
     50,
   );
   if (entriesResult.isErr()) {
-    console.error("Error in diff sync operation:", entriesResult.error);
+    console.error("[sync/agents] Error in diff sync operation:", entriesResult.error);
     return;
   }
 
   const entries = entriesResult.value;
   if (entries.length === 0) {
-    console.info("No entries to sync");
+    console.info(
+      `[sync/agents] No entries to sync (durationMs=${Date.now() - startedAt})`,
+    );
     return;
   }
 
@@ -271,11 +278,18 @@ async function syncRegistryAgents(
       lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
     },
   });
+
+  console.info(
+    `[sync/agents] Completed registry sync (entries=${entries.length}, tags=${tags.length}, durationMs=${Date.now() - startedAt})`,
+  );
 }
 
 async function syncAgentSummaries(
   options: SyncExecutionOptions = {},
 ): Promise<void> {
+  const startedAt = Date.now();
+  console.info("[sync/agents-summary] Starting summary sync");
+
   if (shouldStopSync(options, "summary sync canceled before loading agents")) {
     return;
   }
@@ -292,6 +306,14 @@ async function syncAgentSummaries(
     },
     take: AGENT_SUMMARY_SYNC_LIMIT,
   });
+  console.info(
+    `[sync/agents-summary] Loaded candidates (count=${agentsWithoutSummary.length})`,
+  );
+
+  let updatedCount = 0;
+  let skippedNoDescriptionCount = 0;
+  let skippedNoSummaryCount = 0;
+  let failedCount = 0;
 
   for (const agent of agentsWithoutSummary) {
     if (shouldStopSync(options, "summary sync canceled during agent loop")) {
@@ -300,12 +322,14 @@ async function syncAgentSummaries(
 
     const description = getAgentDescription(agent);
     if (!description) {
+      skippedNoDescriptionCount++;
       continue;
     }
 
     try {
       const summary = await openrouterClient.generateAgentSummary(description);
       if (!summary) {
+        skippedNoSummaryCount++;
         continue;
       }
 
@@ -321,10 +345,16 @@ async function syncAgentSummaries(
           summary,
         },
       });
+      updatedCount++;
     } catch (error) {
+      failedCount++;
       console.error(`Failed to generate summary for agent ${agent.id}:`, error);
     }
   }
+
+  console.info(
+    `[sync/agents-summary] Completed summary sync (updated=${updatedCount}, skippedNoDescription=${skippedNoDescriptionCount}, skippedNoSummary=${skippedNoSummaryCount}, failed=${failedCount}, durationMs=${Date.now() - startedAt})`,
+  );
 }
 
 export const agentSyncService = {
