@@ -16,8 +16,6 @@ const {
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     CRON_SECRET: "test-cron-secret",
-    LOCK_TIMEOUT: 120000,
-    LOCK_TIMEOUT_BUFFER: 25000,
   }),
 }));
 

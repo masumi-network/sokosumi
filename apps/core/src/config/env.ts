@@ -49,11 +49,7 @@ const envSchema = z.object({
   LOCK_TIMEOUT: z.coerce
     .number()
     .min(1 * 60 * 1000)
-    .default(2 * 60 * 1000),
-  LOCK_TIMEOUT_BUFFER: z.coerce
-    .number()
-    .min(1000)
-    .default(1000 * 25),
+    .default(5 * 60 * 1000),
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
