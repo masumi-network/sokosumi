@@ -74,6 +74,8 @@ function parseEntryAgentPricing(pricing: {
         (amount) => BigInt(amount.amount) > 0,
       );
 
+      // Intentionally treat empty/invalid fixed pricing as unknown to avoid
+      // exposing malformed registry pricing as a valid fixed-price agent.
       if (!isValidFixedPricing || amounts.length === 0) {
         return {
           pricingType: PricingType.UNKNOWN,

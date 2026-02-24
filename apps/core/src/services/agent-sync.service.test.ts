@@ -204,6 +204,30 @@ describe("agentSyncService.syncRegistryAgents", () => {
       expect.anything(),
     );
   });
+
+  it("maps fixed pricing with empty amounts to UNKNOWN", async () => {
+    const entries = [
+      createRegistryEntry("entry-empty-fixed", {
+        AgentPricing: {
+          pricingType: "Fixed",
+          FixedPricing: {
+            Amounts: [],
+          },
+        },
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents();
+
+    expect(agentUpsertMock).toHaveBeenCalledTimes(1);
+    const emptyFixedCall = agentUpsertMock.mock.calls[0]?.[0];
+    expect(emptyFixedCall.create.pricing.create.pricingType).toBe(
+      PricingType.UNKNOWN,
+    );
+    expect(emptyFixedCall.create.pricing.create.fixedPricing).toBeUndefined();
+  });
 });
 
 describe("agentSyncService.syncAgentSummaries", () => {
