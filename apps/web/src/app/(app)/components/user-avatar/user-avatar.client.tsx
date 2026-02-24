@@ -44,6 +44,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -52,12 +53,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { SessionUser } from "@/lib/auth/auth";
+import { CreditUsage } from "@/lib/types/credit";
 import { cn } from "@/lib/utils";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import UserAvatarContent from "./user-avatar-content";
 import { useWorkspaceSwitcher } from "./workspace-switcher";
 
 interface UserAvatarClientProps {
+  creditUsage?: CreditUsage | null;
   creditsLabel?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
@@ -74,6 +78,9 @@ interface WorkspaceItem {
 }
 
 interface WorkspaceRowProps {
+  creditUsage?: CreditUsage | null;
+  creditsUsedLabel?: string;
+  progressAriaLabel?: string;
   sessionUser: SessionUser;
   subtitle?: string;
   workspace: WorkspaceItem;
@@ -102,7 +109,14 @@ function getOrderedWorkspaces(
   ];
 }
 
-function WorkspaceRow({ sessionUser, subtitle, workspace }: WorkspaceRowProps) {
+function WorkspaceRow({
+  creditUsage,
+  creditsUsedLabel,
+  progressAriaLabel,
+  sessionUser,
+  subtitle,
+  workspace,
+}: WorkspaceRowProps) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       {workspace.organization ? (
@@ -130,12 +144,36 @@ function WorkspaceRow({ sessionUser, subtitle, workspace }: WorkspaceRowProps) {
             {subtitle}
           </div>
         ) : null}
+        {creditUsage?.hasUsageData ? (
+          <div className="mt-2 w-full space-y-1">
+            <Progress
+              className="h-1.5"
+              value={creditUsage.percentageUsed}
+              aria-label={progressAriaLabel}
+            />
+            {creditsUsedLabel ? (
+              <TooltipProvider>
+                <Tooltip delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <div className="text-muted-foreground w-fit text-[11px]">
+                      {creditsUsedLabel}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {creditsUsedLabel}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
 export default function UserAvatarClient({
+  creditUsage,
   creditsLabel,
   primaryLabel,
   secondaryLabel,
@@ -156,6 +194,15 @@ export default function UserAvatarClient({
     "Components.OrganizationSwitcher",
   );
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+  const activeCreditUsage = creditUsage?.hasUsageData ? creditUsage : null;
+  const hasCreditUsage = Boolean(activeCreditUsage);
+  const creditUsageAriaLabel = t("creditsConsumedProgressAria");
+  const creditUsageLabel = activeCreditUsage
+    ? t("creditsUsedOfTotal", {
+        used: formatCreditsForDisplay(activeCreditUsage.used),
+        total: formatCreditsForDisplay(activeCreditUsage.total),
+      })
+    : null;
 
   const { showLogoutModal } = useGlobalModalsContext();
   const handleSupport = () => {
@@ -259,7 +306,7 @@ export default function UserAvatarClient({
               <DropdownMenuItem
                 key={getWorkspaceKey(workspace)}
                 className={cn(
-                  "flex cursor-pointer items-center justify-between gap-2 py-2",
+                  "mb-1 flex cursor-pointer items-center justify-between gap-2 py-2",
                   workspace.id === activeOrganizationId && "text-primary",
                 )}
                 disabled={isPending}
@@ -268,6 +315,13 @@ export default function UserAvatarClient({
                 }}
               >
                 <WorkspaceRow
+                  creditUsage={
+                    workspace.id === activeOrganizationId && hasCreditUsage
+                      ? creditUsage
+                      : null
+                  }
+                  creditsUsedLabel={creditUsageLabel ?? undefined}
+                  progressAriaLabel={creditUsageAriaLabel}
                   sessionUser={sessionUser}
                   workspace={workspace}
                   subtitle={
@@ -334,6 +388,16 @@ export default function UserAvatarClient({
                                 }}
                               >
                                 <WorkspaceRow
+                                  creditUsage={
+                                    workspace.id === activeOrganizationId &&
+                                    hasCreditUsage
+                                      ? creditUsage
+                                      : null
+                                  }
+                                  creditsUsedLabel={
+                                    creditUsageLabel ?? undefined
+                                  }
+                                  progressAriaLabel={creditUsageAriaLabel}
                                   sessionUser={sessionUser}
                                   workspace={workspace}
                                   subtitle={
@@ -373,6 +437,14 @@ export default function UserAvatarClient({
                         }}
                       >
                         <WorkspaceRow
+                          creditUsage={
+                            workspace.id === activeOrganizationId &&
+                            hasCreditUsage
+                              ? creditUsage
+                              : null
+                          }
+                          creditsUsedLabel={creditUsageLabel ?? undefined}
+                          progressAriaLabel={creditUsageAriaLabel}
                           sessionUser={sessionUser}
                           workspace={workspace}
                           subtitle={

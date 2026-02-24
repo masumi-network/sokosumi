@@ -125,7 +125,9 @@
       "billing": "Billing",
       "connections": "Connections",
       "support": "Support",
-      "logout": "Log out"
+      "logout": "Log out",
+      "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
+      "creditsConsumedProgressAria": "Subscription credits consumed"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
