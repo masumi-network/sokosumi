@@ -1,5 +1,4 @@
 import { AgentStatus, PaymentType, PricingType } from "@sokosumi/database";
-import { syncMetadataRepository } from "@sokosumi/database/repositories";
 
 import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
@@ -104,11 +103,13 @@ function parseEntryAgentPricing(pricing: {
 }
 
 async function syncRegistryAgents(): Promise<void> {
-  const { lastSyncedAt, cursorId } =
-    await syncMetadataRepository.getSyncMetadataByKey(
-      AGENTS_SYNC_METADATA_KEY,
-      prisma,
-    );
+  const metadata = await prisma.syncMetadata.findUnique({
+    where: {
+      key: AGENTS_SYNC_METADATA_KEY,
+    },
+  });
+  const lastSyncedAt = metadata?.lastSyncedAt ?? new Date(0);
+  const cursorId = metadata?.cursorId ?? null;
 
   const entriesResult = await registryClient.getAgentsDiff(
     lastSyncedAt,
@@ -221,12 +222,20 @@ async function syncRegistryAgents(): Promise<void> {
   );
 
   const lastEntry = entries[entries.length - 1];
-  await syncMetadataRepository.setSyncMetadataByKey(
-    AGENTS_SYNC_METADATA_KEY,
-    lastEntry.id,
-    new Date(lastEntry.statusUpdatedAt),
-    prisma,
-  );
+  await prisma.syncMetadata.upsert({
+    where: {
+      key: AGENTS_SYNC_METADATA_KEY,
+    },
+    create: {
+      key: AGENTS_SYNC_METADATA_KEY,
+      cursorId: lastEntry.id,
+      lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
+    },
+    update: {
+      cursorId: lastEntry.id,
+      lastSyncedAt: new Date(lastEntry.statusUpdatedAt),
+    },
+  });
 }
 
 async function syncAgentSummaries(): Promise<void> {

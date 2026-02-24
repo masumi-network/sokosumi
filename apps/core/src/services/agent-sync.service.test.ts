@@ -7,18 +7,18 @@ const {
   agentUpdateMock,
   agentUpsertMock,
   getAgentsDiffMock,
-  getSyncMetadataByKeyMock,
   openrouterGenerateAgentSummaryMock,
-  setSyncMetadataByKeyMock,
+  syncMetadataFindUniqueMock,
+  syncMetadataUpsertMock,
   tagUpsertMock,
 } = vi.hoisted(() => ({
   agentFindManyMock: vi.fn(),
   agentUpdateMock: vi.fn(),
   agentUpsertMock: vi.fn(),
   getAgentsDiffMock: vi.fn(),
-  getSyncMetadataByKeyMock: vi.fn(),
   openrouterGenerateAgentSummaryMock: vi.fn(),
-  setSyncMetadataByKeyMock: vi.fn(),
+  syncMetadataFindUniqueMock: vi.fn(),
+  syncMetadataUpsertMock: vi.fn(),
   tagUpsertMock: vi.fn(),
 }));
 
@@ -50,13 +50,10 @@ vi.mock("@/lib/db/prisma", () => ({
       update: agentUpdateMock,
       upsert: agentUpsertMock,
     },
-  },
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  syncMetadataRepository: {
-    getSyncMetadataByKey: getSyncMetadataByKeyMock,
-    setSyncMetadataByKey: setSyncMetadataByKeyMock,
+    syncMetadata: {
+      findUnique: syncMetadataFindUniqueMock,
+      upsert: syncMetadataUpsertMock,
+    },
   },
 }));
 
@@ -111,13 +108,14 @@ function createRegistryEntry(
 describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSyncMetadataByKeyMock.mockResolvedValue({
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: "agents-sync-metadata",
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
       cursorId: null,
     });
     tagUpsertMock.mockResolvedValue(undefined);
     agentUpsertMock.mockResolvedValue(undefined);
-    setSyncMetadataByKeyMock.mockResolvedValue(undefined);
+    syncMetadataUpsertMock.mockResolvedValue(undefined);
   });
 
   it("does not update metadata when diff has no entries", async () => {
@@ -128,7 +126,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentUpsertMock).not.toHaveBeenCalled();
-    expect(setSyncMetadataByKeyMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
   it("does not write data when registry diff fails", async () => {
@@ -139,7 +137,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentUpsertMock).not.toHaveBeenCalled();
-    expect(setSyncMetadataByKeyMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
   it("upserts agents/tags and persists cursor metadata for valid entries", async () => {
@@ -197,12 +195,20 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
     expect(invalidFixedEntryCall.create.paymentType).toBe(PaymentType.UNKNOWN);
 
-    expect(setSyncMetadataByKeyMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
-      "entry-3",
-      new Date(lastStatusUpdatedAt),
-      expect.anything(),
-    );
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: {
+        key: "agents-sync-metadata",
+      },
+      create: {
+        key: "agents-sync-metadata",
+        cursorId: "entry-3",
+        lastSyncedAt: new Date(lastStatusUpdatedAt),
+      },
+      update: {
+        cursorId: "entry-3",
+        lastSyncedAt: new Date(lastStatusUpdatedAt),
+      },
+    });
   });
 
   it("maps fixed pricing with empty amounts to UNKNOWN", async () => {
