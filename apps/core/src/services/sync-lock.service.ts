@@ -55,21 +55,6 @@ export const syncLockService = {
     });
   },
 
-  async heartbeatLock(key: string, ownerToken: string): Promise<boolean> {
-    const heartbeatResult = await prisma.lock.updateMany({
-      where: {
-        key,
-        isLocked: true,
-        lockedBy: ownerToken,
-      },
-      data: {
-        lockedAt: new Date(),
-      },
-    });
-
-    return heartbeatResult.count > 0;
-  },
-
   async releaseLock(key: string, ownerToken: string): Promise<boolean> {
     const releaseResult = await prisma.lock.updateMany({
       where: {

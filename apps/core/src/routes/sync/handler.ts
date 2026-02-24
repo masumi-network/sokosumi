@@ -5,11 +5,7 @@ import { getEnv } from "@/config/env";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
 
-export interface SyncOperationContext {
-  shouldContinue: () => boolean;
-}
-
-type SyncOperation = (context: SyncOperationContext) => Promise<void>;
+type SyncOperation = () => Promise<void>;
 
 function unauthorizedResponse(message: string): Response {
   return new Response(JSON.stringify({ message }), {
@@ -57,7 +53,7 @@ async function releaseOwnedLock(lock: AcquiredSyncLock): Promise<void> {
 }
 
 /**
- * Returns a promise that runs the sync operation with heartbeat and releases
+ * Returns a promise that runs the sync operation and releases
  * the lock when done. Pass this to Vercel's waitUntil() so the serverless
  * runtime keeps the invocation alive until the sync completes.
  */
@@ -65,69 +61,12 @@ function runBackgroundSync(
   lock: AcquiredSyncLock,
   syncOperation: SyncOperation,
 ): Promise<void> {
-  let shouldContinue = true;
-  let heartbeatInFlight = false;
-  let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-
-  function stopSync(message: string, error?: unknown): void {
-    if (!shouldContinue) {
-      return;
-    }
-
-    shouldContinue = false;
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
-
-    if (error) {
-      console.error(message, error);
-      return;
-    }
-
-    console.error(message);
-  }
-
-  const heartbeatIntervalMs = Math.max(
-    1000,
-    Math.floor(getEnv().LOCK_TIMEOUT / 2),
-  );
-  heartbeatInterval = setInterval(() => {
-    if (heartbeatInFlight || !shouldContinue) {
-      return;
-    }
-
-    heartbeatInFlight = true;
-    void (async () => {
-      try {
-        const heartbeatRefreshed = await syncLockService.heartbeatLock(
-          lock.key,
-          lock.ownerToken,
-        );
-        if (!heartbeatRefreshed) {
-          stopSync(
-            `Stopping sync because lock ownership changed for lock key "${lock.key}"`,
-          );
-        }
-      } catch (error) {
-        stopSync("Stopping sync because lock heartbeat failed:", error);
-      } finally {
-        heartbeatInFlight = false;
-      }
-    })();
-  }, heartbeatIntervalMs);
-
   return (async () => {
     try {
-      await syncOperation({
-        shouldContinue: () => shouldContinue,
-      });
+      await syncOperation();
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-      }
       await releaseOwnedLock(lock);
     }
   })();

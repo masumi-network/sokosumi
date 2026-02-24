@@ -3,13 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acquireLockMock,
-  heartbeatLockMock,
   releaseLockMock,
   syncAgentSummariesMock,
   syncRegistryAgentsMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
-  heartbeatLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
@@ -26,7 +24,6 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/services/sync-lock.service", () => ({
   syncLockService: {
     acquireLock: acquireLockMock,
-    heartbeatLock: heartbeatLockMock,
     releaseLock: releaseLockMock,
   },
 }));
@@ -71,7 +68,6 @@ describe("sync routes", () => {
       key: "lock-key",
       ownerToken: "owner-token",
     });
-    heartbeatLockMock.mockResolvedValue(true);
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
@@ -191,47 +187,6 @@ describe("sync routes", () => {
       await flushPromises();
       expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
       expect(releaseLockMock).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("signals sync operations to stop when heartbeat loses lock ownership", async () => {
-    vi.useFakeTimers();
-
-    try {
-      heartbeatLockMock.mockResolvedValue(false);
-
-      let continueAtStart: boolean | null = null;
-      let continueAfterDelay: boolean | null = null;
-      syncRegistryAgentsMock.mockImplementation(
-        async (
-          _metadataKey: string,
-          options?: { shouldContinue?: () => boolean },
-        ) => {
-          continueAtStart = options?.shouldContinue?.() ?? null;
-          await new Promise((resolve) => setTimeout(resolve, 70000));
-          continueAfterDelay = options?.shouldContinue?.() ?? null;
-        },
-      );
-
-      const app = await createApp();
-      const response = await app.request("http://localhost/sync/agents", {
-        headers: {
-          Authorization: "Bearer test-cron-secret",
-        },
-      });
-
-      expect(response.status).toBe(200);
-      await flushPromises();
-      expect(continueAtStart).toBe(true);
-
-      await vi.advanceTimersByTimeAsync(70000);
-      await flushPromises();
-
-      expect(heartbeatLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-      expect(continueAfterDelay).toBe(false);
-      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
     } finally {
       vi.useRealTimers();
     }

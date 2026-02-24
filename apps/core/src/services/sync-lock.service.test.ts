@@ -122,28 +122,6 @@ describe("syncLockService", () => {
     expect(lock.ownerToken).toMatch(/^instance-test:/);
   });
 
-  it("heartbeats only the owned active lock", async () => {
-    const syncLockService = await getSyncLockService();
-    lockUpdateManyRootMock.mockResolvedValue({ count: 1 });
-
-    const result = await syncLockService.heartbeatLock(
-      "agents-sync",
-      "instance-test:token-1",
-    );
-
-    expect(result).toBe(true);
-    expect(lockUpdateManyRootMock).toHaveBeenCalledWith({
-      where: {
-        key: "agents-sync",
-        isLocked: true,
-        lockedBy: "instance-test:token-1",
-      },
-      data: {
-        lockedAt: expect.any(Date),
-      },
-    });
-  });
-
   it("releases only when owner token matches", async () => {
     const syncLockService = await getSyncLockService();
     lockUpdateManyRootMock.mockResolvedValue({ count: 1 });
