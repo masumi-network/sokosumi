@@ -37,21 +37,30 @@ function authenticateCronSecret(c: Context): Response | null {
 async function withTimeout<T>(
   operation: () => Promise<T>,
   milliseconds: number,
-): Promise<T> {
+): Promise<{ status: "completed" } | { status: "timed-out" }> {
   const operationPromise = operation();
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<void>((resolve) => {
+  const timeoutPromise = new Promise<"timed-out">((resolve) => {
     timeoutId = setTimeout(() => {
-      resolve();
+      resolve("timed-out");
     }, milliseconds);
   });
 
-  let result: "completed" | "timed-out";
+  let result:
+    | "timed-out"
+    | {
+        status: "completed";
+      };
   try {
     result = await Promise.race([
-      operationPromise.then(() => "completed" as const),
-      timeoutPromise.then(() => "timed-out" as const),
+      operationPromise.then(
+        () =>
+          ({
+            status: "completed",
+          }) as const,
+      ),
+      timeoutPromise,
     ]);
   } finally {
     if (timeoutId !== undefined) {
@@ -60,12 +69,16 @@ async function withTimeout<T>(
   }
 
   if (result === "timed-out") {
-    console.error(
-      `Sync operation exceeded timeout (${milliseconds}ms); waiting for completion before releasing lock`,
-    );
+    // Ensure we don't leak unhandled rejections after timeout detaches the operation.
+    void operationPromise.catch((error) => {
+      console.error("Sync operation failed after timeout:", error);
+    });
+    return {
+      status: "timed-out",
+    };
   }
 
-  return await operationPromise;
+  return result;
 }
 
 /**
@@ -109,7 +122,12 @@ function runBackgroundSync(
         1,
         getEnv().LOCK_TIMEOUT - getEnv().LOCK_TIMEOUT_BUFFER,
       );
-      await withTimeout(syncOperation, timeoutMs);
+      const timeoutResult = await withTimeout(syncOperation, timeoutMs);
+      if (timeoutResult.status === "timed-out") {
+        console.error(
+          `Sync operation exceeded timeout (${timeoutMs}ms); releasing lock and allowing retry`,
+        );
+      }
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
