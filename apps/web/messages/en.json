@@ -1092,9 +1092,9 @@
           "suggestionsLabel": "Try asking",
           "prompts": {
             "alex": {
-              "1": "What can you help me with?",
-              "2": "Tell me about your capabilities.",
-              "3": "How do you work with the rest of the team?"
+              "1": "Build me a Dashboard for my research results.",
+              "2": "Create me Data Visualisation for my Excel Sheet.",
+              "3": "Analyse the data in my OneDrive folder."
             },
             "hannah": {
               "1": "Research our competitors and compare us to them.",
