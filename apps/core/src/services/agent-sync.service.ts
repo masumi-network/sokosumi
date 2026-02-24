@@ -8,6 +8,10 @@ import prisma from "@/lib/db/prisma";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
 
+interface SyncExecutionOptions {
+  shouldContinue?: () => boolean;
+}
+
 function isValidEmail(email: string | null | undefined): email is string {
   if (!email) {
     return false;
@@ -98,7 +102,30 @@ function parseEntryAgentPricing(pricing: {
   }
 }
 
-async function syncRegistryAgents(metadataKey: string): Promise<void> {
+function shouldStopSync(
+  options: SyncExecutionOptions,
+  reason: string,
+): boolean {
+  if (options.shouldContinue?.()) {
+    return false;
+  }
+
+  if (options.shouldContinue) {
+    console.info(`Stopping sync operation: ${reason}`);
+    return true;
+  }
+
+  return false;
+}
+
+async function syncRegistryAgents(
+  metadataKey: string,
+  options: SyncExecutionOptions = {},
+): Promise<void> {
+  if (shouldStopSync(options, "registry sync canceled before metadata lookup")) {
+    return;
+  }
+
   const metadata = await prisma.syncMetadata.findUnique({
     where: {
       key: metadataKey,
@@ -106,6 +133,10 @@ async function syncRegistryAgents(metadataKey: string): Promise<void> {
   });
   const lastSyncedAt = metadata?.lastSyncedAt ?? new Date(0);
   const cursorId = metadata?.cursorId ?? null;
+
+  if (shouldStopSync(options, "registry sync canceled before diff request")) {
+    return;
+  }
 
   const entriesResult = await registryClient.getAgentsDiff(
     lastSyncedAt,
@@ -127,95 +158,103 @@ async function syncRegistryAgents(metadataKey: string): Promise<void> {
     new Set(entries.map((entry) => entry.tags ?? []).flat()),
   );
 
-  await Promise.all(
-    tags.map(async (tag) => {
-      await prisma.tag.upsert({
-        where: {
-          name: tag,
-        },
-        create: {
-          name: tag,
-        },
-        update: {},
-      });
-    }),
-  );
+  for (const tag of tags) {
+    if (shouldStopSync(options, "registry sync canceled during tag upsert")) {
+      return;
+    }
 
-  await Promise.all(
-    entries.map(async (entry) => {
-      const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
-        entry.AgentPricing,
-      );
+    await prisma.tag.upsert({
+      where: {
+        name: tag,
+      },
+      create: {
+        name: tag,
+      },
+      update: {},
+    });
+  }
 
-      await prisma.agent.upsert({
-        where: {
-          blockchainIdentifier: entry.agentIdentifier,
+  for (const entry of entries) {
+    if (shouldStopSync(options, "registry sync canceled during agent upsert")) {
+      return;
+    }
+
+    const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
+      entry.AgentPricing,
+    );
+
+    await prisma.agent.upsert({
+      where: {
+        blockchainIdentifier: entry.agentIdentifier,
+      },
+      create: {
+        blockchainIdentifier: entry.agentIdentifier,
+        name: entry.name,
+        description: emptyStringToNull(entry.description),
+        apiBaseUrl: entry.apiBaseUrl,
+        lastUptimeCheck: entry.lastUptimeCheck,
+        uptimeCount: entry.uptimeCount,
+        uptimeCheckCount: entry.uptimeCheckCount,
+        capabilityName: emptyStringToNull(entry.Capability?.name),
+        capabilityVersion: emptyStringToNull(entry.Capability?.version),
+        authorName: emptyStringToNull(entry.authorName),
+        authorContactEmail: isValidEmail(entry.authorContactEmail)
+          ? entry.authorContactEmail
+          : null,
+        authorContactOther: emptyStringToNull(entry.authorContactOther),
+        image: emptyStringToNull(entry.image),
+        tags: {
+          connect: entry.tags?.map((tag) => ({
+            name: tag,
+          })),
         },
-        create: {
-          blockchainIdentifier: entry.agentIdentifier,
-          name: entry.name,
-          description: emptyStringToNull(entry.description),
-          apiBaseUrl: entry.apiBaseUrl,
-          lastUptimeCheck: entry.lastUptimeCheck,
-          uptimeCount: entry.uptimeCount,
-          uptimeCheckCount: entry.uptimeCheckCount,
-          capabilityName: emptyStringToNull(entry.Capability?.name),
-          capabilityVersion: emptyStringToNull(entry.Capability?.version),
-          authorName: emptyStringToNull(entry.authorName),
-          authorContactEmail: isValidEmail(entry.authorContactEmail)
-            ? entry.authorContactEmail
-            : null,
-          authorContactOther: emptyStringToNull(entry.authorContactOther),
-          image: emptyStringToNull(entry.image),
-          tags: {
-            connect: entry.tags?.map((tag) => ({
-              name: tag,
-            })),
-          },
-          authorOrganization: emptyStringToNull(entry.authorOrganization),
-          isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
-          status: convertStatus(entry.status),
-          legalOther: emptyStringToNull(entry.otherLegal),
-          legalTerms: emptyStringToNull(entry.termsAndCondition),
-          legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
-          paymentType: convertPaymentType(entry.paymentType),
-          pricing: {
-            create: {
-              pricingType,
-              ...(fixedPricingAmounts
-                ? {
-                    fixedPricing: {
-                      create: {
-                        amounts: {
-                          createMany: {
-                            data: fixedPricingAmounts,
-                          },
+        authorOrganization: emptyStringToNull(entry.authorOrganization),
+        isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
+        status: convertStatus(entry.status),
+        legalOther: emptyStringToNull(entry.otherLegal),
+        legalTerms: emptyStringToNull(entry.termsAndCondition),
+        legalPrivacyPolicy: emptyStringToNull(entry.privacyPolicy),
+        paymentType: convertPaymentType(entry.paymentType),
+        pricing: {
+          create: {
+            pricingType,
+            ...(fixedPricingAmounts
+              ? {
+                  fixedPricing: {
+                    create: {
+                      amounts: {
+                        createMany: {
+                          data: fixedPricingAmounts,
                         },
                       },
                     },
-                  }
-                : {}),
-            },
-          },
-          exampleOutput: {
-            createMany: {
-              data: entry.ExampleOutput.map((example) => ({
-                mimeType: example.mimeType,
-                name: example.name,
-                url: example.url,
-              })),
-            },
+                  },
+                }
+              : {}),
           },
         },
-        update: {
-          lastUptimeCheck: entry.lastUptimeCheck,
-          uptimeCount: entry.uptimeCount,
-          uptimeCheckCount: entry.uptimeCheckCount,
-          status: convertStatus(entry.status),
+        exampleOutput: {
+          createMany: {
+            data: entry.ExampleOutput.map((example) => ({
+              mimeType: example.mimeType,
+              name: example.name,
+              url: example.url,
+            })),
+          },
         },
-      });
-    }),
-  );
+      },
+      update: {
+        lastUptimeCheck: entry.lastUptimeCheck,
+        uptimeCount: entry.uptimeCount,
+        uptimeCheckCount: entry.uptimeCheckCount,
+        status: convertStatus(entry.status),
+      },
+    });
+  }
+
+  if (shouldStopSync(options, "registry sync canceled before metadata update")) {
+    return;
+  }
 
   const lastEntry = entries[entries.length - 1];
   await prisma.syncMetadata.upsert({
@@ -234,7 +273,13 @@ async function syncRegistryAgents(metadataKey: string): Promise<void> {
   });
 }
 
-async function syncAgentSummaries(): Promise<void> {
+async function syncAgentSummaries(
+  options: SyncExecutionOptions = {},
+): Promise<void> {
+  if (shouldStopSync(options, "summary sync canceled before loading agents")) {
+    return;
+  }
+
   const agentsWithoutSummary = await prisma.agent.findMany({
     where: {
       status: AgentStatus.ONLINE,
@@ -249,6 +294,10 @@ async function syncAgentSummaries(): Promise<void> {
   });
 
   for (const agent of agentsWithoutSummary) {
+    if (shouldStopSync(options, "summary sync canceled during agent loop")) {
+      return;
+    }
+
     const description = getAgentDescription(agent);
     if (!description) {
       continue;
@@ -258,6 +307,10 @@ async function syncAgentSummaries(): Promise<void> {
       const summary = await openrouterClient.generateAgentSummary(description);
       if (!summary) {
         continue;
+      }
+
+      if (shouldStopSync(options, "summary sync canceled before summary write")) {
+        return;
       }
 
       await prisma.agent.update({

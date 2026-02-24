@@ -131,6 +131,21 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
+  it("stops registry sync immediately when shouldContinue returns false", async () => {
+    const agentSyncService = await getAgentSyncService();
+    const shouldContinue = vi.fn().mockReturnValue(false);
+
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
+      shouldContinue,
+    });
+
+    expect(syncMetadataFindUniqueMock).not.toHaveBeenCalled();
+    expect(getAgentsDiffMock).not.toHaveBeenCalled();
+    expect(tagUpsertMock).not.toHaveBeenCalled();
+    expect(agentUpsertMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+  });
+
   it("does not write data when registry diff fails", async () => {
     const agentSyncService = await getAgentSyncService();
     getAgentsDiffMock.mockResolvedValue(err("registry unavailable"));
@@ -301,6 +316,19 @@ describe("agentSyncService.syncAgentSummaries", () => {
         summary: "Summary one",
       },
     });
+  });
+
+  it("stops summary sync immediately when shouldContinue returns false", async () => {
+    const agentSyncService = await getAgentSyncService();
+    const shouldContinue = vi.fn().mockReturnValue(false);
+
+    await agentSyncService.syncAgentSummaries({
+      shouldContinue,
+    });
+
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+    expect(openrouterGenerateAgentSummaryMock).not.toHaveBeenCalled();
+    expect(agentUpdateMock).not.toHaveBeenCalled();
   });
 
   it("continues summary processing when one generation fails", async () => {

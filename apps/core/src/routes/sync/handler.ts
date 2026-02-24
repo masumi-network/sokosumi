@@ -5,6 +5,12 @@ import { getEnv } from "@/config/env";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
 
+export interface SyncOperationContext {
+  shouldContinue: () => boolean;
+}
+
+type SyncOperation = (context: SyncOperationContext) => Promise<void>;
+
 function unauthorizedResponse(message: string): Response {
   return new Response(JSON.stringify({ message }), {
     status: 401,
@@ -57,20 +63,41 @@ async function releaseOwnedLock(lock: AcquiredSyncLock): Promise<void> {
  */
 function runBackgroundSync(
   lock: AcquiredSyncLock,
-  syncOperation: () => Promise<void>,
+  syncOperation: SyncOperation,
 ): Promise<void> {
-  const timeoutMs = Math.max(
-    1,
-    getEnv().LOCK_TIMEOUT - getEnv().LOCK_TIMEOUT_BUFFER,
-  );
+  let shouldContinue = true;
+  let heartbeatInFlight = false;
+  let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+  function stopSync(message: string, error?: unknown): void {
+    if (!shouldContinue) {
+      return;
+    }
+
+    shouldContinue = false;
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+
+    if (error) {
+      console.error(message, error);
+      return;
+    }
+
+    console.error(message);
+  }
+
   const heartbeatIntervalMs = Math.max(
     1000,
-    Math.min(
-      Math.floor(getEnv().LOCK_TIMEOUT / 2),
-      timeoutMs,
-    ),
+    Math.floor(getEnv().LOCK_TIMEOUT / 2),
   );
-  const heartbeatInterval = setInterval(() => {
+  heartbeatInterval = setInterval(() => {
+    if (heartbeatInFlight || !shouldContinue) {
+      return;
+    }
+
+    heartbeatInFlight = true;
     void (async () => {
       try {
         const heartbeatRefreshed = await syncLockService.heartbeatLock(
@@ -78,33 +105,29 @@ function runBackgroundSync(
           lock.ownerToken,
         );
         if (!heartbeatRefreshed) {
-          console.error(
-            `Lock ownership lost during heartbeat for lock key "${lock.key}"`,
+          stopSync(
+            `Stopping sync because lock ownership changed for lock key "${lock.key}"`,
           );
-          clearInterval(heartbeatInterval);
         }
       } catch (error) {
-        console.error("Failed to heartbeat lock:", error);
+        stopSync("Stopping sync because lock heartbeat failed:", error);
+      } finally {
+        heartbeatInFlight = false;
       }
     })();
   }, heartbeatIntervalMs);
 
   return (async () => {
-    const syncPromise = Promise.resolve().then(syncOperation);
-    const timeoutId = setTimeout(() => {
-      console.error(
-        `Sync operation exceeded timeout (${timeoutMs}ms); stop heartbeat and defer lock release until sync settles`,
-      );
-      clearInterval(heartbeatInterval);
-    }, timeoutMs);
-
     try {
-      await syncPromise;
+      await syncOperation({
+        shouldContinue: () => shouldContinue,
+      });
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      clearTimeout(timeoutId);
-      clearInterval(heartbeatInterval);
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
       await releaseOwnedLock(lock);
     }
   })();
@@ -113,7 +136,7 @@ function runBackgroundSync(
 export async function handleSyncRequest(
   c: Context,
   lockKey: string,
-  syncOperation: () => Promise<void>,
+  syncOperation: SyncOperation,
 ): Promise<Response> {
   const unauthorized = authenticateCronSecret(c);
   if (unauthorized) {

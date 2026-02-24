@@ -159,11 +159,8 @@ describe("sync routes", () => {
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does not release lock until timed-out sync operation settles", async () => {
+  it("does not release lock while long-running sync is still pending", async () => {
     vi.useFakeTimers();
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
 
     try {
       let resolveSync: (() => void) | null = null;
@@ -189,21 +186,58 @@ describe("sync routes", () => {
       await flushPromises();
 
       expect(releaseLockMock).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Sync operation exceeded timeout"),
-      );
 
       resolveSync?.();
       await flushPromises();
       expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
       expect(releaseLockMock).toHaveBeenCalledTimes(1);
     } finally {
-      consoleErrorSpy.mockRestore();
       vi.useRealTimers();
     }
   });
 
-  it("clears timeout timers when sync fails before timeout", async () => {
+  it("signals sync operations to stop when heartbeat loses lock ownership", async () => {
+    vi.useFakeTimers();
+
+    try {
+      heartbeatLockMock.mockResolvedValue(false);
+
+      let continueAtStart: boolean | null = null;
+      let continueAfterDelay: boolean | null = null;
+      syncRegistryAgentsMock.mockImplementation(
+        async (
+          _metadataKey: string,
+          options?: { shouldContinue?: () => boolean },
+        ) => {
+          continueAtStart = options?.shouldContinue?.() ?? null;
+          await new Promise((resolve) => setTimeout(resolve, 70000));
+          continueAfterDelay = options?.shouldContinue?.() ?? null;
+        },
+      );
+
+      const app = await createApp();
+      const response = await app.request("http://localhost/sync/agents", {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      });
+
+      expect(response.status).toBe(200);
+      await flushPromises();
+      expect(continueAtStart).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(70000);
+      await flushPromises();
+
+      expect(heartbeatLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+      expect(continueAfterDelay).toBe(false);
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears background timers when sync fails", async () => {
     vi.useFakeTimers();
     const consoleErrorSpy = vi
       .spyOn(console, "error")
