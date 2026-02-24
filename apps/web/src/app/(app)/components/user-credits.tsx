@@ -17,6 +17,14 @@ interface UserCreditsProps {
   session: Session;
 }
 
+export interface CreditUsage {
+  hasUsageData: boolean;
+  percentageUsed: number;
+  remaining: number;
+  total: number;
+  used: number;
+}
+
 export default async function UserCredits({ session }: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
@@ -30,15 +38,34 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   let planLabel: string;
   let currentPlan: string | null = null;
   let credits: number | null = null;
+  let creditUsage: CreditUsage | null = null;
   let activeOrganizationName: string | null = null;
 
   try {
-    const [creditsResult, organizationsResult] = await Promise.all([
-      coreClient.getMyCredits(),
-      activeOrganizationId ? coreClient.getMyOrganizations() : null,
-    ]);
+    const [creditsResult, organizationsResult, subscriptionResult] =
+      await Promise.all([
+        coreClient.getMyCredits(),
+        activeOrganizationId ? coreClient.getMyOrganizations() : null,
+        coreClient.getMySubscription(),
+      ]);
 
     credits = creditsResult.data?.credits ?? 0;
+    const subscriptionCredits = subscriptionResult.data?.subscription?.credits;
+
+    if (subscriptionCredits && subscriptionCredits.total > 0) {
+      const total = Math.max(subscriptionCredits.total, 0);
+      const used = Math.min(Math.max(subscriptionCredits.used, 0), total);
+      const remaining = Math.max(subscriptionCredits.remaining, 0);
+      const percentageUsed = Math.min(Math.max((used / total) * 100, 0), 100);
+
+      creditUsage = {
+        hasUsageData: true,
+        percentageUsed,
+        remaining,
+        total,
+        used,
+      };
+    }
 
     if (activeOrganizationId && organizationsResult?.data) {
       const foundOrganization = organizationsResult.data.find(
@@ -51,6 +78,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     }
   } catch (_error) {
     credits = null;
+    creditUsage = null;
   }
 
   const displayCredits = formatCreditsForDisplay(credits ?? 0);
@@ -118,6 +146,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
         primaryLabel={primaryLabel}
         secondaryLabel={planLabel}
         creditsLabel={creditsLabel}
+        creditUsage={creditUsage}
       />
     </div>
   );
