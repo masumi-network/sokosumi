@@ -265,7 +265,14 @@ export default function CoworkerModelSelector({
                     {coworker.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="flex-1 text-left">{coworker.name}</span>
+                <span className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left">
+                  <span>{coworker.name}</span>
+                  {coworker.caption && (
+                    <span className="text-muted-foreground text-xs font-normal">
+                      {coworker.caption}
+                    </span>
+                  )}
+                </span>
               </button>
             ))}
           </div>
