@@ -34,24 +34,28 @@ export function RatingListItem({ rating }: RatingListItemProps) {
       : rating.comment;
 
   return (
-    <div className="border-b pb-4 last:border-b-0 last:pb-0">
-      <div className="flex items-start gap-3">
-        <Avatar className="size-10">
+    <div className="bg-muted/20 border-border/50 rounded-lg border px-3 py-3">
+      <div className="flex items-start gap-4">
+        <Avatar className="size-6 shrink-0 self-start">
           <AvatarImage src={rating.user.image ?? undefined} />
-          <AvatarFallback>{userInitials}</AvatarFallback>
+          <AvatarFallback className="bg-muted text-[10px]">
+            {userInitials}
+          </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-2">
+          <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-medium">{rating.user.name}</span>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
               {formatDistanceToNow(rating.createdAt, { addSuffix: true })}
             </span>
           </div>
-          <StarRating averageRating={rating.rating} size="sm" />
-          {rating.comment && (
+          <div className="mt-1">
+            <StarRating averageRating={rating.rating} size="sm" />
+          </div>
+          {rating.comment ? (
             <div className="mt-2">
               <p
-                className="text-sm"
+                className="text-foreground/70 text-sm"
                 style={{
                   wordBreak: "break-all",
                   overflowWrap: "anywhere",
@@ -60,7 +64,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
               >
                 {displayComment}
               </p>
-              {shouldTruncate && (
+              {shouldTruncate ? (
                 <Button
                   variant="link"
                   size="sm"
@@ -69,9 +73,9 @@ export function RatingListItem({ rating }: RatingListItemProps) {
                 >
                   {isExpanded ? t("showLess") : t("readMore")}
                 </Button>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

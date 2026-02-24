@@ -200,6 +200,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const formattedContent =
             formatMessageContentForConversation(extractedText);
 
+          const convWithCount = await prisma.conversation.findFirst({
+            where: {
+              id: internalConversationId,
+              userId: authContext.userId,
+              archivedAt: null,
+            },
+            select: { _count: { select: { items: true } } },
+          });
+          const isFirstUserMessage =
+            convWithCount?._count.items === 0 &&
+            lastMessage.role === "user" &&
+            extractedText.trim().length > 0;
+
           prisma.conversationItem
             .create({
               data: {
@@ -208,6 +221,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 contentType: formattedContent[0]?.type || null,
                 contentText: extractedText,
               },
+            })
+            .then(async () => {
+              if (!isFirstUserMessage) return;
+              const generatedTitle =
+                await openrouterClient.generateChatTitle(extractedText);
+              if (generatedTitle) {
+                await prisma.conversation.update({
+                  where: { id: internalConversationId },
+                  data: { title: generatedTitle },
+                });
+              }
             })
             .catch((error) => {
               console.error("Failed to add message to conversation:", error);

@@ -5,7 +5,7 @@ import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -52,9 +52,11 @@ export default function ChatInterface({
   userName,
 }: ChatInterfaceProps) {
   const t = useTranslations("App.Chat.Chat");
+  const params = useParams<{ conversationId?: string }>();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlConversationId = searchParams?.get("conversationId");
+  const urlConversationId =
+    params?.conversationId ?? searchParams?.get("conversationId") ?? null;
 
   const {
     conversations,
@@ -62,6 +64,7 @@ export default function ChatInterface({
     createNewConversation,
     selectConversation,
     deleteConversationById: _deleteConversationById,
+    refreshConversations,
     isLoading: isConversationsLoading,
   } = useConversationsContext();
 
@@ -80,13 +83,6 @@ export default function ChatInterface({
     !urlConversationId ||
     conversations.length === 0 ||
     conversations.some((c) => c.id === urlConversationId);
-  useEffect(() => {
-    const willSync =
-      urlConversationId && selectedChatId !== urlConversationId && urlIdInList;
-    if (willSync) {
-      setSelectedChatId(urlConversationId);
-    }
-  }, [urlConversationId, selectedChatId, urlIdInList]);
 
   const organizationSlugRef = useRef<string | null>(organizationSlug);
   useEffect(() => {
@@ -95,7 +91,7 @@ export default function ChatInterface({
 
   const loadingConversationIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (pathname !== "/chat" || !selectedChatId) return;
+    if (!pathname.startsWith("/chat") || !selectedChatId) return;
     if (selectedConversation?.id === selectedChatId) {
       loadingConversationIdRef.current = null;
       return;
@@ -159,6 +155,13 @@ export default function ChatInterface({
     setWelcomeSelectedModel(null);
   }, []);
 
+  useEffect(() => {
+    if (!urlConversationId && pathname.startsWith("/chat")) {
+      setWelcomeSelectedCoworker(null);
+      setWelcomeSelectedModel(null);
+    }
+  }, [urlConversationId, pathname]);
+
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
   const messagesChatIdRef = useRef<string | null>(null);
@@ -169,6 +172,36 @@ export default function ChatInterface({
   const updateChatPreviewRef = useRef<
     ((chatId: string, content: string, isFirstMessage?: boolean) => void) | null
   >(null);
+
+  const PENDING_CONVERSATION_STORAGE_KEY = "chat-pending-conversation-id";
+
+  useEffect(() => {
+    const willSync =
+      urlConversationId && selectedChatId !== urlConversationId && urlIdInList;
+    const pending = pendingUrlConversationIdRef.current;
+    let pendingFromStorage: string | null = null;
+    try {
+      pendingFromStorage = sessionStorage.getItem(
+        PENDING_CONVERSATION_STORAGE_KEY,
+      );
+    } catch {}
+    const skipSync =
+      willSync &&
+      (pending != null
+        ? pending === selectedChatId
+        : pendingFromStorage === selectedChatId);
+    if (
+      (skipSync && pendingFromStorage === selectedChatId) ||
+      (urlConversationId === selectedChatId && selectedChatId)
+    ) {
+      try {
+        sessionStorage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
+      } catch {}
+    }
+    if (willSync && !skipSync) {
+      setSelectedChatId(urlConversationId);
+    }
+  }, [urlConversationId, selectedChatId, urlIdInList]);
 
   const [conversationToSlot, setConversationToSlot] = useState<
     Map<string, number>
@@ -232,12 +265,9 @@ export default function ChatInterface({
     });
   }
 
-  // Slot transports read slotPayloadRef only inside prepareSendMessagesRequest (on send), not during render
-  /* eslint-disable react-hooks/refs */
   const transport0 = useMemo(() => makeSlotTransport(0), []);
   const transport1 = useMemo(() => makeSlotTransport(1), []);
   const transport2 = useMemo(() => makeSlotTransport(2), []);
-  /* eslint-enable react-hooks/refs */
 
   const onDataForSlot = useCallback((slotIndex: number) => {
     return (dataPart: { type: string; data: unknown }) => {
@@ -282,12 +312,16 @@ export default function ChatInterface({
               conversationId,
               role: "assistant",
               content: formattedContent,
-            }).catch((error) => {
-              console.error(
-                "Failed to add assistant message to conversation:",
-                error,
-              );
-            });
+            })
+              .then(() => {
+                void refreshConversations();
+              })
+              .catch((error) => {
+                console.error(
+                  "Failed to add assistant message to conversation:",
+                  error,
+                );
+              });
             if (
               previousChatIdRef.current === conversationId &&
               messagesChatIdRef.current === conversationId &&
@@ -305,7 +339,7 @@ export default function ChatInterface({
           }
         }
       },
-    [],
+    [refreshConversations],
   );
 
   const chat0 = useChat({
@@ -333,6 +367,20 @@ export default function ChatInterface({
   const slotMessages = useMemo(
     () => [chat0.messages, chat1.messages, chat2.messages],
     [chat0.messages, chat1.messages, chat2.messages],
+  );
+  const slotMessagesSignature = useMemo(
+    () =>
+      slotMessages
+        .map((m, i) => {
+          const arr = m as UIMessage[] | undefined;
+          const len = arr?.length ?? 0;
+          const last = len
+            ? (arr?.[len - 1] as { id?: string } | undefined)
+            : null;
+          return `${i}:${len}:${last?.id ?? ""}`;
+        })
+        .join("|"),
+    [slotMessages],
   );
   const slotStatuses = useMemo(
     () => [chat0.status, chat1.status, chat2.status],
@@ -411,7 +459,8 @@ export default function ChatInterface({
         chatMessagesRef.current.set(convId, msgs);
       }
     });
-  }, [slotToConversation, slotMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- slotMessages ref identity; signature is stable
+  }, [slotToConversation, slotMessagesSignature]);
 
   const getOrAssignSlot = useCallback(
     (conversationId: string): number | null => {
@@ -670,13 +719,14 @@ export default function ChatInterface({
             conversationId = await handleModelSelected(modelToUse);
           }
         } else {
-          // Use provided coworker or default to Hannah
-          const selectedCoworker: Coworker = coworker || {
-            id: "hannah",
-            name: t("coworkers.hannah.name"),
-            description: t("coworkers.hannah.description"),
-            useCase: t("coworkers.hannah.useCase"),
-          };
+          const selectedCoworker: Coworker = coworker ??
+            effectiveWelcomeCoworker ?? {
+              id: "elena",
+              slug: "elena",
+              name: t("coworkers.elena.name"),
+              description: t("coworkers.elena.description"),
+              useCase: t("coworkers.elena.useCase"),
+            };
           conversationId = await handleCoworkerSelected(selectedCoworker);
         }
 
@@ -698,9 +748,7 @@ export default function ChatInterface({
 
         const cid = currentChatIdRef.current ?? conversationId;
         const sent = cid ? sendInConversation(cid, trimmedMessage) : false;
-        if (sent) {
-          setInput("");
-        }
+        if (sent) setInput("");
         return;
       }
 
@@ -720,9 +768,7 @@ export default function ChatInterface({
       }
 
       const sent = sendInConversation(selectedChatId, trimmedMessage);
-      if (sent) {
-        setInput("");
-      }
+      if (sent) setInput("");
     },
     [
       isLoading,
@@ -732,6 +778,7 @@ export default function ChatInterface({
       handleCoworkerSelected,
       handleModelSelected,
       selectedModel,
+      effectiveWelcomeCoworker,
       t,
       setIsWelcomeTransitioning,
       currentChatIdRef,
@@ -830,7 +877,9 @@ export default function ChatInterface({
           <>
             {showMessagesAfterTransition && (
               <>
-                {isConversationLoading ? (
+                {isConversationLoading &&
+                displayedMessages.length === 0 &&
+                conversationToSlot.get(selectedChatId) === undefined ? (
                   <div className="flex h-full min-h-[300px] flex-1 items-center justify-center">
                     <Loader2
                       className="text-muted-foreground size-8 animate-spin"

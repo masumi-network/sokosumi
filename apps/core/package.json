@@ -24,7 +24,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.4.18",
+    "@better-auth/oauth-provider": "1.4.19",
     "@better-auth/utils": "0.3.1",
     "@hono/node-server": "1.19.9",
     "@hono/zod-openapi": "1.2.2",
@@ -36,9 +36,10 @@
     "@sokosumi/database": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.3.0",
-    "ably": "2.17.1",
+    "@vercel/functions": "3.4.2",
+    "ably": "2.18.0",
     "ai": "6.0.97",
-    "better-auth": "1.4.18",
+    "better-auth": "1.4.19",
     "better-auth-localization": "2.2.3",
     "dotenv": "17.3.1",
     "hono": "4.12.2",

@@ -1135,6 +1135,13 @@
         "comingSoon": "Coming Soon",
         "agenticCoworkers": "Agentic Coworkers",
         "models": "Models",
+        "ConversationsSidebar": {
+          "searchPlaceholder": "Search conversations...",
+          "clearSearch": "Clear search",
+          "resultsCount": "{found} of {total}",
+          "noResults": "No matching conversations",
+          "noConversations": "No conversations yet"
+        },
         "uploadFileError": "Failed to upload file",
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "uploadPastedImageError": "Failed to upload pasted image(s)",

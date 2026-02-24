@@ -98,6 +98,8 @@ function generateSegments(
       // check for special cases
       if (href.startsWith("/accept-invitation")) return;
 
+      if (segment === "conversation") return;
+
       // Skip UUIDs and long IDs in breadcrumbs (they're not user-friendly)
       // UUIDs are typically 36 characters with dashes, or 32 hex characters
       // Conversation IDs follow UUID format

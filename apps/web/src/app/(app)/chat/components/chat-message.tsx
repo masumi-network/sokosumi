@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { type SyntheticEvent } from "react";
 
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
+import { useStreamingPaused } from "@/app/chat/hooks/use-streaming-paused";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import Markdown from "@/components/markdown";
@@ -43,6 +44,7 @@ export default function ChatMessage({
   const formatter = useFormatter();
   const isAssistantStreaming = !isUser && isStreaming;
   const displayContent = useStreamingContent(content, isAssistantStreaming);
+  const isPaused = useStreamingPaused(content, isAssistantStreaming);
 
   const timestamp = createdAt
     ? formatter.dateTime(createdAt, {
@@ -188,6 +190,13 @@ export default function ChatMessage({
                 </span>
               )}
             </div>
+            {isAssistantStreaming && isPaused && (
+              <div className="mt-2">
+                <span className="reasoning-text-shine text-sm">
+                  {t("reasoning.processing")}
+                </span>
+              </div>
+            )}
           </div>
           {timestamp &&
             (isUser ||

@@ -36,72 +36,59 @@ export async function AgentDetailReviews({
   const hasRatings = ratingStats.totalRatings > 0;
 
   return (
-    <div className="space-y-6">
-      {/* Layout based on ratings existence */}
+    <section className="space-y-4">
+      <h2 className="text-muted-foreground/60 text-xs font-medium">
+        {t("customerReviews")}
+      </h2>
       {hasRatings ? (
-        /* Two-panel layout when ratings exist */
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-          {/* Left: Overall Rating, Distribution, and Rating Form */}
-          <div className="space-y-6">
-            {/* Header */}
-            <div>
-              <h3 className="mb-4 text-lg font-medium">
-                {t("customerReviews")}
-              </h3>
-            </div>
-
-            {/* Overall Rating */}
-            <div>
-              <StarRating
-                averageRating={ratingStats.averageRating}
-                totalRatings={ratingStats.totalRatings}
-                size="lg"
-              />
-            </div>
-
-            {/* Rating Distribution */}
-            <div>
-              <RatingDistribution
-                distribution={distribution}
-                totalRatings={ratingStats.totalRatings}
-              />
-            </div>
-
-            {/* Write/Update Review */}
-            <div>
-              {canRate && (
-                <AgentRatingForm
-                  agentId={agentId}
-                  existingRating={existingRating?.rating ?? null}
-                  existingComment={existingRating?.comment ?? null}
+        <>
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <div className="space-y-4">
+              <div className="bg-muted/20 border-border/50 space-y-3 rounded-lg border p-3">
+                <StarRating
+                  averageRating={ratingStats.averageRating}
+                  totalRatings={ratingStats.totalRatings}
+                  size="lg"
                 />
-              )}
+                <RatingDistribution
+                  distribution={distribution}
+                  totalRatings={ratingStats.totalRatings}
+                />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <ReviewsList ratingsWithComments={ratingsWithComments} />
             </div>
           </div>
-
-          {/* Right: Customer Reviews */}
-          <div>
-            <ReviewsList ratingsWithComments={ratingsWithComments} />
-          </div>
-        </div>
-      ) : (
-        /* Single layout when no ratings exist */
-        <div>
-          {canRate && (
-            <div className="mx-auto max-w-md">
-              <p className="text-muted-foreground mb-4 text-center text-sm">
-                {t("beFirstToReview")}
-              </p>
+          {canRate ? (
+            <div className="border-border/50 rounded-lg border p-3">
               <AgentRatingForm
                 agentId={agentId}
                 existingRating={existingRating?.rating ?? null}
                 existingComment={existingRating?.comment ?? null}
               />
             </div>
+          ) : null}
+        </>
+      ) : (
+        <div>
+          {canRate && (
+            <div className="w-full">
+              <p className="text-muted-foreground mb-4 text-center text-sm">
+                {t("beFirstToReview")}
+              </p>
+              <div className="border-border/50 rounded-lg border p-3">
+                <AgentRatingForm
+                  agentId={agentId}
+                  existingRating={existingRating?.rating ?? null}
+                  existingComment={existingRating?.comment ?? null}
+                />
+              </div>
+            </div>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -110,7 +97,7 @@ export function AgentDetailReviewsSkeleton() {
     <div className="space-y-6">
       <div>
         <Skeleton className="mb-4 h-6 w-32" />
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           <Skeleton className="h-20" />
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (

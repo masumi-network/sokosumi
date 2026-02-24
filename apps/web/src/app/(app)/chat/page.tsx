@@ -1,13 +1,5 @@
-import gravatarUrl from "gravatar-url";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-
-import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { getSession } from "@/lib/auth/utils";
-import { userService } from "@/lib/services";
-
-import { ChatErrorFallback } from "./components/chat-error-fallback";
-import ChatInterface from "./components/chat-interface";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Chat.Metadata");
@@ -18,32 +10,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function ChatPage() {
-  const session = await getSession();
-
-  if (!session) {
-    return null;
-  }
-
-  const userImageUrl =
-    session.user.image ??
-    gravatarUrl(session.user.email, {
-      size: 80,
-      default: "404",
-    });
-
-  const activeOrganization = await userService.getActiveOrganization();
-  const organizationSlug = activeOrganization?.slug ?? null;
-
-  return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-2">
-      <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
-        <ChatInterface
-          organizationSlug={organizationSlug}
-          userImageUrl={userImageUrl}
-          userName={session.user.name ?? undefined}
-        />
-      </DefaultErrorBoundary>
-    </div>
-  );
+/**
+ * Chat UI is rendered by the layout so a single ChatInterface stays mounted
+ * across /chat, /chat/[bucketSlug], and /chat/[bucketSlug]/conversation/[id].
+ */
+export default function ChatPage() {
+  return null;
 }

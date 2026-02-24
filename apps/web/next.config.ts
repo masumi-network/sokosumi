@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "igcd4cnfvuav1zto.public.blob.vercel-storage.com",
       },
+      {
+        protocol: "https",
+        hostname: "**.azurecontainerapps.io",
+      },
     ],
   },
   experimental: {

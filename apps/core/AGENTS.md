@@ -248,6 +248,23 @@ const schema = z.object({
 
 This schema automatically converts Date objects to ISO strings and validates ISO datetime format.
 
+### Sync Route Pattern (Vercel)
+
+For internal async-ack sync routes (immediate `200` response + background execution), use this pattern:
+
+- Always use `waitUntil(...)` from `@vercel/functions` for background work.
+- Do not use untracked fire-and-forget (`void` async) for long-running sync jobs.
+- Locking must be ownership-safe:
+  - `acquireLock` returns an owner token.
+  - heartbeat updates `lockedAt` while work is running.
+  - `releaseLock` uses compare-and-set (`key` + owner token).
+- Add route/service tests for:
+  - missing or invalid auth returns `401`
+  - active lock returns `409`
+  - async-ack returns `200` and starts background work once
+  - timeout path keeps lock safety guarantees
+  - stale ownership does not unlock a lock owned by another runner
+
 ## App-Specific Commands
 
 | Command                           | Purpose                  |
