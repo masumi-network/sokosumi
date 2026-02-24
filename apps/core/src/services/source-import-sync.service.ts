@@ -4,6 +4,8 @@ import { head, put } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
+const MAX_CONCURRENT_IMPORTS = 5;
+
 function getBasename(url: string): string | null {
   try {
     const parsedUrl = new URL(url);
@@ -108,7 +110,14 @@ async function importPendingResultBlobs(): Promise<number> {
     orderBy: { createdAt: "asc" },
   });
 
-  await Promise.allSettled(pendingBlobs.map((blob) => importBlob(blob.id)));
+  for (
+    let index = 0;
+    index < pendingBlobs.length;
+    index += MAX_CONCURRENT_IMPORTS
+  ) {
+    const chunk = pendingBlobs.slice(index, index + MAX_CONCURRENT_IMPORTS);
+    await Promise.allSettled(chunk.map((blob) => importBlob(blob.id)));
+  }
 
   return pendingBlobs.length;
 }
