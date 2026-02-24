@@ -62,9 +62,7 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    pLimitMock.mockImplementation(
-      () => (task: () => Promise<void>) => task(),
-    );
+    pLimitMock.mockImplementation(() => (task: () => Promise<void>) => task());
 
     userFindManyMock.mockResolvedValue([{ id: "user-1" }, { id: "user-2" }]);
     organizationFindManyMock.mockResolvedValue([{ id: "organization-1" }]);
