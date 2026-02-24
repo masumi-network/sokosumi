@@ -11,6 +11,7 @@ const envDefaults: Record<string, string> = {
   REGISTRY_API_URL: "https://example.com/registry",
   REGISTRY_API_KEY: "test-registry-key",
   CRON_SECRET: "test-cron-secret",
+  STRIPE_SECRET_KEY: "sk_test_example",
   LOCK_TIMEOUT: "900000",
   INSTANCE_ID: "test-instance-id",
   SHOW_AGENTS_BY_DEFAULT: "true",

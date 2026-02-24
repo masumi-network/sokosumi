@@ -8,6 +8,10 @@
     {
       "path": "/sync/agents-summary",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/sync/stripe-customers",
+      "schedule": "0 * * * *"
     }
   ]
 }
