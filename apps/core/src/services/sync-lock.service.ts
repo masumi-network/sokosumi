@@ -1,5 +1,4 @@
 import type { Lock } from "@sokosumi/database";
-import { lockRepository } from "@sokosumi/database/repositories";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -15,34 +14,48 @@ function isLockExpired(lockedAt: Date | null): boolean {
 export const syncLockService = {
   async acquireLock(key: string): Promise<Lock> {
     return await prisma.$transaction(async (tx) => {
-      let lock = await lockRepository.getLockByKey(key, tx);
-
-      if (!lock) {
-        try {
-          lock = await lockRepository.createLockByKey(key, tx);
-        } catch {
-          lock = await lockRepository.getLockByKey(key, tx);
-          if (!lock) {
-            throw new Error("LOCK_CREATION_FAILED");
-          }
-        }
-      }
+      const lock = await tx.lock.upsert({
+        where: { key },
+        create: { key },
+        update: {},
+      });
 
       if (lock.isLocked && !isLockExpired(lock.lockedAt)) {
         throw new Error("LOCK_IS_LOCKED");
       }
 
       if (lock.isLocked && isLockExpired(lock.lockedAt)) {
-        lock = await lockRepository.unlockByKey(key, tx);
+        await tx.lock.update({
+          where: { key },
+          data: {
+            isLocked: false,
+            lockedBy: null,
+            lockedAt: null,
+          },
+        });
       }
 
-      return await lockRepository.lockByKey(key, getEnv().INSTANCE_ID, tx);
+      return await tx.lock.update({
+        where: { key },
+        data: {
+          isLocked: true,
+          lockedBy: getEnv().INSTANCE_ID,
+          lockedAt: new Date(),
+        },
+      });
     });
   },
 
   async releaseLock(key: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      await lockRepository.unlockByKey(key, tx);
+      await tx.lock.update({
+        where: { key },
+        data: {
+          isLocked: false,
+          lockedBy: null,
+          lockedAt: null,
+        },
+      });
     });
   },
 };

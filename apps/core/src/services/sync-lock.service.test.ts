@@ -1,17 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  createLockByKeyMock,
-  getLockByKeyMock,
-  lockByKeyMock,
+  lockUpdateMock,
+  lockUpsertMock,
   prismaTransactionMock,
-  unlockByKeyMock,
 } = vi.hoisted(() => ({
-  createLockByKeyMock: vi.fn(),
-  getLockByKeyMock: vi.fn(),
-  lockByKeyMock: vi.fn(),
+  lockUpdateMock: vi.fn(),
+  lockUpsertMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  unlockByKeyMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -27,15 +23,6 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  lockRepository: {
-    createLockByKey: createLockByKeyMock,
-    getLockByKey: getLockByKeyMock,
-    lockByKey: lockByKeyMock,
-    unlockByKey: unlockByKeyMock,
-  },
-}));
-
 async function getSyncLockService() {
   const module = await import("./sync-lock.service");
   return module.syncLockService;
@@ -46,20 +33,24 @@ describe("syncLockService", () => {
     vi.clearAllMocks();
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
-        return await callback({});
+        return await callback({
+          lock: {
+            upsert: lockUpsertMock,
+            update: lockUpdateMock,
+          },
+        });
       },
     );
   });
 
   it("creates and acquires a lock when lock does not exist", async () => {
     const syncLockService = await getSyncLockService();
-    getLockByKeyMock.mockResolvedValueOnce(null);
-    createLockByKeyMock.mockResolvedValue({
+    lockUpsertMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: false,
       lockedAt: null,
     });
-    lockByKeyMock.mockResolvedValue({
+    lockUpdateMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: true,
       lockedBy: "instance-test",
@@ -67,8 +58,19 @@ describe("syncLockService", () => {
 
     const lock = await syncLockService.acquireLock("agents-sync");
 
-    expect(createLockByKeyMock).toHaveBeenCalledWith("agents-sync", {});
-    expect(lockByKeyMock).toHaveBeenCalledWith("agents-sync", "instance-test", {});
+    expect(lockUpsertMock).toHaveBeenCalledWith({
+      where: { key: "agents-sync" },
+      create: { key: "agents-sync" },
+      update: {},
+    });
+    expect(lockUpdateMock).toHaveBeenCalledWith({
+      where: { key: "agents-sync" },
+      data: expect.objectContaining({
+        isLocked: true,
+        lockedBy: "instance-test",
+        lockedAt: expect.any(Date),
+      }),
+    });
     expect(lock).toEqual(
       expect.objectContaining({
         isLocked: true,
@@ -79,7 +81,7 @@ describe("syncLockService", () => {
 
   it("throws when lock is active and not expired", async () => {
     const syncLockService = await getSyncLockService();
-    getLockByKeyMock.mockResolvedValue({
+    lockUpsertMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: true,
       lockedAt: new Date(),
@@ -89,38 +91,54 @@ describe("syncLockService", () => {
       "LOCK_IS_LOCKED",
     );
 
-    expect(lockByKeyMock).not.toHaveBeenCalled();
-    expect(unlockByKeyMock).not.toHaveBeenCalled();
+    expect(lockUpdateMock).not.toHaveBeenCalled();
   });
 
   it("recovers an expired lock and reacquires it", async () => {
     const syncLockService = await getSyncLockService();
     const expired = new Date(Date.now() - 130000);
-    getLockByKeyMock.mockResolvedValue({
+    lockUpsertMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: true,
       lockedAt: expired,
     });
-    unlockByKeyMock.mockResolvedValue({
-      key: "agents-sync",
-      isLocked: false,
-      lockedAt: null,
-    });
-    lockByKeyMock.mockResolvedValue({
-      key: "agents-sync",
-      isLocked: true,
-      lockedBy: "instance-test",
-    });
+    lockUpdateMock
+      .mockResolvedValueOnce({
+        key: "agents-sync",
+        isLocked: false,
+        lockedAt: null,
+        lockedBy: null,
+      })
+      .mockResolvedValueOnce({
+        key: "agents-sync",
+        isLocked: true,
+        lockedBy: "instance-test",
+        lockedAt: new Date(),
+      });
 
     await syncLockService.acquireLock("agents-sync");
 
-    expect(unlockByKeyMock).toHaveBeenCalledWith("agents-sync", {});
-    expect(lockByKeyMock).toHaveBeenCalledWith("agents-sync", "instance-test", {});
+    expect(lockUpdateMock).toHaveBeenNthCalledWith(1, {
+      where: { key: "agents-sync" },
+      data: {
+        isLocked: false,
+        lockedBy: null,
+        lockedAt: null,
+      },
+    });
+    expect(lockUpdateMock).toHaveBeenNthCalledWith(2, {
+      where: { key: "agents-sync" },
+      data: expect.objectContaining({
+        isLocked: true,
+        lockedBy: "instance-test",
+        lockedAt: expect.any(Date),
+      }),
+    });
   });
 
   it("releases a lock by key", async () => {
     const syncLockService = await getSyncLockService();
-    unlockByKeyMock.mockResolvedValue({
+    lockUpdateMock.mockResolvedValue({
       key: "agents-sync",
       isLocked: false,
       lockedAt: null,
@@ -129,6 +147,13 @@ describe("syncLockService", () => {
 
     await syncLockService.releaseLock("agents-sync");
 
-    expect(unlockByKeyMock).toHaveBeenCalledWith("agents-sync", {});
+    expect(lockUpdateMock).toHaveBeenCalledWith({
+      where: { key: "agents-sync" },
+      data: {
+        isLocked: false,
+        lockedBy: null,
+        lockedAt: null,
+      },
+    });
   });
 });
