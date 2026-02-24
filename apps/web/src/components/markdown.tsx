@@ -7,6 +7,23 @@ import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
 import { cn } from "@/lib/utils";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
+/** True if the link is to sokosumi (same tab); otherwise open in new tab. */
+function isSokosumiLink(href: string | undefined): boolean {
+  if (!href || href.startsWith("#")) return true;
+  if (href.startsWith("/")) return true;
+  try {
+    const url = new URL(href, "https://sokosumi.com");
+    const host = url.hostname.toLowerCase();
+    return (
+      host === "localhost" ||
+      host.endsWith(".sokosumi.com") ||
+      host === "sokosumi.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
 interface MarkdownProps {
   children: string;
   className?: string | undefined;
@@ -24,11 +41,18 @@ export default function Markdown({
   const sanitizedChildren = sanitizeMarkdown(highlightedChildren);
 
   const components: Components = {
-    a: ({ href, children, ...props }) => (
-      <a href={href} {...props} target="_blank" rel="noopener noreferrer">
-        {children}
-      </a>
-    ),
+    a: ({ href, children, ...props }) => {
+      const sameTab = isSokosumiLink(href);
+      return (
+        <a
+          href={href}
+          {...props}
+          {...(sameTab ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+        >
+          {children}
+        </a>
+      );
+    },
     img: ({ src, alt, ...props }) => {
       const srcString = typeof src === "string" ? src : undefined;
       const isVideo = srcString?.match(/\.(mp4|webm|ogg)$/i);
