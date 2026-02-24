@@ -30,6 +30,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireUserAuthContext(c.var.authContext);
 
     const coworkers = await prisma.coworker.findMany({
+      where: {
+        archivedAt: null,
+      },
       orderBy: { createdAt: "desc" },
     });
 

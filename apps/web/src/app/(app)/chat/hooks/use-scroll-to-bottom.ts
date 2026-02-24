@@ -14,7 +14,9 @@ export function useScrollToBottom() {
     if (!container) return;
 
     function handleScroll() {
-      const { scrollTop, scrollHeight, clientHeight } = container;
+      const el = containerRef.current;
+      if (!el) return;
+      const { scrollTop, scrollHeight, clientHeight } = el;
       const atBottom =
         scrollTop + clientHeight >= scrollHeight - BOTTOM_THRESHOLD_PX;
       setIsAtBottom(atBottom);

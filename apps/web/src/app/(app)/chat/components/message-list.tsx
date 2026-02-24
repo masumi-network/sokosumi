@@ -206,7 +206,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               )}
               {showLoadingArea && (
                 <div
-                  className="min-h-[75vh] shrink-0"
+                  className="min-h-[160px] shrink-0"
                   aria-hidden
                   data-slot="scroll-spacer"
                 />

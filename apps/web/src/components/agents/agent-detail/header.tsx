@@ -1,26 +1,34 @@
+"use client";
+
 import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
+import { useMemo } from "react";
 
 import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
 } from "@/components/agents/agent-action-buttons";
-import { AgentNewBadge } from "@/components/agents/agent-badge-cloud";
 import { AgentDemoButton } from "@/components/agents/agent-demo-button";
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
+import AgentIcon from "@/components/agents/agent-icon";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import useIsClient from "@/hooks/use-is-client";
 import {
+  getAgentCategoryStyles,
   getAgentDemoData,
   getAgentName,
-  getAgentResolvedImage,
+  getAgentResolvedIcon,
   getFullAgentAuthorName,
-  isAgentNew,
 } from "@/lib/helpers/agent";
-import { cn } from "@/lib/utils";
+import { generateGradientBorder } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
+import { getCategoryColor } from "@/lib/utils/theme";
 
 interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;
@@ -38,44 +46,78 @@ function AgentDetailHeader({
   onClose,
 }: AgentDetailHeaderProps) {
   const t = useTranslations("Components.Agents.AgentDetail.Header");
+  const tJobsHeader = useTranslations("App.Agents.Jobs.Header");
+  const { resolvedTheme } = useTheme();
+  const isClient = useIsClient();
   const agentDemoData = getAgentDemoData(agent);
-  const agentImage = getAgentResolvedImage(agent);
+  const categoryStyles = getAgentCategoryStyles(agent);
+  const currentTheme = isClient && resolvedTheme === "dark" ? "dark" : "light";
+  const gradientBorder = useMemo(
+    () =>
+      isClient ? generateGradientBorder(categoryStyles, currentTheme) : null,
+    [isClient, categoryStyles, currentTheme],
+  );
+  const categoryColor = useMemo(
+    () => getCategoryColor(categoryStyles, currentTheme),
+    [categoryStyles, currentTheme],
+  );
+  const iconBorderStyle =
+    isClient && gradientBorder
+      ? {
+          border: "0.2px solid transparent",
+          borderRadius: "0.5rem",
+          backgroundImage: `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`,
+          backgroundOrigin: "border-box",
+          backgroundClip: "padding-box, border-box",
+        }
+      : undefined;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className={cn("w-full md:flex", !showCloseButton && "hidden")}>
-        <AgentActionButtons
-          agent={agent}
-          favoriteAgents={favoriteAgents}
-          showBackButton={showBackButton}
-          showCloseButton={showCloseButton}
-          onClose={onClose}
-        />
+    <div className="flex flex-col gap-4">
+      <div className="hidden w-full md:block">
+        <div className="flex w-full items-center justify-between">
+          {showBackButton && (
+            <Link
+              href="/agents"
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm text-nowrap transition-colors"
+            >
+              <ArrowLeft className="size-4" />
+              <span>{tJobsHeader("back")}</span>
+            </Link>
+          )}
+          <AgentActionButtons
+            agent={agent}
+            favoriteAgents={favoriteAgents}
+            showBackButton={false}
+            showCloseButton={showCloseButton}
+            onClose={onClose}
+          />
+        </div>
       </div>
       <div className="flex flex-col gap-6 md:flex-row">
-        <div className="relative aspect-square w-full shrink-0 md:h-48 md:w-48">
-          {agentImage && (
-            <Image
-              src={agentImage}
-              alt={getAgentName(agent)}
-              fill
-              sizes="(max-width: 768px) 50vw, 33vw"
-              className="rounded-lg object-cover"
-              priority
+        <div
+          className="border-border bg-card-background flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border md:h-32 md:w-32"
+          style={iconBorderStyle}
+        >
+          <div style={{ color: categoryColor }}>
+            <AgentIcon
+              agent={{
+                name: getAgentName(agent),
+                icon: getAgentResolvedIcon(agent),
+              }}
+              className="size-14 md:size-16"
             />
-          )}
-          {isAgentNew(agent) && (
-            <div className="absolute top-0 left-0 p-3">
-              <AgentNewBadge />
-            </div>
-          )}
+          </div>
         </div>
         <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-start gap-4 md:items-center">
-              <h2 className="text-2xl font-light md:text-3xl">
+              <h1
+                className="text-xl leading-tight font-semibold tracking-tight md:text-3xl"
+                style={{ color: categoryColor }}
+              >
                 {getAgentName(agent)}
-              </h2>
+              </h1>
               <AgentVerifiedBadge />
             </div>
             <div className="flex items-center gap-3">
@@ -119,7 +161,7 @@ function AgentDetailHeaderSkeleton() {
     <div className="flex flex-col gap-6">
       <AgentActionButtonsSkeleton />
       <div className="flex flex-col gap-6 md:flex-row">
-        <Skeleton className="aspect-square w-full rounded-lg md:h-48 md:w-48" />
+        <Skeleton className="h-24 w-24 rounded-lg md:h-32 md:w-32" />
         <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-start gap-4 md:items-center">

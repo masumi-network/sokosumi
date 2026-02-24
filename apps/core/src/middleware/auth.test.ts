@@ -82,6 +82,9 @@ describe("authMiddleware", () => {
       coworkerId: "cow_123",
       revokedAt: null,
       expiresAt: null,
+      coworker: {
+        archivedAt: null,
+      },
     });
 
     const app = createApp();
@@ -104,6 +107,11 @@ describe("authMiddleware", () => {
         coworkerId: true,
         revokedAt: true,
         expiresAt: true,
+        coworker: {
+          select: {
+            archivedAt: true,
+          },
+        },
       },
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
@@ -116,6 +124,9 @@ describe("authMiddleware", () => {
       coworkerId: "cow_123",
       revokedAt: new Date(),
       expiresAt: null,
+      coworker: {
+        archivedAt: null,
+      },
     });
 
     const app = createApp();
@@ -133,6 +144,9 @@ describe("authMiddleware", () => {
       coworkerId: "cow_123",
       revokedAt: null,
       expiresAt: new Date(Date.now() - 1_000),
+      coworker: {
+        archivedAt: null,
+      },
     });
 
     const app = createApp();
@@ -207,6 +221,29 @@ describe("authMiddleware", () => {
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for dedicated coworker API key tied to archived coworker", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_123",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: {
+        archivedAt: new Date(),
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer coworker_archived",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("falls back to OAuth token when API key is invalid", async () => {

@@ -29,12 +29,12 @@ export function ConsentActions({ redirectUri }: ConsentActionsProps) {
         return;
       }
 
-      const { redirect, uri } = result.data;
+      const { redirect, url } = result.data;
 
       // Redirect to the authorization URL returned by Better Auth
       if (redirect) {
-        if (uri) {
-          window.location.href = uri;
+        if (url) {
+          window.location.href = url;
         } else {
           window.location.href = redirectUri;
         }
@@ -58,10 +58,10 @@ export function ConsentActions({ redirectUri }: ConsentActionsProps) {
       return;
     }
 
-    const { redirect, uri } = result.data;
+    const { redirect, url } = result.data;
 
-    if (redirect && uri) {
-      window.location.href = uri;
+    if (redirect && url) {
+      window.location.href = url;
     }
   }
 

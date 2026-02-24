@@ -20,6 +20,10 @@ model User {
   email         String
   emailVerified Boolean
   image         String?
+  role          String    @default("user")
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
   createdAt     DateTime
   updatedAt     DateTime
   sessions      Session[]
@@ -78,15 +82,16 @@ model User {
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime
-  updatedAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime
+  updatedAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   oauthAccessTokens  OauthAccessToken[]
   oauthRefreshTokens OauthRefreshToken[]
@@ -1051,9 +1056,10 @@ model Jwks {
 }
 
 model Coworker {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   slug        String  @unique
   name        String
@@ -1074,6 +1080,7 @@ model Coworker {
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
+  @@index([archivedAt])
   @@map("coworker")
 }
 
@@ -1083,7 +1090,7 @@ model CoworkerApiKey {
   updatedAt DateTime @updatedAt
 
   name     String?
-  keyHash  String @unique
+  keyHash  String  @unique
   keyStart String
 
   expiresAt DateTime?

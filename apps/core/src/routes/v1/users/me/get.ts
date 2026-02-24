@@ -26,7 +26,9 @@ const route = createRoute({
         updatedAt: "2025-01-01T00:00:00.000Z",
         name: "John Doe",
         email: "john.doe@example.com",
+        emailVerified: true,
         image: "https://example.com/image.png",
+        role: "user",
         credits: 100.0,
         subscription: {
           id: "sub_123",
