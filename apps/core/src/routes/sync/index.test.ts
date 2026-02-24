@@ -6,11 +6,13 @@ const {
   releaseLockMock,
   syncAgentSummariesMock,
   syncRegistryAgentsMock,
+  syncSourceImportMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
+  syncSourceImportMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -32,6 +34,13 @@ vi.mock("@/services/agent-sync.service", () => ({
   agentSyncService: {
     syncRegistryAgents: syncRegistryAgentsMock,
     syncAgentSummaries: syncAgentSummariesMock,
+  },
+}));
+
+
+vi.mock("@/services/source-import-sync.service", () => ({
+  sourceImportSyncService: {
+    importPendingResultBlobs: syncSourceImportMock,
   },
 }));
 
@@ -69,6 +78,7 @@ describe("sync routes", () => {
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
+    syncSourceImportMock.mockResolvedValue(3);
   });
 
   it("returns 401 for missing cron auth", async () => {
@@ -151,6 +161,23 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
+  });
+
+
+  it("returns 200 and starts source import sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/source-import", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("source-import-sync");
+
+    await flushMicrotasks();
+    expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not release lock while long-running sync is still pending", async () => {

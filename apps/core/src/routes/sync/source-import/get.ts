@@ -1,0 +1,23 @@
+import type { Hono } from "hono";
+
+import { sourceImportSyncService } from "@/services/source-import-sync.service";
+
+import { handleSyncRequest } from "../handler.js";
+
+export const SOURCE_IMPORT_SYNC_LOCK_KEY = "source-import-sync";
+
+export default function mount(app: Hono) {
+  app.get("/source-import", async (c) => {
+    return await handleSyncRequest(c, SOURCE_IMPORT_SYNC_LOCK_KEY, async () => {
+      console.info("[sync/source-import] Importing pending source imports");
+      const startedAt = Date.now();
+
+      const pendingBlobCount =
+        await sourceImportSyncService.importPendingResultBlobs();
+
+      console.info(
+        `[sync/source-import] Completed sync (pendingBlobs=${pendingBlobCount}, durationMs=${Date.now() - startedAt})`,
+      );
+    });
+  });
+}
