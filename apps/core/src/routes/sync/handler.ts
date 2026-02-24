@@ -47,10 +47,17 @@ async function withTimeout<T>(
     }, milliseconds);
   });
 
-  const result = await Promise.race([
-    operationPromise.then(() => "completed" as const),
-    timeoutPromise.then(() => "timed-out" as const),
-  ]);
+  let result: "completed" | "timed-out";
+  try {
+    result = await Promise.race([
+      operationPromise.then(() => "completed" as const),
+      timeoutPromise.then(() => "timed-out" as const),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 
   if (result === "timed-out") {
     console.error(
@@ -58,13 +65,7 @@ async function withTimeout<T>(
     );
   }
 
-  try {
-    return await operationPromise;
-  } finally {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-    }
-  }
+  return await operationPromise;
 }
 
 /**

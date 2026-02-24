@@ -202,4 +202,31 @@ describe("sync routes", () => {
       vi.useRealTimers();
     }
   });
+
+  it("clears timeout timers when sync fails before timeout", async () => {
+    vi.useFakeTimers();
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      syncRegistryAgentsMock.mockRejectedValue(new Error("sync failed fast"));
+
+      const app = await createApp();
+      const response = await app.request("http://localhost/sync/agents", {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      });
+
+      expect(response.status).toBe(200);
+      await flushPromises();
+
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      consoleErrorSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });
