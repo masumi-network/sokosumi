@@ -82,11 +82,21 @@ function ConversationRow({
   deleteAriaLabel,
 }: ConversationRowProps) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) {
+          return;
+        }
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       className={cn(
-        "hover:bg-muted bg-muted/30 group flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-2 text-left transition-colors",
+        "hover:bg-muted bg-muted/30 group flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none",
         isActive && "bg-primary text-primary-foreground hover:bg-primary/90",
       )}
     >
@@ -143,7 +153,7 @@ function ConversationRow({
       >
         <Trash2 className="size-3.5" />
       </button>
-    </button>
+    </div>
   );
 }
 

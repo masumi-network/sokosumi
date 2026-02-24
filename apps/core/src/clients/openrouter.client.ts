@@ -1,8 +1,8 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { getModelIdentifier } from "@sokosumi/chat";
 import { generateText } from "ai";
 
 import { getEnv } from "@/config/env";
-import { getModelIdentifier } from "@/helpers/model-mapping";
 
 export type AgentInfo = {
   name: string;

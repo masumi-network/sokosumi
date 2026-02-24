@@ -66,10 +66,31 @@ export function getBucketKeyFromMetadata(
   metadata: Record<string, unknown> | null,
 ): string {
   if (!metadata) return "other";
-  const modelId = metadata.model_id as string | undefined;
-  const coworkerId = metadata.coworker_id as string | undefined;
-  if (modelId) return `model:${modelId}`;
+  const conversationType = metadata.type as string | undefined;
+  const coworkerSlug =
+    (metadata.coworker_slug as string | undefined) ??
+    (metadata.coworkerSlug as string | undefined);
+  const coworkerId =
+    (metadata.coworker_id as string | undefined) ??
+    (metadata.coworkerId as string | undefined);
+  const modelId =
+    (metadata.model_id as string | undefined) ??
+    (metadata.modelId as string | undefined);
+
+  if (conversationType === "coworker") {
+    if (coworkerSlug) return `coworker:${coworkerSlug}`;
+    if (coworkerId) return `coworker:${coworkerId}`;
+    return "other";
+  }
+
+  if (conversationType === "model") {
+    if (modelId) return `model:${modelId}`;
+    return "other";
+  }
+
+  if (coworkerSlug) return `coworker:${coworkerSlug}`;
   if (coworkerId) return `coworker:${coworkerId}`;
+  if (modelId) return `model:${modelId}`;
   return "other";
 }
 
