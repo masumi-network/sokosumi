@@ -34,51 +34,20 @@ function authenticateCronSecret(c: Context): Response | null {
   return null;
 }
 
-async function withTimeout<T>(
-  operation: () => Promise<T>,
-  milliseconds: number,
-): Promise<{ status: "completed" } | { status: "timed-out" }> {
-  const operationPromise = operation();
-
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<"timed-out">((resolve) => {
-    timeoutId = setTimeout(() => {
-      resolve("timed-out");
-    }, milliseconds);
-  });
-
-  let result:
-    | "timed-out"
-    | {
-        status: "completed";
-      };
+async function releaseOwnedLock(lock: AcquiredSyncLock): Promise<void> {
   try {
-    result = await Promise.race([
-      operationPromise.then(
-        () =>
-          ({
-            status: "completed",
-          }) as const,
-      ),
-      timeoutPromise,
-    ]);
-  } finally {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
+    const isReleased = await syncLockService.releaseLock(
+      lock.key,
+      lock.ownerToken,
+    );
+    if (!isReleased) {
+      console.error(
+        `Lock release skipped because ownership changed for lock key "${lock.key}"`,
+      );
     }
+  } catch (error) {
+    console.error("Failed to unlock lock:", error);
   }
-
-  if (result === "timed-out") {
-    // Ensure we don't leak unhandled rejections after timeout detaches the operation.
-    void operationPromise.catch((error) => {
-      console.error("Sync operation failed after timeout:", error);
-    });
-    return {
-      status: "timed-out",
-    };
-  }
-
-  return result;
 }
 
 /**
@@ -90,11 +59,15 @@ function runBackgroundSync(
   lock: AcquiredSyncLock,
   syncOperation: () => Promise<void>,
 ): Promise<void> {
+  const timeoutMs = Math.max(
+    1,
+    getEnv().LOCK_TIMEOUT - getEnv().LOCK_TIMEOUT_BUFFER,
+  );
   const heartbeatIntervalMs = Math.max(
     1000,
     Math.min(
       Math.floor(getEnv().LOCK_TIMEOUT / 2),
-      getEnv().LOCK_TIMEOUT - getEnv().LOCK_TIMEOUT_BUFFER,
+      timeoutMs,
     ),
   );
   const heartbeatInterval = setInterval(() => {
@@ -117,34 +90,22 @@ function runBackgroundSync(
   }, heartbeatIntervalMs);
 
   return (async () => {
-    try {
-      const timeoutMs = Math.max(
-        1,
-        getEnv().LOCK_TIMEOUT - getEnv().LOCK_TIMEOUT_BUFFER,
+    const syncPromise = Promise.resolve().then(syncOperation);
+    const timeoutId = setTimeout(() => {
+      console.error(
+        `Sync operation exceeded timeout (${timeoutMs}ms); stop heartbeat and defer lock release until sync settles`,
       );
-      const timeoutResult = await withTimeout(syncOperation, timeoutMs);
-      if (timeoutResult.status === "timed-out") {
-        console.error(
-          `Sync operation exceeded timeout (${timeoutMs}ms); releasing lock and allowing retry`,
-        );
-      }
+      clearInterval(heartbeatInterval);
+    }, timeoutMs);
+
+    try {
+      await syncPromise;
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
+      clearTimeout(timeoutId);
       clearInterval(heartbeatInterval);
-      try {
-        const isReleased = await syncLockService.releaseLock(
-          lock.key,
-          lock.ownerToken,
-        );
-        if (!isReleased) {
-          console.error(
-            `Lock release skipped because ownership changed for lock key "${lock.key}"`,
-          );
-        }
-      } catch (error) {
-        console.error("Failed to unlock lock:", error);
-      }
+      await releaseOwnedLock(lock);
     }
   })();
 }

@@ -159,7 +159,7 @@ describe("sync routes", () => {
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
   });
 
-  it("releases lock when sync times out even if operation is still pending", async () => {
+  it("does not release lock until timed-out sync operation settles", async () => {
     vi.useFakeTimers();
     const consoleErrorSpy = vi
       .spyOn(console, "error")
@@ -188,14 +188,14 @@ describe("sync routes", () => {
       vi.advanceTimersByTime(95000);
       await flushPromises();
 
-      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-      expect(releaseLockMock).toHaveBeenCalledTimes(1);
+      expect(releaseLockMock).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining("Sync operation exceeded timeout"),
       );
 
       resolveSync?.();
       await flushPromises();
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
       expect(releaseLockMock).toHaveBeenCalledTimes(1);
     } finally {
       consoleErrorSpy.mockRestore();
