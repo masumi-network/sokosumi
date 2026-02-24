@@ -7,12 +7,14 @@ const {
   syncAgentSummariesMock,
   syncRegistryAgentsMock,
   syncSourceImportMock,
+  syncStripeCustomersMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
   syncSourceImportMock: vi.fn(),
+  syncStripeCustomersMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -37,10 +39,15 @@ vi.mock("@/services/agent-sync.service", () => ({
   },
 }));
 
-
 vi.mock("@/services/source-import-sync.service", () => ({
   sourceImportSyncService: {
     importPendingResultBlobs: syncSourceImportMock,
+  },
+}));
+
+vi.mock("@/services/stripe-customer-sync.service", () => ({
+  stripeCustomerSyncService: {
+    syncAllStripeCustomers: syncStripeCustomersMock,
   },
 }));
 
@@ -79,6 +86,7 @@ describe("sync routes", () => {
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
     syncSourceImportMock.mockResolvedValue(3);
+    syncStripeCustomersMock.mockResolvedValue(undefined);
   });
 
   it("returns 401 for missing cron auth", async () => {
@@ -163,7 +171,6 @@ describe("sync routes", () => {
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
   });
 
-
   it("returns 200 and starts source import sync exactly once in background", async () => {
     const app = await createApp();
 
@@ -178,6 +185,22 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 200 and starts stripe customer sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/stripe-customers", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("stripe-customers-sync");
+
+    await flushMicrotasks();
+    expect(syncStripeCustomersMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not release lock while long-running sync is still pending", async () => {
