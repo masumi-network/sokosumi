@@ -107,9 +107,15 @@ importers:
       neverthrow:
         specifier: 8.2.0
         version: 8.2.0
+      p-limit:
+        specifier: 7.3.0
+        version: 7.3.0
       slugify:
         specifier: 1.6.6
         version: 1.6.6
+      stripe:
+        specifier: 20.3.1
+        version: 20.3.1(@types/node@24.10.13)
       uuid:
         specifier: 13.0.0
         version: 13.0.0
