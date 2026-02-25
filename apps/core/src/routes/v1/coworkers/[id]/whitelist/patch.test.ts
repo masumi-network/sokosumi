@@ -118,7 +118,6 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
       },
       data: {
         isWhitelisted: true,
@@ -154,7 +153,6 @@ describe("PATCH /coworkers/{id}/whitelist", () => {
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
       },
       data: {
         isWhitelisted: false,

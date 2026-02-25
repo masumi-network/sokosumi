@@ -43,18 +43,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { isWhitelisted } = c.req.valid("json");
 
-    const coworker = await prisma.coworker.update({
-      where: {
-        id,
-      },
-      data: {
-        isWhitelisted,
-      },
-    });
+    const coworker = await prisma.$transaction(async (tx) => {
+      const updatedCount = await tx.coworker.updateMany({
+        where: {
+          id,
+        },
+        data: {
+          isWhitelisted,
+        },
+      });
 
-    if (!coworker) {
-      throw notFound("Coworker not found");
-    }
+      if (updatedCount.count === 0) {
+        throw notFound("Coworker not found");
+      }
+
+      const updatedCoworker = await tx.coworker.findFirst({
+        where: {
+          id,
+        },
+      });
+
+      if (!updatedCoworker) {
+        throw notFound("Coworker not found");
+      }
+
+      return updatedCoworker;
+    });
 
     return ok(c, coworkerSchema.parse(coworker));
   });
