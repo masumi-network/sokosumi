@@ -430,7 +430,7 @@ export const inputRadioGroupSchema = z.object({
   name: z.string().min(1),
   data: z.object({
     values: z
-      .array(z.string().min(1))
+      .array(z.string())
       .min(1)
       .refine((items) => new Set(items).size === items.length),
     description: z.string().nullish(),

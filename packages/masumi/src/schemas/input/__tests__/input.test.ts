@@ -539,6 +539,18 @@ describe("inputDataSchema", () => {
       const result = inputDataSchema.safeParse({ input_data: [rg] });
       expect(result.success).toBe(true);
     });
+
+    it("should allow empty value in values array", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...rg,
+            data: { values: ["a", "", "b"] },
+          },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
   });
 
   describe("Password input type", () => {
