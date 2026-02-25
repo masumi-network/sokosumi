@@ -17,6 +17,7 @@ import {
   getUsersMeCredits as coreGetUsersMeCredits,
   getUsersMeNoticesPending as coreGetUsersMeNoticesPending,
   getUsersMeOrganizations as coreGetUsersMeOrganizations,
+  getUsersMeSubscription as coreGetUsersMeSubscription,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchTasksById as corePatchTasksById,
@@ -472,6 +473,17 @@ export const coreClient = (() => {
     );
   }
 
+  async function getMySubscription() {
+    return executeOperation(
+      (client) =>
+        coreGetUsersMeSubscription({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch user subscription",
+    );
+  }
+
   return {
     acknowledgeNotice,
     addConversationItem,
@@ -487,6 +499,7 @@ export const coreClient = (() => {
     getPendingNotices,
     getMyCredits,
     getMyOrganizations,
+    getMySubscription,
     getTaskById,
     getTasks,
     patchTask,
