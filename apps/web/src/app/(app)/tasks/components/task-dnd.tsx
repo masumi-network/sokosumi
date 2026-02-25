@@ -72,9 +72,10 @@ export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {
     },
   });
   const style: CSSProperties = {
-    transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-      : undefined,
+    transform:
+      transform && !isDragging
+        ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+        : undefined,
     position: "relative",
     zIndex: isDragging ? 30 : undefined,
     opacity: isDragging ? 0 : undefined,
