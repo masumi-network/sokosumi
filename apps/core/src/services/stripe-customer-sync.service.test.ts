@@ -190,21 +190,29 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
   });
 
   it("applies per-request timeout from remaining budget", async () => {
-    const stripeCustomerSyncService = await getStripeCustomerSyncService();
+    vi.useFakeTimers();
+    try {
+      const stripeCustomerSyncService = await getStripeCustomerSyncService();
+      const deadlineMs = Date.now() + 2500;
 
-    await stripeCustomerSyncService.syncAllStripeCustomers({
-      deadlineMs: Date.now() + 2500,
-      msRemaining: () => 2500,
-      shouldContinue: () => true,
-    });
+      const syncPromise = stripeCustomerSyncService.syncAllStripeCustomers({
+        deadlineMs,
+        msRemaining: () => Math.max(0, deadlineMs - Date.now()),
+        shouldContinue: () => true,
+      });
 
-    expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({
-        timeout: 2500,
-        maxNetworkRetries: 0,
-      }),
-    );
+      await syncPromise;
+
+      expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          timeout: 2500,
+          maxNetworkRetries: 0,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("waits for already-scheduled operations to settle before returning", async () => {

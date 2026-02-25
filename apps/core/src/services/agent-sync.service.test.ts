@@ -175,14 +175,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
       shouldContinue: () => true,
     });
 
-    expect(getAgentsDiffMock).toHaveBeenCalledWith(
-      expect.any(Date),
-      null,
-      50,
-      {
-        signal: abortController.signal,
-      },
-    );
+    expect(getAgentsDiffMock).toHaveBeenCalledWith(expect.any(Date), null, 50, {
+      signal: abortController.signal,
+    });
   });
 
   it("does not write data when registry diff fails", async () => {

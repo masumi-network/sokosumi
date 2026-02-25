@@ -73,10 +73,7 @@ function createPendingBlob(index: number): PendingBlobStub {
   };
 }
 
-async function waitFor(
-  assertion: () => void,
-  timeoutMs = 500,
-): Promise<void> {
+async function waitFor(assertion: () => void, timeoutMs = 500): Promise<void> {
   const deadline = Date.now() + timeoutMs;
 
   while (true) {
@@ -181,30 +178,32 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       const now = new Date("2026-02-25T10:00:00.000Z");
       vi.setSystemTime(now);
 
-      const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
+      const fetchMock = vi.fn(
+        (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
 
-        if (url.startsWith("https://example.com/blob-")) {
-          const signal = init?.signal;
+          if (url.startsWith("https://example.com/blob-")) {
+            const signal = init?.signal;
 
-          return new Promise<Response>((_resolve, reject) => {
-            if (signal instanceof AbortSignal) {
-              signal.addEventListener("abort", () => {
-                reject(new DOMException("Request timed out", "TimeoutError"));
-              });
-            }
-          });
-        }
+            return new Promise<Response>((_resolve, reject) => {
+              if (signal instanceof AbortSignal) {
+                signal.addEventListener("abort", () => {
+                  reject(new DOMException("Request timed out", "TimeoutError"));
+                });
+              }
+            });
+          }
 
-        return Promise.resolve(
-          new Response("hello", {
-            status: 200,
-            headers: {
-              "content-type": "text/plain",
-            },
-          }),
-        );
-      });
+          return Promise.resolve(
+            new Response("hello", {
+              status: 200,
+              headers: {
+                "content-type": "text/plain",
+              },
+            }),
+          );
+        },
+      );
       global.fetch = fetchMock as unknown as typeof fetch;
 
       const runPromise = sourceImportSyncService.importPendingResultBlobs(

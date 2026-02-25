@@ -214,11 +214,14 @@ describe("sync routes", () => {
 
       try {
         const app = await createApp();
-        const response = await app.request("http://localhost/sync/source-import", {
-          headers: {
-            Authorization: "Bearer test-cron-secret",
+        const response = await app.request(
+          "http://localhost/sync/source-import",
+          {
+            headers: {
+              Authorization: "Bearer test-cron-secret",
+            },
           },
-        });
+        );
 
         expect(response.status).toBe(200);
         await flushPromises();

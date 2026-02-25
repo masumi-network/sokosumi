@@ -42,9 +42,7 @@ function shouldStopSync(
   return false;
 }
 
-function getStripeRequestTimeoutMs(
-  options: SyncExecutionOptions,
-): number {
+function getStripeRequestTimeoutMs(options: SyncExecutionOptions): number {
   const remainingMs = Math.min(
     options.msRemaining(),
     options.deadlineMs - Date.now(),

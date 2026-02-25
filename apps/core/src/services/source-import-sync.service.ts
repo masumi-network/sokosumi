@@ -165,10 +165,7 @@ async function importBlob(
       },
     });
   } catch (error) {
-    if (
-      !shouldContinueSync(options) &&
-      isAbortLikeError(error)
-    ) {
+    if (!shouldContinueSync(options) && isAbortLikeError(error)) {
       // Keep the blob pending so a future sync run can retry it.
       return;
     }
