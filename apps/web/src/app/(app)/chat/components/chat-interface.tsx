@@ -755,6 +755,7 @@ export default function ChatInterface({
       if (sent) setInput("");
     },
     [
+      coworkers,
       isLoading,
       selectedChatId,
       sendInConversation,
