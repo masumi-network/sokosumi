@@ -156,7 +156,7 @@ export function ChatLayoutClient({
       <div
         className={
           showTwoColumn
-            ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col px-2 pt-20 pr-4 pb-4 pl-4 md:pt-4 lg:min-w-0"
+            ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col pt-20 pb-4 md:pt-4 md:pl-4 lg:min-w-0"
             : "mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-2"
         }
       >
