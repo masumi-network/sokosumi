@@ -9,11 +9,13 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { auth, Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
+import { CreditUsage } from "@/lib/types/credit";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";
 
 interface UserAvatarProps {
+  creditUsage?: CreditUsage | null;
   creditsLabel?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
@@ -87,6 +89,7 @@ async function getWorkspacePlanLabels(
 }
 
 export default async function UserAvatar({
+  creditUsage,
   creditsLabel,
   primaryLabel,
   secondaryLabel,
@@ -96,6 +99,7 @@ export default async function UserAvatar({
     <Suspense fallback={<UserAvatarSkeleton />}>
       <UserAvatarInner
         session={session}
+        creditUsage={creditUsage}
         creditsLabel={creditsLabel}
         primaryLabel={primaryLabel}
         secondaryLabel={secondaryLabel}
@@ -105,11 +109,13 @@ export default async function UserAvatar({
 }
 
 async function UserAvatarInner({
+  creditUsage,
   session,
   creditsLabel,
   primaryLabel,
   secondaryLabel,
 }: {
+  creditUsage: CreditUsage | null | undefined;
   creditsLabel: string | undefined;
   primaryLabel: string | undefined;
   secondaryLabel: string | undefined;
@@ -127,6 +133,7 @@ async function UserAvatarInner({
       sessionUser={session.user}
       members={members}
       activeOrganizationId={activeOrganizationId}
+      creditUsage={creditUsage}
       creditsLabel={creditsLabel}
       primaryLabel={primaryLabel}
       secondaryLabel={secondaryLabel}
