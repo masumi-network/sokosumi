@@ -239,6 +239,7 @@ docs(readme): update setup instructions
 - Use semantic search to understand codebase before making changes
 - Follow the three-layer architecture pattern
 - Minimize `'use client'` usage; prefer Server Components and server actions
+- At the end of every sequence of changes, run a review pass, fix any issues found, and repeat until no issues remain
 
 ### Code References
 
