@@ -1060,7 +1060,6 @@ model Coworker {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
-  isActive   Boolean   @default(true)
 
   slug        String  @unique
   name        String
