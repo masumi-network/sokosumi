@@ -62,21 +62,7 @@ export default function CoworkerModelSelector({
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
 
-  const coworkersFallback: Coworker[] = [
-    {
-      id: "hannah",
-      name: t("coworkers.hannah.name"),
-      description: t("coworkers.hannah.description"),
-      useCase: t("coworkers.hannah.useCase"),
-    },
-    {
-      id: "elena",
-      name: t("coworkers.elena.name"),
-      description: t("coworkers.elena.description"),
-      useCase: t("coworkers.elena.useCase"),
-    },
-  ];
-  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
+  const coworkers = propCoworkers ?? [];
 
   const models: Model[] = CHAT_MODELS.map((model) => ({
     id: model.id,
@@ -198,7 +184,14 @@ export default function CoworkerModelSelector({
                     {coworker.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="flex-1 text-left">{coworker.name}</span>
+                <span className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left">
+                  <span>{coworker.name}</span>
+                  {coworker.caption && (
+                    <span className="text-muted-foreground text-xs font-normal">
+                      {coworker.caption}
+                    </span>
+                  )}
+                </span>
               </button>
             ))}
           </div>

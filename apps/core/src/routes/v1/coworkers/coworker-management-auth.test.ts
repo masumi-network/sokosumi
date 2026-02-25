@@ -13,10 +13,7 @@ import mountPatchCoworkerById from "./[id]/patch";
 import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch";
 import mountPostCoworker from "./post";
 
-const {
-  userFindUniqueMock,
-  coworkerFindFirstMock,
-} = vi.hoisted(() => ({
+const { userFindUniqueMock, coworkerFindFirstMock } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
 }));

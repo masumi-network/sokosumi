@@ -9,7 +9,6 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -79,19 +78,19 @@ function PureMultimodalInput({
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const defaultCoworker = useMemo<Coworker>(
-    () => ({
-      id: "elena",
-      slug: "elena",
-      name: t("coworkers.elena.name"),
-      description: t("coworkers.elena.description"),
-      useCase: t("coworkers.elena.useCase"),
-    }),
-    [t],
-  );
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
+  const defaultSlug = "elena";
+  const findDefaultCoworker = (list: Coworker[] | undefined) =>
+    list?.find(
+      (c) =>
+        c.slug?.toLowerCase() === defaultSlug ||
+        c.id?.toLowerCase() === defaultSlug,
+    ) ??
+    list?.[0] ??
+    null;
+  const initialDefault = findDefaultCoworker(propCoworkers);
   const [selectedCoworker, setSelectedCoworker] = useState<Coworker | null>(
-    propCoworker ?? (propSelectedModel ? null : defaultCoworker),
+    propCoworker ?? (propSelectedModel ? null : initialDefault),
   );
   const [selectedModel, setSelectedModel] = useState<{
     id: string;
@@ -99,12 +98,12 @@ function PureMultimodalInput({
   } | null>(propSelectedModel ?? null);
 
   // Sync selected agent from props when switching conversations (model vs coworker).
-  // When no model is selected and no coworker is passed (e.g. new chat), default to Elena.
   useEffect(() => {
+    const defaultCoworker = findDefaultCoworker(propCoworkers);
     setSelectedCoworker(
       propCoworker ?? (propSelectedModel ? null : defaultCoworker),
     );
-  }, [propCoworker, propSelectedModel, defaultCoworker]);
+  }, [propCoworker, propSelectedModel, propCoworkers]);
 
   useEffect(() => {
     setSelectedModel(propSelectedModel ?? null);
@@ -229,21 +228,7 @@ function PureMultimodalInput({
     selectedModel,
   ]);
 
-  const coworkersFallback: Coworker[] = [
-    {
-      id: "hannah",
-      name: t("coworkers.hannah.name"),
-      description: t("coworkers.hannah.description"),
-      useCase: t("coworkers.hannah.useCase"),
-    },
-    {
-      id: "elena",
-      name: t("coworkers.elena.name"),
-      description: t("coworkers.elena.description"),
-      useCase: t("coworkers.elena.useCase"),
-    },
-  ];
-  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
+  const coworkers = propCoworkers ?? [];
 
   const getCoworkerAvatarUrl = (c: Coworker): string | null =>
     getCoworkerImageUrl(c.id, c.avatar ?? undefined);

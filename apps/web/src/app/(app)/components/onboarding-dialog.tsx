@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 
 const INTRO_STEP_COUNT = 4;
@@ -29,12 +31,14 @@ const INTRO_STEP_COUNT = 4;
 
 interface ChatVisualProps {
   avatarAlt: string;
+  avatarUrl: string;
   userMessage: string;
   coworkerReply: string;
 }
 
 function ChatVisual({
   avatarAlt,
+  avatarUrl,
   userMessage,
   coworkerReply,
 }: ChatVisualProps) {
@@ -68,7 +72,7 @@ function ChatVisual({
           <div className="flex items-end gap-2">
             <div className="relative size-6 shrink-0 overflow-hidden rounded-full">
               <Image
-                src="/images/coworkers/elena.webp"
+                src={avatarUrl}
                 alt={avatarAlt}
                 fill
                 className="object-cover"
@@ -82,7 +86,7 @@ function ChatVisual({
           </div>
         )}
 
-        {/* Elena response */}
+        {/* Coworker response */}
         <div
           className={`flex items-end gap-2 transition-all duration-500 ${
             phase >= 3 ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
@@ -90,7 +94,7 @@ function ChatVisual({
         >
           <div className="relative size-6 shrink-0 overflow-hidden rounded-full">
             <Image
-              src="/images/coworkers/elena.webp"
+              src={avatarUrl}
               alt={avatarAlt}
               fill
               className="object-cover"
@@ -107,6 +111,7 @@ function ChatVisual({
 
 interface TaskboardVisualProps {
   avatarAlt: string;
+  avatarUrl: string;
   coworkerName: string;
   taskTitle: string;
   todoLabel: string;
@@ -115,6 +120,7 @@ interface TaskboardVisualProps {
 
 function TaskboardVisual({
   avatarAlt,
+  avatarUrl,
   coworkerName,
   taskTitle,
   todoLabel,
@@ -137,7 +143,7 @@ function TaskboardVisual({
       <div className="mt-1.5 flex items-center gap-1.5">
         <div className="relative size-4 overflow-hidden rounded-full">
           <Image
-            src="/images/coworkers/elena.webp"
+            src={avatarUrl}
             alt={avatarAlt}
             fill
             className="object-cover"
@@ -203,6 +209,7 @@ function TaskboardVisual({
 
 interface OrchestrationVisualProps {
   avatarAlt: string;
+  avatarUrl: string;
   coworkerName: string;
   agents: string[];
   hiresLabel: string;
@@ -211,6 +218,7 @@ interface OrchestrationVisualProps {
 
 function OrchestrationVisual({
   avatarAlt,
+  avatarUrl,
   coworkerName,
   agents,
   hiresLabel,
@@ -233,7 +241,7 @@ function OrchestrationVisual({
   return (
     <div className="flex h-full w-full flex-col items-center justify-center px-6">
       <div className="flex items-center gap-4">
-        {/* Elena node */}
+        {/* Coworker node */}
         <div
           className={`flex flex-col items-center gap-1.5 transition-all duration-500 ${
             phase >= 1 ? "scale-100 opacity-100" : "scale-90 opacity-0"
@@ -241,7 +249,7 @@ function OrchestrationVisual({
         >
           <div className="ring-primary/20 relative size-14 overflow-hidden rounded-full ring-2">
             <Image
-              src="/images/coworkers/elena.webp"
+              src={avatarUrl}
               alt={avatarAlt}
               fill
               className="object-cover"
@@ -389,21 +397,18 @@ export function OnboardingDialog() {
   const [open, setOpen] = useState(true);
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const { coworkers: apiCoworkers } = useCoworkersContext();
 
   if (!open) return null;
 
-  const coworkers = [
-    {
-      name: tDialog("coworkers.elena.name"),
-      role: tDialog("coworkers.elena.role"),
-      avatar: "/images/coworkers/elena.webp",
-    },
-    {
-      name: tDialog("coworkers.hannah.name"),
-      role: tDialog("coworkers.hannah.role"),
-      avatar: "/images/coworkers/hannah.webp",
-    },
-  ];
+  const defaultRole = tDialog("defaultRole");
+  const coworkers = apiCoworkers.slice(0, 2).map((c) => ({
+    name: c.name,
+    role: c.caption ?? defaultRole,
+    avatar:
+      getCoworkerImageUrl(c.id, c.avatar ?? undefined) ??
+      "/images/coworkers/elena.webp",
+  }));
 
   const introSteps = [
     {
@@ -444,8 +449,12 @@ export function OnboardingDialog() {
   };
   const isWelcome = step === 0;
   const hasSplitLayout = !isWelcome;
-  const elenaName = coworkers[0]?.name ?? "";
-  const elenaAvatarAlt = tDialog("alt.coworkerAvatar", { name: elenaName });
+  const firstCoworkerName = coworkers[0]?.name ?? "";
+  const firstCoworkerAvatarUrl =
+    coworkers[0]?.avatar ?? "/images/coworkers/elena.webp";
+  const firstCoworkerAvatarAlt = tDialog("alt.coworkerAvatar", {
+    name: firstCoworkerName,
+  });
 
   return (
     <Dialog open={open}>
@@ -467,15 +476,17 @@ export function OnboardingDialog() {
               <div className="bg-muted flex h-44 shrink-0 border-b md:h-auto md:w-[42%] md:shrink md:border-r md:border-b-0">
                 {step === 1 && (
                   <ChatVisual
-                    avatarAlt={elenaAvatarAlt}
+                    avatarAlt={firstCoworkerAvatarAlt}
+                    avatarUrl={firstCoworkerAvatarUrl}
                     userMessage={tDialog("visuals.chat.userMessage")}
                     coworkerReply={tDialog("visuals.chat.reply")}
                   />
                 )}
                 {step === 2 && (
                   <TaskboardVisual
-                    avatarAlt={elenaAvatarAlt}
-                    coworkerName={elenaName}
+                    avatarAlt={firstCoworkerAvatarAlt}
+                    avatarUrl={firstCoworkerAvatarUrl}
+                    coworkerName={firstCoworkerName}
                     taskTitle={tDialog("visuals.taskboard.taskTitle")}
                     todoLabel={tDialog("visuals.taskboard.todo")}
                     inProgressLabel={tDialog("visuals.taskboard.inProgress")}
@@ -483,8 +494,9 @@ export function OnboardingDialog() {
                 )}
                 {step === 3 && (
                   <OrchestrationVisual
-                    avatarAlt={elenaAvatarAlt}
-                    coworkerName={elenaName}
+                    avatarAlt={firstCoworkerAvatarAlt}
+                    avatarUrl={firstCoworkerAvatarUrl}
+                    coworkerName={firstCoworkerName}
                     hiresLabel={tDialog("visuals.orchestration.hires")}
                     agents={[
                       tDialog("visuals.orchestration.agents.research"),

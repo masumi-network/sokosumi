@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const BOTTOM_THRESHOLD_PX = 100;
+const SCROLL_AFTER_SECTION_MS = 100;
+const PROMPT_OFFSET_PX = 80;
 
 export function useScrollToBottom() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -26,9 +28,26 @@ export function useScrollToBottom() {
     return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const scrollToMax = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const run = () => {
+      const targetScrollTop = Math.max(
+        0,
+        container.scrollHeight - container.clientHeight - PROMPT_OFFSET_PX,
+      );
+      container.scrollTo({
+        top: targetScrollTop,
+        behavior: "smooth",
+      });
+    };
+    setTimeout(run, SCROLL_AFTER_SECTION_MS);
+  }, []);
+
   return {
     containerRef,
     endRef,
     isAtBottom,
+    scrollToMax,
   };
 }
