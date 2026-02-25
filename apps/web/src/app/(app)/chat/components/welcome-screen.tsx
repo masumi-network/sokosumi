@@ -23,6 +23,7 @@ interface WelcomeScreenProps {
   status: "ready" | "streaming" | "submitted" | "error";
   stop: () => void;
   coworkers?: Coworker[];
+  coworkersLoading?: boolean;
   initialCoworker?: Coworker;
   onCoworkerChange?: (coworker: Coworker) => void;
   selectedModel?: { id: string; name: string } | null;
@@ -40,6 +41,7 @@ export default function WelcomeScreen({
   status,
   stop,
   coworkers,
+  coworkersLoading,
   initialCoworker,
   onCoworkerChange,
   selectedModel,
@@ -129,6 +131,7 @@ export default function WelcomeScreen({
             onSendMessage={onSendMessage}
             showSuggestedActions={true}
             coworkers={coworkers}
+            coworkersLoading={coworkersLoading}
             coworker={initialCoworker}
             onCoworkerChange={onCoworkerChange}
             selectedModel={selectedModel ?? undefined}
