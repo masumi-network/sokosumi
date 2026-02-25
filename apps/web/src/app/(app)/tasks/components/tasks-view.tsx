@@ -3,6 +3,8 @@
 import {
   DndContext,
   type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
@@ -44,6 +46,7 @@ import {
   serializeTasksViewModeCookie,
   type TasksViewMode,
 } from "@/lib/ui-preferences/tasks-view-mode";
+import { cn } from "@/lib/utils";
 
 import {
   CreateTaskModal,
@@ -56,7 +59,9 @@ import {
 } from "./jobs-filter-dropdown";
 import { JobsListView, type TasksViewJob } from "./jobs-list-view";
 import { KanbanBoard } from "./kanban-board";
+import { TaskCard } from "./task-card";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
+import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
 import { ViewModeSwitch } from "./view-mode-switch";
 
@@ -254,6 +259,11 @@ export function TasksView({
   const [nextCursor, setNextCursor] = useState<string | null>(
     initialNextCursor ?? null,
   );
+  const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
+  const [activeDragRect, setActiveDragRect] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const isMounted = useSyncExternalStore(
     hydrationStore.subscribe,
     hydrationStore.getSnapshot,
@@ -374,7 +384,34 @@ export function TasksView({
     }),
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const activeId = event.active.id;
+    if (typeof activeId !== "string") return;
+
+    const initialRect = event.active.rect.current.initial;
+    const translatedRect = event.active.rect.current.translated;
+    const currentRect = translatedRect ?? initialRect;
+
+    setActiveDragTaskId(activeId);
+    setActiveDragRect(
+      currentRect
+        ? {
+            width: currentRect.width,
+            height: currentRect.height,
+          }
+        : null,
+    );
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragTaskId(null);
+    setActiveDragRect(null);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragTaskId(null);
+    setActiveDragRect(null);
+
     const activeId = event.active.id;
     const overId = event.over?.id;
     if (typeof activeId !== "string" || typeof overId !== "string") return;
@@ -532,16 +569,23 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
+  const activeDragTask = useMemo(
+    () =>
+      activeDragTaskId
+        ? (items.find((task) => task.id === activeDragTaskId) ?? null)
+        : null,
+    [activeDragTaskId, items],
+  );
 
   const tabsContent = (
     <Tabs
       value={activeTab}
       onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
-      className="flex flex-col gap-5"
+      className="flex h-full min-h-0 flex-1 flex-col gap-5"
     >
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="">
+      <div className="flex flex-row items-center justify-between gap-3">
+        <div className="w-full">
           <TabsList className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
             <TabsTrigger
               value="tasks"
@@ -584,56 +628,90 @@ export function TasksView({
       </div>
 
       {/* Content */}
-      <TabsContent value="tasks" className="flex flex-col gap-4">
+      <TabsContent
+        value="tasks"
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-4",
+          viewMode === "board" ? "max-h-[calc(100vh-150px)]" : "max-h-full",
+        )}
+      >
         {/* {activeTab === "tasks" ? ( */}
-        <div className="flex flex-col gap-4">
-          {isMounted ? (
-            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-              {viewMode === "board" ? (
-                <KanbanBoard
-                  tasks={items}
-                  columns={columns}
-                  labels={{
-                    columns: labels.columns,
-                    addTask: labels.addTask,
-                    emptyColumn: labels.listPlaceholder,
-                  }}
-                />
-              ) : (
-                <TaskListView
-                  tasks={items}
-                  columns={columns}
-                  labels={{
-                    columns: labels.columns,
-                    emptyList: labels.listPlaceholder,
-                    emptySection: labels.listPlaceholder,
-                  }}
-                />
-              )}
-            </DndContext>
-          ) : viewMode === "board" ? (
-            <KanbanBoard
-              tasks={items}
-              columns={columns}
-              labels={{
-                columns: labels.columns,
-                addTask: labels.addTask,
-                emptyColumn: labels.listPlaceholder,
-              }}
-              isDragEnabled={false}
-            />
-          ) : (
-            <TaskListView
-              tasks={items}
-              columns={columns}
-              labels={{
-                columns: labels.columns,
-                emptyList: labels.listPlaceholder,
-                emptySection: labels.listPlaceholder,
-              }}
-              isDragEnabled={false}
-            />
-          )}
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div
+            className={cn(
+              viewMode === "board" ? "flex min-h-0 flex-1 overflow-hidden" : "",
+            )}
+          >
+            {isMounted ? (
+              <DndContext
+                sensors={sensors}
+                onDragStart={handleDragStart}
+                onDragCancel={handleDragCancel}
+                onDragEnd={handleDragEnd}
+              >
+                {viewMode === "board" ? (
+                  <KanbanBoard
+                    tasks={items}
+                    columns={columns}
+                    labels={{
+                      columns: labels.columns,
+                      addTask: labels.addTask,
+                      emptyColumn: labels.listPlaceholder,
+                    }}
+                  />
+                ) : (
+                  <TaskListView
+                    tasks={items}
+                    columns={columns}
+                    labels={{
+                      columns: labels.columns,
+                      emptyList: labels.listPlaceholder,
+                      emptySection: labels.listPlaceholder,
+                    }}
+                  />
+                )}
+                <DragOverlay>
+                  {activeDragTask ? (
+                    <div
+                      className="pointer-events-none"
+                      style={{
+                        width: activeDragRect?.width,
+                        height: activeDragRect?.height,
+                      }}
+                    >
+                      {viewMode === "board" ? (
+                        <TaskCard task={activeDragTask} />
+                      ) : (
+                        <TaskListItem task={activeDragTask} isOverlay />
+                      )}
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : viewMode === "board" ? (
+              <KanbanBoard
+                tasks={items}
+                columns={columns}
+                labels={{
+                  columns: labels.columns,
+                  addTask: labels.addTask,
+                  emptyColumn: labels.listPlaceholder,
+                }}
+                isDragEnabled={false}
+              />
+            ) : (
+              <TaskListView
+                tasks={items}
+                columns={columns}
+                labels={{
+                  columns: labels.columns,
+                  emptyList: labels.listPlaceholder,
+                  emptySection: labels.listPlaceholder,
+                }}
+                isDragEnabled={false}
+              />
+            )}
+          </div>
           {nextCursor ? (
             <div className="flex justify-center">
               <Button

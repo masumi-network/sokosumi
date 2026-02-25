@@ -26,7 +26,7 @@ export function KanbanColumn({
   return (
     <section
       className={cn(
-        "flex min-w-[260px] flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px]",
+        "flex h-full min-h-0 min-w-[260px] flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px]",
         "bg-muted/30 border border-transparent",
         isEmpty && "border-muted-foreground/20 border-dashed bg-transparent",
       )}
@@ -39,7 +39,7 @@ export function KanbanColumn({
         />
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 px-2 pb-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
         {tasks.map((task) =>
           renderTask ? (
             renderTask(task)

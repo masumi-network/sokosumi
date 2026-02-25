@@ -72,9 +72,14 @@ export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {
     },
   });
   const style: CSSProperties = {
-    transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-      : undefined,
+    transform:
+      transform && !isDragging
+        ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+        : undefined,
+    position: "relative",
+    zIndex: isDragging ? 30 : undefined,
+    opacity: isDragging ? 0 : undefined,
+    pointerEvents: isDragging ? "none" : undefined,
   };
 
   const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -102,6 +107,7 @@ export function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
+        "z-0 flex h-full min-h-0 flex-col",
         isOver ? "ring-primary/30 rounded-xl ring-2 ring-inset" : null,
         className,
       )}

@@ -240,7 +240,7 @@ export default function ChatListsClient() {
                                 t={t}
                                 isActive={isActive}
                               />
-                              <span className="max-w-[140px] min-w-0 flex-1 truncate text-sm group-data-[collapsible=icon]:hidden">
+                              <span className="min-w-0 flex-1 truncate text-sm group-data-[collapsible=icon]:hidden">
                                 {group.displayName}
                               </span>
                             </div>
@@ -274,12 +274,7 @@ function GroupAvatar({ group, coworkers, t, isActive }: GroupAvatarProps) {
   const { modelId, modelName, coworkerId, coworkerName } = group;
 
   return (
-    <Avatar
-      className={cn(
-        "size-6 shrink-0 overflow-hidden rounded-full",
-        modelId && "bg-white dark:bg-black",
-      )}
-    >
+    <Avatar className={cn("size-6 shrink-0 overflow-hidden rounded-full")}>
       {modelId ? (
         <ChatModelIcon
           modelId={modelId}
