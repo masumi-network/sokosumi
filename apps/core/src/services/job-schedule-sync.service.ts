@@ -323,9 +323,19 @@ export const jobScheduleSyncService = {
 
           processed += 1;
 
-          const after = await jobScheduleRepository.getById(schedule.id, prisma);
-          if (!after?.isActive) {
-            paused += 1;
+          try {
+            const after = await jobScheduleRepository.getById(
+              schedule.id,
+              prisma,
+            );
+            if (!after?.isActive) {
+              paused += 1;
+            }
+          } catch (error) {
+            console.error(
+              `[sync/job-schedules] Failed to load schedule after processing (${schedule.id})`,
+              error,
+            );
           }
         }),
       ),
