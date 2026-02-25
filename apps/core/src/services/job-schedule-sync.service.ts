@@ -220,8 +220,8 @@ async function processSchedule(
       }
     }
 
-    const mappedJob = mapJobWithStatus(job);
     try {
+      const mappedJob = mapJobWithStatus(job);
       await publishJobStatusData({
         agentId: job.agentId,
         userId: job.userId,
