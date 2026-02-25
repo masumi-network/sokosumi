@@ -1,6 +1,8 @@
 import { ScheduleType } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { jobScheduleSyncService } from "./job-schedule-sync.service";
+
 const {
   countJobsMock,
   createAgentJobForUserMock,
@@ -63,11 +65,6 @@ vi.mock("@/services/sync-lock.service", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {},
 }));
-
-async function getJobScheduleSyncService() {
-  const module = await import("./job-schedule-sync.service");
-  return module.jobScheduleSyncService;
-}
 
 function createExecutionOptions() {
   return {
@@ -137,7 +134,6 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
   it("runs one-time schedules, disables next run, and publishes realtime status", async () => {
     findDueMock.mockResolvedValue([createSchedule()]);
 
-    const jobScheduleSyncService = await getJobScheduleSyncService();
     const result = await jobScheduleSyncService.executeDueSchedules(
       createExecutionOptions(),
     );
@@ -180,7 +176,7 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
       "job-schedule-schedule_1",
       "owner-token",
     );
-  }, 10_000);
+  });
 
   it("computes and stores the next run for cron schedules", async () => {
     findDueMock.mockResolvedValue([
@@ -191,7 +187,6 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
       }),
     ]);
 
-    const jobScheduleSyncService = await getJobScheduleSyncService();
     await jobScheduleSyncService.executeDueSchedules(createExecutionOptions());
 
     expect(computeNextRunMock).toHaveBeenCalledWith(
@@ -218,7 +213,6 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
     ]);
     countJobsMock.mockResolvedValue(1);
 
-    const jobScheduleSyncService = await getJobScheduleSyncService();
     await jobScheduleSyncService.executeDueSchedules(createExecutionOptions());
 
     expect(setNextRunMock).toHaveBeenCalledWith("schedule_1", null, {});
@@ -232,7 +226,6 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
       }),
     ]);
 
-    const jobScheduleSyncService = await getJobScheduleSyncService();
     await jobScheduleSyncService.executeDueSchedules(createExecutionOptions());
 
     expect(createAgentJobForUserMock).not.toHaveBeenCalled();
@@ -250,7 +243,6 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
     findDueMock.mockResolvedValue([createSchedule()]);
     syncLockAcquireMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
 
-    const jobScheduleSyncService = await getJobScheduleSyncService();
     const result = await jobScheduleSyncService.executeDueSchedules(
       createExecutionOptions(),
     );
@@ -267,7 +259,6 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
     createAgentJobForUserMock.mockRejectedValue(new Error("boom"));
     getByIdMock.mockResolvedValue({ isActive: false });
 
-    const jobScheduleSyncService = await getJobScheduleSyncService();
     const result = await jobScheduleSyncService.executeDueSchedules(
       createExecutionOptions(),
     );
@@ -294,7 +285,6 @@ describe("jobScheduleSyncService.executeDueSchedules", () => {
     publishJobStatusDataMock.mockRejectedValue(new Error("ably-down"));
     getByIdMock.mockResolvedValue({ isActive: true });
 
-    const jobScheduleSyncService = await getJobScheduleSyncService();
     const result = await jobScheduleSyncService.executeDueSchedules(
       createExecutionOptions(),
     );

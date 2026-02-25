@@ -1,6 +1,8 @@
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createAgentJobForUser } from "./job";
+
 const {
   agentFindFirstMock,
   createAgentClientMock,
@@ -64,11 +66,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
     upsertPublicShare: vi.fn(),
   },
 }));
-
-async function getCreateAgentJobForUser() {
-  const module = await import("./job");
-  return module.createAgentJobForUser;
-}
 
 function createAgentRecord() {
   return {
@@ -137,16 +134,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
   it("rejects when cost exceeds maxAcceptedCents", async () => {
     getAgentCostMock.mockReturnValue({ cents: BigInt(11) });
-    const createAgentJobForUser = await getCreateAgentJobForUser();
 
     await expect(createAgentJobForUser(createInput())).rejects.toThrow(
       "Credit cost exceeds maximum accepted credits",
     );
-  }, 15_000);
+  });
 
   it("connects scheduled jobs to jobScheduleId via scheduleContext", async () => {
-    const createAgentJobForUser = await getCreateAgentJobForUser();
-
     await createAgentJobForUser(
       createInput({
         scheduleContext: {
@@ -166,5 +160,5 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         }),
       }),
     );
-  }, 15_000);
+  });
 });
