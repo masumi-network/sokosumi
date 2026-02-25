@@ -8,7 +8,9 @@ import prisma from "@/lib/db/prisma";
 const MAX_CONCURRENT_IMPORTS = 5;
 
 interface ImportPendingResultBlobsOptions {
-  deadlineMs?: number;
+  abortSignal: AbortSignal;
+  deadlineMs: number;
+  shouldContinue: () => boolean;
 }
 
 /** Sanitize filename for blob storage path (matches web's uploadFileForBlob behavior). */
@@ -54,23 +56,30 @@ function parseContentDispositionFilename(
   }
 }
 
-function hasTimeRemaining(deadlineMs: number | undefined): boolean {
-  if (deadlineMs === undefined) {
-    return true;
-  }
-
+function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
 
-function createDeadlineAbortSignal(
-  deadlineMs: number | undefined,
-): AbortSignal | undefined {
-  if (deadlineMs === undefined) {
-    return undefined;
+function shouldContinueSync(options: ImportPendingResultBlobsOptions): boolean {
+  if (!options.shouldContinue()) {
+    return false;
   }
 
-  const remainingMs = deadlineMs - Date.now();
-  return AbortSignal.timeout(Math.max(1, remainingMs));
+  if (options.abortSignal.aborted) {
+    return false;
+  }
+
+  return hasTimeRemaining(options.deadlineMs);
+}
+
+function createImportAbortSignal(
+  options: ImportPendingResultBlobsOptions,
+): AbortSignal {
+  const remainingMs = options.deadlineMs - Date.now();
+  return AbortSignal.any([
+    options.abortSignal,
+    AbortSignal.timeout(Math.max(1, remainingMs)),
+  ]);
 }
 
 function isAbortLikeError(error: unknown): boolean {
@@ -89,7 +98,7 @@ async function importBlob(
   blobId: string,
   options: ImportPendingResultBlobsOptions,
 ): Promise<void> {
-  if (!hasTimeRemaining(options.deadlineMs)) {
+  if (!shouldContinueSync(options)) {
     return;
   }
 
@@ -100,7 +109,7 @@ async function importBlob(
   }
 
   try {
-    const abortSignal = createDeadlineAbortSignal(options.deadlineMs);
+    const abortSignal = createImportAbortSignal(options);
     const response = await fetch(blob.sourceUrl, {
       redirect: "follow",
       signal: abortSignal,
@@ -157,8 +166,7 @@ async function importBlob(
     });
   } catch (error) {
     if (
-      options.deadlineMs !== undefined &&
-      !hasTimeRemaining(options.deadlineMs) &&
+      !shouldContinueSync(options) &&
       isAbortLikeError(error)
     ) {
       // Keep the blob pending so a future sync run can retry it.
@@ -175,7 +183,7 @@ async function importBlob(
 }
 
 async function importPendingResultBlobs(
-  options: ImportPendingResultBlobsOptions = {},
+  options: ImportPendingResultBlobsOptions,
 ): Promise<number> {
   const pendingBlobs = await prisma.blob.findMany({
     where: { status: BlobStatus.PENDING },
@@ -185,7 +193,7 @@ async function importPendingResultBlobs(
   const limit = pLimit(MAX_CONCURRENT_IMPORTS);
   const runningImports = pendingBlobs.map((blob) =>
     limit(async () => {
-      if (!hasTimeRemaining(options.deadlineMs)) {
+      if (!shouldContinueSync(options)) {
         return;
       }
 

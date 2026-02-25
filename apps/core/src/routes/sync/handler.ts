@@ -5,7 +5,14 @@ import { getEnv } from "@/config/env";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
 
-type SyncOperation = () => Promise<void>;
+export interface SyncExecutionContext {
+  abortSignal: AbortSignal;
+  deadlineMs: number;
+  msRemaining: () => number;
+  shouldContinue: () => boolean;
+}
+
+type SyncOperation = (context: SyncExecutionContext) => Promise<void>;
 const MIN_SYNC_TIMEOUT_MS = 1000;
 
 function unauthorizedResponse(message: string): Response {
@@ -59,29 +66,6 @@ function getSyncTimeoutMs(): number {
   return Math.max(timeoutMs, MIN_SYNC_TIMEOUT_MS);
 }
 
-async function withTimeout<T>(
-  operation: Promise<T>,
-  timeoutMs: number,
-  timeoutMessage: string,
-): Promise<T> {
-  return await new Promise<T>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(timeoutMessage));
-    }, timeoutMs);
-
-    operation.then(
-      (value) => {
-        clearTimeout(timeoutId);
-        resolve(value);
-      },
-      (error: unknown) => {
-        clearTimeout(timeoutId);
-        reject(error);
-      },
-    );
-  });
-}
-
 /**
  * Returns a promise that runs the sync operation and releases
  * the lock when done. Pass this to Vercel's waitUntil() so the serverless
@@ -92,17 +76,48 @@ function runBackgroundSync(
   syncOperation: SyncOperation,
 ): Promise<void> {
   return (async () => {
-    try {
-      const timeoutMs = getSyncTimeoutMs();
-      await withTimeout(
-        syncOperation(),
-        timeoutMs,
-        `[sync/${lock.key}] Timed out after ${timeoutMs}ms before lock expiration`,
+    const timeoutMs = getSyncTimeoutMs();
+    const deadlineMs = Date.now() + timeoutMs;
+    const cancellationController = new AbortController();
+    const cancellationTimeout = setTimeout(() => {
+      console.warn(
+        `[sync/${lock.key}] Deadline reached after ${timeoutMs}ms; requesting cancellation`,
       );
+      cancellationController.abort();
+    }, timeoutMs);
+
+    const context: SyncExecutionContext = {
+      abortSignal: cancellationController.signal,
+      deadlineMs,
+      msRemaining: () => {
+        return Math.max(0, deadlineMs - Date.now());
+      },
+      shouldContinue: () => {
+        return (
+          !cancellationController.signal.aborted && Date.now() < deadlineMs
+        );
+      },
+    };
+
+    const startedAt = Date.now();
+    try {
+      await syncOperation(context);
+
+      if (!context.shouldContinue()) {
+        console.info(
+          `[sync/${lock.key}] Sync operation settled after cancellation request (durationMs=${Date.now() - startedAt})`,
+        );
+      } else {
+        console.info(
+          `[sync/${lock.key}] Sync operation settled normally (durationMs=${Date.now() - startedAt})`,
+        );
+      }
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
+      clearTimeout(cancellationTimeout);
       await releaseOwnedLock(lock);
+      console.info(`[sync/${lock.key}] Lock released`);
     }
   })();
 }

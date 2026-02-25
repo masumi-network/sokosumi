@@ -46,6 +46,23 @@ interface PendingBlobStub {
   createdAt: Date;
 }
 
+interface ImportPendingResultBlobsOptions {
+  abortSignal: AbortSignal;
+  deadlineMs: number;
+  shouldContinue: () => boolean;
+}
+
+function createImportOptions(
+  overrides: Partial<ImportPendingResultBlobsOptions> = {},
+): ImportPendingResultBlobsOptions {
+  return {
+    abortSignal: new AbortController().signal,
+    deadlineMs: Date.now() + 60_000,
+    shouldContinue: () => true,
+    ...overrides,
+  };
+}
+
 function createPendingBlob(index: number): PendingBlobStub {
   return {
     id: `blob-${index}`,
@@ -133,7 +150,9 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     );
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const runPromise = sourceImportSyncService.importPendingResultBlobs();
+    const runPromise = sourceImportSyncService.importPendingResultBlobs(
+      createImportOptions(),
+    );
 
     try {
       await waitFor(() => {
@@ -155,7 +174,7 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     expect(processedCount).toBe(6);
   });
 
-  it("stops processing when deadline is reached and keeps timed-out blobs pending", async () => {
+  it("stops processing when cancellation is reached and keeps timed-out blobs pending", async () => {
     vi.useFakeTimers();
     try {
       const sourceImportSyncService = await getSourceImportSyncService();
@@ -188,11 +207,14 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       });
       global.fetch = fetchMock as unknown as typeof fetch;
 
-      const runPromise = sourceImportSyncService.importPendingResultBlobs({
-        deadlineMs: Date.now() + 50,
-      });
+      const runPromise = sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions({
+          abortSignal: AbortSignal.timeout(200),
+          deadlineMs: Date.now() + 1000,
+        }),
+      );
 
-      vi.advanceTimersByTime(60);
+      vi.advanceTimersByTime(250);
       await runPromise;
 
       const failedUpdateCalls = blobUpdateMock.mock.calls.filter(
@@ -204,6 +226,8 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
       expect(failedUpdateCalls).toHaveLength(0);
       expect(blobPutMock).not.toHaveBeenCalled();
       expect(blobHeadMock).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalled();
+      expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
     } finally {
       vi.useRealTimers();
     }

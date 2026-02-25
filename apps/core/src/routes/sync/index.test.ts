@@ -189,7 +189,9 @@ describe("sync routes", () => {
     expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
     expect(syncSourceImportMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        abortSignal: expect.any(Object),
         deadlineMs: expect.any(Number),
+        shouldContinue: expect.any(Function),
       }),
     );
   });
@@ -199,9 +201,11 @@ describe("sync routes", () => {
 
     try {
       syncSourceImportMock.mockImplementation(
-        () =>
-          new Promise<number>(() => {
-            // Intentionally never resolves.
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise<number>((resolve) => {
+            options.abortSignal.addEventListener("abort", () => {
+              resolve(0);
+            });
           }),
       );
       const consoleErrorSpy = vi
@@ -224,6 +228,7 @@ describe("sync routes", () => {
         await flushPromises();
 
         expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+        expect(releaseLockMock).toHaveBeenCalledTimes(1);
       } finally {
         consoleErrorSpy.mockRestore();
       }
@@ -251,14 +256,54 @@ describe("sync routes", () => {
     expect(syncStripeCustomersMock).toHaveBeenCalledTimes(1);
   });
 
-  it("releases lock when a long-running sync exceeds timeout budget", async () => {
+  it("does not release lock when a long-running sync ignores cancellation", async () => {
     vi.useFakeTimers();
 
     try {
       syncRegistryAgentsMock.mockImplementation(
-        () =>
+        (_options: { abortSignal: AbortSignal }) =>
           new Promise<void>(() => {
             // Intentionally never resolves.
+          }),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        const app = await createApp();
+        const response = await app.request("http://localhost/sync/agents", {
+          headers: {
+            Authorization: "Bearer test-cron-secret",
+          },
+        });
+
+        expect(response.status).toBe(200);
+        await flushPromises();
+        expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(4000);
+        await flushPromises();
+
+        expect(releaseLockMock).not.toHaveBeenCalled();
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("releases lock when a long-running sync cooperatively cancels", async () => {
+    vi.useFakeTimers();
+
+    try {
+      syncRegistryAgentsMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise<void>((resolve) => {
+            options.abortSignal.addEventListener("abort", () => {
+              resolve();
+            });
           }),
       );
       const consoleErrorSpy = vi
