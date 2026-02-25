@@ -55,7 +55,7 @@ export default function WelcomeScreen({
         const translationKey =
           `welcomeScreen.prompts.${promptKey}.${key}` as const;
         return t.has(translationKey) ? t(translationKey) : null;
-      }).filter(Boolean)
+      }).filter((x): x is string => Boolean(x))
     : [];
   const showSuggestions = promptsList.length > 0 && selectedModel == null;
 
