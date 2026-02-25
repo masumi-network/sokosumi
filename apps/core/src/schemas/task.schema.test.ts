@@ -48,6 +48,8 @@ describe("coworkerSchema", () => {
       id: "cow_123",
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
       updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
       slug: "ops-agent",
       name: "Ops Agent",
       url: "https://example.com",
@@ -62,7 +64,21 @@ describe("coworkerSchema", () => {
     expect(result.caption).toBe("Senior Campaign Partner");
     expect(result.company).toBe("Serviceplan");
     expect(result.companyLogo).toBe("https://example.com/company-logo.png");
+    expect(result.archivedAt).toBeNull();
+    expect(result.isWhitelisted).toBe(true);
     expect(typeof result.createdAt).toBe("string");
     expect(typeof result.updatedAt).toBe("string");
+  });
+
+  it("fails when isWhitelisted is missing", () => {
+    expect(() => {
+      coworkerSchema.parse({
+        id: "cow_123",
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+        slug: "ops-agent",
+        name: "Ops Agent",
+      });
+    }).toThrow();
   });
 });

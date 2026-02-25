@@ -85,6 +85,7 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     createdAt: new Date("2026-02-20T10:00:00.000Z"),
     updatedAt: new Date("2026-02-20T10:00:00.000Z"),
     archivedAt: null,
+    isWhitelisted: true,
     slug: "ops-agent",
     name: "Ops Agent",
     caption: "Senior Campaign Partner",
@@ -140,6 +141,50 @@ describe("coworker admin CRUD endpoints", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           userId: "admin_123",
+          isWhitelisted: false,
+        }),
+      }),
+    );
+  });
+
+  it("creates coworker with explicit isWhitelisted value", async () => {
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
+        findFirst: coworkerFindFirstMock,
+        create: coworkerCreateMock.mockResolvedValue(
+          createCoworkerRecord({
+            isWhitelisted: true,
+          }),
+        ),
+        updateMany: coworkerUpdateManyMock,
+        update: coworkerUpdateMock,
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ops Agent",
+        email: "ops@example.com",
+        isWhitelisted: true,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(coworkerCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isWhitelisted: true,
         }),
       }),
     );
@@ -265,6 +310,51 @@ describe("coworker admin CRUD endpoints", () => {
     };
     expect(updateCall.data).not.toHaveProperty("slug");
     expect(coworkerFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("updates coworker isWhitelisted flag", async () => {
+    const tx: TransactionMock = {
+      coworker: {
+        findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
+        findFirst: coworkerFindFirstMock.mockResolvedValue(
+          createCoworkerRecord({
+            isWhitelisted: false,
+          }),
+        ),
+        create: coworkerCreateMock,
+        updateMany: coworkerUpdateManyMock.mockResolvedValue({ count: 1 }),
+        update: coworkerUpdateMock,
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        isWhitelisted: false,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "cow_123",
+          archivedAt: null,
+        },
+        data: expect.objectContaining({
+          isWhitelisted: false,
+        }),
+      }),
+    );
   });
 
   it("rejects update when name is shorter than 3 characters", async () => {

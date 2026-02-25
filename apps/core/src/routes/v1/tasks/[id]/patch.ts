@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
 import {
-  requireCoworkerExists,
+  requireAssignableCoworker,
   requireUserTaskAccess,
 } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
@@ -92,7 +92,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       if (coworkerIdWasProvided && coworkerId !== null) {
-        await requireCoworkerExists(coworkerId, tx);
+        await requireAssignableCoworker(coworkerId, tx);
       }
 
       return tx.task.update({

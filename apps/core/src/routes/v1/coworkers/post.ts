@@ -30,8 +30,10 @@ const route = createRoute({
     201: jsonSuccessResponse(coworkerSchema, "Create coworker", {
       data: {
         id: "cow_123",
+        archivedAt: null,
         slug: "ops-agent",
         name: "Ops Agent",
+        isWhitelisted: true,
         caption: "Senior Campaign Partner",
         company: "Serviceplan",
         companyLogo: "https://example.com/company-logo",
@@ -100,6 +102,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             email: body.email ?? null,
             description: body.description ?? null,
             image: body.image ?? null,
+            isWhitelisted: body.isWhitelisted ?? false,
           },
         });
       } catch (error) {

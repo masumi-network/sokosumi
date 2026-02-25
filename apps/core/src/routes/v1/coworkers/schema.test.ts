@@ -45,6 +45,16 @@ describe("createCoworkerRequestSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts isWhitelisted when provided", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      email: "ops@example.com",
+      isWhitelisted: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("patchCoworkerRequestSchema", () => {
@@ -68,5 +78,13 @@ describe("patchCoworkerRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts whitelist-only updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      isWhitelisted: true,
+    });
+
+    expect(result.success).toBe(true);
   });
 });

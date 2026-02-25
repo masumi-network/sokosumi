@@ -20,6 +20,10 @@
       "name": "Package: Masumi",
       "path": "packages/masumi",
     },
+    {
+      "name": "Package: Chat",
+      "path": "packages/chat",
+    },
   ],
   "settings": {
     "editor.formatOnSave": true,

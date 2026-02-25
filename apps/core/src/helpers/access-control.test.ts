@@ -7,7 +7,7 @@ import type {
 } from "@/middleware/auth";
 
 import {
-  requireCoworkerExists,
+  requireAssignableCoworker,
   requireScopedJobReadAccess,
   requireScopedTaskReadAccess,
   requireTaskAccess,
@@ -125,25 +125,38 @@ describe("requireTaskAccess", () => {
   });
 });
 
-describe("requireCoworkerExists", () => {
-  it("only accepts active coworkers", async () => {
+describe("requireAssignableCoworker", () => {
+  it("only accepts active whitelisted coworkers", async () => {
     const tx = {
       coworker: {
         findFirst: vi.fn().mockResolvedValue({ id: "cow_123" }),
       },
     } as unknown as Prisma.TransactionClient;
 
-    await requireCoworkerExists("cow_123", tx);
+    await requireAssignableCoworker("cow_123", tx);
 
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
         archivedAt: null,
+        isWhitelisted: true,
       },
       select: {
         id: true,
       },
     });
+  });
+
+  it("rejects non-assignable coworkers", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(requireAssignableCoworker("cow_123", tx)).rejects.toThrow(
+      "Coworker not found",
+    );
   });
 });
 
