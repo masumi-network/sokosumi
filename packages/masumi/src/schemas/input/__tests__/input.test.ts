@@ -297,7 +297,7 @@ describe("inputDataSchema", () => {
       expect(result.success).toBe(false);
     });
 
-    it("should fail with empty value in values array", () => {
+    it("should allow empty value in values array", () => {
       const result = inputDataSchema.safeParse({
         input_data: [
           {
@@ -309,7 +309,7 @@ describe("inputDataSchema", () => {
           },
         ],
       });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
     });
 
     it("should succeed with valid validations", () => {
@@ -496,6 +496,18 @@ describe("inputDataSchema", () => {
 
     it("should validate multiselect schema", () => {
       const result = inputDataSchema.safeParse({ input_data: [ms] });
+      expect(result.success).toBe(true);
+    });
+
+    it("should allow empty value in values array", () => {
+      const result = inputDataSchema.safeParse({
+        input_data: [
+          {
+            ...ms,
+            data: { values: ["a", "", "b"] },
+          },
+        ],
+      });
       expect(result.success).toBe(true);
     });
   });
