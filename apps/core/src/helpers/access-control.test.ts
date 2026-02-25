@@ -7,6 +7,7 @@ import type {
 } from "@/middleware/auth";
 
 import {
+  requireAssignableCoworker,
   requireCoworkerExists,
   requireScopedJobReadAccess,
   requireScopedTaskReadAccess,
@@ -126,7 +127,7 @@ describe("requireTaskAccess", () => {
 });
 
 describe("requireCoworkerExists", () => {
-  it("only accepts active whitelisted coworkers", async () => {
+  it("checks coworker existence by id", async () => {
     const tx = {
       coworker: {
         findFirst: vi.fn().mockResolvedValue({ id: "cow_123" }),
@@ -134,6 +135,39 @@ describe("requireCoworkerExists", () => {
     } as unknown as Prisma.TransactionClient;
 
     await requireCoworkerExists("cow_123", tx);
+
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+      },
+      select: {
+        id: true,
+      },
+    });
+  });
+
+  it("rejects missing coworkers", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(requireCoworkerExists("cow_123", tx)).rejects.toThrow(
+      "Coworker not found",
+    );
+  });
+});
+
+describe("requireAssignableCoworker", () => {
+  it("only accepts active whitelisted coworkers", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({ id: "cow_123" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await requireAssignableCoworker("cow_123", tx);
 
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({
       where: {
@@ -147,14 +181,14 @@ describe("requireCoworkerExists", () => {
     });
   });
 
-  it("rejects non-whitelisted coworkers", async () => {
+  it("rejects non-assignable coworkers", async () => {
     const tx = {
       coworker: {
         findFirst: vi.fn().mockResolvedValue(null),
       },
     } as unknown as Prisma.TransactionClient;
 
-    await expect(requireCoworkerExists("cow_123", tx)).rejects.toThrow(
+    await expect(requireAssignableCoworker("cow_123", tx)).rejects.toThrow(
       "Coworker not found",
     );
   });

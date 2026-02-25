@@ -11,13 +11,13 @@ import mountPostTask from "./post";
 
 const {
   prismaTransactionMock,
-  requireCoworkerExistsMock,
+  requireAssignableCoworkerMock,
   requireUserTaskAccessMock,
   mapTaskMock,
   validateTaskCoworkerAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireCoworkerExistsMock: vi.fn(),
+  requireAssignableCoworkerMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerExists: requireCoworkerExistsMock,
+  requireAssignableCoworker: requireAssignableCoworkerMock,
   requireUserTaskAccess: requireUserTaskAccessMock,
 }));
 
@@ -77,7 +77,7 @@ describe("task coworker whitelist enforcement", () => {
       return await callback(tx);
     });
 
-    requireCoworkerExistsMock.mockRejectedValue(
+    requireAssignableCoworkerMock.mockRejectedValue(
       new HTTPException(404, { message: "Coworker not found" }),
     );
 
@@ -114,7 +114,7 @@ describe("task coworker whitelist enforcement", () => {
       status: TaskStatus.READY,
       coworkerId: null,
     });
-    requireCoworkerExistsMock.mockRejectedValue(
+    requireAssignableCoworkerMock.mockRejectedValue(
       new HTTPException(404, { message: "Coworker not found" }),
     );
 
