@@ -33,6 +33,7 @@
     "@scalar/openapi-to-markdown": "0.3.49",
     "@sentry/node": "10.39.0",
     "@sentry/profiling-node": "10.39.0",
+    "@sokosumi/chat": "workspace:*",
     "@sokosumi/database": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@vercel/blob": "2.3.0",

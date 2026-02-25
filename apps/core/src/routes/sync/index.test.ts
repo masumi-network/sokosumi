@@ -6,18 +6,22 @@ const {
   releaseLockMock,
   syncAgentSummariesMock,
   syncRegistryAgentsMock,
+  syncSourceImportMock,
   syncStripeCustomersMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
+  syncSourceImportMock: vi.fn(),
   syncStripeCustomersMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     CRON_SECRET: "test-cron-secret",
+    LOCK_TIMEOUT: 5000,
+    LOCK_TIMEOUT_BUFFER: 1000,
   }),
 }));
 
@@ -34,6 +38,12 @@ vi.mock("@/services/agent-sync.service", () => ({
   agentSyncService: {
     syncRegistryAgents: syncRegistryAgentsMock,
     syncAgentSummaries: syncAgentSummariesMock,
+  },
+}));
+
+vi.mock("@/services/source-import-sync.service", () => ({
+  sourceImportSyncService: {
+    importPendingResultBlobs: syncSourceImportMock,
   },
 }));
 
@@ -77,6 +87,7 @@ describe("sync routes", () => {
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
+    syncSourceImportMock.mockResolvedValue(3);
     syncStripeCustomersMock.mockResolvedValue(undefined);
   });
 
@@ -162,6 +173,73 @@ describe("sync routes", () => {
     expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
   });
 
+  it("returns 200 and starts source import sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/source-import", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("source-import-sync");
+
+    await flushMicrotasks();
+    expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
+    expect(syncSourceImportMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        abortSignal: expect.any(Object),
+        deadlineMs: expect.any(Number),
+        shouldContinue: expect.any(Function),
+      }),
+    );
+  });
+
+  it("releases source import lock when sync exceeds timeout budget", async () => {
+    vi.useFakeTimers();
+
+    try {
+      syncSourceImportMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise<number>((resolve) => {
+            options.abortSignal.addEventListener("abort", () => {
+              resolve(0);
+            });
+          }),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        const app = await createApp();
+        const response = await app.request(
+          "http://localhost/sync/source-import",
+          {
+            headers: {
+              Authorization: "Bearer test-cron-secret",
+            },
+          },
+        );
+
+        expect(response.status).toBe(200);
+        await flushPromises();
+        expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(4000);
+        await flushPromises();
+
+        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+        expect(releaseLockMock).toHaveBeenCalledTimes(1);
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns 200 and starts stripe customer sync exactly once in background", async () => {
     const app = await createApp();
 
@@ -181,38 +259,80 @@ describe("sync routes", () => {
     expect(syncStripeCustomersMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does not release lock while long-running sync is still pending", async () => {
+  it("does not release lock when a long-running sync ignores cancellation", async () => {
     vi.useFakeTimers();
 
     try {
-      let resolveSync: (() => void) | null = null;
       syncRegistryAgentsMock.mockImplementation(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveSync = resolve;
+        (_options: { abortSignal: AbortSignal }) =>
+          new Promise<void>(() => {
+            // Intentionally never resolves.
           }),
       );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
 
-      const app = await createApp();
-      const response = await app.request("http://localhost/sync/agents", {
-        headers: {
-          Authorization: "Bearer test-cron-secret",
-        },
-      });
+      try {
+        const app = await createApp();
+        const response = await app.request("http://localhost/sync/agents", {
+          headers: {
+            Authorization: "Bearer test-cron-secret",
+          },
+        });
 
-      expect(response.status).toBe(200);
-      await flushPromises();
-      expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+        expect(response.status).toBe(200);
+        await flushPromises();
+        expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime(95000);
-      await flushPromises();
+        vi.advanceTimersByTime(4000);
+        await flushPromises();
 
-      expect(releaseLockMock).not.toHaveBeenCalled();
+        expect(releaseLockMock).not.toHaveBeenCalled();
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-      resolveSync?.();
-      await flushPromises();
-      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-      expect(releaseLockMock).toHaveBeenCalledTimes(1);
+  it("releases lock when a long-running sync cooperatively cancels", async () => {
+    vi.useFakeTimers();
+
+    try {
+      syncRegistryAgentsMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise<void>((resolve) => {
+            options.abortSignal.addEventListener("abort", () => {
+              resolve();
+            });
+          }),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        const app = await createApp();
+        const response = await app.request("http://localhost/sync/agents", {
+          headers: {
+            Authorization: "Bearer test-cron-secret",
+          },
+        });
+
+        expect(response.status).toBe(200);
+        await flushPromises();
+        expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(4000);
+        await flushPromises();
+
+        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+        expect(releaseLockMock).toHaveBeenCalledTimes(1);
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     } finally {
       vi.useRealTimers();
     }

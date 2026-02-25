@@ -1,13 +1,17 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { getModelIdentifier } from "@sokosumi/chat";
 import { generateText } from "ai";
 
 import { getEnv } from "@/config/env";
-import { getModelIdentifier } from "@/helpers/model-mapping";
 
 export type AgentInfo = {
   name: string;
   description?: string | null;
 };
+
+interface OpenRouterRequestOptions {
+  abortSignal?: AbortSignal;
+}
 
 const RESPONSES_API_EVENTS = {
   OUTPUT_TEXT_DELTA: "response.output_text.delta",
@@ -106,7 +110,10 @@ export const openrouterClient = (() => {
       }
     },
 
-    async generateAgentSummary(description: string): Promise<string | null> {
+    async generateAgentSummary(
+      description: string,
+      options?: OpenRouterRequestOptions,
+    ): Promise<string | null> {
       if (!defaultOpenrouter) {
         return null;
       }
@@ -132,6 +139,7 @@ export const openrouterClient = (() => {
 
       try {
         const { text } = await generateText({
+          abortSignal: options?.abortSignal,
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
           system: systemPrompt,
           prompt: userPrompt,
