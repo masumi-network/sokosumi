@@ -996,20 +996,7 @@
         "getStarted": "Get Started"
       },
       "coworkerTooltip": "{name} · {role}",
-      "coworkers": {
-        "alex": {
-          "name": "Alex",
-          "role": "Assistant"
-        },
-        "elena": {
-          "name": "Elena",
-          "role": "Project Management"
-        },
-        "hannah": {
-          "name": "Hannah",
-          "role": "Research"
-        }
-      },
+      "defaultRole": "Coworker",
       "alt": {
         "coworkerAvatar": "{name} avatar"
       },
@@ -1078,6 +1065,7 @@
       "Chat": {
         "newChat": "New Chat",
         "noChats": "No chats yet",
+        "noCoworkersAvailable": "No coworkers available. Please try again later.",
         "emptyState": {
           "title": "Start a conversation",
           "titleWithName": "Start a conversation with {name}",
@@ -1172,28 +1160,6 @@
         "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",
         "promptPlaceholder": "What would you like to know?",
         "pastedImage": "Pasted image",
-        "coworkers": {
-          "alex": {
-            "name": "Alex",
-            "description": "AI Assistant",
-            "useCase": "Answer questions and assist with a wide range of tasks"
-          },
-          "hannah": {
-            "name": "Hannah",
-            "description": "Data Analysis & Research Specialist",
-            "useCase": "Analyze datasets, create reports, and provide research insights"
-          },
-          "elena": {
-            "name": "Elena",
-            "description": "Conversational AI Assistant",
-            "useCase": "Answer questions and assist with tasks in natural conversation"
-          },
-          "john": {
-            "name": "John",
-            "description": "Code Review & Development Assistant",
-            "useCase": "Review code, suggest improvements, and help with debugging"
-          }
-        },
         "errorTitle": "Error",
         "errorDescription": "An error occurred while processing your message. Please try again.",
         "tryAgain": "Try Again",

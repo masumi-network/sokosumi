@@ -62,27 +62,7 @@ export default function CoworkerModelSelector({
   const t = useTranslations("App.Chat.Chat");
   const [open, setOpen] = useState(false);
 
-  const coworkersFallback: Coworker[] = [
-    {
-      id: "alex",
-      name: t("coworkers.alex.name"),
-      description: t("coworkers.alex.description"),
-      useCase: t("coworkers.alex.useCase"),
-    },
-    {
-      id: "hannah",
-      name: t("coworkers.hannah.name"),
-      description: t("coworkers.hannah.description"),
-      useCase: t("coworkers.hannah.useCase"),
-    },
-    {
-      id: "elena",
-      name: t("coworkers.elena.name"),
-      description: t("coworkers.elena.description"),
-      useCase: t("coworkers.elena.useCase"),
-    },
-  ];
-  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
+  const coworkers = propCoworkers ?? [];
 
   const models: Model[] = CHAT_MODELS.map((model) => ({
     id: model.id,

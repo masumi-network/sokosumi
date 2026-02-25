@@ -50,12 +50,11 @@ export default function WelcomeScreen({
     initialCoworker?.slug?.toLowerCase() ||
     initialCoworker?.id?.toLowerCase() ||
     "";
-  const promptsList =
-    promptKey === "alex" || promptKey === "hannah" || promptKey === "elena"
-      ? PROMPT_KEYS.map((key) =>
-          t(`welcomeScreen.prompts.${promptKey}.${key}`),
-        ).filter(Boolean)
-      : [];
+  const promptsList = promptKey
+    ? PROMPT_KEYS.map((key) =>
+        t(`welcomeScreen.prompts.${promptKey}.${key}`),
+      ).filter(Boolean)
+    : [];
   const showSuggestions = promptsList.length > 0 && selectedModel == null;
 
   function handleSuggestionClick(text: string) {

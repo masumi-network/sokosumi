@@ -389,21 +389,18 @@ export function OnboardingDialog() {
   const [open, setOpen] = useState(true);
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const { coworkers: apiCoworkers } = useCoworkersContext();
 
   if (!open) return null;
 
-  const coworkers = [
-    {
-      name: tDialog("coworkers.elena.name"),
-      role: tDialog("coworkers.elena.role"),
-      avatar: "/images/coworkers/elena.webp",
-    },
-    {
-      name: tDialog("coworkers.hannah.name"),
-      role: tDialog("coworkers.hannah.role"),
-      avatar: "/images/coworkers/hannah.webp",
-    },
-  ];
+  const defaultRole = tDialog("defaultRole");
+  const coworkers = apiCoworkers.slice(0, 2).map((c) => ({
+    name: c.name,
+    role: c.caption ?? defaultRole,
+    avatar:
+      getCoworkerImageUrl(c.id, c.avatar ?? undefined) ??
+      "/images/coworkers/elena.webp",
+  }));
 
   const introSteps = [
     {
