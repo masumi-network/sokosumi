@@ -7,7 +7,6 @@ import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
 import { cn } from "@/lib/utils";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
-/** True if the link is to sokosumi (same tab); otherwise open in new tab. */
 function isSokosumiLink(href: string | undefined): boolean {
   if (!href || href.startsWith("#")) return true;
   if (href.startsWith("/")) return true;
