@@ -42,23 +42,7 @@ export default function SelectCoworkerModal({
   const t = useTranslations("App.Chat.Chat");
   const [selectedCoworkerId, setSelectedCoworkerId] = useState<string>("");
 
-  const coworkersFallback: Coworker[] = [
-    {
-      id: "hannah",
-      slug: "hannah",
-      name: t("coworkers.hannah.name"),
-      description: t("coworkers.hannah.description"),
-      useCase: t("coworkers.hannah.useCase"),
-    },
-    {
-      id: "elena",
-      slug: "elena",
-      name: t("coworkers.elena.name"),
-      description: t("coworkers.elena.description"),
-      useCase: t("coworkers.elena.useCase"),
-    },
-  ];
-  const coworkers = propCoworkers?.length ? propCoworkers : coworkersFallback;
+  const coworkers = propCoworkers ?? [];
 
   const selectedCoworker = coworkers.find((c) => c.id === selectedCoworkerId);
 

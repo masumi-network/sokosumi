@@ -4,6 +4,7 @@ export interface Coworker {
   id: string;
   name: string;
   avatar?: string;
+  caption?: string;
   description: string;
   useCase: string;
   slug?: string;

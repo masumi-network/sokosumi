@@ -101,30 +101,10 @@ export default function ChatInterface({
     void selectConversation(selectedChatId);
   }, [pathname, selectedChatId, selectedConversation?.id, selectConversation]);
 
-  const { coworkers: apiCoworkers } = useCoworkersContext();
-  const defaultCoworkersFallback = useMemo<Coworker[]>(
-    () => [
-      {
-        id: "hannah",
-        slug: "hannah",
-        name: t("coworkers.hannah.name"),
-        description: t("coworkers.hannah.description"),
-        useCase: t("coworkers.hannah.useCase"),
-      },
-      {
-        id: "elena",
-        slug: "elena",
-        name: t("coworkers.elena.name"),
-        description: t("coworkers.elena.description"),
-        useCase: t("coworkers.elena.useCase"),
-      },
-    ],
-    [t],
-  );
-  const coworkers =
-    apiCoworkers.length > 0 ? apiCoworkers : defaultCoworkersFallback;
+  const { coworkers } = useCoworkersContext();
 
   const welcomeCoworkerSlug = searchParams?.get("coworker") ?? null;
+  const defaultWelcomeSlug = "elena";
   const initialWelcomeCoworker = useMemo(() => {
     if (welcomeCoworkerSlug) {
       const slug = welcomeCoworkerSlug.toLowerCase();
@@ -134,10 +114,15 @@ export default function ChatInterface({
       );
     }
     return (
-      defaultCoworkersFallback.find((c) => c.id === "elena") ??
-      defaultCoworkersFallback[0]
+      coworkers.find(
+        (c) =>
+          c.slug?.toLowerCase() === defaultWelcomeSlug ||
+          c.id?.toLowerCase() === defaultWelcomeSlug,
+      ) ??
+      coworkers[0] ??
+      null
     );
-  }, [coworkers, welcomeCoworkerSlug, defaultCoworkersFallback]);
+  }, [coworkers, welcomeCoworkerSlug]);
 
   const [welcomeSelectedCoworker, setWelcomeSelectedCoworker] =
     useState<Coworker | null>(null);
@@ -719,14 +704,13 @@ export default function ChatInterface({
             conversationId = await handleModelSelected(modelToUse);
           }
         } else {
-          const selectedCoworker: Coworker = coworker ??
-            effectiveWelcomeCoworker ?? {
-              id: "elena",
-              slug: "elena",
-              name: t("coworkers.elena.name"),
-              description: t("coworkers.elena.description"),
-              useCase: t("coworkers.elena.useCase"),
-            };
+          const selectedCoworker =
+            coworker ?? effectiveWelcomeCoworker ?? coworkers[0] ?? null;
+          if (!selectedCoworker) {
+            toast.error(t("noCoworkersAvailable"));
+            setIsWelcomeTransitioning(false);
+            return;
+          }
           conversationId = await handleCoworkerSelected(selectedCoworker);
         }
 
@@ -771,6 +755,7 @@ export default function ChatInterface({
       if (sent) setInput("");
     },
     [
+      coworkers,
       isLoading,
       selectedChatId,
       sendInConversation,

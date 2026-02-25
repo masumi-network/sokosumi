@@ -1,9 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  isResponsesApiAgentId,
-  streamResponsesApi,
-} from "@/clients/coworker-api.client";
+import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { isResponsesApiConfigured } from "@/config/env";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
@@ -173,15 +170,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         string,
         unknown
       > | null;
-      const agentId = (metadata?.coworker_slug ?? metadata?.coworker_id) as
+      const agentSlug = (metadata?.coworker_slug ?? metadata?.coworker_id) as
         | string
         | undefined;
       const lastResponsesApiResponseId =
         metadata?.last_responses_api_response_id as string | undefined;
 
+      const coworker = agentSlug
+        ? await prisma.coworker.findFirst({
+            where: { slug: agentSlug, archivedAt: null },
+            select: { slug: true },
+          })
+        : null;
       const useResponsesApi =
         Boolean(internalConversationId) &&
-        isResponsesApiAgentId(agentId) &&
+        Boolean(coworker) &&
         isResponsesApiConfigured();
 
       // Validate coworker message text BEFORE persisting to avoid inconsistent state
@@ -243,7 +246,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const orgSlug = c.req.header("x-organization-slug") ?? null;
         const result = await streamResponsesApi(lastUserMessageText as string, {
           sokosumiUserId: authContext.userId,
-          agentId: agentId as "hannah" | "elena",
+          agentId: coworker?.slug,
           previousResponseId: lastResponsesApiResponseId ?? null,
           orgSlug,
           onResponseCompleted: async (responseId: string) => {

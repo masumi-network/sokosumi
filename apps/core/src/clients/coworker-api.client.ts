@@ -4,19 +4,6 @@ import {
   isResponsesApiConfigured,
 } from "@/config/env";
 
-export const RESPONSES_API_AGENT_IDS = ["hannah", "elena"] as const;
-
-export type ResponsesApiAgentId = (typeof RESPONSES_API_AGENT_IDS)[number];
-
-export function isResponsesApiAgentId(
-  coworkerId: string | undefined,
-): coworkerId is ResponsesApiAgentId {
-  return (
-    typeof coworkerId === "string" &&
-    RESPONSES_API_AGENT_IDS.includes(coworkerId as ResponsesApiAgentId)
-  );
-}
-
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 
@@ -47,7 +34,7 @@ const UI_MESSAGE_EVENTS = {
 
 export interface StreamResponsesApiOptions {
   sokosumiUserId: string;
-  agentId?: ResponsesApiAgentId;
+  agentId?: string;
   previousResponseId?: string | null;
   instructions?: string;
   onResponseCompleted?: (responseId: string) => void;
@@ -70,6 +57,9 @@ export async function streamResponsesApi(
 
   if (!baseUrl || !serviceKey) {
     throw new Error("Responses API base URL or service key missing");
+  }
+  if (!options.agentId?.trim()) {
+    throw new Error("Responses API requires a coworker agent ID (slug)");
   }
 
   const body: {
@@ -94,9 +84,7 @@ export async function streamResponsesApi(
     Authorization: `Bearer ${serviceKey}`,
     "Content-Type": "application/json",
     "X-Sokosumi-User-Id": options.sokosumiUserId,
-    ...(options.agentId
-      ? { "X-Agent-Id": options.agentId }
-      : { "X-Agent-Id": "hannah" }),
+    "X-Agent-Id": options.agentId,
   };
   if (options.orgSlug) {
     requestHeaders["X-Organization-Slug"] = options.orgSlug;
