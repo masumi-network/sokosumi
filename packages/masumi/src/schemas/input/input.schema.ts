@@ -430,7 +430,7 @@ export const inputRadioGroupSchema = z.object({
   name: z.string().min(1),
   data: z.object({
     values: z
-      .array(z.string().min(1))
+      .array(z.string())
       .min(1)
       .refine((items) => new Set(items).size === items.length),
     description: z.string().nullish(),
@@ -450,7 +450,7 @@ export const inputOptionSchema = z.object({
   name: z.string().min(1),
   data: z.object({
     values: z
-      .array(z.string().min(1))
+      .array(z.string())
       .min(1)
       .refine((items) => new Set(items).size === items.length),
     placeholder: z.string().nullish(),
@@ -470,7 +470,7 @@ export const inputMultiselectSchema = z.object({
   type: z.enum([InputType.MULTISELECT]),
   name: z.string().min(1),
   data: z.object({
-    values: z.array(z.string().min(1)).min(1),
+    values: z.array(z.string()).min(1),
     placeholder: z.string().nullish(),
     description: z.string().nullish(),
   }),
