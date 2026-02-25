@@ -24,16 +24,29 @@ export function OptionInput({
     name,
     data: { values },
   } = jobInputSchema;
+  const selectedIndex =
+    Array.isArray(field.value) && typeof field.value[0] === "number"
+      ? field.value[0]
+      : -1;
 
   if (isSingle) {
     return (
       <Select
         value={
-          Array.isArray(field.value) && typeof field.value[0] === "number"
-            ? values[field.value[0]]
+          selectedIndex >= 0 && selectedIndex < values.length
+            ? String(selectedIndex)
             : ""
         }
-        onValueChange={(value) => field.onChange([values.indexOf(value)])}
+        onValueChange={(value) => {
+          const nextIndex = Number(value);
+          if (
+            Number.isInteger(nextIndex) &&
+            nextIndex >= 0 &&
+            nextIndex < values.length
+          ) {
+            field.onChange([nextIndex]);
+          }
+        }}
       >
         <SelectTrigger className="w-full">
           <SelectValue />
@@ -41,8 +54,8 @@ export function OptionInput({
         <SelectContent>
           <SelectGroup>
             <SelectLabel>{name}</SelectLabel>
-            {values.map((value) => (
-              <SelectItem key={value} value={value}>
+            {values.map((value, index) => (
+              <SelectItem key={`${index}-${value}`} value={String(index)}>
                 {value}
               </SelectItem>
             ))}
