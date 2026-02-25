@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { publishTaskEventData } from "./publish";
+import { publishJobStatusData, publishTaskEventData } from "./publish";
 
 const { publishMock, getMock } = vi.hoisted(() => ({
   publishMock: vi.fn(),
@@ -30,6 +30,27 @@ describe("publishTaskEventData", () => {
     expect(publishMock).toHaveBeenCalledWith("task_event", {
       taskId: "tsk_123",
       eventType: "task_event",
+    });
+  });
+});
+
+describe("publishJobStatusData", () => {
+  it("publishes job status data to the agent-user channel", async () => {
+    await publishJobStatusData({
+      agentId: "agent_123",
+      userId: "user_123",
+      jobId: "job_123",
+      jobStatus: "processing",
+      jobStatusSettled: false,
+    });
+
+    expect(getMock).toHaveBeenCalledWith(
+      "agent_jobs:agent_agent_123:user_user_123",
+    );
+    expect(publishMock).toHaveBeenCalledWith("job_status_data", {
+      jobId: "job_123",
+      jobStatus: "processing",
+      jobStatusSettled: false,
     });
   });
 });

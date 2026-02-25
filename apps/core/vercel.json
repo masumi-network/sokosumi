@@ -16,6 +16,10 @@
     {
       "path": "/sync/stripe-customers",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/sync/job-schedules",
+      "schedule": "* * * * *"
     }
   ]
 }
