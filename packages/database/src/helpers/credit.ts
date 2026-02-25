@@ -1,6 +1,7 @@
 import { Decimal } from "decimal.js";
 
 const CREDITS_BASE = 10 ** 10;
+export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 
 /**
  * Converts credit cents (stored as BigInt) to user-facing credit value.
@@ -24,4 +25,21 @@ export function convertCentsToCredits(cents: bigint): number {
  */
 export function convertCreditsToCents(credits: number): bigint {
   return BigInt(new Decimal(credits).mul(CREDITS_BASE).toFixed(0).toString());
+}
+
+export function getOrganizationMemberSubscriptionReferencePrefix(
+  userId: string,
+): string {
+  return `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`;
+}
+
+export function buildOrganizationMemberSubscriptionReferenceId(
+  userId: string,
+  referenceSuffix: string,
+): string {
+  if (!referenceSuffix) {
+    throw new Error("referenceSuffix is required");
+  }
+
+  return `${getOrganizationMemberSubscriptionReferencePrefix(userId)}${referenceSuffix}`;
 }

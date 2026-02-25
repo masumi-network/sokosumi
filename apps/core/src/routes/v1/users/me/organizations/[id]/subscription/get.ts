@@ -23,7 +23,8 @@ const params = z.object({
 const route = createRoute({
   method: "get",
   path: "/organizations/{id}/subscription",
-  description: "Get organization latest subscription by ID or slug",
+  description:
+    "Get organization latest subscription by ID or slug with member-scoped usage",
   tags: ["Users"],
   request: {
     params,
@@ -31,7 +32,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       subscriptionResponseSchema,
-      "Retrieve organization subscription",
+      "Retrieve organization subscription with member-scoped usage details",
       {
         data: {
           subscription: {

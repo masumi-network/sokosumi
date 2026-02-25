@@ -1,5 +1,8 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import {
+  convertCentsToCredits,
+  getOrganizationMemberSubscriptionReferencePrefix,
+} from "@sokosumi/database/helpers";
 
 interface SubscriptionPeriodRecord {
   periodStart: Date | null;
@@ -66,6 +69,12 @@ export async function getCurrentSubscriptionCredits(params: {
     ? {
         referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
         organizationId: params.organizationId,
+        userId: params.userId,
+        referenceId: {
+          startsWith: getOrganizationMemberSubscriptionReferencePrefix(
+            params.userId,
+          ),
+        },
         expiresAt: {
           gt: period.periodStart,
           lte: period.periodEnd,
@@ -122,6 +131,7 @@ export async function getCurrentSubscriptionCredits(params: {
 }
 
 export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
+  userId: string;
   periods: OrganizationCurrentSubscriptionPeriod[];
   tx: Prisma.TransactionClient;
   now?: Date;
@@ -131,6 +141,7 @@ export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
   }
 
   const now = params.now ?? new Date();
+  const memberReferencePrefix = `${getOrganizationMemberSubscriptionReferencePrefix(params.userId)}%`;
   const organizationIds = params.periods.map((period) => period.organizationId);
   const periodStarts = params.periods.map((period) => period.periodStart);
   const periodEnds = params.periods.map((period) => period.periodEnd);
@@ -157,6 +168,8 @@ export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
         FROM credit_bucket cb
         WHERE cb."organizationId" = i.organization_id
           AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
+          AND cb."userId" = ${params.userId}
+          AND cb."referenceId" LIKE ${memberReferencePrefix}
           AND cb."expiresAt" IS NOT NULL
           AND cb."expiresAt" > i.period_start
           AND cb."expiresAt" <= i.period_end
@@ -168,6 +181,8 @@ export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
         INNER JOIN credit_bucket cb ON cb.id = cc."bucketId"
         WHERE cb."organizationId" = i.organization_id
           AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
+          AND cb."userId" = ${params.userId}
+          AND cb."referenceId" LIKE ${memberReferencePrefix}
           AND cb."expiresAt" IS NOT NULL
           AND cb."expiresAt" > i.period_start
           AND cb."expiresAt" <= i.period_end

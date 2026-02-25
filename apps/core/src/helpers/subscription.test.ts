@@ -1,5 +1,8 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/database/helpers";
+import {
+  convertCreditsToCents,
+  getOrganizationMemberSubscriptionReferencePrefix,
+} from "@sokosumi/database/helpers";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -276,6 +279,10 @@ describe("getCurrentSubscriptionCredits", () => {
     const bucketWhere = {
       referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       organizationId: "org_1",
+      userId: "user_1",
+      referenceId: {
+        startsWith: getOrganizationMemberSubscriptionReferencePrefix("user_1"),
+      },
       expiresAt: {
         gt: periodStart,
         lte: periodEnd,
@@ -367,6 +374,7 @@ describe("getCurrentOrganizationSubscriptionCreditsMap", () => {
     } as unknown as Prisma.TransactionClient;
 
     const result = await getCurrentOrganizationSubscriptionCreditsMap({
+      userId: "user_1",
       periods: [],
       tx,
     });
@@ -393,6 +401,7 @@ describe("getCurrentOrganizationSubscriptionCreditsMap", () => {
     } as unknown as Prisma.TransactionClient;
 
     const result = await getCurrentOrganizationSubscriptionCreditsMap({
+      userId: "user_1",
       periods: [
         {
           organizationId: "org_1",

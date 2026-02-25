@@ -18,12 +18,13 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/subscription",
-    description: "Get current user's or organization's latest subscription",
+    description:
+      "Get current user's or organization's latest subscription with member-scoped subscription usage in organization context",
     tags: ["Users"],
     responses: {
       200: jsonSuccessResponse(
         subscriptionResponseSchema,
-        "Retrieve the current user's or organization's subscription",
+        "Retrieve the current user's or organization's subscription with member-scoped usage details",
         {
           data: {
             subscription: {

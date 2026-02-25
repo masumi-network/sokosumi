@@ -16,12 +16,13 @@ import { organizationsSchema } from "@/schemas/organization.schema";
 const route = createRoute({
   method: "get",
   path: "/organizations",
-  description: "Get all organizations for the current user",
+  description:
+    "Get all organizations for the current user with member-scoped subscription usage and credits",
   tags: ["Users"],
   responses: {
     200: jsonSuccessResponse(
       organizationsSchema,
-      "Retrieve organizations for current user",
+      "Retrieve organizations with member-scoped credit and subscription usage context",
       {
         data: [
           {
@@ -73,6 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           organization: member.organization,
           role: member.role,
         })),
+        authContext.userId,
         tx,
       );
 
@@ -127,6 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       const currentCreditsByOrganizationId =
         await getCurrentOrganizationSubscriptionCreditsMap({
+          userId: authContext.userId,
           periods: currentOrganizationPeriods,
           tx,
           now,

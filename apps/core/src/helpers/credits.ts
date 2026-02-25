@@ -1,5 +1,8 @@
-import type { Prisma } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import {
+  convertCentsToCredits,
+  getOrganizationMemberSubscriptionReferencePrefix,
+} from "@sokosumi/database/helpers";
 
 type MemberWithOrganization = {
   organization: {
@@ -10,6 +13,7 @@ type MemberWithOrganization = {
 
 export async function attachCreditsToOrganizations(
   members: MemberWithOrganization[],
+  userId: string,
   tx: Prisma.TransactionClient,
 ): Promise<
   Array<
@@ -25,6 +29,7 @@ export async function attachCreditsToOrganizations(
 
   const organizationIds = members.map((member) => member.organization.id);
   const now = new Date();
+  const memberReferencePattern = `${getOrganizationMemberSubscriptionReferencePrefix(userId)}%`;
   const rows = await tx.$queryRaw<
     Array<{ organization_id: string; balance: bigint }>
   >`
@@ -35,6 +40,14 @@ export async function attachCreditsToOrganizations(
       FROM credit_bucket cb
       LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
       WHERE cb."organizationId" = ANY(${organizationIds})
+        AND (
+          cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+          OR (
+            cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+            AND cb."userId" = ${userId}
+            AND cb."referenceId" LIKE ${memberReferencePattern}
+          )
+        )
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
       GROUP BY cb."organizationId", cb.id, cb.amount
     )
