@@ -68,10 +68,7 @@ function CoworkerAvatarWithSkeleton({
   return (
     <span className={cn("relative inline-block shrink-0", className)}>
       {src && !imageLoaded && (
-        <Skeleton
-          className={cn("absolute inset-0 rounded-full", className)}
-          data-slot="avatar-skeleton"
-        />
+        <Skeleton className={cn("absolute inset-0 rounded-full", className)} />
       )}
       <Avatar className={cn(src && !imageLoaded && "opacity-0", className)}>
         <AvatarImage
@@ -156,10 +153,7 @@ export default function CoworkerModelSelector({
             </>
           ) : coworkersLoading ? (
             <>
-              <Skeleton
-                className="size-5 shrink-0 rounded-full"
-                data-slot="avatar-skeleton"
-              />
+              <Skeleton className="size-5 shrink-0 rounded-full" />
               {selectedCoworker && (
                 <span className="hidden sm:inline">
                   {selectedCoworker.name}

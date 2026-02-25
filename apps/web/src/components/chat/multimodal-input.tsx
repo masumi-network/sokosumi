@@ -75,10 +75,7 @@ function CoworkerAvatarWithSkeleton({
   return (
     <span className={cn("relative inline-block shrink-0", className)}>
       {src && !imageLoaded && (
-        <Skeleton
-          className={cn("absolute inset-0 rounded-full", className)}
-          data-slot="avatar-skeleton"
-        />
+        <Skeleton className={cn("absolute inset-0 rounded-full", className)} />
       )}
       <Avatar
         className={cn(
@@ -317,7 +314,6 @@ function PureMultimodalInput({
                   <Skeleton
                     key={i}
                     className="size-[1.8rem] shrink-0 rounded-full"
-                    data-slot="avatar-skeleton"
                   />
                 ))}
               </>
@@ -444,7 +440,6 @@ export const MultimodalInput = memo(
     if (prevProps.status !== nextProps.status) {
       return false;
     }
-    // Re-render when coworkers change so avatar URLs from API are shown
     if (prevProps.coworkers !== nextProps.coworkers) {
       return false;
     }
