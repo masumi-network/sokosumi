@@ -66,13 +66,18 @@ async function getWorkspacePlanLabels(
         return [member.organization.id, ""] as const;
       }
 
-      const activeSubscription = await getLatestActiveOrganizationSubscription({
-        organizationId: member.organization.id,
-      });
-      const currentPlan = parsePlanName(activeSubscription?.plan) ?? "free";
-      const planName = tSubscriptions(`Plans.${currentPlan}.name`);
+      try {
+        const activeSubscription =
+          await getLatestActiveOrganizationSubscription({
+            organizationId: member.organization.id,
+          });
+        const currentPlan = parsePlanName(activeSubscription?.plan) ?? "free";
+        const planName = tSubscriptions(`Plans.${currentPlan}.name`);
 
-      return [member.organization.id, planName] as const;
+        return [member.organization.id, planName] as const;
+      } catch (_error) {
+        return [member.organization.id, unavailablePlanLabel] as const;
+      }
     }),
   ]);
 
