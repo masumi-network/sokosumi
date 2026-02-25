@@ -7,19 +7,30 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { coworkerSchema } from "@/schemas/task.schema";
 
-import { requireCoworkerManagementAccess } from "../admin-guard";
-import { paramsSchema } from "./schema";
+import { requireAdminAuthContext } from "../../admin-guard";
+import { patchCoworkerWhitelistRequestSchema } from "../../schema";
+import { paramsSchema } from "../schema";
 
 const route = createRoute({
-  method: "delete",
-  path: "/{id}",
-  description: "Archive coworker and revoke active API keys",
+  method: "patch",
+  path: "/{id}/whitelist",
+  description: "Update coworker whitelist status (admin only)",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: patchCoworkerWhitelistRequestSchema,
+        },
+      },
+    },
   },
   responses: {
-    200: jsonSuccessResponse(coworkerSchema, "Archive coworker"),
+    200: jsonSuccessResponse(
+      coworkerSchema,
+      "Update coworker whitelist status",
+    ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -28,45 +39,37 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    await requireAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    await requireCoworkerManagementAccess(c.var.authContext, id);
+    const { isWhitelisted } = c.req.valid("json");
 
     const coworker = await prisma.$transaction(async (tx) => {
-      const archivedAt = new Date();
-
-      const archiveResult = await tx.coworker.updateMany({
+      const updatedCount = await tx.coworker.updateMany({
         where: {
           id,
           archivedAt: null,
         },
         data: {
-          archivedAt,
+          isWhitelisted,
         },
       });
 
-      if (archiveResult.count === 0) {
+      if (updatedCount.count === 0) {
         throw notFound("Coworker not found");
       }
 
-      await tx.coworkerApiKey.updateMany({
+      const updatedCoworker = await tx.coworker.findFirst({
         where: {
-          coworkerId: id,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: archivedAt,
+          id,
+          archivedAt: null,
         },
       });
 
-      const archived = await tx.coworker.findFirst({
-        where: { id },
-      });
-
-      if (!archived) {
+      if (!updatedCoworker) {
         throw notFound("Coworker not found");
       }
 
-      return archived;
+      return updatedCoworker;
     });
 
     return ok(c, coworkerSchema.parse(coworker));

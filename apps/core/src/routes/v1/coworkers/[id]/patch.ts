@@ -7,14 +7,14 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { coworkerSchema } from "@/schemas/task.schema";
 
-import { requireCoworkerAdminAuthContext } from "../admin-guard";
+import { requireCoworkerManagementAccess } from "../admin-guard";
 import { patchCoworkerRequestSchema } from "../schema";
 import { paramsSchema } from "./schema";
 
 const route = createRoute({
   method: "patch",
   path: "/{id}",
-  description: "Update coworker metadata (admin only)",
+  description: "Update coworker metadata",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -36,9 +36,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireCoworkerAdminAuthContext(c.var.authContext);
-
     const { id } = c.req.valid("param");
+    await requireCoworkerManagementAccess(c.var.authContext, id);
     const body = c.req.valid("json");
 
     const coworker = await prisma.$transaction(async (tx) => {
@@ -56,7 +55,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           email: body.email,
           description: body.description,
           image: body.image,
-          isWhitelisted: body.isWhitelisted,
         },
       });
 

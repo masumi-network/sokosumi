@@ -7,6 +7,7 @@ import mountPostCoworkerApiKey from "./[id]/api-keys/post.js";
 import mountDeleteCoworkerById from "./[id]/delete.js";
 import mountGetCoworkerById from "./[id]/get.js";
 import mountPatchCoworkerById from "./[id]/patch.js";
+import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch.js";
 import mountGetCoworkers from "./get.js";
 import mountGetCoworkerMeEvents from "./me/events/get.js";
 import mountGetCoworkerMe from "./me/get.js";
@@ -26,6 +27,7 @@ mountPatchCoworkerApiKey(app);
 mountDeleteCoworkerApiKey(app);
 mountGetCoworkerById(app);
 mountPatchCoworkerById(app);
+mountPatchCoworkerWhitelistById(app);
 mountDeleteCoworkerById(app);
 
 export default app;
