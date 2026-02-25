@@ -27,7 +27,10 @@ const route = createRoute({
     },
   },
   responses: {
-    200: jsonSuccessResponse(coworkerSchema, "Update coworker whitelist status"),
+    200: jsonSuccessResponse(
+      coworkerSchema,
+      "Update coworker whitelist status",
+    ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -44,7 +47,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedCount = await tx.coworker.updateMany({
         where: {
           id,
-          archivedAt: null,
         },
         data: {
           isWhitelisted,
