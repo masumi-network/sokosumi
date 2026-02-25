@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface Model {
@@ -27,6 +28,7 @@ interface CoworkerModelSelectorProps {
   selectedCoworker: Coworker | null;
   selectedModel?: Model | null;
   coworkers?: Coworker[];
+  coworkersLoading?: boolean;
   onSelectCoworker: (coworker: Coworker) => void;
   onSelectModel?: (model: Model | null) => void;
   disabled?: boolean;
@@ -51,10 +53,49 @@ function ModelIcon({
   );
 }
 
+function CoworkerAvatarWithSkeleton({
+  coworker,
+  getAvatarUrl,
+  className,
+}: {
+  coworker: Coworker;
+  getAvatarUrl: (c: Coworker) => string | null;
+  className?: string;
+}) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const src = getAvatarUrl(coworker) ?? undefined;
+
+  return (
+    <span className={cn("relative inline-block shrink-0", className)}>
+      {src && !imageLoaded && (
+        <Skeleton
+          className={cn("absolute inset-0 rounded-full", className)}
+          data-slot="avatar-skeleton"
+        />
+      )}
+      <Avatar className={cn(src && !imageLoaded && "opacity-0", className)}>
+        <AvatarImage
+          src={src}
+          alt={coworker.name}
+          onLoad={() => setImageLoaded(true)}
+          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+            e.currentTarget.style.display = "none";
+            setImageLoaded(true);
+          }}
+        />
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+          {coworker.name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+    </span>
+  );
+}
+
 export default function CoworkerModelSelector({
   selectedCoworker,
   selectedModel,
   coworkers: propCoworkers,
+  coworkersLoading,
   onSelectCoworker,
   onSelectModel,
   disabled = false,
@@ -112,6 +153,18 @@ export default function CoworkerModelSelector({
                 className="size-5 shrink-0"
               />
               <span className="hidden sm:inline">{selectedModel.name}</span>
+            </>
+          ) : coworkersLoading ? (
+            <>
+              <Skeleton
+                className="size-5 shrink-0 rounded-full"
+                data-slot="avatar-skeleton"
+              />
+              {selectedCoworker && (
+                <span className="hidden sm:inline">
+                  {selectedCoworker.name}
+                </span>
+              )}
             </>
           ) : selectedCoworker ? (
             <>
@@ -172,18 +225,11 @@ export default function CoworkerModelSelector({
                   selectedCoworker?.id === coworker.id && "bg-accent",
                 )}
               >
-                <Avatar className="size-6 shrink-0">
-                  <AvatarImage
-                    src={getCoworkerAvatarUrl(coworker) ?? undefined}
-                    alt={coworker.name}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {coworker.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <CoworkerAvatarWithSkeleton
+                  coworker={coworker}
+                  getAvatarUrl={getCoworkerAvatarUrl}
+                  className="size-6 shrink-0"
+                />
                 <span className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left">
                   <span>{coworker.name}</span>
                   {coworker.caption && (

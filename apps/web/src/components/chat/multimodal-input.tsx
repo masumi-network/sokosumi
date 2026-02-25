@@ -18,6 +18,7 @@ import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -55,7 +56,52 @@ interface MultimodalInputProps {
   showSuggestedActions?: boolean;
   coworker?: Coworker;
   coworkers?: Coworker[];
+  coworkersLoading?: boolean;
   onCoworkerChange?: (coworker: Coworker) => void;
+}
+
+function CoworkerAvatarWithSkeleton({
+  coworker,
+  getAvatarUrl,
+  className,
+}: {
+  coworker: Coworker;
+  getAvatarUrl: (c: Coworker) => string | null;
+  className?: string;
+}) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const src = getAvatarUrl(coworker) ?? undefined;
+
+  return (
+    <span className={cn("relative inline-block shrink-0", className)}>
+      {src && !imageLoaded && (
+        <Skeleton
+          className={cn("absolute inset-0 rounded-full", className)}
+          data-slot="avatar-skeleton"
+        />
+      )}
+      <Avatar
+        className={cn(
+          "border-background border-2 transition-transform hover:scale-110",
+          src && !imageLoaded && "opacity-0",
+          className,
+        )}
+      >
+        <AvatarImage
+          src={src}
+          alt={coworker.name}
+          onLoad={() => setImageLoaded(true)}
+          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+            e.currentTarget.style.display = "none";
+            setImageLoaded(true);
+          }}
+        />
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+          {coworker.name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+    </span>
+  );
 }
 
 function PureMultimodalInput({
@@ -74,6 +120,7 @@ function PureMultimodalInput({
   onSelectModel,
   selectedModel: propSelectedModel,
   coworkers: propCoworkers,
+  coworkersLoading: propCoworkersLoading,
   onCoworkerChange,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
@@ -264,60 +311,67 @@ function PureMultimodalInput({
             {t("introducingCoworkers")}
           </span>
           <div className="flex -space-x-2">
-            {coworkers.slice(0, 3).map((coworker: Coworker) => (
-              <Tooltip key={coworker.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="cursor-pointer"
-                    onClick={() => handleCoworkerSelect(coworker)}
-                  >
-                    <Avatar className="border-background size-[1.8rem] border-2 transition-transform hover:scale-110">
-                      <AvatarImage
-                        src={getCoworkerAvatarUrl(coworker) ?? undefined}
-                        alt={coworker.name}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {coworker.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent
-                  side="top"
-                  hideArrow
-                  className="bg-popover text-popover-foreground border-border max-w-xs rounded-lg border p-3"
-                >
-                  <div className="flex flex-col gap-2">
-                    <div>
-                      <h4 className="text-sm font-semibold">{coworker.name}</h4>
-                      <p className="text-muted-foreground text-xs">
-                        {coworker.description}
-                      </p>
-                      {coworker.useCase && (
-                        <p className="text-muted-foreground mt-1.5 text-xs italic">
-                          {coworker.useCase}
-                        </p>
-                      )}
-                    </div>
-                    <Button
+            {propCoworkersLoading ? (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <Skeleton
+                    key={i}
+                    className="size-[1.8rem] shrink-0 rounded-full"
+                    data-slot="avatar-skeleton"
+                  />
+                ))}
+              </>
+            ) : (
+              coworkers.slice(0, 3).map((coworker: Coworker) => (
+                <Tooltip key={coworker.id}>
+                  <TooltipTrigger asChild>
+                    <button
                       type="button"
-                      size="sm"
-                      variant="default"
+                      className="cursor-pointer"
                       onClick={() => handleCoworkerSelect(coworker)}
-                      className="w-full"
                     >
-                      {t("selectCoworker.selectButton", {
-                        coworker: coworker.name,
-                      })}
-                    </Button>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            ))}
+                      <CoworkerAvatarWithSkeleton
+                        coworker={coworker}
+                        getAvatarUrl={getCoworkerAvatarUrl}
+                        className="size-[1.8rem]"
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    hideArrow
+                    className="bg-popover text-popover-foreground border-border max-w-xs rounded-lg border p-3"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <div>
+                        <h4 className="text-sm font-semibold">
+                          {coworker.name}
+                        </h4>
+                        <p className="text-muted-foreground text-xs">
+                          {coworker.description}
+                        </p>
+                        {coworker.useCase && (
+                          <p className="text-muted-foreground mt-1.5 text-xs italic">
+                            {coworker.useCase}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleCoworkerSelect(coworker)}
+                        className="w-full"
+                      >
+                        {t("selectCoworker.selectButton", {
+                          coworker: coworker.name,
+                        })}
+                      </Button>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -356,6 +410,7 @@ function PureMultimodalInput({
               selectedCoworker={selectedCoworker}
               selectedModel={selectedModel}
               coworkers={coworkers}
+              coworkersLoading={propCoworkersLoading}
               onSelectCoworker={handleCoworkerSelect}
               onSelectModel={handleModelSelect}
               disabled={!!chatId}
@@ -391,6 +446,9 @@ export const MultimodalInput = memo(
     }
     // Re-render when coworkers change so avatar URLs from API are shown
     if (prevProps.coworkers !== nextProps.coworkers) {
+      return false;
+    }
+    if (prevProps.coworkersLoading !== nextProps.coworkersLoading) {
       return false;
     }
 
