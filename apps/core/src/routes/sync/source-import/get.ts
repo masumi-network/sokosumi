@@ -11,7 +11,6 @@ export default function mount(app: Hono) {
     return await handleSyncRequest(c, SOURCE_IMPORT_SYNC_LOCK_KEY, async () => {
       console.info("[sync/source-import] Importing pending source imports");
       const startedAt = Date.now();
-
       const pendingBlobCount =
         await sourceImportSyncService.importPendingResultBlobs();
 

@@ -6,6 +6,7 @@ import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
 
 type SyncOperation = () => Promise<void>;
+const MIN_SYNC_TIMEOUT_MS = 1000;
 
 function unauthorizedResponse(message: string): Response {
   return new Response(JSON.stringify({ message }), {
@@ -52,6 +53,35 @@ async function releaseOwnedLock(lock: AcquiredSyncLock): Promise<void> {
   }
 }
 
+function getSyncTimeoutMs(): number {
+  const env = getEnv();
+  const timeoutMs = env.LOCK_TIMEOUT - env.LOCK_TIMEOUT_BUFFER;
+  return Math.max(timeoutMs, MIN_SYNC_TIMEOUT_MS);
+}
+
+async function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<T> {
+  return await new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+
+    operation.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
+
 /**
  * Returns a promise that runs the sync operation and releases
  * the lock when done. Pass this to Vercel's waitUntil() so the serverless
@@ -63,7 +93,12 @@ function runBackgroundSync(
 ): Promise<void> {
   return (async () => {
     try {
-      await syncOperation();
+      const timeoutMs = getSyncTimeoutMs();
+      await withTimeout(
+        syncOperation(),
+        timeoutMs,
+        `[sync/${lock.key}] Timed out after ${timeoutMs}ms before lock expiration`,
+      );
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
