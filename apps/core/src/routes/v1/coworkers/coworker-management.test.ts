@@ -297,7 +297,7 @@ describe("coworker management CRUD endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(coworkerFindFirstAuthMock).toHaveBeenCalledWith({
-      where: { id: "cow_123" },
+      where: { id: "cow_123", archivedAt: null },
       select: { id: true, userId: true },
     });
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith(
@@ -434,7 +434,7 @@ describe("coworker management CRUD endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(coworkerFindFirstAuthMock).toHaveBeenCalledWith({
-      where: { id: "cow_123" },
+      where: { id: "cow_123", archivedAt: null },
       select: { id: true, userId: true },
     });
     expect(coworkerUpdateManyMock).toHaveBeenCalledWith({

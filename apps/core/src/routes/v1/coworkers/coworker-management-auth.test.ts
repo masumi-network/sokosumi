@@ -140,7 +140,7 @@ describe("coworker management endpoints auth guard", () => {
       expect(response.status).toBe(403);
       if (restriction === "creator-or-admin") {
         expect(coworkerFindFirstMock).toHaveBeenCalledWith({
-          where: { id: "cow_123" },
+          where: { id: "cow_123", archivedAt: null },
           select: { id: true, userId: true },
         });
       }
