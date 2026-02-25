@@ -9,7 +9,7 @@ import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
 function isSokosumiLink(href: string | undefined): boolean {
   if (!href || href.startsWith("#")) return true;
-  if (href.startsWith("/")) return true;
+  if (href.startsWith("/") && !href.startsWith("//")) return true;
   try {
     const url = new URL(href, "https://sokosumi.com");
     const host = url.hostname.toLowerCase();
