@@ -77,23 +77,41 @@ function splitAmountEvenly(params: {
     .filter((allocation) => allocation.amount > 0n);
 }
 
-async function getLegacyOrganizationIds(): Promise<string[]> {
+async function getLegacyOrganizationIds(
+  migrationTime: Date,
+): Promise<string[]> {
   const organizations = await prisma.creditBucket.findMany({
     where: {
       organizationId: {
         not: null,
       },
       referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      OR: [
+      AND: [
         {
-          referenceId: null,
+          OR: [
+            {
+              expiresAt: null,
+            },
+            {
+              expiresAt: {
+                gt: migrationTime,
+              },
+            },
+          ],
         },
         {
-          referenceId: {
-            not: {
-              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+          OR: [
+            {
+              referenceId: null,
             },
-          },
+            {
+              referenceId: {
+                not: {
+                  startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -113,6 +131,7 @@ async function getLegacyOrganizationIds(): Promise<string[]> {
 
 async function getLegacyBucketsForOrganization(params: {
   organizationId: string;
+  migrationTime: Date;
   tx: Prisma.TransactionClient;
 }): Promise<LegacyBucketWithAvailable[]> {
   return params.tx.$queryRaw<LegacyBucketWithAvailable[]>`
@@ -125,6 +144,7 @@ async function getLegacyBucketsForOrganization(params: {
     LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
     WHERE cb."organizationId" = ${params.organizationId}
       AND cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+      AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${params.migrationTime})
       AND (
         cb."referenceId" IS NULL
         OR cb."referenceId" NOT LIKE ${`${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%`}
@@ -157,6 +177,7 @@ async function migrateOrganization(params: {
 
       const legacyBuckets = await getLegacyBucketsForOrganization({
         organizationId: params.organizationId,
+        migrationTime: params.migrationTime,
         tx,
       });
 
@@ -282,7 +303,7 @@ async function main() {
     `Starting split_org_subscription_wallets data migration at ${migrationTime.toISOString()}`,
   );
 
-  const organizationIds = await getLegacyOrganizationIds();
+  const organizationIds = await getLegacyOrganizationIds(migrationTime);
   console.log(
     `Found ${organizationIds.length} organizations with legacy subscription buckets`,
   );

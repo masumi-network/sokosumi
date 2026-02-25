@@ -652,22 +652,44 @@ export async function handleInvoicePaidEvent(
       oneTimeTopUpCredits > 0 ? `${invoiceId}:subscription` : invoiceId;
 
     if (organizationId) {
-      const splitGrants = splitCreditsByMember({
-        memberUserIds: organizationMemberUserIds,
-        totalCredits: subscriptionCredits,
-      });
-
-      for (const splitGrant of splitGrants) {
-        creditGrants.push({
-          credits: splitGrant.credits,
-          expiresAt: subscriptionCreditsExpiry,
-          referenceId: buildOrganizationMemberSubscriptionReferenceId(
-            splitGrant.userId,
-            subscriptionReferenceSuffix,
-          ),
-          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-          userId: splitGrant.userId,
+      const existingOrganizationSubscriptionGrants =
+        await prisma.creditBucket.findMany({
+          where: {
+            organizationId,
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+            referenceId: {
+              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+              endsWith: `:${subscriptionReferenceSuffix}`,
+            },
+          },
+          select: {
+            id: true,
+          },
+          take: 1,
         });
+
+      if (existingOrganizationSubscriptionGrants.length > 0) {
+        console.log(
+          `✅ Organization subscription buckets already exist for invoice ${invoiceId}; skipping replay split`,
+        );
+      } else {
+        const splitGrants = splitCreditsByMember({
+          memberUserIds: organizationMemberUserIds,
+          totalCredits: subscriptionCredits,
+        });
+
+        for (const splitGrant of splitGrants) {
+          creditGrants.push({
+            credits: splitGrant.credits,
+            expiresAt: subscriptionCreditsExpiry,
+            referenceId: buildOrganizationMemberSubscriptionReferenceId(
+              splitGrant.userId,
+              subscriptionReferenceSuffix,
+            ),
+            referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+            userId: splitGrant.userId,
+          });
+        }
       }
     } else {
       creditGrants.push({
