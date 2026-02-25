@@ -54,13 +54,17 @@ export type ChatModelId = (typeof CHAT_MODELS)[number]["id"];
 
 export const DEFAULT_CHAT_MODEL_ID: ChatModelId = "gpt-5-2";
 
-const CHAT_MODEL_MAP = new Map<string, string>(
-  CHAT_MODELS.map((model) => [model.id, model.openRouterId]),
-);
-
-const CHAT_MODEL_BY_ID = new Map<string, ChatModel>(
-  CHAT_MODELS.map((model) => [model.id, model]),
-);
+const CHAT_MODEL_MAP = new Map<string, string>([
+  ...CHAT_MODELS.map((model) => [model.id, model.openRouterId] as const),
+  ["gpt4o", "openai/gpt-4o"],
+  ["gpt-4o", "openai/gpt-4o"],
+  ["gpt-4o-mini", "openai/gpt-4o-mini"],
+  ["gpt-4", "openai/gpt-4"],
+  ["gemini-2.0-flash", "google/gemini-2.0-flash-001"],
+  ["gemini-2.5-pro", "google/gemini-2.5-pro"],
+  ["mixtral-8x22b", "mistralai/mixtral-8x22b-instruct"],
+  ["mixtral-8x7b", "mistralai/mixtral-8x7b-instruct"],
+]);
 
 function getDefaultOpenRouterModelId(): string {
   const defaultModel = CHAT_MODELS.find(
@@ -76,14 +80,4 @@ export function getModelIdentifier(modelId: string | null): string {
   }
 
   return CHAT_MODEL_MAP.get(modelId) ?? getDefaultOpenRouterModelId();
-}
-
-export function getChatModelById(
-  modelId: string | null | undefined,
-): ChatModel | null {
-  if (!modelId) {
-    return null;
-  }
-
-  return CHAT_MODEL_BY_ID.get(modelId) ?? null;
 }

@@ -79,7 +79,10 @@ function buildChatGroups(
       (meta?.coworker_id as string | undefined) ??
       (meta?.coworkerId as string | undefined) ??
       null;
-    const coworkerName = (meta?.coworker_name as string | undefined) ?? null;
+    const coworkerName =
+      (meta?.coworker_name as string | undefined) ??
+      (meta?.coworkerName as string | undefined) ??
+      null;
     const isCoworkerConversation = key.startsWith("coworker:");
     const displayName = isCoworkerConversation
       ? (coworkerName ?? untitledLabel)
