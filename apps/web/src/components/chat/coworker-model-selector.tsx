@@ -8,6 +8,7 @@ import { useState } from "react";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
+import { CoworkerAvatarWithSkeleton } from "@/components/chat/coworker-avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,41 +51,6 @@ function ModelIcon({
       size={18}
       className={cn("size-5 shrink-0", className)}
     />
-  );
-}
-
-function CoworkerAvatarWithSkeleton({
-  coworker,
-  getAvatarUrl,
-  className,
-}: {
-  coworker: Coworker;
-  getAvatarUrl: (c: Coworker) => string | null;
-  className?: string;
-}) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const src = getAvatarUrl(coworker) ?? undefined;
-
-  return (
-    <span className={cn("relative inline-block shrink-0", className)}>
-      {src && !imageLoaded && (
-        <Skeleton className={cn("absolute inset-0 rounded-full", className)} />
-      )}
-      <Avatar className={cn(src && !imageLoaded && "opacity-0", className)}>
-        <AvatarImage
-          src={src}
-          alt={coworker.name}
-          onLoad={() => setImageLoaded(true)}
-          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-            e.currentTarget.style.display = "none";
-            setImageLoaded(true);
-          }}
-        />
-        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-          {coworker.name.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    </span>
   );
 }
 

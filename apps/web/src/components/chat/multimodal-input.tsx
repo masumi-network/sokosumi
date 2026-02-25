@@ -16,7 +16,6 @@ import { toast } from "sonner";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+import { CoworkerAvatarWithSkeleton } from "./coworker-avatar";
 import CoworkerModelSelector from "./coworker-model-selector";
 import { ArrowUpIcon, StopIcon } from "./icons";
 import {
@@ -58,47 +58,6 @@ interface MultimodalInputProps {
   coworkers?: Coworker[];
   coworkersLoading?: boolean;
   onCoworkerChange?: (coworker: Coworker) => void;
-}
-
-function CoworkerAvatarWithSkeleton({
-  coworker,
-  getAvatarUrl,
-  className,
-}: {
-  coworker: Coworker;
-  getAvatarUrl: (c: Coworker) => string | null;
-  className?: string;
-}) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const src = getAvatarUrl(coworker) ?? undefined;
-
-  return (
-    <span className={cn("relative inline-block shrink-0", className)}>
-      {src && !imageLoaded && (
-        <Skeleton className={cn("absolute inset-0 rounded-full", className)} />
-      )}
-      <Avatar
-        className={cn(
-          "border-background border-2 transition-transform hover:scale-110",
-          src && !imageLoaded && "opacity-0",
-          className,
-        )}
-      >
-        <AvatarImage
-          src={src}
-          alt={coworker.name}
-          onLoad={() => setImageLoaded(true)}
-          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-            e.currentTarget.style.display = "none";
-            setImageLoaded(true);
-          }}
-        />
-        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-          {coworker.name.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    </span>
-  );
 }
 
 function PureMultimodalInput({
@@ -330,6 +289,7 @@ function PureMultimodalInput({
                         coworker={coworker}
                         getAvatarUrl={getCoworkerAvatarUrl}
                         className="size-[1.8rem]"
+                        avatarClassName="border-background border-2 transition-transform hover:scale-110"
                       />
                     </button>
                   </TooltipTrigger>
