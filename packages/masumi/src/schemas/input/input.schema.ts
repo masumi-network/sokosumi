@@ -596,3 +596,41 @@ export const inputSchema = z.record(
 );
 
 export type InputSchemaType = z.infer<typeof inputSchema>;
+
+/**
+ * Normalize an unknown payload into a validated InputSchemaSchemaType.
+ *
+ * Handles three shapes that agents may return:
+ *  - An object with `input_data` or `input_groups` (pass-through validation)
+ *  - An array of input groups (wrapped as `{ input_groups }`)
+ *  - An array of input fields (wrapped as `{ input_data }`)
+ *
+ * Returns `null` when the payload doesn't match any recognised shape.
+ */
+export function normalizeAndValidateInputSchema(
+  parsed: unknown,
+): InputSchemaSchemaType | null {
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const objectResult = inputSchemaSchema.safeParse(parsed);
+    if (objectResult.success) {
+      return objectResult.data;
+    }
+    return null;
+  }
+
+  if (Array.isArray(parsed)) {
+    const groupedResult = inputGroupsSchema.safeParse(parsed);
+    if (groupedResult.success) {
+      return { input_groups: groupedResult.data };
+    }
+
+    const fieldsResult = inputFieldsSchema.safeParse(parsed);
+    if (fieldsResult.success) {
+      return { input_data: fieldsResult.data };
+    }
+
+    return null;
+  }
+
+  return null;
+}

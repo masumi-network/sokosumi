@@ -3,12 +3,10 @@ import { type JobSchedule, ScheduleType } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import {
-  inputFieldsSchema,
-  inputGroupsSchema,
   inputSchema as inputDataSchema,
-  inputSchemaSchema,
   type InputSchemaSchemaType,
   type InputSchemaType,
+  normalizeAndValidateInputSchema,
 } from "@sokosumi/masumi/schemas";
 import pLimit from "p-limit";
 
@@ -59,34 +57,6 @@ function shouldStopSync(
   }
 
   return false;
-}
-
-function normalizeAndValidateInputSchema(
-  parsed: unknown,
-): InputSchemaSchemaType | null {
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const objectResult = inputSchemaSchema.safeParse(parsed);
-    if (objectResult.success) {
-      return objectResult.data;
-    }
-    return null;
-  }
-
-  if (Array.isArray(parsed)) {
-    const groupedResult = inputGroupsSchema.safeParse(parsed);
-    if (groupedResult.success) {
-      return { input_groups: groupedResult.data };
-    }
-
-    const fieldsResult = inputFieldsSchema.safeParse(parsed);
-    if (fieldsResult.success) {
-      return { input_data: fieldsResult.data };
-    }
-
-    return null;
-  }
-
-  return null;
 }
 
 function parseSchedulePayload(schedule: JobSchedule): {

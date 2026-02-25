@@ -22,6 +22,7 @@ import {
   InputTimeSchemaType,
   InputUrlSchemaType,
   InputWeekSchemaType,
+  normalizeAndValidateInputSchema,
 } from "../input.schema.js";
 
 describe("inputDataSchema", () => {
@@ -805,5 +806,68 @@ describe("inputDataSchema", () => {
       });
       expect(result.success).toBe(false);
     });
+  });
+});
+
+describe("normalizeAndValidateInputSchema", () => {
+  const validField = {
+    id: "f1",
+    type: InputType.STRING,
+    name: "Field",
+  };
+
+  it("should accept a valid object with input_data", () => {
+    const result = normalizeAndValidateInputSchema({
+      input_data: [validField],
+    });
+    expect(result).not.toBeNull();
+    expect(result).toHaveProperty("input_data");
+  });
+
+  it("should accept a valid object with input_groups", () => {
+    const result = normalizeAndValidateInputSchema({
+      input_groups: [{ id: "g1", title: "Group", input_data: [validField] }],
+    });
+    expect(result).not.toBeNull();
+    expect(result).toHaveProperty("input_groups");
+  });
+
+  it("should return null for an invalid object", () => {
+    const result = normalizeAndValidateInputSchema({ bad: true });
+    expect(result).toBeNull();
+  });
+
+  it("should wrap an array of groups as { input_groups }", () => {
+    const groups = [{ id: "g1", title: "Group", input_data: [validField] }];
+    const result = normalizeAndValidateInputSchema(groups);
+    expect(result).not.toBeNull();
+    expect(result).toHaveProperty("input_groups");
+  });
+
+  it("should wrap an array of fields as { input_data }", () => {
+    const result = normalizeAndValidateInputSchema([validField]);
+    expect(result).not.toBeNull();
+    expect(result).toHaveProperty("input_data");
+  });
+
+  it("should return null for an array that matches neither shape", () => {
+    const result = normalizeAndValidateInputSchema([{ bad: true }]);
+    expect(result).toBeNull();
+  });
+
+  it("should return null for null input", () => {
+    expect(normalizeAndValidateInputSchema(null)).toBeNull();
+  });
+
+  it("should return null for undefined input", () => {
+    expect(normalizeAndValidateInputSchema(undefined)).toBeNull();
+  });
+
+  it("should return null for a string input", () => {
+    expect(normalizeAndValidateInputSchema("hello")).toBeNull();
+  });
+
+  it("should return null for a number input", () => {
+    expect(normalizeAndValidateInputSchema(42)).toBeNull();
   });
 });
