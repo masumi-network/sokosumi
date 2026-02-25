@@ -52,6 +52,7 @@ export async function requireCoworkerManagementAccess(
   const coworker = await prisma.coworker.findFirst({
     where: {
       id: coworkerId,
+      archivedAt: null,
     },
     select: {
       id: true,
