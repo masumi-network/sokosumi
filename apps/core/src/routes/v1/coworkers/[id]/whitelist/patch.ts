@@ -47,6 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedCount = await tx.coworker.updateMany({
         where: {
           id,
+          archivedAt: null,
         },
         data: {
           isWhitelisted,
@@ -60,6 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedCoworker = await tx.coworker.findFirst({
         where: {
           id,
+          archivedAt: null,
         },
       });
 
