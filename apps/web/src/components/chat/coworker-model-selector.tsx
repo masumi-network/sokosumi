@@ -8,6 +8,7 @@ import { useState } from "react";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
+import { CoworkerAvatarWithSkeleton } from "@/components/chat/coworker-avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface Model {
@@ -27,6 +29,7 @@ interface CoworkerModelSelectorProps {
   selectedCoworker: Coworker | null;
   selectedModel?: Model | null;
   coworkers?: Coworker[];
+  coworkersLoading?: boolean;
   onSelectCoworker: (coworker: Coworker) => void;
   onSelectModel?: (model: Model | null) => void;
   disabled?: boolean;
@@ -55,6 +58,7 @@ export default function CoworkerModelSelector({
   selectedCoworker,
   selectedModel,
   coworkers: propCoworkers,
+  coworkersLoading,
   onSelectCoworker,
   onSelectModel,
   disabled = false,
@@ -112,6 +116,15 @@ export default function CoworkerModelSelector({
                 className="size-5 shrink-0"
               />
               <span className="hidden sm:inline">{selectedModel.name}</span>
+            </>
+          ) : coworkersLoading ? (
+            <>
+              <Skeleton className="size-5 shrink-0 rounded-full" />
+              {selectedCoworker && (
+                <span className="hidden sm:inline">
+                  {selectedCoworker.name}
+                </span>
+              )}
             </>
           ) : selectedCoworker ? (
             <>
@@ -172,18 +185,11 @@ export default function CoworkerModelSelector({
                   selectedCoworker?.id === coworker.id && "bg-accent",
                 )}
               >
-                <Avatar className="size-6 shrink-0">
-                  <AvatarImage
-                    src={getCoworkerAvatarUrl(coworker) ?? undefined}
-                    alt={coworker.name}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {coworker.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <CoworkerAvatarWithSkeleton
+                  coworker={coworker}
+                  getAvatarUrl={getCoworkerAvatarUrl}
+                  className="size-6 shrink-0"
+                />
                 <span className="flex min-w-0 flex-1 flex-col items-start gap-0 text-left">
                   <span>{coworker.name}</span>
                   {coworker.caption && (

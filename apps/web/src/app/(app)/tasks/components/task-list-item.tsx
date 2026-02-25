@@ -10,9 +10,14 @@ import { TaskStatusBadge } from "./task-status-badge";
 interface TaskListItemProps {
   task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
+  isOverlay?: boolean;
 }
 
-export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
+export function TaskListItem({
+  task,
+  dragHandleProps,
+  isOverlay = false,
+}: TaskListItemProps) {
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -22,7 +27,10 @@ export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
 
   return (
     <div
-      className={cn("group", dragHandleProps?.isDragging && "opacity-60")}
+      className={cn(
+        "group",
+        (dragHandleProps?.isDragging || isOverlay) && "opacity-60",
+      )}
       {...handleProps}
     >
       <Link
@@ -32,7 +40,7 @@ export function TaskListItem({ task, dragHandleProps }: TaskListItemProps) {
           "-mx-2 rounded-lg px-4 py-3 transition-colors",
           "hover:bg-muted/50",
           "active:scale-[0.995]",
-          dragHandleProps?.isDragging && "bg-muted/70 shadow-sm",
+          (dragHandleProps?.isDragging || isOverlay) && "bg-muted/70 shadow-sm",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">

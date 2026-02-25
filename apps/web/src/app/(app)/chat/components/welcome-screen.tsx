@@ -23,6 +23,7 @@ interface WelcomeScreenProps {
   status: "ready" | "streaming" | "submitted" | "error";
   stop: () => void;
   coworkers?: Coworker[];
+  coworkersLoading?: boolean;
   initialCoworker?: Coworker;
   onCoworkerChange?: (coworker: Coworker) => void;
   selectedModel?: { id: string; name: string } | null;
@@ -40,6 +41,7 @@ export default function WelcomeScreen({
   status,
   stop,
   coworkers,
+  coworkersLoading,
   initialCoworker,
   onCoworkerChange,
   selectedModel,
@@ -66,7 +68,7 @@ export default function WelcomeScreen({
 
   return (
     <div className="relative flex h-full w-full flex-col">
-      <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center px-8 text-center">
+      <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center text-center">
         <div className="welcome-message-block transition-all duration-300 ease-out">
           <h1 className="mb-2 text-3xl font-medium">
             {userName
@@ -116,7 +118,7 @@ export default function WelcomeScreen({
           </div>
         )}
       </div>
-      <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 flex shrink-0 justify-center px-4 py-2 backdrop-blur-sm">
+      <div className="bg-background/80 absolute bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center backdrop-blur-sm">
         <div className="w-full">
           <MultimodalInput
             input={input}
@@ -129,6 +131,7 @@ export default function WelcomeScreen({
             onSendMessage={onSendMessage}
             showSuggestedActions={true}
             coworkers={coworkers}
+            coworkersLoading={coworkersLoading}
             coworker={initialCoworker}
             onCoworkerChange={onCoworkerChange}
             selectedModel={selectedModel ?? undefined}
