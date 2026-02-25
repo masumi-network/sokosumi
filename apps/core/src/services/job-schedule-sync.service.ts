@@ -234,7 +234,10 @@ async function processSchedule(
         };
       }
 
-      const jobsCount = await jobScheduleRepository.countJobs(schedule.id, prisma);
+      const jobsCount = await jobScheduleRepository.countJobs(
+        schedule.id,
+        prisma,
+      );
       if (
         schedule.endAfterOccurrences &&
         jobsCount >= schedule.endAfterOccurrences

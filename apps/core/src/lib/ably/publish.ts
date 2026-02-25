@@ -43,7 +43,9 @@ export async function publishJobStatusData({
   jobStatusSettled,
 }: PublishJobStatusDataInput) {
   const client = getRestClient();
-  const channel = client.channels.get(makeAgentJobsChannelName(agentId, userId));
+  const channel = client.channels.get(
+    makeAgentJobsChannelName(agentId, userId),
+  );
   await channel.publish("job_status_data", {
     jobId,
     jobStatus,
