@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 
 const INTRO_STEP_COUNT = 4;
