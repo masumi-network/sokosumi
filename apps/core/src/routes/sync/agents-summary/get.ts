@@ -11,8 +11,11 @@ export default function mount(app: Hono) {
     return await handleSyncRequest(
       c,
       AGENTS_SUMMARY_SYNC_LOCK_KEY,
-      async () => {
-        await agentSyncService.syncAgentSummaries();
+      async (context) => {
+        await agentSyncService.syncAgentSummaries({
+          abortSignal: context.abortSignal,
+          shouldContinue: context.shouldContinue,
+        });
       },
     );
   });
