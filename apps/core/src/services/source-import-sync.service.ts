@@ -1,6 +1,5 @@
 import { BlobStatus } from "@sokosumi/database";
 import { head, put } from "@vercel/blob";
-import pLimit from "p-limit";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -187,17 +186,24 @@ async function importPendingResultBlobs(
     orderBy: { createdAt: "asc" },
   });
 
-  const limit = pLimit(MAX_CONCURRENT_IMPORTS);
-  const runningImports = pendingBlobs.map((blob) =>
-    limit(async () => {
-      if (!shouldContinueSync(options)) {
-        return;
-      }
+  let nextPendingBlobIndex = 0;
+  const workerCount = Math.min(MAX_CONCURRENT_IMPORTS, pendingBlobs.length);
+  const workers = Array.from({ length: workerCount }, () =>
+    (async () => {
+      while (shouldContinueSync(options)) {
+        const blob = pendingBlobs[nextPendingBlobIndex];
+        nextPendingBlobIndex += 1;
 
-      await importBlob(blob.id, options);
-    }),
+        if (!blob) {
+          return;
+        }
+
+        await importBlob(blob.id, options);
+      }
+    })(),
   );
-  await Promise.allSettled(runningImports);
+
+  await Promise.allSettled(workers);
 
   return pendingBlobs.length;
 }

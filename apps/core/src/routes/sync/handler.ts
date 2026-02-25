@@ -44,19 +44,20 @@ function authenticateCronSecret(c: Context): Response | null {
   return null;
 }
 
-async function releaseOwnedLock(lock: AcquiredSyncLock): Promise<void> {
+type LockReleaseResult = "released" | "ownership-changed" | "error";
+
+async function releaseOwnedLock(
+  lock: AcquiredSyncLock,
+): Promise<LockReleaseResult> {
   try {
     const isReleased = await syncLockService.releaseLock(
       lock.key,
       lock.ownerToken,
     );
-    if (!isReleased) {
-      console.error(
-        `Lock release skipped because ownership changed for lock key "${lock.key}"`,
-      );
-    }
+    return isReleased ? "released" : "ownership-changed";
   } catch (error) {
     console.error("Failed to unlock lock:", error);
+    return "error";
   }
 }
 
@@ -116,8 +117,16 @@ function runBackgroundSync(
       console.error("Error in sync operation:", error);
     } finally {
       clearTimeout(cancellationTimeout);
-      await releaseOwnedLock(lock);
-      console.info(`[sync/${lock.key}] Lock released`);
+      const releaseResult = await releaseOwnedLock(lock);
+      if (releaseResult === "released") {
+        console.info(`[sync/${lock.key}] Lock released`);
+      } else if (releaseResult === "ownership-changed") {
+        console.warn(
+          `[sync/${lock.key}] Lock not released because ownership changed`,
+        );
+      } else {
+        console.warn(`[sync/${lock.key}] Lock release failed`);
+      }
     }
   })();
 }
