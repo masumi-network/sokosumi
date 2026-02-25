@@ -191,22 +191,6 @@ export async function requireCoworkerTaskAccess(
   return task;
 }
 
-export async function requireCoworkerExists(
-  coworkerId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const coworker = await tx.coworker.findFirst({
-    where: {
-      id: coworkerId,
-    },
-    select: { id: true },
-  });
-
-  if (!coworker) {
-    throw notFound("Coworker not found");
-  }
-}
-
 export async function requireAssignableCoworker(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
