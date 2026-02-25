@@ -60,7 +60,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const updatedCoworker = await tx.coworker.findFirst({
         where: {
           id,
-          archivedAt: null,
         },
       });
 
