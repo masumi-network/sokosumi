@@ -28,7 +28,7 @@ export function KanbanBoard({
   isDragEnabled = true,
 }: KanbanBoardProps) {
   return (
-    <div className="-mx-2 flex items-stretch gap-3 overflow-x-auto px-2 pb-4">
+    <div className="-mx-2 flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4">
       {columns.map((column, index) => {
         const columnTasks = tasks.filter((task) => task.columnId === column.id);
         const isFirstColumn = index === 0;
@@ -68,7 +68,7 @@ export function KanbanBoard({
           <DroppableColumn
             key={column.id}
             id={column.id}
-            className="flex flex-1"
+            className="flex h-full min-h-0 flex-1"
           >
             {columnContent}
           </DroppableColumn>
