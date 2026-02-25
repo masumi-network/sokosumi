@@ -1,13 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useFormatter, useTranslations } from "next-intl";
-import { type SyntheticEvent } from "react";
 
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { useStreamingPaused } from "@/app/chat/hooks/use-streaming-paused";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
-import { getModelImageUrl } from "@/app/chat/utils/model-utils";
+import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -58,39 +56,13 @@ export default function ChatMessage({
   const getAssistantAvatar = () => {
     // If it's a model conversation, show model logo
     if (modelId) {
-      const modelImageUrls = getModelImageUrl(modelId);
-      if (modelImageUrls) {
-        const alt = modelName || t("modelAlt");
-        return (
-          <>
-            <Image
-              src={modelImageUrls.light}
-              alt={alt}
-              width={32}
-              height={32}
-              className="block size-full object-contain p-0.5 dark:hidden"
-              onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-            <Image
-              src={modelImageUrls.dark}
-              alt={alt}
-              width={32}
-              height={32}
-              className="hidden size-full object-contain p-0.5 dark:block"
-              onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          </>
-        );
-      }
-      // Fallback to model name initial
       return (
-        <AvatarFallback className="bg-primary text-primary-foreground">
-          {modelName ? modelName.charAt(0).toUpperCase() : "M"}
-        </AvatarFallback>
+        <ChatModelIcon
+          modelId={modelId}
+          modelName={modelName ?? t("modelAlt")}
+          size={28}
+          className="size-full p-0.5"
+        />
       );
     }
 

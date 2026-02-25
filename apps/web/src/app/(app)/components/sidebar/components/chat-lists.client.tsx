@@ -1,19 +1,18 @@
 "use client";
 
 import { MessageSquare } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type SyntheticEvent, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import {
   displaySlugFromMetadata,
   getBucketKeyFromMetadata,
   slugify,
 } from "@/app/chat/utils/bucket-slug";
-import { getModelImageUrl } from "@/app/chat/utils/model-utils";
 import type { Coworker } from "@/app/chat/utils/types";
+import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Collapsible,
@@ -66,19 +65,36 @@ function buildChatGroups(
   for (const conv of conversations) {
     const meta = (conv.metadata as Record<string, unknown> | null) ?? null;
     const key = getBucketKeyFromMetadata(meta);
-    const modelId = (meta?.model_id as string | undefined) ?? null;
-    const modelName = (meta?.model_name as string | undefined) ?? null;
-    const coworkerId = (meta?.coworker_id as string | undefined) ?? null;
-    const coworkerName = (meta?.coworker_name as string | undefined) ?? null;
-    const displayName = modelName ?? coworkerName ?? untitledLabel;
+    const modelId =
+      (meta?.model_id as string | undefined) ??
+      (meta?.modelId as string | undefined) ??
+      null;
+    const modelName =
+      (meta?.model_name as string | undefined) ??
+      (meta?.modelName as string | undefined) ??
+      null;
+    const coworkerId =
+      (meta?.coworker_slug as string | undefined) ??
+      (meta?.coworkerSlug as string | undefined) ??
+      (meta?.coworker_id as string | undefined) ??
+      (meta?.coworkerId as string | undefined) ??
+      null;
+    const coworkerName =
+      (meta?.coworker_name as string | undefined) ??
+      (meta?.coworkerName as string | undefined) ??
+      null;
+    const isCoworkerConversation = key.startsWith("coworker:");
+    const displayName = isCoworkerConversation
+      ? (coworkerName ?? untitledLabel)
+      : (modelName ?? untitledLabel);
 
     let entry = byKey.get(key);
     if (!entry) {
       entry = {
         displayName,
-        modelId,
-        modelName,
-        coworkerId,
+        modelId: isCoworkerConversation ? null : modelId,
+        modelName: isCoworkerConversation ? null : modelName,
+        coworkerId: isCoworkerConversation ? coworkerId : null,
         coworkerName,
         conversations: [],
       };
@@ -265,46 +281,12 @@ function GroupAvatar({ group, coworkers, t, isActive }: GroupAvatarProps) {
       )}
     >
       {modelId ? (
-        (() => {
-          const modelImageUrls = getModelImageUrl(modelId);
-          if (modelImageUrls) {
-            const alt = modelName || t("modelAlt");
-            return (
-              <>
-                <Image
-                  src={modelImageUrls.light}
-                  alt={alt}
-                  width={32}
-                  height={32}
-                  className="block size-full object-contain p-0.5 dark:hidden"
-                  onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-                <Image
-                  src={modelImageUrls.dark}
-                  alt={alt}
-                  width={32}
-                  height={32}
-                  className="hidden size-full object-contain p-0.5 dark:block"
-                  onError={(e: SyntheticEvent<HTMLImageElement, Event>) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-              </>
-            );
-          }
-          return (
-            <AvatarFallback
-              className={cn(
-                "bg-primary text-primary-foreground text-xs",
-                isActive && "bg-primary-foreground text-primary",
-              )}
-            >
-              {modelName ? modelName.charAt(0).toUpperCase() : "M"}
-            </AvatarFallback>
-          );
-        })()
+        <ChatModelIcon
+          modelId={modelId}
+          modelName={modelName ?? t("modelAlt")}
+          size={20}
+          className="size-full p-0.5"
+        />
       ) : coworkerId ? (
         (() => {
           const coworkerFromList = coworkers.find(
