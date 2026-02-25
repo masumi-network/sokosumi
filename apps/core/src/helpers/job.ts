@@ -83,6 +83,7 @@ async function createPaidJob(
     inputSchema: InputFieldSchemaType[];
     name: string | null;
     taskId?: string | null;
+    jobScheduleId?: string | null;
   },
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
@@ -107,6 +108,9 @@ async function createPaidJob(
       }),
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
+      }),
+      ...(input.jobScheduleId && {
+        jobSchedule: { connect: { id: input.jobScheduleId } },
       }),
       events: {
         create: {
@@ -170,6 +174,7 @@ async function createFreeJob(
     inputSchema: InputFieldSchemaType[];
     name: string | null;
     taskId?: string | null;
+    jobScheduleId?: string | null;
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
@@ -185,6 +190,9 @@ async function createFreeJob(
       }),
       ...(input.taskId && {
         task: { connect: { id: input.taskId } },
+      }),
+      ...(input.jobScheduleId && {
+        jobSchedule: { connect: { id: input.jobScheduleId } },
       }),
       events: {
         create: {
@@ -280,10 +288,14 @@ interface CreateAgentJobInput {
     inputData: InputSchemaType;
     inputSchema: InputSchemaSchemaType;
     maxCredits?: number;
+    maxAcceptedCents?: bigint;
     name?: string;
   };
   taskContext?: {
     taskId: string;
+  };
+  scheduleContext?: {
+    jobScheduleId: string;
   };
 }
 
@@ -295,11 +307,13 @@ export interface CreateAgentJobOwner {
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const { owner, agentInput, taskContext } = input;
+  const { owner, agentInput, taskContext, scheduleContext } = input;
   const flatInputSchema = flattenInputs(agentInput.inputSchema);
-  const maxCents = agentInput.maxCredits
-    ? convertCreditsToCents(agentInput.maxCredits)
-    : null;
+  const maxCents =
+    agentInput.maxAcceptedCents ??
+    (agentInput.maxCredits
+      ? convertCreditsToCents(agentInput.maxCredits)
+      : null);
 
   const creditCosts = await getCreditCostsOrThrow();
 
@@ -349,6 +363,7 @@ export async function createAgentJobForUser(
     inputData: agentInput.inputData,
     inputSchema: flatInputSchema,
     taskId: taskContext?.taskId,
+    jobScheduleId: scheduleContext?.jobScheduleId,
   };
 
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;
