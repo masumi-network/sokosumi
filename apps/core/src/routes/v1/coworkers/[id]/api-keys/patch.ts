@@ -10,13 +10,13 @@ import {
   updateCoworkerApiKeyRequestSchema,
 } from "@/schemas/coworker-api-key.schema";
 
-import { requireCoworkerAdminAuthContext } from "../../admin-guard";
+import { requireCoworkerManagementAccess } from "../../admin-guard";
 import { apiKeyParamsSchema } from "../schema";
 
 const route = createRoute({
   method: "patch",
   path: "/{id}/api-keys/{keyId}",
-  description: "Update coworker API key metadata (admin only)",
+  description: "Update coworker API key metadata",
   tags: ["Coworkers"],
   request: {
     params: apiKeyParamsSchema,
@@ -38,8 +38,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireCoworkerAdminAuthContext(c.var.authContext);
     const { id, keyId } = c.req.valid("param");
+    await requireCoworkerManagementAccess(c.var.authContext, id);
     const body = c.req.valid("json");
 
     const apiKey = await prisma.$transaction(async (tx) => {

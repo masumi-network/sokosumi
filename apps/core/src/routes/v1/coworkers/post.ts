@@ -7,15 +7,15 @@ import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/task.schema";
 
-import { requireCoworkerAdminAuthContext } from "./admin-guard";
 import { createCoworkerRequestSchema } from "./schema";
 
 const route = createRoute({
   method: "post",
   path: "/",
-  description: "Create coworker (admin only)",
+  description: "Create coworker",
   tags: ["Coworkers"],
   request: {
     body: {
@@ -33,7 +33,7 @@ const route = createRoute({
         archivedAt: null,
         slug: "ops-agent",
         name: "Ops Agent",
-        isWhitelisted: true,
+        isWhitelisted: false,
         caption: "Senior Campaign Partner",
         company: "Serviceplan",
         companyLogo: "https://example.com/company-logo",
@@ -57,9 +57,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = await requireCoworkerAdminAuthContext(
-      c.var.authContext,
-    );
+    const authContext = requireUserAuthContext(c.var.authContext);
     const body = c.req.valid("json");
     const slug = slugify(body.name, {
       lower: true,
@@ -102,7 +100,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             email: body.email ?? null,
             description: body.description ?? null,
             image: body.image ?? null,
-            isWhitelisted: body.isWhitelisted ?? false,
+            isWhitelisted: false,
           },
         });
       } catch (error) {

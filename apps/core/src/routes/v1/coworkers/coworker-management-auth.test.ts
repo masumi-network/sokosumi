@@ -10,34 +10,15 @@ import mountPatchCoworkerApiKey from "./[id]/api-keys/patch";
 import mountPostCoworkerApiKey from "./[id]/api-keys/post";
 import mountDeleteCoworkerById from "./[id]/delete";
 import mountPatchCoworkerById from "./[id]/patch";
+import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch";
 import mountPostCoworker from "./post";
 
 const {
   userFindUniqueMock,
   coworkerFindFirstMock,
-  coworkerFindUniqueMock,
-  coworkerCreateMock,
-  coworkerUpdateMock,
-  coworkerApiKeyFindManyMock,
-  coworkerApiKeyFindFirstMock,
-  coworkerApiKeyCreateMock,
-  coworkerApiKeyUpdateMock,
-  coworkerApiKeyUpdateManyMock,
-  coworkerApiKeyFindUniqueOrThrowMock,
-  prismaTransactionMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
-  coworkerFindUniqueMock: vi.fn(),
-  coworkerCreateMock: vi.fn(),
-  coworkerUpdateMock: vi.fn(),
-  coworkerApiKeyFindManyMock: vi.fn(),
-  coworkerApiKeyFindFirstMock: vi.fn(),
-  coworkerApiKeyCreateMock: vi.fn(),
-  coworkerApiKeyUpdateMock: vi.fn(),
-  coworkerApiKeyUpdateManyMock: vi.fn(),
-  coworkerApiKeyFindUniqueOrThrowMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -47,19 +28,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     coworker: {
       findFirst: coworkerFindFirstMock,
-      findUnique: coworkerFindUniqueMock,
-      create: coworkerCreateMock,
-      update: coworkerUpdateMock,
     },
-    coworkerApiKey: {
-      findMany: coworkerApiKeyFindManyMock,
-      findFirst: coworkerApiKeyFindFirstMock,
-      create: coworkerApiKeyCreateMock,
-      update: coworkerApiKeyUpdateMock,
-      updateMany: coworkerApiKeyUpdateManyMock,
-      findUniqueOrThrow: coworkerApiKeyFindUniqueOrThrowMock,
-    },
-    $transaction: prismaTransactionMock,
   },
 }));
 
@@ -81,22 +50,24 @@ function createApp(authContext: AuthenticationContext) {
   mountPostCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
   mountPatchCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
   mountDeleteCoworkerApiKey(app as unknown as OpenAPIHonoWithAuth);
+  mountPatchCoworkerWhitelistById(app as unknown as OpenAPIHonoWithAuth);
 
   return app;
 }
 
-const ADMIN_ENDPOINTS: Array<{
+const RESTRICTED_ENDPOINTS: Array<{
   method: string;
   path: string;
   body?: Record<string, unknown>;
+  restriction: "creator-or-admin" | "admin-only";
 }> = [
   {
-    method: "POST",
-    path: "/",
+    method: "PATCH",
+    path: "/cow_123/whitelist",
     body: {
-      name: "Ops Agent",
-      email: "ops@example.com",
+      isWhitelisted: true,
     },
+    restriction: "admin-only",
   },
   {
     method: "PATCH",
@@ -104,14 +75,17 @@ const ADMIN_ENDPOINTS: Array<{
     body: {
       name: "Updated name",
     },
+    restriction: "creator-or-admin",
   },
   {
     method: "DELETE",
     path: "/cow_123",
+    restriction: "creator-or-admin",
   },
   {
     method: "GET",
     path: "/cow_123/api-keys",
+    restriction: "creator-or-admin",
   },
   {
     method: "POST",
@@ -119,6 +93,7 @@ const ADMIN_ENDPOINTS: Array<{
     body: {
       name: "Key 1",
     },
+    restriction: "creator-or-admin",
   },
   {
     method: "PATCH",
@@ -126,24 +101,30 @@ const ADMIN_ENDPOINTS: Array<{
     body: {
       name: "Updated key",
     },
+    restriction: "creator-or-admin",
   },
   {
     method: "DELETE",
     path: "/cow_123/api-keys/cokey_123",
+    restriction: "creator-or-admin",
   },
 ];
 
-describe("coworker admin endpoints auth guard", () => {
+describe("coworker management endpoints auth guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({
       role: "user",
     });
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      userId: "owner_999",
+    });
   });
 
-  it.each(ADMIN_ENDPOINTS)(
-    "returns 403 for non-admin user on $method $path",
-    async ({ method, path, body }) => {
+  it.each(RESTRICTED_ENDPOINTS)(
+    "returns 403 for non-owner non-admin user on $method $path",
+    async ({ method, path, body, restriction }) => {
       const app = createApp({
         actor: "user",
         userId: "user_123",
@@ -157,10 +138,16 @@ describe("coworker admin endpoints auth guard", () => {
       });
 
       expect(response.status).toBe(403);
+      if (restriction === "creator-or-admin") {
+        expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+          where: { id: "cow_123" },
+          select: { id: true, userId: true },
+        });
+      }
     },
   );
 
-  it.each(ADMIN_ENDPOINTS)(
+  it.each(RESTRICTED_ENDPOINTS)(
     "returns 403 for coworker actor on $method $path",
     async ({ method, path, body }) => {
       const app = createApp({
@@ -177,4 +164,24 @@ describe("coworker admin endpoints auth guard", () => {
       expect(response.status).toBe(403);
     },
   );
+
+  it("returns 403 for coworker actor on POST /", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Ops Agent",
+        email: "ops@example.com",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+  });
 });
