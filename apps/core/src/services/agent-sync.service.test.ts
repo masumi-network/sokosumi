@@ -64,6 +64,21 @@ async function getAgentSyncService() {
 
 const AGENTS_SYNC_METADATA_KEY = "agents-sync-metadata";
 
+interface SyncExecutionOptions {
+  abortSignal: AbortSignal;
+  shouldContinue: () => boolean;
+}
+
+function createSyncExecutionOptions(
+  overrides: Partial<SyncExecutionOptions> = {},
+): SyncExecutionOptions {
+  return {
+    abortSignal: new AbortController().signal,
+    shouldContinue: () => true,
+    ...overrides,
+  };
+}
+
 function createRegistryEntry(
   id: string,
   overrides: Record<string, unknown> = {},
@@ -124,7 +139,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     const agentSyncService = await getAgentSyncService();
     getAgentsDiffMock.mockResolvedValue(ok([]));
 
-    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentUpsertMock).not.toHaveBeenCalled();
@@ -136,6 +154,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     const shouldContinue = vi.fn().mockReturnValue(false);
 
     await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
+      abortSignal: new AbortController().signal,
       shouldContinue,
     });
 
@@ -146,11 +165,54 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
   });
 
+  it("passes abort signal to registry diff request", async () => {
+    const agentSyncService = await getAgentSyncService();
+    const abortController = new AbortController();
+    getAgentsDiffMock.mockResolvedValue(ok([]));
+
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
+      abortSignal: abortController.signal,
+      shouldContinue: () => true,
+    });
+
+    expect(getAgentsDiffMock).toHaveBeenCalledWith(expect.any(Date), null, 50, {
+      signal: abortController.signal,
+    });
+  });
+
   it("does not write data when registry diff fails", async () => {
     const agentSyncService = await getAgentSyncService();
     getAgentsDiffMock.mockResolvedValue(err("registry unavailable"));
 
-    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(tagUpsertMock).not.toHaveBeenCalled();
+    expect(agentUpsertMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("stops downstream writes when cancellation is requested mid-run", async () => {
+    const agentSyncService = await getAgentSyncService();
+    const entries = [
+      createRegistryEntry("entry-stop", {
+        tags: ["tag-stop"],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+
+    let continueChecks = 0;
+    const shouldContinue = vi.fn(() => {
+      continueChecks += 1;
+      return continueChecks < 3;
+    });
+
+    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
+      abortSignal: new AbortController().signal,
+      shouldContinue,
+    });
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentUpsertMock).not.toHaveBeenCalled();
@@ -187,7 +249,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     ];
     getAgentsDiffMock.mockResolvedValue(ok(entries));
 
-    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
 
     expect(tagUpsertMock).toHaveBeenCalled();
     expect(agentUpsertMock).toHaveBeenCalledTimes(3);
@@ -244,7 +309,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     getAgentsDiffMock.mockResolvedValue(ok(entries));
 
     const agentSyncService = await getAgentSyncService();
-    await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY);
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
 
     expect(agentUpsertMock).toHaveBeenCalledTimes(1);
     const emptyFixedCall = agentUpsertMock.mock.calls[0]?.[0];
@@ -263,6 +331,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
 
   it("loads online visible agents without summary and stores generated summaries", async () => {
     const agentSyncService = await getAgentSyncService();
+    const options = createSyncExecutionOptions();
     agentFindManyMock.mockResolvedValue([
       {
         id: "agent-1",
@@ -284,7 +353,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
       .mockResolvedValueOnce("Summary one")
       .mockResolvedValueOnce(null);
 
-    await agentSyncService.syncAgentSummaries();
+    await agentSyncService.syncAgentSummaries(options);
 
     expect(agentFindManyMock).toHaveBeenCalledWith({
       where: {
@@ -302,10 +371,16 @@ describe("agentSyncService.syncAgentSummaries", () => {
     expect(openrouterGenerateAgentSummaryMock).toHaveBeenNthCalledWith(
       1,
       "Base description",
+      {
+        abortSignal: options.abortSignal,
+      },
     );
     expect(openrouterGenerateAgentSummaryMock).toHaveBeenNthCalledWith(
       2,
       "Override description",
+      {
+        abortSignal: options.abortSignal,
+      },
     );
     expect(agentUpdateMock).toHaveBeenCalledTimes(1);
     expect(agentUpdateMock).toHaveBeenCalledWith({
@@ -318,11 +393,63 @@ describe("agentSyncService.syncAgentSummaries", () => {
     });
   });
 
+  it("passes abort signal to summary generation", async () => {
+    const agentSyncService = await getAgentSyncService();
+    const abortController = new AbortController();
+    agentFindManyMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        description: "Base description",
+        overrideDescription: null,
+      },
+    ]);
+    openrouterGenerateAgentSummaryMock.mockResolvedValue(null);
+
+    await agentSyncService.syncAgentSummaries({
+      abortSignal: abortController.signal,
+      shouldContinue: () => true,
+    });
+
+    expect(openrouterGenerateAgentSummaryMock).toHaveBeenCalledWith(
+      "Base description",
+      {
+        abortSignal: abortController.signal,
+      },
+    );
+  });
+
+  it("skips summary write when cancellation is requested before persistence", async () => {
+    const agentSyncService = await getAgentSyncService();
+    agentFindManyMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        description: "Base description",
+        overrideDescription: null,
+      },
+    ]);
+    openrouterGenerateAgentSummaryMock.mockResolvedValue("Summary one");
+
+    let continueChecks = 0;
+    const shouldContinue = vi.fn(() => {
+      continueChecks += 1;
+      return continueChecks < 3;
+    });
+
+    await agentSyncService.syncAgentSummaries({
+      abortSignal: new AbortController().signal,
+      shouldContinue,
+    });
+
+    expect(openrouterGenerateAgentSummaryMock).toHaveBeenCalledTimes(1);
+    expect(agentUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("stops summary sync immediately when shouldContinue returns false", async () => {
     const agentSyncService = await getAgentSyncService();
     const shouldContinue = vi.fn().mockReturnValue(false);
 
     await agentSyncService.syncAgentSummaries({
+      abortSignal: new AbortController().signal,
       shouldContinue,
     });
 
@@ -333,6 +460,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
 
   it("continues summary processing when one generation fails", async () => {
     const agentSyncService = await getAgentSyncService();
+    const options = createSyncExecutionOptions();
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
@@ -353,7 +481,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
       .mockRejectedValueOnce(new Error("OpenRouter down"))
       .mockResolvedValueOnce("Summary two");
 
-    await agentSyncService.syncAgentSummaries();
+    await agentSyncService.syncAgentSummaries(options);
 
     expect(agentUpdateMock).toHaveBeenCalledTimes(1);
     expect(agentUpdateMock).toHaveBeenCalledWith({

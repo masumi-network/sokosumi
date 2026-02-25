@@ -9,6 +9,8 @@ export const coworkerSchema = z
     id: z.string().openapi({ example: "cow_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
+    archivedAt: dateTimeSchema.nullable(),
+    isWhitelisted: z.boolean().openapi({ example: true }),
     slug: z.string().openapi({ example: "ops-agent" }),
     name: z.string().openapi({ example: "Ops Agent" }),
     caption: z

@@ -7,13 +7,13 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { coworkerApiKeySchema } from "@/schemas/coworker-api-key.schema";
 
-import { requireCoworkerAdminAuthContext } from "../../admin-guard";
+import { requireCoworkerManagementAccess } from "../../admin-guard";
 import { paramsSchema } from "../schema";
 
 const route = createRoute({
   method: "get",
   path: "/{id}/api-keys",
-  description: "List coworker API keys (admin only)",
+  description: "List coworker API keys",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -49,8 +49,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireCoworkerAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
+    await requireCoworkerManagementAccess(c.var.authContext, id);
 
     const coworker = await prisma.coworker.findFirst({
       where: {

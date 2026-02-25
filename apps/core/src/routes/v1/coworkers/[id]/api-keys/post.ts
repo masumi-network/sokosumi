@@ -15,13 +15,13 @@ import {
   createCoworkerApiKeyRequestSchema,
 } from "@/schemas/coworker-api-key.schema";
 
-import { requireCoworkerAdminAuthContext } from "../../admin-guard";
+import { requireCoworkerManagementAccess } from "../../admin-guard";
 import { paramsSchema } from "../schema";
 
 const route = createRoute({
   method: "post",
   path: "/{id}/api-keys",
-  description: "Create coworker API key (admin only)",
+  description: "Create coworker API key",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -63,8 +63,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    await requireCoworkerAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
+    await requireCoworkerManagementAccess(c.var.authContext, id);
     const body = c.req.valid("json");
 
     const token = generateCoworkerApiKeyToken();

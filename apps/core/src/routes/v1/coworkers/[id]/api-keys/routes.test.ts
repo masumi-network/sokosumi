@@ -63,7 +63,7 @@ function createApiKeyRecord(
   };
 }
 
-function createApp() {
+function createApp(userId = "owner_123") {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -72,7 +72,7 @@ function createApp() {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
-      userId: "admin_123",
+      userId,
       organizationId: null,
     });
     return await next();
@@ -92,13 +92,16 @@ function mockTransaction(tx: TransactionMock) {
   });
 }
 
-describe("coworker API key admin endpoints", () => {
+describe("coworker API key protected endpoints", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({
-      role: "admin",
+      role: "user",
     });
-    coworkerFindFirstMock.mockResolvedValue({ id: "cow_123" });
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      userId: "owner_123",
+    });
   });
 
   it("creates a key and returns token once without keyHash", async () => {
@@ -304,4 +307,80 @@ describe("coworker API key admin endpoints", () => {
       },
     });
   });
+
+  it("allows admin to create an API key for another user's coworker", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      role: "admin",
+    });
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      userId: "owner_999",
+    });
+
+    const tx: TransactionMock = {
+      coworker: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      coworkerApiKey: {
+        create: vi.fn().mockResolvedValue(createApiKeyRecord()),
+        updateMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp("admin_123");
+    const response = await app.request("http://localhost/cow_123/api-keys", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Admin managed key",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(coworkerFindFirstMock).not.toHaveBeenCalled();
+    expect(tx.coworkerApiKey.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          coworkerId: "cow_123",
+          name: "Admin managed key",
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    { method: "GET", path: "/cow_123/api-keys" },
+    {
+      method: "POST",
+      path: "/cow_123/api-keys",
+      body: {
+        name: "Primary key",
+      },
+    },
+    {
+      method: "PATCH",
+      path: "/cow_123/api-keys/cokey_123",
+      body: {
+        name: "Updated key",
+      },
+    },
+    { method: "DELETE", path: "/cow_123/api-keys/cokey_123" },
+  ])(
+    "returns 403 when non-owner non-admin calls $method $path",
+    async ({ method, path, body }) => {
+      const app = createApp("user_999");
+
+      const response = await app.request(`http://localhost${path}`, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      expect(response.status).toBe(403);
+    },
+  );
 });

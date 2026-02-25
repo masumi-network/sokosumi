@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
-import { requireCoworkerExists } from "@/helpers/access-control";
+import { requireAssignableCoworker } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
@@ -83,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       if (body.coworkerId !== null && body.coworkerId !== undefined) {
-        await requireCoworkerExists(body.coworkerId, tx);
+        await requireAssignableCoworker(body.coworkerId, tx);
       }
 
       return tx.task.create({

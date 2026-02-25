@@ -9,7 +9,8 @@ import prisma from "@/lib/db/prisma";
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
 
 interface SyncExecutionOptions {
-  shouldContinue?: () => boolean;
+  abortSignal: AbortSignal;
+  shouldContinue: () => boolean;
 }
 
 function isValidEmail(email: string | null | undefined): email is string {
@@ -106,11 +107,12 @@ function shouldStopSync(
   options: SyncExecutionOptions,
   reason: string,
 ): boolean {
-  if (options.shouldContinue?.()) {
-    return false;
+  if (options.abortSignal.aborted) {
+    console.info(`Stopping sync operation: ${reason}`);
+    return true;
   }
 
-  if (options.shouldContinue) {
+  if (!options.shouldContinue()) {
     console.info(`Stopping sync operation: ${reason}`);
     return true;
   }
@@ -120,7 +122,7 @@ function shouldStopSync(
 
 async function syncRegistryAgents(
   metadataKey: string,
-  options: SyncExecutionOptions = {},
+  options: SyncExecutionOptions,
 ): Promise<void> {
   const startedAt = Date.now();
   console.info(
@@ -149,6 +151,9 @@ async function syncRegistryAgents(
     lastSyncedAt,
     cursorId,
     50,
+    {
+      signal: options.abortSignal,
+    },
   );
   if (entriesResult.isErr()) {
     console.error(
@@ -292,7 +297,7 @@ async function syncRegistryAgents(
 }
 
 async function syncAgentSummaries(
-  options: SyncExecutionOptions = {},
+  options: SyncExecutionOptions,
 ): Promise<void> {
   const startedAt = Date.now();
   console.info("[sync/agents-summary] Starting summary sync");
@@ -334,7 +339,9 @@ async function syncAgentSummaries(
     }
 
     try {
-      const summary = await openrouterClient.generateAgentSummary(description);
+      const summary = await openrouterClient.generateAgentSummary(description, {
+        abortSignal: options.abortSignal,
+      });
       if (!summary) {
         skippedNoSummaryCount++;
         continue;

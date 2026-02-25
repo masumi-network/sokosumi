@@ -8,6 +8,10 @@ import {
   PostRegistryEntryResponse,
 } from "./openapi/generated/registry/index.js";
 
+interface RegistryClientRequestOptions {
+  signal?: AbortSignal;
+}
+
 export function createRegistryClient(
   network: "Preprod" | "Mainnet",
   apiUrl: string,
@@ -56,6 +60,7 @@ export function createRegistryClient(
       statusUpdatedAfter: Date,
       cursorId: string | null,
       limit: number = 20,
+      options: RegistryClientRequestOptions = {},
     ): Promise<Result<PostRegistryDiffResponse["data"]["entries"], string>> {
       const response = await postRegistryDiff({
         client: client(),
@@ -65,6 +70,7 @@ export function createRegistryClient(
           cursorId: cursorId ?? undefined,
           limit,
         },
+        signal: options.signal,
       });
       if (
         !response.data ||

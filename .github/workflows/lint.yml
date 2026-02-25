@@ -64,5 +64,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           report-json: "packages/masumi/lint-report.json"
 
+      - name: Annotate chat lint results
+        if: always()
+        continue-on-error: true
+        uses: ataylorme/eslint-annotate-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          report-json: "packages/chat/lint-report.json"
+
       - name: Run lint checks
         run: pnpm lint

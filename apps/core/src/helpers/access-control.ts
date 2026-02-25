@@ -191,7 +191,7 @@ export async function requireCoworkerTaskAccess(
   return task;
 }
 
-export async function requireCoworkerExists(
+export async function requireAssignableCoworker(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
@@ -199,6 +199,7 @@ export async function requireCoworkerExists(
     where: {
       id: coworkerId,
       archivedAt: null,
+      isWhitelisted: true,
     },
     select: { id: true },
   });

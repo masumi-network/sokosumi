@@ -13,6 +13,7 @@ const envDefaults: Record<string, string> = {
   CRON_SECRET: "test-cron-secret",
   STRIPE_SECRET_KEY: "sk_test_example",
   LOCK_TIMEOUT: "900000",
+  LOCK_TIMEOUT_BUFFER: "25000",
   INSTANCE_ID: "test-instance-id",
   SHOW_AGENTS_BY_DEFAULT: "true",
   ABLY_PUBLISH_ONLY_KEY: "local-test",

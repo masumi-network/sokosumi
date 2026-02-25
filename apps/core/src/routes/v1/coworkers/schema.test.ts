@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCoworkerRequestSchema,
   patchCoworkerRequestSchema,
+  patchCoworkerWhitelistRequestSchema,
 } from "./schema";
 
 describe("createCoworkerRequestSchema", () => {
@@ -45,6 +46,19 @@ describe("createCoworkerRequestSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("strips isWhitelisted when provided", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      email: "ops@example.com",
+      isWhitelisted: true,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty("isWhitelisted");
+    }
+  });
 });
 
 describe("patchCoworkerRequestSchema", () => {
@@ -66,6 +80,30 @@ describe("patchCoworkerRequestSchema", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       url: "not-a-url",
     });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects whitelist-only updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      isWhitelisted: true,
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("patchCoworkerWhitelistRequestSchema", () => {
+  it("accepts boolean whitelist updates", () => {
+    const result = patchCoworkerWhitelistRequestSchema.safeParse({
+      isWhitelisted: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing whitelist value", () => {
+    const result = patchCoworkerWhitelistRequestSchema.safeParse({});
 
     expect(result.success).toBe(false);
   });

@@ -11,8 +11,12 @@ export default function mount(app: Hono) {
     return await handleSyncRequest(
       c,
       STRIPE_CUSTOMERS_SYNC_LOCK_KEY,
-      async () => {
-        await stripeCustomerSyncService.syncAllStripeCustomers();
+      async (context) => {
+        await stripeCustomerSyncService.syncAllStripeCustomers({
+          deadlineMs: context.deadlineMs,
+          msRemaining: context.msRemaining,
+          shouldContinue: context.shouldContinue,
+        });
       },
     );
   });

@@ -28,8 +28,8 @@ vi.mock("stripe", () => ({
       create: stripeCustomersCreateMock,
     };
 
-    constructor(secretKey: string) {
-      stripeConstructorMock(secretKey);
+    constructor(secretKey: string, options?: unknown) {
+      stripeConstructorMock(secretKey, options);
     }
   },
 }));
@@ -56,6 +56,25 @@ vi.mock("@/lib/db/prisma", () => ({
 async function getStripeCustomerSyncService() {
   const module = await import("./stripe-customer-sync.service");
   return module.stripeCustomerSyncService;
+}
+
+interface SyncExecutionOptions {
+  deadlineMs: number;
+  msRemaining: () => number;
+  shouldContinue: () => boolean;
+}
+
+function createSyncExecutionOptions(
+  overrides: Partial<SyncExecutionOptions> = {},
+): SyncExecutionOptions {
+  const defaultDeadlineMs = Date.now() + 60_000;
+
+  return {
+    deadlineMs: defaultDeadlineMs,
+    msRemaining: () => defaultDeadlineMs - Date.now(),
+    shouldContinue: () => true,
+    ...overrides,
+  };
 }
 
 describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
@@ -91,10 +110,14 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
   it("uses p-limit with configured concurrency for users and organizations", async () => {
     const stripeCustomerSyncService = await getStripeCustomerSyncService();
 
-    await stripeCustomerSyncService.syncAllStripeCustomers();
+    await stripeCustomerSyncService.syncAllStripeCustomers(
+      createSyncExecutionOptions(),
+    );
 
     expect(stripeConstructorMock).toHaveBeenCalledTimes(1);
-    expect(stripeConstructorMock).toHaveBeenCalledWith("sk_test_sync");
+    expect(stripeConstructorMock).toHaveBeenCalledWith("sk_test_sync", {
+      maxNetworkRetries: 0,
+    });
     expect(pLimitMock).toHaveBeenCalledTimes(1);
     expect(pLimitMock).toHaveBeenCalledWith(5);
 
@@ -107,9 +130,10 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
           userId: "user-1",
         }),
       }),
-      {
+      expect.objectContaining({
         idempotencyKey: "user-user-1",
-      },
+        maxNetworkRetries: 0,
+      }),
     );
     expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -120,9 +144,133 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
         }),
         name: "Organization organization-1",
       }),
-      {
+      expect.objectContaining({
         idempotencyKey: "organization-organization-1",
-      },
+        maxNetworkRetries: 0,
+      }),
+    );
+  });
+
+  it("stops scheduling additional sync tasks after cancellation", async () => {
+    const stripeCustomerSyncService = await getStripeCustomerSyncService();
+    userFindManyMock.mockResolvedValue([
+      { id: "user-1" },
+      { id: "user-2" },
+      { id: "user-3" },
+    ]);
+    organizationFindManyMock.mockResolvedValue([
+      { id: "organization-1" },
+      { id: "organization-2" },
+    ]);
+
+    let continueChecks = 0;
+    const shouldContinue = vi.fn(() => {
+      continueChecks += 1;
+      return continueChecks <= 2;
+    });
+
+    await stripeCustomerSyncService.syncAllStripeCustomers(
+      createSyncExecutionOptions({
+        shouldContinue,
+      }),
+    );
+
+    expect(stripeCustomersCreateMock).toHaveBeenCalledTimes(1);
+    expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          customerType: "user",
+          userId: "user-1",
+        }),
+      }),
+      expect.objectContaining({
+        idempotencyKey: "user-user-1",
+      }),
+    );
+  });
+
+  it("applies per-request timeout from remaining budget", async () => {
+    vi.useFakeTimers();
+    try {
+      const stripeCustomerSyncService = await getStripeCustomerSyncService();
+      const deadlineMs = Date.now() + 2500;
+
+      const syncPromise = stripeCustomerSyncService.syncAllStripeCustomers({
+        deadlineMs,
+        msRemaining: () => Math.max(0, deadlineMs - Date.now()),
+        shouldContinue: () => true,
+      });
+
+      await syncPromise;
+
+      expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          timeout: 2500,
+          maxNetworkRetries: 0,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits for already-scheduled operations to settle before returning", async () => {
+    const stripeCustomerSyncService = await getStripeCustomerSyncService();
+    userFindManyMock.mockResolvedValue([{ id: "user-1" }]);
+    organizationFindManyMock.mockResolvedValue([{ id: "organization-1" }]);
+
+    let resolveFirstCreate: (() => void) | null = null;
+    stripeCustomersCreateMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirstCreate = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({});
+
+    let settled = false;
+    const runPromise = stripeCustomerSyncService
+      .syncAllStripeCustomers(createSyncExecutionOptions())
+      .then(() => {
+        settled = true;
+      });
+
+    await vi.waitFor(() => {
+      expect(resolveFirstCreate).toBeTypeOf("function");
+    });
+
+    expect(settled).toBe(false);
+
+    resolveFirstCreate?.();
+    await runPromise;
+
+    expect(settled).toBe(true);
+    expect(stripeCustomersCreateMock).toHaveBeenCalledTimes(2);
+    expect(stripeCustomersCreateMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          customerType: "user",
+          userId: "user-1",
+        }),
+      }),
+      expect.objectContaining({
+        idempotencyKey: "user-user-1",
+      }),
+    );
+    expect(stripeCustomersCreateMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          customerType: "organization",
+          organizationId: "organization-1",
+        }),
+      }),
+      expect.objectContaining({
+        idempotencyKey: "organization-organization-1",
+      }),
     );
   });
 });

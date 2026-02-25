@@ -62,3 +62,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       ],
     },
   );
+
+export const patchCoworkerWhitelistRequestSchema = z.object({
+  isWhitelisted: z.boolean().openapi({ example: true }),
+});

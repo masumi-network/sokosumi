@@ -1061,6 +1061,8 @@ model Coworker {
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
+  isWhitelisted Boolean @default(false)
+
   slug        String  @unique
   name        String
   caption     String?

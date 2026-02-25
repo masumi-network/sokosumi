@@ -5,7 +5,15 @@ import { getEnv } from "@/config/env";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
 
-type SyncOperation = () => Promise<void>;
+export interface SyncExecutionContext {
+  abortSignal: AbortSignal;
+  deadlineMs: number;
+  msRemaining: () => number;
+  shouldContinue: () => boolean;
+}
+
+type SyncOperation = (context: SyncExecutionContext) => Promise<void>;
+const MIN_SYNC_TIMEOUT_MS = 1000;
 
 function unauthorizedResponse(message: string): Response {
   return new Response(JSON.stringify({ message }), {
@@ -36,20 +44,27 @@ function authenticateCronSecret(c: Context): Response | null {
   return null;
 }
 
-async function releaseOwnedLock(lock: AcquiredSyncLock): Promise<void> {
+type LockReleaseResult = "released" | "ownership-changed" | "error";
+
+async function releaseOwnedLock(
+  lock: AcquiredSyncLock,
+): Promise<LockReleaseResult> {
   try {
     const isReleased = await syncLockService.releaseLock(
       lock.key,
       lock.ownerToken,
     );
-    if (!isReleased) {
-      console.error(
-        `Lock release skipped because ownership changed for lock key "${lock.key}"`,
-      );
-    }
+    return isReleased ? "released" : "ownership-changed";
   } catch (error) {
     console.error("Failed to unlock lock:", error);
+    return "error";
   }
+}
+
+function getSyncTimeoutMs(): number {
+  const env = getEnv();
+  const timeoutMs = env.LOCK_TIMEOUT - env.LOCK_TIMEOUT_BUFFER;
+  return Math.max(timeoutMs, MIN_SYNC_TIMEOUT_MS);
 }
 
 /**
@@ -62,12 +77,56 @@ function runBackgroundSync(
   syncOperation: SyncOperation,
 ): Promise<void> {
   return (async () => {
+    const timeoutMs = getSyncTimeoutMs();
+    const deadlineMs = Date.now() + timeoutMs;
+    const cancellationController = new AbortController();
+    const cancellationTimeout = setTimeout(() => {
+      console.warn(
+        `[sync/${lock.key}] Deadline reached after ${timeoutMs}ms; requesting cancellation`,
+      );
+      cancellationController.abort();
+    }, timeoutMs);
+
+    const context: SyncExecutionContext = {
+      abortSignal: cancellationController.signal,
+      deadlineMs,
+      msRemaining: () => {
+        return Math.max(0, deadlineMs - Date.now());
+      },
+      shouldContinue: () => {
+        return (
+          !cancellationController.signal.aborted && Date.now() < deadlineMs
+        );
+      },
+    };
+
+    const startedAt = Date.now();
     try {
-      await syncOperation();
+      await syncOperation(context);
+
+      if (!context.shouldContinue()) {
+        console.info(
+          `[sync/${lock.key}] Sync operation settled after cancellation request (durationMs=${Date.now() - startedAt})`,
+        );
+      } else {
+        console.info(
+          `[sync/${lock.key}] Sync operation settled normally (durationMs=${Date.now() - startedAt})`,
+        );
+      }
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      await releaseOwnedLock(lock);
+      clearTimeout(cancellationTimeout);
+      const releaseResult = await releaseOwnedLock(lock);
+      if (releaseResult === "released") {
+        console.info(`[sync/${lock.key}] Lock released`);
+      } else if (releaseResult === "ownership-changed") {
+        console.warn(
+          `[sync/${lock.key}] Lock not released because ownership changed`,
+        );
+      } else {
+        console.warn(`[sync/${lock.key}] Lock release failed`);
+      }
     }
   })();
 }
