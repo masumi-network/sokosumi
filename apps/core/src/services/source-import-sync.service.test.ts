@@ -154,4 +154,58 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     const processedCount = await runPromise;
     expect(processedCount).toBe(6);
   });
+
+  it("stops processing when deadline is reached and keeps timed-out blobs pending", async () => {
+    vi.useFakeTimers();
+    try {
+      const sourceImportSyncService = await getSourceImportSyncService();
+      const now = new Date("2026-02-25T10:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+
+        if (url.startsWith("https://example.com/blob-")) {
+          const signal = init?.signal;
+
+          return new Promise<Response>((_resolve, reject) => {
+            if (signal instanceof AbortSignal) {
+              signal.addEventListener("abort", () => {
+                reject(new DOMException("Request timed out", "TimeoutError"));
+              });
+            }
+          });
+        }
+
+        return Promise.resolve(
+          new Response("hello", {
+            status: 200,
+            headers: {
+              "content-type": "text/plain",
+            },
+          }),
+        );
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const runPromise = sourceImportSyncService.importPendingResultBlobs({
+        deadlineMs: Date.now() + 50,
+      });
+
+      vi.advanceTimersByTime(60);
+      await runPromise;
+
+      const failedUpdateCalls = blobUpdateMock.mock.calls.filter(
+        ([payload]) => {
+          return payload.data?.status === BlobStatus.FAILED;
+        },
+      );
+
+      expect(failedUpdateCalls).toHaveLength(0);
+      expect(blobPutMock).not.toHaveBeenCalled();
+      expect(blobHeadMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

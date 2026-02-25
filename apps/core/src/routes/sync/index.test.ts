@@ -187,6 +187,11 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
+    expect(syncSourceImportMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deadlineMs: expect.any(Number),
+      }),
+    );
   });
 
   it("releases source import lock when sync exceeds timeout budget", async () => {

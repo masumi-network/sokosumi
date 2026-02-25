@@ -7,6 +7,10 @@ import prisma from "@/lib/db/prisma";
 
 const MAX_CONCURRENT_IMPORTS = 5;
 
+interface ImportPendingResultBlobsOptions {
+  deadlineMs?: number;
+}
+
 /** Sanitize filename for blob storage path (matches web's uploadFileForBlob behavior). */
 function sanitizePathSegment(name: string): string {
   return name.replace(/ /g, "_");
@@ -50,7 +54,45 @@ function parseContentDispositionFilename(
   }
 }
 
-async function importBlob(blobId: string): Promise<void> {
+function hasTimeRemaining(deadlineMs: number | undefined): boolean {
+  if (deadlineMs === undefined) {
+    return true;
+  }
+
+  return Date.now() < deadlineMs;
+}
+
+function createDeadlineAbortSignal(
+  deadlineMs: number | undefined,
+): AbortSignal | undefined {
+  if (deadlineMs === undefined) {
+    return undefined;
+  }
+
+  const remainingMs = deadlineMs - Date.now();
+  return AbortSignal.timeout(Math.max(1, remainingMs));
+}
+
+function isAbortLikeError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.name === "AbortError" ||
+    error.name === "TimeoutError" ||
+    error.name === "BlobRequestAbortedError"
+  );
+}
+
+async function importBlob(
+  blobId: string,
+  options: ImportPendingResultBlobsOptions,
+): Promise<void> {
+  if (!hasTimeRemaining(options.deadlineMs)) {
+    return;
+  }
+
   const blob = await prisma.blob.findUnique({ where: { id: blobId } });
 
   if (!blob || blob.status !== BlobStatus.PENDING) {
@@ -58,7 +100,11 @@ async function importBlob(blobId: string): Promise<void> {
   }
 
   try {
-    const response = await fetch(blob.sourceUrl, { redirect: "follow" });
+    const abortSignal = createDeadlineAbortSignal(options.deadlineMs);
+    const response = await fetch(blob.sourceUrl, {
+      redirect: "follow",
+      signal: abortSignal,
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch blob source: ${response.status}`);
@@ -90,10 +136,14 @@ async function importBlob(blobId: string): Promise<void> {
       {
         access: "public",
         addRandomSuffix: true,
+        abortSignal,
         token: blobToken,
       },
     );
-    const blobMetadata = await head(uploadResult.url, { token: blobToken });
+    const blobMetadata = await head(uploadResult.url, {
+      abortSignal,
+      token: blobToken,
+    });
 
     await prisma.blob.update({
       where: { id: blob.id },
@@ -105,7 +155,16 @@ async function importBlob(blobId: string): Promise<void> {
         status: BlobStatus.READY,
       },
     });
-  } catch (_error) {
+  } catch (error) {
+    if (
+      options.deadlineMs !== undefined &&
+      !hasTimeRemaining(options.deadlineMs) &&
+      isAbortLikeError(error)
+    ) {
+      // Keep the blob pending so a future sync run can retry it.
+      return;
+    }
+
     await prisma.blob.update({
       where: { id: blob.id },
       data: {
@@ -115,7 +174,9 @@ async function importBlob(blobId: string): Promise<void> {
   }
 }
 
-async function importPendingResultBlobs(): Promise<number> {
+async function importPendingResultBlobs(
+  options: ImportPendingResultBlobsOptions = {},
+): Promise<number> {
   const pendingBlobs = await prisma.blob.findMany({
     where: { status: BlobStatus.PENDING },
     orderBy: { createdAt: "asc" },
@@ -124,7 +185,11 @@ async function importPendingResultBlobs(): Promise<number> {
   const limit = pLimit(MAX_CONCURRENT_IMPORTS);
   const runningImports = pendingBlobs.map((blob) =>
     limit(async () => {
-      await importBlob(blob.id);
+      if (!hasTimeRemaining(options.deadlineMs)) {
+        return;
+      }
+
+      await importBlob(blob.id, options);
     }),
   );
   await Promise.allSettled(runningImports);
