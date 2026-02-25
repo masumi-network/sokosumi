@@ -32,6 +32,7 @@ const coworkerEditableFieldsSchema = z.object({
     .httpUrl()
     .nullish()
     .openapi({ example: "https://example.com/logo.png" }),
+  isWhitelisted: z.boolean().optional().openapi({ example: true }),
 });
 
 export const createCoworkerRequestSchema = coworkerEditableFieldsSchema;
@@ -47,7 +48,8 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.url !== undefined ||
       data.email !== undefined ||
       data.description !== undefined ||
-      data.image !== undefined,
+      data.image !== undefined ||
+      data.isWhitelisted !== undefined,
     {
       message: "At least one coworker field is required",
       path: [
@@ -59,6 +61,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "email",
         "description",
         "image",
+        "isWhitelisted",
       ],
     },
   );

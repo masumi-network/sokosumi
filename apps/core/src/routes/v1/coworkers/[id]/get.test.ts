@@ -42,7 +42,7 @@ describe("GET /coworkers/{id}", () => {
     vi.clearAllMocks();
   });
 
-  it("returns 404 when coworker is archived or missing", async () => {
+  it("returns 404 when coworker is missing", async () => {
     coworkerFindFirstMock.mockResolvedValue(null);
     const app = createApp();
 
@@ -51,8 +51,45 @@ describe("GET /coworkers/{id}", () => {
     expect(coworkerFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
       },
     });
+  });
+
+  it("returns isWhitelisted field in response", async () => {
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      slug: "ops-agent",
+      name: "Ops Agent",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.isWhitelisted).toBe(true);
+  });
+
+  it("returns archived coworker when it exists", async () => {
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+      archivedAt: new Date("2026-02-25T11:00:00.000Z"),
+      isWhitelisted: true,
+      slug: "ops-agent",
+      name: "Ops Agent",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/cow_123");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.archivedAt).toBe("2026-02-25T11:00:00.000Z");
   });
 });

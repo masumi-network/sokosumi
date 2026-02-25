@@ -126,7 +126,7 @@ describe("requireTaskAccess", () => {
 });
 
 describe("requireCoworkerExists", () => {
-  it("only accepts active coworkers", async () => {
+  it("only accepts active whitelisted coworkers", async () => {
     const tx = {
       coworker: {
         findFirst: vi.fn().mockResolvedValue({ id: "cow_123" }),
@@ -139,11 +139,24 @@ describe("requireCoworkerExists", () => {
       where: {
         id: "cow_123",
         archivedAt: null,
+        isWhitelisted: true,
       },
       select: {
         id: true,
       },
     });
+  });
+
+  it("rejects non-whitelisted coworkers", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(requireCoworkerExists("cow_123", tx)).rejects.toThrow(
+      "Coworker not found",
+    );
   });
 });
 

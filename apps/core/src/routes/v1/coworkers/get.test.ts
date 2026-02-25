@@ -42,7 +42,7 @@ describe("GET /coworkers", () => {
     vi.clearAllMocks();
   });
 
-  it("filters archived coworkers out", async () => {
+  it("returns non-archived whitelisted coworkers by default", async () => {
     coworkerFindManyMock.mockResolvedValue([]);
     const app = createApp();
 
@@ -51,6 +51,82 @@ describe("GET /coworkers", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         archivedAt: null,
+        isWhitelisted: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("returns isWhitelisted field in response", async () => {
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: "cow_123",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+        updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+        archivedAt: null,
+        isWhitelisted: true,
+        slug: "ops-agent",
+        name: "Ops Agent",
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].isWhitelisted).toBe(true);
+  });
+
+  it("can return all non-archived coworkers via scope=all", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?scope=all");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("can return non-archived whitelisted coworkers via scope query", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?scope=whitelisted");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("can return archived coworkers via scope query", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?scope=archived");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: {
+          not: null,
+        },
       },
       orderBy: {
         createdAt: "desc",

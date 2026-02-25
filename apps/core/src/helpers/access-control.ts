@@ -199,6 +199,7 @@ export async function requireCoworkerExists(
     where: {
       id: coworkerId,
       archivedAt: null,
+      isWhitelisted: true,
     },
     select: { id: true },
   });

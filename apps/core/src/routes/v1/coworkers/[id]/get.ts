@@ -22,8 +22,10 @@ const route = createRoute({
     200: jsonSuccessResponse(coworkerSchema, "Retrieve coworker", {
       data: {
         id: "cow_123",
+        archivedAt: null,
         slug: "ops-agent",
         name: "Ops Agent",
+        isWhitelisted: true,
         caption: "Senior Campaign Partner",
         company: "Serviceplan",
         companyLogo: "https://example.com/company-logo",
@@ -54,7 +56,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const coworker = await prisma.coworker.findFirst({
       where: {
         id,
-        archivedAt: null,
       },
     });
 
