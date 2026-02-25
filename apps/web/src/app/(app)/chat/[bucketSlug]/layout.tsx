@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import {
   bucketKeyFromDisplaySlug,
+  getBucketKeyFromMetadata,
   slugify,
   slugToBucketKey,
 } from "@/app/chat/utils/bucket-slug";
@@ -39,10 +40,7 @@ type ConversationMetadata = {
 };
 
 function getGroupKey(metadata: ConversationMetadata | null): string {
-  if (!metadata) return "other";
-  if (metadata.model_id) return `model:${metadata.model_id}`;
-  if (metadata.coworker_id) return `coworker:${metadata.coworker_id}`;
-  return "other";
+  return getBucketKeyFromMetadata(metadata as Record<string, unknown> | null);
 }
 
 export default function ChatBucketLayout({
