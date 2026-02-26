@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { cors } from "hono/cors";
 
 import { getEnv } from "@/config/env.js";
 
@@ -57,6 +58,19 @@ app.doc31("/openapi.json", {
   ],
   security: [{ bearerAuth: [] }],
 });
+
+// CORS for all API routes
+app.use(
+  "*",
+  cors({
+    origin: "*",
+    allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposeHeaders: ["Content-Length"],
+    maxAge: 600,
+    credentials: false,
+  }),
+);
 
 // Mount Routes
 app.route("/agents", agentsRouter);

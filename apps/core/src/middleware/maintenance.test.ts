@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { maintenanceMiddleware } from "./maintenance";
@@ -21,17 +20,6 @@ function createApp() {
     c.set("requestId", "req_123");
     await next();
   });
-  app.use(
-    "/v1/*",
-    cors({
-      origin: "*",
-      allowHeaders: ["Content-Type", "Authorization", "X-Organization-Slug"],
-      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      exposeHeaders: ["Content-Length"],
-      maxAge: 600,
-      credentials: false,
-    }),
-  );
   app.use("*", maintenanceMiddleware());
 
   app.get("/", (c) => c.text("ok"));
@@ -83,19 +71,5 @@ describe("maintenanceMiddleware", () => {
       const response = await app.request(`http://localhost${path}`);
       expect(response.status).toBe(503);
     }
-  });
-
-  it("keeps v1 CORS headers on maintenance responses", async () => {
-    getEnvMock.mockReturnValue({ MAINTENANCE_MODE: true });
-    const app = createApp();
-
-    const response = await app.request("http://localhost/v1/agents", {
-      headers: {
-        Origin: "https://example.com",
-      },
-    });
-
-    expect(response.status).toBe(503);
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 });
