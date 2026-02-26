@@ -48,7 +48,7 @@ function normalizeSubscriptionCents(
   return { totalCents, usedCents, remainingCents };
 }
 
-export function getCurrentSubscriptionPeriod(
+function getCurrentSubscriptionPeriod(
   subscription: SubscriptionPeriodRecord | null,
   now: Date,
 ): CurrentSubscriptionPeriod | null {

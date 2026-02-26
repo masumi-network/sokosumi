@@ -1,12 +1,7 @@
-import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import {
-  type ActiveSubscription,
-  resolveCurrentPlanName,
-} from "@/components/billing/subscription-plan-utils";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { auth, Session } from "@/lib/auth/auth";
+import { Session } from "@/lib/auth/auth";
 import { coreClient } from "@/lib/clients/core.client";
 import { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -43,6 +38,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     if (creditsResult.status === "fulfilled") {
       const creditsResponse = creditsResult.value.data.credits;
       credits = creditsResponse.total;
+      currentPlan = creditsResponse.subscription?.plan ?? "free";
       const subscriptionCredits = creditsResponse.subscription?.credits ?? null;
       if (subscriptionCredits && subscriptionCredits.total > 0) {
         const total = Math.max(subscriptionCredits.total, 0);
@@ -89,33 +85,21 @@ export default async function UserCredits({ session }: UserCreditsProps) {
           })
         : t("userBalance", { credits: displayCredits });
 
-  try {
-    const requestHeaders = await headers();
-    const activeSubscriptions = await auth.api.listActiveSubscriptions({
-      headers: requestHeaders,
-      query: hasActiveOrganization
-        ? {
-            customerType: "organization",
-            referenceId: activeOrganizationId,
-          }
-        : {
-            customerType: "user",
-          },
-    });
-
-    currentPlan =
-      resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
-      "free";
-    const planName = tSubscriptions(`Plans.${currentPlan}.name`);
-
-    planLabel = hasActiveOrganization
-      ? tPlan("organizationPlan", {
-          plan: planName,
-          organization: activeOrganizationName ?? t("unavailable"),
-        })
-      : tPlan("userPlan", { plan: planName });
-  } catch (_error) {
+  if (currentPlan === null) {
     planLabel = tPlan("unavailable");
+  } else {
+    try {
+      const planName = tSubscriptions(`Plans.${currentPlan}.name`);
+      planLabel = hasActiveOrganization
+        ? tPlan("organizationPlan", {
+            plan: planName,
+            organization: activeOrganizationName ?? t("unavailable"),
+          })
+        : tPlan("userPlan", { plan: planName });
+    } catch (_error) {
+      currentPlan = null;
+      planLabel = tPlan("unavailable");
+    }
   }
 
   const creditsButtonThreshold =
