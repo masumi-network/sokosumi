@@ -375,6 +375,8 @@ export type Coworker = {
     id: string;
     createdAt: Date;
     updatedAt: Date;
+    archivedAt: Date | null;
+    isWhitelisted: boolean;
     slug: string;
     name: string;
     caption?: string | null;
@@ -5276,7 +5278,12 @@ export type GetJobsByIdEventsResponse = GetJobsByIdEventsResponses[keyof GetJobs
 export type GetCoworkersData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers or 'archived' to include archived coworkers.
+         */
+        scope?: 'all' | 'whitelisted' | 'archived';
+    };
     url: '/coworkers';
 };
 
@@ -6155,6 +6162,77 @@ export type PatchCoworkersByIdResponses = {
 };
 
 export type PatchCoworkersByIdResponse = PatchCoworkersByIdResponses[keyof PatchCoworkersByIdResponses];
+
+export type PatchCoworkersByIdWhitelistData = {
+    body?: {
+        isWhitelisted: boolean;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/whitelist';
+};
+
+export type PatchCoworkersByIdWhitelistErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchCoworkersByIdWhitelistError = PatchCoworkersByIdWhitelistErrors[keyof PatchCoworkersByIdWhitelistErrors];
+
+export type PatchCoworkersByIdWhitelistResponses = {
+    /**
+     * Update coworker whitelist status
+     */
+    200: {
+        data: Coworker;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchCoworkersByIdWhitelistResponse = PatchCoworkersByIdWhitelistResponses[keyof PatchCoworkersByIdWhitelistResponses];
 
 export type GetTasksData = {
     body?: never;

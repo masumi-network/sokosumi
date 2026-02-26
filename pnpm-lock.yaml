@@ -303,6 +303,9 @@ importers:
       happy-dom:
         specifier: 20.7.0
         version: 20.7.0
+      highlight.js:
+        specifier: ^11.11.1
+        version: 11.11.1
       humanize-duration:
         specifier: 3.33.2
         version: 3.33.2
@@ -399,6 +402,9 @@ importers:
       recharts:
         specifier: 2.15.4
         version: 2.15.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      rehype-highlight:
+        specifier: ^7.0.2
+        version: 7.0.2
       rehype-raw:
         specifier: 7.0.0
         version: 7.0.0
@@ -9296,6 +9302,9 @@ packages:
 
   rehype-github-alerts@4.2.0:
     resolution: {integrity: sha512-6di6kEu9WUHKLKrkKG2xX6AOuaCMGghg0Wq7MEuM/jBYUPVIq6PJpMe00dxMfU+/YSBtDXhffpDimgDi+BObIQ==}
+
+  rehype-highlight@7.0.2:
+    resolution: {integrity: sha512-k158pK7wdC2qL3M5NcZROZ2tR/l7zOzjxXd5VGdcfIyoijjQqpHd3JKtYSBDpDZ38UI2WJWuFAtkMDxmx5kstA==}
 
   rehype-katex@7.0.1:
     resolution: {integrity: sha512-OiM2wrZ/wuhKkigASodFoo8wimG3H12LWQaH8qSPVJn9apWKFSH3YOCtbKpBorTVw/eI7cuT21XBbvwEswbIOA==}
@@ -20890,6 +20899,14 @@ snapshots:
       hast-util-from-html: 2.0.3
       hast-util-is-element: 3.0.0
       unist-util-visit: 5.1.0
+
+  rehype-highlight@7.0.2:
+    dependencies:
+      '@types/hast': 3.0.4
+      hast-util-to-text: 4.0.2
+      lowlight: 3.3.0
+      unist-util-visit: 5.1.0
+      vfile: 6.0.3
 
   rehype-katex@7.0.1:
     dependencies:

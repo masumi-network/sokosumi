@@ -349,6 +349,62 @@ export const MarkdownEditor = forwardRef<
   const htmlToMarkdown = useCallback((element: HTMLElement): string => {
     let result = "";
 
+    function getCodeContent(codeContainer: HTMLElement): string {
+      const text = codeContainer.innerText ?? codeContainer.textContent ?? "";
+      return text.replace(/\r/g, "");
+    }
+
+    function getCodeLanguage(codeElement: HTMLElement): string {
+      const dataLanguage = codeElement.dataset.language?.trim() ?? "";
+      if (dataLanguage) return dataLanguage;
+
+      const classLanguage =
+        codeElement.className
+          .split(/\s+/)
+          .find((className) => className.startsWith("language-"))
+          ?.replace("language-", "")
+          .trim() ?? "";
+
+      return classLanguage;
+    }
+
+    function serializeFencedCode(
+      codeContent: string,
+      language: string | undefined,
+    ): string {
+      const fence = getBacktickFence(codeContent);
+      const infoString = language?.trim();
+      const fenceHeader = infoString ? `${fence}${infoString}` : fence;
+      return `${fenceHeader}\n${codeContent}\n${fence}\n`;
+    }
+
+    function appendChildMarkdown(
+      acc: string,
+      child: Node,
+      childMarkdown: string,
+    ): string {
+      if (!childMarkdown) return acc;
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        return acc + childMarkdown;
+      }
+
+      const childElement = child as HTMLElement;
+      const childTag = childElement.tagName.toLowerCase();
+      const shouldTreatAsBlockCode =
+        childTag === "pre" ||
+        (childTag === "code" && childMarkdown.startsWith("```"));
+
+      if (!shouldTreatAsBlockCode) {
+        return acc + childMarkdown;
+      }
+
+      if (acc.length > 0 && !acc.endsWith("\n")) {
+        return `${acc}\n${childMarkdown}`;
+      }
+
+      return acc + childMarkdown;
+    }
+
     const processNode = (node: Node): string => {
       if (node.nodeType === Node.TEXT_NODE) {
         return node.textContent || "";
@@ -368,15 +424,19 @@ export const MarkdownEditor = forwardRef<
         const element = el as HTMLElement;
 
         if (tag === "pre") {
-          const content = element.textContent || "";
-          const fence = getBacktickFence(content);
-          return `${fence}\n${content}\n${fence}`;
+          const codeElement = element.querySelector("code");
+          const content = getCodeContent(codeElement ?? element);
+          const language = codeElement
+            ? getCodeLanguage(codeElement)
+            : undefined;
+          return serializeFencedCode(content, language);
         }
 
         let content = "";
 
         element.childNodes.forEach((child: Node) => {
-          content += processNode(child);
+          const childMarkdown = processNode(child);
+          content = appendChildMarkdown(content, child, childMarkdown);
         });
 
         switch (tag) {
@@ -386,8 +446,12 @@ export const MarkdownEditor = forwardRef<
           case "em":
           case "i":
             return `_${content}_`;
-          case "code":
+          case "code": {
+            if (content.includes("\n")) {
+              return serializeFencedCode(content, getCodeLanguage(element));
+            }
             return `\`${content}\``;
+          }
           case "a":
             return `[${content}](${escapeMarkdownLinkUrl(
               element.getAttribute("href") || "",
@@ -434,7 +498,7 @@ export const MarkdownEditor = forwardRef<
             return "\n";
           case "div":
           case "p":
-            return content + "\n";
+            return content.endsWith("\n") ? content : `${content}\n`;
           default:
             return content;
         }
@@ -444,7 +508,8 @@ export const MarkdownEditor = forwardRef<
     };
 
     element.childNodes.forEach((node) => {
-      result += processNode(node);
+      const nodeMarkdown = processNode(node);
+      result = appendChildMarkdown(result, node, nodeMarkdown);
     });
 
     const normalized = result.replace(/\r/g, "");
@@ -658,20 +723,6 @@ export const MarkdownEditor = forwardRef<
     [handleInput, insertHtml],
   );
 
-  const insertLineBreak = useCallback(() => {
-    if (!editorRef.current) return;
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    if (!editorRef.current.contains(range.startContainer)) return;
-
-    range.deleteContents();
-    const br = document.createElement("br");
-    range.insertNode(br);
-    setCaretAfterNode(editorRef.current, br);
-    handleInput();
-  }, [handleInput]);
-
   const handleBold = useCallback(() => execCommand("bold"), [execCommand]);
   const handleItalic = useCallback(() => execCommand("italic"), [execCommand]);
   const handleCode = () => {
@@ -715,55 +766,74 @@ export const MarkdownEditor = forwardRef<
     execCommand("insertOrderedList");
   };
 
+  const getCurrentTriggerAtCaret = useCallback(() => {
+    if (!editorRef.current) return null;
+    const { text, caret } = serializeEditor(editorRef.current);
+    return getActiveTrigger(text, caret);
+  }, []);
+
+  const syncMentionSuggestionsWithCaret = useCallback(() => {
+    if (!isOpen) return;
+    const trigger = getCurrentTriggerAtCaret();
+    if (!trigger) {
+      closeSuggestions();
+    }
+  }, [closeSuggestions, getCurrentTriggerAtCaret, isOpen]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const key = e.key.toLowerCase();
+      const hasModifier = e.metaKey || e.ctrlKey || e.altKey;
+      const currentTrigger = getCurrentTriggerAtCaret();
+      const isMentionDropdownVisible = isOpen && filteredMentions.length > 0;
+      const isCaretOnMentionTrigger = Boolean(currentTrigger);
+      const isMentionKeyboardActive =
+        isMentionDropdownVisible && isCaretOnMentionTrigger;
 
-      if (isOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (isMentionKeyboardActive && !hasModifier) {
         if (key === "escape") {
           e.preventDefault();
           closeSuggestions();
           return;
         }
 
-        if (filteredMentions.length > 0) {
-          if (key === "arrowdown") {
-            e.preventDefault();
-            setActiveIndex((prev) =>
-              prev + 1 < filteredMentions.length ? prev + 1 : 0,
-            );
-            return;
-          }
-
-          if (key === "arrowup") {
-            e.preventDefault();
-            setActiveIndex((prev) =>
-              prev - 1 >= 0 ? prev - 1 : filteredMentions.length - 1,
-            );
-            return;
-          }
-
-          if (key === "enter" || key === "tab") {
-            e.preventDefault();
-            const mention = filteredMentions[activeIndex];
-            if (mention) {
-              insertMention(mention);
-            }
-            return;
-          }
-        } else if (key === "enter") {
+        if (key === "arrowdown") {
           e.preventDefault();
-          closeSuggestions();
-          insertLineBreak();
+          setActiveIndex((prev) =>
+            prev + 1 < filteredMentions.length ? prev + 1 : 0,
+          );
+          return;
+        }
+
+        if (key === "arrowup") {
+          e.preventDefault();
+          setActiveIndex((prev) =>
+            prev - 1 >= 0 ? prev - 1 : filteredMentions.length - 1,
+          );
+          return;
+        }
+
+        if (key === "enter" || key === "tab") {
+          e.preventDefault();
+          const mention = filteredMentions[activeIndex];
+          if (mention) {
+            insertMention(mention);
+          }
           return;
         }
       }
 
-      // Plain Enter when mention popup is not open
-      if (key === "enter" && !isOpen && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        insertLineBreak();
-        return;
+      // Plain Enter uses native contentEditable behavior. If suggestions are
+      // stale, close them but do not block the browser's newline insertion.
+      if (
+        key === "enter" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !isMentionKeyboardActive
+      ) {
+        if (isOpen) {
+          closeSuggestions();
+        }
       }
 
       // Cmd/Ctrl + Enter to submit parent form when provided.
@@ -792,9 +862,9 @@ export const MarkdownEditor = forwardRef<
       activeIndex,
       closeSuggestions,
       filteredMentions,
+      getCurrentTriggerAtCaret,
       handleBold,
       handleItalic,
-      insertLineBreak,
       insertMention,
       isOpen,
       onSubmitShortcut,
@@ -951,6 +1021,8 @@ export const MarkdownEditor = forwardRef<
         contentEditable
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onKeyUp={syncMentionSuggestionsWithCaret}
+        onMouseUp={syncMentionSuggestionsWithCaret}
         onBlur={handleBlur}
         data-placeholder={placeholder}
         role="textbox"

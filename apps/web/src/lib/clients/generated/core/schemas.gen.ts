@@ -1187,6 +1187,18 @@ export const CoworkerSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        isWhitelisted: {
+            type: 'boolean',
+            example: true
+        },
         slug: {
             type: 'string',
             example: 'ops-agent'
@@ -1249,6 +1261,8 @@ export const CoworkerSchema = {
         'id',
         'createdAt',
         'updatedAt',
+        'archivedAt',
+        'isWhitelisted',
         'slug',
         'name'
     ]
