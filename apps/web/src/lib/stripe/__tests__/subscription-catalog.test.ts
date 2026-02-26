@@ -1,9 +1,11 @@
+export {};
+
 jest.mock("server-only", () => ({}));
 
 const getEnvSecretsMock = jest.fn();
 
 jest.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => getEnvSecretsMock(),
+  getEnvSecrets: getEnvSecretsMock,
 }));
 
 const ENV = {

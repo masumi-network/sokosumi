@@ -57,7 +57,6 @@ interface CreditScope {
 
 interface SubscriptionCreditTotals {
   freeSubscriptionUpdateTargetCredits: number;
-  maxSubscriptionPeriodDurationSeconds: number | null;
   maxSubscriptionPeriodEndUnix: number | null;
   paidOrCycleSubscriptionCredits: number;
 }
@@ -138,38 +137,10 @@ function getTopUpCreditsFromInvoiceMetadata(
   return credits;
 }
 
-function getUpgradeCreditExpiry(
-  invoice: Stripe.Invoice,
-  periodDurationSeconds: number,
-): Date {
-  if (typeof invoice.created !== "number" || invoice.created <= 0) {
-    throw new Error(
-      `Missing invoice created timestamp for upgrade invoice ${invoice.id ?? "unknown"}`,
-    );
-  }
-
-  return new Date((invoice.created + periodDurationSeconds) * 1000);
-}
-
 function getSubscriptionCreditExpiry(params: {
-  invoice: Stripe.Invoice;
   invoiceId: string;
-  maxPeriodDurationSeconds: number | null;
   maxPeriodEndUnix: number | null;
 }): Date {
-  if (params.invoice.billing_reason === SUBSCRIPTION_UPDATE_BILLING_REASON) {
-    if (params.maxPeriodDurationSeconds === null) {
-      throw new Error(
-        `Missing subscription period duration for upgrade invoice ${params.invoiceId}`,
-      );
-    }
-
-    return getUpgradeCreditExpiry(
-      params.invoice,
-      params.maxPeriodDurationSeconds,
-    );
-  }
-
   if (params.maxPeriodEndUnix === null) {
     throw new Error(
       `Missing subscription period end for invoice ${params.invoiceId}`,
@@ -258,12 +229,10 @@ async function calculateSubscriptionCreditTotals(params: {
   let paidOrCycleSubscriptionCredits = 0;
   let freeSubscriptionUpdateTargetCredits = 0;
   let maxSubscriptionPeriodEndUnix: number | null = null;
-  let maxSubscriptionPeriodDurationSeconds: number | null = null;
 
   if (params.subscriptionLines.length === 0) {
     return {
       freeSubscriptionUpdateTargetCredits,
-      maxSubscriptionPeriodDurationSeconds,
       maxSubscriptionPeriodEndUnix,
       paidOrCycleSubscriptionCredits,
     };
@@ -324,24 +293,11 @@ async function calculateSubscriptionCreditTotals(params: {
       paidOrCycleSubscriptionCredits += catalogPlan.credits * quantity;
     }
 
-    const periodStart = lineItem.period?.start;
     const periodEnd = lineItem.period?.end;
     if (typeof periodEnd === "number" && periodEnd > 0) {
       maxSubscriptionPeriodEndUnix = Math.max(
         periodEnd,
         maxSubscriptionPeriodEndUnix ?? 0,
-      );
-    }
-    if (
-      typeof periodStart === "number" &&
-      periodStart > 0 &&
-      typeof periodEnd === "number" &&
-      periodEnd > periodStart
-    ) {
-      const periodDurationSeconds = periodEnd - periodStart;
-      maxSubscriptionPeriodDurationSeconds = Math.max(
-        periodDurationSeconds,
-        maxSubscriptionPeriodDurationSeconds ?? 0,
       );
     }
   }
@@ -353,7 +309,6 @@ async function calculateSubscriptionCreditTotals(params: {
 
   return {
     freeSubscriptionUpdateTargetCredits,
-    maxSubscriptionPeriodDurationSeconds,
     maxSubscriptionPeriodEndUnix,
     paidOrCycleSubscriptionCredits,
   };
@@ -361,7 +316,6 @@ async function calculateSubscriptionCreditTotals(params: {
 
 async function finalizeAppliedSubscriptionCredits(params: {
   creditScope: CreditScope;
-  invoice: Stripe.Invoice;
   invoiceId: string;
   isSubscriptionUpdate: boolean;
   totals: SubscriptionCreditTotals;
@@ -405,10 +359,7 @@ async function finalizeAppliedSubscriptionCredits(params: {
         freeSubscriptionUpdateExpiry
         ? freeSubscriptionUpdateExpiry
         : getSubscriptionCreditExpiry({
-            invoice: params.invoice,
             invoiceId: params.invoiceId,
-            maxPeriodDurationSeconds:
-              params.totals.maxSubscriptionPeriodDurationSeconds,
             maxPeriodEndUnix: params.totals.maxSubscriptionPeriodEndUnix,
           })
       : null;
@@ -621,7 +572,6 @@ export async function handleInvoicePaidEvent(
   const { subscriptionCredits, subscriptionCreditsExpiry } =
     await finalizeAppliedSubscriptionCredits({
       creditScope,
-      invoice,
       invoiceId,
       isSubscriptionUpdate,
       totals: subscriptionCreditTotals,

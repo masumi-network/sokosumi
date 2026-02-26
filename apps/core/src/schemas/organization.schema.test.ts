@@ -3,21 +3,19 @@ import { describe, expect, it } from "vitest";
 import { organizationWithRoleSchema } from "./organization.schema";
 
 describe("organizationWithRoleSchema", () => {
-  it("accepts null subscription", () => {
+  it("accepts base organization with role", () => {
     const result = organizationWithRoleSchema.parse({
       id: "org_123",
       createdAt: "2025-01-01T00:00:00.000Z",
       name: "My Organization",
       slug: "my-org",
       role: "member",
-      credits: 100,
-      subscription: null,
     });
 
-    expect(result.subscription).toBeNull();
+    expect(result.role).toBe("member");
   });
 
-  it("accepts a populated subscription", () => {
+  it("strips legacy credits field when provided", () => {
     const result = organizationWithRoleSchema.parse({
       id: "org_123",
       createdAt: "2025-01-01T00:00:00.000Z",
@@ -25,34 +23,19 @@ describe("organizationWithRoleSchema", () => {
       slug: "my-org",
       role: "member",
       credits: 100,
-      subscription: {
-        id: "sub_123",
-        plan: "starter",
-        status: "active",
-        periodStart: "2025-01-01T00:00:00.000Z",
-        periodEnd: "2025-02-01T00:00:00.000Z",
-        cancelAtPeriodEnd: false,
-        credits: {
-          total: 100,
-          remaining: 76,
-          used: 24,
-        },
-      },
     });
 
-    expect(result.subscription?.id).toBe("sub_123");
+    expect(result).not.toHaveProperty("credits");
   });
 
-  it("accepts populated subscription with null usage", () => {
+  it("strips legacy subscription field when provided", () => {
     const result = organizationWithRoleSchema.parse({
       id: "org_123",
       createdAt: "2025-01-01T00:00:00.000Z",
       name: "My Organization",
       slug: "my-org",
       role: "member",
-      credits: 100,
       subscription: {
-        id: "sub_123",
         plan: "starter",
         status: "active",
         periodStart: "2025-01-01T00:00:00.000Z",
@@ -62,6 +45,6 @@ describe("organizationWithRoleSchema", () => {
       },
     });
 
-    expect(result.subscription?.credits).toBeNull();
+    expect(result).not.toHaveProperty("subscription");
   });
 });

@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { getCredits } from "@/helpers/user";
+import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -31,7 +31,22 @@ const route = createRoute({
       "Retrieve organization credits",
       {
         data: {
-          credits: 100.0,
+          credits: {
+            subscription: {
+              plan: "starter",
+              status: "active",
+              periodStart: "2025-01-01T00:00:00.000Z",
+              periodEnd: "2025-02-01T00:00:00.000Z",
+              cancelAtPeriodEnd: false,
+              credits: {
+                total: 100,
+                remaining: 57.5,
+                used: 42.5,
+              },
+            },
+            buffer: 12.5,
+            total: 70,
+          },
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -59,8 +74,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: authContext.userId,
         tx,
       });
-
-      return await getCredits(authContext.userId, organization.id, tx);
+      return await buildCreditsPayload({
+        userId: authContext.userId,
+        organizationId: organization.id,
+        referenceId: organization.id,
+        tx,
+      });
     });
 
     return ok(c, creditsResponseSchema.parse({ credits }));
