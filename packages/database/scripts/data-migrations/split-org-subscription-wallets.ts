@@ -18,6 +18,8 @@ if (!databaseUrl) {
 const prisma = createPrismaClient(databaseUrl);
 
 const LEGACY_SPLIT_REFERENCE_SEGMENT = "legacy-split";
+const MIGRATION_TRANSACTION_TIMEOUT_MS = 120_000;
+const MIGRATION_TRANSACTION_MAX_WAIT_MS = 20_000;
 
 class OrganizationWithoutMembersError extends Error {
   organizationId: string;
@@ -303,7 +305,7 @@ async function migrateOrganization(params: {
             continue;
           }
 
-          await tx.transaction.create({
+          const createdTransaction = await tx.transaction.create({
             data: {
               amount: allocation.amount,
               user: {
@@ -316,17 +318,19 @@ async function migrateOrganization(params: {
                   id: params.organizationId,
                 },
               },
-              sourceCreditBucket: {
-                create: {
-                  amount: allocation.amount,
-                  expiresAt: legacyBucket.expiresAt,
-                  referenceId,
-                  referenceType:
-                    CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-                  userId: allocation.memberId,
-                  organizationId: params.organizationId,
-                },
-              },
+            },
+          });
+
+          await tx.creditBucket.create({
+            data: {
+              amount: allocation.amount,
+              expiresAt: legacyBucket.expiresAt,
+              referenceId,
+              referenceType:
+                CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+              userId: allocation.memberId,
+              organizationId: params.organizationId,
+              sourceTransactionId: createdTransaction.id,
             },
           });
 
@@ -346,6 +350,8 @@ async function migrateOrganization(params: {
     },
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      maxWait: MIGRATION_TRANSACTION_MAX_WAIT_MS,
+      timeout: MIGRATION_TRANSACTION_TIMEOUT_MS,
     },
   );
 }

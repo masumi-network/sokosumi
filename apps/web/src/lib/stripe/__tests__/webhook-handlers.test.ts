@@ -508,7 +508,11 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.user.connect.id).toBe("owner-2");
     expect(createCall.data.amount).toBe(BigInt("1000000000000"));
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildOrganizationInvoiceCreditReferenceId("org-1", "in_org_topup", "topup"),
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_topup",
+        "topup",
+      ),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
@@ -690,7 +694,9 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("logs seat-credit cap when billed organization seats exceed active members", async () => {
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const consoleLogSpy = jest
+      .spyOn(console, "log")
+      .mockImplementation(() => {});
 
     getUserByStripeCustomerIdMock.mockResolvedValue(null);
     getOrganizationByStripeCustomerIdMock.mockResolvedValue({
@@ -805,7 +811,11 @@ describe("handleInvoicePaidEvent", () => {
     };
 
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId("user-1", "in_sub_upgrade", "subscription"),
+      buildUserInvoiceCreditReferenceId(
+        "user-1",
+        "in_sub_upgrade",
+        "subscription",
+      ),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
@@ -1024,7 +1034,11 @@ describe("handleInvoicePaidEvent", () => {
       };
     };
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      buildUserInvoiceCreditReferenceId("user-1", "in_sub_cycle", "subscription"),
+      buildUserInvoiceCreditReferenceId(
+        "user-1",
+        "in_sub_cycle",
+        "subscription",
+      ),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",

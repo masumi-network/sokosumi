@@ -60,7 +60,9 @@ describe("splitAmountEvenlyWithRemainderRotation", () => {
       remainderOffset: firstBucket.nextRemainderOffset,
     });
 
-    assert.deepEqual(firstBucket.allocations, [{ memberId: "user-a", amount: 1n }]);
+    assert.deepEqual(firstBucket.allocations, [
+      { memberId: "user-a", amount: 1n },
+    ]);
     assert.equal(firstBucket.nextRemainderOffset, 1);
     assert.deepEqual(secondBucket.allocations, [
       { memberId: "user-b", amount: 1n },

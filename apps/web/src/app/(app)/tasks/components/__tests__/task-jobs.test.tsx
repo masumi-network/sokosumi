@@ -38,9 +38,7 @@ jest.mock("@/lib/utils/datetime", () => ({
     `ago:${value instanceof Date ? value.toISOString() : value}`,
 }));
 
-function createJob(
-  overrides: Partial<Job>,
-): Job {
+function createJob(overrides: Partial<Job>): Job {
   return {
     id: "job-1",
     agentId: "agent-1",
