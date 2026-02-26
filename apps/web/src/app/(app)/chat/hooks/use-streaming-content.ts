@@ -50,6 +50,7 @@ export function useStreamingContent(
       }
       const targetLength = contentLengthRef.current;
       if (revealedLengthRef.current >= targetLength) {
+        lastTimeRef.current = null;
         rafIdRef.current = null;
         return;
       }
