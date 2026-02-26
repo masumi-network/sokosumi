@@ -248,6 +248,7 @@ async function calculateSubscriptionCreditTotals(params: {
   invoiceId: string;
   isSubscriptionUpdate: boolean;
   maxSeatGrantQuantity: number | null;
+  organizationId: string | null;
   resolveDefaultQuantity: () => Promise<number>;
   subscriptionLines: SubscriptionLine[];
 }): Promise<SubscriptionCreditTotals> {
@@ -279,6 +280,17 @@ async function calculateSubscriptionCreditTotals(params: {
   let maxFreePlanQuantity = 0;
   let freePlanCreditsPerSeat = 0;
 
+  function logSeatCreditCapApplied(data: {
+    activeMembers: number;
+    billedSeats: number;
+    grantedSeats: number;
+    productId: string;
+  }): void {
+    console.log(
+      `⚠️ seat_credit_cap_applied invoiceId=${params.invoiceId} organizationId=${params.organizationId ?? "none"} productId=${data.productId} billedSeats=${data.billedSeats} activeMembers=${data.activeMembers} grantedSeats=${data.grantedSeats} droppedSeats=${data.billedSeats - data.grantedSeats}`,
+    );
+  }
+
   for (const { lineItem, productId } of params.subscriptionLines) {
     const catalogPlan = catalogByProductId.get(productId);
     if (!catalogPlan) {
@@ -297,7 +309,16 @@ async function calculateSubscriptionCreditTotals(params: {
         }
 
         if (params.maxSeatGrantQuantity !== null) {
+          const billedQuantity = quantity;
           quantity = Math.min(quantity, params.maxSeatGrantQuantity);
+          if (billedQuantity > quantity) {
+            logSeatCreditCapApplied({
+              activeMembers: params.maxSeatGrantQuantity,
+              billedSeats: billedQuantity,
+              grantedSeats: quantity,
+              productId,
+            });
+          }
         }
         if (quantity <= 0) {
           continue;
@@ -321,7 +342,16 @@ async function calculateSubscriptionCreditTotals(params: {
       }
 
       if (params.maxSeatGrantQuantity !== null) {
+        const billedQuantity = quantity;
         quantity = Math.min(quantity, params.maxSeatGrantQuantity);
+        if (billedQuantity > quantity) {
+          logSeatCreditCapApplied({
+            activeMembers: params.maxSeatGrantQuantity,
+            billedSeats: billedQuantity,
+            grantedSeats: quantity,
+            productId,
+          });
+        }
       }
 
       if (quantity <= 0) {
@@ -627,6 +657,7 @@ export async function handleInvoicePaidEvent(
     maxSeatGrantQuantity: organizationId
       ? organizationMemberUserIds.length
       : null,
+    organizationId,
     resolveDefaultQuantity: creditScope.resolveDefaultQuantity,
     subscriptionLines,
   });

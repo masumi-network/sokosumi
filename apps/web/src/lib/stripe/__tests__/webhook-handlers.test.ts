@@ -679,6 +679,69 @@ describe("handleInvoicePaidEvent", () => {
     expect(createTransactionMock).not.toHaveBeenCalled();
   });
 
+  it("logs seat-credit cap when billed organization seats exceed active members", async () => {
+    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
+      id: "org-1",
+    });
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "member", userId: "member-1" },
+      { role: "owner", userId: "owner-2" },
+    ]);
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    try {
+      await handleInvoicePaidEvent(
+        createInvoice({
+          billingReason: "subscription_cycle",
+          id: "in_org_cycle_cap_log",
+          lines: [{ productId: "prod_starter", quantity: 5 }],
+        }) as never,
+      );
+
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("seat_credit_cap_applied"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("invoiceId=in_org_cycle_cap_log"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("organizationId=org-1"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("billedSeats=5"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("activeMembers=2"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("grantedSeats=2"),
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("droppedSeats=3"),
+      );
+    } finally {
+      consoleLogSpy.mockRestore();
+    }
+  });
+
   it("grants positive prorated credits for paid subscription_update invoices", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
