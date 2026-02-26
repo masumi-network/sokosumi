@@ -310,22 +310,6 @@ async function migrateOrganization(params: {
           );
 
           try {
-            const createdTransaction = await tx.transaction.create({
-              data: {
-                amount: allocation.amount,
-                user: {
-                  connect: {
-                    id: allocation.memberId,
-                  },
-                },
-                organization: {
-                  connect: {
-                    id: params.organizationId,
-                  },
-                },
-              },
-            });
-
             await tx.creditBucket.create({
               data: {
                 amount: allocation.amount,
@@ -335,7 +319,21 @@ async function migrateOrganization(params: {
                   CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
                 userId: allocation.memberId,
                 organizationId: params.organizationId,
-                sourceTransactionId: createdTransaction.id,
+                sourceTransaction: {
+                  create: {
+                    amount: allocation.amount,
+                    user: {
+                      connect: {
+                        id: allocation.memberId,
+                      },
+                    },
+                    organization: {
+                      connect: {
+                        id: params.organizationId,
+                      },
+                    },
+                  },
+                },
               },
             });
           } catch (error) {
