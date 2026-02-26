@@ -18,8 +18,27 @@ if (!databaseUrl) {
 const prisma = createPrismaClient(databaseUrl);
 
 const LEGACY_SPLIT_REFERENCE_SEGMENT = "legacy-split";
-const MIGRATION_TRANSACTION_TIMEOUT_MS = 120_000;
-const MIGRATION_TRANSACTION_MAX_WAIT_MS = 20_000;
+
+const DEFAULT_TRANSACTION_TIMEOUT_MS = 120_000;
+const DEFAULT_TRANSACTION_MAX_WAIT_MS = 20_000;
+
+function getTransactionTimeoutMs(): number {
+  const raw = process.env.MIGRATION_TRANSACTION_TIMEOUT_MS;
+  if (raw === undefined || raw === "") return DEFAULT_TRANSACTION_TIMEOUT_MS;
+  const n = Number.parseInt(raw, 10);
+  return Number.isNaN(n) || n < 1
+    ? DEFAULT_TRANSACTION_TIMEOUT_MS
+    : n;
+}
+
+function getTransactionMaxWaitMs(): number {
+  const raw = process.env.MIGRATION_TRANSACTION_MAX_WAIT_MS;
+  if (raw === undefined || raw === "") return DEFAULT_TRANSACTION_MAX_WAIT_MS;
+  const n = Number.parseInt(raw, 10);
+  return Number.isNaN(n) || n < 1
+    ? DEFAULT_TRANSACTION_MAX_WAIT_MS
+    : n;
+}
 
 class OrganizationWithoutMembersError extends Error {
   organizationId: string;
@@ -290,49 +309,45 @@ async function migrateOrganization(params: {
             legacyBucket.id,
           );
 
-          const existingBucket = await tx.creditBucket.findUnique({
-            where: {
-              referenceId_referenceType: {
+          try {
+            const createdTransaction = await tx.transaction.create({
+              data: {
+                amount: allocation.amount,
+                user: {
+                  connect: {
+                    id: allocation.memberId,
+                  },
+                },
+                organization: {
+                  connect: {
+                    id: params.organizationId,
+                  },
+                },
+              },
+            });
+
+            await tx.creditBucket.create({
+              data: {
+                amount: allocation.amount,
+                expiresAt: legacyBucket.expiresAt,
                 referenceId,
                 referenceType:
                   CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+                userId: allocation.memberId,
+                organizationId: params.organizationId,
+                sourceTransactionId: createdTransaction.id,
               },
-            },
-          });
-
-          if (existingBucket) {
-            memberBucketsSkipped += 1;
-            continue;
+            });
+          } catch (error) {
+            const isUniqueViolation =
+              error instanceof Prisma.PrismaClientKnownRequestError &&
+              error.code === "P2002";
+            if (isUniqueViolation) {
+              memberBucketsSkipped += 1;
+              continue;
+            }
+            throw error;
           }
-
-          const createdTransaction = await tx.transaction.create({
-            data: {
-              amount: allocation.amount,
-              user: {
-                connect: {
-                  id: allocation.memberId,
-                },
-              },
-              organization: {
-                connect: {
-                  id: params.organizationId,
-                },
-              },
-            },
-          });
-
-          await tx.creditBucket.create({
-            data: {
-              amount: allocation.amount,
-              expiresAt: legacyBucket.expiresAt,
-              referenceId,
-              referenceType:
-                CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-              userId: allocation.memberId,
-              organizationId: params.organizationId,
-              sourceTransactionId: createdTransaction.id,
-            },
-          });
 
           memberBucketsCreated += 1;
           splitCentsCreated += allocation.amount;
@@ -350,13 +365,14 @@ async function migrateOrganization(params: {
     },
     {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: MIGRATION_TRANSACTION_MAX_WAIT_MS,
-      timeout: MIGRATION_TRANSACTION_TIMEOUT_MS,
+      maxWait: getTransactionMaxWaitMs(),
+      timeout: getTransactionTimeoutMs(),
     },
   );
 }
 
 async function main() {
+  const mainStartMs = Date.now();
   const migrationTime = new Date();
   console.log(
     `Starting split_org_subscription_wallets data migration at ${migrationTime.toISOString()}`,
@@ -397,10 +413,12 @@ async function main() {
   let totalSplitCentsCreated = 0n;
 
   for (const organizationId of organizationIds) {
+    const orgStartMs = Date.now();
     const stats = await migrateOrganization({
       migrationTime,
       organizationId,
     });
+    const orgElapsedMs = Date.now() - orgStartMs;
 
     totalOrganizationsMigrated += 1;
     totalBucketsExpired += stats.bucketsExpired;
@@ -410,12 +428,21 @@ async function main() {
     totalSplitCentsCreated += stats.splitCentsCreated;
 
     console.log(
-      `Migrated organization ${organizationId}: legacyBuckets=${stats.bucketsExamined}, memberBucketsCreated=${stats.memberBucketsCreated}, memberBucketsSkipped=${stats.memberBucketsSkipped}, remainingAvailableCents=${stats.remainingAvailableCents}, splitCentsCreated=${stats.splitCentsCreated}`,
+      `Migrated organization ${organizationId}: legacyBuckets=${stats.bucketsExamined}, memberBucketsCreated=${stats.memberBucketsCreated}, memberBucketsSkipped=${stats.memberBucketsSkipped}, remainingAvailableCents=${stats.remainingAvailableCents}, splitCentsCreated=${stats.splitCentsCreated} (${orgElapsedMs}ms)`,
     );
   }
 
+  const totalElapsedMs = Date.now() - mainStartMs;
+  const orgsPerSecond =
+    totalOrganizationsMigrated > 0 && totalElapsedMs > 0
+      ? (totalOrganizationsMigrated / totalElapsedMs) * 1000
+      : 0;
+
   console.log(
     `Migration summary: organizationsMigrated=${totalOrganizationsMigrated}, bucketsExpired=${totalBucketsExpired}, memberBucketsCreated=${totalMemberBucketsCreated}, memberBucketsSkipped=${totalMemberBucketsSkipped}, remainingAvailableCents=${totalRemainingAvailableCents}, splitCentsCreated=${totalSplitCentsCreated}`,
+  );
+  console.log(
+    `Migration timing: totalElapsedMs=${totalElapsedMs}, orgsPerSecond=${orgsPerSecond.toFixed(2)}`,
   );
 
   if (totalSplitCentsCreated !== totalRemainingAvailableCents) {
