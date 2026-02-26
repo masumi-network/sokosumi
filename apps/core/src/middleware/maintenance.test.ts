@@ -1,8 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { errorHandler } from "@/helpers/error-handler";
-
 import { maintenanceMiddleware } from "./maintenance";
 
 const { getEnvMock } = vi.hoisted(() => ({
@@ -23,7 +21,6 @@ function createApp() {
     await next();
   });
   app.use("*", maintenanceMiddleware());
-  app.onError(errorHandler);
 
   app.get("/", (c) => c.text("ok"));
 
@@ -53,12 +50,13 @@ describe("maintenanceMiddleware", () => {
     const body = (await response.json()) as {
       error: string;
       message: string;
-      meta: { path: string; method: string };
+      meta: { requestId: string; path: string; method: string };
     };
 
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Service is under maintenance");
+    expect(body.meta.requestId).toBe("req_123");
     expect(body.meta.path).toBe("/");
     expect(body.meta.method).toBe("GET");
   });

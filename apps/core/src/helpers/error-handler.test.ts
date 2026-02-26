@@ -32,7 +32,7 @@ describe("errorHandler", () => {
     vi.clearAllMocks();
   });
 
-  it("does not report maintenance-mode 503 responses to Sentry", async () => {
+  it("reports maintenance-mode 503 responses to Sentry", async () => {
     const app = createApp();
     app.get("/", () => {
       throw serviceUnavailable("Service is under maintenance");
@@ -47,7 +47,7 @@ describe("errorHandler", () => {
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Service is under maintenance");
-    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("reports non-maintenance 503 responses to Sentry", async () => {
