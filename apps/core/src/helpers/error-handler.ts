@@ -10,6 +10,12 @@ import {
   getErrorName,
 } from "./error.js";
 
+const MAINTENANCE_MODE_MESSAGE = "Service is under maintenance";
+
+function isMaintenanceModeException(error: HTTPException): boolean {
+  return error.status === 503 && error.message === MAINTENANCE_MODE_MESSAGE;
+}
+
 /**
  * Centralized error handler for Hono app
  * Formats HTTPExceptions into consistent error responses
@@ -63,7 +69,7 @@ export function errorHandler(
   if (error instanceof HTTPException) {
     const status = error.status;
 
-    if (status >= 500) {
+    if (status >= 500 && !isMaintenanceModeException(error)) {
       Sentry.captureException(error);
     }
 
