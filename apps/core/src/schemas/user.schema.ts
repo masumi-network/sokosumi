@@ -42,9 +42,12 @@ export const userOnboardingResponseSchema = z.object({
 });
 
 export const creditsResponseSchema = z.object({
-  credits: z.number().openapi({
-    description: "Current credit balance",
-    example: 100.0,
+  credits: z.object({
+    subscription: subscriptionSchema.nullable(),
+    buffer: z.number().openapi({
+      description: "Current available non-subscription credit balance",
+      example: 25.0,
+    }),
   }),
 });
 

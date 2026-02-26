@@ -3,6 +3,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import {
+  getCreditBuffer,
+  getCurrentSubscriptionCredits,
+  mapSubscription,
+} from "@/helpers/subscription";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -31,7 +36,21 @@ const route = createRoute({
       "Retrieve organization credits",
       {
         data: {
-          credits: 100.0,
+          credits: {
+            subscription: {
+              plan: "starter",
+              status: "active",
+              periodStart: "2025-01-01T00:00:00.000Z",
+              periodEnd: "2025-02-01T00:00:00.000Z",
+              cancelAtPeriodEnd: false,
+              credits: {
+                total: 100,
+                remaining: 57.5,
+                used: 42.5,
+              },
+            },
+            buffer: 12.5,
+          },
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -59,8 +78,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: authContext.userId,
         tx,
       });
+      const totalCredits = await getCredits(
+        authContext.userId,
+        organization.id,
+        tx,
+      );
+      const latestSubscription = await tx.subscription.findFirst({
+        where: { referenceId: organization.id },
+        orderBy: { updatedAt: "desc" },
+      });
+      const subscriptionCredits = await getCurrentSubscriptionCredits({
+        subscription: latestSubscription,
+        userId: authContext.userId,
+        organizationId: organization.id,
+        tx,
+      });
+      const subscription = mapSubscription(
+        latestSubscription
+          ? {
+              ...latestSubscription,
+              credits: subscriptionCredits,
+            }
+          : null,
+      );
+      const buffer = getCreditBuffer({
+        totalCredits,
+        subscriptionCredits,
+      });
 
-      return await getCredits(authContext.userId, organization.id, tx);
+      return {
+        subscription,
+        buffer,
+      };
     });
 
     return ok(c, creditsResponseSchema.parse({ credits }));

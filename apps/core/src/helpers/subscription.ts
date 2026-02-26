@@ -13,7 +13,6 @@ interface SubscriptionCredits {
 }
 
 interface SubscriptionRecord extends SubscriptionPeriodRecord {
-  id: string;
   plan: string;
   status: string;
   cancelAtPeriodEnd: boolean | null;
@@ -27,6 +26,25 @@ interface CurrentSubscriptionPeriod {
 
 interface OrganizationCurrentSubscriptionPeriod extends CurrentSubscriptionPeriod {
   organizationId: string;
+}
+
+interface NormalizedSubscriptionCents {
+  remainingCents: bigint;
+  totalCents: bigint;
+  usedCents: bigint;
+}
+
+function normalizeSubscriptionCents(
+  totalCentsRaw: bigint,
+  usedCentsRaw: bigint,
+): NormalizedSubscriptionCents {
+  const totalCents = totalCentsRaw > 0n ? totalCentsRaw : 0n;
+  const usedCentsNonNegative = usedCentsRaw > 0n ? usedCentsRaw : 0n;
+  const usedCents =
+    usedCentsNonNegative > totalCents ? totalCents : usedCentsNonNegative;
+  const remainingCents = totalCents - usedCents;
+
+  return { totalCents, usedCents, remainingCents };
 }
 
 export function getCurrentSubscriptionPeriod(
@@ -110,15 +128,33 @@ export async function getCurrentSubscriptionCredits(params: {
     }),
   ]);
 
-  const totalCents = totalAggregateResult._sum.amount ?? 0n;
-  const usedCents = usedAggregateResult._sum.amount ?? 0n;
-  const remainingCents = totalCents > usedCents ? totalCents - usedCents : 0n;
+  const normalizedCents = normalizeSubscriptionCents(
+    totalAggregateResult._sum.amount ?? 0n,
+    usedAggregateResult._sum.amount ?? 0n,
+  );
 
   return {
-    total: convertCentsToCredits(totalCents),
-    used: convertCentsToCredits(usedCents),
-    remaining: convertCentsToCredits(remainingCents),
+    total: convertCentsToCredits(normalizedCents.totalCents),
+    used: convertCentsToCredits(normalizedCents.usedCents),
+    remaining: convertCentsToCredits(normalizedCents.remainingCents),
   };
+}
+
+export function getCreditBuffer(params: {
+  totalCredits: number;
+  subscriptionCredits: Pick<SubscriptionCredits, "remaining"> | null;
+}): number {
+  const totalCredits = Number.isFinite(params.totalCredits)
+    ? Math.max(params.totalCredits, 0)
+    : 0;
+  const subscriptionRemaining = Number.isFinite(
+    params.subscriptionCredits?.remaining,
+  )
+    ? Math.max(params.subscriptionCredits?.remaining ?? 0, 0)
+    : 0;
+  const buffer = totalCredits - subscriptionRemaining;
+
+  return buffer > 0 ? buffer : 0;
 }
 
 export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
@@ -180,17 +216,17 @@ export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
 
   return new Map(
     rows.map((row) => {
-      const remainingCents =
-        row.total_cents > row.used_cents
-          ? row.total_cents - row.used_cents
-          : 0n;
+      const normalizedCents = normalizeSubscriptionCents(
+        row.total_cents,
+        row.used_cents,
+      );
 
       return [
         row.organization_id,
         {
-          total: convertCentsToCredits(row.total_cents),
-          used: convertCentsToCredits(row.used_cents),
-          remaining: convertCentsToCredits(remainingCents),
+          total: convertCentsToCredits(normalizedCents.totalCents),
+          used: convertCentsToCredits(normalizedCents.usedCents),
+          remaining: convertCentsToCredits(normalizedCents.remainingCents),
         },
       ];
     }),
@@ -203,7 +239,6 @@ export function mapSubscription(subscription: SubscriptionRecord | null) {
   }
 
   return {
-    id: subscription.id,
     plan: subscription.plan,
     status: subscription.status,
     periodStart: subscription.periodStart,

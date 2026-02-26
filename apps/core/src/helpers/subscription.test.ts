@@ -3,6 +3,7 @@ import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  getCreditBuffer,
   getCurrentOrganizationSubscriptionCreditsMap,
   getCurrentSubscriptionCredits,
   mapSubscription,
@@ -12,7 +13,6 @@ function createSubscriptionRecord(
   overrides: Partial<{
     cancelAtPeriodEnd: boolean | null;
     credits: { remaining: number; total: number; used: number } | null;
-    id: string;
     periodEnd: Date | null;
     periodStart: Date | null;
     plan: string;
@@ -20,7 +20,6 @@ function createSubscriptionRecord(
   }> = {},
 ) {
   return {
-    id: "sub_123",
     plan: "starter",
     status: "active",
     periodStart: new Date("2025-01-01T00:00:00.000Z"),
@@ -71,7 +70,6 @@ describe("mapSubscription", () => {
 
     expect(
       mapSubscription({
-        id: "sub_123",
         plan: "starter",
         status: "active",
         periodStart,
@@ -80,7 +78,6 @@ describe("mapSubscription", () => {
         credits: { total: 100, used: 42.5, remaining: 57.5 },
       }),
     ).toEqual({
-      id: "sub_123",
       plan: "starter",
       status: "active",
       periodStart,
@@ -88,6 +85,43 @@ describe("mapSubscription", () => {
       cancelAtPeriodEnd: false,
       credits: { total: 100, used: 42.5, remaining: 57.5 },
     });
+  });
+});
+
+describe("getCreditBuffer", () => {
+  it("subtracts subscription remaining credits from total available credits", () => {
+    expect(
+      getCreditBuffer({
+        totalCredits: 30,
+        subscriptionCredits: {
+          total: 20,
+          used: 8,
+          remaining: 12,
+        },
+      }),
+    ).toBe(18);
+  });
+
+  it("returns full balance when no subscription credits are present", () => {
+    expect(
+      getCreditBuffer({
+        totalCredits: 11,
+        subscriptionCredits: null,
+      }),
+    ).toBe(11);
+  });
+
+  it("clamps buffer at zero when subscription remaining exceeds total", () => {
+    expect(
+      getCreditBuffer({
+        totalCredits: 5,
+        subscriptionCredits: {
+          total: 50,
+          used: 45,
+          remaining: 8,
+        },
+      }),
+    ).toBe(0);
   });
 });
 
@@ -329,6 +363,28 @@ describe("getCurrentSubscriptionCredits", () => {
     });
   });
 
+  it("caps used at total so used plus remaining always equals total", async () => {
+    const now = new Date("2025-01-15T12:00:00.000Z");
+    const { tx } = createTransactionClient({
+      totalCents: convertCreditsToCents(9),
+      usedCents: convertCreditsToCents(12),
+    });
+
+    await expect(
+      getCurrentSubscriptionCredits({
+        subscription: createSubscriptionRecord(),
+        userId: "user_1",
+        organizationId: null,
+        tx,
+        now,
+      }),
+    ).resolves.toEqual({
+      total: 9,
+      used: 9,
+      remaining: 0,
+    });
+  });
+
   it("does not constrain bucket creation to period start", async () => {
     const now = new Date("2025-01-15T12:00:00.000Z");
     const periodStart = new Date("2025-01-01T00:00:00.000Z");
@@ -419,6 +475,38 @@ describe("getCurrentOrganizationSubscriptionCreditsMap", () => {
       total: 20,
       used: 4,
       remaining: 16,
+    });
+  });
+
+  it("caps organization used at total when raw usage exceeds total", async () => {
+    const queryRaw = vi.fn().mockResolvedValue([
+      {
+        organization_id: "org_1",
+        total_cents: convertCreditsToCents(10),
+        used_cents: convertCreditsToCents(12),
+      },
+    ]);
+    const tx = {
+      $queryRaw: queryRaw,
+    } as unknown as Prisma.TransactionClient;
+
+    const result = await getCurrentOrganizationSubscriptionCreditsMap({
+      periods: [
+        {
+          organizationId: "org_1",
+          periodStart: new Date("2025-01-01T00:00:00.000Z"),
+          periodEnd: new Date("2025-02-01T00:00:00.000Z"),
+        },
+      ],
+      tx,
+      now: new Date("2025-01-20T00:00:00.000Z"),
+    });
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(result.get("org_1")).toEqual({
+      total: 10,
+      used: 10,
+      remaining: 0,
     });
   });
 });

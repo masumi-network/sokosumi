@@ -31,7 +31,6 @@ const route = createRoute({
         role: "user",
         credits: 100.0,
         subscription: {
-          id: "sub_123",
           plan: "starter",
           status: "active",
           periodStart: "2025-01-01T00:00:00.000Z",
