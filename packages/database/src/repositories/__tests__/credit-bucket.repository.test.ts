@@ -181,6 +181,67 @@ describe("creditBucketRepository.getBalance (organization)", () => {
       values.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
     );
   });
+
+  it("escapes LIKE wildcards in organization member reference scope", async () => {
+    let queryArgs: unknown[] = [];
+    const tx = {
+      $queryRaw: async (...rawArgs: unknown[]) => {
+        queryArgs = rawArgs;
+        return [{ balance: 90n }];
+      },
+      creditBucket: {
+        findMany: () => {
+          throw new Error("Unexpected creditBucket.findMany call");
+        },
+      },
+      creditConsumption: {
+        aggregate: () => {
+          throw new Error("Unexpected creditConsumption.aggregate call");
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await creditBucketRepository.getBalance("user_1", "org_1", tx);
+
+    const values = extractNestedSqlValues(queryArgs);
+    assert.ok(
+      values.includes("member:user\\_1:%"),
+    );
+  });
+
+  it("escapes LIKE wildcards in prepareConsumption for organization member scope", async () => {
+    let queryArgs: unknown[] = [];
+    const tx = {
+      $queryRaw: async (...rawArgs: unknown[]) => {
+        queryArgs = rawArgs;
+        return [{ id: "bucket-1", available: 10n }];
+      },
+      creditBucket: {
+        findMany: () => {
+          throw new Error("Unexpected creditBucket.findMany call");
+        },
+      },
+      creditConsumption: {
+        aggregate: () => {
+          throw new Error("Unexpected creditConsumption.aggregate call");
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const consumptions = await creditBucketRepository.prepareConsumption(
+      "user_1",
+      "org_1",
+      5n,
+      tx,
+    );
+
+    assert.deepEqual(consumptions, [{ bucketId: "bucket-1", amount: 5n }]);
+
+    const values = extractNestedSqlValues(queryArgs);
+    assert.ok(
+      values.includes("member:user\\_1:%"),
+    );
+  });
 });
 
 describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {

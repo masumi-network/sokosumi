@@ -222,7 +222,13 @@ function buildCreditBucketScopeSql(
     return Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
   }
 
-  const memberReferencePattern = `${getOrganizationMemberSubscriptionReferencePrefix(userId)}%`;
+  const escapedUserId = getOrganizationMemberSubscriptionReferencePrefix(
+    userId,
+  )
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+  const memberReferencePattern = `${escapedUserId}%`;
   return Prisma.sql`
     cb."organizationId" = ${organizationId}
     AND (
@@ -230,7 +236,7 @@ function buildCreditBucketScopeSql(
       OR (
         cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
         AND cb."userId" = ${userId}
-        AND cb."referenceId" LIKE ${memberReferencePattern}
+        AND cb."referenceId" LIKE ${memberReferencePattern} ESCAPE '\\'
       )
     )
   `;
