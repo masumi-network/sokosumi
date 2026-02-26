@@ -1,3 +1,5 @@
+export {};
+
 jest.mock("server-only", () => ({}));
 
 const headersMock = jest.fn(async () => new Headers());
@@ -6,24 +8,21 @@ const createBillingPortalMock = jest.fn();
 const updateOrganizationSeatsImmediatelyMock = jest.fn();
 
 jest.mock("next/headers", () => ({
-  headers: (...args: unknown[]) => headersMock(...args),
+  headers: headersMock,
 }));
 
 jest.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {
-      createBillingPortal: (...args: unknown[]) =>
-        createBillingPortalMock(...args),
-      upgradeSubscription: (...args: unknown[]) =>
-        upgradeSubscriptionMock(...args),
+      createBillingPortal: createBillingPortalMock,
+      upgradeSubscription: upgradeSubscriptionMock,
     },
   },
 }));
 
 jest.mock("@/lib/services", () => ({
   organizationSubscriptionService: {
-    updateOrganizationSeatsImmediately: (...args: unknown[]) =>
-      updateOrganizationSeatsImmediatelyMock(...args),
+    updateOrganizationSeatsImmediately: updateOrganizationSeatsImmediatelyMock,
   },
 }));
 

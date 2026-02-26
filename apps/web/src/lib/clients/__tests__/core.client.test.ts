@@ -1,3 +1,5 @@
+export {};
+
 jest.mock("server-only", () => ({}));
 
 const headersMock = jest.fn();
@@ -11,26 +13,23 @@ const mockClient = { id: "core-client" } as never;
 const createClientMock = jest.fn(() => mockClient);
 
 jest.mock("next/headers", () => ({
-  headers: (...args: unknown[]) => headersMock(...args),
+  headers: headersMock,
 }));
 
 jest.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => getEnvSecretsMock(),
+  getEnvSecrets: getEnvSecretsMock,
 }));
 
 jest.mock("@/lib/clients/generated/core/client", () => ({
-  createClient: (...args: unknown[]) => createClientMock(...args),
+  createClient: createClientMock,
 }));
 
 jest.mock("@/lib/clients/generated/core", () => ({
-  getConversations: (...args: unknown[]) => getConversationsMock(...args),
-  getUsersMeNoticesPending: (...args: unknown[]) =>
-    getUsersMeNoticesPendingMock(...args),
-  postUsersMeNoticesByIdAcknowledge: (...args: unknown[]) =>
-    postUsersMeNoticesByIdAcknowledgeMock(...args),
-  getUsersMeCredits: (...args: unknown[]) => getUsersMeCreditsMock(...args),
-  getUsersMeOrganizations: (...args: unknown[]) =>
-    getUsersMeOrganizationsMock(...args),
+  getConversations: getConversationsMock,
+  getUsersMeNoticesPending: getUsersMeNoticesPendingMock,
+  postUsersMeNoticesByIdAcknowledge: postUsersMeNoticesByIdAcknowledgeMock,
+  getUsersMeCredits: getUsersMeCreditsMock,
+  getUsersMeOrganizations: getUsersMeOrganizationsMock,
 }));
 
 describe("core.client", () => {
