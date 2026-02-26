@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getCreditSummary,
-  getCurrentOrganizationSubscriptionCreditsMap,
   getCurrentSubscriptionCredits,
   mapSubscription,
 } from "./subscription";
@@ -420,102 +419,6 @@ describe("getCurrentSubscriptionCredits", () => {
           lt: now,
         },
       }),
-    });
-  });
-});
-
-describe("getCurrentOrganizationSubscriptionCreditsMap", () => {
-  it("returns empty map without querying when no periods are provided", async () => {
-    const queryRaw = vi.fn();
-    const tx = {
-      $queryRaw: queryRaw,
-    } as unknown as Prisma.TransactionClient;
-
-    const result = await getCurrentOrganizationSubscriptionCreditsMap({
-      periods: [],
-      tx,
-    });
-
-    expect(result.size).toBe(0);
-    expect(queryRaw).not.toHaveBeenCalled();
-  });
-
-  it("returns a credits map for all organizations in a single query", async () => {
-    const queryRaw = vi.fn().mockResolvedValue([
-      {
-        organization_id: "org_1",
-        total_cents: convertCreditsToCents(10),
-        used_cents: convertCreditsToCents(3),
-      },
-      {
-        organization_id: "org_2",
-        total_cents: convertCreditsToCents(20),
-        used_cents: convertCreditsToCents(4),
-      },
-    ]);
-    const tx = {
-      $queryRaw: queryRaw,
-    } as unknown as Prisma.TransactionClient;
-
-    const result = await getCurrentOrganizationSubscriptionCreditsMap({
-      periods: [
-        {
-          organizationId: "org_1",
-          periodStart: new Date("2025-01-01T00:00:00.000Z"),
-          periodEnd: new Date("2025-02-01T00:00:00.000Z"),
-        },
-        {
-          organizationId: "org_2",
-          periodStart: new Date("2025-01-01T00:00:00.000Z"),
-          periodEnd: new Date("2025-02-01T00:00:00.000Z"),
-        },
-      ],
-      tx,
-      now: new Date("2025-01-20T00:00:00.000Z"),
-    });
-
-    expect(queryRaw).toHaveBeenCalledTimes(1);
-    expect(result.get("org_1")).toEqual({
-      total: 10,
-      used: 3,
-      remaining: 7,
-    });
-    expect(result.get("org_2")).toEqual({
-      total: 20,
-      used: 4,
-      remaining: 16,
-    });
-  });
-
-  it("caps organization used at total when raw usage exceeds total", async () => {
-    const queryRaw = vi.fn().mockResolvedValue([
-      {
-        organization_id: "org_1",
-        total_cents: convertCreditsToCents(10),
-        used_cents: convertCreditsToCents(12),
-      },
-    ]);
-    const tx = {
-      $queryRaw: queryRaw,
-    } as unknown as Prisma.TransactionClient;
-
-    const result = await getCurrentOrganizationSubscriptionCreditsMap({
-      periods: [
-        {
-          organizationId: "org_1",
-          periodStart: new Date("2025-01-01T00:00:00.000Z"),
-          periodEnd: new Date("2025-02-01T00:00:00.000Z"),
-        },
-      ],
-      tx,
-      now: new Date("2025-01-20T00:00:00.000Z"),
-    });
-
-    expect(queryRaw).toHaveBeenCalledTimes(1);
-    expect(result.get("org_1")).toEqual({
-      total: 10,
-      used: 10,
-      remaining: 0,
     });
   });
 });

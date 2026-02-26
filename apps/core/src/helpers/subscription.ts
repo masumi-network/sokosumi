@@ -29,10 +29,6 @@ interface CurrentSubscriptionPeriod {
   periodStart: Date;
 }
 
-interface OrganizationCurrentSubscriptionPeriod extends CurrentSubscriptionPeriod {
-  organizationId: string;
-}
-
 interface NormalizedSubscriptionCents {
   remainingCents: bigint;
   totalCents: bigint;
@@ -165,82 +161,6 @@ export function getCreditSummary(params: {
     buffer: normalizedBuffer,
     total,
   };
-}
-
-export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
-  periods: OrganizationCurrentSubscriptionPeriod[];
-  tx: Prisma.TransactionClient;
-  now?: Date;
-}): Promise<Map<string, SubscriptionCredits>> {
-  if (params.periods.length === 0) {
-    return new Map();
-  }
-
-  const now = params.now ?? new Date();
-  const organizationIds = params.periods.map((period) => period.organizationId);
-  const periodStarts = params.periods.map((period) => period.periodStart);
-  const periodEnds = params.periods.map((period) => period.periodEnd);
-
-  const rows = await params.tx.$queryRaw<
-    Array<{
-      organization_id: string;
-      total_cents: bigint;
-      used_cents: bigint;
-    }>
-  >`
-    WITH input(organization_id, period_start, period_end) AS (
-      SELECT *
-      FROM UNNEST(
-        ${organizationIds}::text[],
-        ${periodStarts}::timestamptz[],
-        ${periodEnds}::timestamptz[]
-      )
-    )
-    SELECT
-      i.organization_id,
-      COALESCE((
-        SELECT SUM(cb.amount)::bigint
-        FROM credit_bucket cb
-        WHERE cb."organizationId" = i.organization_id
-          AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
-          AND cb."expiresAt" IS NOT NULL
-          AND cb."expiresAt" > i.period_start
-          AND cb."expiresAt" <= i.period_end
-          AND cb."createdAt" < ${now}
-      ), 0)::bigint AS total_cents,
-      COALESCE((
-        SELECT SUM(cc.amount)::bigint
-        FROM credit_consumption cc
-        INNER JOIN credit_bucket cb ON cb.id = cc."bucketId"
-        WHERE cb."organizationId" = i.organization_id
-          AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
-          AND cb."expiresAt" IS NOT NULL
-          AND cb."expiresAt" > i.period_start
-          AND cb."expiresAt" <= i.period_end
-          AND cb."createdAt" < ${now}
-          AND cc."createdAt" >= i.period_start
-          AND cc."createdAt" < ${now}
-      ), 0)::bigint AS used_cents
-    FROM input i
-  `;
-
-  return new Map(
-    rows.map((row) => {
-      const normalizedCents = normalizeSubscriptionCents(
-        row.total_cents,
-        row.used_cents,
-      );
-
-      return [
-        row.organization_id,
-        {
-          total: convertCentsToCredits(normalizedCents.totalCents),
-          used: convertCentsToCredits(normalizedCents.usedCents),
-          remaining: convertCentsToCredits(normalizedCents.remainingCents),
-        },
-      ];
-    }),
-  );
 }
 
 export function mapSubscription(subscription: SubscriptionRecord | null) {
