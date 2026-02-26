@@ -1,25 +1,10 @@
-/* eslint-disable no-restricted-properties */
 import { defaultPlugins } from "@hey-api/openapi-ts";
 
-const DEFAULT_CORE_API_URL = "https://api.sokosumi.com";
-
-function normalizeCoreApiBaseUrl(url: string): string {
-  const withoutTrailingSlash = url.replace(/\/+$/, "");
-  return withoutTrailingSlash.endsWith("/v1")
-    ? withoutTrailingSlash
-    : `${withoutTrailingSlash}/v1`;
-}
-
-const coreApiBaseUrl = normalizeCoreApiBaseUrl(
-  process.env.CORE_API_URL ?? DEFAULT_CORE_API_URL,
-);
-const coreOpenApiUrl = process.env.CORE_OPENAPI_URL ?? `${coreApiBaseUrl}/openapi.json`;
-
 const config = {
-  input: coreOpenApiUrl,
+  input: "https://api.sokosumi.com/v1/openapi.json",
   output: "./src/lib/clients/generated/core",
   name: "SokosumiCoreClient",
-  baseUrl: coreApiBaseUrl,
+  baseUrl: "https://api.sokosumi.com/v1",
   plugins: [
     ...defaultPlugins,
     "@hey-api/client-next",
