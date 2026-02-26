@@ -8,8 +8,13 @@ import {
   TaskStatus,
 } from "@sokosumi/database";
 import {
+  buildOrganizationInvoiceCreditReferenceId,
+  buildOrganizationMemberSubscriptionReferenceId,
+  buildUserInvoiceCreditReferenceId,
   convertCentsToCredits,
   convertCreditsToCents,
+  escapeStringForLike,
+  ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
@@ -22,7 +27,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
 import { stripeService } from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
-import { getLatestActiveOrganizationSubscription } from "@/lib/stripe/subscription-utils";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
@@ -36,6 +40,7 @@ interface InvoiceCreditGrant {
   expiresAt: Date | null;
   referenceId: string;
   referenceType: CreditBucketReferenceType;
+  userId: string;
 }
 
 interface SubscriptionLine {
@@ -44,15 +49,8 @@ interface SubscriptionLine {
 }
 
 interface CreditScope {
-  buildGrantedCreditsWhere: (expiresAt: Date) => {
-    expiresAt: Date;
-    organizationId?: string | null;
-    referenceType: CreditBucketReferenceType;
-    userId?: string;
-  };
-  organizationId: string | null;
+  buildGrantedCreditsWhere: (expiresAt: Date) => Prisma.CreditBucketWhereInput;
   resolveDefaultQuantity: () => Promise<number>;
-  userId: string;
 }
 
 interface SubscriptionCreditTotals {
@@ -64,6 +62,17 @@ interface SubscriptionCreditTotals {
 interface AppliedSubscriptionCredits {
   subscriptionCredits: number;
   subscriptionCreditsExpiry: Date | null;
+}
+
+interface BuildInvoiceCreditGrantsParams {
+  oneTimeTopUpCredits: number;
+  organizationId: string | null;
+  organizationMemberUserIds: string[];
+  skipOrganizationSubscriptionSplit: boolean;
+  subscriptionCredits: number;
+  subscriptionCreditsExpiry: Date | null;
+  userId: string;
+  invoiceId: string;
 }
 
 function isPrismaRecordNotFoundError(error: unknown): boolean {
@@ -199,12 +208,9 @@ function shouldGrantSubscriptionCreditsForLine(params: {
   return params.invoiceAmountPaid > 0 && params.lineAmount !== 0;
 }
 
-async function getGrantedSubscriptionCreditsForPeriod(where: {
-  expiresAt: Date;
-  organizationId?: string | null;
-  referenceType: CreditBucketReferenceType;
-  userId?: string;
-}): Promise<number> {
+async function getGrantedSubscriptionCreditsForPeriod(
+  where: Prisma.CreditBucketWhereInput,
+): Promise<number> {
   const aggregateResult = await prisma.creditBucket.aggregate({
     _sum: {
       amount: true,
@@ -223,6 +229,8 @@ async function getGrantedSubscriptionCreditsForPeriod(where: {
 async function calculateSubscriptionCreditTotals(params: {
   invoiceId: string;
   isSubscriptionUpdate: boolean;
+  maxSeatGrantQuantity: number | null;
+  organizationId: string | null;
   resolveDefaultQuantity: () => Promise<number>;
   subscriptionLines: SubscriptionLine[];
 }): Promise<SubscriptionCreditTotals> {
@@ -252,6 +260,38 @@ async function calculateSubscriptionCreditTotals(params: {
   let maxFreePlanQuantity = 0;
   let freePlanCreditsPerSeat = 0;
 
+  function logSeatCreditCapApplied(data: {
+    activeMembers: number;
+    billedSeats: number;
+    grantedSeats: number;
+    productId: string;
+  }): void {
+    console.log(
+      `⚠️ seat_credit_cap_applied invoiceId=${params.invoiceId} organizationId=${params.organizationId ?? "none"} productId=${data.productId} billedSeats=${data.billedSeats} activeMembers=${data.activeMembers} grantedSeats=${data.grantedSeats} droppedSeats=${data.billedSeats - data.grantedSeats}`,
+    );
+  }
+
+  function capSeatsToActiveMembers(
+    billedSeats: number,
+    productId: string,
+  ): number {
+    if (params.maxSeatGrantQuantity === null) {
+      return billedSeats;
+    }
+
+    const grantedSeats = Math.min(billedSeats, params.maxSeatGrantQuantity);
+    if (billedSeats > grantedSeats) {
+      logSeatCreditCapApplied({
+        activeMembers: params.maxSeatGrantQuantity,
+        billedSeats,
+        grantedSeats,
+        productId,
+      });
+    }
+
+    return grantedSeats;
+  }
+
   for (const { lineItem, productId } of params.subscriptionLines) {
     const catalogPlan = catalogByProductId.get(productId);
     if (!catalogPlan) {
@@ -264,7 +304,12 @@ async function calculateSubscriptionCreditTotals(params: {
 
     if (params.isSubscriptionUpdate) {
       if (catalogPlan.monthlyAmount === 0) {
-        const quantity = lineItem.quantity ?? 0;
+        let quantity = lineItem.quantity ?? 0;
+        if (quantity <= 0) {
+          continue;
+        }
+
+        quantity = capSeatsToActiveMembers(quantity, productId);
         if (quantity <= 0) {
           continue;
         }
@@ -272,19 +317,38 @@ async function calculateSubscriptionCreditTotals(params: {
         maxFreePlanQuantity = Math.max(maxFreePlanQuantity, quantity);
         freePlanCreditsPerSeat = catalogPlan.credits;
       } else {
-        paidOrCycleSubscriptionCredits += calculateProratedSubscriptionCredits({
+        let proratedCredits = calculateProratedSubscriptionCredits({
           invoiceId: params.invoiceId,
           lineAmount,
           monthlyAmount: catalogPlan.monthlyAmount,
           planCredits: catalogPlan.credits,
           productId,
         });
+
+        const billedQuantity = lineItem.quantity ?? 0;
+        if (billedQuantity > 0) {
+          const grantedQuantity = capSeatsToActiveMembers(
+            billedQuantity,
+            productId,
+          );
+          if (grantedQuantity <= 0) {
+            continue;
+          }
+
+          proratedCredits = Math.trunc(
+            (proratedCredits * grantedQuantity) / billedQuantity,
+          );
+        }
+
+        paidOrCycleSubscriptionCredits += proratedCredits;
       }
     } else {
       let quantity = lineItem.quantity ?? 0;
       if (quantity <= 0) {
         quantity = await params.resolveDefaultQuantity();
       }
+
+      quantity = capSeatsToActiveMembers(quantity, productId);
 
       if (quantity <= 0) {
         continue;
@@ -370,25 +434,103 @@ async function finalizeAppliedSubscriptionCredits(params: {
   };
 }
 
-async function resolveOrganizationSeatCount(
-  organizationId: string,
-): Promise<number> {
-  const latestSubscription = await getLatestActiveOrganizationSubscription({
-    organizationId,
-    select: {
-      seats: true,
-    },
-  });
+function getSortedUniqueMemberUserIds(
+  members: Array<{ userId: string }>,
+): string[] {
+  return Array.from(new Set(members.map((member) => member.userId))).sort();
+}
 
-  if (
-    latestSubscription?.seats &&
-    Number.isFinite(latestSubscription.seats) &&
-    latestSubscription.seats > 0
-  ) {
-    return latestSubscription.seats;
+function splitCreditsByMember(params: {
+  memberUserIds: string[];
+  totalCredits: number;
+}): Array<{ credits: number; userId: string }> {
+  const { memberUserIds, totalCredits } = params;
+  if (totalCredits <= 0 || memberUserIds.length === 0) {
+    return [];
   }
 
-  return 1;
+  const baseCredits = Math.floor(totalCredits / memberUserIds.length);
+  const remainder = totalCredits % memberUserIds.length;
+
+  return memberUserIds
+    .map((memberUserId, index) => ({
+      userId: memberUserId,
+      credits: baseCredits + (index < remainder ? 1 : 0),
+    }))
+    .filter((allocation) => allocation.credits > 0);
+}
+
+function buildInvoiceCreditGrants(
+  params: BuildInvoiceCreditGrantsParams,
+): InvoiceCreditGrant[] {
+  const creditGrants: InvoiceCreditGrant[] = [];
+
+  if (params.oneTimeTopUpCredits > 0) {
+    const topUpReferenceId = params.organizationId
+      ? buildOrganizationInvoiceCreditReferenceId(
+          params.organizationId,
+          params.invoiceId,
+          "topup",
+        )
+      : buildUserInvoiceCreditReferenceId(
+          params.userId,
+          params.invoiceId,
+          "topup",
+        );
+
+    creditGrants.push({
+      credits: params.oneTimeTopUpCredits,
+      expiresAt: null,
+      referenceId: topUpReferenceId,
+      referenceType: "STRIPE_TOPUP",
+      userId: params.userId,
+    });
+  }
+
+  if (params.subscriptionCredits <= 0) {
+    return creditGrants;
+  }
+
+  if (!params.organizationId) {
+    creditGrants.push({
+      credits: params.subscriptionCredits,
+      expiresAt: params.subscriptionCreditsExpiry,
+      referenceId: buildUserInvoiceCreditReferenceId(
+        params.userId,
+        params.invoiceId,
+        "subscription",
+      ),
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+      userId: params.userId,
+    });
+
+    return creditGrants;
+  }
+
+  if (params.skipOrganizationSubscriptionSplit) {
+    return creditGrants;
+  }
+
+  const subscriptionReferenceSuffix = `${params.invoiceId}:subscription`;
+  const splitGrants = splitCreditsByMember({
+    memberUserIds: params.organizationMemberUserIds,
+    totalCredits: params.subscriptionCredits,
+  });
+
+  for (const splitGrant of splitGrants) {
+    creditGrants.push({
+      credits: splitGrant.credits,
+      expiresAt: params.subscriptionCreditsExpiry,
+      referenceId: buildOrganizationMemberSubscriptionReferenceId(
+        splitGrant.userId,
+        subscriptionReferenceSuffix,
+      ),
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+      userId: splitGrant.userId,
+    });
+  }
+
+  return creditGrants;
 }
 
 export async function handleInvoicePaidEvent(
@@ -420,6 +562,7 @@ export async function handleInvoicePaidEvent(
   // Look up the user or organization by stripeCustomerId
   let userId: string;
   let organizationId: string | null = null;
+  let organizationMemberUserIds: string[] = [];
 
   // First, try to find a user with this stripeCustomerId
   const user = await userRepository.getUserByStripeCustomerId(
@@ -447,6 +590,11 @@ export async function handleInvoicePaidEvent(
         organizationId,
         prisma,
       );
+      organizationMemberUserIds = getSortedUniqueMemberUserIds(members);
+      if (organizationMemberUserIds.length === 0) {
+        console.log(`No members found for organization ${organizationId}`);
+        return;
+      }
       const ownerMember = members.find((m) => m.role === MemberRole.OWNER);
 
       if (!ownerMember) {
@@ -463,28 +611,19 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  let organizationSeatCount: number | null = null;
   const creditScope: CreditScope = organizationId
     ? {
-        userId,
-        organizationId,
-        resolveDefaultQuantity: async () => {
-          if (organizationSeatCount === null) {
-            organizationSeatCount =
-              await resolveOrganizationSeatCount(organizationId);
-          }
-
-          return organizationSeatCount;
-        },
+        resolveDefaultQuantity: async () => organizationMemberUserIds.length,
         buildGrantedCreditsWhere: (expiresAt) => ({
           expiresAt,
           organizationId,
           referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+          referenceId: {
+            startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+          },
         }),
       }
     : {
-        userId,
-        organizationId: null,
         resolveDefaultQuantity: async () => 1,
         buildGrantedCreditsWhere: (expiresAt) => ({
           expiresAt,
@@ -566,6 +705,10 @@ export async function handleInvoicePaidEvent(
   const subscriptionCreditTotals = await calculateSubscriptionCreditTotals({
     invoiceId,
     isSubscriptionUpdate,
+    maxSeatGrantQuantity: organizationId
+      ? organizationMemberUserIds.length
+      : null,
+    organizationId,
     resolveDefaultQuantity: creditScope.resolveDefaultQuantity,
     subscriptionLines,
   });
@@ -577,24 +720,41 @@ export async function handleInvoicePaidEvent(
       totals: subscriptionCreditTotals,
     });
 
-  const creditGrants: InvoiceCreditGrant[] = [];
-  if (oneTimeTopUpCredits > 0) {
-    creditGrants.push({
-      credits: oneTimeTopUpCredits,
-      expiresAt: null,
-      referenceId: subscriptionCredits > 0 ? `${invoiceId}:topup` : invoiceId,
-      referenceType: "STRIPE_TOPUP",
-    });
+  let skipOrganizationSubscriptionSplit = false;
+  if (subscriptionCredits > 0 && organizationId) {
+    const existingOrganizationInvoiceSubscriptionBucket =
+      await prisma.creditBucket.findFirst({
+        where: {
+          organizationId,
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          referenceId: {
+            startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+            endsWith: escapeStringForLike(`:${invoiceId}:subscription`),
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+    if (existingOrganizationInvoiceSubscriptionBucket) {
+      console.log(
+        `✅ Organization invoice ${invoiceId} subscription grants already exist; skipping replay split`,
+      );
+      skipOrganizationSubscriptionSplit = true;
+    }
   }
-  if (subscriptionCredits > 0) {
-    creditGrants.push({
-      credits: subscriptionCredits,
-      expiresAt: subscriptionCreditsExpiry,
-      referenceId:
-        oneTimeTopUpCredits > 0 ? `${invoiceId}:subscription` : invoiceId,
-      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-    });
-  }
+
+  const creditGrants = buildInvoiceCreditGrants({
+    invoiceId,
+    oneTimeTopUpCredits,
+    organizationId,
+    organizationMemberUserIds,
+    skipOrganizationSubscriptionSplit,
+    subscriptionCredits,
+    subscriptionCreditsExpiry,
+    userId,
+  });
 
   if (creditGrants.length === 0) {
     console.log(
@@ -614,6 +774,7 @@ export async function handleInvoicePaidEvent(
             referenceType: grant.referenceType,
           },
         },
+        select: { id: true },
       });
 
       if (existingBucket) {
@@ -627,7 +788,7 @@ export async function handleInvoicePaidEvent(
       await tx.transaction.create({
         data: {
           amount: cents,
-          user: { connect: { id: userId } },
+          user: { connect: { id: grant.userId } },
           ...(organizationId && {
             organization: { connect: { id: organizationId } },
           }),
@@ -637,7 +798,7 @@ export async function handleInvoicePaidEvent(
               expiresAt: grant.expiresAt,
               referenceId: grant.referenceId,
               referenceType: grant.referenceType,
-              userId,
+              userId: grant.userId,
               organizationId,
             },
           },
@@ -647,7 +808,7 @@ export async function handleInvoicePaidEvent(
       creditsGranted = true;
 
       console.log(
-        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
+        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId} member ${grant.userId}` : `user ${grant.userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
     }
 

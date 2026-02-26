@@ -20,7 +20,8 @@ const params = z.object({
 const route = createRoute({
   method: "get",
   path: "/organizations/{id}/credits",
-  description: "Get organization credit balance by ID or slug",
+  description:
+    "Get organization-context credits for the current member by ID or slug",
   tags: ["Users"],
   request: {
     params,
@@ -28,7 +29,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       creditsResponseSchema,
-      "Retrieve organization credits",
+      "Retrieve shared non-subscription organization credits plus the member subscription wallet",
       {
         data: {
           credits: {

@@ -15,12 +15,13 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/credits",
-    description: "Get current user's or organization's credit balance",
+    description:
+      "Get current user's credit balance or, in organization context, shared non-subscription credits plus the member's subscription wallet",
     tags: ["Users"],
     responses: {
       200: jsonSuccessResponse(
         creditsResponseSchema,
-        "Retrieve the current user's or organization's credits",
+        "Retrieve the current user's credits or the member-scoped organization-context credits",
         {
           data: {
             credits: {

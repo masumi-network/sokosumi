@@ -53,6 +53,7 @@
     "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",
     "prisma:migrate:reset": "pnpm exec prisma migrate reset",
     "prisma:studio": "pnpm exec prisma studio",
+    "data-migration:split-org-subscription-wallets": "pnpm exec tsx scripts/data-migrations/split-org-subscription-wallets.ts",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint --fix .",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
