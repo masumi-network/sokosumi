@@ -241,13 +241,13 @@ export default function UserAvatarClient({
   };
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-col items-center gap-4 md:flex-row">
       {hasCreditUsage ? (
         creditsLabel ? (
           <TooltipProvider>
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
-                <div className="min-w-28 space-y-1 border-r pr-4">
+                <div className="w-full min-w-28 space-y-1 border-r-0 pr-0 md:w-auto md:border-r md:pr-4">
                   {creditsExpiryLabel ? (
                     <div className="text-muted-foreground w-fit text-xs font-semibold">
                       {creditsExpiryLabel}
@@ -272,7 +272,7 @@ export default function UserAvatarClient({
             </Tooltip>
           </TooltipProvider>
         ) : (
-          <div className="min-w-28 space-y-1 border-r pr-4">
+          <div className="min-w-28 space-y-1 border-r-0 pr-4 md:border-r md:pr-4">
             {creditsExpiryLabel ? (
               <div className="text-muted-foreground w-fit text-[11px]">
                 {creditsExpiryLabel}
@@ -298,7 +298,7 @@ export default function UserAvatarClient({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="min-h-11 min-w-40 justify-between px-1 py-1 hover:bg-transparent focus-visible:bg-transparent"
+                  className="min-h-11 w-full min-w-40 justify-between px-1 py-1 hover:bg-transparent focus-visible:bg-transparent md:w-auto"
                   aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
                 >
                   <div className="flex w-full items-center justify-between gap-2 md:justify-center">

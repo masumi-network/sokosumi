@@ -129,7 +129,7 @@
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
       "creditsSummary": "Credits Summary:",
       "creditsConsumedProgressAria": "Subscription credits consumed",
-      "creditsExpiresInDays": "Credits expires in {days, number} days",
+      "creditsExpiresInDays": "Credits expires in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits expires today",
       "creditsExpired": "Credits expired"
     },
