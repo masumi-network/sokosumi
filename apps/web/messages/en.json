@@ -127,7 +127,11 @@
       "support": "Support",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
-      "creditsConsumedProgressAria": "Subscription credits consumed"
+      "creditsSummary": "Credits Summary:",
+      "creditsConsumedProgressAria": "Subscription credits consumed",
+      "creditsExpiresInDays": "Credits expires in {days, plural, =1 {1 day} other {# days}}",
+      "creditsExpiresToday": "Credits expire today",
+      "creditsExpired": "Credits expired"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
@@ -1420,6 +1424,7 @@
     "Header": {
       "Credit": {
         "buy": "Add credits",
+        "extraCredits": "{credits, plural, =0 {0 extra credits} =1 {1 extra credit} other {# extra credits}}",
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
