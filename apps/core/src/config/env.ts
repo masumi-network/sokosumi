@@ -60,6 +60,10 @@ const envSchema = z.object({
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
+  MAINTENANCE_MODE: z
+    .string()
+    .default("false")
+    .transform((val: string) => val.trim().toLowerCase() === "true"),
 
   // Coworkers API
   COWORKERS_API_SERVICE_KEY: z.string().min(1).optional(),

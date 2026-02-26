@@ -56,7 +56,12 @@ BETTER_AUTH_URL=                    # Better Auth base URL
 ```bash
 # Sentry Configuration (Error Tracking & Performance Monitoring)
 SENTRY_DSN=                         # Sentry project DSN
+
+# Maintenance mode (blocks every route with HTTP 503 when true)
+MAINTENANCE_MODE=false
 ```
+
+Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.
 
 ## Sentry Integration
 
