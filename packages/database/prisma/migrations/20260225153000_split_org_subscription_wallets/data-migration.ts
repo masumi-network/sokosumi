@@ -5,7 +5,10 @@ import {
   CreditBucketReferenceType,
   Prisma,
 } from "../../../src/generated/prisma/client.js";
-import { ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX } from "../../../src/helpers/credit.js";
+import {
+  ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+  splitAmountEvenlyWithRemainderRotation,
+} from "../../../src/helpers/credit.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -33,6 +36,7 @@ interface LegacyBucketWithAvailable {
   amount: bigint;
   available: bigint;
   expiresAt: Date | null;
+  createdAt: Date;
 }
 
 interface OrganizationMigrationStats {
@@ -55,26 +59,6 @@ function buildLegacySplitReferenceId(
   legacyBucketId: string,
 ): string {
   return `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:${LEGACY_SPLIT_REFERENCE_SEGMENT}:${legacyBucketId}`;
-}
-
-function splitAmountEvenly(params: {
-  memberUserIds: string[];
-  totalAmount: bigint;
-}): Array<{ amount: bigint; userId: string }> {
-  if (params.totalAmount <= 0n || params.memberUserIds.length === 0) {
-    return [];
-  }
-
-  const memberCount = BigInt(params.memberUserIds.length);
-  const baseAmount = params.totalAmount / memberCount;
-  const remainder = Number(params.totalAmount % memberCount);
-
-  return params.memberUserIds
-    .map((userId, index) => ({
-      userId,
-      amount: baseAmount + (index < remainder ? 1n : 0n),
-    }))
-    .filter((allocation) => allocation.amount > 0n);
 }
 
 async function getLegacyOrganizationIds(
@@ -139,6 +123,7 @@ async function getLegacyBucketsForOrganization(params: {
       cb.id,
       cb.amount,
       cb."expiresAt",
+      cb."createdAt",
       (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
     FROM credit_bucket cb
     LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
@@ -150,6 +135,71 @@ async function getLegacyBucketsForOrganization(params: {
         OR cb."referenceId" NOT LIKE ${`${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%`}
       )
     GROUP BY cb.id, cb.amount, cb."expiresAt"
+    ORDER BY cb."expiresAt" ASC NULLS LAST, cb."createdAt" ASC, cb.id ASC
+  `;
+}
+
+async function getOrganizationsWithoutMembers(
+  organizationIds: string[],
+): Promise<string[]> {
+  if (organizationIds.length === 0) {
+    return [];
+  }
+
+  const memberCounts = await prisma.member.groupBy({
+    by: ["organizationId"],
+    where: {
+      organizationId: {
+        in: organizationIds,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  const organizationsWithMembers = new Set(
+    memberCounts
+      .filter((count) => count._count._all > 0)
+      .map((count) => count.organizationId),
+  );
+
+  return organizationIds.filter(
+    (organizationId) => !organizationsWithMembers.has(organizationId),
+  );
+}
+
+interface NegativeAvailableLegacyBucket {
+  organizationId: string;
+  bucketId: string;
+  available: bigint;
+}
+
+async function getNegativeAvailableLegacyBuckets(params: {
+  organizationIds: string[];
+  migrationTime: Date;
+}): Promise<NegativeAvailableLegacyBucket[]> {
+  if (params.organizationIds.length === 0) {
+    return [];
+  }
+
+  return prisma.$queryRaw<NegativeAvailableLegacyBucket[]>`
+    SELECT
+      cb."organizationId" AS "organizationId",
+      cb.id AS "bucketId",
+      (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
+    FROM credit_bucket cb
+    LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+    WHERE cb."organizationId" = ANY(${params.organizationIds})
+      AND cb."referenceType" = ${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}
+      AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${params.migrationTime})
+      AND (
+        cb."referenceId" IS NULL
+        OR cb."referenceId" NOT LIKE ${`${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%`}
+      )
+    GROUP BY cb."organizationId", cb.id, cb.amount
+    HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) < 0
+    ORDER BY cb."organizationId" ASC, cb.id ASC
   `;
 }
 
@@ -217,6 +267,7 @@ async function migrateOrganization(params: {
       let memberBucketsSkipped = 0;
       let remainingAvailableCents = 0n;
       let splitCentsCreated = 0n;
+      let remainderOffset = 0;
 
       for (const legacyBucket of legacyBuckets) {
         if (legacyBucket.available <= 0n) {
@@ -224,14 +275,16 @@ async function migrateOrganization(params: {
         }
 
         remainingAvailableCents += legacyBucket.available;
-        const allocations = splitAmountEvenly({
-          memberUserIds,
+        const splitResult = splitAmountEvenlyWithRemainderRotation({
+          memberIds: memberUserIds,
+          remainderOffset,
           totalAmount: legacyBucket.available,
         });
+        remainderOffset = splitResult.nextRemainderOffset;
 
-        for (const allocation of allocations) {
+        for (const allocation of splitResult.allocations) {
           const referenceId = buildLegacySplitReferenceId(
-            allocation.userId,
+            allocation.memberId,
             legacyBucket.id,
           );
 
@@ -255,7 +308,7 @@ async function migrateOrganization(params: {
               amount: allocation.amount,
               user: {
                 connect: {
-                  id: allocation.userId,
+                  id: allocation.memberId,
                 },
               },
               organization: {
@@ -270,7 +323,7 @@ async function migrateOrganization(params: {
                   referenceId,
                   referenceType:
                     CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-                  userId: allocation.userId,
+                  userId: allocation.memberId,
                   organizationId: params.organizationId,
                 },
               },
@@ -307,8 +360,28 @@ async function main() {
   console.log(
     `Found ${organizationIds.length} organizations with legacy subscription buckets`,
   );
+  const organizationsWithoutMembers =
+    await getOrganizationsWithoutMembers(organizationIds);
+  if (organizationsWithoutMembers.length > 0) {
+    throw new Error(
+      `Organizations with zero members were skipped: ${organizationsWithoutMembers.join(", ")}`,
+    );
+  }
 
-  const organizationsWithoutMembers: string[] = [];
+  const negativeAvailableLegacyBuckets = await getNegativeAvailableLegacyBuckets({
+    organizationIds,
+    migrationTime,
+  });
+  if (negativeAvailableLegacyBuckets.length > 0) {
+    throw new Error(
+      `Negative available legacy buckets detected; aborting migration: ${negativeAvailableLegacyBuckets
+        .map(
+          (bucket) =>
+            `${bucket.organizationId}/${bucket.bucketId} (available=${bucket.available})`,
+        )
+        .join(", ")}`,
+    );
+  }
 
   let totalOrganizationsMigrated = 0;
   let totalBucketsExpired = 0;
@@ -318,31 +391,21 @@ async function main() {
   let totalSplitCentsCreated = 0n;
 
   for (const organizationId of organizationIds) {
-    try {
-      const stats = await migrateOrganization({
-        migrationTime,
-        organizationId,
-      });
+    const stats = await migrateOrganization({
+      migrationTime,
+      organizationId,
+    });
 
-      totalOrganizationsMigrated += 1;
-      totalBucketsExpired += stats.bucketsExpired;
-      totalMemberBucketsCreated += stats.memberBucketsCreated;
-      totalMemberBucketsSkipped += stats.memberBucketsSkipped;
-      totalRemainingAvailableCents += stats.remainingAvailableCents;
-      totalSplitCentsCreated += stats.splitCentsCreated;
+    totalOrganizationsMigrated += 1;
+    totalBucketsExpired += stats.bucketsExpired;
+    totalMemberBucketsCreated += stats.memberBucketsCreated;
+    totalMemberBucketsSkipped += stats.memberBucketsSkipped;
+    totalRemainingAvailableCents += stats.remainingAvailableCents;
+    totalSplitCentsCreated += stats.splitCentsCreated;
 
-      console.log(
-        `Migrated organization ${organizationId}: legacyBuckets=${stats.bucketsExamined}, memberBucketsCreated=${stats.memberBucketsCreated}, memberBucketsSkipped=${stats.memberBucketsSkipped}, remainingAvailableCents=${stats.remainingAvailableCents}, splitCentsCreated=${stats.splitCentsCreated}`,
-      );
-    } catch (error) {
-      if (error instanceof OrganizationWithoutMembersError) {
-        organizationsWithoutMembers.push(error.organizationId);
-        console.error(error.message);
-        continue;
-      }
-
-      throw error;
-    }
+    console.log(
+      `Migrated organization ${organizationId}: legacyBuckets=${stats.bucketsExamined}, memberBucketsCreated=${stats.memberBucketsCreated}, memberBucketsSkipped=${stats.memberBucketsSkipped}, remainingAvailableCents=${stats.remainingAvailableCents}, splitCentsCreated=${stats.splitCentsCreated}`,
+    );
   }
 
   console.log(
@@ -352,12 +415,6 @@ async function main() {
   if (totalSplitCentsCreated !== totalRemainingAvailableCents) {
     throw new Error(
       `Split mismatch detected: remainingAvailableCents=${totalRemainingAvailableCents}, splitCentsCreated=${totalSplitCentsCreated}`,
-    );
-  }
-
-  if (organizationsWithoutMembers.length > 0) {
-    throw new Error(
-      `Organizations with zero members were skipped: ${organizationsWithoutMembers.join(", ")}`,
     );
   }
 
