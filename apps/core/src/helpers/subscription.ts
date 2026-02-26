@@ -1,6 +1,8 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
+import { getCredits } from "@/helpers/user";
+
 interface SubscriptionPeriodRecord {
   periodStart: Date | null;
   periodEnd: Date | null;
@@ -155,7 +157,10 @@ export function getCreditSummary(params: {
     : 0;
   const buffer = totalCredits - subscriptionRemaining;
   const normalizedBuffer = buffer > 0 ? buffer : 0;
-  const total = normalizedBuffer + subscriptionRemaining;
+  const total = Math.min(
+    normalizedBuffer + subscriptionRemaining,
+    totalCredits,
+  );
 
   return {
     buffer: normalizedBuffer,
@@ -175,5 +180,54 @@ export function mapSubscription(subscription: SubscriptionRecord | null) {
     periodEnd: subscription.periodEnd,
     cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
     credits: subscription.credits ?? null,
+  };
+}
+
+export interface CreditsPayload {
+  subscription: ReturnType<typeof mapSubscription>;
+  buffer: number;
+  total: number;
+}
+
+export async function buildCreditsPayload(params: {
+  userId: string;
+  organizationId: string | null;
+  referenceId: string;
+  tx: Prisma.TransactionClient;
+}): Promise<CreditsPayload> {
+  const totalCredits = await getCredits(
+    params.userId,
+    params.organizationId,
+    params.tx,
+  );
+  const latestSubscription = await params.tx.subscription.findFirst({
+    where: {
+      referenceId: params.referenceId,
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+  const subscriptionCredits = await getCurrentSubscriptionCredits({
+    subscription: latestSubscription,
+    userId: params.userId,
+    organizationId: params.organizationId,
+    tx: params.tx,
+  });
+  const subscription = mapSubscription(
+    latestSubscription
+      ? {
+          ...latestSubscription,
+          credits: subscriptionCredits,
+        }
+      : null,
+  );
+  const { buffer, total } = getCreditSummary({
+    totalCredits,
+    subscriptionCredits,
+  });
+
+  return {
+    subscription,
+    buffer,
+    total,
   };
 }

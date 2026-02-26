@@ -3,12 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import {
-  getCreditSummary,
-  getCurrentSubscriptionCredits,
-  mapSubscription,
-} from "@/helpers/subscription";
-import { getCredits } from "@/helpers/user";
+import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -79,39 +74,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: authContext.userId,
         tx,
       });
-      const totalCredits = await getCredits(
-        authContext.userId,
-        organization.id,
-        tx,
-      );
-      const latestSubscription = await tx.subscription.findFirst({
-        where: { referenceId: organization.id },
-        orderBy: { updatedAt: "desc" },
-      });
-      const subscriptionCredits = await getCurrentSubscriptionCredits({
-        subscription: latestSubscription,
+      return await buildCreditsPayload({
         userId: authContext.userId,
         organizationId: organization.id,
+        referenceId: organization.id,
         tx,
       });
-      const subscription = mapSubscription(
-        latestSubscription
-          ? {
-              ...latestSubscription,
-              credits: subscriptionCredits,
-            }
-          : null,
-      );
-      const { buffer, total } = getCreditSummary({
-        totalCredits,
-        subscriptionCredits,
-      });
-
-      return {
-        subscription,
-        buffer,
-        total,
-      };
     });
 
     return ok(c, creditsResponseSchema.parse({ credits }));
