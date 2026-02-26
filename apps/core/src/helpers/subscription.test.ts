@@ -116,7 +116,7 @@ describe("getCreditSummary", () => {
     });
   });
 
-  it("clamps buffer at zero when subscription remaining exceeds total", () => {
+  it("clamps buffer at zero and total at totalCredits when subscription remaining exceeds total", () => {
     expect(
       getCreditSummary({
         totalCredits: 5,
@@ -128,7 +128,7 @@ describe("getCreditSummary", () => {
       }),
     ).toEqual({
       buffer: 0,
-      total: 8,
+      total: 5,
     });
   });
 });
