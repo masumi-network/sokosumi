@@ -42,10 +42,11 @@ export function ExpandableMarkdown({
   const [open, setOpen] = useState(false);
   const [isExpandable, setIsExpandable] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const effectiveLineClamp = LINE_CLAMP_CLASSES[lineClamp] ? lineClamp : 5;
 
   const lineClampClass = useMemo(() => {
-    return LINE_CLAMP_CLASSES[lineClamp] ?? LINE_CLAMP_CLASSES[5];
-  }, [lineClamp]);
+    return LINE_CLAMP_CLASSES[effectiveLineClamp];
+  }, [effectiveLineClamp]);
 
   useEffect(() => {
     const element = contentRef.current;
@@ -76,6 +77,7 @@ export function ExpandableMarkdown({
         <CollapsibleContent forceMount>
           <div
             ref={contentRef}
+            style={!open ? { maxHeight: `${effectiveLineClamp}lh` } : undefined}
             className={cn(
               !open && "overflow-hidden",
               !open && lineClampClass,

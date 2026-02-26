@@ -360,10 +360,17 @@ export function getActiveTrigger(
     tokenStart -= 1;
   }
 
+  // Caret must be at or after the first character after "@". If caret is
+  // before "@", this is not an active mention trigger.
+  if (tokenStart === clampedCaret) return null;
+
   if (text[tokenStart] !== "@") return null;
 
   const query = text.slice(tokenStart + 1, clampedCaret);
-  if (query.includes("@")) return null;
+  // Serialized mention tokens use ":" (e.g., @agent-id:agent-slug). We should
+  // only activate suggestions for in-progress user queries, not persisted
+  // mention token text.
+  if (query.includes("@") || query.includes(":")) return null;
 
   return { query, triggerStart: tokenStart };
 }
