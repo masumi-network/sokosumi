@@ -111,7 +111,13 @@ describe("core.client", () => {
   it("executes user credit and organization operations through the generated client", async () => {
     getUsersMeCreditsMock.mockResolvedValue({
       data: {
-        data: { credits: 42 },
+        data: {
+          credits: {
+            subscription: null,
+            buffer: 42,
+            total: 42,
+          },
+        },
       },
       response: new Response("{}", { status: 200 }),
     });

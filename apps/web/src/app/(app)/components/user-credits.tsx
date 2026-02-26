@@ -18,6 +18,73 @@ interface UserCreditsProps {
   session: Session;
 }
 
+interface ParsedSubscriptionCredits {
+  remaining: number;
+  total: number;
+  used: number;
+}
+
+interface ParsedCredits {
+  subscriptionCredits: ParsedSubscriptionCredits | null;
+  total: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function toNonNegativeNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(value, 0);
+}
+
+function parseCreditsResponse(data: unknown): ParsedCredits {
+  if (!isRecord(data) || !("credits" in data)) {
+    return { subscriptionCredits: null, total: 0 };
+  }
+
+  const rawCredits = data.credits;
+  if (typeof rawCredits === "number") {
+    return {
+      subscriptionCredits: null,
+      total: toNonNegativeNumber(rawCredits) ?? 0,
+    };
+  }
+
+  if (!isRecord(rawCredits)) {
+    return { subscriptionCredits: null, total: 0 };
+  }
+
+  let subscriptionCredits: ParsedSubscriptionCredits | null = null;
+  if (
+    isRecord(rawCredits.subscription) &&
+    isRecord(rawCredits.subscription.credits)
+  ) {
+    const rawSubscriptionCredits = rawCredits.subscription.credits;
+    const remaining = toNonNegativeNumber(rawSubscriptionCredits.remaining) ?? 0;
+    const used = toNonNegativeNumber(rawSubscriptionCredits.used) ?? 0;
+    const total =
+      toNonNegativeNumber(rawSubscriptionCredits.total) ?? remaining + used;
+
+    subscriptionCredits = {
+      total,
+      used,
+      remaining,
+    };
+  }
+
+  const totalFromResponse = toNonNegativeNumber(rawCredits.total);
+  const buffer = toNonNegativeNumber(rawCredits.buffer) ?? 0;
+
+  return {
+    subscriptionCredits,
+    total: totalFromResponse ?? buffer + (subscriptionCredits?.remaining ?? 0),
+  };
+}
+
 export default async function UserCredits({ session }: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
@@ -35,24 +102,16 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   let activeOrganizationName: string | null = null;
 
   try {
-    const [creditsResult, organizationsResult, subscriptionResult] =
-      await Promise.allSettled([
-        coreClient.getMyCredits(),
-        activeOrganizationId ? coreClient.getMyOrganizations() : null,
-        coreClient.getMySubscription(),
-      ]);
+    const [creditsResult, organizationsResult] = await Promise.allSettled([
+      coreClient.getMyCredits(),
+      activeOrganizationId ? coreClient.getMyOrganizations() : null,
+    ]);
 
     if (creditsResult.status === "fulfilled") {
-      credits = creditsResult.value.data?.credits ?? 0;
-    }
-
-    if (
-      subscriptionResult.status === "fulfilled" &&
-      subscriptionResult.value.data?.subscription?.credits
-    ) {
-      const subscriptionCredits =
-        subscriptionResult.value.data.subscription.credits;
-      if (subscriptionCredits.total > 0) {
+      const parsedCredits = parseCreditsResponse(creditsResult.value.data);
+      credits = parsedCredits.total;
+      const subscriptionCredits = parsedCredits.subscriptionCredits;
+      if (subscriptionCredits && subscriptionCredits.total > 0) {
         const total = Math.max(subscriptionCredits.total, 0);
         const used = Math.min(Math.max(subscriptionCredits.used, 0), total);
         const remaining = Math.max(subscriptionCredits.remaining, 0);
