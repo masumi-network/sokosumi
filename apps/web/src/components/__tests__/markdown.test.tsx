@@ -9,6 +9,11 @@ jest.mock("rehype-raw", () => ({
   default: () => null,
 }));
 
+jest.mock("rehype-highlight", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 jest.mock("remark-gfm", () => ({
   __esModule: true,
   default: () => null,
@@ -36,7 +41,12 @@ jest.mock("react-markdown", () => ({
           {components.code({
             inline: "false",
             className: "language-js",
-            children: "const value = 1;",
+            children: (
+              <>
+                <span className="hljs-keyword">const</span>
+                {" value = 1;"}
+              </>
+            ),
           })}
         </pre>
       );
@@ -72,5 +82,13 @@ describe("Markdown", () => {
     expect(code).toBeInTheDocument();
     expect(code).toHaveClass("language-js");
     expect(code).not.toHaveClass("bg-muted");
+  });
+
+  it("renders highlighted block code tokens", () => {
+    const { container } = render(<Markdown>{"BLOCK_ONLY"}</Markdown>);
+    const highlightedToken = container.querySelector("pre code .hljs-keyword");
+
+    expect(highlightedToken).toBeInTheDocument();
+    expect(highlightedToken).toHaveTextContent("const");
   });
 });
