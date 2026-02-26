@@ -19,8 +19,7 @@ const params = z.object({
 const route = createRoute({
   method: "get",
   path: "/organizations/{id}",
-  description:
-    "Get organization details by ID or slug with member-scoped subscription usage and credits",
+  description: "Get organization details by ID or slug for the current member",
   tags: ["Users"],
   request: {
     params,
@@ -28,7 +27,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       organizationWithRoleSchema,
-      "Retrieve organization by ID or slug with member-scoped credit context",
+      "Retrieve organization by ID or slug",
       {
         data: {
           id: "org_123",
