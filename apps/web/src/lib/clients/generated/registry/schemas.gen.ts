@@ -3,6 +3,15 @@
 export const PaymentInformationSchema = {
     type: 'object',
     properties: {
+        createdAt: {
+            type: 'string'
+        },
+        updatedAt: {
+            type: 'string'
+        },
+        metadataVersion: {
+            type: 'integer'
+        },
         RegistrySource: {
             type: 'object',
             properties: {
@@ -223,6 +232,9 @@ export const PaymentInformationSchema = {
         }
     },
     required: [
+        'createdAt',
+        'updatedAt',
+        'metadataVersion',
         'RegistrySource',
         'sellerWallet',
         'Capability',
@@ -257,6 +269,9 @@ export const RegistryEntrySchema = {
             type: 'string'
         },
         name: {
+            type: 'string'
+        },
+        createdAt: {
             type: 'string'
         },
         description: {
@@ -462,11 +477,18 @@ export const RegistryEntrySchema = {
                     'url'
                 ]
             }
+        },
+        metadataVersion: {
+            type: 'integer'
+        },
+        updatedAt: {
+            type: 'string'
         }
     },
     required: [
         'id',
         'name',
+        'createdAt',
         'description',
         'status',
         'statusUpdatedAt',
@@ -488,7 +510,9 @@ export const RegistryEntrySchema = {
         'RegistrySource',
         'Capability',
         'AgentPricing',
-        'ExampleOutput'
+        'ExampleOutput',
+        'metadataVersion',
+        'updatedAt'
     ]
 } as const;
 
