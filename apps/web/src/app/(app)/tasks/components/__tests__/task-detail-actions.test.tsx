@@ -47,6 +47,7 @@ const labels = {
   deleteError: "Delete error",
   markAsReady: "Mark as Ready",
   revertToDraft: "Revert to Draft",
+  cancelRequest: "Cancel Request",
 };
 
 describe("TaskDetailActions", () => {

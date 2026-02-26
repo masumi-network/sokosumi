@@ -79,6 +79,7 @@ interface WorkspaceItem {
 
 interface WorkspaceRowProps {
   creditUsage?: CreditUsage | null;
+  creditsLabel?: string;
   creditsUsedLabel?: string;
   progressAriaLabel?: string;
   sessionUser: SessionUser;
@@ -111,13 +112,16 @@ function getOrderedWorkspaces(
 
 function WorkspaceRow({
   creditUsage,
+  creditsLabel,
   creditsUsedLabel,
   progressAriaLabel,
   sessionUser,
   subtitle,
   workspace,
 }: WorkspaceRowProps) {
-  return (
+  const tooltipLabel = creditsLabel;
+
+  const content = (
     <div className="flex min-w-0 items-center gap-2">
       {workspace.organization ? (
         <Avatar className="bg-muted size-8 items-center justify-center md:size-10">
@@ -139,36 +143,38 @@ function WorkspaceRow({
         <div className="w-full truncate text-sm font-semibold">
           {workspace.name}
         </div>
-        {subtitle ? (
+        {subtitle && !creditsLabel ? (
           <div className="text-muted-foreground w-full truncate text-xs">
             {subtitle}
           </div>
         ) : null}
         {creditUsage?.hasUsageData ? (
-          <div className="mt-2 w-full space-y-1">
+          <div className="mt-1 w-full space-y-1">
             <Progress
               className="h-1.5"
               value={creditUsage.percentageUsed}
               aria-label={progressAriaLabel}
             />
             {creditsUsedLabel ? (
-              <TooltipProvider>
-                <Tooltip delayDuration={100}>
-                  <TooltipTrigger asChild>
-                    <div className="text-muted-foreground w-fit text-[11px]">
-                      {creditsUsedLabel}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    {creditsUsedLabel}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <div className="text-muted-foreground w-fit text-[11px]">
+                {creditsUsedLabel}
+              </div>
             ) : null}
           </div>
         ) : null}
       </div>
     </div>
+  );
+
+  return tooltipLabel ? (
+    <TooltipProvider>
+      <Tooltip delayDuration={100}>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="bottom">{tooltipLabel}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : (
+    content
   );
 }
 
@@ -320,13 +326,18 @@ export default function UserAvatarClient({
                       ? creditUsage
                       : null
                   }
+                  creditsLabel={
+                    workspace.id === activeOrganizationId
+                      ? creditsLabel
+                      : undefined
+                  }
                   creditsUsedLabel={creditUsageLabel ?? undefined}
                   progressAriaLabel={creditUsageAriaLabel}
                   sessionUser={sessionUser}
                   workspace={workspace}
                   subtitle={
                     workspace.id === activeOrganizationId
-                      ? creditsLabel
+                      ? undefined
                       : workspacePlanLabels[getWorkspaceKey(workspace)]
                   }
                 />
@@ -394,6 +405,11 @@ export default function UserAvatarClient({
                                       ? creditUsage
                                       : null
                                   }
+                                  creditsLabel={
+                                    workspace.id === activeOrganizationId
+                                      ? creditsLabel
+                                      : undefined
+                                  }
                                   creditsUsedLabel={
                                     creditUsageLabel ?? undefined
                                   }
@@ -401,9 +417,11 @@ export default function UserAvatarClient({
                                   sessionUser={sessionUser}
                                   workspace={workspace}
                                   subtitle={
-                                    workspacePlanLabels[
-                                      getWorkspaceKey(workspace)
-                                    ]
+                                    workspace.id === activeOrganizationId
+                                      ? undefined
+                                      : workspacePlanLabels[
+                                          getWorkspaceKey(workspace)
+                                        ]
                                   }
                                 />
                                 {workspace.id === activeOrganizationId ? (
@@ -443,12 +461,19 @@ export default function UserAvatarClient({
                               ? creditUsage
                               : null
                           }
+                          creditsLabel={
+                            workspace.id === activeOrganizationId
+                              ? creditsLabel
+                              : undefined
+                          }
                           creditsUsedLabel={creditUsageLabel ?? undefined}
                           progressAriaLabel={creditUsageAriaLabel}
                           sessionUser={sessionUser}
                           workspace={workspace}
                           subtitle={
-                            workspacePlanLabels[getWorkspaceKey(workspace)]
+                            workspace.id === activeOrganizationId
+                              ? undefined
+                              : workspacePlanLabels[getWorkspaceKey(workspace)]
                           }
                         />
                         {workspace.id === activeOrganizationId ? (

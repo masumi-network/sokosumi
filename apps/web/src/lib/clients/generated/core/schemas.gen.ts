@@ -615,87 +615,6 @@ export const UserSchema = {
         role: {
             type: 'string',
             example: 'user'
-        },
-        credits: {
-            type: 'number',
-            example: 100
-        },
-        subscription: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'sub_123'
-                },
-                plan: {
-                    type: 'string',
-                    example: 'starter'
-                },
-                status: {
-                    type: 'string',
-                    example: 'active'
-                },
-                periodStart: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                periodEnd: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                cancelAtPeriodEnd: {
-                    type: [
-                        'boolean',
-                        'null'
-                    ],
-                    example: false
-                },
-                credits: {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    properties: {
-                        total: {
-                            type: 'number',
-                            description: 'Total subscription-period credits granted this period',
-                            example: 100
-                        },
-                        remaining: {
-                            type: 'number',
-                            description: 'Remaining subscription-period credits this period',
-                            example: 57.5
-                        },
-                        used: {
-                            type: 'number',
-                            description: 'Used subscription-period credits consumed during this period',
-                            example: 42.5
-                        }
-                    },
-                    required: [
-                        'total',
-                        'remaining',
-                        'used'
-                    ]
-                }
-            },
-            required: [
-                'id',
-                'plan',
-                'status',
-                'credits'
-            ]
         }
     },
     required: [
@@ -705,9 +624,7 @@ export const UserSchema = {
         'name',
         'email',
         'emailVerified',
-        'role',
-        'credits',
-        'subscription'
+        'role'
     ]
 } as const;
 
@@ -734,88 +651,6 @@ export const OrganizationSchema = {
         role: {
             type: 'string',
             example: 'member'
-        },
-        credits: {
-            type: 'number',
-            description: 'Current credit balance for the organization',
-            example: 100
-        },
-        subscription: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'sub_123'
-                },
-                plan: {
-                    type: 'string',
-                    example: 'starter'
-                },
-                status: {
-                    type: 'string',
-                    example: 'active'
-                },
-                periodStart: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                periodEnd: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                cancelAtPeriodEnd: {
-                    type: [
-                        'boolean',
-                        'null'
-                    ],
-                    example: false
-                },
-                credits: {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    properties: {
-                        total: {
-                            type: 'number',
-                            description: 'Total subscription-period credits granted this period',
-                            example: 100
-                        },
-                        remaining: {
-                            type: 'number',
-                            description: 'Remaining subscription-period credits this period',
-                            example: 57.5
-                        },
-                        used: {
-                            type: 'number',
-                            description: 'Used subscription-period credits consumed during this period',
-                            example: 42.5
-                        }
-                    },
-                    required: [
-                        'total',
-                        'remaining',
-                        'used'
-                    ]
-                }
-            },
-            required: [
-                'id',
-                'plan',
-                'status',
-                'credits'
-            ]
         }
     },
     required: [
@@ -823,9 +658,7 @@ export const OrganizationSchema = {
         'createdAt',
         'name',
         'slug',
-        'role',
-        'credits',
-        'subscription'
+        'role'
     ]
 } as const;
 
@@ -1187,6 +1020,18 @@ export const CoworkerSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        isWhitelisted: {
+            type: 'boolean',
+            example: true
+        },
         slug: {
             type: 'string',
             example: 'ops-agent'
@@ -1249,6 +1094,8 @@ export const CoworkerSchema = {
         'id',
         'createdAt',
         'updatedAt',
+        'archivedAt',
+        'isWhitelisted',
         'slug',
         'name'
     ]

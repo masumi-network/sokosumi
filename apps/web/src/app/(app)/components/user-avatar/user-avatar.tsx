@@ -5,10 +5,12 @@ import { Suspense } from "react";
 
 import {
   type ActiveSubscription,
+  parsePlanName,
   resolveCurrentPlanName,
 } from "@/components/billing/subscription-plan-utils";
 import { auth, Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
+import { getLatestActiveOrganizationSubscription } from "@/lib/stripe/subscription-utils";
 import { CreditUsage } from "@/lib/types/credit";
 
 import UserAvatarClient from "./user-avatar.client";
@@ -65,17 +67,11 @@ async function getWorkspacePlanLabels(
       }
 
       try {
-        const activeSubscriptions = await auth.api.listActiveSubscriptions({
-          headers: requestHeaders,
-          query: {
-            customerType: "organization",
-            referenceId: member.organization.id,
-          },
-        });
-
-        const currentPlan =
-          resolveCurrentPlanName(activeSubscriptions as ActiveSubscription[]) ??
-          "free";
+        const activeSubscription =
+          await getLatestActiveOrganizationSubscription({
+            organizationId: member.organization.id,
+          });
+        const currentPlan = parsePlanName(activeSubscription?.plan) ?? "free";
         const planName = tSubscriptions(`Plans.${currentPlan}.name`);
 
         return [member.organization.id, planName] as const;

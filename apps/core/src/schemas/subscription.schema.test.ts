@@ -5,7 +5,6 @@ import { subscriptionSchema } from "./subscription.schema";
 describe("subscriptionSchema", () => {
   it("accepts subscription credits as an object", () => {
     const result = subscriptionSchema.parse({
-      id: "sub_123",
       plan: "starter",
       status: "active",
       periodStart: "2025-01-01T00:00:00.000Z",
@@ -27,7 +26,6 @@ describe("subscriptionSchema", () => {
 
   it("accepts subscription credits as null", () => {
     const result = subscriptionSchema.parse({
-      id: "sub_123",
       plan: "starter",
       status: "active",
       periodStart: "2025-01-01T00:00:00.000Z",
@@ -42,7 +40,6 @@ describe("subscriptionSchema", () => {
   it("rejects subscription credits when field is missing", () => {
     expect(() =>
       subscriptionSchema.parse({
-        id: "sub_123",
         plan: "starter",
         status: "active",
         periodStart: "2025-01-01T00:00:00.000Z",

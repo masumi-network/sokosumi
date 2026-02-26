@@ -1,3 +1,5 @@
+export {};
+
 jest.mock("server-only", () => ({}));
 
 const coreClientMock = {

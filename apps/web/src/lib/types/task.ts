@@ -3,6 +3,8 @@ import { TaskStatus } from "@sokosumi/database";
 
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
+export type { TaskEvent };
+
 export type KanbanColumnId =
   | "backlog"
   | "todo"

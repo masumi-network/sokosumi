@@ -2,7 +2,8 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { getCredits } from "@/helpers/user";
+import { buildCreditsPayload } from "@/helpers/subscription";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -23,7 +24,22 @@ const route = withGlobalHeaderParameters(
         "Retrieve the current user's credits or the member-scoped organization-context credits",
         {
           data: {
-            credits: 100.0,
+            credits: {
+              subscription: {
+                plan: "starter",
+                status: "active",
+                periodStart: "2025-01-01T00:00:00.000Z",
+                periodEnd: "2025-02-01T00:00:00.000Z",
+                cancelAtPeriodEnd: false,
+                credits: {
+                  total: 100,
+                  remaining: 57.5,
+                  used: 42.5,
+                },
+              },
+              buffer: 12.5,
+              total: 70,
+            },
           },
           meta: {
             timestamp: "2025-01-01T00:00:00.000Z",
@@ -42,11 +58,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
 
-    const credits = await getCredits(
-      authContext.userId,
-      authContext.organizationId,
-    );
+    const credits = await prisma.$transaction(async (tx) => {
+      return await buildCreditsPayload({
+        userId: authContext.userId,
+        organizationId: authContext.organizationId,
+        referenceId: authContext.organizationId ?? authContext.userId,
+        tx,
+      });
+    });
 
-    return ok(c, { credits });
+    return ok(c, creditsResponseSchema.parse({ credits }));
   });
 }

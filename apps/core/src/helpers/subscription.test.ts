@@ -6,7 +6,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  getCurrentOrganizationSubscriptionCreditsMap,
+  getCreditSummary,
   getCurrentSubscriptionCredits,
   mapSubscription,
 } from "./subscription";
@@ -15,7 +15,6 @@ function createSubscriptionRecord(
   overrides: Partial<{
     cancelAtPeriodEnd: boolean | null;
     credits: { remaining: number; total: number; used: number } | null;
-    id: string;
     periodEnd: Date | null;
     periodStart: Date | null;
     plan: string;
@@ -23,7 +22,6 @@ function createSubscriptionRecord(
   }> = {},
 ) {
   return {
-    id: "sub_123",
     plan: "starter",
     status: "active",
     periodStart: new Date("2025-01-01T00:00:00.000Z"),
@@ -74,7 +72,6 @@ describe("mapSubscription", () => {
 
     expect(
       mapSubscription({
-        id: "sub_123",
         plan: "starter",
         status: "active",
         periodStart,
@@ -83,13 +80,58 @@ describe("mapSubscription", () => {
         credits: { total: 100, used: 42.5, remaining: 57.5 },
       }),
     ).toEqual({
-      id: "sub_123",
       plan: "starter",
       status: "active",
       periodStart,
       periodEnd,
       cancelAtPeriodEnd: false,
       credits: { total: 100, used: 42.5, remaining: 57.5 },
+    });
+  });
+});
+
+describe("getCreditSummary", () => {
+  it("returns buffer and total when subscription credits are present", () => {
+    expect(
+      getCreditSummary({
+        totalCredits: 30,
+        subscriptionCredits: {
+          total: 20,
+          used: 8,
+          remaining: 12,
+        },
+      }),
+    ).toEqual({
+      buffer: 18,
+      total: 30,
+    });
+  });
+
+  it("returns full total in buffer when no subscription credits are present", () => {
+    expect(
+      getCreditSummary({
+        totalCredits: 11,
+        subscriptionCredits: null,
+      }),
+    ).toEqual({
+      buffer: 11,
+      total: 11,
+    });
+  });
+
+  it("clamps buffer at zero and total at totalCredits when subscription remaining exceeds total", () => {
+    expect(
+      getCreditSummary({
+        totalCredits: 5,
+        subscriptionCredits: {
+          total: 50,
+          used: 45,
+          remaining: 8,
+        },
+      }),
+    ).toEqual({
+      buffer: 0,
+      total: 5,
     });
   });
 });
@@ -336,6 +378,28 @@ describe("getCurrentSubscriptionCredits", () => {
     });
   });
 
+  it("caps used at total so used plus remaining always equals total", async () => {
+    const now = new Date("2025-01-15T12:00:00.000Z");
+    const { tx } = createTransactionClient({
+      totalCents: convertCreditsToCents(9),
+      usedCents: convertCreditsToCents(12),
+    });
+
+    await expect(
+      getCurrentSubscriptionCredits({
+        subscription: createSubscriptionRecord(),
+        userId: "user_1",
+        organizationId: null,
+        tx,
+        now,
+      }),
+    ).resolves.toEqual({
+      total: 9,
+      used: 9,
+      remaining: 0,
+    });
+  });
+
   it("does not constrain bucket creation to period start", async () => {
     const now = new Date("2025-01-15T12:00:00.000Z");
     const periodStart = new Date("2025-01-01T00:00:00.000Z");
@@ -362,72 +426,6 @@ describe("getCurrentSubscriptionCredits", () => {
           lt: now,
         },
       }),
-    });
-  });
-});
-
-describe("getCurrentOrganizationSubscriptionCreditsMap", () => {
-  it("returns empty map without querying when no periods are provided", async () => {
-    const queryRaw = vi.fn();
-    const tx = {
-      $queryRaw: queryRaw,
-    } as unknown as Prisma.TransactionClient;
-
-    const result = await getCurrentOrganizationSubscriptionCreditsMap({
-      userId: "user_1",
-      periods: [],
-      tx,
-    });
-
-    expect(result.size).toBe(0);
-    expect(queryRaw).not.toHaveBeenCalled();
-  });
-
-  it("returns a credits map for all organizations in a single query", async () => {
-    const queryRaw = vi.fn().mockResolvedValue([
-      {
-        organization_id: "org_1",
-        total_cents: convertCreditsToCents(10),
-        used_cents: convertCreditsToCents(3),
-      },
-      {
-        organization_id: "org_2",
-        total_cents: convertCreditsToCents(20),
-        used_cents: convertCreditsToCents(4),
-      },
-    ]);
-    const tx = {
-      $queryRaw: queryRaw,
-    } as unknown as Prisma.TransactionClient;
-
-    const result = await getCurrentOrganizationSubscriptionCreditsMap({
-      userId: "user_1",
-      periods: [
-        {
-          organizationId: "org_1",
-          periodStart: new Date("2025-01-01T00:00:00.000Z"),
-          periodEnd: new Date("2025-02-01T00:00:00.000Z"),
-        },
-        {
-          organizationId: "org_2",
-          periodStart: new Date("2025-01-01T00:00:00.000Z"),
-          periodEnd: new Date("2025-02-01T00:00:00.000Z"),
-        },
-      ],
-      tx,
-      now: new Date("2025-01-20T00:00:00.000Z"),
-    });
-
-    expect(queryRaw).toHaveBeenCalledTimes(1);
-    expect(result.get("org_1")).toEqual({
-      total: 10,
-      used: 3,
-      remaining: 7,
-    });
-    expect(result.get("org_2")).toEqual({
-      total: 20,
-      used: 4,
-      remaining: 16,
     });
   });
 });

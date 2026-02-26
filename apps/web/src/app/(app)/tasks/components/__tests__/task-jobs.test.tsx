@@ -8,7 +8,7 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
-import type { TaskWithEvents } from "@/lib/services/task.service";
+import type { Job } from "@/lib/clients/generated/core/types.gen";
 
 jest.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
@@ -39,8 +39,8 @@ jest.mock("@/lib/utils/datetime", () => ({
 }));
 
 function createJob(
-  overrides: Partial<TaskWithEvents["jobs"][number]>,
-): TaskWithEvents["jobs"][number] {
+  overrides: Partial<Job>,
+): Job {
   return {
     id: "job-1",
     agentId: "agent-1",
@@ -49,7 +49,7 @@ function createJob(
     status: SokosumiJobStatus.PROCESSING,
     jobType: JobType.FREE,
     ...overrides,
-  } as unknown as TaskWithEvents["jobs"][number];
+  } as unknown as Job;
 }
 
 const baseProps = {
@@ -69,7 +69,7 @@ describe("TaskJobsSection", () => {
   });
 
   it("renders jobs newest first, links to agent job detail, and uses fallbacks", () => {
-    const jobs: TaskWithEvents["jobs"] = [
+    const jobs: Job[] = [
       createJob({
         id: "job-older",
         agentId: "agent-1",

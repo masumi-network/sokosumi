@@ -16,8 +16,6 @@ export const userSchema = z
       .nullish()
       .openapi({ example: "https://example.com/image.png" }),
     role: z.string().openapi({ example: "user" }),
-    credits: z.number().openapi({ example: 100.0 }),
-    subscription: subscriptionSchema.nullable(),
   })
   .openapi("User");
 
@@ -42,12 +40,16 @@ export const userOnboardingResponseSchema = z.object({
 });
 
 export const creditsResponseSchema = z.object({
-  credits: z.number().openapi({
-    description: "Current credit balance",
-    example: 100.0,
+  credits: z.object({
+    subscription: subscriptionSchema.nullable(),
+    buffer: z.number().openapi({
+      description: "Current available non-subscription credit balance",
+      example: 25.0,
+    }),
+    total: z.number().openapi({
+      description:
+        "Current available total credit balance (buffer plus remaining subscription credits)",
+      example: 82.5,
+    }),
   }),
-});
-
-export const subscriptionResponseSchema = z.object({
-  subscription: subscriptionSchema.nullable(),
 });
