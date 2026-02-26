@@ -62,9 +62,11 @@ import { useWorkspaceSwitcher } from "./workspace-switcher";
 
 interface UserAvatarClientProps {
   creditUsage?: CreditUsage | null;
+  currentTimestampMs: number;
   creditsLabel?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
+  subscriptionPeriodEndMs?: number | null;
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
@@ -78,10 +80,6 @@ interface WorkspaceItem {
 }
 
 interface WorkspaceRowProps {
-  creditUsage?: CreditUsage | null;
-  creditsLabel?: string;
-  creditsUsedLabel?: string;
-  progressAriaLabel?: string;
   sessionUser: SessionUser;
   subtitle?: string;
   workspace: WorkspaceItem;
@@ -110,18 +108,8 @@ function getOrderedWorkspaces(
   ];
 }
 
-function WorkspaceRow({
-  creditUsage,
-  creditsLabel,
-  creditsUsedLabel,
-  progressAriaLabel,
-  sessionUser,
-  subtitle,
-  workspace,
-}: WorkspaceRowProps) {
-  const tooltipLabel = creditsLabel;
-
-  const content = (
+function WorkspaceRow({ sessionUser, subtitle, workspace }: WorkspaceRowProps) {
+  return (
     <div className="flex min-w-0 items-center gap-2">
       {workspace.organization ? (
         <Avatar className="bg-muted size-8 items-center justify-center md:size-10">
@@ -143,46 +131,23 @@ function WorkspaceRow({
         <div className="w-full truncate text-sm font-semibold">
           {workspace.name}
         </div>
-        {subtitle && !creditsLabel ? (
+        {subtitle ? (
           <div className="text-muted-foreground w-full truncate text-xs">
             {subtitle}
-          </div>
-        ) : null}
-        {creditUsage?.hasUsageData ? (
-          <div className="mt-1 w-full space-y-1">
-            <Progress
-              className="h-1.5"
-              value={creditUsage.percentageUsed}
-              aria-label={progressAriaLabel}
-            />
-            {creditsUsedLabel ? (
-              <div className="text-muted-foreground w-fit text-[11px]">
-                {creditsUsedLabel}
-              </div>
-            ) : null}
           </div>
         ) : null}
       </div>
     </div>
   );
-
-  return tooltipLabel ? (
-    <TooltipProvider>
-      <Tooltip delayDuration={100}>
-        <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent side="bottom">{tooltipLabel}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  ) : (
-    content
-  );
 }
 
 export default function UserAvatarClient({
   creditUsage,
+  currentTimestampMs,
   creditsLabel,
   primaryLabel,
   secondaryLabel,
+  subscriptionPeriodEndMs,
   sessionUser,
   members,
   activeOrganizationId,
@@ -209,6 +174,23 @@ export default function UserAvatarClient({
         total: formatCreditsForDisplay(activeCreditUsage.total),
       })
     : null;
+  let creditsExpiryLabel: string | null = null;
+  if (subscriptionPeriodEndMs) {
+    const millisecondsPerDay = 1000 * 60 * 60 * 24;
+    const millisecondsUntilExpiry =
+      subscriptionPeriodEndMs - currentTimestampMs;
+
+    if (millisecondsUntilExpiry < 0) {
+      creditsExpiryLabel = t("creditsExpired");
+    } else if (millisecondsUntilExpiry < millisecondsPerDay) {
+      creditsExpiryLabel = t("creditsExpiresToday");
+    } else {
+      const daysUntilExpiry = Math.ceil(
+        millisecondsUntilExpiry / millisecondsPerDay,
+      );
+      creditsExpiryLabel = t("creditsExpiresInDays", { days: daysUntilExpiry });
+    }
+  }
 
   const { showLogoutModal } = useGlobalModalsContext();
   const handleSupport = () => {
@@ -259,7 +241,56 @@ export default function UserAvatarClient({
   };
 
   return (
-    <>
+    <div className="flex items-center gap-4">
+      {hasCreditUsage ? (
+        creditsLabel ? (
+          <TooltipProvider>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <div className="min-w-28 space-y-1 border-r pr-4">
+                  {creditsExpiryLabel ? (
+                    <div className="text-muted-foreground w-fit text-xs font-semibold">
+                      {creditsExpiryLabel}
+                    </div>
+                  ) : null}
+                  <Progress
+                    className="h-1.5"
+                    value={activeCreditUsage?.percentageUsed ?? 0}
+                    aria-label={creditUsageAriaLabel}
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <div className="gap-2">
+                  <p className="pb-1 font-semibold">{t("creditsSummary")}</p>
+                  <ul className="list-disc space-y-1 pl-4">
+                    {creditUsageLabel ? <li>{creditUsageLabel}</li> : null}
+                    <li>{creditsLabel}</li>
+                  </ul>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <div className="min-w-28 space-y-1 border-r pr-4">
+            {creditsExpiryLabel ? (
+              <div className="text-muted-foreground w-fit text-[11px]">
+                {creditsExpiryLabel}
+              </div>
+            ) : null}
+            <Progress
+              className="h-1.5"
+              value={activeCreditUsage?.percentageUsed ?? 0}
+              aria-label={creditUsageAriaLabel}
+            />
+            {creditUsageLabel ? (
+              <div className="text-muted-foreground w-fit text-[11px]">
+                {creditUsageLabel}
+              </div>
+            ) : null}
+          </div>
+        )
+      ) : null}
       <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
         <TooltipProvider disableHoverableContent>
           <Tooltip delayDuration={100}>
@@ -321,25 +352,9 @@ export default function UserAvatarClient({
                 }}
               >
                 <WorkspaceRow
-                  creditUsage={
-                    workspace.id === activeOrganizationId && hasCreditUsage
-                      ? creditUsage
-                      : null
-                  }
-                  creditsLabel={
-                    workspace.id === activeOrganizationId
-                      ? creditsLabel
-                      : undefined
-                  }
-                  creditsUsedLabel={creditUsageLabel ?? undefined}
-                  progressAriaLabel={creditUsageAriaLabel}
                   sessionUser={sessionUser}
                   workspace={workspace}
-                  subtitle={
-                    workspace.id === activeOrganizationId
-                      ? undefined
-                      : workspacePlanLabels[getWorkspaceKey(workspace)]
-                  }
+                  subtitle={workspacePlanLabels[getWorkspaceKey(workspace)]}
                 />
                 <Check
                   className={cn(
@@ -399,29 +414,12 @@ export default function UserAvatarClient({
                                 }}
                               >
                                 <WorkspaceRow
-                                  creditUsage={
-                                    workspace.id === activeOrganizationId &&
-                                    hasCreditUsage
-                                      ? creditUsage
-                                      : null
-                                  }
-                                  creditsLabel={
-                                    workspace.id === activeOrganizationId
-                                      ? creditsLabel
-                                      : undefined
-                                  }
-                                  creditsUsedLabel={
-                                    creditUsageLabel ?? undefined
-                                  }
-                                  progressAriaLabel={creditUsageAriaLabel}
                                   sessionUser={sessionUser}
                                   workspace={workspace}
                                   subtitle={
-                                    workspace.id === activeOrganizationId
-                                      ? undefined
-                                      : workspacePlanLabels[
-                                          getWorkspaceKey(workspace)
-                                        ]
+                                    workspacePlanLabels[
+                                      getWorkspaceKey(workspace)
+                                    ]
                                   }
                                 />
                                 {workspace.id === activeOrganizationId ? (
@@ -455,25 +453,10 @@ export default function UserAvatarClient({
                         }}
                       >
                         <WorkspaceRow
-                          creditUsage={
-                            workspace.id === activeOrganizationId &&
-                            hasCreditUsage
-                              ? creditUsage
-                              : null
-                          }
-                          creditsLabel={
-                            workspace.id === activeOrganizationId
-                              ? creditsLabel
-                              : undefined
-                          }
-                          creditsUsedLabel={creditUsageLabel ?? undefined}
-                          progressAriaLabel={creditUsageAriaLabel}
                           sessionUser={sessionUser}
                           workspace={workspace}
                           subtitle={
-                            workspace.id === activeOrganizationId
-                              ? undefined
-                              : workspacePlanLabels[getWorkspaceKey(workspace)]
+                            workspacePlanLabels[getWorkspaceKey(workspace)]
                           }
                         />
                         {workspace.id === activeOrganizationId ? (
@@ -547,6 +530,6 @@ export default function UserAvatarClient({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </>
+    </div>
   );
 }
