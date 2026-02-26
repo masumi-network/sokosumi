@@ -101,6 +101,74 @@ jest.mock("@/lib/stripe/subscription-catalog", () => ({
 
 const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
+const SUBSCRIPTION_CATALOG = {
+  free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+  pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+  standard: {
+    credits: 5250,
+    monthlyAmount: 7500,
+    productId: "prod_standard",
+  },
+  starter: {
+    credits: 1750,
+    monthlyAmount: 2500,
+    productId: "prod_starter",
+  },
+};
+
+interface OrganizationMemberFixture {
+  role: "member" | "owner";
+  userId: string;
+}
+
+interface CreatedTransactionCall {
+  data: {
+    amount: bigint;
+    sourceCreditBucket: {
+      create: {
+        amount?: bigint;
+        expiresAt?: Date | null;
+        referenceId: string;
+        referenceType?: string;
+        userId?: string;
+      };
+    };
+    organization: {
+      connect: {
+        id: string;
+      };
+    };
+    user: {
+      connect: {
+        id: string;
+      };
+    };
+  };
+}
+
+function mockSubscriptionCatalog(): void {
+  getSubscriptionCatalogMock.mockResolvedValue(SUBSCRIPTION_CATALOG);
+}
+
+function mockOrganizationInvoiceContext(
+  members: OrganizationMemberFixture[],
+  organizationId = "org-1",
+): void {
+  getUserByStripeCustomerIdMock.mockResolvedValue(null);
+  getOrganizationByStripeCustomerIdMock.mockResolvedValue({
+    id: organizationId,
+  });
+  getMembersByOrganizationIdMock.mockResolvedValue(members);
+}
+
+function getTransactionCallsByReferenceId(): Map<string, CreatedTransactionCall> {
+  return new Map(
+    createTransactionMock.mock.calls.map((call) => {
+      const createCall = call[0] as CreatedTransactionCall;
+      return [createCall.data.sourceCreditBucket.create.referenceId, createCall];
+    }),
+  );
+}
 
 function createInvoice(params: {
   amountPaid?: number;
@@ -197,20 +265,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("grants free-plan seat credits for zero-amount subscription_update invoices", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -251,20 +306,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("credits only the newly added free seats on subscription_update invoices", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
     aggregateGrantedCreditsMock.mockResolvedValue({
       _sum: { amount: BigInt("2500000000000") },
     });
@@ -308,28 +350,11 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("dedupes free organization subscription_update credits by organization period", async () => {
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
+    mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
     ]);
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
     aggregateGrantedCreditsMock.mockResolvedValue({
       _sum: { amount: BigInt("5000000000000") },
     });
@@ -362,29 +387,12 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("splits organization subscription cycle credits equally with deterministic remainder", async () => {
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
+    mockOrganizationInvoiceContext([
       { role: "member", userId: "user-c" },
       { role: "owner", userId: "user-b" },
       { role: "member", userId: "user-a" },
     ]);
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -398,39 +406,7 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(createTransactionMock).toHaveBeenCalledTimes(3);
 
-    const callsByReference = new Map(
-      createTransactionMock.mock.calls.map((call) => {
-        const createCall = call[0] as {
-          data: {
-            amount: bigint;
-            organization: {
-              connect: {
-                id: string;
-              };
-            };
-            user: {
-              connect: {
-                id: string;
-              };
-            };
-            sourceCreditBucket: {
-              create: {
-                amount: bigint;
-                expiresAt: Date | null;
-                referenceId: string;
-                referenceType: string;
-                userId: string;
-              };
-            };
-          };
-        };
-
-        return [
-          createCall.data.sourceCreditBucket.create.referenceId,
-          createCall,
-        ];
-      }),
-    );
+    const callsByReference = getTransactionCallsByReferenceId();
 
     const userAReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "user-a",
@@ -465,29 +441,12 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("keeps organization invoice grants stable on retry when membership changes", async () => {
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
+    mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
       { role: "member", userId: "new-member-3" },
     ]);
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
     findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue({
       id: "existing-org-invoice-bucket",
     });
@@ -521,11 +480,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("keeps organization top-up grants shared", async () => {
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
+    mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
     ]);
@@ -583,28 +538,11 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("splits paid organization proration credits after amount-based calculation", async () => {
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
+    mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
     ]);
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -628,28 +566,7 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(createTransactionMock).toHaveBeenCalledTimes(2);
 
-    const callsByReference = new Map(
-      createTransactionMock.mock.calls.map((call) => {
-        const createCall = call[0] as {
-          data: {
-            amount: bigint;
-            sourceCreditBucket: {
-              create: {
-                amount: bigint;
-                expiresAt: Date | null;
-                referenceId: string;
-                referenceType: string;
-              };
-            };
-          };
-        };
-
-        return [
-          createCall.data.sourceCreditBucket.create.referenceId,
-          createCall,
-        ];
-      }),
-    );
+    const callsByReference = getTransactionCallsByReferenceId();
 
     const memberReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "member-1",
@@ -674,28 +591,11 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("caps paid organization proration credits when billed seats exceed active members", async () => {
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
+    mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
     ]);
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -719,25 +619,7 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(createTransactionMock).toHaveBeenCalledTimes(2);
 
-    const callsByReference = new Map(
-      createTransactionMock.mock.calls.map((call) => {
-        const createCall = call[0] as {
-          data: {
-            amount: bigint;
-            sourceCreditBucket: {
-              create: {
-                referenceId: string;
-              };
-            };
-          };
-        };
-
-        return [
-          createCall.data.sourceCreditBucket.create.referenceId,
-          createCall,
-        ];
-      }),
-    );
+    const callsByReference = getTransactionCallsByReferenceId();
 
     const memberReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "member-1",
@@ -760,28 +642,11 @@ describe("handleInvoicePaidEvent", () => {
       .spyOn(console, "log")
       .mockImplementation(() => {});
 
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
+    mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
       { role: "owner", userId: "owner-2" },
     ]);
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -821,20 +686,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("grants positive prorated credits for paid subscription_update invoices", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -891,20 +743,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("uses net proration amount for subscription_update invoices with negative lines", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -982,20 +821,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("fails paid subscription_update invoices when created timestamp is missing", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -1013,20 +839,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("fails paid subscription_update invoices when period duration is missing", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -1054,20 +867,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("grants subscription credits for subscription_cycle invoices", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -1191,20 +991,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -1221,37 +1008,7 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(createTransactionMock).toHaveBeenCalledTimes(2);
 
-    const firstCall = createTransactionMock.mock.calls[0][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            amount: bigint;
-            expiresAt: Date | null;
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-    const secondCall = createTransactionMock.mock.calls[1][0] as {
-      data: {
-        amount: bigint;
-        sourceCreditBucket: {
-          create: {
-            amount: bigint;
-            expiresAt: Date | null;
-            referenceId: string;
-            referenceType: string;
-          };
-        };
-      };
-    };
-
-    const callsByReference = new Map([
-      [firstCall.data.sourceCreditBucket.create.referenceId, firstCall],
-      [secondCall.data.sourceCreditBucket.create.referenceId, secondCall],
-    ]);
+    const callsByReference = getTransactionCallsByReferenceId();
 
     const topupCall = callsByReference.get(
       buildUserInvoiceCreditReferenceId("user-1", "in_mixed", "topup"),
@@ -1277,20 +1034,7 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("fails when subscription period end is missing", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
+    mockSubscriptionCatalog();
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 

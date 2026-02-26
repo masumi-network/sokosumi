@@ -64,6 +64,17 @@ interface AppliedSubscriptionCredits {
   subscriptionCreditsExpiry: Date | null;
 }
 
+interface BuildInvoiceCreditGrantsParams {
+  oneTimeTopUpCredits: number;
+  organizationId: string | null;
+  organizationMemberUserIds: string[];
+  skipOrganizationSubscriptionSplit: boolean;
+  subscriptionCredits: number;
+  subscriptionCreditsExpiry: Date | null;
+  userId: string;
+  invoiceId: string;
+}
+
 function isPrismaRecordNotFoundError(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -497,6 +508,75 @@ function splitCreditsByMember(params: {
     .filter((allocation) => allocation.credits > 0);
 }
 
+function buildInvoiceCreditGrants(
+  params: BuildInvoiceCreditGrantsParams,
+): InvoiceCreditGrant[] {
+  const creditGrants: InvoiceCreditGrant[] = [];
+
+  if (params.oneTimeTopUpCredits > 0) {
+    const topUpReferenceId = params.organizationId
+      ? buildOrganizationInvoiceCreditReferenceId(
+          params.organizationId,
+          params.invoiceId,
+          "topup",
+        )
+      : buildUserInvoiceCreditReferenceId(params.userId, params.invoiceId, "topup");
+
+    creditGrants.push({
+      credits: params.oneTimeTopUpCredits,
+      expiresAt: null,
+      referenceId: topUpReferenceId,
+      referenceType: "STRIPE_TOPUP",
+      userId: params.userId,
+    });
+  }
+
+  if (params.subscriptionCredits <= 0) {
+    return creditGrants;
+  }
+
+  if (!params.organizationId) {
+    creditGrants.push({
+      credits: params.subscriptionCredits,
+      expiresAt: params.subscriptionCreditsExpiry,
+      referenceId: buildUserInvoiceCreditReferenceId(
+        params.userId,
+        params.invoiceId,
+        "subscription",
+      ),
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+      userId: params.userId,
+    });
+
+    return creditGrants;
+  }
+
+  if (params.skipOrganizationSubscriptionSplit) {
+    return creditGrants;
+  }
+
+  const subscriptionReferenceSuffix = `${params.invoiceId}:subscription`;
+  const splitGrants = splitCreditsByMember({
+    memberUserIds: params.organizationMemberUserIds,
+    totalCredits: params.subscriptionCredits,
+  });
+
+  for (const splitGrant of splitGrants) {
+    creditGrants.push({
+      credits: splitGrant.credits,
+      expiresAt: params.subscriptionCreditsExpiry,
+      referenceId: buildOrganizationMemberSubscriptionReferenceId(
+        splitGrant.userId,
+        subscriptionReferenceSuffix,
+      ),
+      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+      userId: splitGrant.userId,
+    });
+  }
+
+  return creditGrants;
+}
+
 export async function handleInvoicePaidEvent(
   invoice: Stripe.Invoice,
 ): Promise<void> {
@@ -685,81 +765,41 @@ export async function handleInvoicePaidEvent(
       totals: subscriptionCreditTotals,
     });
 
-  const creditGrants: InvoiceCreditGrant[] = [];
-  if (oneTimeTopUpCredits > 0) {
-    const topUpReferenceId = organizationId
-      ? buildOrganizationInvoiceCreditReferenceId(
+  let skipOrganizationSubscriptionSplit = false;
+  if (subscriptionCredits > 0 && organizationId) {
+    const existingOrganizationInvoiceSubscriptionBucket =
+      await prisma.creditBucket.findFirst({
+        where: {
           organizationId,
-          invoiceId,
-          "topup",
-        )
-      : buildUserInvoiceCreditReferenceId(userId, invoiceId, "topup");
-
-    creditGrants.push({
-      credits: oneTimeTopUpCredits,
-      expiresAt: null,
-      referenceId: topUpReferenceId,
-      referenceType: "STRIPE_TOPUP",
-      userId,
-    });
-  }
-
-  if (subscriptionCredits > 0) {
-    const subscriptionReferenceSuffix = `${invoiceId}:subscription`;
-
-    if (organizationId) {
-      const existingOrganizationInvoiceSubscriptionBucket =
-        await prisma.creditBucket.findFirst({
-          where: {
-            organizationId,
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            referenceId: {
-              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-              endsWith: `:${subscriptionReferenceSuffix}`,
-            },
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          referenceId: {
+            startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+            endsWith: `:${invoiceId}:subscription`,
           },
-          select: {
-            id: true,
-          },
-        });
-
-      if (existingOrganizationInvoiceSubscriptionBucket) {
-        console.log(
-          `✅ Organization invoice ${invoiceId} subscription grants already exist; skipping replay split`,
-        );
-      } else {
-        const splitGrants = splitCreditsByMember({
-          memberUserIds: organizationMemberUserIds,
-          totalCredits: subscriptionCredits,
-        });
-
-        for (const splitGrant of splitGrants) {
-          creditGrants.push({
-            credits: splitGrant.credits,
-            expiresAt: subscriptionCreditsExpiry,
-            referenceId: buildOrganizationMemberSubscriptionReferenceId(
-              splitGrant.userId,
-              subscriptionReferenceSuffix,
-            ),
-            referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-            userId: splitGrant.userId,
-          });
-        }
-      }
-    } else {
-      creditGrants.push({
-        credits: subscriptionCredits,
-        expiresAt: subscriptionCreditsExpiry,
-        referenceId: buildUserInvoiceCreditReferenceId(
-          userId,
-          invoiceId,
-          "subscription",
-        ),
-        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-        userId,
+        },
+        select: {
+          id: true,
+        },
       });
+
+    if (existingOrganizationInvoiceSubscriptionBucket) {
+      console.log(
+        `✅ Organization invoice ${invoiceId} subscription grants already exist; skipping replay split`,
+      );
+      skipOrganizationSubscriptionSplit = true;
     }
   }
+
+  const creditGrants = buildInvoiceCreditGrants({
+    invoiceId,
+    oneTimeTopUpCredits,
+    organizationId,
+    organizationMemberUserIds,
+    skipOrganizationSubscriptionSplit,
+    subscriptionCredits,
+    subscriptionCreditsExpiry,
+    userId,
+  });
 
   if (creditGrants.length === 0) {
     console.log(
