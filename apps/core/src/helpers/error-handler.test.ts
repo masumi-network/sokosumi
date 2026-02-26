@@ -32,10 +32,13 @@ describe("errorHandler", () => {
     vi.clearAllMocks();
   });
 
-  it("reports maintenance-mode 503 responses to Sentry", async () => {
+  it.each([
+    "Service is under maintenance",
+    "Storage backend unavailable",
+  ])("reports thrown 503 HTTPExceptions to Sentry (%s)", async (message) => {
     const app = createApp();
     app.get("/", () => {
-      throw serviceUnavailable("Service is under maintenance");
+      throw serviceUnavailable(message);
     });
 
     const response = await app.request("http://localhost/");
@@ -46,19 +49,7 @@ describe("errorHandler", () => {
 
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
-    expect(body.message).toBe("Service is under maintenance");
-    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("reports non-maintenance 503 responses to Sentry", async () => {
-    const app = createApp();
-    app.get("/", () => {
-      throw serviceUnavailable("Storage backend unavailable");
-    });
-
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(503);
+    expect(body.message).toBe(message);
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });
