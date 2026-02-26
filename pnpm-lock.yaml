@@ -178,7 +178,7 @@ importers:
         specifier: 13.11.2
         version: 13.11.2(react@19.2.4)
       '@lobehub/icons':
-        specifier: ^4.6.0
+        specifier: 4.6.0
         version: 4.6.0(@lobehub/ui@4.38.4)(@types/react@19.2.14)(antd@6.3.1(date-fns@4.1.0)(luxon@3.7.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@m2d/core':
         specifier: 1.7.1
@@ -307,7 +307,7 @@ importers:
         specifier: 20.7.0
         version: 20.7.0
       highlight.js:
-        specifier: ^11.11.1
+        specifier: 11.11.1
         version: 11.11.1
       humanize-duration:
         specifier: 3.33.2
@@ -406,7 +406,7 @@ importers:
         specifier: 2.15.4
         version: 2.15.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       rehype-highlight:
-        specifier: ^7.0.2
+        specifier: 7.0.2
         version: 7.0.2
       rehype-raw:
         specifier: 7.0.0
