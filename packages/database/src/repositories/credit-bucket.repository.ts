@@ -3,7 +3,11 @@ import {
   CreditBucketReferenceType,
   Prisma,
 } from "../generated/prisma/client.js";
-import { getOrganizationMemberSubscriptionReferencePrefix } from "../helpers/credit.js";
+import {
+  escapeStringForLike,
+  getOrganizationMemberSubscriptionReferencePrefix,
+  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
+} from "../helpers/credit.js";
 
 export interface Consumption {
   bucketId: string;
@@ -207,7 +211,10 @@ function buildCreditBucketScopeWhere(
         referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
         userId,
         referenceId: {
-          startsWith: getOrganizationMemberSubscriptionReferencePrefix(userId),
+          startsWith:
+            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
+              userId,
+            ),
         },
       },
     ],
@@ -222,11 +229,10 @@ function buildCreditBucketScopeSql(
     return Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
   }
 
-  const escapedUserId = getOrganizationMemberSubscriptionReferencePrefix(userId)
-    .replace(/\\/g, "\\\\")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_");
-  const memberReferencePattern = `${escapedUserId}%`;
+  const escapedPrefix = escapeStringForLike(
+    getOrganizationMemberSubscriptionReferencePrefix(userId),
+  );
+  const memberReferencePattern = `${escapedPrefix}%`;
   return Prisma.sql`
     cb."organizationId" = ${organizationId}
     AND (

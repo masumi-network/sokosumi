@@ -1,7 +1,7 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import {
   convertCreditsToCents,
-  getOrganizationMemberSubscriptionReferencePrefix,
+  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
 } from "@sokosumi/database/helpers";
 import { describe, expect, it, vi } from "vitest";
 
@@ -323,7 +323,10 @@ describe("getCurrentSubscriptionCredits", () => {
       organizationId: "org_1",
       userId: "user_1",
       referenceId: {
-        startsWith: getOrganizationMemberSubscriptionReferencePrefix("user_1"),
+        startsWith:
+          getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
+            "user_1",
+          ),
       },
       expiresAt: {
         gt: periodStart,

@@ -40,10 +40,31 @@ export function convertCreditsToCents(credits: number): bigint {
   return BigInt(new Decimal(credits).mul(CREDITS_BASE).toFixed(0).toString());
 }
 
+/**
+ * Escapes a string for use as a literal in SQL LIKE patterns (e.g. when using Prisma's startsWith).
+ * Prisma translates startsWith to LIKE 'value%'; the database treats % and _ as wildcards, so they must be escaped.
+ */
+export function escapeStringForLike(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 export function getOrganizationMemberSubscriptionReferencePrefix(
   userId: string,
 ): string {
   return `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`;
+}
+
+/**
+ * Returns the organization member subscription reference prefix with LIKE wildcards escaped.
+ * Use when filtering by referenceId with Prisma's startsWith (where clauses).
+ * For building or comparing full reference IDs, use getOrganizationMemberSubscriptionReferencePrefix instead.
+ */
+export function getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
+  userId: string,
+): string {
+  return escapeStringForLike(
+    getOrganizationMemberSubscriptionReferencePrefix(userId),
+  );
 }
 
 export function buildOrganizationMemberSubscriptionReferenceId(

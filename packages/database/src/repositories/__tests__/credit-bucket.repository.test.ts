@@ -5,7 +5,10 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../../generated/prisma/client.js";
-import { getOrganizationMemberSubscriptionReferencePrefix } from "../../helpers/credit.js";
+import {
+  getOrganizationMemberSubscriptionReferencePrefix,
+  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
+} from "../../helpers/credit.js";
 import { creditBucketRepository } from "../credit-bucket.repository.js";
 
 function extractNestedSqlValues(args: unknown[]): unknown[] {
@@ -288,10 +291,58 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
         userId: "user-1",
         referenceId: {
           startsWith:
-            getOrganizationMemberSubscriptionReferencePrefix("user-1"),
+            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
+              "user-1",
+            ),
         },
       },
     ]);
+  });
+
+  it("uses escaped prefix for startsWith when userId contains LIKE wildcards", async () => {
+    let args:
+      | {
+          where: {
+            AND: Array<{
+              OR?: Array<Record<string, unknown>>;
+              organizationId?: string;
+            }>;
+          };
+        }
+      | undefined;
+    const tx = {
+      creditBucket: {
+        findMany: async (input: typeof args) => {
+          args = input;
+          return [];
+        },
+      },
+      $queryRaw: () => {
+        throw new Error("Unexpected $queryRaw call");
+      },
+      creditConsumption: {
+        aggregate: () => {
+          throw new Error("Unexpected creditConsumption.aggregate call");
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await creditBucketRepository.getUnexpiredBuckets("user_1", "org-1", tx);
+
+    assert.ok(args);
+    const scopeWhere = args.where.AND[0];
+    const subscriptionBranch = (
+      scopeWhere.OR as Array<Record<string, unknown>>
+    ).find(
+      (o) =>
+        o.referenceType ===
+        CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+    );
+    assert.ok(subscriptionBranch);
+    assert.equal(
+      (subscriptionBranch.referenceId as { startsWith: string }).startsWith,
+      "member:user\\_1:",
+    );
   });
 });
 
