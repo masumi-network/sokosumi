@@ -2,6 +2,8 @@ import { Decimal } from "decimal.js";
 
 const CREDITS_BASE = 10 ** 10;
 export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
+export const USER_CREDIT_REFERENCE_PREFIX = "user:";
+export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
 
 interface SplitAmountEvenlyWithRemainderRotationParams {
   memberIds: string[];
@@ -93,4 +95,32 @@ export function splitAmountEvenlyWithRemainderRotation(
     allocations,
     nextRemainderOffset: (normalizedOffset + remainder) % memberCount,
   };
+}
+
+function validateReferenceSegment(segment: string, name: string): void {
+  if (!segment) {
+    throw new Error(`${name} is required`);
+  }
+}
+
+export function buildUserInvoiceCreditReferenceId(
+  userId: string,
+  invoiceId: string,
+  grantType: "subscription" | "topup",
+): string {
+  validateReferenceSegment(userId, "userId");
+  validateReferenceSegment(invoiceId, "invoiceId");
+
+  return `${USER_CREDIT_REFERENCE_PREFIX}${userId}:${invoiceId}:${grantType}`;
+}
+
+export function buildOrganizationInvoiceCreditReferenceId(
+  organizationId: string,
+  invoiceId: string,
+  grantType: "subscription" | "topup",
+): string {
+  validateReferenceSegment(organizationId, "organizationId");
+  validateReferenceSegment(invoiceId, "invoiceId");
+
+  return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:${invoiceId}:${grantType}`;
 }

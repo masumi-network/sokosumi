@@ -1,4 +1,8 @@
-import { buildOrganizationMemberSubscriptionReferenceId } from "@sokosumi/database/helpers";
+import {
+  buildOrganizationInvoiceCreditReferenceId,
+  buildOrganizationMemberSubscriptionReferenceId,
+  buildUserInvoiceCreditReferenceId,
+} from "@sokosumi/database/helpers";
 
 jest.mock("server-only", () => ({}));
 
@@ -232,7 +236,11 @@ describe("handleInvoicePaidEvent", () => {
     };
 
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_free_sub_update",
+      buildUserInvoiceCreditReferenceId(
+        "user-1",
+        "in_free_sub_update",
+        "subscription",
+      ),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
@@ -285,7 +293,11 @@ describe("handleInvoicePaidEvent", () => {
     };
 
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_free_sub_update_incremental",
+      buildUserInvoiceCreditReferenceId(
+        "user-1",
+        "in_free_sub_update_incremental",
+        "subscription",
+      ),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
@@ -420,15 +432,15 @@ describe("handleInvoicePaidEvent", () => {
 
     const userAReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "user-a",
-      "in_org_cycle_split",
+      "in_org_cycle_split:subscription",
     );
     const userBReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "user-b",
-      "in_org_cycle_split",
+      "in_org_cycle_split:subscription",
     );
     const userCReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "user-c",
-      "in_org_cycle_split",
+      "in_org_cycle_split:subscription",
     );
 
     const userACall = callsByReference.get(userAReferenceId);
@@ -500,7 +512,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.user.connect.id).toBe("owner-2");
     expect(createCall.data.amount).toBe(BigInt("1000000000000"));
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_org_topup",
+      buildOrganizationInvoiceCreditReferenceId("org-1", "in_org_topup", "topup"),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
@@ -579,11 +591,11 @@ describe("handleInvoicePaidEvent", () => {
 
     const memberReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "member-1",
-      "in_org_proration",
+      "in_org_proration:subscription",
     );
     const ownerReferenceId = buildOrganizationMemberSubscriptionReferenceId(
       "owner-2",
-      "in_org_proration",
+      "in_org_proration:subscription",
     );
 
     const memberCall = callsByReference.get(memberReferenceId);
@@ -644,8 +656,19 @@ describe("handleInvoicePaidEvent", () => {
           referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
           referenceId: {
             startsWith: "member:",
-            endsWith: ":in_org_cycle_replay",
           },
+          OR: [
+            {
+              referenceId: {
+                endsWith: ":in_org_cycle_replay",
+              },
+            },
+            {
+              referenceId: {
+                endsWith: ":in_org_cycle_replay:subscription",
+              },
+            },
+          ],
         },
         select: {
           id: true,
@@ -709,7 +732,7 @@ describe("handleInvoicePaidEvent", () => {
     };
 
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_sub_upgrade",
+      buildUserInvoiceCreditReferenceId("user-1", "in_sub_upgrade", "subscription"),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
@@ -801,7 +824,11 @@ describe("handleInvoicePaidEvent", () => {
     };
 
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_sub_update_net",
+      buildUserInvoiceCreditReferenceId(
+        "user-1",
+        "in_sub_update_net",
+        "subscription",
+      ),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
@@ -924,7 +951,7 @@ describe("handleInvoicePaidEvent", () => {
       };
     };
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_sub_cycle",
+      buildUserInvoiceCreditReferenceId("user-1", "in_sub_cycle", "subscription"),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_SUBSCRIPTION_PERIOD",
@@ -936,6 +963,56 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("35000000000000"),
     );
+  });
+
+  it("skips personal subscription grants when a legacy invoice reference already exists", async () => {
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    findExistingBucketMock.mockImplementation((args: unknown) => {
+      const reference = (
+        args as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }
+      ).where.referenceId_referenceType;
+
+      if (
+        reference.referenceId === "in_sub_cycle_legacy_existing" &&
+        reference.referenceType === "STRIPE_SUBSCRIPTION_PERIOD"
+      ) {
+        return Promise.resolve({ id: "legacy-subscription-bucket" });
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_sub_cycle_legacy_existing",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).not.toHaveBeenCalled();
   });
 
   it("uses invoice metadata credits for checkout-based top-up grants", async () => {
@@ -965,7 +1042,7 @@ describe("handleInvoicePaidEvent", () => {
       };
     };
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_topup_metadata",
+      buildUserInvoiceCreditReferenceId("user-1", "in_topup_metadata", "topup"),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
@@ -1002,7 +1079,7 @@ describe("handleInvoicePaidEvent", () => {
       };
     };
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
-      "in_topup",
+      buildUserInvoiceCreditReferenceId("user-1", "in_topup", "topup"),
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
@@ -1012,6 +1089,41 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("30000000000"),
     );
+  });
+
+  it("skips personal top-up grants when a legacy invoice reference already exists", async () => {
+    findExistingBucketMock.mockImplementation((args: unknown) => {
+      const reference = (
+        args as {
+          where: {
+            referenceId_referenceType: {
+              referenceId: string;
+              referenceType: string;
+            };
+          };
+        }
+      ).where.referenceId_referenceType;
+      if (
+        reference.referenceId === "in_topup_legacy_existing" &&
+        reference.referenceType === "STRIPE_TOPUP"
+      ) {
+        return Promise.resolve({ id: "legacy-topup-bucket" });
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_topup_legacy_existing",
+        lines: [{ productId: "prod_credit", quantity: 3 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).not.toHaveBeenCalled();
   });
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {
@@ -1077,7 +1189,9 @@ describe("handleInvoicePaidEvent", () => {
       [secondCall.data.sourceCreditBucket.create.referenceId, secondCall],
     ]);
 
-    const topupCall = callsByReference.get("in_mixed:topup");
+    const topupCall = callsByReference.get(
+      buildUserInvoiceCreditReferenceId("user-1", "in_mixed", "topup"),
+    );
     expect(topupCall).toBeDefined();
     expect(topupCall?.data.amount).toBe(BigInt("30000000000"));
     expect(topupCall?.data.sourceCreditBucket.create.referenceType).toBe(
@@ -1085,7 +1199,9 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toBeNull();
 
-    const subscriptionCall = callsByReference.get("in_mixed:subscription");
+    const subscriptionCall = callsByReference.get(
+      buildUserInvoiceCreditReferenceId("user-1", "in_mixed", "subscription"),
+    );
     expect(subscriptionCall).toBeDefined();
     expect(subscriptionCall?.data.amount).toBe(BigInt("17500000000000"));
     expect(subscriptionCall?.data.sourceCreditBucket.create.referenceType).toBe(

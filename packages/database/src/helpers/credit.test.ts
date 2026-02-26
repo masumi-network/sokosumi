@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { splitAmountEvenlyWithRemainderRotation } from "./credit.js";
+import {
+  buildOrganizationInvoiceCreditReferenceId,
+  buildUserInvoiceCreditReferenceId,
+  splitAmountEvenlyWithRemainderRotation,
+} from "./credit.js";
 
 describe("splitAmountEvenlyWithRemainderRotation", () => {
   it("returns empty allocations for non-positive amounts or empty members", () => {
@@ -76,5 +80,36 @@ describe("splitAmountEvenlyWithRemainderRotation", () => {
       { memberId: "user-c", amount: 1n },
     ]);
     assert.equal(result.nextRemainderOffset, 1);
+  });
+});
+
+describe("invoice credit reference builders", () => {
+  it("builds user invoice reference ids", () => {
+    assert.equal(
+      buildUserInvoiceCreditReferenceId("user-1", "in_123", "subscription"),
+      "user:user-1:in_123:subscription",
+    );
+    assert.equal(
+      buildUserInvoiceCreditReferenceId("user-1", "in_123", "topup"),
+      "user:user-1:in_123:topup",
+    );
+  });
+
+  it("builds organization invoice reference ids", () => {
+    assert.equal(
+      buildOrganizationInvoiceCreditReferenceId("org-1", "in_123", "topup"),
+      "org:org-1:in_123:topup",
+    );
+  });
+
+  it("throws when required values are missing", () => {
+    assert.throws(
+      () => buildUserInvoiceCreditReferenceId("", "in_123", "subscription"),
+      /userId is required/,
+    );
+    assert.throws(
+      () => buildOrganizationInvoiceCreditReferenceId("org-1", "", "topup"),
+      /invoiceId is required/,
+    );
   });
 });

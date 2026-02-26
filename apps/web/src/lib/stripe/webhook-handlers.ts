@@ -8,7 +8,9 @@ import {
   TaskStatus,
 } from "@sokosumi/database";
 import {
+  buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
+  buildUserInvoiceCreditReferenceId,
   convertCentsToCredits,
   convertCreditsToCents,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
@@ -35,6 +37,7 @@ const SUBSCRIPTION_UPDATE_BILLING_REASON = "subscription_update";
 interface InvoiceCreditGrant {
   credits: number;
   expiresAt: Date | null;
+  legacyReferenceIds: string[];
   referenceId: string;
   referenceType: CreditBucketReferenceType;
   userId: string;
@@ -635,21 +638,35 @@ export async function handleInvoicePaidEvent(
       isSubscriptionUpdate,
       totals: subscriptionCreditTotals,
     });
+  const hasTopUpAndSubscriptionCredits =
+    oneTimeTopUpCredits > 0 && subscriptionCredits > 0;
 
   const creditGrants: InvoiceCreditGrant[] = [];
   if (oneTimeTopUpCredits > 0) {
+    const topUpReferenceId = organizationId
+      ? buildOrganizationInvoiceCreditReferenceId(
+          organizationId,
+          invoiceId,
+          "topup",
+        )
+      : buildUserInvoiceCreditReferenceId(userId, invoiceId, "topup");
+
     creditGrants.push({
       credits: oneTimeTopUpCredits,
       expiresAt: null,
-      referenceId: subscriptionCredits > 0 ? `${invoiceId}:topup` : invoiceId,
+      legacyReferenceIds: [
+        hasTopUpAndSubscriptionCredits ? `${invoiceId}:topup` : invoiceId,
+      ],
+      referenceId: topUpReferenceId,
       referenceType: "STRIPE_TOPUP",
       userId,
     });
   }
 
   if (subscriptionCredits > 0) {
-    const subscriptionReferenceSuffix =
-      oneTimeTopUpCredits > 0 ? `${invoiceId}:subscription` : invoiceId;
+    const subscriptionReferenceSuffix = `${invoiceId}:subscription`;
+    const legacyOrganizationSubscriptionSuffix = `:${invoiceId}`;
+    const organizationSubscriptionSuffix = `:${subscriptionReferenceSuffix}`;
 
     if (organizationId) {
       const existingOrganizationSubscriptionGrants =
@@ -659,8 +676,19 @@ export async function handleInvoicePaidEvent(
             referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
             referenceId: {
               startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-              endsWith: `:${subscriptionReferenceSuffix}`,
             },
+            OR: [
+              {
+                referenceId: {
+                  endsWith: legacyOrganizationSubscriptionSuffix,
+                },
+              },
+              {
+                referenceId: {
+                  endsWith: organizationSubscriptionSuffix,
+                },
+              },
+            ],
           },
           select: {
             id: true,
@@ -682,6 +710,7 @@ export async function handleInvoicePaidEvent(
           creditGrants.push({
             credits: splitGrant.credits,
             expiresAt: subscriptionCreditsExpiry,
+            legacyReferenceIds: [],
             referenceId: buildOrganizationMemberSubscriptionReferenceId(
               splitGrant.userId,
               subscriptionReferenceSuffix,
@@ -695,7 +724,16 @@ export async function handleInvoicePaidEvent(
       creditGrants.push({
         credits: subscriptionCredits,
         expiresAt: subscriptionCreditsExpiry,
-        referenceId: subscriptionReferenceSuffix,
+        legacyReferenceIds: [
+          hasTopUpAndSubscriptionCredits
+            ? `${invoiceId}:subscription`
+            : invoiceId,
+        ],
+        referenceId: buildUserInvoiceCreditReferenceId(
+          userId,
+          invoiceId,
+          "subscription",
+        ),
         referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
         userId,
       });
@@ -713,14 +751,25 @@ export async function handleInvoicePaidEvent(
     let creditsGranted = false;
 
     for (const grant of creditGrants) {
-      const existingBucket = await tx.creditBucket.findUnique({
-        where: {
-          referenceId_referenceType: {
-            referenceId: grant.referenceId,
-            referenceType: grant.referenceType,
+      const referenceIdsToCheck = Array.from(
+        new Set([grant.referenceId, ...grant.legacyReferenceIds]),
+      );
+      let existingBucket: { id: string } | null = null;
+      for (const referenceId of referenceIdsToCheck) {
+        existingBucket = await tx.creditBucket.findUnique({
+          where: {
+            referenceId_referenceType: {
+              referenceId,
+              referenceType: grant.referenceType,
+            },
           },
-        },
-      });
+          select: { id: true },
+        });
+
+        if (existingBucket) {
+          break;
+        }
+      }
 
       if (existingBucket) {
         console.log(
