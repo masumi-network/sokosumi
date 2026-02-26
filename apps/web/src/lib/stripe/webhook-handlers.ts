@@ -326,13 +326,42 @@ async function calculateSubscriptionCreditTotals(params: {
         maxFreePlanQuantity = Math.max(maxFreePlanQuantity, quantity);
         freePlanCreditsPerSeat = catalogPlan.credits;
       } else {
-        paidOrCycleSubscriptionCredits += calculateProratedSubscriptionCredits({
+        let proratedCredits = calculateProratedSubscriptionCredits({
           invoiceId: params.invoiceId,
           lineAmount,
           monthlyAmount: catalogPlan.monthlyAmount,
           planCredits: catalogPlan.credits,
           productId,
         });
+
+        if (params.maxSeatGrantQuantity !== null) {
+          const billedQuantity = lineItem.quantity ?? 0;
+          if (billedQuantity > 0) {
+            const grantedQuantity = Math.min(
+              billedQuantity,
+              params.maxSeatGrantQuantity,
+            );
+
+            if (billedQuantity > grantedQuantity) {
+              logSeatCreditCapApplied({
+                activeMembers: params.maxSeatGrantQuantity,
+                billedSeats: billedQuantity,
+                grantedSeats: grantedQuantity,
+                productId,
+              });
+            }
+
+            if (grantedQuantity <= 0) {
+              continue;
+            }
+
+            proratedCredits = Math.trunc(
+              (proratedCredits * grantedQuantity) / billedQuantity,
+            );
+          }
+        }
+
+        paidOrCycleSubscriptionCredits += proratedCredits;
       }
     } else {
       let quantity = lineItem.quantity ?? 0;

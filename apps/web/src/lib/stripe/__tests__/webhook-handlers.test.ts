@@ -607,6 +607,88 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("caps paid organization proration credits when billed seats exceed active members", async () => {
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
+      id: "org-1",
+    });
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "member", userId: "member-1" },
+      { role: "owner", userId: "owner-2" },
+    ]);
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 1250,
+        billingReason: "subscription_update",
+        created: 1_735_689_600,
+        id: "in_org_proration_capped",
+        lines: [
+          {
+            amount: 1250,
+            periodEnd: 1_736_294_400,
+            periodStart: 1_735_689_600,
+            productId: "prod_starter",
+            quantity: 5,
+          },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(2);
+
+    const callsByReference = new Map(
+      createTransactionMock.mock.calls.map((call) => {
+        const createCall = call[0] as {
+          data: {
+            amount: bigint;
+            sourceCreditBucket: {
+              create: {
+                referenceId: string;
+              };
+            };
+          };
+        };
+
+        return [
+          createCall.data.sourceCreditBucket.create.referenceId,
+          createCall,
+        ];
+      }),
+    );
+
+    const memberReferenceId = buildOrganizationMemberSubscriptionReferenceId(
+      "member-1",
+      "in_org_proration_capped:subscription",
+    );
+    const ownerReferenceId = buildOrganizationMemberSubscriptionReferenceId(
+      "owner-2",
+      "in_org_proration_capped:subscription",
+    );
+
+    const memberCall = callsByReference.get(memberReferenceId);
+    const ownerCall = callsByReference.get(ownerReferenceId);
+
+    expect(memberCall?.data.amount).toBe(BigInt("1750000000000"));
+    expect(ownerCall?.data.amount).toBe(BigInt("1750000000000"));
+  });
+
   it("logs seat-credit cap when billed organization seats exceed active members", async () => {
     const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
