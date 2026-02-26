@@ -1,5 +1,6 @@
 import {
   buildMentionToken,
+  getActiveTrigger,
   serializeEditorText,
   setEditorFromRaw,
 } from "@/components/ui/mention-textarea-utils";
@@ -39,5 +40,21 @@ describe("mention-textarea utils", () => {
     expect(buildMentionToken("agent", "slug", " ")).toBe("@agent:slug");
     expect(buildMentionToken("agent", "slug", "\n")).toBe("@agent:slug");
     expect(buildMentionToken("agent", "slug", "x")).toBe("@agent:slug ");
+  });
+
+  it("does not activate trigger when caret is before @", () => {
+    expect(getActiveTrigger("@writer", 0)).toBeNull();
+  });
+
+  it("does not activate trigger for serialized mention tokens", () => {
+    const text = "@agent-1:writer-agent";
+    expect(getActiveTrigger(text, text.length)).toBeNull();
+  });
+
+  it("activates trigger for in-progress mention queries", () => {
+    expect(getActiveTrigger("Hello @wr", 9)).toEqual({
+      query: "wr",
+      triggerStart: 6,
+    });
   });
 });

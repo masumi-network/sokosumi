@@ -1,7 +1,37 @@
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
+
+function setCaretToEnd(element: HTMLElement): void {
+  element.focus();
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function setCaretToStart(element: HTMLElement): void {
+  element.focus();
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
 
 describe("MarkdownEditor", () => {
   it("keeps mailto links with @ while rendering mentions", async () => {
@@ -87,5 +117,266 @@ describe("MarkdownEditor", () => {
       expect(mention).toHaveTextContent("@Price $& Agent");
       expect(editor).not.toHaveTextContent("@@MENTION_0@@");
     });
+  });
+
+  it("inserts newline with one Enter when mention dropdown is not visible", async () => {
+    const onChange = jest.fn();
+
+    render(
+      <MarkdownEditor
+        value=""
+        onChange={onChange}
+        mentions={{
+          "agent-1": { value: "Writer Agent" },
+        }}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "@zz";
+    setCaretToEnd(editor);
+    fireEvent.input(editor);
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    const callsBeforeEnter = onChange.mock.calls.length;
+    const enterEvent = createEvent.keyDown(editor, { key: "Enter" });
+    fireEvent(editor, enterEvent);
+    expect(enterEvent.defaultPrevented).toBe(false);
+    expect(onChange.mock.calls).toHaveLength(callsBeforeEnter);
+  });
+
+  it("uses Enter to select mention when dropdown is visible", async () => {
+    const onChange = jest.fn();
+
+    render(
+      <MarkdownEditor
+        value=""
+        onChange={onChange}
+        mentions={{
+          "agent-1": { value: "Writer Agent" },
+        }}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "@w";
+    setCaretToEnd(editor);
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(
+        editor.querySelector("span[data-mention-key='agent-1']"),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("@agent-1:writer-agent");
+  });
+
+  it("uses Tab to select mention when dropdown is visible", async () => {
+    const onChange = jest.fn();
+
+    render(
+      <MarkdownEditor
+        value=""
+        onChange={onChange}
+        mentions={{
+          "agent-1": { value: "Writer Agent" },
+        }}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "@w";
+    setCaretToEnd(editor);
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(editor, { key: "Tab" });
+
+    await waitFor(() => {
+      expect(
+        editor.querySelector("span[data-mention-key='agent-1']"),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("@agent-1:writer-agent");
+  });
+
+  it("uses Ctrl+Enter to trigger submit shortcut without adding newline", () => {
+    const onChange = jest.fn();
+    const onSubmitShortcut = jest.fn();
+
+    render(
+      <MarkdownEditor
+        value="Hello"
+        onChange={onChange}
+        onSubmitShortcut={onSubmitShortcut}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    setCaretToEnd(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter", ctrlKey: true });
+
+    expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(editor.querySelector("br")).toBeNull();
+  });
+
+  it("inserts newline on first Enter after moving caret away from mention trigger", async () => {
+    const onChange = jest.fn();
+
+    render(
+      <MarkdownEditor
+        value=""
+        onChange={onChange}
+        mentions={{
+          "agent-1": { value: "Writer Agent" },
+        }}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "@w";
+    setCaretToEnd(editor);
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+
+    setCaretToStart(editor);
+    fireEvent.mouseUp(editor);
+    const callsBeforeEnter = onChange.mock.calls.length;
+    const enterEvent = createEvent.keyDown(editor, { key: "Enter" });
+    fireEvent(editor, enterEvent);
+
+    expect(enterEvent.defaultPrevented).toBe(false);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(editor.querySelector("span[data-mention-key='agent-1']")).toBeNull();
+    expect(onChange.mock.calls).toHaveLength(callsBeforeEnter);
+  });
+
+  it("does not prevent native Enter when selection is temporarily missing", async () => {
+    const onChange = jest.fn();
+
+    render(<MarkdownEditor value="Hello" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveTextContent("Hello");
+    });
+
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+
+    const callsBeforeEnter = onChange.mock.calls.length;
+    const enterEvent = createEvent.keyDown(editor, { key: "Enter" });
+    fireEvent(editor, enterEvent);
+
+    expect(enterEvent.defaultPrevented).toBe(false);
+    expect(onChange.mock.calls).toHaveLength(callsBeforeEnter);
+  });
+
+  it("keeps fenced code blocks on a new line when saving", async () => {
+    const onChange = jest.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "<div>Intro<pre><code>const x = 1;</code></pre></div>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("Intro\n```\nconst x = 1;\n```\n");
+  });
+
+  it("preserves code block language when saving", async () => {
+    const onChange = jest.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = `<pre><code data-language="ts">const x = 1;</code></pre>`;
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("```ts\nconst x = 1;\n```\n");
+  });
+
+  it("serializes multiline code tags as fenced markdown", async () => {
+    const onChange = jest.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = `<div><code>line 1<br>line 2</code></div>`;
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("```\nline 1\nline 2\n```\n");
+  });
+
+  it("keeps multiline code fences separated from preceding text", async () => {
+    const onChange = jest.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "<div>Intro<code>line 1<br>line 2</code></div>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("Intro\n```\nline 1\nline 2\n```\n");
+    expect(savedMarkdown).not.toContain("Intro```");
+  });
+
+  it("preserves line breaks when code block uses div children", async () => {
+    const onChange = jest.fn();
+
+    render(<MarkdownEditor value="" onChange={onChange} />);
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML =
+      "<pre><code><div>line 1</div><div>line 2</div></code></pre>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(savedMarkdown).toContain("```\nline 1\nline 2\n```\n");
   });
 });

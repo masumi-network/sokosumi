@@ -577,3 +577,73 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   color: transparent;
   animation: var(--animate-reasoning-text-shine);
 }
+
+.hljs {
+  display: block;
+  overflow-x: auto;
+  color: var(--foreground);
+  background: transparent;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-name {
+  color: var(--primary-variant);
+}
+
+.hljs-string,
+.hljs-regexp {
+  color: var(--primary-variant);
+  font-weight: 500;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-attr,
+.hljs-meta-string,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--tertiary-foreground);
+  font-weight: 500;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-params,
+.hljs-property,
+.hljs-subst {
+  color: var(--foreground);
+}
+
+.hljs-function .hljs-title,
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-built_in {
+  color: var(--primary-iris);
+  font-weight: 600;
+}
+
+.hljs-meta,
+.hljs-attribute {
+  color: var(--muted-foreground);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 700;
+}

@@ -5,6 +5,9 @@ export type ClientOptions = {
 };
 
 export type PaymentInformation = {
+    createdAt: string;
+    updatedAt: string;
+    metadataVersion: number;
     RegistrySource: {
         type: 'Web3CardanoV1';
         policyId: string | null;
@@ -58,6 +61,7 @@ export type PaymentInformation = {
 export type RegistryEntry = {
     id: string;
     name: string;
+    createdAt: string;
     description: string | null;
     status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
     statusUpdatedAt: string;
@@ -102,6 +106,8 @@ export type RegistryEntry = {
         mimeType: string;
         url: string;
     }>;
+    metadataVersion: number;
+    updatedAt: string;
 };
 
 export type RegistrySource = {
@@ -346,6 +352,10 @@ export type PostRegistryDiffData = {
          * The ID of the last item in the previous page, it and all items after it will be included in the next page response if they did not change since the last page (if they did they will be moved to the newer timestamp). Guaranteed to include all items at least once, when paginating forward. (always use statusUpdatedAt of the last item + its cursorId to paginate forward)
          */
         cursorId?: string;
+        /**
+         * The policy ID of the registry source to filter by. If not specified, queries all registry sources.
+         */
+        policyId?: string;
     };
     path?: never;
     query?: never;

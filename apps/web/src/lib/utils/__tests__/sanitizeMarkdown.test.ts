@@ -1,0 +1,42 @@
+import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
+
+describe("sanitizeMarkdown", () => {
+  it("preserves HTML tags inside fenced code blocks", () => {
+    const markdown = ["```html", "<div>hi</div>", "```"].join("\n");
+
+    const sanitized = sanitizeMarkdown(markdown);
+
+    expect(sanitized).toContain("```html\n<div>hi</div>\n```");
+  });
+
+  it("sanitizes HTML outside fenced code blocks", () => {
+    const markdown = [
+      "```html",
+      "<div>safe inside code</div>",
+      "```",
+      "",
+      "<script>alert('xss')</script>",
+    ].join("\n");
+
+    const sanitized = sanitizeMarkdown(markdown);
+
+    expect(sanitized).toContain("```html\n<div>safe inside code</div>\n```");
+    expect(sanitized).not.toContain("<script>");
+  });
+
+  it("preserves literal placeholder-like text outside code blocks", () => {
+    const literalPlaceholder = "@@SANITIZE_CODEBLOCKTOKEN_0_0@@";
+    const markdown = [
+      literalPlaceholder,
+      "",
+      "```html",
+      "<div>safe inside code</div>",
+      "```",
+    ].join("\n");
+
+    const sanitized = sanitizeMarkdown(markdown);
+
+    expect(sanitized.startsWith(`${literalPlaceholder}\n\n`)).toBe(true);
+    expect(sanitized).toContain("```html\n<div>safe inside code</div>\n```");
+  });
+});
