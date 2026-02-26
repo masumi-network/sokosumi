@@ -502,7 +502,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.amount).toBe(BigInt("52430000000000"));
   });
 
-  it("fails paid subscription_update invoices when created timestamp is missing", async () => {
+  it("uses period end for paid subscription_update invoices when created timestamp is missing", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
       pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
@@ -528,12 +528,26 @@ describe("handleInvoicePaidEvent", () => {
     }) as Record<string, unknown>;
     delete invoice.created;
 
-    await expect(handleInvoicePaidEvent(invoice as never)).rejects.toThrow(
-      "Missing invoice created timestamp for upgrade invoice in_sub_upgrade_missing_created",
+    await handleInvoicePaidEvent(invoice as never);
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            expiresAt: Date | null;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      new Date(DEFAULT_PERIOD_END_UNIX * 1000),
     );
   });
 
-  it("fails paid subscription_update invoices when period duration is missing", async () => {
+  it("uses period end for paid subscription_update invoices when period start is missing", async () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
       pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
@@ -551,26 +565,38 @@ describe("handleInvoicePaidEvent", () => {
 
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
-    await expect(
-      handleInvoicePaidEvent(
-        createInvoice({
-          amountPaid: 1250,
-          billingReason: "subscription_update",
-          created: 1_735_689_600,
-          id: "in_sub_upgrade_missing_duration",
-          lines: [
-            {
-              amount: 1250,
-              periodEnd: 1_735_689_600,
-              periodStart: null,
-              productId: "prod_starter",
-              quantity: 1,
-            },
-          ],
-        }) as never,
-      ),
-    ).rejects.toThrow(
-      "Missing subscription period duration for upgrade invoice in_sub_upgrade_missing_duration",
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 1250,
+        billingReason: "subscription_update",
+        created: 1_735_689_600,
+        id: "in_sub_upgrade_missing_period_start",
+        lines: [
+          {
+            amount: 1250,
+            periodEnd: 1_735_689_600,
+            periodStart: null,
+            productId: "prod_starter",
+            quantity: 1,
+          },
+        ],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            expiresAt: Date | null;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      new Date(1_735_689_600 * 1000),
     );
   });
 
