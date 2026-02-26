@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { ChatSecondarySidebarProvider } from "@/contexts/chat-secondary-sidebar-context";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
@@ -67,40 +68,44 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       legalNotices={legalNotices}
       announcementNotices={announcementNotices}
     >
-      <SidebarProvider
-        defaultOpen={defaultOpen}
-        data-app-shell
-        className="flex max-w-svw overflow-clip"
-      >
-        <Sidebar session={session} />
-        <div
-          className="flex min-w-0 flex-1 flex-col overflow-clip"
-          data-app-content
+      <ChatSecondarySidebarProvider>
+        <SidebarProvider
+          defaultOpen={defaultOpen}
+          data-app-shell
+          className="flex max-w-svw overflow-clip"
         >
-          <Header session={session} className="h-16 p-4" />
-          <main
-            className="relative flex min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4"
-            data-app-main
+          <Sidebar session={session} />
+          <div
+            className="flex min-w-0 flex-1 flex-col overflow-clip"
+            data-app-content
           >
-            <EmergencyDialog />
-            <div
-              className="flex h-full flex-1 flex-col overflow-visible"
-              data-app-main-inner
+            <Header session={session} className="h-16 p-4" />
+            <main
+              className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-hidden p-4 pt-20 md:pt-4"
+              data-app-main
             >
-              {children}
-            </div>
-          </main>
-        </div>
-      </SidebarProvider>
+              <EmergencyDialog />
+              <div
+                className="flex h-full flex-1 flex-col overflow-visible"
+                data-app-main-inner
+              >
+                {children}
+              </div>
+            </main>
+          </div>
+        </SidebarProvider>
+      </ChatSecondarySidebarProvider>
     </NoticeDialogProvider>
   );
 
   return (
     <QueryProvider>
       <ConversationsProvider>
-        <CoworkersProvider>{content}</CoworkersProvider>
+        <CoworkersProvider>
+          {content}
+          {shouldShowOnboarding && <OnboardingDialog />}
+        </CoworkersProvider>
       </ConversationsProvider>
-      {shouldShowOnboarding && <OnboardingDialog />}
     </QueryProvider>
   );
 }

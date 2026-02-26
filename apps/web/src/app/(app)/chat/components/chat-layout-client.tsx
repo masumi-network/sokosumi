@@ -12,11 +12,11 @@ import {
   slugify,
   slugToBucketKey,
 } from "@/app/chat/utils/bucket-slug";
+import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
 const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
-const SHOW_SECONDARY_SIDEBAR_KEY = "chat-show-secondary-sidebar";
 
 function getBucketSlugFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
@@ -29,15 +29,6 @@ function getConversationIdFromPathname(pathname: string): string | null {
   if (segments[0] !== "chat" || segments[2] !== "conversation" || !segments[3])
     return null;
   return segments[3] ?? null;
-}
-
-function getShowSecondarySidebar(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return sessionStorage.getItem(SHOW_SECONDARY_SIDEBAR_KEY) === "1";
-  } catch {
-    return false;
-  }
 }
 
 interface ChatLayoutClientProps {
@@ -53,6 +44,7 @@ export function ChatLayoutClient({
 }: ChatLayoutClientProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { showSecondarySidebar: showFromContext } = useChatSecondarySidebar();
   const { conversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
 
@@ -75,8 +67,7 @@ export function ChatLayoutClient({
       }
     })();
 
-  const showSecondarySidebar =
-    getShowSecondarySidebar() && !isJustCreatedConversation;
+  const showSecondarySidebar = showFromContext && !isJustCreatedConversation;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -139,12 +130,12 @@ export function ChatLayoutClient({
     <div
       className={
         showTwoColumn
-          ? "-mt-20 -mr-4 -mb-4 flex h-full w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
-          : "flex h-full w-full flex-1 flex-col"
+          ? "-mt-20 -mr-4 -mb-4 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
+          : "flex h-full min-h-0 w-full flex-1 flex-col"
       }
     >
       {showTwoColumn && bucketSlug ? (
-        <div className="border-border max-h-[45vh] w-full shrink-0 overflow-hidden rounded-lg border lg:h-full lg:max-h-none lg:min-h-[calc(100svh-64px)] lg:w-72 lg:rounded-none lg:border-t-0 lg:border-r lg:border-b-0 lg:border-l-0">
+        <div className="border-border flex max-h-[45vh] min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-lg border lg:max-h-full lg:min-h-0 lg:w-72 lg:rounded-none lg:border-t-0 lg:border-r lg:border-b-0 lg:border-l-0">
           <ChatConversationsSidebar
             bucketSlug={bucketSlug}
             bucket={bucket ?? ""}

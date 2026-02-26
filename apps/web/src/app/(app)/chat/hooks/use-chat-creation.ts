@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
+import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import type { Conversation } from "@/lib/actions/conversation";
 
 interface UseChatCreationProps {
@@ -51,6 +52,7 @@ export function useChatCreation({
   conversations,
 }: UseChatCreationProps) {
   const router = useRouter();
+  const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
   const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
     useState(true);
@@ -102,10 +104,10 @@ export function useChatCreation({
       isUpdatingUrlRef.current = true;
       try {
         sessionStorage.setItem("chat-pending-conversation-id", conversation.id);
-        sessionStorage.removeItem("chat-show-secondary-sidebar");
       } catch {
         // ignore
       }
+      setShowSecondarySidebar(false);
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
         `model-${model.id.replace(/\//g, "-")}`;
@@ -122,6 +124,7 @@ export function useChatCreation({
       setChats,
       setSelectedChatId,
       setSelectedModel,
+      setShowSecondarySidebar,
       router,
       chatMessagesRef,
       previousChatIdRef,
@@ -183,10 +186,10 @@ export function useChatCreation({
       isUpdatingUrlRef.current = true;
       try {
         sessionStorage.setItem("chat-pending-conversation-id", conversation.id);
-        sessionStorage.removeItem("chat-show-secondary-sidebar");
       } catch {
         // ignore
       }
+      setShowSecondarySidebar(false);
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
         (coworker.slug ? slugify(coworker.slug) : null) ||
@@ -205,6 +208,7 @@ export function useChatCreation({
       setChats,
       setSelectedChatId,
       setSelectedModel,
+      setShowSecondarySidebar,
       router,
       chatMessagesRef,
       previousChatIdRef,
