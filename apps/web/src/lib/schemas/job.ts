@@ -1,11 +1,9 @@
 import {
   inputFieldSchema,
   InputFieldSchemaType,
-  inputFieldsSchema,
   inputGroupsSchema,
   inputSchema,
   inputSchemaResponseSchema,
-  inputSchemaSchema,
   InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
@@ -199,44 +197,4 @@ export function flattenInputs(
   return schema.input_data;
 }
 
-export function normalizeAndValidateInputSchema(
-  parsed: unknown,
-): InputSchemaSchemaType | null {
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const result = inputSchemaSchema.safeParse(parsed);
-    if (result.success) {
-      return result.data;
-    }
-
-    console.error(
-      "[normalizeAndValidateInputSchema] Invalid object schema:",
-      result.error,
-    );
-    return null;
-  }
-
-  if (Array.isArray(parsed)) {
-    const groupsResult = inputGroupsSchema.safeParse(parsed);
-    if (groupsResult.success) {
-      return { input_groups: groupsResult.data };
-    }
-
-    const fieldsResult = inputFieldsSchema.safeParse(parsed);
-    if (fieldsResult.success) {
-      return { input_data: fieldsResult.data };
-    }
-
-    console.error(
-      "[normalizeAndValidateInputSchema] Invalid array schema:",
-      groupsResult.error,
-      fieldsResult.error,
-    );
-    return null;
-  }
-
-  console.error(
-    "[normalizeAndValidateInputSchema] Unexpected schema format:",
-    typeof parsed,
-  );
-  return null;
-}
+export { normalizeAndValidateInputSchema } from "@sokosumi/masumi/schemas";

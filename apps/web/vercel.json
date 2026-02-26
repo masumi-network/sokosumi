@@ -4,10 +4,6 @@
     {
       "path": "/api/sync/jobs",
       "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/sync/job-schedules",
-      "schedule": "* * * * *"
     }
   ]
 }

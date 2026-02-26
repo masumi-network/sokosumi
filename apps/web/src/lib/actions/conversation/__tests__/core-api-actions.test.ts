@@ -1,3 +1,5 @@
+export {};
+
 jest.mock("server-only", () => ({}));
 
 const coreClientMock = {
@@ -13,8 +15,7 @@ const toCoreApiActionErrorMock = jest.fn();
 
 jest.mock("@/lib/clients/core.client", () => ({
   coreClient: coreClientMock,
-  toCoreApiActionError: (...args: unknown[]) =>
-    toCoreApiActionErrorMock(...args),
+  toCoreApiActionError: toCoreApiActionErrorMock,
 }));
 
 jest.mock("@/middleware/auth-middleware", () => ({

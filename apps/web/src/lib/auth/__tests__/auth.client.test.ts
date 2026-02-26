@@ -1,3 +1,5 @@
+export {};
+
 const createAuthClientMock = jest.fn();
 const adminClientMock = jest.fn(() => "admin-plugin");
 const apiKeyClientMock = jest.fn(() => "api-key-plugin");
@@ -13,26 +15,24 @@ const oauthProviderClientMock = jest.fn(() => "oauth-plugin");
 const stripeClientMock = jest.fn(() => "stripe-plugin");
 
 jest.mock("better-auth/react", () => ({
-  createAuthClient: (...args: unknown[]) => createAuthClientMock(...args),
+  createAuthClient: createAuthClientMock,
 }));
 
 jest.mock("better-auth/client/plugins", () => ({
-  adminClient: (...args: unknown[]) => adminClientMock(...args),
-  apiKeyClient: (...args: unknown[]) => apiKeyClientMock(...args),
-  inferAdditionalFields: (...args: unknown[]) =>
-    inferAdditionalFieldsMock(...args),
-  inferOrgAdditionalFields: (...args: unknown[]) =>
-    inferOrgAdditionalFieldsMock(...args),
-  jwtClient: (...args: unknown[]) => jwtClientMock(...args),
-  organizationClient: (...args: unknown[]) => organizationClientMock(...args),
+  adminClient: adminClientMock,
+  apiKeyClient: apiKeyClientMock,
+  inferAdditionalFields: inferAdditionalFieldsMock,
+  inferOrgAdditionalFields: inferOrgAdditionalFieldsMock,
+  jwtClient: jwtClientMock,
+  organizationClient: organizationClientMock,
 }));
 
 jest.mock("@better-auth/oauth-provider/client", () => ({
-  oauthProviderClient: (...args: unknown[]) => oauthProviderClientMock(...args),
+  oauthProviderClient: oauthProviderClientMock,
 }));
 
 jest.mock("@better-auth/stripe/client", () => ({
-  stripeClient: (...args: unknown[]) => stripeClientMock(...args),
+  stripeClient: stripeClientMock,
 }));
 
 jest.mock("@/lib/auth/auth", () => ({

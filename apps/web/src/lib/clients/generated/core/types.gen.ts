@@ -210,29 +210,6 @@ export type User = {
     emailVerified: boolean;
     image?: string | null;
     role: string;
-    credits: number;
-    subscription: {
-        id: string;
-        plan: string;
-        status: string;
-        periodStart?: Date | null;
-        periodEnd?: Date | null;
-        cancelAtPeriodEnd?: boolean | null;
-        credits: {
-            /**
-             * Total subscription-period credits granted this period
-             */
-            total: number;
-            /**
-             * Remaining subscription-period credits this period
-             */
-            remaining: number;
-            /**
-             * Used subscription-period credits consumed during this period
-             */
-            used: number;
-        } | null;
-    } | null;
 };
 
 export type Organization = {
@@ -241,32 +218,6 @@ export type Organization = {
     name: string;
     slug: string;
     role: string;
-    /**
-     * Current credit balance for the organization
-     */
-    credits: number;
-    subscription: {
-        id: string;
-        plan: string;
-        status: string;
-        periodStart?: Date | null;
-        periodEnd?: Date | null;
-        cancelAtPeriodEnd?: boolean | null;
-        credits: {
-            /**
-             * Total subscription-period credits granted this period
-             */
-            total: number;
-            /**
-             * Remaining subscription-period credits this period
-             */
-            remaining: number;
-            /**
-             * Used subscription-period credits consumed during this period
-             */
-            used: number;
-        } | null;
-    } | null;
 };
 
 export type Notice = {
@@ -3558,10 +3509,37 @@ export type GetUsersMeOrganizationsByIdCreditsResponses = {
      */
     200: {
         data: {
-            /**
-             * Current credit balance
-             */
-            credits: number;
+            credits: {
+                subscription: {
+                    plan: string;
+                    status: string;
+                    periodStart?: Date | null;
+                    periodEnd?: Date | null;
+                    cancelAtPeriodEnd?: boolean | null;
+                    credits: {
+                        /**
+                         * Total subscription-period credits granted this period
+                         */
+                        total: number;
+                        /**
+                         * Remaining subscription-period credits this period
+                         */
+                        remaining: number;
+                        /**
+                         * Used subscription-period credits consumed during this period
+                         */
+                        used: number;
+                    } | null;
+                } | null;
+                /**
+                 * Current available non-subscription credit balance
+                 */
+                buffer: number;
+                /**
+                 * Current available total credit balance (buffer plus remaining subscription credits)
+                 */
+                total: number;
+            };
         };
         meta: {
             timestamp: Date;
@@ -3572,114 +3550,6 @@ export type GetUsersMeOrganizationsByIdCreditsResponses = {
 };
 
 export type GetUsersMeOrganizationsByIdCreditsResponse = GetUsersMeOrganizationsByIdCreditsResponses[keyof GetUsersMeOrganizationsByIdCreditsResponses];
-
-export type GetUsersMeOrganizationsByIdSubscriptionData = {
-    body?: never;
-    path: {
-        /**
-         * Organization ID or slug
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/me/organizations/{id}/subscription';
-};
-
-export type GetUsersMeOrganizationsByIdSubscriptionErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - You are not a member of this organization
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Organization not found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsByIdSubscriptionError = GetUsersMeOrganizationsByIdSubscriptionErrors[keyof GetUsersMeOrganizationsByIdSubscriptionErrors];
-
-export type GetUsersMeOrganizationsByIdSubscriptionResponses = {
-    /**
-     * Retrieve organization subscription
-     */
-    200: {
-        data: {
-            subscription: {
-                id: string;
-                plan: string;
-                status: string;
-                periodStart?: Date | null;
-                periodEnd?: Date | null;
-                cancelAtPeriodEnd?: boolean | null;
-                credits: {
-                    /**
-                     * Total subscription-period credits granted this period
-                     */
-                    total: number;
-                    /**
-                     * Remaining subscription-period credits this period
-                     */
-                    remaining: number;
-                    /**
-                     * Used subscription-period credits consumed during this period
-                     */
-                    used: number;
-                } | null;
-            } | null;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeOrganizationsByIdSubscriptionResponse = GetUsersMeOrganizationsByIdSubscriptionResponses[keyof GetUsersMeOrganizationsByIdSubscriptionResponses];
 
 export type GetUsersMeCreditsData = {
     body?: never;
@@ -3744,10 +3614,37 @@ export type GetUsersMeCreditsResponses = {
      */
     200: {
         data: {
-            /**
-             * Current credit balance
-             */
-            credits: number;
+            credits: {
+                subscription: {
+                    plan: string;
+                    status: string;
+                    periodStart?: Date | null;
+                    periodEnd?: Date | null;
+                    cancelAtPeriodEnd?: boolean | null;
+                    credits: {
+                        /**
+                         * Total subscription-period credits granted this period
+                         */
+                        total: number;
+                        /**
+                         * Remaining subscription-period credits this period
+                         */
+                        remaining: number;
+                        /**
+                         * Used subscription-period credits consumed during this period
+                         */
+                        used: number;
+                    } | null;
+                } | null;
+                /**
+                 * Current available non-subscription credit balance
+                 */
+                buffer: number;
+                /**
+                 * Current available total credit balance (buffer plus remaining subscription credits)
+                 */
+                total: number;
+            };
         };
         meta: {
             timestamp: Date;
@@ -3758,102 +3655,6 @@ export type GetUsersMeCreditsResponses = {
 };
 
 export type GetUsersMeCreditsResponse = GetUsersMeCreditsResponses[keyof GetUsersMeCreditsResponses];
-
-export type GetUsersMeSubscriptionData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/users/me/subscription';
-};
-
-export type GetUsersMeSubscriptionErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersMeSubscriptionError = GetUsersMeSubscriptionErrors[keyof GetUsersMeSubscriptionErrors];
-
-export type GetUsersMeSubscriptionResponses = {
-    /**
-     * Retrieve the current user's or organization's subscription
-     */
-    200: {
-        data: {
-            subscription: {
-                id: string;
-                plan: string;
-                status: string;
-                periodStart?: Date | null;
-                periodEnd?: Date | null;
-                cancelAtPeriodEnd?: boolean | null;
-                credits: {
-                    /**
-                     * Total subscription-period credits granted this period
-                     */
-                    total: number;
-                    /**
-                     * Remaining subscription-period credits this period
-                     */
-                    remaining: number;
-                    /**
-                     * Used subscription-period credits consumed during this period
-                     */
-                    used: number;
-                } | null;
-            } | null;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersMeSubscriptionResponse = GetUsersMeSubscriptionResponses[keyof GetUsersMeSubscriptionResponses];
 
 export type GetUsersMePreferencesData = {
     body?: never;
