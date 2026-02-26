@@ -11,7 +11,6 @@ const getOrganizationByStripeCustomerIdMock = jest.fn();
 const getMembersByOrganizationIdMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
-const findExistingOrganizationSubscriptionGrantBucketsMock = jest.fn();
 const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
 const findOutOfCreditsTasksMock = jest.fn();
@@ -72,8 +71,6 @@ jest.mock("@/lib/db/prisma", () => ({
       transactionMock(callback),
     creditBucket: {
       aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
-      findMany: (...args: unknown[]) =>
-        findExistingOrganizationSubscriptionGrantBucketsMock(...args),
     },
     organization: {
       update: (...args: unknown[]) => prismaOrganizationUpdateMock(...args),
@@ -169,7 +166,6 @@ describe("handleInvoicePaidEvent", () => {
       { role: "owner", userId: "user-1" },
     ]);
     findExistingBucketMock.mockResolvedValue(null);
-    findExistingOrganizationSubscriptionGrantBucketsMock.mockResolvedValue([]);
     aggregateGrantedCreditsMock.mockResolvedValue({
       _sum: { amount: null },
     });
@@ -611,74 +607,6 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it("does not mint additional org subscription buckets on replay if member-scoped buckets already exist", async () => {
-    getUserByStripeCustomerIdMock.mockResolvedValue(null);
-    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
-      id: "org-1",
-    });
-    getMembersByOrganizationIdMock.mockResolvedValue([
-      { role: "member", userId: "member-1" },
-      { role: "owner", userId: "owner-2" },
-      { role: "member", userId: "new-member-3" },
-    ]);
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
-    findExistingOrganizationSubscriptionGrantBucketsMock.mockResolvedValue([
-      { id: "bucket_existing_1" },
-    ]);
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        billingReason: "subscription_cycle",
-        id: "in_org_cycle_replay",
-        lines: [{ productId: "prod_starter", quantity: 1 }],
-      }) as never,
-    );
-
-    expect(findExistingOrganizationSubscriptionGrantBucketsMock).toHaveBeenCalledWith(
-      {
-        where: {
-          organizationId: "org-1",
-          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-          referenceId: {
-            startsWith: "member:",
-          },
-          OR: [
-            {
-              referenceId: {
-                endsWith: ":in_org_cycle_replay",
-              },
-            },
-            {
-              referenceId: {
-                endsWith: ":in_org_cycle_replay:subscription",
-              },
-            },
-          ],
-        },
-        select: {
-          id: true,
-        },
-        take: 1,
-      },
-    );
-    expect(createTransactionMock).not.toHaveBeenCalled();
-  });
-
   it("logs seat-credit cap when billed organization seats exceed active members", async () => {
     const consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 
@@ -1028,56 +956,6 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it("skips personal subscription grants when a legacy invoice reference already exists", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
-    findExistingBucketMock.mockImplementation((args: unknown) => {
-      const reference = (
-        args as {
-          where: {
-            referenceId_referenceType: {
-              referenceId: string;
-              referenceType: string;
-            };
-          };
-        }
-      ).where.referenceId_referenceType;
-
-      if (
-        reference.referenceId === "in_sub_cycle_legacy_existing" &&
-        reference.referenceType === "STRIPE_SUBSCRIPTION_PERIOD"
-      ) {
-        return Promise.resolve({ id: "legacy-subscription-bucket" });
-      }
-
-      return Promise.resolve(null);
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        billingReason: "subscription_cycle",
-        id: "in_sub_cycle_legacy_existing",
-        lines: [{ productId: "prod_starter", quantity: 1 }],
-      }) as never,
-    );
-
-    expect(createTransactionMock).not.toHaveBeenCalled();
-  });
-
   it("uses invoice metadata credits for checkout-based top-up grants", async () => {
     const { handleInvoicePaidEvent } = await import("../webhook-handlers");
 
@@ -1152,41 +1030,6 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("30000000000"),
     );
-  });
-
-  it("skips personal top-up grants when a legacy invoice reference already exists", async () => {
-    findExistingBucketMock.mockImplementation((args: unknown) => {
-      const reference = (
-        args as {
-          where: {
-            referenceId_referenceType: {
-              referenceId: string;
-              referenceType: string;
-            };
-          };
-        }
-      ).where.referenceId_referenceType;
-      if (
-        reference.referenceId === "in_topup_legacy_existing" &&
-        reference.referenceType === "STRIPE_TOPUP"
-      ) {
-        return Promise.resolve({ id: "legacy-topup-bucket" });
-      }
-
-      return Promise.resolve(null);
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        billingReason: "manual",
-        id: "in_topup_legacy_existing",
-        lines: [{ productId: "prod_credit", quantity: 3 }],
-      }) as never,
-    );
-
-    expect(createTransactionMock).not.toHaveBeenCalled();
   });
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {
@@ -1273,150 +1116,6 @@ describe("handleInvoicePaidEvent", () => {
     expect(subscriptionCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
       new Date(1_735_689_600 * 1000),
     );
-  });
-
-  it("does not short-circuit split grants when a legacy combined top-up bucket exists", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
-    findExistingBucketMock.mockImplementation((args: unknown) => {
-      const reference = (
-        args as {
-          where: {
-            referenceId_referenceType: {
-              referenceId: string;
-              referenceType: string;
-            };
-          };
-        }
-      ).where.referenceId_referenceType;
-      if (
-        reference.referenceId === "in_mixed_legacy" &&
-        reference.referenceType === "STRIPE_TOPUP"
-      ) {
-        return Promise.resolve({ id: "legacy-combined" });
-      }
-
-      return Promise.resolve(null);
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        billingReason: "subscription_cycle",
-        id: "in_mixed_legacy",
-        lines: [
-          { productId: "prod_credit", quantity: 3 },
-          { productId: "prod_starter", quantity: 1, periodEnd: 1_735_689_600 },
-        ],
-      }) as never,
-    );
-
-    expect(createTransactionMock).toHaveBeenCalledTimes(2);
-    const lookedUpLegacyCombinedBucket = findExistingBucketMock.mock.calls.some(
-      (call) => {
-        const reference = (
-          call[0] as {
-            where: {
-              referenceId_referenceType: {
-                referenceId: string;
-                referenceType: string;
-              };
-            };
-          }
-        ).where.referenceId_referenceType;
-
-        return (
-          reference.referenceId === "in_mixed_legacy" &&
-          reference.referenceType === "STRIPE_TOPUP"
-        );
-      },
-    );
-    expect(lookedUpLegacyCombinedBucket).toBe(false);
-  });
-
-  it("does not look up top-up fallback when creating subscription-period buckets", async () => {
-    getSubscriptionCatalogMock.mockResolvedValue({
-      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
-      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
-      standard: {
-        credits: 5250,
-        monthlyAmount: 7500,
-        productId: "prod_standard",
-      },
-      starter: {
-        credits: 1750,
-        monthlyAmount: 2500,
-        productId: "prod_starter",
-      },
-    });
-    findExistingBucketMock.mockImplementation((args: unknown) => {
-      const reference = (
-        args as {
-          where: {
-            referenceId_referenceType: {
-              referenceId: string;
-              referenceType: string;
-            };
-          };
-        }
-      ).where.referenceId_referenceType;
-      if (
-        reference.referenceId === "in_sub_cycle_legacy" &&
-        reference.referenceType === "STRIPE_TOPUP"
-      ) {
-        return Promise.resolve({
-          expiresAt: new Date(1_735_689_600 * 1000),
-          id: "legacy-subscription",
-        });
-      }
-
-      return Promise.resolve(null);
-    });
-
-    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
-
-    await handleInvoicePaidEvent(
-      createInvoice({
-        billingReason: "subscription_cycle",
-        id: "in_sub_cycle_legacy",
-        lines: [{ productId: "prod_starter", quantity: 1 }],
-      }) as never,
-    );
-
-    expect(createTransactionMock).toHaveBeenCalledTimes(1);
-    const lookedUpLegacyTopUpFallback = findExistingBucketMock.mock.calls.some(
-      (call) => {
-        const reference = (
-          call[0] as {
-            where: {
-              referenceId_referenceType: {
-                referenceId: string;
-                referenceType: string;
-              };
-            };
-          }
-        ).where.referenceId_referenceType;
-
-        return (
-          reference.referenceId === "in_sub_cycle_legacy" &&
-          reference.referenceType === "STRIPE_TOPUP"
-        );
-      },
-    );
-    expect(lookedUpLegacyTopUpFallback).toBe(false);
   });
 
   it("fails when subscription period end is missing", async () => {

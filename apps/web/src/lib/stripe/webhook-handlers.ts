@@ -37,7 +37,6 @@ const SUBSCRIPTION_UPDATE_BILLING_REASON = "subscription_update";
 interface InvoiceCreditGrant {
   credits: number;
   expiresAt: Date | null;
-  legacyReferenceIds: string[];
   referenceId: string;
   referenceType: CreditBucketReferenceType;
   userId: string;
@@ -669,8 +668,6 @@ export async function handleInvoicePaidEvent(
       isSubscriptionUpdate,
       totals: subscriptionCreditTotals,
     });
-  const hasTopUpAndSubscriptionCredits =
-    oneTimeTopUpCredits > 0 && subscriptionCredits > 0;
 
   const creditGrants: InvoiceCreditGrant[] = [];
   if (oneTimeTopUpCredits > 0) {
@@ -685,9 +682,6 @@ export async function handleInvoicePaidEvent(
     creditGrants.push({
       credits: oneTimeTopUpCredits,
       expiresAt: null,
-      legacyReferenceIds: [
-        hasTopUpAndSubscriptionCredits ? `${invoiceId}:topup` : invoiceId,
-      ],
       referenceId: topUpReferenceId,
       referenceType: "STRIPE_TOPUP",
       userId,
@@ -696,70 +690,29 @@ export async function handleInvoicePaidEvent(
 
   if (subscriptionCredits > 0) {
     const subscriptionReferenceSuffix = `${invoiceId}:subscription`;
-    const legacyOrganizationSubscriptionSuffix = `:${invoiceId}`;
-    const organizationSubscriptionSuffix = `:${subscriptionReferenceSuffix}`;
 
     if (organizationId) {
-      const existingOrganizationSubscriptionGrants =
-        await prisma.creditBucket.findMany({
-          where: {
-            organizationId,
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            referenceId: {
-              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-            },
-            OR: [
-              {
-                referenceId: {
-                  endsWith: legacyOrganizationSubscriptionSuffix,
-                },
-              },
-              {
-                referenceId: {
-                  endsWith: organizationSubscriptionSuffix,
-                },
-              },
-            ],
-          },
-          select: {
-            id: true,
-          },
-          take: 1,
-        });
+      const splitGrants = splitCreditsByMember({
+        memberUserIds: organizationMemberUserIds,
+        totalCredits: subscriptionCredits,
+      });
 
-      if (existingOrganizationSubscriptionGrants.length > 0) {
-        console.log(
-          `✅ Organization subscription buckets already exist for invoice ${invoiceId}; skipping replay split`,
-        );
-      } else {
-        const splitGrants = splitCreditsByMember({
-          memberUserIds: organizationMemberUserIds,
-          totalCredits: subscriptionCredits,
+      for (const splitGrant of splitGrants) {
+        creditGrants.push({
+          credits: splitGrant.credits,
+          expiresAt: subscriptionCreditsExpiry,
+          referenceId: buildOrganizationMemberSubscriptionReferenceId(
+            splitGrant.userId,
+            subscriptionReferenceSuffix,
+          ),
+          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+          userId: splitGrant.userId,
         });
-
-        for (const splitGrant of splitGrants) {
-          creditGrants.push({
-            credits: splitGrant.credits,
-            expiresAt: subscriptionCreditsExpiry,
-            legacyReferenceIds: [],
-            referenceId: buildOrganizationMemberSubscriptionReferenceId(
-              splitGrant.userId,
-              subscriptionReferenceSuffix,
-            ),
-            referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-            userId: splitGrant.userId,
-          });
-        }
       }
     } else {
       creditGrants.push({
         credits: subscriptionCredits,
         expiresAt: subscriptionCreditsExpiry,
-        legacyReferenceIds: [
-          hasTopUpAndSubscriptionCredits
-            ? `${invoiceId}:subscription`
-            : invoiceId,
-        ],
         referenceId: buildUserInvoiceCreditReferenceId(
           userId,
           invoiceId,
@@ -782,25 +735,15 @@ export async function handleInvoicePaidEvent(
     let creditsGranted = false;
 
     for (const grant of creditGrants) {
-      const referenceIdsToCheck = Array.from(
-        new Set([grant.referenceId, ...grant.legacyReferenceIds]),
-      );
-      let existingBucket: { id: string } | null = null;
-      for (const referenceId of referenceIdsToCheck) {
-        existingBucket = await tx.creditBucket.findUnique({
-          where: {
-            referenceId_referenceType: {
-              referenceId,
-              referenceType: grant.referenceType,
-            },
+      const existingBucket = await tx.creditBucket.findUnique({
+        where: {
+          referenceId_referenceType: {
+            referenceId: grant.referenceId,
+            referenceType: grant.referenceType,
           },
-          select: { id: true },
-        });
-
-        if (existingBucket) {
-          break;
-        }
-      }
+        },
+        select: { id: true },
+      });
 
       if (existingBucket) {
         console.log(
