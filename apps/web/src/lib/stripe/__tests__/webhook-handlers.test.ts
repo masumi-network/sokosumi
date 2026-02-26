@@ -161,11 +161,17 @@ function mockOrganizationInvoiceContext(
   getMembersByOrganizationIdMock.mockResolvedValue(members);
 }
 
-function getTransactionCallsByReferenceId(): Map<string, CreatedTransactionCall> {
+function getTransactionCallsByReferenceId(): Map<
+  string,
+  CreatedTransactionCall
+> {
   return new Map(
     createTransactionMock.mock.calls.map((call) => {
       const createCall = call[0] as CreatedTransactionCall;
-      return [createCall.data.sourceCreditBucket.create.referenceId, createCall];
+      return [
+        createCall.data.sourceCreditBucket.create.referenceId,
+        createCall,
+      ];
     }),
   );
 }

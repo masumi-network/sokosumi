@@ -520,7 +520,11 @@ function buildInvoiceCreditGrants(
           params.invoiceId,
           "topup",
         )
-      : buildUserInvoiceCreditReferenceId(params.userId, params.invoiceId, "topup");
+      : buildUserInvoiceCreditReferenceId(
+          params.userId,
+          params.invoiceId,
+          "topup",
+        );
 
     creditGrants.push({
       credits: params.oneTimeTopUpCredits,

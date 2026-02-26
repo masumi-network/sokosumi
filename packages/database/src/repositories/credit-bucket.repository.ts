@@ -222,9 +222,7 @@ function buildCreditBucketScopeSql(
     return Prisma.sql`cb."userId" = ${userId} AND cb."organizationId" IS NULL`;
   }
 
-  const escapedUserId = getOrganizationMemberSubscriptionReferencePrefix(
-    userId,
-  )
+  const escapedUserId = getOrganizationMemberSubscriptionReferencePrefix(userId)
     .replace(/\\/g, "\\\\")
     .replace(/%/g, "\\%")
     .replace(/_/g, "\\_");

@@ -26,18 +26,14 @@ function getTransactionTimeoutMs(): number {
   const raw = process.env.MIGRATION_TRANSACTION_TIMEOUT_MS;
   if (raw === undefined || raw === "") return DEFAULT_TRANSACTION_TIMEOUT_MS;
   const n = Number.parseInt(raw, 10);
-  return Number.isNaN(n) || n < 1
-    ? DEFAULT_TRANSACTION_TIMEOUT_MS
-    : n;
+  return Number.isNaN(n) || n < 1 ? DEFAULT_TRANSACTION_TIMEOUT_MS : n;
 }
 
 function getTransactionMaxWaitMs(): number {
   const raw = process.env.MIGRATION_TRANSACTION_MAX_WAIT_MS;
   if (raw === undefined || raw === "") return DEFAULT_TRANSACTION_MAX_WAIT_MS;
   const n = Number.parseInt(raw, 10);
-  return Number.isNaN(n) || n < 1
-    ? DEFAULT_TRANSACTION_MAX_WAIT_MS
-    : n;
+  return Number.isNaN(n) || n < 1 ? DEFAULT_TRANSACTION_MAX_WAIT_MS : n;
 }
 
 class OrganizationWithoutMembersError extends Error {
@@ -64,7 +60,6 @@ interface OrganizationMigrationStats {
   bucketsExpired: number;
   bucketsExamined: number;
   memberBucketsCreated: number;
-  memberBucketsSkipped: number;
   remainingAvailableCents: bigint;
   splitCentsCreated: bigint;
 }
@@ -257,7 +252,6 @@ async function migrateOrganization(params: {
           bucketsExpired: 0,
           bucketsExamined: 0,
           memberBucketsCreated: 0,
-          memberBucketsSkipped: 0,
           remainingAvailableCents: 0n,
           splitCentsCreated: 0n,
         };
@@ -285,7 +279,6 @@ async function migrateOrganization(params: {
       });
 
       let memberBucketsCreated = 0;
-      let memberBucketsSkipped = 0;
       let remainingAvailableCents = 0n;
       let splitCentsCreated = 0n;
       let remainderOffset = 0;
@@ -309,43 +302,24 @@ async function migrateOrganization(params: {
             legacyBucket.id,
           );
 
-          try {
-            await tx.creditBucket.create({
-              data: {
-                amount: allocation.amount,
-                expiresAt: legacyBucket.expiresAt,
-                referenceId,
-                referenceType:
-                  CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-                userId: allocation.memberId,
-                organizationId: params.organizationId,
-                sourceTransaction: {
-                  create: {
-                    amount: allocation.amount,
-                    user: {
-                      connect: {
-                        id: allocation.memberId,
-                      },
-                    },
-                    organization: {
-                      connect: {
-                        id: params.organizationId,
-                      },
-                    },
-                  },
+          await tx.transaction.create({
+            data: {
+              amount: allocation.amount,
+              user: { connect: { id: allocation.memberId } },
+              organization: { connect: { id: params.organizationId } },
+              sourceCreditBucket: {
+                create: {
+                  amount: allocation.amount,
+                  expiresAt: legacyBucket.expiresAt,
+                  referenceId,
+                  referenceType:
+                    CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+                  userId: allocation.memberId,
+                  organizationId: params.organizationId,
                 },
               },
-            });
-          } catch (error) {
-            const isUniqueViolation =
-              error instanceof Prisma.PrismaClientKnownRequestError &&
-              error.code === "P2002";
-            if (isUniqueViolation) {
-              memberBucketsSkipped += 1;
-              continue;
-            }
-            throw error;
-          }
+            },
+          });
 
           memberBucketsCreated += 1;
           splitCentsCreated += allocation.amount;
@@ -356,7 +330,6 @@ async function migrateOrganization(params: {
         bucketsExpired: legacyBuckets.length,
         bucketsExamined: legacyBuckets.length,
         memberBucketsCreated,
-        memberBucketsSkipped,
         remainingAvailableCents,
         splitCentsCreated,
       };
@@ -388,10 +361,11 @@ async function main() {
     );
   }
 
-  const negativeAvailableLegacyBuckets = await getNegativeAvailableLegacyBuckets({
-    organizationIds,
-    migrationTime,
-  });
+  const negativeAvailableLegacyBuckets =
+    await getNegativeAvailableLegacyBuckets({
+      organizationIds,
+      migrationTime,
+    });
   if (negativeAvailableLegacyBuckets.length > 0) {
     throw new Error(
       `Negative available legacy buckets detected; aborting migration: ${negativeAvailableLegacyBuckets
@@ -406,7 +380,6 @@ async function main() {
   let totalOrganizationsMigrated = 0;
   let totalBucketsExpired = 0;
   let totalMemberBucketsCreated = 0;
-  let totalMemberBucketsSkipped = 0;
   let totalRemainingAvailableCents = 0n;
   let totalSplitCentsCreated = 0n;
 
@@ -421,12 +394,11 @@ async function main() {
     totalOrganizationsMigrated += 1;
     totalBucketsExpired += stats.bucketsExpired;
     totalMemberBucketsCreated += stats.memberBucketsCreated;
-    totalMemberBucketsSkipped += stats.memberBucketsSkipped;
     totalRemainingAvailableCents += stats.remainingAvailableCents;
     totalSplitCentsCreated += stats.splitCentsCreated;
 
     console.log(
-      `Migrated organization ${organizationId}: legacyBuckets=${stats.bucketsExamined}, memberBucketsCreated=${stats.memberBucketsCreated}, memberBucketsSkipped=${stats.memberBucketsSkipped}, remainingAvailableCents=${stats.remainingAvailableCents}, splitCentsCreated=${stats.splitCentsCreated} (${orgElapsedMs}ms)`,
+      `Migrated organization ${organizationId}: legacyBuckets=${stats.bucketsExamined}, memberBucketsCreated=${stats.memberBucketsCreated}, remainingAvailableCents=${stats.remainingAvailableCents}, splitCentsCreated=${stats.splitCentsCreated} (${orgElapsedMs}ms)`,
     );
   }
 
@@ -437,7 +409,7 @@ async function main() {
       : 0;
 
   console.log(
-    `Migration summary: organizationsMigrated=${totalOrganizationsMigrated}, bucketsExpired=${totalBucketsExpired}, memberBucketsCreated=${totalMemberBucketsCreated}, memberBucketsSkipped=${totalMemberBucketsSkipped}, remainingAvailableCents=${totalRemainingAvailableCents}, splitCentsCreated=${totalSplitCentsCreated}`,
+    `Migration summary: organizationsMigrated=${totalOrganizationsMigrated}, bucketsExpired=${totalBucketsExpired}, memberBucketsCreated=${totalMemberBucketsCreated}, remainingAvailableCents=${totalRemainingAvailableCents}, splitCentsCreated=${totalSplitCentsCreated}`,
   );
   console.log(
     `Migration timing: totalElapsedMs=${totalElapsedMs}, orgsPerSecond=${orgsPerSecond.toFixed(2)}`,

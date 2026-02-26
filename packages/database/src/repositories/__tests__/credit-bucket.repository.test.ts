@@ -204,9 +204,7 @@ describe("creditBucketRepository.getBalance (organization)", () => {
     await creditBucketRepository.getBalance("user_1", "org_1", tx);
 
     const values = extractNestedSqlValues(queryArgs);
-    assert.ok(
-      values.includes("member:user\\_1:%"),
-    );
+    assert.ok(values.includes("member:user\\_1:%"));
   });
 
   it("escapes LIKE wildcards in prepareConsumption for organization member scope", async () => {
@@ -238,9 +236,7 @@ describe("creditBucketRepository.getBalance (organization)", () => {
     assert.deepEqual(consumptions, [{ bucketId: "bucket-1", amount: 5n }]);
 
     const values = extractNestedSqlValues(queryArgs);
-    assert.ok(
-      values.includes("member:user\\_1:%"),
-    );
+    assert.ok(values.includes("member:user\\_1:%"));
   });
 });
 
