@@ -39,7 +39,9 @@ jest.mock("../jobs-list.utils", () => ({
 }));
 
 function createJob(
-  overrides: Partial<JobWithSokosumiStatus>,
+  overrides: Partial<Omit<JobWithSokosumiStatus, "user">> & {
+    user?: Partial<NonNullable<JobWithSokosumiStatus["user"]>> | null;
+  },
 ): JobWithSokosumiStatus {
   return {
     id: "job-id",
