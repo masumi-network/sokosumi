@@ -14,22 +14,12 @@ import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
 const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
-const SHOW_SECONDARY_SIDEBAR_KEY = "chat-show-secondary-sidebar";
 
 function getConversationIdFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
   if (segments[0] !== "chat" || segments[2] !== "conversation" || !segments[3])
     return null;
   return segments[3] ?? null;
-}
-
-function getShowSecondarySidebar(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return sessionStorage.getItem(SHOW_SECONDARY_SIDEBAR_KEY) === "1";
-  } catch {
-    return false;
-  }
 }
 
 type ConversationMetadata = {
@@ -100,7 +90,7 @@ export default function ChatBucketLayout({
       }
     })();
 
-  const showSidebar = getShowSecondarySidebar() && !isJustCreatedConversation;
+  const showSidebar = showFromContext && !isJustCreatedConversation;
 
   return (
     <div className="flex h-full w-full flex-col">

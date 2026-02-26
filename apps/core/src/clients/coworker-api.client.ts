@@ -32,6 +32,9 @@ const UI_MESSAGE_EVENTS = {
   ERROR: "error",
 } as const;
 
+const MAX_DELTA_CHUNK_SIZE = 80;
+const CHUNK_STREAM_DELAY_MS = 16;
+
 export interface StreamResponsesApiOptions {
   sokosumiUserId: string;
   agentId?: string;
@@ -134,6 +137,7 @@ function createResponsesApiUiStream(
   let streamClosed = false;
   let cancelled = false;
   let lastEventLine: string | null = null;
+  const pendingDeltaChunks: string[] = [];
 
   function closeStream(
     controller: ReadableStreamDefaultController<Uint8Array>,
@@ -243,7 +247,15 @@ function createResponsesApiUiStream(
         lastEventLine === "response.output_text.delta";
 
       if (isDeltaEvent && deltaValue) {
-        handleTextDelta(deltaValue, controller);
+        if (deltaValue.length <= MAX_DELTA_CHUNK_SIZE) {
+          handleTextDelta(deltaValue, controller);
+        } else {
+          for (let i = 0; i < deltaValue.length; i += MAX_DELTA_CHUNK_SIZE) {
+            pendingDeltaChunks.push(
+              deltaValue.slice(i, i + MAX_DELTA_CHUNK_SIZE),
+            );
+          }
+        }
         return false;
       }
 
@@ -269,16 +281,17 @@ function createResponsesApiUiStream(
         encoder.encode(`data: ${JSON.stringify(startEvent)}\n\n`),
       );
 
+      const pendingLines: string[] = [];
       try {
         while (!streamClosed) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
+          if (pendingDeltaChunks.length > 0) {
+            const chunk = pendingDeltaChunks.shift()!;
+            handleTextDelta(chunk, controller);
+            await new Promise((r) => setTimeout(r, CHUNK_STREAM_DELAY_MS));
+            continue;
+          }
+          if (pendingLines.length > 0) {
+            const line = pendingLines.shift()!;
             if (!line.trim() || line.startsWith(":")) {
               lastEventLine = null;
               continue;
@@ -293,6 +306,37 @@ function createResponsesApiUiStream(
               lastEventLine = null;
               if (shouldStop) return;
             }
+            continue;
+          }
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lineArray = buffer.split("\n");
+          buffer = lineArray.pop() ?? "";
+          pendingLines.push(...lineArray);
+        }
+
+        while (!streamClosed && pendingDeltaChunks.length > 0) {
+          const chunk = pendingDeltaChunks.shift()!;
+          handleTextDelta(chunk, controller);
+          await new Promise((r) => setTimeout(r, CHUNK_STREAM_DELAY_MS));
+        }
+        while (!streamClosed && pendingLines.length > 0) {
+          const line = pendingLines.shift()!;
+          if (!line.trim() || line.startsWith(":")) {
+            lastEventLine = null;
+            continue;
+          }
+          if (line.startsWith("event:")) {
+            lastEventLine = line.slice(6).trim();
+            continue;
+          }
+          if (line.startsWith(SSE_DATA_PREFIX)) {
+            const data = line.slice(SSE_DATA_PREFIX.length);
+            const shouldStop = processSSELine(data, controller);
+            lastEventLine = null;
+            if (shouldStop) return;
           }
         }
 
@@ -313,9 +357,6 @@ function createResponsesApiUiStream(
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify(startEvent)}\n\n`),
                 );
-                textStarted = true;
-              }
-              if (text) {
                 const deltaEvent = {
                   type: UI_MESSAGE_EVENTS.TEXT_DELTA,
                   delta: text,
@@ -336,6 +377,15 @@ function createResponsesApiUiStream(
                 onResponseCompleted?.(parsed.id);
               }
               streamClosed = true;
+              if (textStarted) {
+                const endEvent = {
+                  type: UI_MESSAGE_EVENTS.TEXT_END,
+                  id: messageId,
+                };
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify(endEvent)}\n\n`),
+                );
+              }
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({

@@ -29,6 +29,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
@@ -135,6 +136,7 @@ function buildChatGroups(
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const { open, isMobile, toggleSidebar } = useSidebar();
+  const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const { conversations, refreshConversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
   const params = useParams<{ bucketSlug?: string }>();
@@ -222,14 +224,7 @@ export default function ChatListsClient() {
                           <Link
                             href={chatHref}
                             onClick={() => {
-                              try {
-                                sessionStorage.setItem(
-                                  "chat-show-secondary-sidebar",
-                                  "1",
-                                );
-                              } catch {
-                                // ignore
-                              }
+                              setShowSecondarySidebar(true);
                               handleChatClick();
                             }}
                           >

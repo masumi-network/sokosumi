@@ -16,34 +16,32 @@ export function useStreamingContent(
   const isStreamingRef = useRef(isStreaming);
   const revealedLengthRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
+  const hasAnimatedRef = useRef(false);
 
-  // Sync refs in effect so we don't read/write refs during render (React rule)
   useEffect(() => {
     contentLengthRef.current = content.length;
     isStreamingRef.current = isStreaming;
     revealedLengthRef.current = revealedLength;
   }, [content.length, isStreaming, revealedLength]);
 
-  // When content shrinks (e.g. new message), reset revealed length
-  if (content.length < revealedLength) {
+  if (content.length < revealedLength && !hasAnimatedRef.current) {
     setRevealedLength(content.length);
   }
 
-  // Start typewriter when streaming begins; loop keeps running after stream ends
-  // until all text is revealed (never cancel on isStreaming false)
   useEffect(() => {
-    if (!isStreaming) return;
+    const hasMoreToReveal =
+      contentLengthRef.current > revealedLengthRef.current;
+    const shouldRun =
+      hasMoreToReveal &&
+      (isStreaming || revealedLengthRef.current > 0) &&
+      rafIdRef.current === null;
+    if (!shouldRun) return;
 
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
+    hasAnimatedRef.current = true;
 
     function loop(now: number) {
       const targetLength = contentLengthRef.current;
-      const streamEnded = !isStreamingRef.current;
-
-      if (streamEnded && revealedLengthRef.current >= targetLength) {
+      if (revealedLengthRef.current >= targetLength) {
         rafIdRef.current = null;
         return;
       }
@@ -81,13 +79,9 @@ export function useStreamingContent(
 
     rafIdRef.current = requestAnimationFrame(loop);
 
-    return () => {
-      // Intentionally do not cancel when isStreaming becomes false so
-      // the animation continues until the end
-    };
-  }, [isStreaming]);
+    return () => {};
+  }, [isStreaming, content.length]);
 
-  // Cancel loop only on unmount
   useEffect(() => {
     return () => {
       if (rafIdRef.current !== null) {
@@ -97,10 +91,13 @@ export function useStreamingContent(
     };
   }, []);
 
-  // Completed message that was never streamed: show full content
-  if (!isStreaming && revealedLength === 0 && content.length > 0) {
+  if (
+    !isStreaming &&
+    revealedLength === 0 &&
+    content.length > 0 &&
+    !hasAnimatedRef.current
+  ) {
     return content;
   }
-  // Otherwise enforce typewriter until the end (streaming or catching up)
   return content.slice(0, revealedLength);
 }
