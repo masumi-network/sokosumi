@@ -13,6 +13,7 @@ import {
   buildUserInvoiceCreditReferenceId,
   convertCentsToCredits,
   convertCreditsToCents,
+  escapeStringForLike,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
 } from "@sokosumi/database/helpers";
 import {
@@ -728,7 +729,7 @@ export async function handleInvoicePaidEvent(
           referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
           referenceId: {
             startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-            endsWith: `:${invoiceId}:subscription`,
+            endsWith: escapeStringForLike(`:${invoiceId}:subscription`),
           },
         },
         select: {

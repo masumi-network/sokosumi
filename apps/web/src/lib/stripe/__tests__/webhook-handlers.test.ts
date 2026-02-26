@@ -2,6 +2,7 @@ import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
+  escapeStringForLike,
 } from "@sokosumi/database/helpers";
 
 jest.mock("server-only", () => ({}));
@@ -475,7 +476,9 @@ describe("handleInvoicePaidEvent", () => {
         referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
         referenceId: {
           startsWith: "member:",
-          endsWith: ":in_org_cycle_retry_membership_changed:subscription",
+          endsWith: escapeStringForLike(
+            ":in_org_cycle_retry_membership_changed:subscription",
+          ),
         },
       },
       select: {
