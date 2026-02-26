@@ -11,6 +11,7 @@ const getOrganizationByStripeCustomerIdMock = jest.fn();
 const getMembersByOrganizationIdMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const findExistingBucketMock = jest.fn();
+const findExistingOrganizationInvoiceSubscriptionBucketMock = jest.fn();
 const aggregateGrantedCreditsMock = jest.fn();
 const createTransactionMock = jest.fn();
 const findOutOfCreditsTasksMock = jest.fn();
@@ -71,6 +72,8 @@ jest.mock("@/lib/db/prisma", () => ({
       transactionMock(callback),
     creditBucket: {
       aggregate: (...args: unknown[]) => aggregateGrantedCreditsMock(...args),
+      findFirst: (...args: unknown[]) =>
+        findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
     },
     organization: {
       update: (...args: unknown[]) => prismaOrganizationUpdateMock(...args),
@@ -166,6 +169,9 @@ describe("handleInvoicePaidEvent", () => {
       { role: "owner", userId: "user-1" },
     ]);
     findExistingBucketMock.mockResolvedValue(null);
+    findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
+      null,
+    );
     aggregateGrantedCreditsMock.mockResolvedValue({
       _sum: { amount: null },
     });
@@ -456,6 +462,62 @@ describe("handleInvoicePaidEvent", () => {
     expect(userACall?.data.organization.connect.id).toBe("org-1");
     expect(userACall?.data.user.connect.id).toBe("user-a");
     expect(userACall?.data.sourceCreditBucket.create.userId).toBe("user-a");
+  });
+
+  it("keeps organization invoice grants stable on retry when membership changes", async () => {
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue({
+      id: "org-1",
+    });
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { role: "member", userId: "member-1" },
+      { role: "owner", userId: "owner-2" },
+      { role: "member", userId: "new-member-3" },
+    ]);
+    getSubscriptionCatalogMock.mockResolvedValue({
+      free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
+      pro: { credits: 14000, monthlyAmount: 20000, productId: "prod_pro" },
+      standard: {
+        credits: 5250,
+        monthlyAmount: 7500,
+        productId: "prod_standard",
+      },
+      starter: {
+        credits: 1750,
+        monthlyAmount: 2500,
+        productId: "prod_starter",
+      },
+    });
+    findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue({
+      id: "existing-org-invoice-bucket",
+    });
+
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_cycle_retry_membership_changed",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(
+      findExistingOrganizationInvoiceSubscriptionBucketMock,
+    ).toHaveBeenCalledWith({
+      where: {
+        organizationId: "org-1",
+        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+        referenceId: {
+          startsWith: "member:",
+          endsWith: ":in_org_cycle_retry_membership_changed:subscription",
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(createTransactionMock).not.toHaveBeenCalled();
   });
 
   it("keeps organization top-up grants shared", async () => {
