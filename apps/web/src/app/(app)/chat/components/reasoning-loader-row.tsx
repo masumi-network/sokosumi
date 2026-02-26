@@ -82,7 +82,7 @@ export default function ReasoningLoaderRow({
   }
 
   return (
-    <div className="flex gap-3 px-4 py-1.5">
+    <div className="flex min-h-11 items-start gap-3 px-4 py-1.5">
       <Avatar
         className={`size-8 shrink-0 overflow-hidden rounded-full ${
           modelId ? "bg-white dark:bg-black" : ""
@@ -90,8 +90,10 @@ export default function ReasoningLoaderRow({
       >
         {getAvatarContent()}
       </Avatar>
-      <div className="flex min-w-0 flex-1 items-center">
-        <span className="reasoning-text-shine text-sm">{displayMessage}</span>
+      <div className="flex min-h-5 min-w-0 flex-1 items-start pt-1">
+        <span className="reasoning-text-shine text-sm leading-5">
+          {displayMessage}
+        </span>
       </div>
     </div>
   );

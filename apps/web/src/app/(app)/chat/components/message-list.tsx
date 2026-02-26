@@ -196,12 +196,13 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         !content.trim() &&
         isLoading &&
         (showReasoningLoaders || showLoadingIndicator);
+      const stableKeyForLastAssistant = isLastMessage && role === "assistant";
+      const messageKey = stableKeyForLastAssistant
+        ? `${selectedChatId ?? "no-chat"}-${index}-last-assistant`
+        : `${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`;
 
       return (
-        <div
-          key={`${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`}
-          data-message-role={role}
-        >
+        <div key={messageKey} data-message-role={role}>
           {showDaySeparator && currentCreatedAt && (
             <DaySeparator
               date={currentCreatedAt}
@@ -232,14 +233,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     return (
       <div
         ref={setWrapperRef}
-        className="absolute inset-x-0 top-0 bottom-[100px] overflow-hidden"
+        className="absolute inset-x-0 top-0 bottom-[160px] overflow-hidden"
       >
         <div
           ref={scrollContainerRef}
           className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{ overflowAnchor: "none" }}
         >
-          <div className="flex flex-col items-center pt-4 pb-20">
+          <div className="flex flex-col items-center pt-4 pb-24">
             <div className="flex w-full max-w-4xl flex-col">
               {sections.length === 0 && showLoadingArea && (
                 <>

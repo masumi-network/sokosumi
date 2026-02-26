@@ -91,11 +91,16 @@ export default function ChatMessage({
     );
   };
 
+  const showStreamingDotsOnly =
+    isAssistantStreaming && !(displayContent && displayContent.trim());
+
   return (
     <div
       className={cn(
-        "flex w-full gap-3 px-4 py-0.5",
-        isUser ? "justify-end" : "justify-start",
+        "flex w-full gap-3 px-4",
+        isUser
+          ? "justify-end py-0.5"
+          : "min-h-11 items-start justify-start py-1.5",
       )}
     >
       {!isUser && (
@@ -110,8 +115,10 @@ export default function ChatMessage({
       )}
       <div
         className={cn(
-          "flex w-full",
-          isUser ? "items-end justify-end" : "items-start justify-start",
+          "flex w-full min-w-0",
+          isUser
+            ? "items-end justify-end"
+            : "min-h-5 items-start justify-start",
         )}
       >
         <div
@@ -120,59 +127,68 @@ export default function ChatMessage({
             isUser ? "max-w-[70%] items-end" : "max-w-full items-start",
           )}
         >
-          <div
-            className={cn(
-              "min-h-6 rounded-lg",
-              isUser
-                ? "bg-muted-foreground/10 text-foreground px-3 py-3"
-                : "text-foreground bg-transparent pr-10 pb-3",
-            )}
-          >
+          {showStreamingDotsOnly ? (
+            <div className="flex min-h-5 items-start pt-1">
+              <span className="reasoning-text-shine text-sm leading-5">
+                {t("reasoning.thinking")}
+              </span>
+            </div>
+          ) : (
             <div
               className={cn(
-                "prose prose-sm dark:prose-invert max-w-none",
-
-                isAssistantStreaming && "contain-layout",
-                // Allow proper spacing for paragraphs and line breaks
-                "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-                // Ensure proper line height for readability
-                "**:leading-relaxed",
-                // Prevent headings from being too large (keep them as regular text size)
-                "[&_h1]:text-base [&_h2]:text-base [&_h3]:text-base [&_h4]:text-base [&_h5]:text-base [&_h6]:text-base",
-                "[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold",
-                // Ensure bold text stays as bold, not headings
-                "[&_strong]:font-semibold [&_strong]:text-inherit",
-                // Proper spacing for line breaks
-                "[&_br]:block [&_br]:h-3",
-                isUser && "prose-invert [&_strong]:text-primary-foreground",
+                "rounded-lg",
+                isUser
+                  ? "bg-muted-foreground/10 text-foreground min-h-6 px-3 py-3"
+                  : "text-foreground min-h-5 bg-transparent pt-1 pr-10 pb-3",
               )}
-              style={{ fontSize: "0.875rem" }}
             >
-              {displayContent && displayContent.trim() ? (
-                <Markdown>{displayContent}</Markdown>
-              ) : isAssistantStreaming ? (
-                <div className="flex gap-1">
-                  <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full" />
-                  <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-75" />
-                  <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-150" />
+              <div
+                className={cn(
+                  "prose prose-sm dark:prose-invert max-w-none",
+
+                  isAssistantStreaming && "contain-layout",
+                  // Align first line with dots state: no top margin on first element
+                  "[&>*:first-child]:mt-0",
+                  // Allow proper spacing for paragraphs and line breaks
+                  "[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+                  // Ensure proper line height for readability
+                  "**:leading-relaxed",
+                  // Prevent headings from being too large (keep them as regular text size)
+                  "[&_h1]:text-base [&_h2]:text-base [&_h3]:text-base [&_h4]:text-base [&_h5]:text-base [&_h6]:text-base",
+                  "[&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold",
+                  // Ensure bold text stays as bold, not headings
+                  "[&_strong]:font-semibold [&_strong]:text-inherit",
+                  // Proper spacing for line breaks
+                  "[&_br]:block [&_br]:h-3",
+                  isUser && "prose-invert [&_strong]:text-primary-foreground",
+                )}
+                style={{ fontSize: "0.875rem" }}
+              >
+                {displayContent && displayContent.trim() ? (
+                  <Markdown>{displayContent}</Markdown>
+                ) : isAssistantStreaming ? (
+                  <span className="reasoning-text-shine text-sm leading-5">
+                    {t("reasoning.thinking")}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground italic">
+                    {isUser ? "(Empty message)" : "(No response yet)"}
+                  </span>
+                )}
+              </div>
+              {isAssistantStreaming && isPaused && (
+                <div className="mt-2">
+                  <span className="reasoning-text-shine text-sm">
+                    {t("reasoning.processing")}
+                  </span>
                 </div>
-              ) : (
-                <span className="text-muted-foreground italic">
-                  {isUser ? "(Empty message)" : "(No response yet)"}
-                </span>
               )}
             </div>
-            {isAssistantStreaming && isPaused && (
-              <div className="mt-2">
-                <span className="reasoning-text-shine text-sm">
-                  {t("reasoning.processing")}
-                </span>
-              </div>
-            )}
-          </div>
+          )}
           {timestamp &&
             (isUser ||
-              (content.length > 0 &&
+              (!isAssistantStreaming &&
+                content.length > 0 &&
                 displayContent.length === content.length)) && (
               <div
                 className={cn(

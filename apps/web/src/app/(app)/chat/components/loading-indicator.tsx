@@ -74,7 +74,7 @@ export default function LoadingIndicator({
   };
 
   return (
-    <div className="flex gap-3 px-4 py-0">
+    <div className="flex min-h-11 items-start gap-3 px-4 py-1.5">
       <Avatar
         className={`size-8 shrink-0 overflow-hidden rounded-full ${
           modelId ? "bg-white dark:bg-black" : ""
@@ -82,12 +82,10 @@ export default function LoadingIndicator({
       >
         {getAvatarContent()}
       </Avatar>
-      <div className="flex items-center">
-        <div className="flex gap-1">
-          <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full" />
-          <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-75" />
-          <div className="bg-muted-foreground/70 h-2 w-2 animate-pulse rounded-full delay-150" />
-        </div>
+      <div className="flex min-h-5 items-start pt-1">
+        <span className="reasoning-text-shine text-sm leading-5">
+          {t("reasoning.thinking")}
+        </span>
       </div>
     </div>
   );
