@@ -3,7 +3,7 @@ import { convertCreditsToCents } from "@sokosumi/database/helpers";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  getCreditBuffer,
+  getCreditSummary,
   getCurrentOrganizationSubscriptionCreditsMap,
   getCurrentSubscriptionCredits,
   mapSubscription,
@@ -88,10 +88,10 @@ describe("mapSubscription", () => {
   });
 });
 
-describe("getCreditBuffer", () => {
-  it("subtracts subscription remaining credits from total available credits", () => {
+describe("getCreditSummary", () => {
+  it("returns buffer and total when subscription credits are present", () => {
     expect(
-      getCreditBuffer({
+      getCreditSummary({
         totalCredits: 30,
         subscriptionCredits: {
           total: 20,
@@ -99,21 +99,27 @@ describe("getCreditBuffer", () => {
           remaining: 12,
         },
       }),
-    ).toBe(18);
+    ).toEqual({
+      buffer: 18,
+      total: 30,
+    });
   });
 
-  it("returns full balance when no subscription credits are present", () => {
+  it("returns full total in buffer when no subscription credits are present", () => {
     expect(
-      getCreditBuffer({
+      getCreditSummary({
         totalCredits: 11,
         subscriptionCredits: null,
       }),
-    ).toBe(11);
+    ).toEqual({
+      buffer: 11,
+      total: 11,
+    });
   });
 
   it("clamps buffer at zero when subscription remaining exceeds total", () => {
     expect(
-      getCreditBuffer({
+      getCreditSummary({
         totalCredits: 5,
         subscriptionCredits: {
           total: 50,
@@ -121,7 +127,10 @@ describe("getCreditBuffer", () => {
           remaining: 8,
         },
       }),
-    ).toBe(0);
+    ).toEqual({
+      buffer: 0,
+      total: 8,
+    });
   });
 });
 

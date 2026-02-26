@@ -4,7 +4,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import {
-  getCreditBuffer,
+  getCreditSummary,
   getCurrentSubscriptionCredits,
   mapSubscription,
 } from "@/helpers/subscription";
@@ -102,14 +102,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
           : null,
       );
-      const buffer = getCreditBuffer({
+      const { buffer, total } = getCreditSummary({
         totalCredits,
         subscriptionCredits,
       });
-      const remaining = Number.isFinite(subscriptionCredits?.remaining)
-        ? Math.max(subscriptionCredits?.remaining ?? 0, 0)
-        : 0;
-      const total = buffer + remaining;
 
       return {
         subscription,

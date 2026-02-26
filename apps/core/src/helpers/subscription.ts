@@ -12,6 +12,11 @@ interface SubscriptionCredits {
   used: number;
 }
 
+interface CreditSummary {
+  buffer: number;
+  total: number;
+}
+
 interface SubscriptionRecord extends SubscriptionPeriodRecord {
   plan: string;
   status: string;
@@ -140,10 +145,10 @@ export async function getCurrentSubscriptionCredits(params: {
   };
 }
 
-export function getCreditBuffer(params: {
+export function getCreditSummary(params: {
   totalCredits: number;
   subscriptionCredits: Pick<SubscriptionCredits, "remaining"> | null;
-}): number {
+}): CreditSummary {
   const totalCredits = Number.isFinite(params.totalCredits)
     ? Math.max(params.totalCredits, 0)
     : 0;
@@ -153,8 +158,13 @@ export function getCreditBuffer(params: {
     ? Math.max(params.subscriptionCredits?.remaining ?? 0, 0)
     : 0;
   const buffer = totalCredits - subscriptionRemaining;
+  const normalizedBuffer = buffer > 0 ? buffer : 0;
+  const total = normalizedBuffer + subscriptionRemaining;
 
-  return buffer > 0 ? buffer : 0;
+  return {
+    buffer: normalizedBuffer,
+    total,
+  };
 }
 
 export async function getCurrentOrganizationSubscriptionCreditsMap(params: {
