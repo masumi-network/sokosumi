@@ -10,6 +10,7 @@ import {
   slugify,
   slugToBucketKey,
 } from "@/app/chat/utils/bucket-slug";
+import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 
@@ -40,6 +41,7 @@ export default function ChatBucketLayout({
 }) {
   const params = useParams<{ bucketSlug: string }>();
   const bucketSlug = params?.bucketSlug;
+  const { showSecondarySidebar: showFromContext } = useChatSecondarySidebar();
   const { conversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
 

@@ -10,13 +10,13 @@ export function useStreamingContent(
   isStreaming: boolean,
 ): string {
   const [revealedLength, setRevealedLength] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
   const contentLengthRef = useRef(content.length);
   const lastTimeRef = useRef<number | null>(null);
   const pendingCharsRef = useRef(0);
   const isStreamingRef = useRef(isStreaming);
   const revealedLengthRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
-  const hasAnimatedRef = useRef(false);
 
   useEffect(() => {
     contentLengthRef.current = content.length;
@@ -24,9 +24,14 @@ export function useStreamingContent(
     revealedLengthRef.current = revealedLength;
   }, [content.length, isStreaming, revealedLength]);
 
-  if (content.length < revealedLength && !hasAnimatedRef.current) {
-    setRevealedLength(content.length);
-  }
+  useEffect(() => {
+    if (content.length < revealedLength) {
+      queueMicrotask(() => {
+        setRevealedLength(content.length);
+        setHasAnimated(false);
+      });
+    }
+  }, [content.length, revealedLength]);
 
   useEffect(() => {
     const hasMoreToReveal =
@@ -37,9 +42,12 @@ export function useStreamingContent(
       rafIdRef.current === null;
     if (!shouldRun) return;
 
-    hasAnimatedRef.current = true;
-
+    let didSetAnimated = false;
     function loop(now: number) {
+      if (!didSetAnimated) {
+        didSetAnimated = true;
+        setHasAnimated(true);
+      }
       const targetLength = contentLengthRef.current;
       if (revealedLengthRef.current >= targetLength) {
         rafIdRef.current = null;
@@ -95,7 +103,7 @@ export function useStreamingContent(
     !isStreaming &&
     revealedLength === 0 &&
     content.length > 0 &&
-    !hasAnimatedRef.current
+    !hasAnimated
   ) {
     return content;
   }
