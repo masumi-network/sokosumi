@@ -1,2 +1,0 @@
--- No schema changes.
--- Data migration in ./data-migration.ts performs legacy organization subscription wallet split.

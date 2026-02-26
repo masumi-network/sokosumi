@@ -1,14 +1,14 @@
 import "dotenv/config";
 
-import { createPrismaClient } from "../../../src/client.js";
+import { createPrismaClient } from "../../src/client.js";
 import {
   CreditBucketReferenceType,
   Prisma,
-} from "../../../src/generated/prisma/client.js";
+} from "../../src/generated/prisma/client.js";
 import {
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   splitAmountEvenlyWithRemainderRotation,
-} from "../../../src/helpers/credit.js";
+} from "../../src/helpers/credit.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
