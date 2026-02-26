@@ -71,9 +71,8 @@ export function buildOrganizationMemberSubscriptionReferenceId(
   userId: string,
   referenceSuffix: string,
 ): string {
-  if (!referenceSuffix) {
-    throw new Error("referenceSuffix is required");
-  }
+  validateReferenceSegment(userId, "userId");
+  validateReferenceSegment(referenceSuffix, "referenceSuffix");
 
   return `${getOrganizationMemberSubscriptionReferencePrefix(userId)}${referenceSuffix}`;
 }
