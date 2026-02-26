@@ -10,7 +10,7 @@ export function maintenanceMiddleware(): MiddlewareHandler<{
     if (getEnv().MAINTENANCE_MODE) {
       return c.json(
         {
-          error: "Service Unavailable",
+          error: "ServiceUnavailable",
           message: "Service is under maintenance",
           meta: {
             timestamp: new Date().toISOString(),

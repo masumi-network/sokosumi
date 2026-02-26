@@ -54,7 +54,7 @@ describe("maintenanceMiddleware", () => {
     };
 
     expect(response.status).toBe(503);
-    expect(body.error).toBe("Service Unavailable");
+    expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Service is under maintenance");
     expect(body.meta.requestId).toBe("req_123");
     expect(body.meta.path).toBe("/");
