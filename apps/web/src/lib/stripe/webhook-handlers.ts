@@ -290,6 +290,27 @@ async function calculateSubscriptionCreditTotals(params: {
     );
   }
 
+  function capSeatsToActiveMembers(
+    billedSeats: number,
+    productId: string,
+  ): number {
+    if (params.maxSeatGrantQuantity === null) {
+      return billedSeats;
+    }
+
+    const grantedSeats = Math.min(billedSeats, params.maxSeatGrantQuantity);
+    if (billedSeats > grantedSeats) {
+      logSeatCreditCapApplied({
+        activeMembers: params.maxSeatGrantQuantity,
+        billedSeats,
+        grantedSeats,
+        productId,
+      });
+    }
+
+    return grantedSeats;
+  }
+
   for (const { lineItem, productId } of params.subscriptionLines) {
     const catalogPlan = catalogByProductId.get(productId);
     if (!catalogPlan) {
@@ -307,18 +328,7 @@ async function calculateSubscriptionCreditTotals(params: {
           continue;
         }
 
-        if (params.maxSeatGrantQuantity !== null) {
-          const billedQuantity = quantity;
-          quantity = Math.min(quantity, params.maxSeatGrantQuantity);
-          if (billedQuantity > quantity) {
-            logSeatCreditCapApplied({
-              activeMembers: params.maxSeatGrantQuantity,
-              billedSeats: billedQuantity,
-              grantedSeats: quantity,
-              productId,
-            });
-          }
-        }
+        quantity = capSeatsToActiveMembers(quantity, productId);
         if (quantity <= 0) {
           continue;
         }
@@ -334,31 +344,19 @@ async function calculateSubscriptionCreditTotals(params: {
           productId,
         });
 
-        if (params.maxSeatGrantQuantity !== null) {
-          const billedQuantity = lineItem.quantity ?? 0;
-          if (billedQuantity > 0) {
-            const grantedQuantity = Math.min(
-              billedQuantity,
-              params.maxSeatGrantQuantity,
-            );
-
-            if (billedQuantity > grantedQuantity) {
-              logSeatCreditCapApplied({
-                activeMembers: params.maxSeatGrantQuantity,
-                billedSeats: billedQuantity,
-                grantedSeats: grantedQuantity,
-                productId,
-              });
-            }
-
-            if (grantedQuantity <= 0) {
-              continue;
-            }
-
-            proratedCredits = Math.trunc(
-              (proratedCredits * grantedQuantity) / billedQuantity,
-            );
+        const billedQuantity = lineItem.quantity ?? 0;
+        if (billedQuantity > 0) {
+          const grantedQuantity = capSeatsToActiveMembers(
+            billedQuantity,
+            productId,
+          );
+          if (grantedQuantity <= 0) {
+            continue;
           }
+
+          proratedCredits = Math.trunc(
+            (proratedCredits * grantedQuantity) / billedQuantity,
+          );
         }
 
         paidOrCycleSubscriptionCredits += proratedCredits;
@@ -369,18 +367,7 @@ async function calculateSubscriptionCreditTotals(params: {
         quantity = await params.resolveDefaultQuantity();
       }
 
-      if (params.maxSeatGrantQuantity !== null) {
-        const billedQuantity = quantity;
-        quantity = Math.min(quantity, params.maxSeatGrantQuantity);
-        if (billedQuantity > quantity) {
-          logSeatCreditCapApplied({
-            activeMembers: params.maxSeatGrantQuantity,
-            billedSeats: billedQuantity,
-            grantedSeats: quantity,
-            productId,
-          });
-        }
-      }
+      quantity = capSeatsToActiveMembers(quantity, productId);
 
       if (quantity <= 0) {
         continue;
