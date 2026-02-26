@@ -1,10 +1,10 @@
 import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
-  input: "https://api.sokosumi.com/v1/openapi.json",
+  input: "http://localhost:8787/v1/openapi.json",
   output: "./src/lib/clients/generated/core",
   name: "SokosumiCoreClient",
-  baseUrl: "https://api.sokosumi.com/v1",
+  baseUrl: "http://localhost:8787/v1",
   plugins: [
     ...defaultPlugins,
     "@hey-api/client-next",
