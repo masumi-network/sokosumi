@@ -13,8 +13,6 @@ describe("userSchema", () => {
       emailVerified: true,
       image: "https://example.com/image.png",
       role: "admin",
-      credits: 100.0,
-      subscription: null,
     });
 
     expect(result.role).toBe("admin");
@@ -38,10 +36,12 @@ describe("creditsResponseSchema", () => {
           },
         },
         buffer: 12.5,
+        total: 70,
       },
     });
 
     expect(result.credits.buffer).toBe(12.5);
+    expect(result.credits.total).toBe(70);
     expect(result.credits.subscription?.credits).toEqual({
       total: 100,
       remaining: 57.5,
@@ -54,11 +54,13 @@ describe("creditsResponseSchema", () => {
       credits: {
         subscription: null,
         buffer: 20,
+        total: 20,
       },
     });
 
     expect(result.credits.subscription).toBeNull();
     expect(result.credits.buffer).toBe(20);
+    expect(result.credits.total).toBe(20);
   });
 
   it("rejects legacy numeric credits shape", () => {

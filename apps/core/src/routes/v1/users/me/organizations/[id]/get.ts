@@ -3,11 +3,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import {
-  getCurrentSubscriptionCredits,
-  mapSubscription,
-} from "@/helpers/subscription";
-import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -40,19 +35,6 @@ const route = createRoute({
           slug: "my-org",
           createdAt: "2025-01-01T00:00:00.000Z",
           role: "member",
-          credits: 100.0,
-          subscription: {
-            plan: "starter",
-            status: "active",
-            periodStart: "2025-01-01T00:00:00.000Z",
-            periodEnd: "2025-02-01T00:00:00.000Z",
-            cancelAtPeriodEnd: false,
-            credits: {
-              total: 100,
-              remaining: 57.5,
-              used: 42.5,
-            },
-          },
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -81,31 +63,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       });
 
-      // Get organization credits
-      const credits = await getCredits(authContext.userId, organization.id, tx);
-      const subscription = await tx.subscription.findFirst({
-        where: { referenceId: organization.id },
-        orderBy: { updatedAt: "desc" },
-      });
-      const subscriptionCredits = await getCurrentSubscriptionCredits({
-        subscription,
-        userId: authContext.userId,
-        organizationId: organization.id,
-        tx,
-      });
-
       return {
         ...organization,
         role,
-        credits,
-        subscription: mapSubscription(
-          subscription
-            ? {
-                ...subscription,
-                credits: subscriptionCredits,
-              }
-            : null,
-        ),
       };
     });
 

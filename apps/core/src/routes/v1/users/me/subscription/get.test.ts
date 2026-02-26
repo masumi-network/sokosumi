@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import usersMeRouter from "../index";
 
 describe("users/me subscription routes OpenAPI contract", () => {
-  it("exposes subscription routes with expected responses", () => {
+  it("does not expose subscription routes", () => {
     const doc = usersMeRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -17,17 +17,7 @@ describe("users/me subscription routes OpenAPI contract", () => {
     const organizationSubscriptionResponses =
       doc.paths?.["/organizations/{id}/subscription"]?.get?.responses;
 
-    expect(meSubscriptionResponses).toBeDefined();
-    expect(meSubscriptionResponses).toHaveProperty("200");
-    expect(meSubscriptionResponses).toHaveProperty("401");
-    expect(meSubscriptionResponses).toHaveProperty("403");
-    expect(meSubscriptionResponses).toHaveProperty("500");
-
-    expect(organizationSubscriptionResponses).toBeDefined();
-    expect(organizationSubscriptionResponses).toHaveProperty("200");
-    expect(organizationSubscriptionResponses).toHaveProperty("401");
-    expect(organizationSubscriptionResponses).toHaveProperty("403");
-    expect(organizationSubscriptionResponses).toHaveProperty("404");
-    expect(organizationSubscriptionResponses).toHaveProperty("500");
+    expect(meSubscriptionResponses).toBeUndefined();
+    expect(organizationSubscriptionResponses).toBeUndefined();
   });
 });

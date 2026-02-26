@@ -50,6 +50,7 @@ const route = createRoute({
               },
             },
             buffer: 12.5,
+            total: 70,
           },
         },
         meta: {
@@ -105,10 +106,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         totalCredits,
         subscriptionCredits,
       });
+      const remaining = Number.isFinite(subscriptionCredits?.remaining)
+        ? Math.max(subscriptionCredits?.remaining ?? 0, 0)
+        : 0;
+      const total = buffer + remaining;
 
       return {
         subscription,
         buffer,
+        total,
       };
     });
 

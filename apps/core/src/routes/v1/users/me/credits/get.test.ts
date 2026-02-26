@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import usersMeRouter from "../index";
 
 describe("users/me credits routes OpenAPI contract", () => {
-  it("exposes credits routes with nested subscription and buffer payload", () => {
+  it("exposes credits routes with nested subscription, buffer, and total payload", () => {
     const doc = usersMeRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -35,8 +35,10 @@ describe("users/me credits routes OpenAPI contract", () => {
     );
 
     expect(meCreditsContract).toContain("buffer");
+    expect(meCreditsContract).toContain("total");
     expect(meCreditsContract).toContain("subscription");
     expect(organizationCreditsContract).toContain("buffer");
+    expect(organizationCreditsContract).toContain("total");
     expect(organizationCreditsContract).toContain("subscription");
   });
 });
