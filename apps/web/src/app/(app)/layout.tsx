@@ -1,7 +1,6 @@
 import { NoticeKind } from "@sokosumi/database";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { EmergencyDialog } from "@/components/emergency-dialog";
@@ -40,15 +39,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStorePromise = cookies();
   const session = await getSessionOrRedirect();
 
-  const [cookieStore, pendingInvitationId] = await Promise.all([
-    cookieStorePromise,
-    userService.getFirstPendingInvitationId(),
-  ]);
+  const cookieStore = await cookieStorePromise;
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-
-  if (pendingInvitationId) {
-    return redirect(`/accept-invitation/${pendingInvitationId}`);
-  }
 
   const [shouldShowOnboarding, pendingNoticesResult] = await Promise.all([
     userService.showOnboarding(session),
