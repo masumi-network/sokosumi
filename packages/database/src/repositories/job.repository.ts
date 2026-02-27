@@ -1,3 +1,5 @@
+import { hashInputSchema } from "@sokosumi/masumi/hash";
+
 import {
   AgentJobStatus,
   CreditBucketReferenceType,
@@ -63,6 +65,23 @@ interface CreateFreeJobData extends CreateJobBase {
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;
+
+function buildInputSchemaSnapshot(inputSchema: unknown[]): {
+  inputSchema: string;
+  inputSchemaHash: string;
+} {
+  const serializedInputSchema = JSON.stringify(inputSchema);
+  const inputSchemaHash = hashInputSchema(serializedInputSchema);
+
+  if (!inputSchemaHash) {
+    throw new Error("Failed to hash input schema");
+  }
+
+  return {
+    inputSchema: serializedInputSchema,
+    inputSchemaHash,
+  };
+}
 
 /**
  * Repository for managing Job entities and related queries.
@@ -199,6 +218,8 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
+    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+
     const job = await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
@@ -224,7 +245,8 @@ export const jobRepository = {
           create: {
             status: AgentJobStatus.INITIATED,
             result: null,
-            inputSchema: JSON.stringify(data.inputSchema),
+            inputSchema: inputSchemaSnapshot.inputSchema,
+            inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
             input: {
               create: {
                 input: data.input,
@@ -262,6 +284,8 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
+    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
       jobType: data.jobType,
@@ -286,7 +310,8 @@ export const jobRepository = {
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: JSON.stringify(data.inputSchema),
+          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
           input: {
             create: {
               input: data.input,

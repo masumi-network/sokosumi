@@ -1,4 +1,9 @@
-export { hashInput, hashInputDeprecated, hashResult } from "./hash.js";
+export {
+  hashInput,
+  hashInputDeprecated,
+  hashInputSchema,
+  hashResult,
+} from "./hash.js";
 export {
   type InputVerificationOptions,
   isInputHashVerified,

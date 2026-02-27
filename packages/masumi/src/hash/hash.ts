@@ -54,6 +54,30 @@ export const hashInput = (input: string, identifierFromPurchaser: string) => {
 };
 
 /**
+ * Calculates a hash for an input schema.
+ *
+ * @param inputSchema - The input schema as a JSON string
+ * @returns SHA-256 hash of canonicalized input schema, or null if parsing fails
+ */
+export const hashInputSchema = (
+  inputSchema: string | null | undefined,
+): string | null => {
+  if (!inputSchema) {
+    return null;
+  }
+
+  try {
+    const object = JSON.parse(inputSchema);
+    const inputSchemaString = canonicalizeEx(object, {
+      filterUndefined: true,
+    });
+    return createHash(inputSchemaString);
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Calculates a hash for job result combined with a purchaser identifier.
  *
  * @param result - The job result as a string

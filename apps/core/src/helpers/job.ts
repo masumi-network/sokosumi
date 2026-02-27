@@ -20,6 +20,7 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
+import { hashInputSchema } from "@sokosumi/masumi/hash";
 import type {
   InputFieldSchemaType,
   InputSchemaSchemaType,
@@ -70,6 +71,23 @@ async function validateCreditBalance(
   }
 }
 
+function buildInputSchemaSnapshot(inputSchema: InputFieldSchemaType[]): {
+  inputSchema: string;
+  inputSchemaHash: string;
+} {
+  const serializedInputSchema = JSON.stringify(inputSchema);
+  const inputSchemaHash = hashInputSchema(serializedInputSchema);
+
+  if (!inputSchemaHash) {
+    throw unprocessableEntity("Invalid input schema");
+  }
+
+  return {
+    inputSchema: serializedInputSchema,
+    inputSchemaHash,
+  };
+}
+
 /**
  * Creates a paid job (payment records and credit consumption FIFO).
  * Requires a transaction client so the caller controls the transaction boundary.
@@ -90,6 +108,7 @@ async function createPaidJob(
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+  const inputSchemaSnapshot = buildInputSchemaSnapshot(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
     input.organizationId,
@@ -116,7 +135,8 @@ async function createPaidJob(
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: JSON.stringify(input.inputSchema),
+          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
@@ -179,6 +199,7 @@ async function createFreeJob(
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+  const inputSchemaSnapshot = buildInputSchemaSnapshot(input.inputSchema);
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -198,7 +219,8 @@ async function createFreeJob(
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: JSON.stringify(input.inputSchema),
+          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
