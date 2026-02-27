@@ -104,6 +104,7 @@ jest.mock("@/lib/stripe/subscription-catalog", () => ({
 }));
 
 const DEFAULT_PERIOD_END_UNIX = 1_735_689_600;
+const DEFAULT_INVOICE_CREATED_UNIX = 1_735_689_600;
 const DEFAULT_PERIOD_DURATION_SECONDS = 2_592_000;
 const SUBSCRIPTION_CATALOG = {
   free: { credits: 250, monthlyAmount: 0, productId: "prod_free" },
@@ -201,7 +202,7 @@ function createInvoice(params: {
   return {
     amount_paid: params.amountPaid ?? 1000,
     billing_reason: params.billingReason,
-    created: params.created ?? 1_735_689_600,
+    created: params.created ?? DEFAULT_INVOICE_CREATED_UNIX,
     customer: "cus_1",
     id: params.id,
     metadata: params.metadata ?? {},
@@ -987,7 +988,7 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
       getCreditExpiryDate(
-        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
         PAID_TOPUP_CREDITS_EXPIRY_DAYS,
       ),
     );
@@ -1030,7 +1031,7 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
       getCreditExpiryDate(
-        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
         PAID_TOPUP_CREDITS_EXPIRY_DAYS,
       ),
     );
@@ -1070,7 +1071,7 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
       getCreditExpiryDate(
-        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
         FREE_CREDITS_EXPIRY_DAYS,
       ),
     );
@@ -1175,7 +1176,7 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
       getCreditExpiryDate(
-        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
         PAID_TOPUP_CREDITS_EXPIRY_DAYS,
       ),
     );
