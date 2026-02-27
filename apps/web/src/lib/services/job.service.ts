@@ -1324,7 +1324,8 @@ export const jobService = (() => {
       },
     });
 
-    if (!jobEvent.inputSchema) {
+    const inputSchema = jobEvent.inputSchema;
+    if (!inputSchema) {
       throw new JobError(
         JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
         "Agent did not provide an input schema",
@@ -1336,7 +1337,7 @@ export const jobService = (() => {
       job.agent,
       statusId,
       job.agentJobId,
-      jobEvent.inputSchema,
+      inputSchema,
       inputData,
     );
 
