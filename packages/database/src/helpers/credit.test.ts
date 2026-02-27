@@ -4,6 +4,10 @@ import { describe, it } from "node:test";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildUserInvoiceCreditReferenceId,
+  FREE_CREDITS_EXPIRY_DAYS,
+  getCreditExpiryDate,
+  PAID_TOPUP_CREDITS_EXPIRY_DAYS,
+  REFUND_CREDITS_EXPIRY_DAYS,
   splitAmountEvenlyWithRemainderRotation,
 } from "./credit.js";
 
@@ -113,5 +117,24 @@ describe("invoice credit reference builders", () => {
       () => buildOrganizationInvoiceCreditReferenceId("org-1", "", "topup"),
       /invoiceId is required/,
     );
+  });
+});
+
+describe("credit expiration policy", () => {
+  it("defines expected expiration day constants", () => {
+    assert.equal(PAID_TOPUP_CREDITS_EXPIRY_DAYS, 180);
+    assert.equal(FREE_CREDITS_EXPIRY_DAYS, 30);
+    assert.equal(REFUND_CREDITS_EXPIRY_DAYS, 180);
+  });
+
+  it("calculates expiration date from a base date and day count", () => {
+    const baseDate = new Date("2026-02-27T00:00:00.000Z");
+    const expiryDate = getCreditExpiryDate(baseDate, 30);
+    assert.equal(expiryDate.toISOString(), "2026-03-29T00:00:00.000Z");
+  });
+
+  it("throws for invalid day values", () => {
+    assert.throws(() => getCreditExpiryDate(new Date(), -1), /Expiry days/);
+    assert.throws(() => getCreditExpiryDate(new Date(), 1.5), /Expiry days/);
   });
 });

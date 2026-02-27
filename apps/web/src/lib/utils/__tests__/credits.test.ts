@@ -7,7 +7,9 @@ function createCoupon(params: {
   percentOff: number | null;
 }): never {
   return {
-    metadata: params.credits ? { credits: params.credits } : {},
+    metadata: {
+      ...(params.credits ? { credits: params.credits } : {}),
+    },
     percent_off: params.percentOff,
   } as never;
 }

@@ -14,7 +14,10 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
   escapeStringForLike,
+  FREE_CREDITS_EXPIRY_DAYS,
+  getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+  PAID_TOPUP_CREDITS_EXPIRY_DAYS,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
@@ -65,7 +68,9 @@ interface AppliedSubscriptionCredits {
 }
 
 interface BuildInvoiceCreditGrantsParams {
+  oneTimeTopUpExpiresAt: Date | null;
   oneTimeTopUpCredits: number;
+  oneTimeTopUpReferenceType: CreditBucketReferenceType;
   organizationId: string | null;
   organizationMemberUserIds: string[];
   skipOrganizationSubscriptionSplit: boolean;
@@ -144,6 +149,72 @@ function getTopUpCreditsFromInvoiceMetadata(
   }
 
   return credits;
+}
+
+function getTopUpExpiryDaysFromInvoiceMetadata(
+  invoice: Stripe.Invoice,
+): number | null | undefined {
+  const ttlDaysRaw = invoice.metadata?.ttl_days;
+  if (ttlDaysRaw === undefined) {
+    return undefined;
+  }
+
+  const normalizedTtlDays = ttlDaysRaw.trim();
+  if (!normalizedTtlDays) {
+    return undefined;
+  }
+
+  const ttlDays = Number(normalizedTtlDays);
+  if (!Number.isInteger(ttlDays)) {
+    return undefined;
+  }
+
+  if (ttlDays === 0) {
+    return null;
+  }
+
+  if (ttlDays < 0) {
+    return undefined;
+  }
+
+  return ttlDays;
+}
+
+function resolveInvoiceCreatedAt(invoice: Stripe.Invoice): Date {
+  if (typeof invoice.created === "number" && Number.isFinite(invoice.created)) {
+    return new Date(invoice.created * 1000);
+  }
+
+  return new Date();
+}
+
+function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
+  expiresAt: Date | null;
+  referenceType: CreditBucketReferenceType;
+} {
+  const invoiceCreatedAt = resolveInvoiceCreatedAt(invoice);
+
+  if (invoice.amount_paid > 0) {
+    return {
+      expiresAt: getCreditExpiryDate(
+        invoiceCreatedAt,
+        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
+      ),
+      referenceType: CreditBucketReferenceType.STRIPE_TOPUP,
+    };
+  }
+
+  const freeTopUpExpiryDays = getTopUpExpiryDaysFromInvoiceMetadata(invoice);
+  return {
+    expiresAt:
+      freeTopUpExpiryDays === null
+        ? null
+        : getCreditExpiryDate(
+            invoiceCreatedAt,
+            freeTopUpExpiryDays ?? FREE_CREDITS_EXPIRY_DAYS,
+          ),
+    referenceType: CreditBucketReferenceType.STRIPE_FREE,
+  };
 }
 
 function getSubscriptionCreditExpiry(params: {
@@ -480,9 +551,9 @@ function buildInvoiceCreditGrants(
 
     creditGrants.push({
       credits: params.oneTimeTopUpCredits,
-      expiresAt: null,
+      expiresAt: params.oneTimeTopUpExpiresAt,
       referenceId: topUpReferenceId,
-      referenceType: "STRIPE_TOPUP",
+      referenceType: params.oneTimeTopUpReferenceType,
       userId: params.userId,
     });
   }
@@ -654,6 +725,7 @@ export async function handleInvoicePaidEvent(
   const metadataTopUpCredits = getTopUpCreditsFromInvoiceMetadata(invoice);
   const oneTimeTopUpCreditsFromMetadata = metadataTopUpCredits;
   let oneTimeTopUpCredits = oneTimeTopUpCreditsFromMetadata ?? 0;
+  const oneTimeTopUpGrantPolicy = resolveTopUpGrantPolicy(invoice);
   const subscriptionLines: SubscriptionLine[] = [];
 
   for (const lineItem of lineItems) {
@@ -747,7 +819,9 @@ export async function handleInvoicePaidEvent(
 
   const creditGrants = buildInvoiceCreditGrants({
     invoiceId,
+    oneTimeTopUpExpiresAt: oneTimeTopUpGrantPolicy.expiresAt,
     oneTimeTopUpCredits,
+    oneTimeTopUpReferenceType: oneTimeTopUpGrantPolicy.referenceType,
     organizationId,
     organizationMemberUserIds,
     skipOrganizationSubscriptionSplit,
