@@ -231,9 +231,6 @@ export const auth = betterAuth({
         MessageStream: "authentications",
       });
     },
-    afterEmailVerification: async (user, request) => {
-      console.log("afterEmailVerification", user, request);
-    },
     sendOnSignUp: false,
     sendOnSignIn: false,
     expiresIn: getEnvSecrets().BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN,
