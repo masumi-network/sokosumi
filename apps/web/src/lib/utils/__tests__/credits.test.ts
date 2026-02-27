@@ -70,16 +70,16 @@ describe("getCouponTtlDays", () => {
     expect(getCouponTtlDays(coupon)).toBe("0");
   });
 
-  it("returns null for string null ttl_days", () => {
+  it("returns raw string for string null ttl_days", () => {
     const coupon = createCoupon({
       credits: "500",
       ttlDays: "null",
       percentOff: 100,
     });
-    expect(getCouponTtlDays(coupon)).toBeNull();
+    expect(getCouponTtlDays(coupon)).toBe("null");
   });
 
-  it("returns null for invalid ttl_days values", () => {
+  it("returns raw string for non-integer ttl_days values", () => {
     const negative = createCoupon({
       credits: "500",
       ttlDays: "-1",
@@ -95,8 +95,8 @@ describe("getCouponTtlDays", () => {
       ttlDays: "abc",
       percentOff: 100,
     });
-    expect(getCouponTtlDays(negative)).toBeNull();
-    expect(getCouponTtlDays(decimal)).toBeNull();
-    expect(getCouponTtlDays(nonNumeric)).toBeNull();
+    expect(getCouponTtlDays(negative)).toBe("-1");
+    expect(getCouponTtlDays(decimal)).toBe("1.5");
+    expect(getCouponTtlDays(nonNumeric)).toBe("abc");
   });
 });

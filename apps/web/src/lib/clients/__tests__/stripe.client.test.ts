@@ -488,7 +488,7 @@ describe("stripe.client lookup-key pricing", () => {
     );
   });
 
-  it("does not propagate invalid coupon ttl_days metadata onto invoice metadata", async () => {
+  it("propagates raw coupon ttl_days metadata onto invoice metadata", async () => {
     productsRetrieveMock.mockResolvedValue({
       default_price: createMockStripePrice({
         currency: "eur",
@@ -513,8 +513,10 @@ describe("stripe.client lookup-key pricing", () => {
 
     expect(invoicesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: expect.not.objectContaining({
-          ttl_days: expect.any(String),
+        metadata: expect.objectContaining({
+          coupon_id: "coupon_1",
+          price_id: "price_credits",
+          ttl_days: "null",
         }),
       }),
     );
