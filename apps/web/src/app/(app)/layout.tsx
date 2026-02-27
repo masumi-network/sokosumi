@@ -14,6 +14,7 @@ import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
+import EmailVerificationNotice from "./components/email-verification-notice";
 import Header from "./components/header";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { OnboardingDialog } from "./components/onboarding-dialog";
@@ -85,6 +86,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               data-app-main
             >
               <EmergencyDialog />
+              <EmailVerificationNotice
+                email={session.user.email}
+                emailVerified={session.user.emailVerified}
+              />
               <div
                 className="flex h-full flex-1 flex-col overflow-visible"
                 data-app-main-inner
