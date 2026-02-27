@@ -3,6 +3,7 @@ import "dotenv/config";
 import { hashInputSchema } from "@sokosumi/masumi/hash";
 
 import { createPrismaClient } from "../../../src/client.js";
+import { Prisma } from "../../../src/generated/prisma/client.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -12,7 +13,12 @@ if (!DATABASE_URL) {
 
 const prisma = createPrismaClient(DATABASE_URL);
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 1000;
+
+interface HashUpdate {
+  id: string;
+  inputSchemaHash: string;
+}
 
 interface BackfillSummary {
   scanned: number;
@@ -28,9 +34,111 @@ function createSummary(): BackfillSummary {
   };
 }
 
+function buildHashUpdates(
+  rows: Array<{
+    id: string;
+    inputSchema: string | null;
+  }>,
+): {
+  updates: HashUpdate[];
+  skippedInvalid: number;
+} {
+  const updates: HashUpdate[] = [];
+  let skippedInvalid = 0;
+
+  for (const row of rows) {
+    const inputSchemaHash = hashInputSchema(row.inputSchema);
+    if (!inputSchemaHash) {
+      skippedInvalid += 1;
+      continue;
+    }
+
+    updates.push({
+      id: row.id,
+      inputSchemaHash,
+    });
+  }
+
+  return {
+    updates,
+    skippedInvalid,
+  };
+}
+
+async function updateJobEventBatch(updates: HashUpdate[]): Promise<number> {
+  if (updates.length === 0) {
+    return 0;
+  }
+
+  return prisma.$executeRaw`
+    UPDATE "jobEvent" AS target
+    SET "inputSchemaHash" = payload."inputSchemaHash"
+    FROM (
+      VALUES ${Prisma.join(
+        updates.map((update) => Prisma.sql`(${update.id}, ${update.inputSchemaHash})`),
+      )}
+    ) AS payload("id", "inputSchemaHash")
+    WHERE target."id" = payload."id"
+      AND target."inputSchemaHash" IS NULL
+  `;
+}
+
+async function updateJobScheduleBatch(updates: HashUpdate[]): Promise<number> {
+  if (updates.length === 0) {
+    return 0;
+  }
+
+  return prisma.$executeRaw`
+    UPDATE "jobSchedule" AS target
+    SET "inputSchemaHash" = payload."inputSchemaHash"
+    FROM (
+      VALUES ${Prisma.join(
+        updates.map((update) => Prisma.sql`(${update.id}, ${update.inputSchemaHash})`),
+      )}
+    ) AS payload("id", "inputSchemaHash")
+    WHERE target."id" = payload."id"
+      AND target."inputSchemaHash" IS NULL
+  `;
+}
+
+async function ensureHashColumnsExist() {
+  const rows = await prisma.$queryRaw<
+    Array<{
+      tableName: string;
+      columnName: string;
+    }>
+  >`
+    SELECT
+      "table_name" as "tableName",
+      "column_name" as "columnName"
+    FROM information_schema.columns
+    WHERE (
+      "table_name" = 'jobEvent'
+      OR "table_name" = 'jobSchedule'
+    )
+    AND "column_name" = 'inputSchemaHash'
+  `;
+
+  const found = new Set(
+    rows.map((row) => `${row.tableName}.${row.columnName}`),
+  );
+
+  const missingTargets = [
+    "jobEvent.inputSchemaHash",
+    "jobSchedule.inputSchemaHash",
+  ].filter((target) => !found.has(target));
+
+  if (missingTargets.length > 0) {
+    throw new Error(
+      `Missing columns: ${missingTargets.join(", ")}. Run prisma migration first.`,
+    );
+  }
+}
+
 async function backfillJobEventInputSchemaHash(): Promise<BackfillSummary> {
   const summary = createSummary();
   let cursor: string | undefined;
+  let batchNumber = 0;
 
   while (true) {
     const rows = await prisma.jobEvent.findMany({
@@ -62,30 +170,17 @@ async function backfillJobEventInputSchemaHash(): Promise<BackfillSummary> {
       break;
     }
 
+    batchNumber += 1;
     summary.scanned += rows.length;
     cursor = rows[rows.length - 1]?.id;
 
-    const updates = rows.flatMap((row) => {
-      const inputSchemaHash = hashInputSchema(row.inputSchema);
-      if (!inputSchemaHash) {
-        summary.skippedInvalid += 1;
-        return [];
-      }
+    const { updates, skippedInvalid } = buildHashUpdates(rows);
+    summary.skippedInvalid += skippedInvalid;
+    summary.updated += await updateJobEventBatch(updates);
 
-      summary.updated += 1;
-      return prisma.jobEvent.update({
-        where: {
-          id: row.id,
-        },
-        data: {
-          inputSchemaHash,
-        },
-      });
-    });
-
-    if (updates.length > 0) {
-      await prisma.$transaction(updates);
-    }
+    console.log(
+      `jobEvent batch=${batchNumber} scanned=${summary.scanned} updated=${summary.updated} skippedInvalid=${summary.skippedInvalid}`,
+    );
   }
 
   return summary;
@@ -94,6 +189,7 @@ async function backfillJobEventInputSchemaHash(): Promise<BackfillSummary> {
 async function backfillJobScheduleInputSchemaHash(): Promise<BackfillSummary> {
   const summary = createSummary();
   let cursor: string | undefined;
+  let batchNumber = 0;
 
   while (true) {
     const rows = await prisma.jobSchedule.findMany({
@@ -122,36 +218,25 @@ async function backfillJobScheduleInputSchemaHash(): Promise<BackfillSummary> {
       break;
     }
 
+    batchNumber += 1;
     summary.scanned += rows.length;
     cursor = rows[rows.length - 1]?.id;
 
-    const updates = rows.flatMap((row) => {
-      const inputSchemaHash = hashInputSchema(row.inputSchema);
-      if (!inputSchemaHash) {
-        summary.skippedInvalid += 1;
-        return [];
-      }
+    const { updates, skippedInvalid } = buildHashUpdates(rows);
+    summary.skippedInvalid += skippedInvalid;
+    summary.updated += await updateJobScheduleBatch(updates);
 
-      summary.updated += 1;
-      return prisma.jobSchedule.update({
-        where: {
-          id: row.id,
-        },
-        data: {
-          inputSchemaHash,
-        },
-      });
-    });
-
-    if (updates.length > 0) {
-      await prisma.$transaction(updates);
-    }
+    console.log(
+      `jobSchedule batch=${batchNumber} scanned=${summary.scanned} updated=${summary.updated} skippedInvalid=${summary.skippedInvalid}`,
+    );
   }
 
   return summary;
 }
 
 async function main() {
+  await ensureHashColumnsExist();
+
   const eventSummary = await backfillJobEventInputSchemaHash();
   const scheduleSummary = await backfillJobScheduleInputSchemaHash();
 

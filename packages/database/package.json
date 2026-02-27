@@ -59,7 +59,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
     "test": "node --test --import tsx \"src/**/*.test.ts\"",
     "test:ci": "node --test --import tsx \"src/**/*.test.ts\"",
-    "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
+    "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json .",
+    "data-migration:add-input-schema-hash": "pnpm exec tsx prisma/migrations/20260227120027_add_input_schema_hash_to_job_event_and_schedule/data-migration.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.4.1",
