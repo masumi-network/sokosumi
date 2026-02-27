@@ -1,7 +1,6 @@
-import { err, ok, type Result } from "neverthrow";
-
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
+import { err, ok, type Result } from "neverthrow";
 
 /**
  * Creates a SHA-256 hash of the input string.
