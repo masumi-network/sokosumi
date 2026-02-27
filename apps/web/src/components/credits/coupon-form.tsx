@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Organization } from "@sokosumi/database";
+import { FREE_CREDITS_EXPIRY_DAYS } from "@sokosumi/database/helpers";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -163,11 +164,16 @@ export default function CouponForm({
               )}
             />
           </CardContent>
-          <CardFooter className="pt-6">
+          <CardFooter className="flex items-end justify-between gap-4 pt-6">
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               {organization ? t("couponButtonOrganization") : t("couponButton")}
             </Button>
+            <p className="text-muted-foreground text-right text-xs">
+              {t("expiryNotice", {
+                days: FREE_CREDITS_EXPIRY_DAYS,
+              })}
+            </p>
           </CardFooter>
         </form>
       </Form>
