@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
+import { hashInputSchema } from "@sokosumi/masumi/hash";
 
 import { requireJobAccess } from "@/helpers/access-control.js";
 import {
@@ -92,6 +93,17 @@ const route = withGlobalHeaderParameters(
   }),
 );
 
+export function resolveInputSchemaHash(
+  inputSchema: string,
+): string {
+  const computedInputSchemaHash = hashInputSchema(inputSchema);
+  if (!computedInputSchemaHash) {
+    throw unprocessableEntity("Agent provided an invalid input schema");
+  }
+
+  return computedInputSchemaHash;
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
@@ -139,13 +151,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!jobEvent.inputSchema) {
         throw unprocessableEntity("Agent did not provide an input schema");
       }
-      if (!jobEvent.inputSchemaHash) {
-        throw unprocessableEntity(
-          "Agent did not provide an input schema hash",
-        );
-      }
 
-      return jobEvent;
+      return {
+        ...jobEvent,
+        inputSchema: jobEvent.inputSchema,
+      };
     });
 
     if (!jobEvent.externalId) {
@@ -154,11 +164,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    const inputSchemaHash = resolveInputSchemaHash(jobEvent.inputSchema);
+
     const provideInputResult = await createAgentClient().provideJobInput(
       jobEvent.job.agent,
       jobEvent.externalId,
       jobEvent.job.agentJobId,
-      jobEvent.inputSchemaHash,
+      inputSchemaHash,
       inputData,
     );
 

@@ -1,5 +1,3 @@
-import { hashInputSchema } from "@sokosumi/masumi/hash";
-
 import { AgentJobStatus } from "../generated/prisma/browser.js";
 import type { JobEvent, Prisma } from "../generated/prisma/client.js";
 
@@ -30,7 +28,6 @@ export const jobEventRepository = {
         externalId: data.externalId,
         status: data.status,
         inputSchema: data.inputSchema,
-        inputSchemaHash: hashInputSchema(data.inputSchema),
         result: data.result,
         ...(data.inputId && { input: { connect: { id: data.inputId } } }),
       },

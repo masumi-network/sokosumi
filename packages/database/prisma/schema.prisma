@@ -713,7 +713,6 @@ model JobEvent {
 
   status      AgentJobStatus @default(AWAITING_PAYMENT)
   inputSchema String?
-  inputSchemaHash String?
   result      String?
 
   blobs Blob[]
@@ -914,7 +913,6 @@ model JobSchedule {
 
   // Job payload snapshot
   inputSchema      String
-  inputSchemaHash  String?
   input            String
   maxAcceptedCents BigInt
 

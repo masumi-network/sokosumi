@@ -123,7 +123,6 @@ async function createPaidJob(
           status: AgentJobStatus.INITIATED,
           result: null,
           inputSchema: inputSchemaSnapshot.inputSchema,
-          inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
@@ -211,7 +210,6 @@ async function createFreeJob(
           status: AgentJobStatus.INITIATED,
           result: null,
           inputSchema: inputSchemaSnapshot.inputSchema,
-          inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
