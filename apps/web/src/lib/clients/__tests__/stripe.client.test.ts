@@ -299,7 +299,7 @@ describe("stripe.client lookup-key pricing", () => {
       "https://app.sokosumi.com",
       "promo_1",
       "/coupon",
-      { ttl_days: "90" },
+      "90",
     );
 
     expect(checkoutSessionsCreateMock).toHaveBeenCalledWith(

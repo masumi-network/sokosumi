@@ -117,7 +117,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
       price,
       promo.id,
       returnPath ?? "/coupon",
-      couponTtlDays ? { ttl_days: couponTtlDays } : undefined,
+      couponTtlDays ?? undefined,
     );
     return Ok({ url });
   } catch (error) {

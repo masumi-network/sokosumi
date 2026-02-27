@@ -131,9 +131,7 @@ describe("credits actions", () => {
       },
       "promo_1",
       "/coupon",
-      {
-        ttl_days: "90",
-      },
+      "90",
     );
     expect(result).toEqual({
       ok: true,

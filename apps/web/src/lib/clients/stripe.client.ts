@@ -417,7 +417,7 @@ export const stripeClient = (() => {
       origin: string | null = null,
       promotionCode: string | null = null,
       returnPath: string = "/credits",
-      checkoutMetadata?: Record<string, string>,
+      ttlDays?: string,
     ): Promise<Stripe.Checkout.Session> {
       if (price.amountPerCredit === 0) {
         throw new Error(
@@ -433,6 +433,12 @@ export const stripeClient = (() => {
         "https://sokosumi.com"
       ).replace(/\/$/, "");
       const checkoutCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
+      const sessionMetadata = {
+        credits,
+        userId,
+        ...(organizationId && { organizationId }),
+        ...(ttlDays ? { ttl_days: ttlDays } : {}),
+      };
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
         line_items: [
@@ -450,21 +456,11 @@ export const stripeClient = (() => {
           address: "auto",
           name: "auto",
         },
-        metadata: {
-          credits,
-          userId,
-          ...(organizationId && { organizationId }),
-          ...(checkoutMetadata ?? {}),
-        },
+        metadata: sessionMetadata,
         invoice_creation: {
           enabled: true,
           invoice_data: {
-            metadata: {
-              credits,
-              userId,
-              ...(organizationId && { organizationId }),
-              ...(checkoutMetadata ?? {}),
-            },
+            metadata: sessionMetadata,
           },
         },
         billing_address_collection: "required",
