@@ -69,7 +69,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     if (result.ok) {
       fireGTMEvent.signUp("credential");
       toast.success(t("success"));
-      router.push("/login");
+      router.push("/chat");
     } else {
       switch (result.error.code) {
         case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:

@@ -9,9 +9,9 @@ export function resolveUserCreditsCta({
   currentPlan,
   hasLowCredits,
 }: ResolveUserCreditsCtaParams): UserCreditsCta {
-  const shouldShowUpgradePlanCta = currentPlan !== null && currentPlan !== "pro";
-  const shouldShowAddCreditsCta =
-    hasLowCredits && (currentPlan === null || currentPlan !== "free");
+  const shouldShowUpgradePlanCta =
+    currentPlan !== null && currentPlan !== "pro";
+  const shouldShowAddCreditsCta = hasLowCredits && currentPlan !== "free";
 
   if (shouldShowAddCreditsCta) {
     return "addCredits";
