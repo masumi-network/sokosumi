@@ -22,6 +22,13 @@ export const getAgentImage = (agent: Agent): string | null => {
   return ipfsUrlResolver(image);
 };
 
+export const getAgentIcon = (agent: Agent): string | null => {
+  if (!agent.icon) {
+    return null;
+  }
+  return ipfsUrlResolver(agent.icon);
+};
+
 export const getAgentName = (agent: Agent): string => {
   return agent.overrideName ?? agent.name;
 };

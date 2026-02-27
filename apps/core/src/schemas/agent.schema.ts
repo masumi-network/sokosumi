@@ -109,6 +109,10 @@ export const agentSchema = z
       .string()
       .nullable()
       .openapi({ example: "https://example.com/image.png" }),
+    icon: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/icon.svg" }),
     credits: z.number().openapi({
       example: 100,
       description: "Price in credits",
