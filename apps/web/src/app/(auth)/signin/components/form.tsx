@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -16,7 +17,10 @@ import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
-import { getValidAuthRedirectUrl } from "@/lib/utils/auth-redirect";
+import {
+  getValidAuthRedirectUrl,
+  waitForAuthSession,
+} from "@/lib/utils/auth-redirect";
 
 interface SignInFormProps {
   returnUrl?: string | undefined;
@@ -29,6 +33,7 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
+  const router = useRouter();
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -76,36 +81,17 @@ export default function SignInForm({
       return;
     }
 
-    // Wait a moment for session to be established
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    // Verify session is available before redirecting
-    const session = await authClient.getSession();
-    if (!session) {
-      Sentry.captureMessage(
-        "Session not established after login, waiting for 500ms",
-        {
-          level: "warning",
-        },
-      );
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const retrySession = await authClient.getSession();
-      if (!retrySession) {
-        Sentry.captureMessage(
-          "Session not established after login, proceeding with redirect anyway",
-          {
-            level: "warning",
-          },
-        );
-      }
-    }
+    await waitForAuthSession({
+      context: "login",
+      getSession: () => authClient.getSession(),
+      logWarning: (message) => {
+        Sentry.captureMessage(message, { level: "warning" });
+      },
+    });
 
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
-    const redirectUrl = getValidAuthRedirectUrl(returnUrl, "/");
-
-    // Use window.location.href for hard navigation to ensure cookies are properly sent
-    window.location.href = redirectUrl;
+    router.replace(getValidAuthRedirectUrl(returnUrl, "/"));
   };
 
   const email = useWatch({

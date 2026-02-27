@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,10 +13,14 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/signup/data";
 import { AuthErrorCode, signUpEmail } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import { getValidAuthRedirectUrl } from "@/lib/utils/auth-redirect";
+import {
+  getValidAuthRedirectUrl,
+  waitForAuthSession,
+} from "@/lib/utils/auth-redirect";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
@@ -28,7 +33,6 @@ export default function SignUpForm({
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const registerFormStart = useRef(false);
-
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(
@@ -71,9 +75,17 @@ export default function SignUpForm({
     });
 
     if (result.ok) {
+      await waitForAuthSession({
+        context: "signup",
+        getSession: () => authClient.getSession(),
+        logWarning: (message) => {
+          Sentry.captureMessage(message, { level: "warning" });
+        },
+      });
+
       fireGTMEvent.signUp("credential");
       toast.success(t("success"));
-      router.push(getValidAuthRedirectUrl(returnUrl, "/"));
+      router.replace(getValidAuthRedirectUrl(returnUrl, "/"));
     } else {
       switch (result.error.code) {
         case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
