@@ -1,5 +1,6 @@
 import { err, ok, type Result } from "neverthrow";
 
+import { hashInputSchema } from "../hash/index.js";
 import {
   inputSchemaResponseSchema,
   InputSchemaResponseSchemaType,
@@ -367,7 +368,7 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       statusId: string,
       jobId: string,
-      inputSchemaHash: string,
+      inputSchema: string,
       inputData: InputSchemaType,
     ): Promise<Result<ProvideInputResponseSchemaType, string>> {
       try {
@@ -375,6 +376,11 @@ export function createAgentClient(config?: AgentClientConfig) {
           agent,
           "provide_input",
         );
+
+        const inputSchemaHash = hashInputSchema(inputSchema);
+        if (!inputSchemaHash) {
+          return err("Failed to hash input schema");
+        }
 
         const requestPayload: ProvideInputRequestSchemaType = {
           job_id: jobId,

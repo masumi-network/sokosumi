@@ -1324,12 +1324,19 @@ export const jobService = (() => {
       },
     });
 
+    if (!jobEvent.inputSchema) {
+      throw new JobError(
+        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
+        "Agent did not provide an input schema",
+      );
+    }
+
     // Call agent API to provide input
     const provideInputResult = await agentClient.provideJobInput(
       job.agent,
       statusId,
       job.agentJobId,
-      jobEvent.inputSchemaHash,
+      jobEvent.inputSchema,
       inputData,
     );
 
