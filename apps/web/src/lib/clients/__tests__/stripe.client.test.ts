@@ -224,8 +224,7 @@ describe("stripe.client lookup-key pricing", () => {
         allow_promotion_codes: false,
         custom_text: {
           submit: {
-            message:
-              "25,000 credits will be added to your account after checkout.",
+            message: "25,000 credits will be added to your account after checkout.",
           },
         },
         metadata: expect.objectContaining({
@@ -273,8 +272,7 @@ describe("stripe.client lookup-key pricing", () => {
         discounts: [{ promotion_code: "promo_1" }],
         custom_text: {
           submit: {
-            message:
-              "25,000 credits will be added to your account after checkout.",
+            message: "25,000 credits will be added to your account after checkout.",
           },
         },
         success_url:
@@ -339,6 +337,44 @@ describe("stripe.client lookup-key pricing", () => {
       expect.objectContaining({
         customer: "cus_1",
         quantity: 500,
+      }),
+    );
+  });
+
+  it("propagates custom coupon metadata onto invoice metadata", async () => {
+    productsRetrieveMock.mockResolvedValue({
+      default_price: createMockStripePrice({
+        currency: "eur",
+        id: "price_credits",
+        unitAmount: 120,
+      }),
+    });
+    couponsRetrieveMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: { credits: "500" },
+      percent_off: 100,
+    });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "paid",
+    });
+
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1", {
+      redemption_type: "welcome_coupon",
+      welcome_source: "customer.created",
+    });
+
+    expect(invoicesCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          coupon_id: "coupon_1",
+          price_id: "price_credits",
+          redemption_type: "welcome_coupon",
+          welcome_source: "customer.created",
+        }),
       }),
     );
   });

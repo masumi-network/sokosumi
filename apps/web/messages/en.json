@@ -1548,6 +1548,7 @@
       "billingPortalCta": "Manage purchases",
       "topUpTitle": "Top up your credits",
       "topUpDescription": "Choose an amount or enter a custom value",
+      "expiryNotice": "Credits expire after {days, plural, one {# day} other {# days}}.",
       "costPerCredit": "{cost} per credit",
       "creditAmount": "{count, plural, one {# credit} other {# credits}}",
       "creditsLabel": "Number of credits",

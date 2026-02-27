@@ -3,6 +3,9 @@ import {
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
   escapeStringForLike,
+  FREE_CREDITS_EXPIRY_DAYS,
+  getCreditExpiryDate,
+  PAID_TOPUP_CREDITS_EXPIRY_DAYS,
 } from "@sokosumi/database/helpers";
 
 jest.mock("server-only", () => ({}));
@@ -969,6 +972,7 @@ describe("handleInvoicePaidEvent", () => {
         sourceCreditBucket: {
           create: {
             amount: bigint;
+            expiresAt: Date | null;
             referenceId: string;
             referenceType: string;
           };
@@ -980,6 +984,12 @@ describe("handleInvoicePaidEvent", () => {
     );
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      getCreditExpiryDate(
+        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
+      ),
     );
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("1230000000000"),
@@ -1018,10 +1028,51 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      getCreditExpiryDate(
+        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
+      ),
+    );
     // quantity-based top-up credits: quantity 3 => 3 credits
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("30000000000"),
+    );
+  });
+
+  it("classifies free top-up invoices as STRIPE_FREE with 30-day expiry", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "manual",
+        id: "in_topup_free_coupon",
+        lines: [{ productId: "prod_credit", quantity: 3 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            expiresAt: Date | null;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_FREE",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      getCreditExpiryDate(
+        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        FREE_CREDITS_EXPIRY_DAYS,
+      ),
     );
   });
 
@@ -1053,7 +1104,12 @@ describe("handleInvoicePaidEvent", () => {
     expect(topupCall?.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
     );
-    expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toBeNull();
+    expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
+      getCreditExpiryDate(
+        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
+      ),
+    );
 
     const subscriptionCall = callsByReference.get(
       buildUserInvoiceCreditReferenceId("user-1", "in_mixed", "subscription"),

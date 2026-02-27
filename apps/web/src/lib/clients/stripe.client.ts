@@ -532,7 +532,11 @@ export const stripeClient = (() => {
         pending_invoice_items_behavior: "include",
         collection_method: "charge_automatically",
         auto_advance: true,
-        metadata: { coupon_id: couponId, price_id: price.id },
+        metadata: {
+          coupon_id: couponId,
+          price_id: price.id,
+          ...(metadata ?? {}),
+        },
         expand: ["lines.data.price.product"],
       });
 
