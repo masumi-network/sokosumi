@@ -1,13 +1,21 @@
 import { CouponTypeError } from "@/lib/errors/coupon-errors";
 
-import { formatCreditsForDisplay, getCreditsForCoupon } from "../credits";
+import {
+  formatCreditsForDisplay,
+  getCouponTtlDays,
+  getCreditsForCoupon,
+} from "../credits";
 
 function createCoupon(params: {
   credits?: string;
+  ttlDays?: string;
   percentOff: number | null;
 }): never {
   return {
-    metadata: params.credits ? { credits: params.credits } : {},
+    metadata: {
+      ...(params.credits ? { credits: params.credits } : {}),
+      ...(params.ttlDays ? { ttl_days: params.ttlDays } : {}),
+    },
     percent_off: params.percentOff,
   } as never;
 }
@@ -40,5 +48,55 @@ describe("formatCreditsForDisplay", () => {
     expect(formatCreditsForDisplay(2.4)).toBe(2);
     expect(formatCreditsForDisplay(2.5)).toBe(2);
     expect(formatCreditsForDisplay(2.9)).toBe(2);
+  });
+});
+
+describe("getCouponTtlDays", () => {
+  it("returns normalized ttl_days for positive integer values", () => {
+    const coupon = createCoupon({
+      credits: "500",
+      ttlDays: "90",
+      percentOff: 100,
+    });
+    expect(getCouponTtlDays(coupon)).toBe("90");
+  });
+
+  it("returns 0 for zero ttl_days", () => {
+    const coupon = createCoupon({
+      credits: "500",
+      ttlDays: "0",
+      percentOff: 100,
+    });
+    expect(getCouponTtlDays(coupon)).toBe("0");
+  });
+
+  it("returns null for null ttl_days sentinel", () => {
+    const coupon = createCoupon({
+      credits: "500",
+      ttlDays: "null",
+      percentOff: 100,
+    });
+    expect(getCouponTtlDays(coupon)).toBe("null");
+  });
+
+  it("returns null for invalid ttl_days values", () => {
+    const negative = createCoupon({
+      credits: "500",
+      ttlDays: "-1",
+      percentOff: 100,
+    });
+    const decimal = createCoupon({
+      credits: "500",
+      ttlDays: "1.5",
+      percentOff: 100,
+    });
+    const nonNumeric = createCoupon({
+      credits: "500",
+      ttlDays: "abc",
+      percentOff: 100,
+    });
+    expect(getCouponTtlDays(negative)).toBeNull();
+    expect(getCouponTtlDays(decimal)).toBeNull();
+    expect(getCouponTtlDays(nonNumeric)).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ import {
   CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
 } from "@/lib/stripe/credit-topup-pricing";
-import { getCreditsForCoupon } from "@/lib/utils/credits";
+import { getCouponTtlDays, getCreditsForCoupon } from "@/lib/utils/credits";
 
 export interface Price {
   id: string;
@@ -96,29 +96,6 @@ export const stripeClient = (() => {
     }
 
     return totalMinorUnits;
-  }
-
-  function getCouponTtlDays(coupon: Stripe.Coupon): string | null {
-    const ttlDaysRaw = coupon.metadata?.ttl_days;
-    if (ttlDaysRaw === undefined) {
-      return null;
-    }
-
-    const normalizedTtlDays = ttlDaysRaw.trim();
-    if (!normalizedTtlDays) {
-      return null;
-    }
-
-    if (normalizedTtlDays.toLowerCase() === "null") {
-      return "null";
-    }
-
-    const ttlDays = Number(normalizedTtlDays);
-    if (!Number.isInteger(ttlDays) || ttlDays < 0) {
-      return null;
-    }
-
-    return String(ttlDays);
   }
 
   function normalizeCheckoutReturnPath(returnPath: string): string {
@@ -440,6 +417,7 @@ export const stripeClient = (() => {
       origin: string | null = null,
       promotionCode: string | null = null,
       returnPath: string = "/credits",
+      checkoutMetadata?: Record<string, string>,
     ): Promise<Stripe.Checkout.Session> {
       if (price.amountPerCredit === 0) {
         throw new Error(
@@ -476,6 +454,7 @@ export const stripeClient = (() => {
           credits,
           userId,
           ...(organizationId && { organizationId }),
+          ...(checkoutMetadata ?? {}),
         },
         invoice_creation: {
           enabled: true,
@@ -484,6 +463,7 @@ export const stripeClient = (() => {
               credits,
               userId,
               ...(organizationId && { organizationId }),
+              ...(checkoutMetadata ?? {}),
             },
           },
         },
