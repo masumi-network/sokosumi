@@ -98,6 +98,29 @@ export const stripeClient = (() => {
     return totalMinorUnits;
   }
 
+  function getCouponTtlDays(coupon: Stripe.Coupon): string | null {
+    const ttlDaysRaw = coupon.metadata?.ttl_days;
+    if (ttlDaysRaw === undefined) {
+      return null;
+    }
+
+    const normalizedTtlDays = ttlDaysRaw.trim();
+    if (!normalizedTtlDays) {
+      return null;
+    }
+
+    if (normalizedTtlDays.toLowerCase() === "null") {
+      return "null";
+    }
+
+    const ttlDays = Number(normalizedTtlDays);
+    if (!Number.isInteger(ttlDays) || ttlDays < 0) {
+      return null;
+    }
+
+    return String(ttlDays);
+  }
+
   function normalizeCheckoutReturnPath(returnPath: string): string {
     if (!returnPath) {
       return "/credits";
@@ -504,6 +527,7 @@ export const stripeClient = (() => {
         throw new Error("Coupon must have percent_off");
       }
       const credits = getCreditsForCoupon(coupon);
+      const couponTtlDays = getCouponTtlDays(coupon);
 
       // 1) Add invoice items representing the free credits
       const itemsToCreate = Math.min(referralCount, MAX_REFERRAL_COUNT);
@@ -518,6 +542,7 @@ export const stripeClient = (() => {
             metadata: {
               coupon_id: couponId,
               redemption_type: "free_coupon",
+              ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
               ...(metadata ?? {}),
             },
             discounts: [{ coupon: couponId }],
@@ -535,6 +560,7 @@ export const stripeClient = (() => {
         metadata: {
           coupon_id: couponId,
           price_id: price.id,
+          ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
           ...(metadata ?? {}),
         },
         expand: ["lines.data.price.product"],

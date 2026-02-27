@@ -151,6 +151,39 @@ function getTopUpCreditsFromInvoiceMetadata(
   return credits;
 }
 
+function getTopUpExpiryDaysFromInvoiceMetadata(
+  invoice: Stripe.Invoice,
+): number | null | undefined {
+  const ttlDaysRaw = invoice.metadata?.ttl_days;
+  if (ttlDaysRaw === undefined) {
+    return undefined;
+  }
+
+  const normalizedTtlDays = ttlDaysRaw.trim();
+  if (!normalizedTtlDays) {
+    return undefined;
+  }
+
+  if (normalizedTtlDays.toLowerCase() === "null") {
+    return null;
+  }
+
+  const ttlDays = Number(normalizedTtlDays);
+  if (!Number.isInteger(ttlDays)) {
+    return undefined;
+  }
+
+  if (ttlDays === 0) {
+    return null;
+  }
+
+  if (ttlDays < 0) {
+    return undefined;
+  }
+
+  return ttlDays;
+}
+
 function resolveInvoiceCreatedAt(invoice: Stripe.Invoice): Date {
   if (typeof invoice.created === "number" && Number.isFinite(invoice.created)) {
     return new Date(invoice.created * 1000);
@@ -160,7 +193,7 @@ function resolveInvoiceCreatedAt(invoice: Stripe.Invoice): Date {
 }
 
 function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
-  expiresAt: Date;
+  expiresAt: Date | null;
   referenceType: CreditBucketReferenceType;
 } {
   const invoiceCreatedAt = resolveInvoiceCreatedAt(invoice);
@@ -175,8 +208,15 @@ function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
     };
   }
 
+  const freeTopUpExpiryDays = getTopUpExpiryDaysFromInvoiceMetadata(invoice);
   return {
-    expiresAt: getCreditExpiryDate(invoiceCreatedAt, FREE_CREDITS_EXPIRY_DAYS),
+    expiresAt:
+      freeTopUpExpiryDays === null
+        ? null
+        : getCreditExpiryDate(
+            invoiceCreatedAt,
+            freeTopUpExpiryDays ?? FREE_CREDITS_EXPIRY_DAYS,
+          ),
     referenceType: CreditBucketReferenceType.STRIPE_FREE,
   };
 }

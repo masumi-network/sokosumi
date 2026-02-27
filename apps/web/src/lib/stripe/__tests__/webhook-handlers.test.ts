@@ -1076,6 +1076,75 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("uses ttl_days invoice metadata for free top-up expiry", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "manual",
+        id: "in_topup_free_coupon_ttl_90",
+        lines: [{ productId: "prod_credit", quantity: 3 }],
+        metadata: { ttl_days: "90" },
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            expiresAt: Date | null;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_FREE",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      getCreditExpiryDate(new Date(DEFAULT_PERIOD_END_UNIX * 1000), 90),
+    );
+  });
+
+  it.each(["0", "null"])(
+    "sets no expiry for free top-up when ttl_days is %s",
+    async (ttlDaysValue) => {
+      const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+      await handleInvoicePaidEvent(
+        createInvoice({
+          amountPaid: 0,
+          billingReason: "manual",
+          id: `in_topup_free_coupon_ttl_${ttlDaysValue}`,
+          lines: [{ productId: "prod_credit", quantity: 3 }],
+          metadata: { ttl_days: ttlDaysValue },
+        }) as never,
+      );
+
+      expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+      const createCall = createTransactionMock.mock.calls[0][0] as {
+        data: {
+          sourceCreditBucket: {
+            create: {
+              expiresAt: Date | null;
+              referenceType: string;
+            };
+          };
+        };
+      };
+
+      expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+        "STRIPE_FREE",
+      );
+      expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
+    },
+  );
+
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {
     mockSubscriptionCatalog();
 
