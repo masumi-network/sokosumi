@@ -8,6 +8,7 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import BuyCreditsButton from "./buy-credits-button";
 import UserAvatar from "./user-avatar";
+import { resolveUserCreditsCta } from "./user-credits-cta";
 
 interface UserCreditsProps {
   session: Session;
@@ -110,20 +111,20 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
   const hasLowCredits =
     typeof credits === "number" && credits < creditsButtonThreshold;
-  const shouldShowUpgradePlanCta =
-    currentPlan !== null && currentPlan !== "pro";
-  const shouldShowAddCreditsCta =
-    hasLowCredits && (currentPlan === null || currentPlan !== "free");
+  const cta = resolveUserCreditsCta({
+    currentPlan,
+    hasLowCredits,
+  });
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {!shouldShowAddCreditsCta && shouldShowUpgradePlanCta ? (
+      {cta === "upgradePlan" ? (
         <BuyCreditsButton
           label={tPlan("upgradeCta")}
           path="/billing?tab=subscription"
         />
       ) : null}
-      {shouldShowAddCreditsCta ? (
+      {cta === "addCredits" ? (
         <BuyCreditsButton label={t("buy")} path="/billing?tab=credits" />
       ) : null}
       <UserAvatar

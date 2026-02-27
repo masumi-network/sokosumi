@@ -1436,6 +1436,13 @@
         "unavailable": "Plan unavailable"
       }
     },
+    "EmailVerificationNotice": {
+      "title": "Verify your email address",
+      "description": "You must verify your email address to continue using paid account features.",
+      "button": "Resend verification email",
+      "sendSuccess": "Verification email sent. Please check your inbox.",
+      "sendError": "Failed to send verification email. Please try again."
+    },
     "Subscriptions": {
       "statusSuccess": "Subscription updated successfully.",
       "statusCancel": "Subscription checkout was canceled.",

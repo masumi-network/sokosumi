@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { socialProviderIdSchema } from "@/lib/schemas/auth";
+import { getValidAuthRedirectUrl } from "@/lib/utils/auth-redirect";
 
 interface SocialAuthCallbackProps {
   eventType: "signUp" | "signIn";
@@ -13,13 +14,8 @@ interface SocialAuthCallbackProps {
 function getValidRedirectUrl(returnUrl: string | null): string {
   // Normalize root to /chat (our initial page) so social login matches credential behavior
   const normalized = returnUrl?.trim() || "";
-  if (!normalized || normalized === "/") return "/chat";
-  try {
-    const url = new URL(normalized, window.location.origin);
-    return url.origin === window.location.origin ? normalized : "/chat";
-  } catch {
-    return "/chat";
-  }
+  const url = normalized && normalized !== "/" ? normalized : undefined;
+  return getValidAuthRedirectUrl(url, "/chat");
 }
 
 export default function SocialAuthCallback({
