@@ -1329,6 +1329,7 @@ export const jobService = (() => {
       job.agent,
       statusId,
       job.agentJobId,
+      jobEvent.inputSchemaHash,
       inputData,
     );
 
