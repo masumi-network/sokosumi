@@ -18,6 +18,7 @@ import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 import {
+  buildSignUpUrlFromSignIn,
   getValidAuthRedirectUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
@@ -109,6 +110,14 @@ export default function SignInForm({
       `/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
     [email],
   );
+  const signUpUrl = useMemo(
+    () =>
+      buildSignUpUrlFromSignIn({
+        returnUrl,
+        email: prefilledEmail ?? email,
+      }),
+    [returnUrl, prefilledEmail, email],
+  );
 
   const { isSubmitting } = form.formState;
 
@@ -131,7 +140,7 @@ export default function SignInForm({
               {t("Register.message")}
             </span>
             <Link
-              href="/signup"
+              href={signUpUrl}
               className="text-primary text-sm font-medium hover:underline"
             >
               {t("Register.link")}

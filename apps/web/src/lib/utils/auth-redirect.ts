@@ -42,6 +42,28 @@ export async function waitForAuthSession({
   }
 }
 
+interface BuildSignUpUrlParams {
+  returnUrl?: string;
+  email?: string;
+}
+
+export function buildSignUpUrlFromSignIn({
+  returnUrl,
+  email,
+}: BuildSignUpUrlParams): string {
+  const searchParams = new URLSearchParams();
+
+  if (returnUrl) {
+    searchParams.set("returnUrl", returnUrl);
+  }
+  if (email) {
+    searchParams.set("email", email);
+  }
+
+  const query = searchParams.toString();
+  return query ? `/signup?${query}` : "/signup";
+}
+
 export function getValidAuthRedirectUrl(
   returnUrl: string | undefined,
   fallback: string = "/",

@@ -1,4 +1,5 @@
 import {
+  buildSignUpUrlFromSignIn,
   getValidAuthRedirectUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
@@ -23,6 +24,23 @@ describe("getValidAuthRedirectUrl", () => {
   it("returns fallback for unsupported protocols", () => {
     expect(getValidAuthRedirectUrl("javascript:alert('x')", "/chat")).toBe(
       "/chat",
+    );
+  });
+});
+
+describe("buildSignUpUrlFromSignIn", () => {
+  it("returns bare signup path when no params are provided", () => {
+    expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
+  });
+
+  it("preserves returnUrl and email in signup link", () => {
+    expect(
+      buildSignUpUrlFromSignIn({
+        returnUrl: "/accept-invitation/invite_123?foo=bar",
+        email: "user@example.com",
+      }),
+    ).toBe(
+      "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
     );
   });
 });
