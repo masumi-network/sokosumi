@@ -231,8 +231,8 @@ export const auth = betterAuth({
         MessageStream: "authentications",
       });
     },
-    sendOnSignUp: false,
-    sendOnSignIn: false,
+    sendOnSignUp: true,
+    sendOnSignIn: true,
     expiresIn: getEnvSecrets().BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN,
     autoSignInAfterVerification: true,
   },
