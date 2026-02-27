@@ -9,7 +9,7 @@ import {
   CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
 } from "@/lib/stripe/credit-topup-pricing";
-import { getCouponTtlDays, getCreditsForCoupon } from "@/lib/utils/credits";
+import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 export interface Price {
   id: string;
@@ -503,7 +503,7 @@ export const stripeClient = (() => {
         throw new Error("Coupon must have percent_off");
       }
       const credits = getCreditsForCoupon(coupon);
-      const couponTtlDays = getCouponTtlDays(coupon);
+      const couponTtlDays = coupon.metadata?.ttl_days;
 
       // 1) Add invoice items representing the free credits
       const itemsToCreate = Math.min(referralCount, MAX_REFERRAL_COUNT);

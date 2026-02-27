@@ -24,19 +24,6 @@ export function getCreditsForCoupon(coupon: Stripe.Coupon): number {
   return credits;
 }
 
-export function getCouponTtlDays(coupon: Stripe.Coupon): string | null {
-  const ttlDaysRaw = coupon.metadata?.ttl_days;
-  if (ttlDaysRaw === undefined) {
-    return null;
-  }
-
-  const normalizedTtlDays = ttlDaysRaw.trim();
-  if (!normalizedTtlDays) {
-    return null;
-  }
-  return normalizedTtlDays;
-}
-
 /**
  * Formats credits for user-facing display by removing decimal precision.
  */

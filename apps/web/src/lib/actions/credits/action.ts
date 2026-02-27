@@ -11,7 +11,7 @@ import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
 import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
 import { Err, Ok, Result } from "@/lib/ts-res";
-import { getCouponTtlDays, getCreditsForCoupon } from "@/lib/utils/credits";
+import { getCreditsForCoupon } from "@/lib/utils/credits";
 import {
   AuthenticatedRequest,
   withAuthContext,
@@ -96,7 +96,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
   try {
     const coupon = await stripeService.getCoupon(couponId);
     const credits = getCreditsForCoupon(coupon);
-    const couponTtlDays = getCouponTtlDays(coupon);
+    const couponTtlDays = coupon.metadata?.ttl_days;
     const promo = await stripeService.claimCoupon(couponId, 1, {
       userId,
       organizationId,
