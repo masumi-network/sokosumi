@@ -1111,7 +1111,7 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
-  it.each(["0", "null"])(
+  it.each(["0"])(
     "sets no expiry for free top-up when ttl_days is %s",
     async (ttlDaysValue) => {
       const { handleInvoicePaidEvent } = await import("../webhook-handlers");
@@ -1145,6 +1145,43 @@ describe("handleInvoicePaidEvent", () => {
       expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
     },
   );
+
+  it("falls back to default free expiry for invalid ttl_days metadata", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 0,
+        billingReason: "manual",
+        id: "in_topup_free_coupon_ttl_invalid",
+        lines: [{ productId: "prod_credit", quantity: 3 }],
+        metadata: { ttl_days: "null" },
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            expiresAt: Date | null;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_FREE",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      getCreditExpiryDate(
+        new Date(DEFAULT_PERIOD_END_UNIX * 1000),
+        FREE_CREDITS_EXPIRY_DAYS,
+      ),
+    );
+  });
 
   it("splits top-up and subscription credits into separate buckets when both are present", async () => {
     mockSubscriptionCatalog();

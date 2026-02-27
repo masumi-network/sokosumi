@@ -35,10 +35,6 @@ export function getCouponTtlDays(coupon: Stripe.Coupon): string | null {
     return null;
   }
 
-  if (normalizedTtlDays.toLowerCase() === "null") {
-    return "null";
-  }
-
   const ttlDays = Number(normalizedTtlDays);
   if (!Number.isInteger(ttlDays) || ttlDays < 0) {
     return null;

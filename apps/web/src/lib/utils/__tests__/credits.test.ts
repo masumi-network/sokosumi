@@ -70,13 +70,13 @@ describe("getCouponTtlDays", () => {
     expect(getCouponTtlDays(coupon)).toBe("0");
   });
 
-  it("returns null for null ttl_days sentinel", () => {
+  it("returns null for string null ttl_days", () => {
     const coupon = createCoupon({
       credits: "500",
       ttlDays: "null",
       percentOff: 100,
     });
-    expect(getCouponTtlDays(coupon)).toBe("null");
+    expect(getCouponTtlDays(coupon)).toBeNull();
   });
 
   it("returns null for invalid ttl_days values", () => {

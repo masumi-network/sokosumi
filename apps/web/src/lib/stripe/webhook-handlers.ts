@@ -164,10 +164,6 @@ function getTopUpExpiryDaysFromInvoiceMetadata(
     return undefined;
   }
 
-  if (normalizedTtlDays.toLowerCase() === "null") {
-    return null;
-  }
-
   const ttlDays = Number(normalizedTtlDays);
   if (!Number.isInteger(ttlDays)) {
     return undefined;
