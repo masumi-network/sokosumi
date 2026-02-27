@@ -20,6 +20,11 @@ interface HashUpdate {
   inputSchemaHash: string;
 }
 
+interface PendingHashRow {
+  id: string;
+  inputSchema: string | null;
+}
+
 interface BackfillSummary {
   scanned: number;
   updated: number;
@@ -135,36 +140,44 @@ async function ensureHashColumnsExist() {
   }
 }
 
+async function fetchPendingJobEventRows(
+  cursor: string | undefined,
+): Promise<PendingHashRow[]> {
+  return prisma.$queryRaw<PendingHashRow[]>`
+    SELECT
+      "id",
+      "inputSchema"
+    FROM "jobEvent"
+    WHERE "inputSchema" IS NOT NULL
+      AND "inputSchemaHash" IS NULL
+      ${cursor ? Prisma.sql`AND "id" > ${cursor}` : Prisma.empty}
+    ORDER BY "id" ASC
+    LIMIT ${BATCH_SIZE}
+  `;
+}
+
+async function fetchPendingJobScheduleRows(
+  cursor: string | undefined,
+): Promise<PendingHashRow[]> {
+  return prisma.$queryRaw<PendingHashRow[]>`
+    SELECT
+      "id",
+      "inputSchema"
+    FROM "jobSchedule"
+    WHERE "inputSchemaHash" IS NULL
+      ${cursor ? Prisma.sql`AND "id" > ${cursor}` : Prisma.empty}
+    ORDER BY "id" ASC
+    LIMIT ${BATCH_SIZE}
+  `;
+}
+
 async function backfillJobEventInputSchemaHash(): Promise<BackfillSummary> {
   const summary = createSummary();
   let cursor: string | undefined;
   let batchNumber = 0;
 
   while (true) {
-    const rows = await prisma.jobEvent.findMany({
-      where: {
-        inputSchema: {
-          not: null,
-        },
-        inputSchemaHash: null,
-      },
-      select: {
-        id: true,
-        inputSchema: true,
-      },
-      orderBy: {
-        id: "asc",
-      },
-      take: BATCH_SIZE,
-      ...(cursor
-        ? {
-            cursor: {
-              id: cursor,
-            },
-            skip: 1,
-          }
-        : {}),
-    });
+    const rows = await fetchPendingJobEventRows(cursor);
 
     if (rows.length === 0) {
       break;
@@ -192,27 +205,7 @@ async function backfillJobScheduleInputSchemaHash(): Promise<BackfillSummary> {
   let batchNumber = 0;
 
   while (true) {
-    const rows = await prisma.jobSchedule.findMany({
-      where: {
-        inputSchemaHash: null,
-      },
-      select: {
-        id: true,
-        inputSchema: true,
-      },
-      orderBy: {
-        id: "asc",
-      },
-      take: BATCH_SIZE,
-      ...(cursor
-        ? {
-            cursor: {
-              id: cursor,
-            },
-            skip: 1,
-          }
-        : {}),
-    });
+    const rows = await fetchPendingJobScheduleRows(cursor);
 
     if (rows.length === 0) {
       break;
