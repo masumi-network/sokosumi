@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { hashInputSchema } from "@sokosumi/masumi/hash";
-
 import { AgentJobStatus } from "../../generated/prisma/browser.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { jobEventRepository } from "../job-event.repository.js";
 
 describe("jobEventRepository.createJobEventForJobId", () => {
-  it("stores inputSchemaHash when inputSchema is provided", async () => {
+  it("does not store inputSchemaHash when inputSchema is provided", async () => {
     const inputSchema = JSON.stringify([
       {
         id: "prompt",
@@ -37,12 +35,11 @@ describe("jobEventRepository.createJobEventForJobId", () => {
       tx,
     );
 
-    const data = (createCall as { data: { inputSchemaHash: string | null } })
-      .data;
-    assert.equal(data.inputSchemaHash, hashInputSchema(inputSchema));
+    const data = (createCall as { data: Record<string, unknown> }).data;
+    assert.equal("inputSchemaHash" in data, false);
   });
 
-  it("stores null inputSchemaHash when inputSchema is not provided", async () => {
+  it("does not store inputSchemaHash when inputSchema is not provided", async () => {
     let createCall: unknown;
     const tx = {
       jobEvent: {
@@ -63,8 +60,7 @@ describe("jobEventRepository.createJobEventForJobId", () => {
       tx,
     );
 
-    const data = (createCall as { data: { inputSchemaHash: string | null } })
-      .data;
-    assert.equal(data.inputSchemaHash, null);
+    const data = (createCall as { data: Record<string, unknown> }).data;
+    assert.equal("inputSchemaHash" in data, false);
   });
 });

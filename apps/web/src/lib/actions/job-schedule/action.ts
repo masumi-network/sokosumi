@@ -129,36 +129,35 @@ export const createSchedule = withAuthContext<
     }
 
     // Build Prisma input directly
-    const prismaInput: Omit<Prisma.JobScheduleCreateInput, "inputSchemaHash"> =
-      {
-        user: {
-          connect: {
-            id: authContext.userId,
-          },
+    const prismaInput: Prisma.JobScheduleCreateInput = {
+      user: {
+        connect: {
+          id: authContext.userId,
         },
-        organization: authContext.organizationId
-          ? {
-              connect: {
-                id: authContext.organizationId,
-              },
-            }
-          : undefined,
-        agent: {
-          connect: {
-            id: input.agentId,
-          },
+      },
+      organization: authContext.organizationId
+        ? {
+            connect: {
+              id: authContext.organizationId,
+            },
+          }
+        : undefined,
+      agent: {
+        connect: {
+          id: input.agentId,
         },
-        inputSchema: JSON.stringify(input.inputSchema),
-        input: JSON.stringify(input.inputData),
-        scheduleType: scheduleType! as ScheduleType,
-        timezone: scheduleSelection.timezone,
-        maxAcceptedCents: input.maxAcceptedCents,
-        cron,
-        oneTimeAtUtc,
-        isActive: true,
-        pauseReason: null,
-        nextRunAt: nextRunAtIso,
-      };
+      },
+      inputSchema: JSON.stringify(input.inputSchema),
+      input: JSON.stringify(input.inputData),
+      scheduleType: scheduleType! as ScheduleType,
+      timezone: scheduleSelection.timezone,
+      maxAcceptedCents: input.maxAcceptedCents,
+      cron,
+      oneTimeAtUtc,
+      isActive: true,
+      pauseReason: null,
+      nextRunAt: nextRunAtIso,
+    };
     if (endOnUtc !== undefined) prismaInput.endOnUtc = endOnUtc;
     if (endAfterOccurrences !== undefined)
       prismaInput.endAfterOccurrences = endAfterOccurrences;

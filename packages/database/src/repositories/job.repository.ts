@@ -235,7 +235,6 @@ export const jobRepository = {
             status: AgentJobStatus.INITIATED,
             result: null,
             inputSchema: inputSchemaSnapshot.inputSchema,
-            inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
             input: {
               create: {
                 input: data.input,
@@ -306,7 +305,6 @@ export const jobRepository = {
           status: AgentJobStatus.INITIATED,
           result: null,
           inputSchema: inputSchemaSnapshot.inputSchema,
-          inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
           input: {
             create: {
               input: data.input,

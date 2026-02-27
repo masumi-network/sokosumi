@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { hashInputSchema } from "@sokosumi/masumi/hash";
-
 import { ScheduleType } from "../../generated/prisma/browser.js";
 import type { Prisma } from "../../generated/prisma/client.js";
 import { jobScheduleRepository } from "../job-schedule.repository.js";
 
 describe("jobScheduleRepository", () => {
-  it("stores inputSchemaHash on create", async () => {
+  it("does not store inputSchemaHash on create", async () => {
     const inputSchema = JSON.stringify([
       {
         id: "prompt",
@@ -49,11 +47,11 @@ describe("jobScheduleRepository", () => {
       tx,
     );
 
-    const data = (createCall as { data: { inputSchemaHash: string } }).data;
-    assert.equal(data.inputSchemaHash, hashInputSchema(inputSchema));
+    const data = (createCall as { data: Record<string, unknown> }).data;
+    assert.equal("inputSchemaHash" in data, false);
   });
 
-  it("recomputes inputSchemaHash when inputSchema is updated", async () => {
+  it("does not write inputSchemaHash when inputSchema is updated", async () => {
     const inputSchema = JSON.stringify([
       {
         id: "prompt",
@@ -81,7 +79,7 @@ describe("jobScheduleRepository", () => {
       tx,
     );
 
-    const data = (updateCall as { data: { inputSchemaHash: string } }).data;
-    assert.equal(data.inputSchemaHash, hashInputSchema(inputSchema));
+    const data = (updateCall as { data: Record<string, unknown> }).data;
+    assert.equal("inputSchemaHash" in data, false);
   });
 });

@@ -1,4 +1,3 @@
-import { hashInputSchema } from "@sokosumi/masumi/hash";
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -169,7 +168,6 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           events: {
             create: expect.objectContaining({
               inputSchema: expectedInputSchema,
-              inputSchemaHash: hashInputSchema(expectedInputSchema),
             }),
           },
         }),
