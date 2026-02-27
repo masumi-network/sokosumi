@@ -33,7 +33,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         <SocialButtons returnUrl={returnUrl} />
         <Divider />
-        <SignUpForm prefilledEmail={email} invitationId={invitationId} />
+        <SignUpForm prefilledEmail={email} returnUrl={returnUrl} />
       </div>
     </div>
   );

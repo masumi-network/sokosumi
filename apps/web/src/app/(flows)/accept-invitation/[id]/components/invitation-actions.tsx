@@ -56,8 +56,11 @@ export default function InvitationActions({
 
   const registerSearchParamsString = isClient
     ? (() => {
+        const currentUrl = location.pathname + location.search;
         const registerSearchParams = new URLSearchParams();
         registerSearchParams.set("email", email);
+        registerSearchParams.set("invitationId", id);
+        registerSearchParams.set("returnUrl", currentUrl);
         return registerSearchParams.toString();
       })()
     : null;

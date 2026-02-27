@@ -16,6 +16,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
+import { getValidAuthRedirectUrl } from "@/lib/utils/auth-redirect";
 
 interface SignInFormProps {
   returnUrl?: string | undefined;
@@ -101,21 +102,7 @@ export default function SignInForm({
 
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
-
-    // Redirect to the original URL if provided, otherwise go to root
-    // Validate returnUrl to prevent open redirect attacks
-    let redirectUrl = "/";
-    if (returnUrl) {
-      try {
-        // Only allow relative URLs or URLs from the same origin
-        const url = new URL(returnUrl, window.location.origin);
-        if (url.origin === window.location.origin) {
-          redirectUrl = returnUrl;
-        }
-      } catch {
-        // Invalid URL, fallback to root
-      }
-    }
+    const redirectUrl = getValidAuthRedirectUrl(returnUrl, "/");
 
     // Use window.location.href for hard navigation to ensure cookies are properly sent
     window.location.href = redirectUrl;

@@ -15,13 +15,17 @@ import { AuthErrorCode, signUpEmail } from "@/lib/actions";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
+import { getValidAuthRedirectUrl } from "@/lib/utils/auth-redirect";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
-  invitationId?: string | undefined;
+  returnUrl?: string | undefined;
 }
 
-export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
+export default function SignUpForm({
+  prefilledEmail,
+  returnUrl,
+}: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const registerFormStart = useRef(false);
 
@@ -69,7 +73,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     if (result.ok) {
       fireGTMEvent.signUp("credential");
       toast.success(t("success"));
-      router.push("/");
+      router.push(getValidAuthRedirectUrl(returnUrl, "/"));
     } else {
       switch (result.error.code) {
         case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
