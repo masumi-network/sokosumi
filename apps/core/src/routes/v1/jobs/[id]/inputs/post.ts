@@ -139,6 +139,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!jobEvent.inputSchema) {
         throw unprocessableEntity("Agent did not provide an input schema");
       }
+      if (!jobEvent.inputSchemaHash) {
+        throw unprocessableEntity(
+          "Agent did not provide an input schema hash",
+        );
+      }
 
       return jobEvent;
     });
@@ -153,6 +158,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       jobEvent.job.agent,
       jobEvent.externalId,
       jobEvent.job.agentJobId,
+      jobEvent.inputSchemaHash,
       inputData,
     );
 

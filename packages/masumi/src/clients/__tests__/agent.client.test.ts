@@ -183,3 +183,59 @@ describe("createAgentClient URL validation", () => {
     }
   });
 });
+
+describe("createAgentClient provideJobInput", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("sends input_schema_hash in the provide_input request body", async () => {
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          input_hash: "input-hash",
+          signature: "signature",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.provideJobInput(
+      createAgent(),
+      "status-1",
+      "job-1",
+      "schema-hash-1",
+      {
+        answer: "8",
+      },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [requestUrl, requestOptions] = fetchMock.mock.calls[0] as [
+      RequestInfo | URL,
+      RequestInit,
+    ];
+    expect(String(requestUrl)).toBe("https://agent.example.com/provide_input");
+    expect(requestOptions.method).toBe("POST");
+    expect(JSON.parse(String(requestOptions.body))).toEqual({
+      job_id: "job-1",
+      status_id: "status-1",
+      input_schema_hash: "schema-hash-1",
+      input_data: {
+        answer: "8",
+      },
+    });
+  });
+});

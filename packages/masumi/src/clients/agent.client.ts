@@ -6,6 +6,8 @@ import {
   InputSchemaType,
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
+  provideInputRequestSchema,
+  ProvideInputRequestSchemaType,
   provideInputResponseSchema,
   ProvideInputResponseSchemaType,
   startFreeJobResponseSchema,
@@ -365,6 +367,7 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       statusId: string,
       jobId: string,
+      inputSchemaHash: string,
       inputData: InputSchemaType,
     ): Promise<Result<ProvideInputResponseSchemaType, string>> {
       try {
@@ -373,11 +376,20 @@ export function createAgentClient(config?: AgentClientConfig) {
           "provide_input",
         );
 
-        const body = JSON.stringify({
+        const requestPayload: ProvideInputRequestSchemaType = {
           job_id: jobId,
           status_id: statusId,
+          input_schema_hash: inputSchemaHash,
           input_data: inputData,
-        });
+        };
+        const parsedRequestPayload =
+          provideInputRequestSchema.safeParse(requestPayload);
+        if (!parsedRequestPayload.success) {
+          return err(
+            `Failed to build provide input request: ${JSON.stringify(parsedRequestPayload.error)}`,
+          );
+        }
+        const body = JSON.stringify(parsedRequestPayload.data);
 
         const provideInputResponse = await fetch(provideInputUrl, {
           method: "POST",
