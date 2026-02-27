@@ -1,3 +1,5 @@
+import { err, ok, type Result } from "neverthrow";
+
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
 
@@ -90,3 +92,25 @@ export const hashResult = (result: string, identifierFromPurchaser: string) => {
   const escaped = JSON.stringify(result).slice(1, -1);
   return createHash(identifierFromPurchaser + ";" + escaped);
 };
+
+/**
+ * Builds an input schema snapshot by serializing and hashing the input schema.
+ *
+ * @param inputSchema - The input schema array to serialize and hash
+ * @returns Result containing the serialized input schema and its hash, or an error if hashing fails
+ */
+export function buildInputSchemaSnapshot(
+  inputSchema: unknown[],
+): Result<{ inputSchema: string; inputSchemaHash: string }, string> {
+  const serializedInputSchema = JSON.stringify(inputSchema);
+  const inputSchemaHash = hashInputSchema(serializedInputSchema);
+
+  if (!inputSchemaHash) {
+    return err("Failed to hash input schema");
+  }
+
+  return ok({
+    inputSchema: serializedInputSchema,
+    inputSchemaHash,
+  });
+}

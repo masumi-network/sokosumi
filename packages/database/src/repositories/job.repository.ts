@@ -1,4 +1,4 @@
-import { hashInputSchema } from "@sokosumi/masumi/hash";
+import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
 
 import {
   AgentJobStatus,
@@ -65,23 +65,6 @@ interface CreateFreeJobData extends CreateJobBase {
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;
-
-function buildInputSchemaSnapshot(inputSchema: unknown[]): {
-  inputSchema: string;
-  inputSchemaHash: string;
-} {
-  const serializedInputSchema = JSON.stringify(inputSchema);
-  const inputSchemaHash = hashInputSchema(serializedInputSchema);
-
-  if (!inputSchemaHash) {
-    throw new Error("Failed to hash input schema");
-  }
-
-  return {
-    inputSchema: serializedInputSchema,
-    inputSchemaHash,
-  };
-}
 
 /**
  * Repository for managing Job entities and related queries.
@@ -218,7 +201,13 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
+      data.inputSchema,
+    );
+    if (inputSchemaSnapshotResult.isErr()) {
+      throw new Error(inputSchemaSnapshotResult.error);
+    }
+    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
 
     const job = await tx.job.create({
       data: {
@@ -284,7 +273,13 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
+      data.inputSchema,
+    );
+    if (inputSchemaSnapshotResult.isErr()) {
+      throw new Error(inputSchemaSnapshotResult.error);
+    }
+    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
 
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,

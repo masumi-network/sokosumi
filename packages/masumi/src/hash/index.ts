@@ -1,4 +1,5 @@
 export {
+  buildInputSchemaSnapshot,
   hashInput,
   hashInputDeprecated,
   hashInputSchema,

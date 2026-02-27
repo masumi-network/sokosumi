@@ -45,7 +45,9 @@ export const jobScheduleRepository = {
     data: Omit<Prisma.JobScheduleCreateInput, "inputSchemaHash">,
     tx: Prisma.TransactionClient,
   ) {
-    const inputSchemaHash = getRequiredInputSchemaHash(getCreateInputSchema(data));
+    const inputSchemaHash = getRequiredInputSchemaHash(
+      getCreateInputSchema(data),
+    );
 
     return await tx.jobSchedule.create({
       data: {
