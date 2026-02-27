@@ -1,12 +1,59 @@
+import { hashInputSchema } from "@sokosumi/masumi/hash";
+
 import type { Prisma } from "../generated/prisma/client.js";
+
+function getRequiredInputSchemaHash(inputSchema: string): string {
+  const inputSchemaHash = hashInputSchema(inputSchema);
+  if (!inputSchemaHash) {
+    throw new Error("Failed to hash input schema");
+  }
+
+  return inputSchemaHash;
+}
+
+function getCreateInputSchema(
+  data: Omit<Prisma.JobScheduleCreateInput, "inputSchemaHash">,
+): string {
+  if (typeof data.inputSchema !== "string") {
+    throw new Error("JobSchedule inputSchema must be a JSON string");
+  }
+
+  return data.inputSchema;
+}
+
+function getUpdateInputSchema(
+  data: Prisma.JobScheduleUpdateInput,
+): string | undefined {
+  if (typeof data.inputSchema === "string") {
+    return data.inputSchema;
+  }
+
+  if (
+    data.inputSchema &&
+    typeof data.inputSchema === "object" &&
+    "set" in data.inputSchema &&
+    typeof data.inputSchema.set === "string"
+  ) {
+    return data.inputSchema.set;
+  }
+
+  return undefined;
+}
 
 export const jobScheduleRepository = {
   async create(
-    data: Prisma.JobScheduleCreateInput,
+    data: Omit<Prisma.JobScheduleCreateInput, "inputSchemaHash">,
     tx: Prisma.TransactionClient,
   ) {
+    const inputSchemaHash = getRequiredInputSchemaHash(
+      getCreateInputSchema(data),
+    );
+
     return await tx.jobSchedule.create({
-      data,
+      data: {
+        ...data,
+        inputSchemaHash,
+      },
     });
   },
 
@@ -15,7 +62,16 @@ export const jobScheduleRepository = {
     data: Prisma.JobScheduleUpdateInput,
     tx: Prisma.TransactionClient,
   ) {
-    return await tx.jobSchedule.update({ where: { id }, data });
+    const inputSchema = getUpdateInputSchema(data);
+    const updateData =
+      inputSchema === undefined
+        ? data
+        : {
+            ...data,
+            inputSchemaHash: getRequiredInputSchemaHash(inputSchema),
+          };
+
+    return await tx.jobSchedule.update({ where: { id }, data: updateData });
   },
 
   async delete(id: string, tx: Prisma.TransactionClient) {

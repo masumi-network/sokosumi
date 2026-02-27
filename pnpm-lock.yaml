@@ -574,6 +574,9 @@ importers:
       '@prisma/client':
         specifier: 7.4.1
         version: 7.4.1(prisma@7.4.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
+      '@sokosumi/masumi':
+        specifier: workspace:*
+        version: link:../masumi
       decimal.js:
         specifier: 10.6.0
         version: 10.6.0

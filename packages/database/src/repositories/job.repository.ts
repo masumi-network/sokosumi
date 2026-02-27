@@ -1,3 +1,5 @@
+import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
+
 import {
   AgentJobStatus,
   CreditBucketReferenceType,
@@ -199,6 +201,14 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
+    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
+      data.inputSchema,
+    );
+    if (inputSchemaSnapshotResult.isErr()) {
+      throw new Error(inputSchemaSnapshotResult.error);
+    }
+    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+
     const job = await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
@@ -224,7 +234,8 @@ export const jobRepository = {
           create: {
             status: AgentJobStatus.INITIATED,
             result: null,
-            inputSchema: JSON.stringify(data.inputSchema),
+            inputSchema: inputSchemaSnapshot.inputSchema,
+            inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
             input: {
               create: {
                 input: data.input,
@@ -262,6 +273,14 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
+    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
+      data.inputSchema,
+    );
+    if (inputSchemaSnapshotResult.isErr()) {
+      throw new Error(inputSchemaSnapshotResult.error);
+    }
+    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
       jobType: data.jobType,
@@ -286,7 +305,8 @@ export const jobRepository = {
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: JSON.stringify(data.inputSchema),
+          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchemaHash: inputSchemaSnapshot.inputSchemaHash,
           input: {
             create: {
               input: data.input,
