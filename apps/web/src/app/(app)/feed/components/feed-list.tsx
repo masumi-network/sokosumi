@@ -10,6 +10,7 @@ import { useFeedData } from "@/app/feed/components/feed-data-provider";
 import { FeedResultsList } from "@/app/feed/components/feed-results-list";
 import { FeedSearchInput } from "@/app/feed/components/feed-search-input";
 import { FeedSummary } from "@/app/feed/components/feed-summary";
+import { useFeedSummary } from "@/app/feed/hooks/use-feed-summary";
 import { Button } from "@/components/ui/button";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { feedItemMatchesQuery } from "@/lib/feed";
@@ -72,11 +73,12 @@ export function FeedList() {
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
 
-  const bullets = items.slice(0, 5).map((item) => {
+  const fallbackBullets = items.slice(0, 5).map((item) => {
     const fallbackName =
       item.type === "job" ? t("untitledJob") : t("untitledTask");
     return item.displayTitle?.trim() || fallbackName;
   });
+  const feedSummary = useFeedSummary(items.slice(0, 5));
   const filteredItems = useMemo(() => {
     const query = searchValue.trim();
     return items.filter((item) => feedItemMatchesQuery(item, query));
@@ -116,7 +118,19 @@ export function FeedList() {
 
   return (
     <div className="w-full space-y-5 px-2">
-      <FeedSummary summary={t("summary")} bullets={bullets} />
+      <FeedSummary
+        title={t("aiInsights")}
+        summaryDescription={t("summaryDescription")}
+        summary={feedSummary.summary ?? t("summaryDescription")}
+        bullets={
+          feedSummary.bullets.length > 0 ? feedSummary.bullets : fallbackBullets
+        }
+        isGenerating={feedSummary.isGenerating}
+        shouldAnimateStream={feedSummary.shouldAnimateStream}
+        generatingLabel={t("generating")}
+        errorLabel={t("generationError")}
+        hasError={feedSummary.hasError}
+      />
       <FeedSearchInput
         placeholder={t("search")}
         clearLabel={t("clearSearch")}

@@ -10,15 +10,15 @@ describe("getValidAuthRedirectUrl", () => {
   });
 
   it("returns relative returnUrl when it is safe", () => {
-    expect(getValidAuthRedirectUrl("/accept-invitation/invite_123", "/chat")).toBe(
-      "/accept-invitation/invite_123",
-    );
+    expect(
+      getValidAuthRedirectUrl("/accept-invitation/invite_123", "/chat"),
+    ).toBe("/accept-invitation/invite_123");
   });
 
   it("returns fallback for external origins", () => {
-    expect(getValidAuthRedirectUrl("https://evil.example/attack", "/chat")).toBe(
-      "/chat",
-    );
+    expect(
+      getValidAuthRedirectUrl("https://evil.example/attack", "/chat"),
+    ).toBe("/chat");
   });
 
   it("returns fallback for unsupported protocols", () => {

@@ -1186,6 +1186,8 @@
     },
     "Feed": {
       "title": "My Feed",
+      "aiInsights": "AI Insights",
+      "summaryDescription": "Your latest completed tasks and jobs are shown here.",
       "description": "A unified view of your latest completed work.",
       "earlier": "Earlier",
       "recentActivity": "Recent activity",
@@ -1206,6 +1208,8 @@
       "clearSearch": "Clear search",
       "loadMore": "Load more",
       "loadingMore": "Loading...",
+      "generating": "Thinking...",
+      "generationError": "Unable to generate insights right now.",
       "type": {
         "job": "Job",
         "task": "Task"

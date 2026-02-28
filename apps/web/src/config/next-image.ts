@@ -48,4 +48,3 @@ export function canUseNextImageSrc(url: string): boolean {
     return hostname === pattern.hostname;
   });
 }
-

@@ -115,9 +115,7 @@ export function FeedDetail({ feedId, item: initialItem }: FeedDetailProps) {
   }
   const actorName =
     item.actor.name?.trim() ||
-    (item.actor.kind === "agent"
-      ? t("unknownAgent")
-      : t("unknownCoworker"));
+    (item.actor.kind === "agent" ? t("unknownAgent") : t("unknownCoworker"));
   const title =
     item.displayTitle ||
     resolveTitle(item, t("untitledJob"), t("untitledTask"));

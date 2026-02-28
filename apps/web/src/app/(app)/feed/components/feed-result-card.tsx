@@ -36,9 +36,7 @@ export function FeedResultCard({ item }: FeedResultCardProps) {
   const t = useTranslations("App.Feed");
   const actorName =
     item.actor.name?.trim() ||
-    (item.actor.kind === "agent"
-      ? t("unknownAgent")
-      : t("unknownCoworker"));
+    (item.actor.kind === "agent" ? t("unknownAgent") : t("unknownCoworker"));
   const title =
     item.displayTitle ||
     resolveTitle(item, t("untitledJob"), t("untitledTask"));
