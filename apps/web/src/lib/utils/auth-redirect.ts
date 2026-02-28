@@ -1,5 +1,15 @@
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
+const OAUTH_CONSENT_PATH = "/oauth/consent";
+
+const OAUTH_CONSENT_QUERY_KEYS = [
+  "client_id",
+  "redirect_uri",
+  "code_challenge",
+  "scope",
+  "state",
+  "response_type",
+] as const;
 
 interface WaitForAuthSessionOptions {
   context: "login" | "signup";
@@ -78,4 +88,40 @@ export function getValidAuthRedirectUrl(
   } catch {
     return fallback;
   }
+}
+
+type OAuthConsentParamRecord = Partial<
+  Record<(typeof OAUTH_CONSENT_QUERY_KEYS)[number], string | undefined>
+>;
+
+export function buildOAuthConsentReturnUrl(
+  params: OAuthConsentParamRecord,
+): string | undefined {
+  if (!params.client_id || !params.redirect_uri || !params.code_challenge) {
+    return undefined;
+  }
+
+  const searchParams = new URLSearchParams();
+
+  for (const key of OAUTH_CONSENT_QUERY_KEYS) {
+    const value = params[key];
+    if (value) {
+      searchParams.set(key, value);
+    }
+  }
+
+  return `${OAUTH_CONSENT_PATH}?${searchParams.toString()}`;
+}
+
+export function buildOAuthConsentReturnUrlFromSearchParams(
+  searchParams: URLSearchParams,
+): string | undefined {
+  return buildOAuthConsentReturnUrl({
+    client_id: searchParams.get("client_id") ?? undefined,
+    redirect_uri: searchParams.get("redirect_uri") ?? undefined,
+    code_challenge: searchParams.get("code_challenge") ?? undefined,
+    scope: searchParams.get("scope") ?? undefined,
+    state: searchParams.get("state") ?? undefined,
+    response_type: searchParams.get("response_type") ?? undefined,
+  });
 }

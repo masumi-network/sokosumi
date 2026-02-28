@@ -224,7 +224,8 @@ describe("stripe.client lookup-key pricing", () => {
         allow_promotion_codes: false,
         custom_text: {
           submit: {
-            message: "25,000 credits will be added to your account after checkout.",
+            message:
+              "25,000 credits will be added to your account after checkout.",
           },
         },
         metadata: expect.objectContaining({
@@ -272,7 +273,8 @@ describe("stripe.client lookup-key pricing", () => {
         discounts: [{ promotion_code: "promo_1" }],
         custom_text: {
           submit: {
-            message: "25,000 credits will be added to your account after checkout.",
+            message:
+              "25,000 credits will be added to your account after checkout.",
           },
         },
         success_url:

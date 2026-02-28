@@ -1,4 +1,6 @@
 import {
+  buildOAuthConsentReturnUrl,
+  buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   getValidAuthRedirectUrl,
   waitForAuthSession,
@@ -10,15 +12,15 @@ describe("getValidAuthRedirectUrl", () => {
   });
 
   it("returns relative returnUrl when it is safe", () => {
-    expect(getValidAuthRedirectUrl("/accept-invitation/invite_123", "/chat")).toBe(
-      "/accept-invitation/invite_123",
-    );
+    expect(
+      getValidAuthRedirectUrl("/accept-invitation/invite_123", "/chat"),
+    ).toBe("/accept-invitation/invite_123");
   });
 
   it("returns fallback for external origins", () => {
-    expect(getValidAuthRedirectUrl("https://evil.example/attack", "/chat")).toBe(
-      "/chat",
-    );
+    expect(
+      getValidAuthRedirectUrl("https://evil.example/attack", "/chat"),
+    ).toBe("/chat");
   });
 
   it("returns fallback for unsupported protocols", () => {
@@ -41,6 +43,49 @@ describe("buildSignUpUrlFromSignIn", () => {
       }),
     ).toBe(
       "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
+    );
+  });
+});
+
+describe("buildOAuthConsentReturnUrl", () => {
+  it("builds a consent return URL when required params are present", () => {
+    expect(
+      buildOAuthConsentReturnUrl({
+        client_id: "client_1",
+        redirect_uri: "https://example.com/callback",
+        code_challenge: "challenge_1",
+        scope: "openid offline_access",
+        state: "state_1",
+        response_type: "code",
+      }),
+    ).toBe(
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid+offline_access&state=state_1&response_type=code",
+    );
+  });
+
+  it("returns undefined when required params are missing", () => {
+    expect(
+      buildOAuthConsentReturnUrl({
+        client_id: "client_1",
+        redirect_uri: "https://example.com/callback",
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
+  it("builds a consent return URL from URLSearchParams", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+      code_challenge: "challenge_1",
+      scope: "openid offline_access",
+      state: "state_1",
+      response_type: "code",
+    });
+
+    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid+offline_access&state=state_1&response_type=code",
     );
   });
 });
