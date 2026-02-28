@@ -226,7 +226,8 @@
       "schedules": "Scheduled Agents",
       "chat": "Chat",
       "tasks": "Task Manager",
-      "connections": "Connections"
+      "connections": "Connections",
+      "feed": "My Feed"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1183,6 +1184,33 @@
       "pausedReason": "Paused Reason",
       "loading": "Loading schedules..."
     },
+    "Feed": {
+      "title": "My Feed",
+      "description": "A unified view of your latest completed work.",
+      "earlier": "Earlier",
+      "recentActivity": "Recent activity",
+      "summary": "Your latest completed tasks and jobs are shown here.",
+      "resultsTitle": "Results",
+      "emptyState": "No completed results yet.",
+      "backToFeed": "Back to feed",
+      "unknownAgent": "Agent",
+      "unknownCoworker": "Coworker",
+      "openOriginal": "View detail",
+      "missingResult": "This feed result is no longer available.",
+      "fallbackPreview": "No additional details available.",
+      "sourcesFiles": "Files",
+      "sourcesLinks": "Links",
+      "untitledJob": "Untitled job",
+      "untitledTask": "Untitled task",
+      "search": "Search tasks or jobs",
+      "clearSearch": "Clear search",
+      "loadMore": "Load more",
+      "loadingMore": "Loading...",
+      "type": {
+        "job": "Job",
+        "task": "Task"
+      }
+    },
     "Tasks": {
       "Page": {
         "title": "Task Manager",
@@ -1367,6 +1395,7 @@
           "chat": "Chat",
           "newChat": "New Chat",
           "exploreAgents": "Explore Agents",
+          "myFeed": "My Feed",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Task Manager",
           "scheduledAgents": "Scheduled Agents"

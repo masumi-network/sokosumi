@@ -45,6 +45,13 @@ export const taskService = (() => {
     };
   }
 
+  async function listCompletedTasks(limit = 20) {
+    return listTasks({
+      status: TaskStatus.COMPLETED,
+      limit,
+    });
+  }
+
   async function getTaskById(
     taskId: string,
     scope: Array<"context" | "owned"> = ["context"],
@@ -105,6 +112,7 @@ export const taskService = (() => {
 
   return {
     listTasks,
+    listCompletedTasks,
     getTaskById,
     createTask,
     createTaskEvent,
