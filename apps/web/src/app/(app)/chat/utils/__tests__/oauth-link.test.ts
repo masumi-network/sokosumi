@@ -10,13 +10,18 @@ describe("extractOAuthAuthorizationUrl", () => {
     );
   });
 
-  it("extracts generic oauth authorize links", () => {
+  it("extracts generic oauth authorize links for trusted domains", () => {
     const text =
-      "Authorize at https://example.com/oauth/authorize?client_id=1.";
+      "Authorize at https://hannah.sumike.ai/oauth/authorize?client_id=1.";
 
     expect(extractOAuthAuthorizationUrl(text)).toBe(
-      "https://example.com/oauth/authorize?client_id=1",
+      "https://hannah.sumike.ai/oauth/authorize?client_id=1",
     );
+  });
+
+  it("returns null for untrusted oauth authorize domains", () => {
+    const text = "Authorize at https://evil.example/oauth/authorize?client_id=1";
+    expect(extractOAuthAuthorizationUrl(text)).toBe(null);
   });
 
   it("returns null when no matching oauth link exists", () => {
