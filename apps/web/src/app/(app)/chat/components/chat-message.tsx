@@ -98,7 +98,7 @@ export default function ChatMessage({
     isAssistantStreaming && !(displayContent && displayContent.trim());
   const oauthAuthorizationUrl = isUser
     ? null
-    : extractOAuthAuthorizationUrl(displayContent);
+    : extractOAuthAuthorizationUrl(content);
 
   return (
     <div
