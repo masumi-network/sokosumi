@@ -42,7 +42,7 @@ export function canUseNextImageSrc(url: string): boolean {
 
     if (pattern.hostname.startsWith("**.")) {
       const suffix = pattern.hostname.slice(3);
-      return hostname.endsWith(`.${suffix}`);
+      return hostname === suffix || hostname.endsWith(`.${suffix}`);
     }
 
     return hostname === pattern.hostname;

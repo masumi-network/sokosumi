@@ -1,9 +1,8 @@
 "use server";
 
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 
-import { getEnvSecrets } from "@/config/env.secrets";
+import { openrouter } from "@/lib/clients/openrouter.client";
 import { feedService } from "@/lib/services";
 
 interface LoadMoreFeedParams {
@@ -33,10 +32,6 @@ interface FeedSummaryResponse {
   summary: string;
   bullets: string[];
 }
-
-const openrouter = createOpenRouter({
-  apiKey: getEnvSecrets().OPENROUTER_DEFAULT_API_KEY,
-});
 
 function sanitizeText(value: unknown): string | null {
   if (typeof value !== "string") {

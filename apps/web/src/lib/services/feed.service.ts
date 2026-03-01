@@ -172,8 +172,9 @@ export const feedService = (() => {
     jobsCursor?: string;
     tasksCursor?: string;
     limitPerSource: number;
+    coworkersById: Map<string, Coworker>;
   }): Promise<FeedPoolPage> {
-    const [jobsResult, tasksResult, coworkersResult] = await Promise.all([
+    const [jobsResult, tasksResult] = await Promise.all([
       coreClient.getJobs({
         scope: ["context", "shared"],
         cursor: params.jobsCursor,
@@ -184,18 +185,14 @@ export const feedService = (() => {
         cursor: params.tasksCursor,
         limit: params.limitPerSource,
       }),
-      coreClient.getCoworkers(),
     ]);
     const agentsById = await getAgentsById(
       jobsResult.data.map((job) => job.agentId),
     );
-    const coworkersById = new Map(
-      coworkersResult.data.map((coworker) => [coworker.id, coworker]),
-    );
 
     const mergedItems = [
       ...toFeedJobItems(jobsResult.data, agentsById),
-      ...toFeedTaskItems(tasksResult.data, coworkersById),
+      ...toFeedTaskItems(tasksResult.data, params.coworkersById),
     ].sort(
       (a, b) => getDateTimestamp(b.activityAt) - getDateTimestamp(a.activityAt),
     );
@@ -215,7 +212,11 @@ export const feedService = (() => {
     params: FeedPoolParams = {},
   ): Promise<FeedPoolPage> {
     const limitPerSource = params.limitPerSource ?? 20;
-    return listFeedItemsPage({ limitPerSource });
+    const { data: coworkers } = await coreClient.getCoworkers();
+    const coworkersById = new Map(
+      coworkers.map((coworker) => [coworker.id, coworker]),
+    );
+    return listFeedItemsPage({ limitPerSource, coworkersById });
   }
 
   async function getMyFeedNextPoolPage(
@@ -231,10 +232,15 @@ export const feedService = (() => {
       };
     }
 
+    const { data: coworkers } = await coreClient.getCoworkers();
+    const coworkersById = new Map(
+      coworkers.map((coworker) => [coworker.id, coworker]),
+    );
     return listFeedItemsPage({
       jobsCursor: params.jobsCursor ?? undefined,
       tasksCursor: params.tasksCursor ?? undefined,
       limitPerSource,
+      coworkersById,
     });
   }
 
