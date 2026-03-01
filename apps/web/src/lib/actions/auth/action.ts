@@ -163,6 +163,7 @@ export async function signUpEmail(
 
 export async function signInEmail(
   data: SignInFormSchemaType,
+  callbackURL?: string,
 ): Promise<Result<SignInEmailResult, ActionError>> {
   const parsedResult = signInFormSchema().safeParse(data);
   if (!parsedResult.success) {
@@ -172,6 +173,10 @@ export async function signInEmail(
   }
 
   const parsed = parsedResult.data;
+  const safeCallbackURL =
+    callbackURL && callbackURL.startsWith("/") && !callbackURL.startsWith("//")
+      ? callbackURL
+      : "/";
 
   try {
     const signInResult = await auth.api.signInEmail({
@@ -179,6 +184,7 @@ export async function signInEmail(
         email: parsed.email,
         password: parsed.currentPassword,
         rememberMe: parsed.rememberMe,
+        callbackURL: safeCallbackURL,
       },
       headers: await headers(),
     });

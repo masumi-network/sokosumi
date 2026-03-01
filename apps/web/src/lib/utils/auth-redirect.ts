@@ -94,6 +94,14 @@ export function getValidAuthRedirectUrl(
   }
 }
 
+export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
+  const normalized = returnUrl?.trim() || "";
+  const sanitizedReturnUrl =
+    normalized && normalized !== "/" ? normalized : undefined;
+
+  return getValidAuthRedirectUrl(sanitizedReturnUrl, "/chat");
+}
+
 type OAuthConsentParamRecord = Partial<
   Record<(typeof OAUTH_CONSENT_QUERY_KEYS)[number], string | undefined>
 >;

@@ -261,6 +261,86 @@ describe("auth actions", () => {
         email: "login-user@example.com",
         password: "Passw0rd!",
         rememberMe: true,
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("passes OAuth callback url during email sign-in", async () => {
+    signInEmailMock.mockResolvedValue({});
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail(
+      {
+        email: "oauth-login-user@example.com",
+        currentPassword: "Passw0rd!",
+        rememberMe: true,
+      },
+      "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&state=test-state&response_type=code&exp=1772367377&sig=test-signature",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "oauth-login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: true,
+        callbackURL:
+          "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&state=test-state&response_type=code&exp=1772367377&sig=test-signature",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("falls back to root callback for unsafe sign-in callback urls", async () => {
+    signInEmailMock.mockResolvedValue({});
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail(
+      {
+        email: "unsafe-login-user@example.com",
+        currentPassword: "Passw0rd!",
+        rememberMe: false,
+      },
+      "https://evil.example.com/steal",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "unsafe-login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: false,
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("falls back to root callback for protocol-relative sign-in callback urls", async () => {
+    signInEmailMock.mockResolvedValue({});
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail(
+      {
+        email: "protocol-relative-login-user@example.com",
+        currentPassword: "Passw0rd!",
+        rememberMe: false,
+      },
+      "//evil.example.com/steal",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "protocol-relative-login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: false,
+        callbackURL: "/",
       },
       headers: expect.any(Headers),
     });
@@ -282,6 +362,15 @@ describe("auth actions", () => {
 
     expect(result.data.redirect).toBe(false);
     expect(result.data.redirectUrl).toBeUndefined();
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: false,
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
   });
 
   it("maps Better Auth sign-in error response to ActionError", async () => {

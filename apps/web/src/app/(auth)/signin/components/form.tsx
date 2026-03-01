@@ -21,7 +21,7 @@ import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
-  getValidAuthRedirectUrl,
+  normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -71,11 +71,14 @@ export default function SignInForm({
   const handleSubmit = async (values: SignInFormSchemaType) => {
     track("Sign In", { provider: "credential" });
 
-    const result = await signInEmail({
-      email: values.email,
-      currentPassword: values.currentPassword,
-      rememberMe: values.rememberMe,
-    });
+    const result = await signInEmail(
+      {
+        email: values.email,
+        currentPassword: values.currentPassword,
+        rememberMe: values.rememberMe,
+      },
+      effectiveReturnUrl,
+    );
 
     if (!result.ok) {
       switch (result.error?.code) {
@@ -107,7 +110,7 @@ export default function SignInForm({
 
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
-    router.replace(getValidAuthRedirectUrl(effectiveReturnUrl, "/"));
+    router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   };
 
   const email = useWatch({
