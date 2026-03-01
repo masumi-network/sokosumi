@@ -73,12 +73,13 @@ export function FeedList() {
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
 
-  const fallbackBullets = items.slice(0, 5).map((item) => {
+  const topFiveItems = useMemo(() => items.slice(0, 5), [items]);
+  const fallbackBullets = topFiveItems.map((item) => {
     const fallbackName =
       item.type === "job" ? t("untitledJob") : t("untitledTask");
     return item.displayTitle?.trim() || fallbackName;
   });
-  const feedSummary = useFeedSummary(items.slice(0, 5));
+  const feedSummary = useFeedSummary(topFiveItems);
   const filteredItems = useMemo(() => {
     const query = searchValue.trim();
     return items.filter((item) => feedItemMatchesQuery(item, query));
@@ -92,6 +93,7 @@ export function FeedList() {
   }
 
   function handleClearSearch() {
+    debouncedSetQuery.cancel();
     setSearchValue("");
     setQueryParam("");
   }

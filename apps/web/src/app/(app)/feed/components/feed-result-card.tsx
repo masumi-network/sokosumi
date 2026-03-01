@@ -9,27 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { FeedItem } from "@/lib/services/feed.service";
 import { formatTimeAgo } from "@/lib/utils/datetime";
+import { resolveTitle } from "@/lib/utils/feed-helpers";
 import { getInitials } from "@/lib/utils/text";
 
 interface FeedResultCardProps {
   item: FeedItem;
-}
-
-function resolveTitle(
-  item: FeedItem,
-  untitledJob: string,
-  untitledTask: string,
-) {
-  const trimmedTitle = item.title?.trim();
-  if (trimmedTitle) {
-    return trimmedTitle;
-  }
-
-  if (item.type === "job") {
-    return untitledJob;
-  }
-
-  return untitledTask;
 }
 
 export function FeedResultCard({ item }: FeedResultCardProps) {

@@ -8,11 +8,11 @@ import type {
   Task,
   TaskEvent,
 } from "@/lib/clients/generated/core/types.gen";
+import {
+  getFirstMarkdownHeading,
+  removeFirstMarkdownHeading,
+} from "@/lib/utils/feed-helpers";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
-
-interface GetMyFeedItemsParams {
-  limit?: number;
-}
 
 interface FeedPoolParams {
   limitPerSource?: number;
@@ -65,47 +65,6 @@ export type FeedItem = FeedJobItem | FeedTaskItem;
 
 function getDateTimestamp(value: Date | string): number {
   return new Date(value).getTime();
-}
-
-function getFirstMarkdownHeading(markdown: string | null): string | null {
-  if (!markdown?.trim()) {
-    return null;
-  }
-
-  const lines = markdown.trimStart().split("\n");
-  const firstHeading = lines.find((line) => /^#{1,6}\s+/.test(line.trim()));
-  if (!firstHeading) {
-    return null;
-  }
-
-  return (
-    firstHeading
-      .trim()
-      .replace(/^#{1,6}\s+/, "")
-      .trim() || null
-  );
-}
-
-function removeFirstMarkdownHeading(markdown: string | null): string | null {
-  if (!markdown?.trim()) {
-    return markdown;
-  }
-
-  const lines = markdown.trimStart().split("\n");
-  const headingIndex = lines.findIndex((line) =>
-    /^#{1,6}\s+/.test(line.trim()),
-  );
-  if (headingIndex === -1) {
-    return markdown;
-  }
-
-  const remaining = [
-    ...lines.slice(0, headingIndex),
-    ...lines.slice(headingIndex + 1),
-  ]
-    .join("\n")
-    .trim();
-  return remaining || null;
 }
 
 function getLatestTaskEvent(task: Task): TaskEvent | null {
@@ -325,18 +284,9 @@ export const feedService = (() => {
     return null;
   }
 
-  async function getMyFeedItems(
-    params: GetMyFeedItemsParams = {},
-  ): Promise<FeedItem[]> {
-    const limit = params.limit ?? 20;
-    const initialPool = await getMyFeedInitialPool({ limitPerSource: limit });
-    return initialPool.items.slice(0, limit);
-  }
-
   return {
     getMyFeedInitialPool,
     getMyFeedItemByFeedId,
-    getMyFeedItems,
     getMyFeedNextPoolPage,
   };
 })();
