@@ -80,7 +80,11 @@ export async function signUpEmail(
     const parsed = parsedResult.data;
 
     const safeCallbackURL =
-      callbackURL && callbackURL.startsWith("/") ? callbackURL : "/";
+      callbackURL &&
+      callbackURL.startsWith("/") &&
+      !callbackURL.startsWith("//")
+        ? callbackURL
+        : "/";
 
     const signUpResult = await auth.api.signUpEmail({
       body: {
