@@ -35,7 +35,7 @@ export function FeedSummary({
   const isSummaryStreaming =
     shouldAnimateStream &&
     hasSummary &&
-    streamedSummary.length < normalizedSummary.length;
+    streamedSummary.length < summary.length;
   const bulletStreamSource = isSummaryStreaming ? "" : bullets.join("\n");
   const streamedBullets = useStreamingContent(
     bulletStreamSource,

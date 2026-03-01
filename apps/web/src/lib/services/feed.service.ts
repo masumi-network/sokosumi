@@ -237,12 +237,54 @@ export const feedService = (() => {
     const coworkersById = new Map(
       coworkers.map((coworker) => [coworker.id, coworker]),
     );
-    return listFeedItemsPage({
-      jobsCursor: params.jobsCursor ?? undefined,
-      tasksCursor: params.tasksCursor ?? undefined,
-      limitPerSource,
-      coworkersById,
-    });
+
+    const shouldFetchJobs = params.jobsCursor !== null;
+    const shouldFetchTasks = params.tasksCursor !== null;
+
+    const [jobsResult, tasksResult] = await Promise.all([
+      shouldFetchJobs
+        ? coreClient.getJobs({
+            scope: ["context", "shared"],
+            status: "completed",
+            cursor: params.jobsCursor ?? undefined,
+            limit: limitPerSource,
+          })
+        : Promise.resolve({
+            data: [],
+            meta: { pagination: { nextCursor: null } },
+          }),
+      shouldFetchTasks
+        ? coreClient.getTasks({
+            status: "COMPLETED",
+            cursor: params.tasksCursor ?? undefined,
+            limit: limitPerSource,
+          })
+        : Promise.resolve({
+            data: [],
+            meta: { pagination: { nextCursor: null } },
+          }),
+    ]);
+
+    const agentsById = await getAgentsById(
+      jobsResult.data.map((job) => job.agentId),
+    );
+
+    const mergedItems = [
+      ...toFeedJobItems(jobsResult.data, agentsById),
+      ...toFeedTaskItems(tasksResult.data, coworkersById),
+    ].sort(
+      (a, b) => getDateTimestamp(b.activityAt) - getDateTimestamp(a.activityAt),
+    );
+
+    const jobsCursor = jobsResult.meta?.pagination?.nextCursor ?? null;
+    const tasksCursor = tasksResult.meta?.pagination?.nextCursor ?? null;
+
+    return {
+      items: mergedItems,
+      jobsCursor,
+      tasksCursor,
+      hasMore: Boolean(jobsCursor || tasksCursor),
+    };
   }
 
   async function getMyFeedItemByFeedId(
