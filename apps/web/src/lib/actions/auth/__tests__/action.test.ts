@@ -70,6 +70,41 @@ describe("auth actions", () => {
     });
   });
 
+  it("returns OAuth redirect metadata when present", async () => {
+    signUpEmailMock.mockResolvedValue({
+      user: {
+        id: "user-redirect",
+      },
+      redirect: true,
+      url: "/api/auth/oauth2/authorize?client_id=test-client",
+    });
+
+    const { signUpEmail } = await import("../action");
+
+    const result = await signUpEmail(
+      {
+        email: "redirect-user@example.com",
+        name: "Redirect User",
+        password: "Passw0rd!",
+        confirmPassword: "Passw0rd!",
+        termsAccepted: true,
+        marketingOptIn: false,
+      },
+      "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fhannah.sumike.ai%2Foauth%2Fcallback&code_challenge=test-challenge",
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.data.user).toEqual({
+      id: "user-redirect",
+    });
+    expect(result.data.redirect).toBe(true);
+    expect(result.data.redirectUrl).toBe(
+      "/api/auth/oauth2/authorize?client_id=test-client",
+    );
+  });
+
   it("falls back to root callback for unsafe callback urls", async () => {
     signUpEmailMock.mockResolvedValue({
       user: {

@@ -65,7 +65,7 @@ export async function createCredentialAccount(
 export async function signUpEmail(
   data: SignUpFormSchemaType,
   callbackURL?: string,
-): Promise<Result<User, ActionError>> {
+): Promise<Result<SignUpEmailResult, ActionError>> {
   let actionError: ActionError = {
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
   };
@@ -114,7 +114,16 @@ export async function signUpEmail(
       console.error("Failed to create utm attribution", error);
     }
 
-    return Ok(user);
+    const oauthResponse = signUpResult as {
+      redirect?: boolean;
+      url?: string;
+    };
+
+    return Ok({
+      user,
+      redirect: oauthResponse.redirect,
+      redirectUrl: oauthResponse.url,
+    });
   } catch (error) {
     console.error("Failed to sign up email", error);
 
@@ -141,4 +150,10 @@ export async function signUpEmail(
     }
     return Err(actionError);
   }
+}
+
+interface SignUpEmailResult {
+  user: User;
+  redirect?: boolean;
+  redirectUrl?: string;
 }
