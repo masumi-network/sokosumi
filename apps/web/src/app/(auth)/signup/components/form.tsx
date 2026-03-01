@@ -6,7 +6,7 @@ import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -36,8 +36,10 @@ export default function SignUpForm({
   const registerFormStart = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const effectiveReturnUrl =
-    returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
+  const effectiveReturnUrl = useMemo(
+    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    [returnUrl, searchParams],
+  );
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
