@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -18,6 +18,7 @@ import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 import {
+  buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   getValidAuthRedirectUrl,
   waitForAuthSession,
@@ -35,6 +36,11 @@ export default function SignInForm({
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const effectiveReturnUrl = useMemo(
+    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    [returnUrl, searchParams],
+  );
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -92,7 +98,7 @@ export default function SignInForm({
 
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
-    router.replace(getValidAuthRedirectUrl(returnUrl, "/"));
+    router.replace(getValidAuthRedirectUrl(effectiveReturnUrl, "/"));
   };
 
   const email = useWatch({
@@ -113,10 +119,10 @@ export default function SignInForm({
   const signUpUrl = useMemo(
     () =>
       buildSignUpUrlFromSignIn({
-        returnUrl,
+        returnUrl: effectiveReturnUrl,
         email: prefilledEmail ?? email,
       }),
-    [returnUrl, prefilledEmail, email],
+    [effectiveReturnUrl, prefilledEmail, email],
   );
 
   const { isSubmitting } = form.formState;

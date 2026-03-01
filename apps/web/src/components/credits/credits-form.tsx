@@ -260,11 +260,14 @@ export default function CreditsForm({
               {isPurchaseEnabled ? (
                 <p className="text-muted-foreground text-sm">
                   {t("costPerCredit", {
-                    cost: formatter.number(selectedPrice.amountPerCredit / 100, {
-                      style: "currency",
-                      currency: selectedPrice.currency,
-                      maximumFractionDigits: 4,
-                    }),
+                    cost: formatter.number(
+                      selectedPrice.amountPerCredit / 100,
+                      {
+                        style: "currency",
+                        currency: selectedPrice.currency,
+                        maximumFractionDigits: 4,
+                      },
+                    ),
                   })}
                 </p>
               ) : null}

@@ -1154,6 +1154,7 @@
         "modelAlt": "Model",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "User avatar",
+        "authorize": "Authorize",
         "reasoning": {
           "processing": "Processing...",
           "thinking": "Thinking...",

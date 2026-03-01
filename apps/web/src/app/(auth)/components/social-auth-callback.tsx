@@ -26,7 +26,7 @@ export default function SocialAuthCallback({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const provider = params.get("provider");
-    const returnUrl = params.get("returnUrl");
+    const returnUrl = params.get("returnUrl") ?? null;
     const validationResult = socialProviderIdSchema.safeParse(provider);
 
     if (validationResult.success && validationResult.data !== "credential") {

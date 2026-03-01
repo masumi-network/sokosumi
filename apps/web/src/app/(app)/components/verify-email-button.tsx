@@ -61,10 +61,15 @@ export default function VerifyEmailButton({
       onClick={() => {
         void handleClick();
       }}
-      className={cn("inline-flex items-center justify-center gap-1.5", className)}
+      className={cn(
+        "inline-flex items-center justify-center gap-1.5",
+        className,
+      )}
       disabled={isSending}
     >
-      {isSending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+      {isSending ? (
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+      ) : null}
       {label}
     </Button>
   );
