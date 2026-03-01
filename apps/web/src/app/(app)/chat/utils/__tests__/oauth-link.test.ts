@@ -20,7 +20,8 @@ describe("extractOAuthAuthorizationUrl", () => {
   });
 
   it("returns null for untrusted oauth authorize domains", () => {
-    const text = "Authorize at https://evil.example/oauth/authorize?client_id=1";
+    const text =
+      "Authorize at https://evil.example/oauth/authorize?client_id=1";
     expect(extractOAuthAuthorizationUrl(text)).toBe(null);
   });
 
