@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { JobType } from "@sokosumi/database";
+import { AgentJobStatus, JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { getUserJobs } from "@/helpers/job";
@@ -32,12 +32,12 @@ const query = z
         example: "cmaeygqwa000e8i0s9s7wif8i",
       }),
     status: z
-      .string()
+      .enum(AgentJobStatus)
       .optional()
       .openapi({
         param: { name: "status", in: "query" },
         description: "Filter jobs by status",
-        example: "completed",
+        example: AgentJobStatus.COMPLETED,
       }),
     scope: jobScopeQuerySchema,
   })
