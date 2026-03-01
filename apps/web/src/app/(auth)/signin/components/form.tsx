@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
 import { AuthErrorCode } from "@/lib/actions";
+import { signInEmail } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -70,36 +71,26 @@ export default function SignInForm({
   const handleSubmit = async (values: SignInFormSchemaType) => {
     track("Sign In", { provider: "credential" });
 
-    const result = await authClient.signIn.email({
+    const result = await signInEmail({
       email: values.email,
-      password: values.currentPassword,
+      currentPassword: values.currentPassword,
       rememberMe: values.rememberMe,
     });
 
-    if (result.error) {
-      switch (result.error.code) {
+    if (!result.ok) {
+      switch (result.error?.code) {
         case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(result.error.message ?? t("error"));
+          toast.error(result.error?.message ?? t("error"));
           break;
       }
       return;
     }
 
-    const oauthResponse = result.data as
-      | {
-          redirect?: boolean;
-          url?: string;
-          data?: {
-            redirect?: boolean;
-            url?: string;
-          };
-        }
-      | undefined;
-    const redirect = oauthResponse?.redirect ?? oauthResponse?.data?.redirect;
-    const redirectUrl = oauthResponse?.url ?? oauthResponse?.data?.url;
+    const redirect = result.data.redirect;
+    const redirectUrl = result.data.redirectUrl;
 
     if (redirect && redirectUrl) {
       window.location.href = redirectUrl;
