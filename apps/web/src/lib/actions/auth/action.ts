@@ -64,6 +64,7 @@ export async function createCredentialAccount(
 
 export async function signUpEmail(
   data: SignUpFormSchemaType,
+  callbackURL?: string,
 ): Promise<Result<User, ActionError>> {
   let actionError: ActionError = {
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
@@ -78,12 +79,15 @@ export async function signUpEmail(
     }
     const parsed = parsedResult.data;
 
+    const safeCallbackURL =
+      callbackURL && callbackURL.startsWith("/") ? callbackURL : "/";
+
     const signUpResult = await auth.api.signUpEmail({
       body: {
         email: parsed.email,
         name: parsed.name,
         password: parsed.password,
-        callbackURL: "/",
+        callbackURL: safeCallbackURL,
         marketingOptIn: parsed.marketingOptIn,
         termsAccepted: parsed.termsAccepted,
         onboardingCompleted: false,

@@ -71,14 +71,17 @@ export default function SignUpForm({
   const handleSubmit = async (values: SignUpFormSchemaType) => {
     track("Sign Up", { provider: "credential" });
 
-    const result = await signUpEmail({
-      email: values.email,
-      name: values.name,
-      password: values.password,
-      confirmPassword: values.confirmPassword,
-      termsAccepted: values.termsAccepted,
-      marketingOptIn: values.marketingOptIn,
-    });
+    const result = await signUpEmail(
+      {
+        email: values.email,
+        name: values.name,
+        password: values.password,
+        confirmPassword: values.confirmPassword,
+        termsAccepted: values.termsAccepted,
+        marketingOptIn: values.marketingOptIn,
+      },
+      effectiveReturnUrl,
+    );
 
     if (result.ok) {
       await waitForAuthSession({
