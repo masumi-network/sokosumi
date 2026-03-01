@@ -10,34 +10,34 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { auth } from "@/lib/auth/auth";
-import { buildOAuthConsentReturnUrl } from "@/lib/utils/auth-redirect";
 
 import { ConsentActions } from "./consent-actions";
 
 interface ConsentPageProps {
-  searchParams: Promise<{
-    client_id?: string;
-    redirect_uri?: string;
-    code_challenge?: string;
-    scope?: string;
-    state?: string;
-    response_type?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   const t = await getTranslations("App.Account.OAuthConsent");
   const params = await searchParams;
-  const {
-    client_id,
-    redirect_uri,
-    code_challenge,
-    scope,
-    state,
-    response_type,
-  } = params;
+  const oauthSearchParams = new URLSearchParams();
 
-  if (!client_id || !redirect_uri || !code_challenge) {
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        oauthSearchParams.append(key, item);
+      }
+      continue;
+    }
+
+    if (value) {
+      oauthSearchParams.set(key, value);
+    }
+  }
+
+  const client_id = oauthSearchParams.get("client_id");
+
+  if (!client_id) {
     return (
       <div className="container mx-auto max-w-md py-8">
         <Card>
@@ -56,26 +56,8 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   });
 
   if (!session?.session) {
-    // Redirect to OAuth sign-in with parameters preserved
-    const signInParams = new URLSearchParams();
-    if (client_id) signInParams.set("client_id", client_id);
-    if (redirect_uri) signInParams.set("redirect_uri", redirect_uri);
-    if (code_challenge) signInParams.set("code_challenge", code_challenge);
-    if (state) signInParams.set("state", state);
-    if (scope) signInParams.set("scope", scope);
-    if (response_type) signInParams.set("response_type", response_type);
-    const returnUrl = buildOAuthConsentReturnUrl({
-      client_id,
-      redirect_uri,
-      code_challenge,
-      scope,
-      state,
-      response_type,
-    });
-    if (returnUrl) {
-      signInParams.set("returnUrl", returnUrl);
-    }
-    redirect(`/signin?${signInParams.toString()}`);
+    const queryString = oauthSearchParams.toString();
+    redirect(queryString ? `/signin?${queryString}` : "/signin");
   }
 
   // Fetch public client info for display on consent page
@@ -129,7 +111,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
             <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
           </div>
 
-          <ConsentActions redirectUri={redirect_uri} />
+          <ConsentActions />
         </CardContent>
       </Card>
     </div>

@@ -88,6 +88,24 @@ export default function SignInForm({
       return;
     }
 
+    const oauthResponse = result.data as
+      | {
+          redirect?: boolean;
+          url?: string;
+          data?: {
+            redirect?: boolean;
+            url?: string;
+          };
+        }
+      | undefined;
+    const redirect = oauthResponse?.redirect ?? oauthResponse?.data?.redirect;
+    const redirectUrl = oauthResponse?.url ?? oauthResponse?.data?.url;
+
+    if (redirect && redirectUrl) {
+      window.location.href = redirectUrl;
+      return;
+    }
+
     await waitForAuthSession({
       context: "login",
       getSession: () => authClient.getSession(),
