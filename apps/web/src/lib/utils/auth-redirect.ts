@@ -1,14 +1,18 @@
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const OAUTH_CONSENT_PATH = "/oauth/consent";
+const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set(["returnUrl", "email"]);
 
 const OAUTH_CONSENT_QUERY_KEYS = [
   "client_id",
   "redirect_uri",
   "code_challenge",
+  "code_challenge_method",
   "scope",
   "state",
   "response_type",
+  "exp",
+  "sig",
 ] as const;
 
 interface WaitForAuthSessionOptions {
@@ -116,12 +120,32 @@ export function buildOAuthConsentReturnUrl(
 export function buildOAuthConsentReturnUrlFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {
+  const filteredSearchParams = new URLSearchParams();
+  for (const [key, value] of searchParams.entries()) {
+    if (!AUTH_REDIRECT_EXCLUDED_QUERY_KEYS.has(key)) {
+      filteredSearchParams.append(key, value);
+    }
+  }
+
+  const hasSignedOAuthQuery =
+    filteredSearchParams.has("client_id") &&
+    filteredSearchParams.has("exp") &&
+    filteredSearchParams.has("sig");
+
+  if (hasSignedOAuthQuery) {
+    return `${OAUTH_CONSENT_PATH}?${filteredSearchParams.toString()}`;
+  }
+
   return buildOAuthConsentReturnUrl({
-    client_id: searchParams.get("client_id") ?? undefined,
-    redirect_uri: searchParams.get("redirect_uri") ?? undefined,
-    code_challenge: searchParams.get("code_challenge") ?? undefined,
-    scope: searchParams.get("scope") ?? undefined,
-    state: searchParams.get("state") ?? undefined,
-    response_type: searchParams.get("response_type") ?? undefined,
+    client_id: filteredSearchParams.get("client_id") ?? undefined,
+    redirect_uri: filteredSearchParams.get("redirect_uri") ?? undefined,
+    code_challenge: filteredSearchParams.get("code_challenge") ?? undefined,
+    code_challenge_method:
+      filteredSearchParams.get("code_challenge_method") ?? undefined,
+    scope: filteredSearchParams.get("scope") ?? undefined,
+    state: filteredSearchParams.get("state") ?? undefined,
+    response_type: filteredSearchParams.get("response_type") ?? undefined,
+    exp: filteredSearchParams.get("exp") ?? undefined,
+    sig: filteredSearchParams.get("sig") ?? undefined,
   });
 }
