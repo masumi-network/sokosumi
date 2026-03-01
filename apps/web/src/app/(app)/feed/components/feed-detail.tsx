@@ -43,7 +43,7 @@ function getFileNameFromUrl(url: string): string | null {
 export function FeedDetail({ feedId, item: initialItem }: FeedDetailProps) {
   const t = useTranslations("App.Feed");
   const { getItemById } = useFeedData();
-  const item = initialItem ?? getItemById(feedId);
+  const item = initialItem !== undefined ? initialItem : getItemById(feedId);
 
   if (!item) {
     return (

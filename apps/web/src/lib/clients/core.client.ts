@@ -342,6 +342,7 @@ export const coreClient = (() => {
     cursor?: string;
     limit?: number;
     agentId?: string;
+    status?: string;
   }) {
     return executeOperation(
       (client) =>

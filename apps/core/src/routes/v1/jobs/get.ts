@@ -31,6 +31,14 @@ const query = z
         description: "Filter jobs by agent ID",
         example: "cmaeygqwa000e8i0s9s7wif8i",
       }),
+    status: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "status", in: "query" },
+        description: "Filter jobs by status",
+        example: "completed",
+      }),
     scope: jobScopeQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
@@ -100,11 +108,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { agentId, scope } = queryParams;
+    const { agentId, status, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const { jobs, count, hasMore } = await getUserJobs(authContext, {
       agentId,
+      status,
       cursor,
       take,
       skip,

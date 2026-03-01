@@ -520,6 +520,7 @@ export async function getUserJobs(
   authContext: UserAuthenticationContext,
   options: {
     agentId?: string;
+    status?: string;
     cursor?: string;
     take: number;
     skip?: number;
@@ -531,7 +532,7 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, cursor, take, skip, scopes, tx = prisma } = options;
+  const { agentId, status, cursor, take, skip, scopes, tx = prisma } = options;
 
   const scopeFilters = buildJobScopeFilters(authContext, scopes);
   if (scopeFilters.length === 0) {
@@ -545,6 +546,7 @@ export async function getUserJobs(
   const where: Prisma.JobWhereInput = {
     OR: scopeFilters,
     ...(agentId ? { agentId } : {}),
+    ...(status ? { status } : {}),
   };
 
   const takePlusOne = take + 1;

@@ -177,6 +177,7 @@ export const feedService = (() => {
     const [jobsResult, tasksResult] = await Promise.all([
       coreClient.getJobs({
         scope: ["context", "shared"],
+        status: "completed",
         cursor: params.jobsCursor,
         limit: params.limitPerSource,
       }),
