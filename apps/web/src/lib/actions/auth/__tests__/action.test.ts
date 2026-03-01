@@ -5,6 +5,11 @@ jest.mock("server-only", () => ({}));
 const signUpEmailMock = jest.fn();
 const setPasswordMock = jest.fn();
 const handleUTMConversionMock = jest.fn();
+const headersMock = jest.fn();
+
+jest.mock("next/headers", () => ({
+  headers: headersMock,
+}));
 
 jest.mock("@/lib/actions", () => ({
   AuthErrorCode: {
@@ -38,6 +43,7 @@ jest.mock("@/lib/services/utm.service", () => ({
 describe("auth actions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    headersMock.mockResolvedValue(new Headers());
   });
 
   it("passes OAuth callback url during email signup", async () => {
@@ -67,6 +73,7 @@ describe("auth actions", () => {
         callbackURL:
           "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fhannah.sumike.ai%2Foauth%2Fcallback&code_challenge=test-challenge",
       }),
+      headers: expect.any(Headers),
     });
   });
 
@@ -131,6 +138,96 @@ describe("auth actions", () => {
       body: expect.objectContaining({
         callbackURL: "/",
       }),
+      headers: expect.any(Headers),
     });
+  });
+
+  it("returns OAuth redirect metadata when Better Auth nests it under data", async () => {
+    signUpEmailMock.mockResolvedValue({
+      user: {
+        id: "user-redirect-nested",
+      },
+      data: {
+        redirect: true,
+        url: "/api/auth/oauth2/authorize?client_id=nested-client",
+      },
+    });
+
+    const { signUpEmail } = await import("../action");
+
+    const result = await signUpEmail(
+      {
+        email: "nested-redirect-user@example.com",
+        name: "Nested Redirect User",
+        password: "Passw0rd!",
+        confirmPassword: "Passw0rd!",
+        termsAccepted: true,
+        marketingOptIn: false,
+      },
+      "/oauth/consent?client_id=nested-client&redirect_uri=https%3A%2F%2Fhannah.sumike.ai%2Foauth%2Fcallback&code_challenge=test-challenge",
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.data.redirect).toBe(true);
+    expect(result.data.redirectUrl).toBe(
+      "/api/auth/oauth2/authorize?client_id=nested-client",
+    );
+  });
+
+  it("simulates original oauth flow failure and confirms headers prevent missing oauth query", async () => {
+    signUpEmailMock.mockImplementation(({ headers }) => {
+      const headerBag = headers as Headers | undefined;
+      const hasCookieHeader = Boolean(headerBag?.get("cookie"));
+
+      if (!hasCookieHeader) {
+        throw {
+          body: {
+            code: "invalid_request",
+            message: "missing oauth query",
+          },
+        };
+      }
+
+      return Promise.resolve({
+        user: {
+          id: "oauth-user",
+        },
+        redirect: true,
+        url: "/api/auth/oauth2/authorize?client_id=test-client&state=test-state",
+      });
+    });
+
+    const cookieHeaders = new Headers();
+    cookieHeaders.set("cookie", "session_token=fake-session");
+    headersMock.mockResolvedValue(cookieHeaders);
+
+    const { signUpEmail } = await import("../action");
+
+    const result = await signUpEmail(
+      {
+        email: "oauth-flow@example.com",
+        name: "OAuth Flow User",
+        password: "Passw0rd!",
+        confirmPassword: "Passw0rd!",
+        termsAccepted: true,
+        marketingOptIn: false,
+      },
+      "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&state=test-state&response_type=code",
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.data.redirect).toBe(true);
+    expect(result.data.redirectUrl).toContain(
+      "/api/auth/oauth2/authorize?client_id=test-client",
+    );
+    expect(signUpEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: cookieHeaders,
+      }),
+    );
   });
 });
