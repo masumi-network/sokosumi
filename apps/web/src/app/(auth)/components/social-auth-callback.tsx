@@ -5,17 +5,10 @@ import { useEffect } from "react";
 
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { socialProviderIdSchema } from "@/lib/schemas/auth";
-import { getValidAuthRedirectUrl } from "@/lib/utils/auth-redirect";
+import { normalizeAuthReturnUrl } from "@/lib/utils/auth-redirect";
 
 interface SocialAuthCallbackProps {
   eventType: "signUp" | "signIn";
-}
-
-function getValidRedirectUrl(returnUrl: string | null): string {
-  // Normalize root to /chat (our initial page) so social login matches credential behavior
-  const normalized = returnUrl?.trim() || "";
-  const url = normalized && normalized !== "/" ? normalized : undefined;
-  return getValidAuthRedirectUrl(url, "/chat");
 }
 
 export default function SocialAuthCallback({
@@ -26,7 +19,7 @@ export default function SocialAuthCallback({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const provider = params.get("provider");
-    const returnUrl = params.get("returnUrl");
+    const returnUrl = params.get("returnUrl") ?? null;
     const validationResult = socialProviderIdSchema.safeParse(provider);
 
     if (validationResult.success && validationResult.data !== "credential") {
@@ -40,7 +33,7 @@ export default function SocialAuthCallback({
       }
     }
 
-    const redirectUrl = getValidRedirectUrl(returnUrl);
+    const redirectUrl = normalizeAuthReturnUrl(returnUrl ?? undefined);
     router.replace(redirectUrl);
   }, [router, eventType]);
 

@@ -1,6 +1,9 @@
 import {
+  buildOAuthConsentReturnUrl,
+  buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   getValidAuthRedirectUrl,
+  normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -28,6 +31,26 @@ describe("getValidAuthRedirectUrl", () => {
   });
 });
 
+describe("normalizeAuthReturnUrl", () => {
+  it("returns /chat when returnUrl is missing", () => {
+    expect(normalizeAuthReturnUrl(undefined)).toBe("/chat");
+  });
+
+  it("returns /chat when returnUrl is root", () => {
+    expect(normalizeAuthReturnUrl("/")).toBe("/chat");
+  });
+
+  it("returns safe non-root relative returnUrl", () => {
+    expect(normalizeAuthReturnUrl("/accept-invitation/invite_123")).toBe(
+      "/accept-invitation/invite_123",
+    );
+  });
+
+  it("returns /chat for external returnUrl", () => {
+    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/chat");
+  });
+});
+
 describe("buildSignUpUrlFromSignIn", () => {
   it("returns bare signup path when no params are provided", () => {
     expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
@@ -41,6 +64,72 @@ describe("buildSignUpUrlFromSignIn", () => {
       }),
     ).toBe(
       "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
+    );
+  });
+});
+
+describe("buildOAuthConsentReturnUrl", () => {
+  it("builds a consent return URL when required params are present", () => {
+    expect(
+      buildOAuthConsentReturnUrl({
+        client_id: "client_1",
+        redirect_uri: "https://example.com/callback",
+        code_challenge: "challenge_1",
+        code_challenge_method: "S256",
+        scope: "openid offline_access",
+        state: "state_1",
+        response_type: "code",
+        exp: "1772367377",
+        sig: "signed-value",
+      }),
+    ).toBe(
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid+offline_access&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+    );
+  });
+
+  it("returns undefined when required params are missing", () => {
+    expect(
+      buildOAuthConsentReturnUrl({
+        client_id: "client_1",
+        redirect_uri: "https://example.com/callback",
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
+  it("builds a consent return URL from URLSearchParams", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+      code_challenge: "challenge_1",
+      scope: "openid offline_access",
+      state: "state_1",
+      response_type: "code",
+    });
+
+    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid+offline_access&state=state_1&response_type=code",
+    );
+  });
+
+  it("preserves signed oauth query and filters app-only params", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+      code_challenge: "challenge_1",
+      code_challenge_method: "S256",
+      scope: "openid offline_access",
+      state: "state_1",
+      response_type: "code",
+      exp: "1772367377",
+      sig: "signed-value",
+      returnUrl: "/oauth/consent?foo=bar",
+      email: "user@example.com",
+    });
+
+    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid+offline_access&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
     );
   });
 });

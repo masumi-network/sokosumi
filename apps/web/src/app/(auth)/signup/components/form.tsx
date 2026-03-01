@@ -4,9 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -18,7 +18,8 @@ import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import {
-  getValidAuthRedirectUrl,
+  buildOAuthConsentReturnUrlFromSearchParams,
+  normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -34,6 +35,11 @@ export default function SignUpForm({
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const registerFormStart = useRef(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const effectiveReturnUrl = useMemo(
+    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    [returnUrl, searchParams],
+  );
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
@@ -65,16 +71,24 @@ export default function SignUpForm({
   const handleSubmit = async (values: SignUpFormSchemaType) => {
     track("Sign Up", { provider: "credential" });
 
-    const result = await signUpEmail({
-      email: values.email,
-      name: values.name,
-      password: values.password,
-      confirmPassword: values.confirmPassword,
-      termsAccepted: values.termsAccepted,
-      marketingOptIn: values.marketingOptIn,
-    });
+    const result = await signUpEmail(
+      {
+        email: values.email,
+        name: values.name,
+        password: values.password,
+        confirmPassword: values.confirmPassword,
+        termsAccepted: values.termsAccepted,
+        marketingOptIn: values.marketingOptIn,
+      },
+      effectiveReturnUrl,
+    );
 
     if (result.ok) {
+      if (result.data.redirect && result.data.redirectUrl) {
+        window.location.href = result.data.redirectUrl;
+        return;
+      }
+
       await waitForAuthSession({
         context: "signup",
         getSession: () => authClient.getSession(),
@@ -85,7 +99,7 @@ export default function SignUpForm({
 
       fireGTMEvent.signUp("credential");
       toast.success(t("success"));
-      router.replace(getValidAuthRedirectUrl(returnUrl, "/"));
+      router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
     } else {
       switch (result.error.code) {
         case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:

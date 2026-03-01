@@ -1,10 +1,18 @@
 import type { Prisma } from "../generated/prisma/client.js";
 
+function validateCreateInputSchema(data: Prisma.JobScheduleCreateInput): void {
+  if (typeof data.inputSchema !== "string") {
+    throw new Error("JobSchedule inputSchema must be a JSON string");
+  }
+}
+
 export const jobScheduleRepository = {
   async create(
     data: Prisma.JobScheduleCreateInput,
     tx: Prisma.TransactionClient,
   ) {
+    validateCreateInputSchema(data);
+
     return await tx.jobSchedule.create({
       data,
     });

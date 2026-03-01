@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -13,13 +13,15 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
 import { AuthErrorCode } from "@/lib/actions";
+import { signInEmail } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 import {
+  buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
-  getValidAuthRedirectUrl,
+  normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -35,6 +37,11 @@ export default function SignInForm({
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const effectiveReturnUrl = useMemo(
+    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    [returnUrl, searchParams],
+  );
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -64,21 +71,32 @@ export default function SignInForm({
   const handleSubmit = async (values: SignInFormSchemaType) => {
     track("Sign In", { provider: "credential" });
 
-    const result = await authClient.signIn.email({
-      email: values.email,
-      password: values.currentPassword,
-      rememberMe: values.rememberMe,
-    });
+    const result = await signInEmail(
+      {
+        email: values.email,
+        currentPassword: values.currentPassword,
+        rememberMe: values.rememberMe,
+      },
+      effectiveReturnUrl,
+    );
 
-    if (result.error) {
-      switch (result.error.code) {
+    if (!result.ok) {
+      switch (result.error?.code) {
         case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(result.error.message ?? t("error"));
+          toast.error(result.error?.message ?? t("error"));
           break;
       }
+      return;
+    }
+
+    const redirect = result.data.redirect;
+    const redirectUrl = result.data.redirectUrl;
+
+    if (redirect && redirectUrl) {
+      window.location.href = redirectUrl;
       return;
     }
 
@@ -92,7 +110,7 @@ export default function SignInForm({
 
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
-    router.replace(getValidAuthRedirectUrl(returnUrl, "/"));
+    router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   };
 
   const email = useWatch({
@@ -113,10 +131,10 @@ export default function SignInForm({
   const signUpUrl = useMemo(
     () =>
       buildSignUpUrlFromSignIn({
-        returnUrl,
+        returnUrl: effectiveReturnUrl,
         email: prefilledEmail ?? email,
       }),
-    [returnUrl, prefilledEmail, email],
+    [effectiveReturnUrl, prefilledEmail, email],
   );
 
   const { isSubmitting } = form.formState;

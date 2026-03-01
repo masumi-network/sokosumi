@@ -1,11 +1,14 @@
 import { err, ok, type Result } from "neverthrow";
 
+import { hashInputSchema } from "../hash/index.js";
 import {
   inputSchemaResponseSchema,
   InputSchemaResponseSchemaType,
   InputSchemaType,
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
+  provideInputRequestSchema,
+  ProvideInputRequestSchemaType,
   provideInputResponseSchema,
   ProvideInputResponseSchemaType,
   startFreeJobResponseSchema,
@@ -365,6 +368,7 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       statusId: string,
       jobId: string,
+      inputSchema: string,
       inputData: InputSchemaType,
     ): Promise<Result<ProvideInputResponseSchemaType, string>> {
       try {
@@ -373,11 +377,25 @@ export function createAgentClient(config?: AgentClientConfig) {
           "provide_input",
         );
 
-        const body = JSON.stringify({
+        const inputSchemaHash = hashInputSchema(inputSchema);
+        if (!inputSchemaHash) {
+          return err("Failed to hash input schema");
+        }
+
+        const requestPayload: ProvideInputRequestSchemaType = {
           job_id: jobId,
           status_id: statusId,
+          input_schema_hash: inputSchemaHash,
           input_data: inputData,
-        });
+        };
+        const parsedRequestPayload =
+          provideInputRequestSchema.safeParse(requestPayload);
+        if (!parsedRequestPayload.success) {
+          return err(
+            `Failed to build provide input request: ${JSON.stringify(parsedRequestPayload.error)}`,
+          );
+        }
+        const body = JSON.stringify(parsedRequestPayload.data);
 
         const provideInputResponse = await fetch(provideInputUrl, {
           method: "POST",
