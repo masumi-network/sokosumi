@@ -19,7 +19,7 @@ import { fireGTMEvent } from "@/lib/gtm-events";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
-  getValidAuthRedirectUrl,
+  normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -99,7 +99,7 @@ export default function SignUpForm({
 
       fireGTMEvent.signUp("credential");
       toast.success(t("success"));
-      router.replace(getValidAuthRedirectUrl(effectiveReturnUrl, "/"));
+      router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
     } else {
       switch (result.error.code) {
         case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:

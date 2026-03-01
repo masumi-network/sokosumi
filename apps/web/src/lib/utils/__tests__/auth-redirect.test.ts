@@ -3,6 +3,7 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   getValidAuthRedirectUrl,
+  normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -27,6 +28,26 @@ describe("getValidAuthRedirectUrl", () => {
     expect(getValidAuthRedirectUrl("javascript:alert('x')", "/chat")).toBe(
       "/chat",
     );
+  });
+});
+
+describe("normalizeAuthReturnUrl", () => {
+  it("returns /chat when returnUrl is missing", () => {
+    expect(normalizeAuthReturnUrl(undefined)).toBe("/chat");
+  });
+
+  it("returns /chat when returnUrl is root", () => {
+    expect(normalizeAuthReturnUrl("/")).toBe("/chat");
+  });
+
+  it("returns safe non-root relative returnUrl", () => {
+    expect(normalizeAuthReturnUrl("/accept-invitation/invite_123")).toBe(
+      "/accept-invitation/invite_123",
+    );
+  });
+
+  it("returns /chat for external returnUrl", () => {
+    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/chat");
   });
 });
 

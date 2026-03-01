@@ -13,6 +13,8 @@ import { auth } from "@/lib/auth/auth";
 import {
   newPasswordFormSchema,
   NewPasswordFormType,
+  signInFormSchema,
+  SignInFormSchemaType,
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/lib/schemas";
@@ -159,8 +161,80 @@ export async function signUpEmail(
   }
 }
 
+export async function signInEmail(
+  data: SignInFormSchemaType,
+  callbackURL?: string,
+): Promise<Result<SignInEmailResult, ActionError>> {
+  const parsedResult = signInFormSchema().safeParse(data);
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+
+  const parsed = parsedResult.data;
+  const safeCallbackURL =
+    callbackURL && callbackURL.startsWith("/") && !callbackURL.startsWith("//")
+      ? callbackURL
+      : "/";
+
+  try {
+    const signInResult = await auth.api.signInEmail({
+      body: {
+        email: parsed.email,
+        password: parsed.currentPassword,
+        rememberMe: parsed.rememberMe,
+        callbackURL: safeCallbackURL,
+      },
+      headers: await headers(),
+    });
+
+    const oauthResponse = signInResult as {
+      redirect?: boolean;
+      url?: string;
+      data?: {
+        redirect?: boolean;
+        url?: string;
+      };
+    };
+    const redirect = oauthResponse.redirect ?? oauthResponse.data?.redirect;
+    const redirectUrl = oauthResponse.url ?? oauthResponse.data?.url;
+
+    if (redirect && redirectUrl) {
+      return Ok({
+        redirect: true,
+        redirectUrl,
+      });
+    }
+
+    return Ok({
+      redirect: false,
+    });
+  } catch (error) {
+    console.error("Failed to sign in email", error);
+
+    const parsedBetterAuthApiErrorResult =
+      betterAuthApiErrorSchema.safeParse(error);
+    if (parsedBetterAuthApiErrorResult.success) {
+      return Err({
+        code: parsedBetterAuthApiErrorResult.data.body.code,
+        message: parsedBetterAuthApiErrorResult.data.body.message,
+      });
+    }
+
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
 interface SignUpEmailResult {
   user: User;
   redirect?: boolean;
+  redirectUrl?: string;
+}
+
+interface SignInEmailResult {
+  redirect: boolean;
   redirectUrl?: string;
 }

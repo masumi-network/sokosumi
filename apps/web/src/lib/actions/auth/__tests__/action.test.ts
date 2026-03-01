@@ -3,9 +3,11 @@ export {};
 jest.mock("server-only", () => ({}));
 
 const signUpEmailMock = jest.fn();
+const signInEmailMock = jest.fn();
 const setPasswordMock = jest.fn();
 const handleUTMConversionMock = jest.fn();
 const headersMock = jest.fn();
+const betterAuthApiErrorSafeParseMock = jest.fn(() => ({ success: false }));
 
 jest.mock("next/headers", () => ({
   headers: headersMock,
@@ -21,7 +23,7 @@ jest.mock("@/lib/actions", () => ({
     BAD_INPUT: "BAD_INPUT",
   },
   betterAuthApiErrorSchema: {
-    safeParse: () => ({ success: false }),
+    safeParse: betterAuthApiErrorSafeParseMock,
   },
 }));
 
@@ -29,6 +31,7 @@ jest.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {
       signUpEmail: signUpEmailMock,
+      signInEmail: signInEmailMock,
       setPassword: setPasswordMock,
     },
   },
@@ -44,6 +47,7 @@ describe("auth actions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     headersMock.mockResolvedValue(new Headers());
+    betterAuthApiErrorSafeParseMock.mockReturnValue({ success: false });
   });
 
   it("passes OAuth callback url during email signup", async () => {
@@ -229,5 +233,182 @@ describe("auth actions", () => {
         headers: cookieHeaders,
       }),
     );
+  });
+
+  it("returns redirect metadata for sign-in when Better Auth returns oauth redirect payload", async () => {
+    signInEmailMock.mockResolvedValue({
+      redirect: true,
+      url: "https://hannah.sumike.ai/oauth/sokosumi/callback?code=test-code",
+    });
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail({
+      email: "login-user@example.com",
+      currentPassword: "Passw0rd!",
+      rememberMe: true,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.data.redirect).toBe(true);
+    expect(result.data.redirectUrl).toBe(
+      "https://hannah.sumike.ai/oauth/sokosumi/callback?code=test-code",
+    );
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: true,
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("passes OAuth callback url during email sign-in", async () => {
+    signInEmailMock.mockResolvedValue({});
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail(
+      {
+        email: "oauth-login-user@example.com",
+        currentPassword: "Passw0rd!",
+        rememberMe: true,
+      },
+      "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&state=test-state&response_type=code&exp=1772367377&sig=test-signature",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "oauth-login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: true,
+        callbackURL:
+          "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&state=test-state&response_type=code&exp=1772367377&sig=test-signature",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("falls back to root callback for unsafe sign-in callback urls", async () => {
+    signInEmailMock.mockResolvedValue({});
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail(
+      {
+        email: "unsafe-login-user@example.com",
+        currentPassword: "Passw0rd!",
+        rememberMe: false,
+      },
+      "https://evil.example.com/steal",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "unsafe-login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: false,
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("falls back to root callback for protocol-relative sign-in callback urls", async () => {
+    signInEmailMock.mockResolvedValue({});
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail(
+      {
+        email: "protocol-relative-login-user@example.com",
+        currentPassword: "Passw0rd!",
+        rememberMe: false,
+      },
+      "//evil.example.com/steal",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "protocol-relative-login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: false,
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("returns non-redirect success for sign-in when auth response has no oauth redirect", async () => {
+    signInEmailMock.mockResolvedValue({});
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail({
+      email: "login-user@example.com",
+      currentPassword: "Passw0rd!",
+      rememberMe: false,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.data.redirect).toBe(false);
+    expect(result.data.redirectUrl).toBeUndefined();
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: "login-user@example.com",
+        password: "Passw0rd!",
+        rememberMe: false,
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("maps Better Auth sign-in error response to ActionError", async () => {
+    betterAuthApiErrorSafeParseMock.mockReturnValue({
+      success: true,
+      data: {
+        status: "BAD_REQUEST",
+        statusCode: 400,
+        body: {
+          code: "TERMS_NOT_ACCEPTED",
+          message: "Terms must be accepted before signing in",
+        },
+      },
+    });
+
+    signInEmailMock.mockRejectedValue({
+      status: "BAD_REQUEST",
+      statusCode: 400,
+      body: {
+        code: "TERMS_NOT_ACCEPTED",
+        message: "Terms must be accepted before signing in",
+      },
+    });
+
+    const { signInEmail } = await import("../action");
+
+    const result = await signInEmail({
+      email: "login-user@example.com",
+      currentPassword: "Passw0rd!",
+      rememberMe: false,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.error).toEqual({
+      code: "TERMS_NOT_ACCEPTED",
+      message: "Terms must be accepted before signing in",
+    });
   });
 });
