@@ -180,7 +180,7 @@ export const getUsersMeOrganizations = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Get organization details by ID or slug
+ * Get organization details by ID or slug for the current member
  */
 export const getUsersMeOrganizationsById = <ThrowOnError extends boolean = false>(options: Options<GetUsersMeOrganizationsByIdData, ThrowOnError>) => (options.client ?? client).get<GetUsersMeOrganizationsByIdResponses, GetUsersMeOrganizationsByIdErrors, ThrowOnError>({
     responseTransformer: getUsersMeOrganizationsByIdResponseTransformer,
@@ -190,7 +190,7 @@ export const getUsersMeOrganizationsById = <ThrowOnError extends boolean = false
 });
 
 /**
- * Get organization credit balance by ID or slug
+ * Get organization-context credits for the current member by ID or slug
  */
 export const getUsersMeOrganizationsByIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersMeOrganizationsByIdCreditsData, ThrowOnError>) => (options.client ?? client).get<GetUsersMeOrganizationsByIdCreditsResponses, GetUsersMeOrganizationsByIdCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersMeOrganizationsByIdCreditsResponseTransformer,
@@ -200,7 +200,7 @@ export const getUsersMeOrganizationsByIdCredits = <ThrowOnError extends boolean 
 });
 
 /**
- * Get current user's or organization's credit balance
+ * Get current user's credit balance or, in organization context, shared non-subscription credits plus the member's subscription wallet
  */
 export const getUsersMeCredits = <ThrowOnError extends boolean = false>(options?: Options<GetUsersMeCreditsData, ThrowOnError>) => (options?.client ?? client).get<GetUsersMeCreditsResponses, GetUsersMeCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersMeCreditsResponseTransformer,

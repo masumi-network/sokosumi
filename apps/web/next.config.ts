@@ -3,27 +3,12 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "c-ipfs-gw.nmkr.io",
-      },
-      {
-        protocol: "https",
-        hostname: "yhpsw8jlcoagsrkq.public.blob.vercel-storage.com",
-      },
-      {
-        protocol: "https",
-        hostname: "igcd4cnfvuav1zto.public.blob.vercel-storage.com",
-      },
-      {
-        protocol: "https",
-        hostname: "**.azurecontainerapps.io",
-      },
-    ],
+    remotePatterns: [...NEXT_IMAGE_REMOTE_PATTERNS],
   },
   experimental: {
     serverActions: {

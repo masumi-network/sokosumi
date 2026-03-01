@@ -10,6 +10,7 @@ export type Agent = {
     updatedAt: Date;
     name: string;
     image: string | null;
+    icon: string | null;
     /**
      * Price in credits
      */
@@ -3505,7 +3506,7 @@ export type GetUsersMeOrganizationsByIdCreditsError = GetUsersMeOrganizationsByI
 
 export type GetUsersMeOrganizationsByIdCreditsResponses = {
     /**
-     * Retrieve organization credits
+     * Retrieve shared non-subscription organization credits plus the member subscription wallet
      */
     200: {
         data: {
@@ -3610,7 +3611,7 @@ export type GetUsersMeCreditsError = GetUsersMeCreditsErrors[keyof GetUsersMeCre
 
 export type GetUsersMeCreditsResponses = {
     /**
-     * Retrieve the current user's or organization's credits
+     * Retrieve the current user's credits or the member-scoped organization-context credits
      */
     200: {
         data: {

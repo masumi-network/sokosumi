@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { getExtensionFromUrl, isImageUrl } from "@/lib/utils/file";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import { canUseNextImageSrc } from "@/config/next-image";
 
 export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
   url: string;
@@ -32,6 +33,7 @@ export function FileChip(props: FileChipProps) {
   } = props;
   const fileName = fileNameProp ?? url.split("/").pop() ?? url;
   const isImage = isImageUrl(url);
+  const canUseNextImage = canUseNextImageSrc(url);
   const prettySize = formatBytes(size);
   const containerSizeClass = sizeClass;
   const shouldApplyIconPadding = (() => {
@@ -59,13 +61,23 @@ export function FileChip(props: FileChipProps) {
       >
         {isImage ? (
           <div className="relative size-full overflow-hidden rounded">
-            <Image
-              src={url}
-              alt={fileName}
-              fill
-              sizes={`${iconPx}px`}
-              className="object-cover"
-            />
+            {canUseNextImage ? (
+              <Image
+                src={url}
+                alt={fileName}
+                fill
+                sizes={`${iconPx}px`}
+                className="object-cover"
+              />
+            ) : (
+              <img
+                src={url}
+                alt={fileName}
+                className="size-full object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            )}
           </div>
         ) : (
           <div className={cn("flex size-full items-center justify-center", shouldApplyIconPadding && "p-1")}>
