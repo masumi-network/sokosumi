@@ -96,6 +96,7 @@ export async function signUpEmail(
         termsAccepted: parsed.termsAccepted,
         onboardingCompleted: false,
       },
+      headers: await headers(),
     });
     const user = signUpResult.user;
     if (!user) {
@@ -117,12 +118,18 @@ export async function signUpEmail(
     const oauthResponse = signUpResult as {
       redirect?: boolean;
       url?: string;
+      data?: {
+        redirect?: boolean;
+        url?: string;
+      };
     };
+    const redirect = oauthResponse.redirect ?? oauthResponse.data?.redirect;
+    const redirectUrl = oauthResponse.url ?? oauthResponse.data?.url;
 
     return Ok({
       user,
-      redirect: oauthResponse.redirect,
-      redirectUrl: oauthResponse.url,
+      redirect,
+      redirectUrl,
     });
   } catch (error) {
     console.error("Failed to sign up email", error);
