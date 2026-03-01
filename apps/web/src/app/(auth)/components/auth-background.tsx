@@ -2,13 +2,29 @@ import Image from "next/image";
 
 import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
 
+const AUTH_BACKGROUND_IMAGES = [
+  "/images/backgrounds/auth-bg-1.png",
+  "/images/backgrounds/auth-bg-2.png",
+  "/images/backgrounds/auth-bg-3.png",
+  "/images/backgrounds/auth-bg-4.png",
+  "/images/backgrounds/auth-bg-5.png",
+] as const;
+
+function getRandomAuthBackground() {
+  const randomIndex = Math.floor(Math.random() * AUTH_BACKGROUND_IMAGES.length);
+
+  return AUTH_BACKGROUND_IMAGES[randomIndex];
+}
+
 export default function AuthBackground() {
+  const backgroundImage = getRandomAuthBackground();
+
   return (
     <div className="hidden h-full w-1/2 lg:block">
       <div className="relative h-full w-full">
         <Image
           alt="auth-bg"
-          src="/images/backgrounds/auth.jpg"
+          src={backgroundImage}
           fill
           className="rounded-xl object-cover"
           sizes="50vw"
