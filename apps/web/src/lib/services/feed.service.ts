@@ -245,7 +245,7 @@ export const feedService = (() => {
       shouldFetchJobs
         ? coreClient.getJobs({
             scope: ["context", "shared"],
-            status: "completed",
+            status: "COMPLETED",
             cursor: params.jobsCursor ?? undefined,
             limit: limitPerSource,
           })
