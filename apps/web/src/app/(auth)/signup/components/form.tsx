@@ -84,6 +84,11 @@ export default function SignUpForm({
     );
 
     if (result.ok) {
+      if (result.data.redirect && result.data.redirectUrl) {
+        window.location.href = result.data.redirectUrl;
+        return;
+      }
+
       await waitForAuthSession({
         context: "signup",
         getSession: () => authClient.getSession(),
