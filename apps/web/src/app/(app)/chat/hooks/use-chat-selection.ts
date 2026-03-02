@@ -12,6 +12,8 @@ import {
 } from "@/app/chat/utils/bucket-slug";
 import type { Conversation } from "@/lib/actions/conversation";
 
+const FALLBACK_BUCKET_SEGMENT = "_";
+
 interface UseChatSelectionProps {
   urlConversationId: string | null;
   pathname: string;
@@ -113,6 +115,13 @@ export function useChatSelection({
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
 
+  // Use window.location.search so we preserve open=1 when effect runs (React state can be stale)
+  function withSearch(path: string): string {
+    if (typeof window === "undefined") return path;
+    const query = window.location.search.slice(1);
+    return query ? `${path}${path.includes("?") ? "&" : "?"}${query}` : path;
+  }
+
   const handleSelectChat = async (chatId: string | null) => {
     // Do not stop streaming when switching chats so multiple conversations can stream in parallel
 
@@ -139,11 +148,9 @@ export function useChatSelection({
     currentChatIdRef.current = chatId;
     pendingUrlConversationIdRef.current = chatId;
     isUpdatingUrlRef.current = true;
-    const targetPath =
-      slug !== ""
-        ? `/chat/${slug}/conversation/${chatId}`
-        : `/chat?conversationId=${chatId}`;
-    router.push(targetPath, { scroll: false });
+    const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
+    const targetPath = `/chat/${segment}/conversation/${chatId}`;
+    router.push(withSearch(targetPath), { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
     const listConversation = conversations.find((c) => c.id === chatId);
@@ -197,11 +204,7 @@ export function useChatSelection({
     // Skip if we're updating the URL ourselves
     const wasUpdatingUrl = isUpdatingUrlRef.current;
     const pending = pendingUrlConversationIdRef.current;
-    const currentUrlConversationId =
-      urlConversationId ||
-      (typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("conversationId")
-        : null);
+    const currentUrlConversationId = urlConversationId;
 
     if (wasUpdatingUrl) {
       isUpdatingUrlRef.current = false;
@@ -217,7 +220,7 @@ export function useChatSelection({
       return;
     }
 
-    // Handle URL changes: selection differs from URL, or URL conversation not yet loaded (first load with ?conversationId=)
+    // Handle URL changes: selection differs from URL, or URL conversation not yet loaded
     const urlConversationNotLoaded =
       currentUrlConversationId &&
       selectedConversation?.id !== currentUrlConversationId;
@@ -251,16 +254,15 @@ export function useChatSelection({
           conversations,
           bucketSlug ?? undefined,
         );
+        const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
         const targetPathForNext = nextId
-          ? nextSlug
-            ? `/chat/${nextSlug}/conversation/${nextId}`
-            : `/chat?conversationId=${nextId}`
+          ? `/chat/${nextSegment}/conversation/${nextId}`
           : bucketSlug
             ? `/chat/${bucketSlug}`
             : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          router.replace(targetPathForNext, { scroll: false });
+          router.replace(withSearch(targetPathForNext), { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -272,7 +274,7 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        router.replace(targetPathForNext, { scroll: false });
+        router.replace(withSearch(targetPathForNext), { scroll: false });
         handleSelectChat(nextId);
         return;
       }
@@ -301,16 +303,15 @@ export function useChatSelection({
           conversations,
           bucketSlug ?? undefined,
         );
+        const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
         const targetPathForNext = nextId
-          ? nextSlug
-            ? `/chat/${nextSlug}/conversation/${nextId}`
-            : `/chat?conversationId=${nextId}`
+          ? `/chat/${nextSegment}/conversation/${nextId}`
           : bucketSlug
             ? `/chat/${bucketSlug}`
             : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          router.replace(targetPathForNext, { scroll: false });
+          router.replace(withSearch(targetPathForNext), { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -322,11 +323,11 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        router.replace(targetPathForNext, { scroll: false });
+        router.replace(withSearch(targetPathForNext), { scroll: false });
         handleSelectChat(nextId);
         return;
       }
-      // First load with conversationId in URL: selectedChatId may already match but conversation not loaded
+      // First load with conversation in path: selectedChatId may already match but conversation not loaded
       pendingUrlConversationIdRef.current = null;
       handleSelectChat(currentUrlConversationId);
     } else if (
@@ -348,22 +349,13 @@ export function useChatSelection({
         pendingUrlConversationIdRef.current = null;
         return;
       }
-      const actualUrlConversationId =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("conversationId")
-          : null;
-
-      // Only clear if URL truly has no conversationId
-      // This prevents clearing when useSearchParams temporarily returns null during re-renders
-      if (!actualUrlConversationId) {
-        // Clear selection to show welcome view
-        setSelectedChatId(null);
-        currentChatIdRef.current = null;
-        setSelectedModel(null);
-        selectedModelRef.current = null;
-        setMessages([]);
-        setInput("");
-      }
+      // Clear selection to show welcome view
+      setSelectedChatId(null);
+      currentChatIdRef.current = null;
+      setSelectedModel(null);
+      selectedModelRef.current = null;
+      setMessages([]);
+      setInput("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

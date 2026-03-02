@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/tooltip";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import type { Conversation } from "@/lib/actions/conversation";
-import { cn, getDateGroupKey } from "@/lib/utils";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { cn } from "@/lib/utils";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 const CONVERSATION_TITLE_MAX_CHARS = 50;
 const MAX_QUERY_LENGTH = 256;
@@ -41,6 +41,7 @@ interface ConversationsByDateGroup {
 
 function buildConversationDayGroups(
   conversations: Conversation[],
+  getDateGroupKey: (dateInput: Date | number) => string | null,
 ): ConversationsByDateGroup[] {
   const sorted = [...conversations].sort((a, b) => {
     const ta = new Date(a.updatedAt).getTime();
@@ -65,6 +66,7 @@ interface ConversationRowProps {
   fullTitle: string;
   isTitleTruncated: boolean;
   isActive: boolean;
+  formatTimeAgo: (date: Date | string) => string;
   updatedAt: Date | string;
   onSelect: () => void;
   onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -76,6 +78,7 @@ function ConversationRow({
   fullTitle,
   isTitleTruncated,
   isActive,
+  formatTimeAgo,
   updatedAt,
   onSelect,
   onDelete,
@@ -145,7 +148,8 @@ function ConversationRow({
         }}
         aria-label={deleteAriaLabel}
         className={cn(
-          "opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 focus:outline-none",
+          "transition-opacity focus:opacity-100 focus:outline-none md:opacity-0 md:group-hover:opacity-100",
+          "opacity-100",
           isActive
             ? "text-primary-foreground hover:bg-primary/20"
             : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
@@ -172,13 +176,10 @@ export function ChatConversationsSidebar({
 }: ChatConversationsSidebarProps) {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const tSearch = useTranslations("App.Chat.Chat.ConversationsSidebar");
+  const { formatTimeAgo, getDateGroupKey } = useLocalizedDateTime();
   const router = useRouter();
   const params = useParams<{ conversationId?: string }>();
-  const conversationId =
-    params?.conversationId ??
-    (typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("conversationId")
-      : null);
+  const conversationId = params?.conversationId ?? null;
   const { deleteConversationById } = useConversationsContext();
 
   const [searchValue, setSearchValue] = useState("");
@@ -199,13 +200,13 @@ export function ChatConversationsSidebar({
   }, [conversations, searchValue]);
 
   const dayGroups = useMemo(
-    () => buildConversationDayGroups(filteredConversations),
-    [filteredConversations],
+    () => buildConversationDayGroups(filteredConversations, getDateGroupKey),
+    [filteredConversations, getDateGroupKey],
   );
 
   const handleConversationClick = useCallback(
     (convId: string) => {
-      router.push(`/chat/${bucketSlug}/conversation/${convId}`, {
+      router.push(`/chat/${bucketSlug}/conversation/${convId}?open=1`, {
         scroll: false,
       });
     },
@@ -261,7 +262,7 @@ export function ChatConversationsSidebar({
 
   return (
     <>
-      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
+      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col pt-20 pb-4 lg:w-72 lg:border-r lg:py-4">
         <div className="flex w-full flex-col items-start justify-between px-2 pb-2 md:flex-row md:items-center md:px-0 md:pr-4">
           <div className="flex w-full flex-col">
             <div className="relative w-full">
@@ -299,11 +300,11 @@ export function ChatConversationsSidebar({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 lg:pb-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-4 pb-24 md:p-2 md:pt-2 md:pr-4 md:pl-0 lg:pt-0 lg:pb-2">
           {dayGroups.length > 0 ? (
             dayGroups.map((group) => (
               <section key={group.key} className="mb-4">
-                <div className="text-muted-foreground px-2 pb-2 text-xs font-medium">
+                <div className="text-muted-foreground px-2 pb-2 text-xs font-medium capitalize">
                   {group.key}
                 </div>
                 <ul className="space-y-2">
@@ -329,6 +330,7 @@ export function ChatConversationsSidebar({
                           fullTitle={title}
                           isTitleTruncated={isTitleTruncated}
                           isActive={isActive}
+                          formatTimeAgo={formatTimeAgo}
                           updatedAt={conv.updatedAt}
                           onSelect={() => handleConversationClick(conv.id)}
                           onDelete={(e) => handleDeleteClick(e, conv.id)}

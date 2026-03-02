@@ -9,6 +9,7 @@ export interface JobsByDayGroup {
 
 export function buildJobDayGroups(
   jobs: JobWithSokosumiStatus[],
+  locale: string,
 ): JobsByDayGroup[] {
   const sortedJobs = [...jobs].sort(
     (firstJob, secondJob) =>
@@ -18,7 +19,8 @@ export function buildJobDayGroups(
 
   const groupsMap = new Map<string, JobWithSokosumiStatus[]>();
   for (const job of sortedJobs) {
-    const groupKey = getDateGroupKey(new Date(job.createdAt).getTime()) ?? "";
+    const groupKey =
+      getDateGroupKey(new Date(job.createdAt).getTime(), locale) ?? "";
     const current = groupsMap.get(groupKey);
     if (current) {
       current.push(job);

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import type { FeedItem } from "@/lib/services/feed.service";
-import { getDateGroupKey } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 import { FeedResultCard } from "./feed-result-card";
 
@@ -14,6 +14,7 @@ interface FeedResultsListProps {
 
 export function FeedResultsList({ emptyLabel, items }: FeedResultsListProps) {
   const t = useTranslations("App.Feed");
+  const { getDateGroupKey } = useLocalizedDateTime();
   const groups = items.reduce<
     Array<{ key: string; label: string; items: FeedItem[] }>
   >((acc, item) => {
@@ -42,7 +43,7 @@ export function FeedResultsList({ emptyLabel, items }: FeedResultsListProps) {
           {groups.map((group) => (
             <div key={group.key} className="space-y-6">
               <div className="flex items-center gap-3">
-                <p className="text-muted-foreground text-xs whitespace-nowrap">
+                <p className="text-muted-foreground text-xs whitespace-nowrap capitalize">
                   {group.label}
                 </p>
                 <div className="bg-border h-px flex-1" />

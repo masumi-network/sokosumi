@@ -13,6 +13,7 @@ jest.mock("next/navigation", () => ({
 }));
 
 jest.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => (key: string, values?: Record<string, string>) => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",

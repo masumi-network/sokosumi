@@ -72,7 +72,7 @@ describe("buildJobDayGroups", () => {
       createdAt: new Date("2026-02-12T08:00:00.000Z"),
     });
 
-    const groups = buildJobDayGroups([firstJob, secondJob]);
+    const groups = buildJobDayGroups([firstJob, secondJob], "en");
 
     expect(groups.length).toBeGreaterThanOrEqual(2);
     expect(

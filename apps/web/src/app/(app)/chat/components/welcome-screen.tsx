@@ -118,8 +118,13 @@ export default function WelcomeScreen({
           </div>
         )}
       </div>
-      <div className="bg-background/80 absolute bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center backdrop-blur-sm">
-        <div className="w-full">
+      <div
+        aria-hidden
+        className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
+      />
+      {/* On mobile: fixed to viewport bottom so input matches chat view (main has p-4). On md+: absolute in flow. */}
+      <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-0">
+        <div className="w-full max-w-4xl">
           <MultimodalInput
             input={input}
             setInput={setInput}

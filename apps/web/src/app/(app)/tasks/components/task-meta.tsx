@@ -1,9 +1,11 @@
+"use client";
+
 import { MessageSquare, UserCog } from "lucide-react";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { type TaskWithCoworker } from "@/lib/types/task";
-import { formatShortDate } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {
   coworker: TaskWithCoworker["coworker"];
@@ -49,6 +51,8 @@ export function TaskMetaDetails({
   createdAt,
   variant = "card",
 }: TaskMetaDetailsProps) {
+  const { formatShortDate } = useLocalizedDateTime();
+
   if (variant === "list") {
     return (
       <>

@@ -10,6 +10,7 @@ import { type ReactNode } from "react";
 import { JobRow } from "@/app/agents/[agentId]/jobs/components/jobs-list";
 
 jest.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: () => (_key: string) => "",
 }));
 
