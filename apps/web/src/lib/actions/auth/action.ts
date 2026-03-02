@@ -13,6 +13,8 @@ import { auth } from "@/lib/auth/auth";
 import {
   newPasswordFormSchema,
   NewPasswordFormType,
+  signInFormSchema,
+  SignInFormSchemaType,
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/lib/schemas";
@@ -64,7 +66,8 @@ export async function createCredentialAccount(
 
 export async function signUpEmail(
   data: SignUpFormSchemaType,
-): Promise<Result<User, ActionError>> {
+  callbackURL?: string,
+): Promise<Result<SignUpEmailResult, ActionError>> {
   let actionError: ActionError = {
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
   };
@@ -78,16 +81,24 @@ export async function signUpEmail(
     }
     const parsed = parsedResult.data;
 
+    const safeCallbackURL =
+      callbackURL &&
+      callbackURL.startsWith("/") &&
+      !callbackURL.startsWith("//")
+        ? callbackURL
+        : "/";
+
     const signUpResult = await auth.api.signUpEmail({
       body: {
         email: parsed.email,
         name: parsed.name,
         password: parsed.password,
-        callbackURL: "/",
+        callbackURL: safeCallbackURL,
         marketingOptIn: parsed.marketingOptIn,
         termsAccepted: parsed.termsAccepted,
         onboardingCompleted: false,
       },
+      headers: await headers(),
     });
     const user = signUpResult.user;
     if (!user) {
@@ -106,7 +117,22 @@ export async function signUpEmail(
       console.error("Failed to create utm attribution", error);
     }
 
-    return Ok(user);
+    const oauthResponse = signUpResult as {
+      redirect?: boolean;
+      url?: string;
+      data?: {
+        redirect?: boolean;
+        url?: string;
+      };
+    };
+    const redirect = oauthResponse.redirect ?? oauthResponse.data?.redirect;
+    const redirectUrl = oauthResponse.url ?? oauthResponse.data?.url;
+
+    return Ok({
+      user,
+      redirect,
+      redirectUrl,
+    });
   } catch (error) {
     console.error("Failed to sign up email", error);
 
@@ -133,4 +159,82 @@ export async function signUpEmail(
     }
     return Err(actionError);
   }
+}
+
+export async function signInEmail(
+  data: SignInFormSchemaType,
+  callbackURL?: string,
+): Promise<Result<SignInEmailResult, ActionError>> {
+  const parsedResult = signInFormSchema().safeParse(data);
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+
+  const parsed = parsedResult.data;
+  const safeCallbackURL =
+    callbackURL && callbackURL.startsWith("/") && !callbackURL.startsWith("//")
+      ? callbackURL
+      : "/";
+
+  try {
+    const signInResult = await auth.api.signInEmail({
+      body: {
+        email: parsed.email,
+        password: parsed.currentPassword,
+        rememberMe: parsed.rememberMe,
+        callbackURL: safeCallbackURL,
+      },
+      headers: await headers(),
+    });
+
+    const oauthResponse = signInResult as {
+      redirect?: boolean;
+      url?: string;
+      data?: {
+        redirect?: boolean;
+        url?: string;
+      };
+    };
+    const redirect = oauthResponse.redirect ?? oauthResponse.data?.redirect;
+    const redirectUrl = oauthResponse.url ?? oauthResponse.data?.url;
+
+    if (redirect && redirectUrl) {
+      return Ok({
+        redirect: true,
+        redirectUrl,
+      });
+    }
+
+    return Ok({
+      redirect: false,
+    });
+  } catch (error) {
+    console.error("Failed to sign in email", error);
+
+    const parsedBetterAuthApiErrorResult =
+      betterAuthApiErrorSchema.safeParse(error);
+    if (parsedBetterAuthApiErrorResult.success) {
+      return Err({
+        code: parsedBetterAuthApiErrorResult.data.body.code,
+        message: parsedBetterAuthApiErrorResult.data.body.message,
+      });
+    }
+
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
+interface SignUpEmailResult {
+  user: User;
+  redirect?: boolean;
+  redirectUrl?: string;
+}
+
+interface SignInEmailResult {
+  redirect: boolean;
+  redirectUrl?: string;
 }

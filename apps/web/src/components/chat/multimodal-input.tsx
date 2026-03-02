@@ -12,10 +12,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
+import { CoworkerGalleryCard } from "@/components/agents/coworker-gallery-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -296,34 +296,29 @@ function PureMultimodalInput({
                   <TooltipContent
                     side="top"
                     hideArrow
-                    className="bg-popover text-popover-foreground border-border max-w-xs rounded-lg border p-3"
+                    className="bg-popover text-popover-foreground border-border max-w-xs p-0"
                   >
-                    <div className="flex flex-col gap-2">
-                      <div>
-                        <h4 className="text-sm font-semibold">
-                          {coworker.name}
-                        </h4>
-                        <p className="text-muted-foreground text-xs">
-                          {coworker.description}
-                        </p>
-                        {coworker.useCase && (
-                          <p className="text-muted-foreground mt-1.5 text-xs italic">
-                            {coworker.useCase}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleCoworkerSelect(coworker)}
-                        className="w-full"
-                      >
-                        {t("selectCoworker.selectButton", {
-                          coworker: coworker.name,
-                        })}
-                      </Button>
-                    </div>
+                    <CoworkerGalleryCard
+                      className="w-full"
+                      slug={coworker.slug ?? ""}
+                      name={coworker.name}
+                      image={coworker.avatar}
+                      caption={coworker.caption}
+                      description={coworker.description}
+                      action={
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleCoworkerSelect(coworker)}
+                          className="w-full"
+                        >
+                          {t("selectCoworker.selectButton", {
+                            coworker: coworker.name,
+                          })}
+                        </Button>
+                      }
+                    />
                   </TooltipContent>
                 </Tooltip>
               ))
@@ -336,14 +331,10 @@ function PureMultimodalInput({
         className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border p-3 transition-all duration-200"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!input.trim()) {
+          if (!input.trim() || status !== "ready") {
             return;
           }
-          if (status !== "ready") {
-            toast.error(t("waitForModelResponse"));
-          } else {
-            submitForm();
-          }
+          submitForm();
         }}
       >
         <div className="flex flex-row items-start gap-1 sm:gap-2">
@@ -379,7 +370,7 @@ function PureMultimodalInput({
             <PromptInputSubmit
               className="size-8 rounded-full transition-colors duration-200"
               data-testid="send-button"
-              disabled={!input.trim() || status === "streaming"}
+              disabled={!input.trim() || status !== "ready"}
               status={status}
             >
               <ArrowUpIcon size={14} />

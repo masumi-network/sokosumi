@@ -11,11 +11,13 @@ export type AgentInfo = {
   description?: string | null;
 };
 
-export const openrouterClient = (() => {
-  const openrouter = createOpenRouter({
-    apiKey: getEnvSecrets().OPENROUTER_DEFAULT_API_KEY,
-  });
+const openrouter = createOpenRouter({
+  apiKey: getEnvSecrets().OPENROUTER_DEFAULT_API_KEY,
+});
 
+export { openrouter };
+
+export const openrouterClient = (() => {
   return {
     async generateJobName(
       agent: AgentInfo,

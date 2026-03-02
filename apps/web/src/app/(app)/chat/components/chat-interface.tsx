@@ -22,6 +22,7 @@ import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSelection } from "@/app/chat/hooks/use-chat-selection";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
+import { usePendingResponsePolling } from "@/app/chat/hooks/use-pending-response-polling";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useConversationsContext } from "@/contexts/conversations-context";
@@ -282,7 +283,6 @@ export default function ChatInterface({
         const conversationId = payload?.conversationId ?? null;
         if (!conversationId || finishedMessages.length === 0) return;
 
-        // Assistant message is persisted by the backend when the stream ends
         void refreshConversations();
 
         const lastAssistantMessage = [...finishedMessages]
@@ -605,6 +605,15 @@ export default function ChatInterface({
       streamingConversationIdsRef,
     });
 
+  const { isPollingForPendingResponse, pendingResponseFailed } =
+    usePendingResponsePolling({
+      selectedChatId,
+      displayedMessages,
+      isStreaming: isSelectedChatLoading,
+      setMessagesForConversation,
+      refreshConversations,
+    });
+
   const {
     createModelChat,
     createCoworkerChat,
@@ -863,6 +872,8 @@ export default function ChatInterface({
                     userImageUrl={userImageUrl}
                     userName={userName}
                     isLoading={isLoading}
+                    isPollingForPendingResponse={isPollingForPendingResponse}
+                    pendingResponseFailed={pendingResponseFailed}
                     reasoningMessages={selectedChatReasoningMessages}
                     isCoworker={isSelectedChatCoworker}
                   />

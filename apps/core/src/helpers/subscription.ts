@@ -1,5 +1,8 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/database/helpers";
+import {
+  convertCentsToCredits,
+  getOrganizationMemberSubscriptionReferencePrefixForStartsWith,
+} from "@sokosumi/database/helpers";
 
 import { getCredits } from "@/helpers/user";
 
@@ -87,6 +90,13 @@ export async function getCurrentSubscriptionCredits(params: {
     ? {
         referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
         organizationId: params.organizationId,
+        userId: params.userId,
+        referenceId: {
+          startsWith:
+            getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
+              params.userId,
+            ),
+        },
         expiresAt: {
           gt: period.periodStart,
           lte: period.periodEnd,

@@ -1,3 +1,5 @@
+import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
+
 import {
   AgentJobStatus,
   CreditBucketReferenceType,
@@ -5,6 +7,10 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
+import {
+  getCreditExpiryDate,
+  REFUND_CREDITS_EXPIRY_DAYS,
+} from "../helpers/credit.js";
 import { mapJobWithStatus } from "../helpers/job.js";
 import {
   finalizedAgentJobStatuses,
@@ -195,6 +201,14 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
+    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
+      data.inputSchema,
+    );
+    if (inputSchemaSnapshotResult.isErr()) {
+      throw new Error(inputSchemaSnapshotResult.error);
+    }
+    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+
     const job = await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
@@ -220,7 +234,7 @@ export const jobRepository = {
           create: {
             status: AgentJobStatus.INITIATED,
             result: null,
-            inputSchema: JSON.stringify(data.inputSchema),
+            inputSchema: inputSchemaSnapshot.inputSchema,
             input: {
               create: {
                 input: data.input,
@@ -258,6 +272,14 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
+    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
+      data.inputSchema,
+    );
+    if (inputSchemaSnapshotResult.isErr()) {
+      throw new Error(inputSchemaSnapshotResult.error);
+    }
+    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
       jobType: data.jobType,
@@ -282,7 +304,7 @@ export const jobRepository = {
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: JSON.stringify(data.inputSchema),
+          inputSchema: inputSchemaSnapshot.inputSchema,
           input: {
             create: {
               input: data.input,
@@ -389,6 +411,10 @@ export const jobRepository = {
     }
 
     const amount = transaction.amount * BigInt(-1);
+    const refundExpiry = getCreditExpiryDate(
+      new Date(),
+      REFUND_CREDITS_EXPIRY_DAYS,
+    );
     const refundTransactionData: Prisma.TransactionCreateInput = {
       amount,
       user: {
@@ -407,13 +433,13 @@ export const jobRepository = {
         create: {
           amount,
           referenceId: jobId,
-          referenceType: CreditBucketReferenceType.JOB_REFUND,
+          referenceType: CreditBucketReferenceType.REFUND,
           user: {
             connect: {
               id: transaction.userId,
             },
           },
-          expiresAt: null,
+          expiresAt: refundExpiry,
           ...(transaction.organizationId && {
             organization: {
               connect: {

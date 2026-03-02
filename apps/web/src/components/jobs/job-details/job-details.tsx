@@ -24,7 +24,7 @@ import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import { useSession } from "@/lib/auth/auth.client";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { getInitials } from "@/lib/utils/text";
 import { getJobQueryKey, getJobQueryOptions } from "@/queries";
 
@@ -290,6 +290,7 @@ function JobDetailsContent({
   activeOrganizationId?: string | null;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails");
+  const { formatTimeAgo } = useLocalizedDateTime();
   const outputBlobs = event.blobs ?? [];
   const resultLinks = event.links ?? [];
   const hasSources = outputBlobs.length > 0 || resultLinks.length > 0;

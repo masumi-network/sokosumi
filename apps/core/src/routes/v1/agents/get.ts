@@ -7,6 +7,7 @@ import {
   calculateAverageExecutionTimes,
   getAgentCost,
   getAgentDescription,
+  getAgentIcon,
   getAgentImage,
   getAgentName,
   getCreditCostsOrThrow,
@@ -106,6 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: getAgentName(agent),
             description: getAgentDescription(agent),
             image: getAgentImage(agent),
+            icon: getAgentIcon(agent),
             author: getAuthorFromAgent(agent),
             legal: getAgentLegalFromAgent(agent),
           };

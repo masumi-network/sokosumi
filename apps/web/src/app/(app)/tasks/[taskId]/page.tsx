@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
@@ -36,6 +36,7 @@ export default async function TaskDetailPage({
     agents,
     members,
     session,
+    locale,
     t,
     tOrganizationSwitcher,
   ] = await Promise.all([
@@ -44,6 +45,7 @@ export default async function TaskDetailPage({
     agentService.getAvailableAgentsWithCreditsPrice(),
     userService.getMyMembersWithOrganizations(),
     getSession(),
+    getLocale(),
     getTranslations("App.Tasks.Detail"),
     getTranslations("Components.OrganizationSwitcher"),
   ]);
@@ -154,6 +156,7 @@ export default async function TaskDetailPage({
             agents={agents}
             jobs={taskResult.jobs}
             userId={session?.user.id ?? null}
+            locale={locale}
             emptyLabel={t("jobsEmpty")}
             untitledLabel={t("jobsUntitled")}
             unknownAgentLabel={t("jobsUnknownAgent")}

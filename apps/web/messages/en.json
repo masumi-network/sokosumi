@@ -127,7 +127,11 @@
       "support": "Support",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
-      "creditsConsumedProgressAria": "Subscription credits consumed"
+      "creditsSummary": "Credits Summary:",
+      "creditsConsumedProgressAria": "Subscription credits consumed",
+      "creditsExpiresInDays": "Credits expire in {days, plural, =1 {1 day} other {# days}}",
+      "creditsExpiresToday": "Credits expire today",
+      "creditsExpired": "Credits expired"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
@@ -222,7 +226,8 @@
       "schedules": "Scheduled Agents",
       "chat": "Chat",
       "tasks": "Task Manager",
-      "connections": "Connections"
+      "connections": "Connections",
+      "feed": "My Feed"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1142,7 +1147,7 @@
         "uploadFileError": "Failed to upload file",
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "uploadPastedImageError": "Failed to upload pasted image(s)",
-        "waitForModelResponse": "Please wait for the model to finish its response!",
+        "pendingResponseFailed": "Something went wrong on our side. Please try resending your last message again.",
         "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",
         "imageAttachment": "An image attachment",
         "fileLabel": "File",
@@ -1150,6 +1155,7 @@
         "modelAlt": "Model",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "User avatar",
+        "authorize": "Authorize",
         "reasoning": {
           "processing": "Processing...",
           "thinking": "Thinking...",
@@ -1178,6 +1184,37 @@
       "confirmDeleteDescription": "This cannot be undone. This will delete the schedule permanently.",
       "pausedReason": "Paused Reason",
       "loading": "Loading schedules..."
+    },
+    "Feed": {
+      "title": "My Feed",
+      "aiInsights": "AI Insights",
+      "summaryDescription": "Your latest completed tasks and jobs are shown here.",
+      "description": "A unified view of your latest completed work.",
+      "earlier": "Earlier",
+      "recentActivity": "Recent activity",
+      "summary": "Your latest completed tasks and jobs are shown here.",
+      "resultsTitle": "Results",
+      "emptyState": "No completed results yet.",
+      "backToFeed": "Back to feed",
+      "unknownAgent": "Agent",
+      "unknownCoworker": "Coworker",
+      "openOriginal": "View detail",
+      "missingResult": "This feed result is no longer available.",
+      "fallbackPreview": "No additional details available.",
+      "sourcesFiles": "Files",
+      "sourcesLinks": "Links",
+      "untitledJob": "Untitled job",
+      "untitledTask": "Untitled task",
+      "search": "Search tasks or jobs",
+      "clearSearch": "Clear search",
+      "loadMore": "Load more",
+      "loadingMore": "Loading...",
+      "generating": "Thinking...",
+      "generationError": "Unable to generate insights right now.",
+      "type": {
+        "job": "Job",
+        "task": "Task"
+      }
     },
     "Tasks": {
       "Page": {
@@ -1363,6 +1400,7 @@
           "chat": "Chat",
           "newChat": "New Chat",
           "exploreAgents": "Explore Agents",
+          "myFeed": "My Feed",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Task Manager",
           "scheduledAgents": "Scheduled Agents"
@@ -1420,6 +1458,7 @@
     "Header": {
       "Credit": {
         "buy": "Add credits",
+        "extraCredits": "{credits, plural, =0 {0 extra credits} =1 {1 extra credit} other {# extra credits}}",
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
@@ -1430,6 +1469,13 @@
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan unavailable"
       }
+    },
+    "EmailVerificationNotice": {
+      "title": "Verify your email address",
+      "description": "You must verify your email address to continue using paid account features.",
+      "button": "Resend verification email",
+      "sendSuccess": "Verification email sent. Please check your inbox.",
+      "sendError": "Failed to send verification email. Please try again."
     },
     "Subscriptions": {
       "statusSuccess": "Subscription updated successfully.",
@@ -1543,6 +1589,7 @@
       "billingPortalCta": "Manage purchases",
       "topUpTitle": "Top up your credits",
       "topUpDescription": "Choose an amount or enter a custom value",
+      "expiryNotice": "Credits expire after {days, plural, one {# day} other {# days}}.",
       "costPerCredit": "{cost} per credit",
       "creditAmount": "{count, plural, one {# credit} other {# credits}}",
       "creditsLabel": "Number of credits",

@@ -8,10 +8,13 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import type { PaginationMetadata } from "@/lib/clients/generated/core";
 import {
   deleteTasksById as coreDeleteTasksById,
+  getAgentsById as coreGetAgentsById,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
   getConversationsByIdItems as coreGetConversationsByIdItems,
   getCoworkers as coreGetCoworkers,
+  getJobs as coreGetJobs,
+  getJobsById as coreGetJobsById,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getUsersMeCredits as coreGetUsersMeCredits,
@@ -334,6 +337,52 @@ export const coreClient = (() => {
     );
   }
 
+  async function getJobs(query?: {
+    scope?: Array<"context" | "owned" | "shared">;
+    cursor?: string;
+    limit?: number;
+    agentId?: string;
+    status?: string;
+  }) {
+    return executeOperation(
+      (client) =>
+        coreGetJobs({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch jobs",
+    );
+  }
+
+  async function getJobById(
+    id: string,
+    scope: Array<"context" | "owned" | "shared"> = ["context"],
+  ) {
+    return executeOperation(
+      (client) =>
+        coreGetJobsById({
+          client,
+          path: { id },
+          query: { scope },
+          cache: "no-store",
+        }),
+      "Failed to fetch job",
+    );
+  }
+
+  async function getAgentById(id: string) {
+    return executeOperation(
+      (client) =>
+        coreGetAgentsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch agent",
+    );
+  }
+
   async function createTask(body: {
     name: string;
     description?: string | null;
@@ -484,6 +533,9 @@ export const coreClient = (() => {
     getConversationItems,
     getConversations,
     getCoworkers,
+    getAgentById,
+    getJobById,
+    getJobs,
     getPendingNotices,
     getMyCredits,
     getMyOrganizations,

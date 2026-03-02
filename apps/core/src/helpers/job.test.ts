@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import { AgentJobStatus, type Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
@@ -33,7 +33,11 @@ describe("getUserJobs", () => {
     expect(tx.job.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          OR: [{ userId: "user_123", organizationId: "org_123" }],
+          AND: [
+            {
+              OR: [{ userId: "user_123", organizationId: "org_123" }],
+            },
+          ],
         },
       }),
     );
@@ -51,7 +55,11 @@ describe("getUserJobs", () => {
     expect(tx.job.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          OR: [{ userId: "user_123" }],
+          AND: [
+            {
+              OR: [{ userId: "user_123" }],
+            },
+          ],
         },
       }),
     );
@@ -69,9 +77,13 @@ describe("getUserJobs", () => {
     expect(tx.job.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          OR: [
-            { userId: "user_123", organizationId: "org_123" },
-            { share: { organizationId: "org_123" } },
+          AND: [
+            {
+              OR: [
+                { userId: "user_123", organizationId: "org_123" },
+                { share: { organizationId: "org_123" } },
+              ],
+            },
           ],
         },
       }),
@@ -99,5 +111,36 @@ describe("getUserJobs", () => {
     });
     expect(tx.job.findMany).not.toHaveBeenCalled();
     expect(tx.job.count).not.toHaveBeenCalled();
+  });
+
+  it("accepts any agent job status query without throwing", async () => {
+    const tx = createTransactionClient();
+
+    await getUserJobs(orgAuthContext, {
+      take: 20,
+      tx,
+      scopes: ["context", "shared"],
+      status: AgentJobStatus.COMPLETED,
+    });
+
+    expect(tx.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              OR: [
+                { userId: "user_123", organizationId: "org_123" },
+                { share: { organizationId: "org_123" } },
+              ],
+            },
+            {
+              events: {
+                some: { status: { equals: AgentJobStatus.COMPLETED } },
+              },
+            },
+          ],
+        },
+      }),
+    );
   });
 });

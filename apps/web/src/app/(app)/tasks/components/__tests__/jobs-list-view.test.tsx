@@ -8,6 +8,11 @@ import {
 } from "@/app/tasks/components/jobs-list-view";
 import type { KanbanColumnId } from "@/lib/types/task";
 
+jest.mock("next-intl", () => ({
+  useLocale: () => "en",
+  useTranslations: () => (key: string) => key,
+}));
+
 jest.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
 }));

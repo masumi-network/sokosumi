@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Search, SquareCheckBig } from "lucide-react";
+import { CalendarClock, Rss, Search, SquareCheckBig } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -41,6 +41,12 @@ export default function MenuItems() {
       href: "/agents",
       label: t("exploreAgents"),
       Icon: Search,
+    },
+    {
+      key: "my-feed",
+      href: "/feed",
+      label: t("myFeed"),
+      Icon: Rss,
     },
     {
       key: "task-manager",

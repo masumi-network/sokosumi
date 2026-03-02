@@ -3,13 +3,6 @@ import prisma from "@/lib/db/prisma";
 const SSE_DATA_PREFIX = "data: ";
 const UI_MESSAGE_EVENT_TEXT_DELTA = "text-delta";
 
-/**
- * Wraps a UI message stream (SSE), forwards all bytes unchanged, accumulates
- * assistant text from text-delta events, and persists one conversation item
- * when the stream ends (normal completion). Used so that if the client
- * disconnects, the backend still runs the stream to completion and saves
- * the full reply.
- */
 export function streamWithAssistantPersistence(
   upstreamStream: ReadableStream<Uint8Array>,
   conversationId: string,
@@ -21,10 +14,10 @@ export function streamWithAssistantPersistence(
   let accumulatedText = "";
   let persisted = false;
 
-  function tryPersist(text: string): void {
-    if (persisted || !text.trim()) return;
+  function tryPersist(text: string): Promise<void> {
+    if (persisted || !text.trim()) return Promise.resolve();
     persisted = true;
-    prisma.conversation
+    return prisma.conversation
       .findFirst({
         where: {
           id: conversationId,
@@ -44,6 +37,7 @@ export function streamWithAssistantPersistence(
           },
         });
       })
+      .then(() => undefined)
       .catch((error) => {
         console.error(
           "Failed to persist assistant message from stream:",
@@ -52,21 +46,47 @@ export function streamWithAssistantPersistence(
       });
   }
 
+  function safeClose(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+  ): void {
+    try {
+      controller.close();
+    } catch {
+      // Consumer already closed or cancelled the stream.
+    }
+  }
+
+  function safeError(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    error: unknown,
+  ): void {
+    try {
+      controller.error(error);
+    } catch {
+      // Consumer already closed or cancelled the stream.
+    }
+  }
+
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            tryPersist(accumulatedText);
-            controller.close();
+            await tryPersist(accumulatedText);
+            safeClose(controller);
             return;
           }
 
-          const chunk = value as Uint8Array;
-          controller.enqueue(chunk);
+          try {
+            controller.enqueue(value);
+          } catch {
+            // Consumer cancelled; persist what we have and exit without closing again.
+            await tryPersist(accumulatedText);
+            return;
+          }
 
-          buffer += decoder.decode(chunk, { stream: true });
+          buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
 
@@ -87,18 +107,17 @@ export function streamWithAssistantPersistence(
                 accumulatedText += parsed.delta;
               }
             } catch {
-              // ignore non-JSON or other event types
+              // skip non-JSON lines
             }
           }
         }
       } catch (error) {
-        tryPersist(accumulatedText);
-        controller.error(error);
+        await tryPersist(accumulatedText);
+        safeError(controller, error);
       }
     },
     cancel(reason) {
-      tryPersist(accumulatedText);
-      return reader.cancel(reason);
+      return tryPersist(accumulatedText).then(() => reader.cancel(reason));
     },
   });
 }

@@ -20,6 +20,7 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
+import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
 import type {
   InputFieldSchemaType,
   InputSchemaSchemaType,
@@ -90,6 +91,11 @@ async function createPaidJob(
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+  const inputSchemaSnapshotResult = buildInputSchemaSnapshot(input.inputSchema);
+  if (inputSchemaSnapshotResult.isErr()) {
+    throw unprocessableEntity("Invalid input schema");
+  }
+  const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
     input.organizationId,
@@ -116,7 +122,7 @@ async function createPaidJob(
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: JSON.stringify(input.inputSchema),
+          inputSchema: inputSchemaSnapshot.inputSchema,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
@@ -179,6 +185,11 @@ async function createFreeJob(
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
+  const inputSchemaSnapshotResult = buildInputSchemaSnapshot(input.inputSchema);
+  if (inputSchemaSnapshotResult.isErr()) {
+    throw unprocessableEntity("Invalid input schema");
+  }
+  const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -198,7 +209,7 @@ async function createFreeJob(
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: JSON.stringify(input.inputSchema),
+          inputSchema: inputSchemaSnapshot.inputSchema,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
@@ -520,6 +531,7 @@ export async function getUserJobs(
   authContext: UserAuthenticationContext,
   options: {
     agentId?: string;
+    status?: AgentJobStatus;
     cursor?: string;
     take: number;
     skip?: number;
@@ -531,7 +543,7 @@ export async function getUserJobs(
   count: number;
   hasMore: boolean;
 }> {
-  const { agentId, cursor, take, skip, scopes, tx = prisma } = options;
+  const { agentId, status, cursor, take, skip, scopes, tx = prisma } = options;
 
   const scopeFilters = buildJobScopeFilters(authContext, scopes);
   if (scopeFilters.length === 0) {
@@ -543,8 +555,13 @@ export async function getUserJobs(
   }
 
   const where: Prisma.JobWhereInput = {
-    OR: scopeFilters,
-    ...(agentId ? { agentId } : {}),
+    AND: [
+      {
+        OR: scopeFilters,
+      },
+      ...(agentId ? [{ agentId }] : []),
+      ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
+    ],
   };
 
   const takePlusOne = take + 1;

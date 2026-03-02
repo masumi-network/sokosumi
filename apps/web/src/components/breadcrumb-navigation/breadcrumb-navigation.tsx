@@ -2,6 +2,7 @@ import {
   agentRepository,
   organizationRepository,
 } from "@sokosumi/database/repositories";
+import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 
 import prisma from "@/lib/db/prisma";
@@ -38,16 +39,23 @@ async function BreadcrumbNavigationInner({
   className?: string | undefined;
   segmentLabels?: Record<string, string>;
 }) {
-  const { agents, organizations } = await prisma.$transaction(async (tx) => {
-    const agents = await agentRepository.getAgentsWithRelations(tx);
-    const organizations =
-      await organizationRepository.listOrganizationsWithLimitedInfo(tx);
-    return { agents, organizations };
-  });
+  const [messages, { agents, organizations }] = await Promise.all([
+    getMessages(),
+    prisma.$transaction(async (tx) => {
+      const agents = await agentRepository.getAgentsWithRelations(tx);
+      const organizations =
+        await organizationRepository.listOrganizationsWithLimitedInfo(tx);
+      return { agents, organizations };
+    }),
+  ]);
+
+  const breadcrumbMessages = (messages?.Components as Record<string, unknown>)
+    ?.Breadcrumb as Record<string, string> | undefined;
 
   return (
     <BreadcrumbNavigationClient
       agents={agents}
+      breadcrumbMessages={breadcrumbMessages}
       organizations={organizations}
       className={className}
       segmentLabels={segmentLabels}

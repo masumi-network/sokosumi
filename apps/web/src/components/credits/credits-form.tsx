@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Organization } from "@sokosumi/database";
+import { PAID_TOPUP_CREDITS_EXPIRY_DAYS } from "@sokosumi/database/helpers";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -255,17 +256,27 @@ export default function CreditsForm({
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               {organization ? t("topUpButtonOrganization") : t("topUpButton")}
             </Button>
-            {isPurchaseEnabled ? (
-              <p className="text-muted-foreground text-sm">
-                {t("costPerCredit", {
-                  cost: formatter.number(selectedPrice.amountPerCredit / 100, {
-                    style: "currency",
-                    currency: selectedPrice.currency,
-                    maximumFractionDigits: 4,
-                  }),
+            <div className="text-right">
+              {isPurchaseEnabled ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("costPerCredit", {
+                    cost: formatter.number(
+                      selectedPrice.amountPerCredit / 100,
+                      {
+                        style: "currency",
+                        currency: selectedPrice.currency,
+                        maximumFractionDigits: 4,
+                      },
+                    ),
+                  })}
+                </p>
+              ) : null}
+              <p className="text-muted-foreground text-xs">
+                {t("expiryNotice", {
+                  days: PAID_TOPUP_CREDITS_EXPIRY_DAYS,
                 })}
               </p>
-            ) : null}
+            </div>
           </CardFooter>
         </form>
       </Form>

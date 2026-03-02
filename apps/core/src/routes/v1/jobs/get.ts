@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { JobType } from "@sokosumi/database";
+import { AgentJobStatus, JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 
 import { getUserJobs } from "@/helpers/job";
@@ -30,6 +30,14 @@ const query = z
         param: { name: "agentId", in: "query" },
         description: "Filter jobs by agent ID",
         example: "cmaeygqwa000e8i0s9s7wif8i",
+      }),
+    status: z
+      .enum(AgentJobStatus)
+      .optional()
+      .openapi({
+        param: { name: "status", in: "query" },
+        description: "Filter jobs by status",
+        example: AgentJobStatus.COMPLETED,
       }),
     scope: jobScopeQuerySchema,
   })
@@ -100,11 +108,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { agentId, scope } = queryParams;
+    const { agentId, status, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const { jobs, count, hasMore } = await getUserJobs(authContext, {
       agentId,
+      status,
       cursor,
       take,
       skip,

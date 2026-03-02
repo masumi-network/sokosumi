@@ -14,7 +14,6 @@ import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
-import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const EXISTING_FREE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>(
@@ -73,6 +72,7 @@ export const stripeService = (() => {
       price: Price,
       promotionCode: string | null = null,
       returnPath: string = "/credits",
+      ttlDays?: string,
     ): Promise<{ url: string }> {
       const isVerified = await verifyUserId(userId);
       if (!isVerified) {
@@ -97,6 +97,7 @@ export const stripeService = (() => {
           headerList.get("origin"),
           promotionCode,
           returnPath,
+          ttlDays,
         );
 
         if (!checkoutSession.url) {
@@ -177,14 +178,6 @@ export const stripeService = (() => {
           return null;
         }
       }
-    },
-
-    async getCreditsForCoupon(couponId: string): Promise<number> {
-      const coupon = await stripeClient.getCouponById(couponId);
-      if (!coupon) {
-        throw new CouponNotFoundError(couponId);
-      }
-      return getCreditsForCoupon(coupon);
     },
 
     async createStripeCustomerForUser(

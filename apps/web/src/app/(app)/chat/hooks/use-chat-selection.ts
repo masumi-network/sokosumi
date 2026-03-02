@@ -12,6 +12,8 @@ import {
 } from "@/app/chat/utils/bucket-slug";
 import type { Conversation } from "@/lib/actions/conversation";
 
+const FALLBACK_BUCKET_SEGMENT = "_";
+
 interface UseChatSelectionProps {
   urlConversationId: string | null;
   pathname: string;
@@ -145,11 +147,9 @@ export function useChatSelection({
     currentChatIdRef.current = chatId;
     pendingUrlConversationIdRef.current = chatId;
     isUpdatingUrlRef.current = true;
-    const segment = slug || bucketSlug || "";
-    const targetPath = segment
-      ? `/chat/${segment}/conversation/${chatId}`
-      : "/chat";
-    router.push(withSearch(targetPath), { scroll: false });
+    const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
+    const targetPath = `/chat/${segment}/conversation/${chatId}`;
+    router.push(targetPath, { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
     const listConversation = conversations.find((c) => c.id === chatId);
@@ -253,11 +253,9 @@ export function useChatSelection({
           conversations,
           bucketSlug ?? undefined,
         );
-        const nextSegment = nextSlug || bucketSlug || "";
+        const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
         const targetPathForNext = nextId
-          ? nextSegment
-            ? `/chat/${nextSegment}/conversation/${nextId}`
-            : "/chat"
+          ? `/chat/${nextSegment}/conversation/${nextId}`
           : bucketSlug
             ? `/chat/${bucketSlug}`
             : "/chat";
@@ -304,11 +302,9 @@ export function useChatSelection({
           conversations,
           bucketSlug ?? undefined,
         );
-        const nextSegment = nextSlug || bucketSlug || "";
+        const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
         const targetPathForNext = nextId
-          ? nextSegment
-            ? `/chat/${nextSegment}/conversation/${nextId}`
-            : "/chat"
+          ? `/chat/${nextSegment}/conversation/${nextId}`
           : bucketSlug
             ? `/chat/${bucketSlug}`
             : "/chat";
