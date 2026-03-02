@@ -148,7 +148,8 @@ function ConversationRow({
         }}
         aria-label={deleteAriaLabel}
         className={cn(
-          "opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 focus:outline-none",
+          "transition-opacity focus:opacity-100 focus:outline-none md:opacity-0 md:group-hover:opacity-100",
+          "opacity-100",
           isActive
             ? "text-primary-foreground hover:bg-primary/20"
             : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
