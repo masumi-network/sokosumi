@@ -117,9 +117,11 @@ export function usePendingResponsePolling({
       return;
     }
     pollCountRef.current = 0;
-    poll();
     intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
-    queueMicrotask(() => setIsPollingForPendingResponse(true));
+    queueMicrotask(() => {
+      setIsPollingForPendingResponse(true);
+      poll();
+    });
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
