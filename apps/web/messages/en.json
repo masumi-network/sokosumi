@@ -124,7 +124,13 @@
       "organizations": "Organizations",
       "billing": "Billing",
       "connections": "Connections",
+      "help": "Help",
       "support": "Support",
+      "documentation": "Documentation",
+      "termsOfService": "Terms of Service",
+      "privacyPolicy": "Privacy Policy",
+      "imprint": "Imprint",
+      "acceptableUse": "Acceptable Use",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
       "creditsSummary": "Credits Summary:",
@@ -785,7 +791,9 @@
     },
     "Footer": {
       "termsOfServices": "Terms of Service",
-      "privacyPolicy": "Privacy Policy"
+      "privacyPolicy": "Privacy Policy",
+      "imprint": "Imprint",
+      "acceptableUse": "Acceptable Use"
     },
     "Schema": {
       "Email": {

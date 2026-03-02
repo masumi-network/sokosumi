@@ -193,8 +193,8 @@ export default function UserAvatarClient({
   }
 
   const { showLogoutModal } = useGlobalModalsContext();
-  const handleSupport = () => {
-    window.open("https://www.masumi.network/contact", "_blank");
+  const handleOpenExternalLink = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const router = useRouter();
@@ -505,17 +505,82 @@ export default function UserAvatarClient({
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="flex cursor-pointer items-center gap-2"
-            onClick={() => {
-              setIsWorkspacePopoverOpen(false);
-              setIsMenuOpen(false);
-              handleSupport();
-            }}
-          >
-            <CircleHelp className="text-muted-foreground" />
-            {t("support")}
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
+              <CircleHelp className="text-muted-foreground" />
+              {t("help")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/terms-of-service",
+                  );
+                }}
+              >
+                {t("termsOfService")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/privacy-policy",
+                  );
+                }}
+              >
+                {t("privacyPolicy")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink("https://www.sokosumi.com/imprint");
+                }}
+              >
+                {t("imprint")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/acceptable-use",
+                  );
+                }}
+              >
+                {t("acceptableUse")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://docs.sokosumi.com/documentation",
+                  );
+                }}
+              >
+                {t("documentation")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink("mailto:info@sokosumi.com");
+                }}
+              >
+                {t("support")}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
