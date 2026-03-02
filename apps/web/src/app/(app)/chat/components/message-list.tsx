@@ -240,7 +240,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     return (
       <div
         ref={setWrapperRef}
-        className="absolute inset-x-0 top-0 bottom-0 overflow-hidden"
+        className="absolute inset-x-0 top-0 bottom-0 overflow-hidden md:bottom-[8rem]"
       >
         <div
           ref={scrollContainerRef}
