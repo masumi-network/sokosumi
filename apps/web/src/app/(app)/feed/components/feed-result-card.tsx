@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { FeedItem } from "@/lib/services/feed.service";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { resolveTitle } from "@/lib/utils/feed-helpers";
 import { getInitials } from "@/lib/utils/text";
 
@@ -18,6 +18,7 @@ interface FeedResultCardProps {
 
 export function FeedResultCard({ item }: FeedResultCardProps) {
   const t = useTranslations("App.Feed");
+  const { formatTimeAgo } = useLocalizedDateTime();
   const actorName =
     item.actor.name?.trim() ||
     (item.actor.kind === "agent" ? t("unknownAgent") : t("unknownCoworker"));

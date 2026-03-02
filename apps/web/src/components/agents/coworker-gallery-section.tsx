@@ -63,6 +63,7 @@ function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
                 slug={coworker.slug}
                 name={coworker.name}
                 image={coworker.image}
+                caption={coworker.caption}
                 description={coworker.description}
                 className="w-52"
               />

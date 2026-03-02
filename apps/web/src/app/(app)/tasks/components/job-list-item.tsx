@@ -12,7 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface JobListItemLabels {
   untitled: string;
@@ -30,6 +30,7 @@ interface JobListItemProps {
 }
 
 export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
+  const { formatTimeAgo } = useLocalizedDateTime();
   const name = job.name?.trim() ? job.name : labels.untitled;
   const agentName = agentPreview?.name ?? labels.unknownAgent;
   const agentIconModel = {
@@ -95,7 +96,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
   );
 
   const timeCell = (
-    <p className="text-muted-foreground shrink-0 text-xs sm:w-[120px] sm:text-right">
+    <p className="text-muted-foreground shrink-0 text-xs capitalize sm:w-[120px] sm:text-right">
       {formatTimeAgo(job.createdAt)}
     </p>
   );
