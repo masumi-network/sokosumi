@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
 
+import { useKeyboardBottomOffset } from "@/app/chat/hooks/use-keyboard-bottom-offset";
 import type { Coworker } from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ export default function WelcomeScreen({
   onSelectModel,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
+  const keyboardBottomOffset = useKeyboardBottomOffset();
   const promptKey =
     initialCoworker?.slug?.toLowerCase() ||
     initialCoworker?.id?.toLowerCase() ||
@@ -123,7 +125,14 @@ export default function WelcomeScreen({
         className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
       />
       {/* On mobile: fixed to viewport bottom so input matches chat view (main has p-4). On md+: absolute in flow. */}
-      <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-0">
+      <div
+        className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-0"
+        style={
+          keyboardBottomOffset > 0
+            ? { bottom: `${keyboardBottomOffset}px` }
+            : undefined
+        }
+      >
         <div className="w-full max-w-4xl">
           <MultimodalInput
             input={input}

@@ -57,6 +57,11 @@ export const PromptInputTextarea = ({
 
       e.preventDefault();
 
+      // On mobile, require the send button; Enter must not submit (keyboard stays open).
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        return;
+      }
+
       const form = e.currentTarget.form;
       const submitButton = form?.querySelector(
         'button[type="submit"]',

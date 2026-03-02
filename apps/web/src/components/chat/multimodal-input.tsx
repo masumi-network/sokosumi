@@ -200,6 +200,11 @@ function PureMultimodalInput({
   };
 
   const submitForm = useCallback(() => {
+    // On mobile, blur first so the keyboard dismisses and input returns to normal position.
+    if (width && width < 768) {
+      textareaRef.current?.blur();
+    }
+
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
