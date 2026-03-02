@@ -3,12 +3,14 @@
 import { MemberRole, MemberWithOrganization } from "@sokosumi/database";
 import gravatarUrl from "gravatar-url";
 import {
+  BookOpen,
   Building2,
   Cable,
   Check,
   ChevronDown,
   ChevronsUpDown,
   CircleHelp,
+  LifeBuoy,
   LogOut,
   ReceiptText,
   User as UserIcon,
@@ -32,6 +34,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -512,10 +515,13 @@ export default function UserAvatarClient({
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
-              <CircleHelp className="text-muted-foreground" />
+              <LifeBuoy className="text-muted-foreground size-4" />
               {t("help")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
+              <DropdownMenuLabel className="text-muted-foreground text-xs">
+                {t("legal")}
+              </DropdownMenuLabel>
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => {
@@ -562,6 +568,7 @@ export default function UserAvatarClient({
               >
                 {t("acceptableUse")}
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => {
@@ -572,8 +579,10 @@ export default function UserAvatarClient({
                   );
                 }}
               >
+                <BookOpen className="text-muted-foreground size-4" />
                 {t("documentation")}
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => {
@@ -582,6 +591,7 @@ export default function UserAvatarClient({
                   handleOpenExternalLink("mailto:info@sokosumi.com");
                 }}
               >
+                <CircleHelp className="text-muted-foreground size-4" />
                 {t("support")}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
