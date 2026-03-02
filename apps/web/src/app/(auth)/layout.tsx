@@ -64,11 +64,37 @@ function AuthLayoutFooter() {
 
   return (
     <div className="flex items-center justify-center gap-4">
-      <Link href="/privacy-policy" className="text-sm hover:text-gray-300">
+      <Link
+        href="https://www.sokosumi.com/terms-of-service"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm hover:text-gray-300"
+      >
+        {t("termsOfServices")}
+      </Link>
+      <Link
+        href="https://www.sokosumi.com/privacy-policy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm hover:text-gray-300"
+      >
         {t("privacyPolicy")}
       </Link>
-      <Link href="/terms-of-service" className="text-sm hover:text-gray-300">
-        {t("termsOfServices")}
+      <Link
+        href="https://www.sokosumi.com/imprint"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm hover:text-gray-300"
+      >
+        {t("imprint")}
+      </Link>
+      <Link
+        href="https://www.sokosumi.com/acceptable-use"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm hover:text-gray-300"
+      >
+        {t("acceptableUse")}
       </Link>
     </div>
   );

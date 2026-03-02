@@ -3,12 +3,14 @@
 import { MemberRole, MemberWithOrganization } from "@sokosumi/database";
 import gravatarUrl from "gravatar-url";
 import {
+  BookOpen,
   Building2,
   Cable,
   Check,
   ChevronDown,
   ChevronsUpDown,
   CircleHelp,
+  LifeBuoy,
   LogOut,
   ReceiptText,
   User as UserIcon,
@@ -32,6 +34,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -193,8 +196,13 @@ export default function UserAvatarClient({
   }
 
   const { showLogoutModal } = useGlobalModalsContext();
-  const handleSupport = () => {
-    window.open("https://www.masumi.network/contact", "_blank");
+  const handleOpenExternalLink = (url: string) => {
+    if (url.startsWith("mailto:")) {
+      window.location.href = url;
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const router = useRouter();
@@ -505,17 +513,89 @@ export default function UserAvatarClient({
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="flex cursor-pointer items-center gap-2"
-            onClick={() => {
-              setIsWorkspacePopoverOpen(false);
-              setIsMenuOpen(false);
-              handleSupport();
-            }}
-          >
-            <CircleHelp className="text-muted-foreground" />
-            {t("support")}
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
+              <LifeBuoy className="text-muted-foreground size-4" />
+              {t("help")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuLabel className="text-muted-foreground text-xs">
+                {t("legal")}
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/terms-of-service",
+                  );
+                }}
+              >
+                {t("termsOfService")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/privacy-policy",
+                  );
+                }}
+              >
+                {t("privacyPolicy")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink("https://www.sokosumi.com/imprint");
+                }}
+              >
+                {t("imprint")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://www.sokosumi.com/acceptable-use",
+                  );
+                }}
+              >
+                {t("acceptableUse")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://docs.sokosumi.com/documentation",
+                  );
+                }}
+              >
+                <BookOpen className="text-muted-foreground size-4" />
+                {t("documentation")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsWorkspacePopoverOpen(false);
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink("mailto:info@sokosumi.com");
+                }}
+              >
+                <CircleHelp className="text-muted-foreground size-4" />
+                {t("support")}
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
