@@ -12,6 +12,23 @@ const createHash = (input: string) => {
   return crypto.createHash("sha256").update(input, "utf-8").digest("hex");
 };
 
+/**
+ * Calculates a canonical SHA-256 hash for any JSON-serializable value.
+ *
+ * @param value - Parsed JSON value to canonicalize and hash
+ * @returns SHA-256 hash of canonicalized JSON, or null when canonicalization fails
+ */
+export const hashCanonicalJsonValue = (value: unknown): string | null => {
+  try {
+    const canonicalValue = canonicalizeEx(value, {
+      filterUndefined: true,
+    });
+    return createHash(canonicalValue);
+  } catch {
+    return null;
+  }
+};
+
 const _hashInput = (
   input: string,
   identifierFromPurchaser: string,
@@ -69,10 +86,7 @@ export const hashInputSchema = (
 
   try {
     const object = JSON.parse(inputSchema);
-    const inputSchemaString = canonicalizeEx(object, {
-      filterUndefined: true,
-    });
-    return createHash(inputSchemaString);
+    return hashCanonicalJsonValue(object);
   } catch {
     return null;
   }

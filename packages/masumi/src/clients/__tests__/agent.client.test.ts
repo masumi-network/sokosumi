@@ -1,4 +1,4 @@
-import { hashInputSchema } from "../../hash/hash.js";
+import { hashCanonicalJsonValue, hashInputSchema } from "../../hash/hash.js";
 import type { Agent } from "../../types/agent.js";
 import { createAgentClient } from "../agent.client.js";
 
@@ -221,7 +221,6 @@ describe("createAgentClient provideJobInput", () => {
     const client = createAgentClient();
     const result = await client.provideJobInput(
       createAgent(),
-      "status-1",
       "job-1",
       inputSchema,
       {
@@ -240,7 +239,6 @@ describe("createAgentClient provideJobInput", () => {
     expect(requestOptions.method).toBe("POST");
     expect(JSON.parse(String(requestOptions.body))).toEqual({
       job_id: "job-1",
-      status_id: "status-1",
       input_schema_hash: hashInputSchema(inputSchema),
       input_data: {
         answer: "8",
@@ -255,7 +253,6 @@ describe("createAgentClient provideJobInput", () => {
     const client = createAgentClient();
     const result = await client.provideJobInput(
       createAgent(),
-      "status-1",
       "job-1",
       "not-json",
       {
@@ -268,5 +265,50 @@ describe("createAgentClient provideJobInput", () => {
       expect(result.error).toBe("Failed to hash input schema");
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("createAgentClient fetchAgentJobStatus", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("returns statusHash from canonical response body", async () => {
+    const responseBody = {
+      status: "awaiting_input",
+      input_schema: {
+        input_data: [
+          {
+            id: "prompt",
+            name: "Prompt",
+            type: "string",
+          },
+        ],
+      },
+      result: null,
+    };
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(JSON.stringify(responseBody), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.fetchAgentJobStatus(createAgent(), "job-1");
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.status).toBe("awaiting_input");
+      expect(result.value.statusHash).toBe(
+        hashCanonicalJsonValue(responseBody),
+      );
+    }
   });
 });

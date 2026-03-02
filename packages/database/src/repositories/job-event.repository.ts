@@ -3,6 +3,7 @@ import type { JobEvent, Prisma } from "../generated/prisma/client.js";
 
 interface CreateJobEventData {
   externalId?: string | null;
+  statusHash?: string | null;
   status: AgentJobStatus;
   inputSchema?: string | null;
   result?: string | null;
@@ -26,6 +27,7 @@ export const jobEventRepository = {
       data: {
         job: { connect: { id: jobId } },
         externalId: data.externalId,
+        statusHash: data.statusHash,
         status: data.status,
         inputSchema: data.inputSchema,
         result: data.result,
@@ -84,16 +86,6 @@ export const jobEventRepository = {
         jobId,
         status: AgentJobStatus.AWAITING_INPUT,
       },
-    });
-  },
-
-  async getAwaitingInputJobEventByJobIdAndExternalId(
-    jobId: string,
-    externalId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobEvent | null> {
-    return await tx.jobEvent.findFirst({
-      where: { externalId, jobId, status: AgentJobStatus.AWAITING_INPUT },
     });
   },
 };

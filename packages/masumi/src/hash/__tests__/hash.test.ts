@@ -1,4 +1,5 @@
 import {
+  hashCanonicalJsonValue,
   hashInput,
   hashInputDeprecated,
   hashInputSchema,
@@ -170,6 +171,35 @@ describe("hashInputSchema", () => {
   it("should return null for nullish input", () => {
     expect(hashInputSchema(null)).toBeNull();
     expect(hashInputSchema(undefined)).toBeNull();
+  });
+});
+
+describe("hashCanonicalJsonValue", () => {
+  it("should generate the same hash for equivalent objects with different key order", () => {
+    const firstHash = hashCanonicalJsonValue({ b: 2, a: 1 });
+    const secondHash = hashCanonicalJsonValue({ a: 1, b: 2 });
+
+    expect(firstHash).toBe(
+      "43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777",
+    );
+    expect(secondHash).toBe(firstHash);
+  });
+
+  it("should generate different hashes when the payload changes", () => {
+    const firstHash = hashCanonicalJsonValue({
+      status: "running",
+      result: null,
+    });
+    const secondHash = hashCanonicalJsonValue({
+      status: "completed",
+      result: "done",
+    });
+
+    expect(firstHash).not.toBe(secondHash);
+  });
+
+  it("should return null for unsupported values", () => {
+    expect(hashCanonicalJsonValue(123n as unknown)).toBeNull();
   });
 });
 

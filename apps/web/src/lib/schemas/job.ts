@@ -125,7 +125,6 @@ export type JobStatusValue = (typeof JOB_STATUS_VALUES)[number];
 
 export const jobStatusResponseSchema = z
   .object({
-    id: z.string().nullish(),
     status: z.enum(JOB_STATUS_VALUES),
     input_schema: inputSchemaResponseSchema.nullish(),
     result: z.string().nullish(),
@@ -172,7 +171,7 @@ export type CreateJobScheduleInputSchemaType = z.infer<
 
 export const provideJobInputSchema = z.object({
   jobId: z.string(),
-  statusId: z.string(),
+  eventId: z.string(),
   inputData: inputSchema,
 });
 

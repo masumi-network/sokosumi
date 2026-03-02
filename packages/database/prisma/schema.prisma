@@ -711,9 +711,10 @@ model JobEvent {
 
   input JobInput?
 
-  status      AgentJobStatus @default(AWAITING_PAYMENT)
-  inputSchema String?
-  result      String?
+  statusHash  String? // Hash of the status response from the agent
+  status      AgentJobStatus @default(AWAITING_PAYMENT) // Status of the job
+  inputSchema String? // Input schema of the job
+  result      String? // Result of the job
 
   blobs Blob[]
   links Link[]
