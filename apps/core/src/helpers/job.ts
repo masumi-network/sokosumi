@@ -88,11 +88,7 @@ async function createPaidJob(
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const inputSchemaSnapshot = JSON.stringify(
-    "input_data" in input.inputSchema
-      ? input.inputSchema.input_data
-      : input.inputSchema.input_groups,
-  );
+  const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
     input.organizationId,
@@ -182,11 +178,7 @@ async function createFreeJob(
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const inputSchemaSnapshot = JSON.stringify(
-    "input_data" in input.inputSchema
-      ? input.inputSchema.input_data
-      : input.inputSchema.input_groups,
-  );
+  const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,

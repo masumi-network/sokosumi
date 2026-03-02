@@ -201,11 +201,7 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshot = JSON.stringify(
-      "input_data" in data.inputSchema
-        ? data.inputSchema.input_data
-        : data.inputSchema.input_groups,
-    );
+    const inputSchemaSnapshot = JSON.stringify(data.inputSchema);
 
     const job = await tx.job.create({
       data: {
@@ -270,11 +266,7 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshot = JSON.stringify(
-      "input_data" in data.inputSchema
-        ? data.inputSchema.input_data
-        : data.inputSchema.input_groups,
-    );
+    const inputSchemaSnapshot = JSON.stringify(data.inputSchema);
 
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,

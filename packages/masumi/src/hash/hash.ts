@@ -75,7 +75,8 @@ export const hashInput = (input: string, identifierFromPurchaser: string) => {
 /**
  * Value to hash for provide_input's input_schema_hash. Accepts wrapped
  * (`{ input_data }` / `{ input_groups }`) and legacy bare-array schemas.
- * Hashes only the logical inner array so equivalent forms produce the same hash.
+ * Hashes the full normalized schema object so persistence and hashing share
+ * the same canonical representation.
  *
  * @param inputSchema - Input schema JSON string
  * @returns SHA-256 hash of the logical input schema, or null if input is invalid
@@ -93,8 +94,7 @@ export const hashInputSchema = (
     if (!data) {
       return null;
     }
-    const inner = "input_data" in data ? data.input_data : data.input_groups;
-    return hashCanonicalJsonValue(inner);
+    return hashCanonicalJsonValue(data);
   } catch {
     return null;
   }

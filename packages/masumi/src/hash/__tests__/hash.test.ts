@@ -174,16 +174,15 @@ describe("hashInputSchema", () => {
     const bareSchema = JSON.stringify([
       { id: "prompt", name: "Prompt", type: "string" },
     ]);
-    expect(hashInputSchema(bareSchema)).toBeTruthy();
-  });
-
-  it("should hash inner array when given input_data wrapper", () => {
     const innerArray = [{ id: "prompt", name: "Prompt", type: "string" }];
     const wrapperSchema = JSON.stringify({ input_data: innerArray });
 
+    const bareHash = hashInputSchema(bareSchema);
     const wrapperHash = hashInputSchema(wrapperSchema);
 
+    expect(bareHash).toBeTruthy();
     expect(wrapperHash).toBeTruthy();
+    expect(bareHash).toBe(wrapperHash);
   });
 
   it("should hash input_groups wrapper and bare input_groups arrays equivalently", () => {
