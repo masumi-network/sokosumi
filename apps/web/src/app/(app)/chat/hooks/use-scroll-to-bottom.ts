@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const BOTTOM_THRESHOLD_PX = 100;
 const SCROLL_AFTER_SECTION_MS = 100;
-const PROMPT_OFFSET_PX = 80;
+const PROMPT_OFFSET_PX = 160;
 const PROMPT_OFFSET_PX_MOBILE = 220;
 
 function getPromptOffsetPx(): number {

@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import {
@@ -112,12 +112,13 @@ export function useChatSelection({
   isConversationLoading: isConversationLoadingProp = false,
 }: UseChatSelectionProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
 
+  // Use window.location.search so we preserve open=1 when effect runs (React state can be stale)
   function withSearch(path: string): string {
-    const query = searchParams?.toString();
+    if (typeof window === "undefined") return path;
+    const query = window.location.search.slice(1);
     return query ? `${path}${path.includes("?") ? "&" : "?"}${query}` : path;
   }
 
@@ -149,7 +150,7 @@ export function useChatSelection({
     isUpdatingUrlRef.current = true;
     const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
     const targetPath = `/chat/${segment}/conversation/${chatId}`;
-    router.push(targetPath, { scroll: false });
+    router.push(withSearch(targetPath), { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
     const listConversation = conversations.find((c) => c.id === chatId);
