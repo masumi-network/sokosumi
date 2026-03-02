@@ -19,7 +19,6 @@ import { jobInclude } from "@sokosumi/database/types/job";
 import { headers } from "next/headers";
 
 import { auth, type Session } from "@/lib/auth/auth";
-import { authClient } from "@/lib/auth/auth.client";
 import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
@@ -263,39 +262,11 @@ export const userService = (() => {
   }
 
   /**
-   * Gets the first pending, non-expired invitation ID for the current user.
-   * Returns null if no valid pending invitation exists.
-   *
-   * @returns Promise resolving to the invitation ID or null.
-   */
-  async function getFirstPendingInvitationId(): Promise<string | null> {
-    const { data: invitations } =
-      await authClient.organization.listUserInvitations({
-        fetchOptions: {
-          headers: await headers(),
-        },
-      });
-
-    if (!invitations || invitations.length === 0) {
-      return null;
-    }
-
-    const now = new Date();
-    const pendingInvitation = invitations.find(
-      (invitation) =>
-        invitation.status === "pending" && invitation.expiresAt > now,
-    );
-
-    return pendingInvitation?.id ?? null;
-  }
-
-  /**
    * Determines whether the onboarding flow should be shown for the current user.
    *
    * Logic:
    * - If the user's `onboardingCompleted` is already true → returns false
    * - If the user is a member of any organization → sets `onboardingCompleted` and returns false
-   * - If the user has at least one pending invitation → sets `onboardingCompleted` and returns false
    * - Otherwise → returns true (show onboarding)
    */
   async function showOnboarding(session: Session): Promise<boolean> {
@@ -317,19 +288,7 @@ export const userService = (() => {
         const membershipOrgIds =
           await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
 
-        let shouldComplete = false;
         if (membershipOrgIds.length > 0) {
-          shouldComplete = true;
-        } else {
-          const hasPendingInvitation =
-            await invitationRepository.hasPendingInvitationByEmail(
-              user.email,
-              tx,
-            );
-          shouldComplete = hasPendingInvitation;
-        }
-
-        if (shouldComplete) {
           await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
           return false;
         }
@@ -398,7 +357,6 @@ export const userService = (() => {
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getMyValidPendingInvitations,
-    getFirstPendingInvitationId,
     showOnboarding,
     checkExistingUsers,
     markOnboardingCompleteForMe,

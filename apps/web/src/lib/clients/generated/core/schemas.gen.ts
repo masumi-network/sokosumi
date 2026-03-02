@@ -28,6 +28,13 @@ export const AgentSchema = {
             ],
             example: 'https://example.com/image.png'
         },
+        icon: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/icon.svg'
+        },
         credits: {
             type: 'number',
             example: 100,
@@ -185,6 +192,7 @@ export const AgentSchema = {
         'updatedAt',
         'name',
         'image',
+        'icon',
         'credits',
         'summary',
         'description',

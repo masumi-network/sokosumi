@@ -14,6 +14,7 @@ import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initI18next } from "@/lib/i18next";
 import { initSentry } from "@/lib/sentry";
+import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
 import authRouter from "@/routes/auth/index";
 import debugRouter from "@/routes/debug/index";
@@ -38,6 +39,7 @@ const app = new OpenAPIHono<{
 
 app.use(logger());
 app.use(requestId());
+app.use(maintenanceMiddleware());
 app.use(sentryMiddleware());
 
 app.onError(errorHandler);

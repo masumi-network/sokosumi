@@ -284,6 +284,47 @@ describe("stripe.client lookup-key pricing", () => {
     );
   });
 
+  it("propagates checkout metadata into created invoice metadata", async () => {
+    checkoutSessionsCreateMock.mockResolvedValue({ id: "cs_457", url: "test" });
+    const { stripeClient } = await import("../stripe.client");
+
+    await stripeClient.createCheckoutSession(
+      "cus_1",
+      "user-1",
+      null,
+      25_000,
+      {
+        id: "price_credits",
+        amountPerCredit: 1.2,
+        currency: "eur",
+      },
+      "https://app.sokosumi.com",
+      "promo_1",
+      "/coupon",
+      "90",
+    );
+
+    expect(checkoutSessionsCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          credits: 25_000,
+          userId: "user-1",
+          ttl_days: "90",
+        }),
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            metadata: expect.objectContaining({
+              credits: 25_000,
+              userId: "user-1",
+              ttl_days: "90",
+            }),
+          },
+        },
+      }),
+    );
+  });
+
   it("preserves existing query params in return path for checkout urls", async () => {
     checkoutSessionsCreateMock.mockResolvedValue({ id: "cs_789", url: "test" });
     const { stripeClient } = await import("../stripe.client");
@@ -339,6 +380,146 @@ describe("stripe.client lookup-key pricing", () => {
       expect.objectContaining({
         customer: "cus_1",
         quantity: 500,
+      }),
+    );
+  });
+
+  it("propagates custom coupon metadata onto invoice metadata", async () => {
+    productsRetrieveMock.mockResolvedValue({
+      default_price: createMockStripePrice({
+        currency: "eur",
+        id: "price_credits",
+        unitAmount: 120,
+      }),
+    });
+    couponsRetrieveMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: { credits: "500" },
+      percent_off: 100,
+    });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "paid",
+    });
+
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1", {
+      redemption_type: "welcome_coupon",
+      welcome_source: "customer.created",
+    });
+
+    expect(invoicesCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          coupon_id: "coupon_1",
+          price_id: "price_credits",
+          redemption_type: "welcome_coupon",
+          welcome_source: "customer.created",
+        }),
+      }),
+    );
+  });
+
+  it("propagates coupon ttl_days metadata onto invoice metadata", async () => {
+    productsRetrieveMock.mockResolvedValue({
+      default_price: createMockStripePrice({
+        currency: "eur",
+        id: "price_credits",
+        unitAmount: 120,
+      }),
+    });
+    couponsRetrieveMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: { credits: "500", ttl_days: "90" },
+      percent_off: 100,
+    });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "paid",
+    });
+
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1");
+
+    expect(invoicesCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          coupon_id: "coupon_1",
+          price_id: "price_credits",
+          ttl_days: "90",
+        }),
+      }),
+    );
+  });
+
+  it("propagates coupon ttl_days=0 metadata onto invoice metadata", async () => {
+    productsRetrieveMock.mockResolvedValue({
+      default_price: createMockStripePrice({
+        currency: "eur",
+        id: "price_credits",
+        unitAmount: 120,
+      }),
+    });
+    couponsRetrieveMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: { credits: "500", ttl_days: "0" },
+      percent_off: 100,
+    });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "paid",
+    });
+
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1");
+
+    expect(invoicesCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          coupon_id: "coupon_1",
+          price_id: "price_credits",
+          ttl_days: "0",
+        }),
+      }),
+    );
+  });
+
+  it("propagates raw coupon ttl_days metadata onto invoice metadata", async () => {
+    productsRetrieveMock.mockResolvedValue({
+      default_price: createMockStripePrice({
+        currency: "eur",
+        id: "price_credits",
+        unitAmount: 120,
+      }),
+    });
+    couponsRetrieveMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: { credits: "500", ttl_days: "null" },
+      percent_off: 100,
+    });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "paid",
+    });
+
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1");
+
+    expect(invoicesCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          coupon_id: "coupon_1",
+          price_id: "price_credits",
+          ttl_days: "null",
+        }),
       }),
     );
   });

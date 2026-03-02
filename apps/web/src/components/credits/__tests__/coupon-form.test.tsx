@@ -16,7 +16,12 @@ jest.mock("next/navigation", () => ({
 }));
 
 jest.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { days?: number }) => {
+    if (key === "expiryNotice") {
+      return `Credits expire after ${values?.days} days.`;
+    }
+    return key;
+  },
 }));
 
 jest.mock("sonner", () => ({
@@ -61,6 +66,14 @@ describe("CouponForm", () => {
     await user.click(screen.getByRole("button", { name: "couponButton" }));
 
     expect(claimFreeCreditsWithCouponMock).not.toHaveBeenCalled();
+  });
+
+  it("renders the coupon expiry notice", () => {
+    render(<CouponForm organization={null} />);
+
+    expect(
+      screen.getByText("Credits expire after 30 days."),
+    ).toBeInTheDocument();
   });
 
   it("submits trimmed coupon code", async () => {

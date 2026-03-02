@@ -3,7 +3,7 @@ export {};
 
 const getMyMemberInOrganizationMock = jest.fn();
 const createStripeCheckoutSessionMock = jest.fn();
-const getCreditsForCouponMock = jest.fn();
+const getCouponMock = jest.fn();
 const claimCouponMock = jest.fn();
 const getCreditTopUpPriceByCreditsMock = jest.fn();
 const getBaseCreditTopUpPriceMock = jest.fn();
@@ -26,8 +26,7 @@ jest.mock("@/lib/services/stripe.service", () => ({
   stripeService: {
     createStripeCheckoutSession: (...args: unknown[]) =>
       createStripeCheckoutSessionMock(...args),
-    getCreditsForCoupon: (...args: unknown[]) =>
-      getCreditsForCouponMock(...args),
+    getCoupon: (...args: unknown[]) => getCouponMock(...args),
     claimCoupon: (...args: unknown[]) => claimCouponMock(...args),
   },
 }));
@@ -87,7 +86,14 @@ describe("credits actions", () => {
   });
 
   it("uses base tier price for coupon checkout regardless of coupon credits", async () => {
-    getCreditsForCouponMock.mockResolvedValue(250_000);
+    getCouponMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: {
+        credits: "250000",
+        ttl_days: "90",
+      },
+      percent_off: 100,
+    });
     claimCouponMock.mockResolvedValue({
       id: "promo_1",
       active: true,
@@ -125,6 +131,7 @@ describe("credits actions", () => {
       },
       "promo_1",
       "/coupon",
+      "90",
     );
     expect(result).toEqual({
       ok: true,

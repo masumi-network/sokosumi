@@ -417,6 +417,7 @@ export const stripeClient = (() => {
       origin: string | null = null,
       promotionCode: string | null = null,
       returnPath: string = "/credits",
+      ttlDays?: string,
     ): Promise<Stripe.Checkout.Session> {
       if (price.amountPerCredit === 0) {
         throw new Error(
@@ -432,6 +433,12 @@ export const stripeClient = (() => {
         "https://sokosumi.com"
       ).replace(/\/$/, "");
       const checkoutCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
+      const sessionMetadata = {
+        credits,
+        userId,
+        ...(organizationId && { organizationId }),
+        ...(ttlDays ? { ttl_days: ttlDays } : {}),
+      };
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         mode: "payment",
         line_items: [
@@ -449,19 +456,11 @@ export const stripeClient = (() => {
           address: "auto",
           name: "auto",
         },
-        metadata: {
-          credits,
-          userId,
-          ...(organizationId && { organizationId }),
-        },
+        metadata: sessionMetadata,
         invoice_creation: {
           enabled: true,
           invoice_data: {
-            metadata: {
-              credits,
-              userId,
-              ...(organizationId && { organizationId }),
-            },
+            metadata: sessionMetadata,
           },
         },
         billing_address_collection: "required",
@@ -504,6 +503,7 @@ export const stripeClient = (() => {
         throw new Error("Coupon must have percent_off");
       }
       const credits = getCreditsForCoupon(coupon);
+      const couponTtlDays = coupon.metadata?.ttl_days;
 
       // 1) Add invoice items representing the free credits
       const itemsToCreate = Math.min(referralCount, MAX_REFERRAL_COUNT);
@@ -518,6 +518,7 @@ export const stripeClient = (() => {
             metadata: {
               coupon_id: couponId,
               redemption_type: "free_coupon",
+              ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
               ...(metadata ?? {}),
             },
             discounts: [{ coupon: couponId }],
@@ -532,7 +533,12 @@ export const stripeClient = (() => {
         pending_invoice_items_behavior: "include",
         collection_method: "charge_automatically",
         auto_advance: true,
-        metadata: { coupon_id: couponId, price_id: price.id },
+        metadata: {
+          coupon_id: couponId,
+          price_id: price.id,
+          ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
+          ...(metadata ?? {}),
+        },
         expand: ["lines.data.price.product"],
       });
 

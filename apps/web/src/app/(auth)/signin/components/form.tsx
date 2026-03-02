@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -12,10 +13,17 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
 import { AuthErrorCode } from "@/lib/actions";
+import { signInEmail } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
+import {
+  buildOAuthConsentReturnUrlFromSearchParams,
+  buildSignUpUrlFromSignIn,
+  normalizeAuthReturnUrl,
+  waitForAuthSession,
+} from "@/lib/utils/auth-redirect";
 
 interface SignInFormProps {
   returnUrl?: string | undefined;
@@ -28,6 +36,12 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const effectiveReturnUrl = useMemo(
+    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    [returnUrl, searchParams],
+  );
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -57,68 +71,46 @@ export default function SignInForm({
   const handleSubmit = async (values: SignInFormSchemaType) => {
     track("Sign In", { provider: "credential" });
 
-    const result = await authClient.signIn.email({
-      email: values.email,
-      password: values.currentPassword,
-      rememberMe: values.rememberMe,
-    });
+    const result = await signInEmail(
+      {
+        email: values.email,
+        currentPassword: values.currentPassword,
+        rememberMe: values.rememberMe,
+      },
+      effectiveReturnUrl,
+    );
 
-    if (result.error) {
-      switch (result.error.code) {
+    if (!result.ok) {
+      switch (result.error?.code) {
         case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(result.error.message ?? t("error"));
+          toast.error(result.error?.message ?? t("error"));
           break;
       }
       return;
     }
 
-    // Wait a moment for session to be established
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    const redirect = result.data.redirect;
+    const redirectUrl = result.data.redirectUrl;
 
-    // Verify session is available before redirecting
-    const session = await authClient.getSession();
-    if (!session) {
-      Sentry.captureMessage(
-        "Session not established after login, waiting for 500ms",
-        {
-          level: "warning",
-        },
-      );
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const retrySession = await authClient.getSession();
-      if (!retrySession) {
-        Sentry.captureMessage(
-          "Session not established after login, proceeding with redirect anyway",
-          {
-            level: "warning",
-          },
-        );
-      }
+    if (redirect && redirectUrl) {
+      window.location.href = redirectUrl;
+      return;
     }
+
+    await waitForAuthSession({
+      context: "login",
+      getSession: () => authClient.getSession(),
+      logWarning: (message) => {
+        Sentry.captureMessage(message, { level: "warning" });
+      },
+    });
 
     fireGTMEvent.signIn("credential");
     toast.success(t("success"));
-
-    // Redirect to the original URL if provided, otherwise go to root
-    // Validate returnUrl to prevent open redirect attacks
-    let redirectUrl = "/";
-    if (returnUrl) {
-      try {
-        // Only allow relative URLs or URLs from the same origin
-        const url = new URL(returnUrl, window.location.origin);
-        if (url.origin === window.location.origin) {
-          redirectUrl = returnUrl;
-        }
-      } catch {
-        // Invalid URL, fallback to root
-      }
-    }
-
-    // Use window.location.href for hard navigation to ensure cookies are properly sent
-    window.location.href = redirectUrl;
+    router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   };
 
   const email = useWatch({
@@ -135,6 +127,14 @@ export default function SignInForm({
     () =>
       `/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
     [email],
+  );
+  const signUpUrl = useMemo(
+    () =>
+      buildSignUpUrlFromSignIn({
+        returnUrl: effectiveReturnUrl,
+        email: prefilledEmail ?? email,
+      }),
+    [effectiveReturnUrl, prefilledEmail, email],
   );
 
   const { isSubmitting } = form.formState;
@@ -158,7 +158,7 @@ export default function SignInForm({
               {t("Register.message")}
             </span>
             <Link
-              href="/signup"
+              href={signUpUrl}
               className="text-primary text-sm font-medium hover:underline"
             >
               {t("Register.link")}

@@ -8,6 +8,7 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import BuyCreditsButton from "./buy-credits-button";
 import UserAvatar from "./user-avatar";
+import { resolveUserCreditsCta } from "./user-credits-cta";
 
 interface UserCreditsProps {
   session: Session;
@@ -17,6 +18,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const tSubscriptions = await getTranslations("App.Subscriptions");
+  const currentTimestampMs = Date.now();
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const hasActiveOrganization = activeOrganizationId !== null;
   const primaryLabel =
@@ -24,9 +26,11 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   // Get appropriate credits based on context
   let planLabel: string;
+  let activeWorkspacePlanLabel: string;
   let currentPlan: string | null = null;
   let credits: number | null = null;
   let creditUsage: CreditUsage | null = null;
+  let subscriptionPeriodEndMs: number | null = null;
   let activeOrganizationName: string | null = null;
 
   try {
@@ -37,8 +41,11 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
     if (creditsResult.status === "fulfilled") {
       const creditsResponse = creditsResult.value.data.credits;
-      credits = creditsResponse.total;
+      credits = creditsResponse.buffer;
       currentPlan = creditsResponse.subscription?.plan ?? "free";
+      subscriptionPeriodEndMs = creditsResponse.subscription?.periodEnd
+        ? new Date(creditsResponse.subscription.periodEnd).getTime()
+        : null;
       const subscriptionCredits = creditsResponse.subscription?.credits ?? null;
       if (subscriptionCredits && subscriptionCredits.total > 0) {
         const total = Math.max(subscriptionCredits.total, 0);
@@ -78,18 +85,15 @@ export default async function UserCredits({ session }: UserCreditsProps) {
   const creditsLabel =
     credits === null
       ? t("unavailable")
-      : hasActiveOrganization
-        ? t("organizationBalance", {
-            credits: displayCredits,
-            organization: activeOrganizationName ?? t("unavailable"),
-          })
-        : t("userBalance", { credits: displayCredits });
+      : t("extraCredits", { credits: displayCredits });
 
   if (currentPlan === null) {
     planLabel = tPlan("unavailable");
+    activeWorkspacePlanLabel = tPlan("unavailable");
   } else {
     try {
       const planName = tSubscriptions(`Plans.${currentPlan}.name`);
+      activeWorkspacePlanLabel = planName;
       planLabel = hasActiveOrganization
         ? tPlan("organizationPlan", {
             plan: planName,
@@ -99,6 +103,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     } catch (_error) {
       currentPlan = null;
       planLabel = tPlan("unavailable");
+      activeWorkspacePlanLabel = tPlan("unavailable");
     }
   }
 
@@ -106,20 +111,20 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
   const hasLowCredits =
     typeof credits === "number" && credits < creditsButtonThreshold;
-  const shouldShowUpgradePlanCta =
-    currentPlan !== null && currentPlan !== "pro";
-  const shouldShowAddCreditsCta =
-    hasLowCredits && (currentPlan === null || currentPlan !== "free");
+  const cta = resolveUserCreditsCta({
+    currentPlan,
+    hasLowCredits,
+  });
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {!shouldShowAddCreditsCta && shouldShowUpgradePlanCta ? (
+      {cta === "upgradePlan" ? (
         <BuyCreditsButton
           label={tPlan("upgradeCta")}
           path="/billing?tab=subscription"
         />
       ) : null}
-      {shouldShowAddCreditsCta ? (
+      {cta === "addCredits" ? (
         <BuyCreditsButton label={t("buy")} path="/billing?tab=credits" />
       ) : null}
       <UserAvatar
@@ -128,6 +133,9 @@ export default async function UserCredits({ session }: UserCreditsProps) {
         secondaryLabel={planLabel}
         creditsLabel={creditsLabel}
         creditUsage={creditUsage}
+        activeWorkspacePlanLabel={activeWorkspacePlanLabel}
+        subscriptionPeriodEndMs={subscriptionPeriodEndMs}
+        currentTimestampMs={currentTimestampMs}
       />
     </div>
   );

@@ -24,6 +24,9 @@ jest.mock("next-intl", () => ({
     if (key === "creditAmount") {
       return `${values?.count} credits`;
     }
+    if (key === "expiryNotice") {
+      return `Credits expire after ${values?.days} days.`;
+    }
     return key;
   },
   useFormatter: () => ({
@@ -109,6 +112,9 @@ describe("CreditsForm", () => {
     await user.clear(creditsInput);
     await user.type(creditsInput, "100000");
     expect(screen.getByText("usd:0.0110 per credit")).toBeInTheDocument();
+    expect(
+      screen.getByText("Credits expire after 180 days."),
+    ).toBeInTheDocument();
   });
 
   it("allows single-credit granularity without a hard max", () => {

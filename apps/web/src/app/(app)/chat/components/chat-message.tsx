@@ -5,10 +5,13 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { useStreamingPaused } from "@/app/chat/hooks/use-streaming-paused";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import { extractOAuthAuthorizationUrl } from "@/app/chat/utils/oauth-link";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+
+import { ChatOAuthAuthenticateCta } from "./chat-oauth-authenticate-cta";
 
 interface ChatMessageProps {
   role: "user" | "assistant" | "system";
@@ -93,6 +96,9 @@ export default function ChatMessage({
 
   const showStreamingDotsOnly =
     isAssistantStreaming && !(displayContent && displayContent.trim());
+  const oauthAuthorizationUrl = isUser
+    ? null
+    : extractOAuthAuthorizationUrl(content);
 
   return (
     <div
@@ -176,6 +182,12 @@ export default function ChatMessage({
                   </span>
                 )}
               </div>
+              {oauthAuthorizationUrl ? (
+                <ChatOAuthAuthenticateCta
+                  href={oauthAuthorizationUrl}
+                  label={t("authorize")}
+                />
+              ) : null}
               {isAssistantStreaming && isPaused && (
                 <div className="mt-2">
                   <span className="reasoning-text-shine text-sm">

@@ -583,8 +583,9 @@ model CreditBucket {
 
 enum CreditBucketReferenceType {
   STRIPE_TOPUP
+  STRIPE_FREE
   STRIPE_SUBSCRIPTION_PERIOD
-  JOB_REFUND
+  REFUND
 }
 
 model CreditConsumption {

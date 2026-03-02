@@ -1,4 +1,9 @@
-import { hashInput, hashInputDeprecated, hashResult } from "../hash.js";
+import {
+  hashInput,
+  hashInputDeprecated,
+  hashInputSchema,
+  hashResult,
+} from "../hash.js";
 
 describe("hashInput", () => {
   const mockIdentifier = "test-identifier-123";
@@ -141,6 +146,30 @@ describe("hashInputDeprecated", () => {
     const hash2 = hashInputDeprecated(inputString, mockIdentifier);
 
     expect(hash1).toBe(hash2);
+  });
+});
+
+describe("hashInputSchema", () => {
+  it("should generate the same hash for equivalent schemas with different key order", () => {
+    const firstSchema = '{"b":2,"a":1}';
+    const secondSchema = '{"a":1,"b":2}';
+
+    const firstHash = hashInputSchema(firstSchema);
+    const secondHash = hashInputSchema(secondSchema);
+
+    expect(firstHash).toBe(
+      "43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777",
+    );
+    expect(secondHash).toBe(firstHash);
+  });
+
+  it("should return null for invalid json", () => {
+    expect(hashInputSchema("{")).toBeNull();
+  });
+
+  it("should return null for nullish input", () => {
+    expect(hashInputSchema(null)).toBeNull();
+    expect(hashInputSchema(undefined)).toBeNull();
   });
 });
 

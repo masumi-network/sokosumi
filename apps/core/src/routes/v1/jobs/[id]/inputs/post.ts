@@ -136,10 +136,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Input has already been provided for this event");
       }
 
-      if (!jobEvent.inputSchema) {
-        throw unprocessableEntity("Agent did not provide an input schema");
-      }
-
       return jobEvent;
     });
 
@@ -149,10 +145,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    if (!jobEvent.inputSchema) {
+      throw unprocessableEntity("Agent did not provide an input schema");
+    }
+
     const provideInputResult = await createAgentClient().provideJobInput(
       jobEvent.job.agent,
       jobEvent.externalId,
       jobEvent.job.agentJobId,
+      jobEvent.inputSchema,
       inputData,
     );
 

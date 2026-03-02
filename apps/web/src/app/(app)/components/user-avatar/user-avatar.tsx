@@ -17,11 +17,14 @@ import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";
 
 interface UserAvatarProps {
+  activeWorkspacePlanLabel: string;
   creditUsage?: CreditUsage | null;
+  currentTimestampMs: number;
   creditsLabel?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
   session: Session;
+  subscriptionPeriodEndMs?: number | null;
 }
 
 const PERSONAL_WORKSPACE_KEY = "personal-account";
@@ -85,37 +88,49 @@ async function getWorkspacePlanLabels(
 }
 
 export default async function UserAvatar({
+  activeWorkspacePlanLabel,
   creditUsage,
+  currentTimestampMs,
   creditsLabel,
   primaryLabel,
   secondaryLabel,
   session,
+  subscriptionPeriodEndMs,
 }: UserAvatarProps) {
   return (
     <Suspense fallback={<UserAvatarSkeleton />}>
       <UserAvatarInner
+        activeWorkspacePlanLabel={activeWorkspacePlanLabel}
         session={session}
         creditUsage={creditUsage}
+        currentTimestampMs={currentTimestampMs}
         creditsLabel={creditsLabel}
         primaryLabel={primaryLabel}
         secondaryLabel={secondaryLabel}
+        subscriptionPeriodEndMs={subscriptionPeriodEndMs}
       />
     </Suspense>
   );
 }
 
 async function UserAvatarInner({
+  activeWorkspacePlanLabel,
   creditUsage,
+  currentTimestampMs,
   session,
   creditsLabel,
   primaryLabel,
   secondaryLabel,
+  subscriptionPeriodEndMs,
 }: {
+  activeWorkspacePlanLabel: string;
   creditUsage: CreditUsage | null | undefined;
+  currentTimestampMs: number;
   creditsLabel: string | undefined;
   primaryLabel: string | undefined;
   secondaryLabel: string | undefined;
   session: Session;
+  subscriptionPeriodEndMs: number | null | undefined;
 }) {
   const members = await userService.getMyMembersWithOrganizations();
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
@@ -123,6 +138,11 @@ async function UserAvatarInner({
     members,
     activeOrganizationId,
   );
+  const activeWorkspaceKey = activeOrganizationId ?? PERSONAL_WORKSPACE_KEY;
+  const workspacePlanLabelsWithActive = {
+    ...workspacePlanLabels,
+    [activeWorkspaceKey]: activeWorkspacePlanLabel,
+  };
 
   return (
     <UserAvatarClient
@@ -130,10 +150,12 @@ async function UserAvatarInner({
       members={members}
       activeOrganizationId={activeOrganizationId}
       creditUsage={creditUsage}
+      currentTimestampMs={currentTimestampMs}
       creditsLabel={creditsLabel}
       primaryLabel={primaryLabel}
       secondaryLabel={secondaryLabel}
-      workspacePlanLabels={workspacePlanLabels}
+      workspacePlanLabels={workspacePlanLabelsWithActive}
+      subscriptionPeriodEndMs={subscriptionPeriodEndMs}
     />
   );
 }
