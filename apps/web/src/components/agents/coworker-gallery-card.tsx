@@ -63,7 +63,7 @@ function CoworkerGalleryCard({
         <h3 className="truncate text-base font-medium text-balance text-white">
           {name}
         </h3>
-        <p className="mt-1 line-clamp-2 min-h-10 text-sm text-pretty text-white/70">
+        <p className="mt-1 line-clamp-2 max-h-10 min-h-10 overflow-hidden text-sm leading-5 text-pretty text-white/70 transition-[max-height] duration-300 ease-out group-focus-within:max-h-25 group-hover:max-h-25 hover:line-clamp-5">
           {displayDescription}
         </p>
         {action && <div className="mt-2">{action}</div>}
