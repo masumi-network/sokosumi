@@ -882,10 +882,10 @@ export default function ChatInterface({
             )}
             {!isConversationLoading && (
               <>
-                <div className="absolute right-0 bottom-0 left-0 z-[5] md:h-[11rem]">
+                <div className="absolute right-0 bottom-0 left-0 z-[5] h-[11rem] md:h-[8rem]">
                   <div
                     aria-hidden
-                    className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent md:top-0 md:bottom-auto"
+                    className="from-background via-background/60 pointer-events-none absolute top-0 right-0 bottom-auto left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
                   />
                   <ChatInputContainer
                     key={selectedChatId}
