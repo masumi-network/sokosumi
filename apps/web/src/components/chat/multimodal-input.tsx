@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
+import { CoworkerGalleryCard } from "@/components/agents/coworker-gallery-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -296,34 +297,29 @@ function PureMultimodalInput({
                   <TooltipContent
                     side="top"
                     hideArrow
-                    className="bg-popover text-popover-foreground border-border max-w-xs rounded-lg border p-3"
+                    className="bg-popover text-popover-foreground border-border max-w-xs p-0"
                   >
-                    <div className="flex flex-col gap-2">
-                      <div>
-                        <h4 className="text-sm font-semibold">
-                          {coworker.name}
-                        </h4>
-                        <p className="text-muted-foreground text-xs">
-                          {coworker.description}
-                        </p>
-                        {coworker.useCase && (
-                          <p className="text-muted-foreground mt-1.5 text-xs italic">
-                            {coworker.useCase}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleCoworkerSelect(coworker)}
-                        className="w-full"
-                      >
-                        {t("selectCoworker.selectButton", {
-                          coworker: coworker.name,
-                        })}
-                      </Button>
-                    </div>
+                    <CoworkerGalleryCard
+                      className="w-full"
+                      slug={coworker.slug ?? ""}
+                      name={coworker.name}
+                      image={coworker.avatar}
+                      caption={coworker.caption}
+                      description={coworker.description}
+                      action={
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleCoworkerSelect(coworker)}
+                          className="w-full"
+                        >
+                          {t("selectCoworker.selectButton", {
+                            coworker: coworker.name,
+                          })}
+                        </Button>
+                      }
+                    />
                   </TooltipContent>
                 </Tooltip>
               ))
