@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/tooltip";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import type { Conversation } from "@/lib/actions/conversation";
-import { cn, getDateGroupKey } from "@/lib/utils";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { cn } from "@/lib/utils";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 const CONVERSATION_TITLE_MAX_CHARS = 50;
 const MAX_QUERY_LENGTH = 256;
@@ -41,6 +41,7 @@ interface ConversationsByDateGroup {
 
 function buildConversationDayGroups(
   conversations: Conversation[],
+  getDateGroupKey: (dateInput: Date | number) => string | null,
 ): ConversationsByDateGroup[] {
   const sorted = [...conversations].sort((a, b) => {
     const ta = new Date(a.updatedAt).getTime();
@@ -65,6 +66,7 @@ interface ConversationRowProps {
   fullTitle: string;
   isTitleTruncated: boolean;
   isActive: boolean;
+  formatTimeAgo: (date: Date | string) => string;
   updatedAt: Date | string;
   onSelect: () => void;
   onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -76,6 +78,7 @@ function ConversationRow({
   fullTitle,
   isTitleTruncated,
   isActive,
+  formatTimeAgo,
   updatedAt,
   onSelect,
   onDelete,
@@ -172,6 +175,7 @@ export function ChatConversationsSidebar({
 }: ChatConversationsSidebarProps) {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const tSearch = useTranslations("App.Chat.Chat.ConversationsSidebar");
+  const { formatTimeAgo, getDateGroupKey } = useLocalizedDateTime();
   const router = useRouter();
   const params = useParams<{ conversationId?: string }>();
   const conversationId = params?.conversationId ?? null;
@@ -195,8 +199,8 @@ export function ChatConversationsSidebar({
   }, [conversations, searchValue]);
 
   const dayGroups = useMemo(
-    () => buildConversationDayGroups(filteredConversations),
-    [filteredConversations],
+    () => buildConversationDayGroups(filteredConversations, getDateGroupKey),
+    [filteredConversations, getDateGroupKey],
   );
 
   const handleConversationClick = useCallback(
@@ -299,7 +303,7 @@ export function ChatConversationsSidebar({
           {dayGroups.length > 0 ? (
             dayGroups.map((group) => (
               <section key={group.key} className="mb-4">
-                <div className="text-muted-foreground px-2 pb-2 text-xs font-medium">
+                <div className="text-muted-foreground px-2 pb-2 text-xs font-medium capitalize">
                   {group.key}
                 </div>
                 <ul className="space-y-2">
@@ -325,6 +329,7 @@ export function ChatConversationsSidebar({
                           fullTitle={title}
                           isTitleTruncated={isTitleTruncated}
                           isActive={isActive}
+                          formatTimeAgo={formatTimeAgo}
                           updatedAt={conv.updatedAt}
                           onSelect={() => handleConversationClick(conv.id)}
                           onDelete={(e) => handleDeleteClick(e, conv.id)}

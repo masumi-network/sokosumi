@@ -40,7 +40,7 @@ import {
 } from "@/lib/data/markdown/links";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 import {
   extractTaskAttachmentUrls,
@@ -150,6 +150,7 @@ export function TaskActivitySection({
   isFreePlan = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
+  const { formatTimeAgo } = useLocalizedDateTime();
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
     [agentNameById],
