@@ -2,6 +2,7 @@
 
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { Card, CardContent } from "@/components/ui/card";
+import { SokosumiLoader } from "@/components/ui/sokosumi-loader";
 
 interface FeedSummaryProps {
   title: string;
@@ -58,9 +59,12 @@ export function FeedSummary({
           </div>
           <div className="gap-6 p-6">
             {isGenerating ? (
-              <span className="reasoning-text-shine text-sm leading-5">
-                {generatingLabel}
-              </span>
+              <div className="flex items-center gap-2">
+                <SokosumiLoader className="size-6" />
+                <span className="reasoning-text-shine text-sm leading-5">
+                  {generatingLabel}
+                </span>
+              </div>
             ) : hasError ? (
               <p className="text-sm text-white/70">{errorLabel}</p>
             ) : (

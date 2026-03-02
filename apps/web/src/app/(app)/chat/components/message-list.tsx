@@ -252,13 +252,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                       coworkers={coworkers}
                     />
                   )}
-                  {showLoadingIndicator && (
-                    <LoadingIndicator
-                      selectedChatId={selectedChatId}
-                      chats={chats}
-                      coworkers={coworkers}
-                    />
-                  )}
+                  {showLoadingIndicator && <LoadingIndicator />}
                   <div
                     className="min-h-[160px] shrink-0"
                     aria-hidden
@@ -299,13 +293,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                             coworkers={coworkers}
                           />
                         )}
-                        {showLoadingIndicator && (
-                          <LoadingIndicator
-                            selectedChatId={selectedChatId}
-                            chats={chats}
-                            coworkers={coworkers}
-                          />
-                        )}
+                        {showLoadingIndicator && <LoadingIndicator />}
                         {showLoadingArea && (
                           <div
                             className="min-h-[160px] shrink-0"
