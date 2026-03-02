@@ -201,13 +201,10 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
-      data.inputSchema,
-    );
-    if (inputSchemaSnapshotResult.isErr()) {
-      throw new Error(inputSchemaSnapshotResult.error);
+    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+    if (!inputSchemaSnapshot) {
+      throw new Error("Invalid input schema");
     }
-    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
 
     const job = await tx.job.create({
       data: {
@@ -234,7 +231,7 @@ export const jobRepository = {
           create: {
             status: AgentJobStatus.INITIATED,
             result: null,
-            inputSchema: inputSchemaSnapshot.inputSchema,
+            inputSchema: inputSchemaSnapshot,
             input: {
               create: {
                 input: data.input,
@@ -272,13 +269,10 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
-      data.inputSchema,
-    );
-    if (inputSchemaSnapshotResult.isErr()) {
-      throw new Error(inputSchemaSnapshotResult.error);
+    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+    if (!inputSchemaSnapshot) {
+      throw new Error("Invalid input schema");
     }
-    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
 
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
@@ -304,7 +298,7 @@ export const jobRepository = {
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchema: inputSchemaSnapshot,
           input: {
             create: {
               input: data.input,

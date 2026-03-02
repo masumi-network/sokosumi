@@ -1,4 +1,5 @@
 import {
+  buildInputSchemaSnapshot,
   hashCanonicalJsonValue,
   hashInput,
   hashInputDeprecated,
@@ -231,6 +232,27 @@ describe("hashCanonicalJsonValue", () => {
 
   it("should return null for unsupported values", () => {
     expect(hashCanonicalJsonValue(123n as unknown)).toBeNull();
+  });
+});
+
+describe("buildInputSchemaSnapshot", () => {
+  it("returns wrapper-form inputSchema for valid input_data array", () => {
+    const inputSchema = [
+      { id: "prompt", name: "Prompt", type: "string" },
+    ] as const;
+    const result = buildInputSchemaSnapshot([...inputSchema]);
+
+    expect(result).not.toBeNull();
+    if (result) {
+      expect(JSON.parse(result)).toEqual({ input_data: inputSchema });
+      expect(hashInputSchema(result)).toBeTruthy();
+    }
+  });
+
+  it("returns null for invalid input schema array", () => {
+    const result = buildInputSchemaSnapshot([{ invalid: "field" } as unknown]);
+
+    expect(result).toBeNull();
   });
 });
 
