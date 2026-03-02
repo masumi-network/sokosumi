@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { isResponsesApiConfigured } from "@/config/env";
+import { streamWithAssistantPersistence } from "@/helpers/chat-stream-persist";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import {
   extractMessageText,
@@ -278,6 +279,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
           },
         });
+        if (internalConversationId) {
+          const wrapped = streamWithAssistantPersistence(
+            result.body,
+            internalConversationId,
+            authContext.userId,
+          );
+          return new Response(wrapped, {
+            headers: result.headers,
+            status: result.status,
+          });
+        }
         return result;
       }
 
@@ -286,6 +298,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         selectedModel,
       );
 
+      if (internalConversationId) {
+        const wrapped = streamWithAssistantPersistence(
+          result.body,
+          internalConversationId,
+          authContext.userId,
+        );
+        return new Response(wrapped, {
+          headers: result.headers,
+          status: result.status,
+        });
+      }
       return result;
     } catch (error) {
       if (

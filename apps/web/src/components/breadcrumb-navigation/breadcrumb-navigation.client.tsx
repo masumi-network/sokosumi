@@ -6,7 +6,6 @@ import {
 } from "@sokosumi/database";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
 import React from "react";
 
 import {
@@ -31,6 +30,10 @@ interface BreadcrumbNavigationClientProps {
    */
   agents: AgentWithRelations[];
   /**
+   * Messages for resolving path segments to their display labels
+   */
+  breadcrumbMessages?: Record<string, string>;
+  /**
    * Organizations for resolving organization IDs to names
    */
   organizations: OrganizationWithLimitedInfo[];
@@ -43,19 +46,19 @@ interface BreadcrumbNavigationClientProps {
 
 export default function BreadcrumbNavigationClient({
   agents,
+  breadcrumbMessages,
   organizations,
   segmentLabels = {},
   className,
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
-  const t = useTranslations("Components.Breadcrumb");
 
   const segments = generateSegments(
     pathname,
     segmentLabels,
     agents,
     organizations,
-    t,
+    breadcrumbMessages,
   );
 
   return (
@@ -85,7 +88,7 @@ function generateSegments(
   segmentLabels: Record<string, string>,
   agents: AgentWithRelations[],
   organizations: OrganizationWithLimitedInfo[],
-  t?: IntlTranslation<"Components.Breadcrumb">,
+  breadcrumbMessages?: Record<string, string>,
 ): BreadcrumbSegment[] {
   const pathSegments = pathname.split("/").filter(Boolean);
   if (!pathSegments.length) return [];
@@ -126,7 +129,9 @@ function generateSegments(
         segmentLabels[segment] ??
         (agent && getAgentName(agent)) ??
         (organization && organization.name) ??
-        (t && t.has(segment) ? t(segment) : segment);
+        (breadcrumbMessages && segment in breadcrumbMessages
+          ? breadcrumbMessages[segment]
+          : segment);
 
       return {
         label,
