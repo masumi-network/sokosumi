@@ -1068,7 +1068,8 @@ export const jobService = (() => {
             if (latestJobEvent) {
               if (
                 latestJobEvent.statusHash &&
-                latestJobEvent.statusHash === agentJobStatusResult.value.statusHash
+                latestJobEvent.statusHash ===
+                  agentJobStatusResult.value.statusHash
               ) {
                 return { jobStatus: computeJobStatus(job) };
               }
@@ -1077,7 +1078,11 @@ export const jobService = (() => {
             const inputSchemaData = agentJobStatusResult.value.input_schema;
             let inputSchemaValue: string | undefined;
             if (inputSchemaData) {
-              inputSchemaValue = JSON.stringify(inputSchemaData);
+              if ("input_data" in inputSchemaData) {
+                inputSchemaValue = JSON.stringify(inputSchemaData.input_data);
+              } else {
+                inputSchemaValue = JSON.stringify(inputSchemaData.input_groups);
+              }
             } else {
               inputSchemaValue = undefined;
             }
@@ -1286,10 +1291,7 @@ export const jobService = (() => {
     }
     const jobEvent = await jobEventRepository.getJobEventById(eventId, prisma);
     if (!jobEvent) {
-      throw new JobError(
-        JobErrorCode.JOB_NOT_FOUND,
-        "Job status not found",
-      );
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job status not found");
     }
     if (
       jobEvent.jobId !== jobId ||
