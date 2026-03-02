@@ -14,10 +14,10 @@ export function streamWithAssistantPersistence(
   let accumulatedText = "";
   let persisted = false;
 
-  function tryPersist(text: string): void {
-    if (persisted || !text.trim()) return;
+  function tryPersist(text: string): Promise<void> {
+    if (persisted || !text.trim()) return Promise.resolve();
     persisted = true;
-    prisma.conversation
+    return prisma.conversation
       .findFirst({
         where: {
           id: conversationId,
@@ -37,6 +37,7 @@ export function streamWithAssistantPersistence(
           },
         });
       })
+      .then(() => undefined)
       .catch((error) => {
         console.error(
           "Failed to persist assistant message from stream:",
@@ -51,7 +52,7 @@ export function streamWithAssistantPersistence(
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            tryPersist(accumulatedText);
+            await tryPersist(accumulatedText);
             controller.close();
             return;
           }
@@ -84,7 +85,7 @@ export function streamWithAssistantPersistence(
           }
         }
       } catch (error) {
-        tryPersist(accumulatedText);
+        await tryPersist(accumulatedText);
         controller.error(error);
       }
     },
