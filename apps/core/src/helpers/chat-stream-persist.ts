@@ -3,13 +3,6 @@ import prisma from "@/lib/db/prisma";
 const SSE_DATA_PREFIX = "data: ";
 const UI_MESSAGE_EVENT_TEXT_DELTA = "text-delta";
 
-/**
- * Wraps a UI message stream (SSE), forwards all bytes unchanged, accumulates
- * assistant text from text-delta events, and persists one conversation item
- * when the stream ends (normal completion). Used so that if the client
- * disconnects, the backend still runs the stream to completion and saves
- * the full reply.
- */
 export function streamWithAssistantPersistence(
   upstreamStream: ReadableStream<Uint8Array>,
   conversationId: string,
@@ -63,10 +56,9 @@ export function streamWithAssistantPersistence(
             return;
           }
 
-          const chunk = value as Uint8Array;
-          controller.enqueue(chunk);
+          controller.enqueue(value);
 
-          buffer += decoder.decode(chunk, { stream: true });
+          buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
 
@@ -87,7 +79,7 @@ export function streamWithAssistantPersistence(
                 accumulatedText += parsed.delta;
               }
             } catch {
-              // ignore non-JSON or other event types
+              // skip non-JSON lines
             }
           }
         }

@@ -282,7 +282,6 @@ export default function ChatInterface({
         const conversationId = payload?.conversationId ?? null;
         if (!conversationId || finishedMessages.length === 0) return;
 
-        // Assistant message is persisted by the backend when the stream ends
         void refreshConversations();
 
         const lastAssistantMessage = [...finishedMessages]

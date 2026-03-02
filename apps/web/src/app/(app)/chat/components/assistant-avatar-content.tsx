@@ -23,7 +23,6 @@ export function AssistantAvatarContent({
 }: AssistantAvatarContentProps) {
   const t = useTranslations("App.Chat.Chat");
 
-  // If it's a model conversation, show model logo.
   if (modelId) {
     return (
       <ChatModelIcon
@@ -35,7 +34,6 @@ export function AssistantAvatarContent({
     );
   }
 
-  // If it's a coworker conversation, show coworker image.
   if (coworkerId) {
     const imageUrl = coworkerImageUrl ?? getCoworkerImageUrl(coworkerId);
     if (imageUrl) {
@@ -52,7 +50,6 @@ export function AssistantAvatarContent({
     }
   }
 
-  // Default fallback.
   return (
     <AvatarFallback className="bg-primary text-primary-foreground">
       {coworkerName

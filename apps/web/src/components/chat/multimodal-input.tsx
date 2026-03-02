@@ -12,7 +12,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
@@ -336,14 +335,10 @@ function PureMultimodalInput({
         className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border p-3 transition-all duration-200"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!input.trim()) {
+          if (!input.trim() || status !== "ready") {
             return;
           }
-          if (status !== "ready") {
-            toast.error(t("waitForModelResponse"));
-          } else {
-            submitForm();
-          }
+          submitForm();
         }}
       >
         <div className="flex flex-row items-start gap-1 sm:gap-2">
@@ -379,7 +374,7 @@ function PureMultimodalInput({
             <PromptInputSubmit
               className="size-8 rounded-full transition-colors duration-200"
               data-testid="send-button"
-              disabled={!input.trim() || status === "streaming"}
+              disabled={!input.trim() || status !== "ready"}
               status={status}
             >
               <ArrowUpIcon size={14} />
