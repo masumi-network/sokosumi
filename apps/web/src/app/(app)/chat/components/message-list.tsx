@@ -240,14 +240,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     return (
       <div
         ref={setWrapperRef}
-        className="absolute inset-x-0 top-0 bottom-[160px] overflow-hidden"
+        className="absolute inset-x-0 top-0 bottom-[8rem] overflow-hidden"
       >
         <div
           ref={scrollContainerRef}
           className="h-full w-full overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{ overflowAnchor: "none" }}
         >
-          <div className="flex flex-col items-center pt-4 pb-24">
+          <div className="flex flex-col items-center pt-20 pb-40 md:pt-4">
             <div className="flex w-full max-w-4xl flex-col">
               {sections.length === 0 &&
                 (showLoadingArea || pendingResponseFailed) && (

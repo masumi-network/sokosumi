@@ -115,6 +115,13 @@ export function useChatSelection({
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
 
+  // Use window.location.search so we preserve open=1 when effect runs (React state can be stale)
+  function withSearch(path: string): string {
+    if (typeof window === "undefined") return path;
+    const query = window.location.search.slice(1);
+    return query ? `${path}${path.includes("?") ? "&" : "?"}${query}` : path;
+  }
+
   const handleSelectChat = async (chatId: string | null) => {
     // Do not stop streaming when switching chats so multiple conversations can stream in parallel
 
@@ -143,7 +150,7 @@ export function useChatSelection({
     isUpdatingUrlRef.current = true;
     const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
     const targetPath = `/chat/${segment}/conversation/${chatId}`;
-    router.push(targetPath, { scroll: false });
+    router.push(withSearch(targetPath), { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
     const listConversation = conversations.find((c) => c.id === chatId);
@@ -255,7 +262,7 @@ export function useChatSelection({
             : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          router.replace(targetPathForNext, { scroll: false });
+          router.replace(withSearch(targetPathForNext), { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -267,7 +274,7 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        router.replace(targetPathForNext, { scroll: false });
+        router.replace(withSearch(targetPathForNext), { scroll: false });
         handleSelectChat(nextId);
         return;
       }
@@ -304,7 +311,7 @@ export function useChatSelection({
             : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          router.replace(targetPathForNext, { scroll: false });
+          router.replace(withSearch(targetPathForNext), { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -316,7 +323,7 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        router.replace(targetPathForNext, { scroll: false });
+        router.replace(withSearch(targetPathForNext), { scroll: false });
         handleSelectChat(nextId);
         return;
       }

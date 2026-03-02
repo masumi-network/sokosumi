@@ -43,8 +43,8 @@ export default function ChatInputContainer({
   coworkers,
 }: ChatInputContainerProps) {
   return (
-    <div className="bg-background/80 absolute bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center backdrop-blur-sm">
-      <div className="w-full">
+    <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:px-0">
+      <div className="w-full max-w-4xl">
         <MultimodalInput
           chatId={selectedChatId || undefined}
           input={input}
