@@ -1,7 +1,4 @@
-import type { InputSchemaSchemaType } from "../../schemas/input/input.schema.js";
-import { InputType } from "../../types/input-types.js";
 import {
-  buildInputSchemaSnapshot,
   hashCanonicalJsonValue,
   hashInput,
   hashInputDeprecated,
@@ -235,36 +232,6 @@ describe("hashCanonicalJsonValue", () => {
 
   it("should return null for unsupported values", () => {
     expect(hashCanonicalJsonValue(123n as unknown)).toBeNull();
-  });
-});
-
-describe("buildInputSchemaSnapshot", () => {
-  it("returns bare-array inputSchema for wrapped input_data schema", () => {
-    const wrappedSchema: InputSchemaSchemaType = {
-      input_data: [{ id: "prompt", name: "Prompt", type: InputType.STRING }],
-    };
-    const result = buildInputSchemaSnapshot(wrappedSchema);
-
-    expect(JSON.parse(result)).toEqual(wrappedSchema.input_data);
-    expect(hashInputSchema(result)).toBeTruthy();
-  });
-
-  it("returns bare-array inputSchema for wrapped input_groups schema", () => {
-    const wrappedSchema: InputSchemaSchemaType = {
-      input_groups: [
-        {
-          id: "group-1",
-          title: "Group 1",
-          input_data: [
-            { id: "prompt", name: "Prompt", type: InputType.STRING },
-          ],
-        },
-      ],
-    };
-    const result = buildInputSchemaSnapshot(wrappedSchema);
-
-    expect(JSON.parse(result)).toEqual(wrappedSchema.input_groups);
-    expect(hashInputSchema(result)).toBeTruthy();
   });
 });
 

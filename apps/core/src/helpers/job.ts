@@ -20,7 +20,6 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
-import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
 import type {
   InputSchemaSchemaType,
   InputSchemaType,
@@ -89,7 +88,11 @@ async function createPaidJob(
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const inputSchemaSnapshot = buildInputSchemaSnapshot(input.inputSchema);
+  const inputSchemaSnapshot = JSON.stringify(
+    "input_data" in input.inputSchema
+      ? input.inputSchema.input_data
+      : input.inputSchema.input_groups,
+  );
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
     input.organizationId,
@@ -179,7 +182,11 @@ async function createFreeJob(
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const inputSchemaSnapshot = buildInputSchemaSnapshot(input.inputSchema);
+  const inputSchemaSnapshot = JSON.stringify(
+    "input_data" in input.inputSchema
+      ? input.inputSchema.input_data
+      : input.inputSchema.input_groups,
+  );
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,

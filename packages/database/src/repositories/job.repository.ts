@@ -1,4 +1,3 @@
-import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 
 import {
@@ -202,7 +201,11 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+    const inputSchemaSnapshot = JSON.stringify(
+      "input_data" in data.inputSchema
+        ? data.inputSchema.input_data
+        : data.inputSchema.input_groups,
+    );
 
     const job = await tx.job.create({
       data: {
@@ -267,7 +270,11 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
+    const inputSchemaSnapshot = JSON.stringify(
+      "input_data" in data.inputSchema
+        ? data.inputSchema.input_data
+        : data.inputSchema.input_groups,
+    );
 
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,

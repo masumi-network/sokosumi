@@ -1,10 +1,7 @@
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
 
-import {
-  type InputSchemaSchemaType,
-  normalizeAndValidateInputSchema,
-} from "../schemas/input/input.schema.js";
+import { normalizeAndValidateInputSchema } from "../schemas/input/input.schema.js";
 
 /**
  * Creates a SHA-256 hash of the input string.
@@ -116,17 +113,3 @@ export const hashResult = (result: string, identifierFromPurchaser: string) => {
   const escaped = JSON.stringify(result).slice(1, -1);
   return createHash(identifierFromPurchaser + ";" + escaped);
 };
-
-/**
- * Builds an input schema snapshot in bare-array form.
- *
- * @param inputSchema - Canonical input schema payload
- * @returns Serialized bare array
- */
-export function buildInputSchemaSnapshot(
-  inputSchema: InputSchemaSchemaType,
-): string {
-  const innerSchema =
-    "input_data" in inputSchema ? inputSchema.input_data : inputSchema.input_groups;
-  return JSON.stringify(innerSchema);
-}
