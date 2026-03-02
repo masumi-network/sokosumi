@@ -53,6 +53,7 @@ interface MessageListProps {
   userImageUrl: string;
   userName?: string;
   isLoading: boolean;
+  isPollingForPendingResponse?: boolean;
   reasoningMessages?: Array<{ id: string; message: string }>;
   isCoworker?: boolean;
 }
@@ -67,6 +68,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       userImageUrl,
       userName,
       isLoading,
+      isPollingForPendingResponse = false,
       reasoningMessages = [],
       isCoworker = false,
     },
@@ -117,7 +119,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const lastAssistantHasNoContent =
       lastMessage?.role === "assistant" && !lastMessageContent.trim();
     const showLoadingArea =
-      isLoading &&
+      (isLoading || isPollingForPendingResponse) &&
       (!lastMessage ||
         lastMessage.role !== "assistant" ||
         lastAssistantHasNoContent);

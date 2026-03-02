@@ -46,6 +46,27 @@ export function streamWithAssistantPersistence(
       });
   }
 
+  function safeClose(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+  ): void {
+    try {
+      controller.close();
+    } catch {
+      // Consumer already closed or cancelled the stream.
+    }
+  }
+
+  function safeError(
+    controller: ReadableStreamDefaultController<Uint8Array>,
+    error: unknown,
+  ): void {
+    try {
+      controller.error(error);
+    } catch {
+      // Consumer already closed or cancelled the stream.
+    }
+  }
+
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
@@ -53,11 +74,17 @@ export function streamWithAssistantPersistence(
           const { done, value } = await reader.read();
           if (done) {
             await tryPersist(accumulatedText);
-            controller.close();
+            safeClose(controller);
             return;
           }
 
-          controller.enqueue(value);
+          try {
+            controller.enqueue(value);
+          } catch {
+            // Consumer cancelled; persist what we have and exit without closing again.
+            await tryPersist(accumulatedText);
+            return;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
@@ -86,12 +113,11 @@ export function streamWithAssistantPersistence(
         }
       } catch (error) {
         await tryPersist(accumulatedText);
-        controller.error(error);
+        safeError(controller, error);
       }
     },
     cancel(reason) {
-      tryPersist(accumulatedText);
-      return reader.cancel(reason);
+      return tryPersist(accumulatedText).then(() => reader.cancel(reason));
     },
   });
 }
