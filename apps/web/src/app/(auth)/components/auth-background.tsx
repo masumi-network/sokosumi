@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
+import { KanjiLogo } from "@/components/masumi-logos";
 
 const AUTH_BACKGROUND_IMAGES = [
   "/images/backgrounds/auth-bg-1.png",
@@ -29,8 +29,8 @@ export default function AuthBackground() {
           className="rounded-xl object-cover"
           sizes="50vw"
         />
-        <div className="pointer-events-none absolute right-4 bottom-4">
-          <ThemedLogo LogoComponent={KanjiLogo} />
+        <div className="pointer-events-none absolute right-4 bottom-4 text-white">
+          <KanjiLogo className="fill-white" />
         </div>
       </div>
     </div>
