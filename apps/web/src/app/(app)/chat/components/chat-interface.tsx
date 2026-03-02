@@ -26,7 +26,6 @@ import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
-import { addConversationItem } from "@/lib/actions/conversation/core-api-actions";
 
 import ChatInputContainer from "./chat-input-container";
 import MessageList from "./message-list";
@@ -55,8 +54,7 @@ export default function ChatInterface({
   const params = useParams<{ conversationId?: string }>();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlConversationId =
-    params?.conversationId ?? searchParams?.get("conversationId") ?? null;
+  const urlConversationId = params?.conversationId ?? null;
 
   const {
     conversations,
@@ -284,43 +282,28 @@ export default function ChatInterface({
         const conversationId = payload?.conversationId ?? null;
         if (!conversationId || finishedMessages.length === 0) return;
 
+        // Assistant message is persisted by the backend when the stream ends
+        void refreshConversations();
+
         const lastAssistantMessage = [...finishedMessages]
           .reverse()
           .find((msg) => msg.role === "assistant");
         if (lastAssistantMessage) {
           const content = extractMessageContent(lastAssistantMessage);
-          if (content) {
-            const formattedContent: Array<{ type: string; text: string }> = [
-              { type: "output_text", text: content },
-            ];
-            addConversationItem({
+          if (
+            content &&
+            previousChatIdRef.current === conversationId &&
+            messagesChatIdRef.current === conversationId &&
+            updateChatPreviewRef.current
+          ) {
+            const isFirstAssistantMessage =
+              finishedMessages.filter((m) => m.role === "assistant").length ===
+              1;
+            updateChatPreviewRef.current(
               conversationId,
-              role: "assistant",
-              content: formattedContent,
-            })
-              .then(() => {
-                void refreshConversations();
-              })
-              .catch((error) => {
-                console.error(
-                  "Failed to add assistant message to conversation:",
-                  error,
-                );
-              });
-            if (
-              previousChatIdRef.current === conversationId &&
-              messagesChatIdRef.current === conversationId &&
-              updateChatPreviewRef.current
-            ) {
-              const isFirstAssistantMessage =
-                finishedMessages.filter((m) => m.role === "assistant")
-                  .length === 1;
-              updateChatPreviewRef.current(
-                conversationId,
-                content,
-                isFirstAssistantMessage,
-              );
-            }
+              content,
+              isFirstAssistantMessage,
+            );
           }
         }
       },

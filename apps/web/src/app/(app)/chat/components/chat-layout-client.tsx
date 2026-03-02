@@ -73,15 +73,7 @@ export function ChatLayoutClient({
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const bucket = params.get("bucket");
-    const conversationId = params.get("conversationId");
-    if (bucket && conversationId) {
-      const slug = bucketKeyToSlug(bucket);
-      if (slug && slug !== "other") {
-        router.replace(`/chat/${slug}/conversation/${conversationId}`, {
-          scroll: false,
-        });
-      }
-    } else if (bucket) {
+    if (bucket) {
       const slug = bucketKeyToSlug(bucket);
       if (slug && slug !== "other") {
         router.replace(`/chat/${slug}`, { scroll: false });

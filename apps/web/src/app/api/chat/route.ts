@@ -42,8 +42,48 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Return streaming response as-is
-    return new Response(response.body, {
+    // Stream to client; when client cancels (disconnect or stop), drain Core
+    // so the backend runs to completion and persists the assistant message.
+    const coreStream = response.body;
+    if (!coreStream) {
+      return new Response(null, {
+        status: response.status,
+        headers: response.headers,
+      });
+    }
+    const stream = new ReadableStream({
+      start(controller) {
+        const reader = coreStream.getReader();
+        (async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                controller.close();
+                return;
+              }
+              try {
+                controller.enqueue(value);
+              } catch {
+                // Client cancelled — drain Core stream to completion so it persists
+                while (true) {
+                  const { done: drained } = await reader.read();
+                  if (drained) break;
+                }
+                return;
+              }
+            }
+          } catch (err) {
+            try {
+              controller.error(err);
+            } catch {
+              // already closed
+            }
+          }
+        })();
+      },
+    });
+    return new Response(stream, {
       headers: response.headers,
       status: response.status,
     });

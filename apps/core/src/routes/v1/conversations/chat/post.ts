@@ -278,6 +278,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
           },
         });
+        if (internalConversationId) {
+          const wrapped = streamWithAssistantPersistence(
+            result.body,
+            internalConversationId,
+            authContext.userId,
+          );
+          return new Response(wrapped, {
+            headers: result.headers,
+            status: result.status,
+          });
+        }
         return result;
       }
 
@@ -286,6 +297,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         selectedModel,
       );
 
+      if (internalConversationId) {
+        const wrapped = streamWithAssistantPersistence(
+          result.body,
+          internalConversationId,
+          authContext.userId,
+        );
+        return new Response(wrapped, {
+          headers: result.headers,
+          status: result.status,
+        });
+      }
       return result;
     } catch (error) {
       if (

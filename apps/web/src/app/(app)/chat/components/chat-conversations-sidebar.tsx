@@ -174,11 +174,7 @@ export function ChatConversationsSidebar({
   const tSearch = useTranslations("App.Chat.Chat.ConversationsSidebar");
   const router = useRouter();
   const params = useParams<{ conversationId?: string }>();
-  const conversationId =
-    params?.conversationId ??
-    (typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("conversationId")
-      : null);
+  const conversationId = params?.conversationId ?? null;
   const { deleteConversationById } = useConversationsContext();
 
   const [searchValue, setSearchValue] = useState("");
