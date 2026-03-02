@@ -704,8 +704,6 @@ model JobEvent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  externalId String?
-
   jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
@@ -720,7 +718,6 @@ model JobEvent {
   links Link[]
 
   // @@unique([jobId], where: raw("status = 'INITIATED'"))
-  @@index([externalId])
   @@index([jobId])
   @@index([status])
   @@index([jobId, status])

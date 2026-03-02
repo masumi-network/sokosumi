@@ -2,7 +2,6 @@ import { AgentJobStatus } from "../generated/prisma/browser.js";
 import type { JobEvent, Prisma } from "../generated/prisma/client.js";
 
 interface CreateJobEventData {
-  externalId?: string | null;
   statusHash?: string | null;
   status: AgentJobStatus;
   inputSchema?: string | null;
@@ -26,7 +25,6 @@ export const jobEventRepository = {
     return await tx.jobEvent.create({
       data: {
         job: { connect: { id: jobId } },
-        externalId: data.externalId,
         statusHash: data.statusHash,
         status: data.status,
         inputSchema: data.inputSchema,
