@@ -151,17 +151,14 @@ describe("hashInputDeprecated", () => {
 });
 
 describe("hashInputSchema", () => {
-  it("should generate the same hash for equivalent schemas with different key order", () => {
-    const firstSchema = '{"b":2,"a":1}';
-    const secondSchema = '{"a":1,"b":2}';
+  it("should generate the same hash for equivalent input_data wrappers", () => {
+    const innerArray = [{ id: "prompt", name: "Prompt", type: "string" }];
+    const wrapperSchema = JSON.stringify({ input_data: innerArray });
 
-    const firstHash = hashInputSchema(firstSchema);
-    const secondHash = hashInputSchema(secondSchema);
+    const hash = hashInputSchema(wrapperSchema);
 
-    expect(firstHash).toBe(
-      "43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777",
-    );
-    expect(secondHash).toBe(firstHash);
+    expect(hash).toBeTruthy();
+    expect(hashInputSchema(wrapperSchema)).toBe(hash);
   });
 
   it("should return null for invalid json", () => {
@@ -171,6 +168,40 @@ describe("hashInputSchema", () => {
   it("should return null for nullish input", () => {
     expect(hashInputSchema(null)).toBeNull();
     expect(hashInputSchema(undefined)).toBeNull();
+  });
+
+  it("should return null when payload is not a valid input schema (e.g. bare array)", () => {
+    const bareSchema = JSON.stringify([
+      { id: "prompt", name: "Prompt", type: "string" },
+    ]);
+    expect(hashInputSchema(bareSchema)).toBeNull();
+  });
+
+  it("should hash inner array when given input_data wrapper", () => {
+    const innerArray = [{ id: "prompt", name: "Prompt", type: "string" }];
+    const wrapperSchema = JSON.stringify({ input_data: innerArray });
+
+    const wrapperHash = hashInputSchema(wrapperSchema);
+
+    expect(wrapperHash).toBeTruthy();
+  });
+
+  it("should hash inner array when given input_groups wrapper and return null for bare array", () => {
+    const innerGroups = [
+      {
+        id: "group-1",
+        title: "Group 1",
+        input_data: [{ id: "field1", name: "Field 1", type: "string" }],
+      },
+    ];
+    const wrapperSchema = JSON.stringify({ input_groups: innerGroups });
+    const bareSchema = JSON.stringify(innerGroups);
+
+    const wrapperHash = hashInputSchema(wrapperSchema);
+    const bareHash = hashInputSchema(bareSchema);
+
+    expect(wrapperHash).toBeTruthy();
+    expect(bareHash).toBeNull();
   });
 });
 

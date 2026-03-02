@@ -194,13 +194,15 @@ describe("createAgentClient provideJobInput", () => {
   });
 
   it("sends input_schema_hash in the provide_input request body", async () => {
-    const inputSchema = JSON.stringify([
-      {
-        id: "answer",
-        name: "Answer",
-        type: "string",
-      },
-    ]);
+    const inputSchema = JSON.stringify({
+      input_data: [
+        {
+          id: "answer",
+          name: "Answer",
+          type: "string",
+        },
+      ],
+    });
 
     const fetchMock = jest.fn().mockResolvedValue(
       new Response(
@@ -258,6 +260,28 @@ describe("createAgentClient provideJobInput", () => {
       {
         answer: "8",
       },
+    );
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toBe("Failed to hash input schema");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns error and skips request when input schema is not valid (e.g. bare array)", async () => {
+    const bareSchema = JSON.stringify([
+      { id: "answer", name: "Answer", type: "string" },
+    ]);
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.provideJobInput(
+      createAgent(),
+      "job-1",
+      bareSchema,
+      { answer: "8" },
     );
 
     expect(result.isErr()).toBe(true);
@@ -350,7 +374,10 @@ describe("createAgentClient fetchAgentJobStatus", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
-    const firstResult = await client.fetchAgentJobStatus(createAgent(), "job-1");
+    const firstResult = await client.fetchAgentJobStatus(
+      createAgent(),
+      "job-1",
+    );
     const secondResult = await client.fetchAgentJobStatus(
       createAgent(),
       "job-1",

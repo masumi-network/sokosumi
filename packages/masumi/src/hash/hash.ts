@@ -2,6 +2,8 @@ import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
 import { err, ok, type Result } from "neverthrow";
 
+import { inputSchemaSchema } from "../schemas/input/input.schema.js";
+
 /**
  * Creates a SHA-256 hash of the input string.
  *
@@ -72,10 +74,12 @@ export const hashInput = (input: string, identifierFromPurchaser: string) => {
 };
 
 /**
- * Calculates a hash for an input schema.
+ * Value to hash for provide_input's input_schema_hash. Requires the payload to
+ * match inputSchemaSchema (wrapper with input_data or input_groups); hashes only
+ * the inner array so the hash matches what agents verify.
  *
- * @param inputSchema - The input schema as a JSON string
- * @returns SHA-256 hash of canonicalized input schema, or null if parsing fails
+ * @param inputSchema - The input schema as a JSON string (must be wrapper form)
+ * @returns SHA-256 hash of the logical input schema, or null if JSON is invalid or payload does not match the schema
  */
 export const hashInputSchema = (
   inputSchema: string | null | undefined,
@@ -86,7 +90,9 @@ export const hashInputSchema = (
 
   try {
     const object = JSON.parse(inputSchema);
-    return hashCanonicalJsonValue(object);
+    const data = inputSchemaSchema.parse(object);
+    const inner = "input_data" in data ? data.input_data : data.input_groups;
+    return hashCanonicalJsonValue(inner);
   } catch {
     return null;
   }

@@ -353,9 +353,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           return err(jobStatusResponse.statusText);
         }
         const responseJson = await jobStatusResponse.json();
-        const parsedResult = jobStatusResponseSchema.safeParse(
-          responseJson,
-        );
+        const parsedResult = jobStatusResponseSchema.safeParse(responseJson);
 
         if (!parsedResult.success) {
           return err("Failed to parse job status response");
