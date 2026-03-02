@@ -10,7 +10,8 @@ import { useState } from "react";
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { makeAgentJobsChannelName } from "@/lib/ably";
-import { cn, getDateGroupKey } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 import { getJobColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
@@ -23,6 +24,7 @@ interface JobsTableProps {
 export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const t = useTranslations("Components.Jobs.JobsTable");
   const dateFormatter = useFormatter();
+  const { getDateGroupKey } = useLocalizedDateTime();
   const params = useParams<{ agentId: string; jobId?: string | undefined }>();
 
   const router = useRouter();
