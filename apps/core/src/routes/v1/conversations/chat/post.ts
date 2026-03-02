@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { isResponsesApiConfigured } from "@/config/env";
+import { streamWithAssistantPersistence } from "@/helpers/chat-stream-persist";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import {
   extractMessageText,
