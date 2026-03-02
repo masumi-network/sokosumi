@@ -19,7 +19,7 @@ import {
   extractHttpLinks,
 } from "@/lib/data/markdown/links";
 import type { FeedItem } from "@/lib/services/feed.service";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import {
   getFirstMarkdownHeading,
   removeFirstMarkdownHeading,
@@ -42,6 +42,7 @@ function getFileNameFromUrl(url: string): string | null {
 
 export function FeedDetail({ feedId, item: initialItem }: FeedDetailProps) {
   const t = useTranslations("App.Feed");
+  const { formatTimeAgo } = useLocalizedDateTime();
   const { getItemById } = useFeedData();
   const item = initialItem !== undefined ? initialItem : getItemById(feedId);
 

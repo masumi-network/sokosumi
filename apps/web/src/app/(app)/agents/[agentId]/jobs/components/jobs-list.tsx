@@ -20,7 +20,7 @@ import {
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import { cn } from "@/lib/utils";
-import { formatTimeAgo } from "@/lib/utils/datetime";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 import { buildJobDayGroups } from "./jobs-list.utils";
 import { JobsSearch } from "./jobs-search";
@@ -112,6 +112,7 @@ export function JobsList({
 }: JobsListProps) {
   const t = useTranslations("Components.Jobs.JobsList");
   const tSharedBadge = useTranslations("Components.Jobs.SharedBadge");
+  const { locale } = useLocalizedDateTime();
   const routeParams = useParams<{ jobId?: string }>();
   const router = useRouter();
   const [localJobs, setLocalJobs] = useState<JobWithSokosumiStatus[]>(jobs);
@@ -126,8 +127,8 @@ export function JobsList({
   }, [jobs]);
 
   const dayGroups = useMemo(
-    () => buildJobDayGroups(filteredJobs),
-    [filteredJobs],
+    () => buildJobDayGroups(filteredJobs, locale),
+    [filteredJobs, locale],
   );
 
   const channelName = makeAgentJobsChannelName(agentId, userId);
@@ -196,7 +197,7 @@ export function JobsList({
             {dayGroups.length > 0 ? (
               dayGroups.map((group) => (
                 <section key={group.key} className="mb-4">
-                  <div className="text-muted-foreground px-2 pb-2 text-xs font-medium">
+                  <div className="text-muted-foreground px-2 pb-2 text-xs font-medium capitalize">
                     {group.key}
                   </div>
                   <ul className="space-y-2">
@@ -239,6 +240,7 @@ export function JobRow({
   onClick: (job: JobWithSokosumiStatus) => void;
   sharedByLabel: string;
 }) {
+  const { formatTimeAgo } = useLocalizedDateTime();
   const isSharedJob = job.userId !== userId && Boolean(job.share);
 
   return (
