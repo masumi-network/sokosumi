@@ -1,4 +1,5 @@
 import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 
 import {
   AgentJobStatus,
@@ -27,7 +28,7 @@ interface CreateDemoJobData {
   agentId: string;
   userId: string;
   organizationId?: string | null;
-  inputSchema: unknown[];
+  inputSchema: InputSchemaSchemaType;
   input: string;
   name: string | null;
   result?: string | null;
@@ -38,7 +39,7 @@ interface CreateJobBase {
   agentId: string;
   userId: string;
   organizationId: string | null | undefined;
-  inputSchema: unknown[];
+  inputSchema: InputSchemaSchemaType;
   input: string;
   inputHash: string | null;
   name: string | null;
@@ -202,9 +203,6 @@ export const jobRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
     const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
-    if (!inputSchemaSnapshot) {
-      throw new Error("Invalid input schema");
-    }
 
     const job = await tx.job.create({
       data: {
@@ -270,9 +268,6 @@ export const jobRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
     const inputSchemaSnapshot = buildInputSchemaSnapshot(data.inputSchema);
-    if (!inputSchemaSnapshot) {
-      throw new Error("Invalid input schema");
-    }
 
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,

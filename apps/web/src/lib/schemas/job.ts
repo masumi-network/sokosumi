@@ -1,5 +1,4 @@
 import {
-  inputFieldSchema,
   InputFieldSchemaType,
   inputGroupsSchema,
   inputSchema,
@@ -15,7 +14,7 @@ export const startJobInputSchema = z.object({
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
-  inputSchema: z.array(inputFieldSchema),
+  inputSchema: inputSchemaResponseSchema,
   inputData: inputSchema,
   jobScheduleId: z.string().nullish(),
 });
@@ -155,7 +154,7 @@ export const createJobScheduleInputSchema = z.object({
   cron: z.string().nullish(),
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
-  inputSchema: z.array(inputFieldSchema),
+  inputSchema: inputSchemaResponseSchema,
   inputData: inputSchema,
   maxAcceptedCents: z.bigint(),
   endOnUtc: z.string().nullish(),

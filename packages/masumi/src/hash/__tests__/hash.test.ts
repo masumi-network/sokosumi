@@ -1,3 +1,5 @@
+import type { InputSchemaSchemaType } from "../../schemas/input/input.schema.js";
+import { InputType } from "../../types/input-types.js";
 import {
   buildInputSchemaSnapshot,
   hashCanonicalJsonValue,
@@ -237,23 +239,32 @@ describe("hashCanonicalJsonValue", () => {
 });
 
 describe("buildInputSchemaSnapshot", () => {
-  it("returns bare-array inputSchema for valid input_data array", () => {
-    const inputSchema = [
-      { id: "prompt", name: "Prompt", type: "string" },
-    ] as const;
-    const result = buildInputSchemaSnapshot([...inputSchema]);
+  it("returns bare-array inputSchema for wrapped input_data schema", () => {
+    const wrappedSchema: InputSchemaSchemaType = {
+      input_data: [{ id: "prompt", name: "Prompt", type: InputType.STRING }],
+    };
+    const result = buildInputSchemaSnapshot(wrappedSchema);
 
-    expect(result).not.toBeNull();
-    if (result) {
-      expect(JSON.parse(result)).toEqual(inputSchema);
-      expect(hashInputSchema(result)).toBeTruthy();
-    }
+    expect(JSON.parse(result)).toEqual(wrappedSchema.input_data);
+    expect(hashInputSchema(result)).toBeTruthy();
   });
 
-  it("returns null for invalid input schema array", () => {
-    const result = buildInputSchemaSnapshot([{ invalid: "field" } as unknown]);
+  it("returns bare-array inputSchema for wrapped input_groups schema", () => {
+    const wrappedSchema: InputSchemaSchemaType = {
+      input_groups: [
+        {
+          id: "group-1",
+          title: "Group 1",
+          input_data: [
+            { id: "prompt", name: "Prompt", type: InputType.STRING },
+          ],
+        },
+      ],
+    };
+    const result = buildInputSchemaSnapshot(wrappedSchema);
 
-    expect(result).toBeNull();
+    expect(JSON.parse(result)).toEqual(wrappedSchema.input_groups);
+    expect(hashInputSchema(result)).toBeTruthy();
   });
 });
 
