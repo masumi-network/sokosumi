@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 import {
@@ -110,8 +110,14 @@ export function useChatSelection({
   isConversationLoading: isConversationLoadingProp = false,
 }: UseChatSelectionProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
+
+  function withSearch(path: string): string {
+    const query = searchParams?.toString();
+    return query ? `${path}${path.includes("?") ? "&" : "?"}${query}` : path;
+  }
 
   const handleSelectChat = async (chatId: string | null) => {
     // Do not stop streaming when switching chats so multiple conversations can stream in parallel
@@ -143,7 +149,7 @@ export function useChatSelection({
     const targetPath = segment
       ? `/chat/${segment}/conversation/${chatId}`
       : "/chat";
-    router.push(targetPath, { scroll: false });
+    router.push(withSearch(targetPath), { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
     const listConversation = conversations.find((c) => c.id === chatId);
@@ -257,7 +263,7 @@ export function useChatSelection({
             : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          router.replace(targetPathForNext, { scroll: false });
+          router.replace(withSearch(targetPathForNext), { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -269,7 +275,7 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        router.replace(targetPathForNext, { scroll: false });
+        router.replace(withSearch(targetPathForNext), { scroll: false });
         handleSelectChat(nextId);
         return;
       }
@@ -308,7 +314,7 @@ export function useChatSelection({
             : "/chat";
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
-          router.replace(targetPathForNext, { scroll: false });
+          router.replace(withSearch(targetPathForNext), { scroll: false });
           if (nextId === null) {
             setSelectedChatId(null);
             currentChatIdRef.current = null;
@@ -320,7 +326,7 @@ export function useChatSelection({
           return;
         }
         pendingUrlConversationIdRef.current = null;
-        router.replace(targetPathForNext, { scroll: false });
+        router.replace(withSearch(targetPathForNext), { scroll: false });
         handleSelectChat(nextId);
         return;
       }

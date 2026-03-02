@@ -201,7 +201,7 @@ export function ChatConversationsSidebar({
 
   const handleConversationClick = useCallback(
     (convId: string) => {
-      router.push(`/chat/${bucketSlug}/conversation/${convId}`, {
+      router.push(`/chat/${bucketSlug}/conversation/${convId}?open=1`, {
         scroll: false,
       });
     },
@@ -257,7 +257,7 @@ export function ChatConversationsSidebar({
 
   return (
     <>
-      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
+      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col pt-20 pb-4 lg:w-72 lg:border-r lg:py-4">
         <div className="flex w-full flex-col items-start justify-between px-2 pb-2 md:flex-row md:items-center md:px-0 md:pr-4">
           <div className="flex w-full flex-col">
             <div className="relative w-full">
@@ -295,7 +295,7 @@ export function ChatConversationsSidebar({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 lg:pb-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-4 pb-24 md:p-2 md:pt-2 md:pr-4 md:pl-0 lg:pt-0 lg:pb-2">
           {dayGroups.length > 0 ? (
             dayGroups.map((group) => (
               <section key={group.key} className="mb-4">

@@ -870,22 +870,28 @@ export default function ChatInterface({
               </>
             )}
             {!isConversationLoading && (
-              <ChatInputContainer
-                key={selectedChatId}
-                selectedChatId={selectedChatId}
-                input={input}
-                setInput={setInput}
-                status={selectedChatStatus}
-                stop={handleStop}
-                messages={displayedMessages}
-                setMessages={setMessagesForInput}
-                sendMessage={sendMessageForInput}
-                onSendMessage={handleSendMessage}
-                selectedModel={selectedModel}
-                onSelectModel={handleModelSelected}
-                selectedChatCoworker={selectedChatCoworker}
-                coworkers={coworkers}
-              />
+              <>
+                <div
+                  aria-hidden
+                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
+                />
+                <ChatInputContainer
+                  key={selectedChatId}
+                  selectedChatId={selectedChatId}
+                  input={input}
+                  setInput={setInput}
+                  status={selectedChatStatus}
+                  stop={handleStop}
+                  messages={displayedMessages}
+                  setMessages={setMessagesForInput}
+                  sendMessage={sendMessageForInput}
+                  onSendMessage={handleSendMessage}
+                  selectedModel={selectedModel}
+                  onSelectModel={handleModelSelected}
+                  selectedChatCoworker={selectedChatCoworker}
+                  coworkers={coworkers}
+                />
+              </>
             )}
           </>
         ) : (
