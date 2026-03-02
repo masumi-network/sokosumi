@@ -171,11 +171,11 @@ describe("hashInputSchema", () => {
     expect(hashInputSchema(undefined)).toBeNull();
   });
 
-  it("should return null when payload is not a valid input schema (e.g. bare array)", () => {
+  it("should hash bare input field arrays (legacy stored schema)", () => {
     const bareSchema = JSON.stringify([
       { id: "prompt", name: "Prompt", type: "string" },
     ]);
-    expect(hashInputSchema(bareSchema)).toBeNull();
+    expect(hashInputSchema(bareSchema)).toBeTruthy();
   });
 
   it("should hash inner array when given input_data wrapper", () => {
@@ -187,7 +187,7 @@ describe("hashInputSchema", () => {
     expect(wrapperHash).toBeTruthy();
   });
 
-  it("should hash inner array when given input_groups wrapper and return null for bare array", () => {
+  it("should hash input_groups wrapper and bare input_groups arrays equivalently", () => {
     const innerGroups = [
       {
         id: "group-1",
@@ -202,7 +202,8 @@ describe("hashInputSchema", () => {
     const bareHash = hashInputSchema(bareSchema);
 
     expect(wrapperHash).toBeTruthy();
-    expect(bareHash).toBeNull();
+    expect(bareHash).toBeTruthy();
+    expect(wrapperHash).toBe(bareHash);
   });
 });
 
@@ -236,7 +237,7 @@ describe("hashCanonicalJsonValue", () => {
 });
 
 describe("buildInputSchemaSnapshot", () => {
-  it("returns wrapper-form inputSchema for valid input_data array", () => {
+  it("returns bare-array inputSchema for valid input_data array", () => {
     const inputSchema = [
       { id: "prompt", name: "Prompt", type: "string" },
     ] as const;
@@ -244,7 +245,7 @@ describe("buildInputSchemaSnapshot", () => {
 
     expect(result).not.toBeNull();
     if (result) {
-      expect(JSON.parse(result)).toEqual({ input_data: inputSchema });
+      expect(JSON.parse(result)).toEqual(inputSchema);
       expect(hashInputSchema(result)).toBeTruthy();
     }
   });

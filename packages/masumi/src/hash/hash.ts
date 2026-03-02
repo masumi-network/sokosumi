@@ -1,7 +1,10 @@
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
 
-import { inputSchemaSchema } from "../schemas/input/input.schema.js";
+import {
+  inputFieldsSchema,
+  normalizeAndValidateInputSchema,
+} from "../schemas/input/input.schema.js";
 
 /**
  * Creates a SHA-256 hash of the input string.
@@ -73,12 +76,12 @@ export const hashInput = (input: string, identifierFromPurchaser: string) => {
 };
 
 /**
- * Value to hash for provide_input's input_schema_hash. Requires the payload to
- * match inputSchemaSchema (wrapper with input_data or input_groups); hashes only
- * the inner array so the hash matches what agents verify.
+ * Value to hash for provide_input's input_schema_hash. Accepts wrapped
+ * (`{ input_data }` / `{ input_groups }`) and legacy bare-array schemas.
+ * Hashes only the logical inner array so equivalent forms produce the same hash.
  *
- * @param inputSchema - The input schema as a JSON string (must be wrapper form)
- * @returns SHA-256 hash of the logical input schema, or null if JSON is invalid or payload does not match the schema
+ * @param inputSchema - Input schema JSON string
+ * @returns SHA-256 hash of the logical input schema, or null if input is invalid
  */
 export const hashInputSchema = (
   inputSchema: string | null | undefined,
@@ -89,7 +92,10 @@ export const hashInputSchema = (
 
   try {
     const object = JSON.parse(inputSchema);
-    const data = inputSchemaSchema.parse(object);
+    const data = normalizeAndValidateInputSchema(object);
+    if (!data) {
+      return null;
+    }
     const inner = "input_data" in data ? data.input_data : data.input_groups;
     return hashCanonicalJsonValue(inner);
   } catch {
@@ -112,18 +118,17 @@ export const hashResult = (result: string, identifierFromPurchaser: string) => {
 };
 
 /**
- * Builds an input schema snapshot in wrapper form ({ input_data: [...] }) so
- * it matches what provide_input expects for input_schema_hash calculation.
+ * Builds an input schema snapshot in bare-array form.
  *
  * @param inputSchema - The input schema array (flat fields) to validate and serialize
- * @returns Serialized wrapper, or null if validation fails
+ * @returns Serialized bare array, or null if validation fails
  */
 export function buildInputSchemaSnapshot(
   inputSchema: unknown[],
 ): string | null {
   try {
-    const wrapper = inputSchemaSchema.parse({ input_data: inputSchema });
-    return JSON.stringify(wrapper);
+    const parsed = inputFieldsSchema.parse(inputSchema);
+    return JSON.stringify(parsed);
   } catch {
     return null;
   }

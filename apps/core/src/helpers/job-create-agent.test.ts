@@ -141,15 +141,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("connects scheduled jobs to jobScheduleId via scheduleContext", async () => {
-    const expectedInputSchema = JSON.stringify({
-      input_data: [
-        {
-          id: "prompt",
-          type: "string",
-          name: "prompt",
-        },
-      ],
-    });
+    const expectedInputSchema = JSON.stringify([
+      {
+        id: "prompt",
+        type: "string",
+        name: "prompt",
+      },
+    ]);
 
     await createAgentJobForUser(
       createInput({

@@ -269,11 +269,24 @@ describe("createAgentClient provideJobInput", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("returns error and skips request when input schema is not valid (e.g. bare array)", async () => {
+  it("accepts bare-array input schema for backward compatibility", async () => {
     const bareSchema = JSON.stringify([
       { id: "answer", name: "Answer", type: "string" },
     ]);
-    const fetchMock = jest.fn();
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          input_hash: "hash-123",
+          signature: "sig-456",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
@@ -284,11 +297,24 @@ describe("createAgentClient provideJobInput", () => {
       { answer: "8" },
     );
 
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toBe("Failed to hash input schema");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual({
+        input_hash: "hash-123",
+        signature: "sig-456",
+      });
     }
-    expect(fetchMock).not.toHaveBeenCalled();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, requestOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(requestOptions.method).toBe("POST");
+    expect(JSON.parse(String(requestOptions.body))).toEqual({
+      job_id: "job-1",
+      input_schema_hash: hashInputSchema(bareSchema),
+      input_data: {
+        answer: "8",
+      },
+    });
   });
 });
 
