@@ -15,7 +15,9 @@ export function useKeyboardBottomOffset(): number {
   const [offset, setOffset] = useState(0);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) {
+    const viewport =
+      typeof window !== "undefined" ? window.visualViewport : null;
+    if (!viewport) {
       return;
     }
 
@@ -25,16 +27,16 @@ export function useKeyboardBottomOffset(): number {
         setOffset(0);
         return;
       }
-      const keyboardHeight = window.innerHeight - window.visualViewport.height;
+      const keyboardHeight = window.innerHeight - viewport.height;
       setOffset(keyboardHeight > KEYBOARD_THRESHOLD_PX ? keyboardHeight : 0);
     };
 
     update();
-    window.visualViewport.addEventListener("resize", update);
-    window.visualViewport.addEventListener("scroll", update);
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
     return () => {
-      window.visualViewport.removeEventListener("resize", update);
-      window.visualViewport.removeEventListener("scroll", update);
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
     };
   }, []);
 
