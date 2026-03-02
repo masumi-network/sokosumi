@@ -1,6 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
+import { useTranslations } from "next-intl";
 import {
   forwardRef,
   useCallback,
@@ -54,6 +55,7 @@ interface MessageListProps {
   userName?: string;
   isLoading: boolean;
   isPollingForPendingResponse?: boolean;
+  pendingResponseFailed?: boolean;
   reasoningMessages?: Array<{ id: string; message: string }>;
   isCoworker?: boolean;
 }
@@ -69,11 +71,13 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       userName,
       isLoading,
       isPollingForPendingResponse = false,
+      pendingResponseFailed = false,
       reasoningMessages = [],
       isCoworker = false,
     },
     ref,
   ) {
+    const t = useTranslations("App.Chat.Chat");
     const {
       containerRef: scrollContainerRef,
       endRef,
@@ -125,7 +129,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         lastAssistantHasNoContent);
     const showReasoningLoaders =
       showLoadingArea && isCoworker && reasoningMessages.length > 0;
-    const showLoadingIndicator = showLoadingArea && !showReasoningLoaders;
+    const showLoadingIndicator =
+      showLoadingArea && !showReasoningLoaders && !pendingResponseFailed;
 
     const sections = groupMessagesIntoSection(messagesWithTimestamps);
 
@@ -244,24 +249,30 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         >
           <div className="flex flex-col items-center pt-4 pb-24">
             <div className="flex w-full max-w-4xl flex-col">
-              {sections.length === 0 && showLoadingArea && (
-                <>
-                  {showReasoningLoaders && (
-                    <ReasoningLoaders
-                      reasoningMessages={reasoningMessages}
-                      selectedChatId={selectedChatId}
-                      chats={chats}
-                      coworkers={coworkers}
+              {sections.length === 0 &&
+                (showLoadingArea || pendingResponseFailed) && (
+                  <>
+                    {showReasoningLoaders && (
+                      <ReasoningLoaders
+                        reasoningMessages={reasoningMessages}
+                        selectedChatId={selectedChatId}
+                        chats={chats}
+                        coworkers={coworkers}
+                      />
+                    )}
+                    {showLoadingIndicator && <LoadingIndicator />}
+                    {pendingResponseFailed && (
+                      <div className="text-muted-foreground flex min-h-11 items-start gap-3 px-4 py-1.5 text-sm">
+                        {t("pendingResponseFailed")}
+                      </div>
+                    )}
+                    <div
+                      className="min-h-[160px] shrink-0"
+                      aria-hidden
+                      data-slot="scroll-spacer"
                     />
-                  )}
-                  {showLoadingIndicator && <LoadingIndicator />}
-                  <div
-                    className="min-h-[160px] shrink-0"
-                    aria-hidden
-                    data-slot="scroll-spacer"
-                  />
-                </>
-              )}
+                  </>
+                )}
               {sections.map((section, sectionIndex) => {
                 const isActiveNewSection =
                   sectionIndex > 0 && sectionIndex === sections.length - 1;
@@ -296,7 +307,12 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                           />
                         )}
                         {showLoadingIndicator && <LoadingIndicator />}
-                        {showLoadingArea && (
+                        {pendingResponseFailed && (
+                          <div className="text-muted-foreground flex min-h-11 items-start gap-3 px-4 py-1.5 text-sm">
+                            {t("pendingResponseFailed")}
+                          </div>
+                        )}
+                        {(showLoadingArea || pendingResponseFailed) && (
                           <div
                             className="min-h-[160px] shrink-0"
                             aria-hidden

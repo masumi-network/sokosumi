@@ -605,13 +605,14 @@ export default function ChatInterface({
       streamingConversationIdsRef,
     });
 
-  const { isPollingForPendingResponse } = usePendingResponsePolling({
-    selectedChatId,
-    displayedMessages,
-    isStreaming: isSelectedChatLoading,
-    setMessagesForConversation,
-    refreshConversations,
-  });
+  const { isPollingForPendingResponse, pendingResponseFailed } =
+    usePendingResponsePolling({
+      selectedChatId,
+      displayedMessages,
+      isStreaming: isSelectedChatLoading,
+      setMessagesForConversation,
+      refreshConversations,
+    });
 
   const {
     createModelChat,
@@ -872,6 +873,7 @@ export default function ChatInterface({
                     userName={userName}
                     isLoading={isLoading}
                     isPollingForPendingResponse={isPollingForPendingResponse}
+                    pendingResponseFailed={pendingResponseFailed}
                     reasoningMessages={selectedChatReasoningMessages}
                     isCoworker={isSelectedChatCoworker}
                   />

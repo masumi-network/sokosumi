@@ -60,6 +60,7 @@ export function usePendingResponsePolling({
 }: UsePendingResponsePollingProps) {
   const [isPollingForPendingResponse, setIsPollingForPendingResponse] =
     useState(false);
+  const [pendingResponseFailed, setPendingResponseFailed] = useState(false);
   const pollCountRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -83,6 +84,7 @@ export function usePendingResponsePolling({
         intervalRef.current = null;
       }
       setIsPollingForPendingResponse(false);
+      setPendingResponseFailed(true);
       return;
     }
     try {
@@ -113,7 +115,10 @@ export function usePendingResponsePolling({
         intervalRef.current = null;
       }
       pollCountRef.current = 0;
-      queueMicrotask(() => setIsPollingForPendingResponse(false));
+      queueMicrotask(() => {
+        setIsPollingForPendingResponse(false);
+        setPendingResponseFailed(false);
+      });
       return;
     }
     pollCountRef.current = 0;
@@ -130,5 +135,5 @@ export function usePendingResponsePolling({
     };
   }, [shouldPoll, poll]);
 
-  return { isPollingForPendingResponse };
+  return { isPollingForPendingResponse, pendingResponseFailed };
 }
