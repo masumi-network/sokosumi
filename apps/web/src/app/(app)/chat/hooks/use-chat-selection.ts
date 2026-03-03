@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { useChatRouteBase } from "@/app/chat/contexts/chat-route-base-context";
 import {
   bucketKeyFromDisplaySlug,
   displaySlugFromMetadata,
@@ -112,6 +113,7 @@ export function useChatSelection({
   isConversationLoading: isConversationLoadingProp = false,
 }: UseChatSelectionProps) {
   const router = useRouter();
+  const basePath = useChatRouteBase();
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
 
@@ -132,7 +134,7 @@ export function useChatSelection({
       setSelectedModel(null);
       selectedModelRef.current = null;
       isUpdatingUrlRef.current = true;
-      router.push(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
+      router.push(bucketSlug ? `${basePath}/${bucketSlug}` : basePath, {
         scroll: false,
       });
       return;
@@ -149,7 +151,7 @@ export function useChatSelection({
     pendingUrlConversationIdRef.current = chatId;
     isUpdatingUrlRef.current = true;
     const segment = slug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
-    const targetPath = `/chat/${segment}/conversation/${chatId}`;
+    const targetPath = `${basePath}/${segment}/conversation/${chatId}`;
     router.push(withSearch(targetPath), { scroll: false });
 
     // Set model/coworker from list immediately so the input doesn't show the previous chat's agent
@@ -182,7 +184,7 @@ export function useChatSelection({
       setMessages([]);
       setInput("");
       isUpdatingUrlRef.current = true;
-      router.replace(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
+      router.replace(bucketSlug ? `${basePath}/${bucketSlug}` : basePath, {
         scroll: false,
       });
       return;
@@ -216,7 +218,7 @@ export function useChatSelection({
       pendingUrlConversationIdRef.current = null;
     }
 
-    if (!pathname.startsWith("/chat")) {
+    if (!pathname.startsWith(basePath)) {
       return;
     }
 
@@ -236,9 +238,12 @@ export function useChatSelection({
         if (conversations.length === 0) {
           pendingUrlConversationIdRef.current = null;
           if (!isConversationsLoading) {
-            router.replace(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
-              scroll: false,
-            });
+            router.replace(
+              bucketSlug ? `${basePath}/${bucketSlug}` : basePath,
+              {
+                scroll: false,
+              },
+            );
             setSelectedChatId(null);
             currentChatIdRef.current = null;
             setSelectedModel(null);
@@ -256,10 +261,10 @@ export function useChatSelection({
         );
         const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
         const targetPathForNext = nextId
-          ? `/chat/${nextSegment}/conversation/${nextId}`
+          ? `${basePath}/${nextSegment}/conversation/${nextId}`
           : bucketSlug
-            ? `/chat/${bucketSlug}`
-            : "/chat";
+            ? `${basePath}/${bucketSlug}`
+            : basePath;
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
           router.replace(withSearch(targetPathForNext), { scroll: false });
@@ -285,9 +290,12 @@ export function useChatSelection({
         if (conversations.length === 0) {
           pendingUrlConversationIdRef.current = null;
           if (!isConversationsLoading) {
-            router.replace(bucketSlug ? `/chat/${bucketSlug}` : "/chat", {
-              scroll: false,
-            });
+            router.replace(
+              bucketSlug ? `${basePath}/${bucketSlug}` : basePath,
+              {
+                scroll: false,
+              },
+            );
             setSelectedChatId(null);
             currentChatIdRef.current = null;
             setSelectedModel(null);
@@ -305,10 +313,10 @@ export function useChatSelection({
         );
         const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
         const targetPathForNext = nextId
-          ? `/chat/${nextSegment}/conversation/${nextId}`
+          ? `${basePath}/${nextSegment}/conversation/${nextId}`
           : bucketSlug
-            ? `/chat/${bucketSlug}`
-            : "/chat";
+            ? `${basePath}/${bucketSlug}`
+            : basePath;
         if (pending === nextId) {
           pendingUrlConversationIdRef.current = null;
           router.replace(withSearch(targetPathForNext), { scroll: false });
@@ -333,7 +341,7 @@ export function useChatSelection({
     } else if (
       !currentUrlConversationId &&
       selectedChatId &&
-      pathname.startsWith("/chat")
+      pathname.startsWith(basePath)
     ) {
       if (isSelectedChatStreaming || isConversationLoadingProp) {
         return;
@@ -359,6 +367,7 @@ export function useChatSelection({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    basePath,
     urlConversationId,
     pathname,
     bucketSlug,
