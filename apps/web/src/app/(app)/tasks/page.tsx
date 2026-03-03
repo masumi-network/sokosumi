@@ -32,15 +32,15 @@ export default async function TasksPage() {
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
 
-  const [coworkers, agents, tasksResult, jobsPage] = await Promise.all([
+  const [coworkers, tasksResult] = await Promise.all([
     coworkerService.listCoworkers(),
-    agentService.getAvailableAgentsWithCreditsPrice(),
     taskService.listTasks({ limit: 20 }),
-    userService.listMyJobsForActiveContextPaginated({
-      limit: 20,
-      authContext,
-    }),
   ]);
+  const agents = await agentService.getAvailableAgentsWithCreditsPrice();
+  const jobsPage = await userService.listMyJobsForActiveContextPaginated({
+    limit: 20,
+    authContext,
+  });
 
   const activeOrganizationId = authContext?.organizationId ?? null;
 
