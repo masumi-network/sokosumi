@@ -6,9 +6,6 @@ import {
 } from "@/i18n/locales";
 
 const SUPPORTED_LOCALE_SET = new Set<string>(SUPPORTED_LOCALES);
-const BASE_TO_DEFAULT_VARIANT: Partial<Record<string, AppLocale>> = {
-  zh: "zh-Hans",
-};
 interface ParsedLanguagePreference {
   tag: string;
   quality: number;
@@ -35,11 +32,6 @@ function toSupportedLocale(localeTag: string): AppLocale | null {
   const baseLanguage = localeTag.split("-").at(0);
   if (!baseLanguage) {
     return null;
-  }
-
-  const preferredVariant = BASE_TO_DEFAULT_VARIANT[baseLanguage];
-  if (preferredVariant) {
-    return preferredVariant;
   }
 
   if (SUPPORTED_LOCALE_SET.has(baseLanguage)) return baseLanguage as AppLocale;
