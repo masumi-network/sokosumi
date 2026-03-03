@@ -274,9 +274,6 @@ export function isValidFormValue(
       return (
         Array.isArray(value) && value.every((item) => typeof item === "number")
       );
-    case InputType.DATE:
-    case InputType.DATETIME:
-      return typeof value === "string";
     default:
       return typeof value === "string";
   }
