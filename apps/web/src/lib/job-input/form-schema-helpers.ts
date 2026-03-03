@@ -5,6 +5,12 @@ import {
 } from "@sokosumi/masumi/types";
 import * as z from "zod";
 
+import {
+  DATE_VALUE_REGEX,
+  DATETIME_LOCAL_VALUE_REGEX,
+  parseDatetimeLocalValue,
+  parseDateValue,
+} from "@/lib/job-input/date-value";
 import { parseISOWeek, parseMonth } from "@/lib/utils";
 
 import { JobInputFormIntlPath } from "./type";
@@ -217,95 +223,6 @@ export function applyNumericValidations(
   return parsed.canBeOptional ? result.nullish() : result;
 }
 
-/**
- * Date string helpers
- */
-const DATE_STRING_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-const DATETIME_LOCAL_STRING_REGEX =
-  /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):([0-5]\d)$/;
-
-function formatDateToYYYYMMDD(date: Date): string {
-  const year = String(date.getUTCFullYear());
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function parseDateString(value: string): Date | undefined {
-  if (!DATE_STRING_REGEX.test(value)) {
-    return undefined;
-  }
-
-  const [yearStr, monthStr, dayStr] = value.split("-");
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  const parsed = new Date(year, month - 1, day);
-
-  if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day
-  ) {
-    return undefined;
-  }
-
-  return parsed;
-}
-
-function parseDatetimeLocalString(value: string): Date | undefined {
-  if (!DATETIME_LOCAL_STRING_REGEX.test(value)) {
-    return undefined;
-  }
-
-  const [datePart, timePart] = value.split("T");
-  if (!datePart || !timePart) {
-    return undefined;
-  }
-
-  const date = parseDateString(datePart);
-  if (!date) {
-    return undefined;
-  }
-
-  const [hoursStr, minutesStr] = timePart.split(":");
-  const hours = Number(hoursStr);
-  const minutes = Number(minutesStr);
-
-  if (
-    !Number.isInteger(hours) ||
-    !Number.isInteger(minutes) ||
-    hours < 0 ||
-    hours > 23 ||
-    minutes < 0 ||
-    minutes > 59
-  ) {
-    return undefined;
-  }
-
-  const parsed = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    hours,
-    minutes,
-    0,
-    0,
-  );
-
-  if (
-    parsed.getFullYear() !== date.getFullYear() ||
-    parsed.getMonth() !== date.getMonth() ||
-    parsed.getDate() !== date.getDate() ||
-    parsed.getHours() !== hours ||
-    parsed.getMinutes() !== minutes
-  ) {
-    return undefined;
-  }
-
-  return parsed;
-}
-
 function parseValidationDate(value: string | number): Date | undefined {
   if (typeof value === "number") {
     const date = new Date(value);
@@ -313,12 +230,12 @@ function parseValidationDate(value: string | number): Date | undefined {
   }
 
   const raw = String(value).trim();
-  const fromDateString = parseDateString(raw);
+  const fromDateString = parseDateValue(raw);
   if (fromDateString) {
     return fromDateString;
   }
 
-  const fromDatetimeLocalString = parseDatetimeLocalString(raw);
+  const fromDatetimeLocalString = parseDatetimeLocalValue(raw);
   if (fromDatetimeLocalString) {
     return fromDatetimeLocalString;
   }
@@ -335,7 +252,7 @@ function parseValidationDate(value: string | number): Date | undefined {
 function parseValidationDateString(value: string | number): string | undefined {
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (parseDateString(trimmed)) {
+    if (parseDateValue(trimmed)) {
       return trimmed;
     }
   }
@@ -345,7 +262,7 @@ function parseValidationDateString(value: string | number): string | undefined {
     return undefined;
   }
 
-  return formatDateToYYYYMMDD(parsed);
+  return parsed.toISOString().slice(0, 10);
 }
 
 /**
@@ -359,10 +276,10 @@ export function applyDateStringValidations(
   const parsed = parseValidations(validations);
   let schema = z
     .string({ error: t?.("String.required", { name }) })
-    .regex(DATE_STRING_REGEX, {
+    .regex(DATE_VALUE_REGEX, {
       error: t?.("String.format", { name, value: "date" }),
     })
-    .refine((value) => !!parseDateString(value), {
+    .refine((value) => !!parseDateValue(value), {
       error: t?.("String.format", { name, value: "date" }),
     });
 
@@ -398,10 +315,10 @@ export function applyDatetimeLocalValidations(
   const parsed = parseValidations(validations);
   let schema = z
     .string({ error: t?.("String.required", { name }) })
-    .regex(DATETIME_LOCAL_STRING_REGEX, {
+    .regex(DATETIME_LOCAL_VALUE_REGEX, {
       error: t?.("String.format", { name, value: "datetime-local" }),
     })
-    .refine((value) => !!parseDatetimeLocalString(value), {
+    .refine((value) => !!parseDatetimeLocalValue(value), {
       error: t?.("String.format", { name, value: "datetime-local" }),
     });
 
@@ -412,7 +329,7 @@ export function applyDatetimeLocalValidations(
         typeof parsed.min === "string" ? parsed.min : minDate.toISOString();
       schema = schema.refine(
         (value) => {
-          const parsedValue = parseDatetimeLocalString(value);
+          const parsedValue = parseDatetimeLocalValue(value);
           return !!parsedValue && parsedValue.getTime() >= minDate.getTime();
         },
         {
@@ -429,7 +346,7 @@ export function applyDatetimeLocalValidations(
         typeof parsed.max === "string" ? parsed.max : maxDate.toISOString();
       schema = schema.refine(
         (value) => {
-          const parsedValue = parseDatetimeLocalString(value);
+          const parsedValue = parseDatetimeLocalValue(value);
           return !!parsedValue && parsedValue.getTime() <= maxDate.getTime();
         },
         {

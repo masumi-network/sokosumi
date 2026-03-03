@@ -11,43 +11,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DATETIME_LOCAL_VALUE_REGEX,
+  formatDateValue,
+  parseDateValue,
+  TIME_VALUE_REGEX,
+} from "@/lib/job-input/date-value";
 import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
-
-const DATE_VALUE_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-const TIME_VALUE_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const DATETIME_LOCAL_VALUE_REGEX =
-  /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):([0-5]\d)$/;
-
-function parseDatePart(value: string): Date | undefined {
-  if (!DATE_VALUE_REGEX.test(value)) {
-    return undefined;
-  }
-
-  const [yearStr, monthStr, dayStr] = value.split("-");
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  const parsed = new Date(year, month - 1, day);
-
-  if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day
-  ) {
-    return undefined;
-  }
-
-  return parsed;
-}
-
-function formatDatePart(date: Date): string {
-  const year = String(date.getFullYear());
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 export function DatetimeInput({
   id,
@@ -59,7 +31,7 @@ export function DatetimeInput({
       ? field.value
       : "";
   const [datePart, timePart] = valueString.split("T");
-  const valueDate = datePart ? parseDatePart(datePart) : undefined;
+  const valueDate = datePart ? parseDateValue(datePart) : undefined;
   const timeString =
     typeof timePart === "string" && TIME_VALUE_REGEX.test(timePart)
       ? timePart
@@ -67,14 +39,14 @@ export function DatetimeInput({
 
   const handleSelectDate = (d?: Date) => {
     if (!d) return field.onChange(null);
-    const nextDatePart = formatDatePart(d);
+    const nextDatePart = formatDateValue(d);
     const nextTimePart = timeString || "00:00";
     field.onChange(`${nextDatePart}T${nextTimePart}`);
   };
 
   const handleTimeChange = (v: string) => {
     const nextTimePart = TIME_VALUE_REGEX.test(v) ? v : "00:00";
-    const baseDatePart = datePart || formatDatePart(new Date());
+    const baseDatePart = datePart || formatDateValue(new Date());
     field.onChange(`${baseDatePart}T${nextTimePart}`);
   };
 
