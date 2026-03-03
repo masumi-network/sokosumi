@@ -1,6 +1,7 @@
 "use client";
 
 import { track } from "@vercel/analytics";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ComponentProps } from "react";
 import {
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
+import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 interface SocialButtonsProps {
@@ -36,6 +38,9 @@ const socialButtons: Array<{
 
 export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
+  const searchParams = useSearchParams();
+  const effectiveReturnUrl =
+    returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
 
   const handleClick = async (key: SocialProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });
@@ -45,12 +50,12 @@ export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
       callbackURL: buildAuthCallbackUrl(
         "/auth/callback/signin",
         key,
-        returnUrl,
+        effectiveReturnUrl,
       ),
       newUserCallbackURL: buildAuthCallbackUrl(
         "/auth/callback/signup",
         key,
-        returnUrl,
+        effectiveReturnUrl,
       ),
     });
     if (result.error) {

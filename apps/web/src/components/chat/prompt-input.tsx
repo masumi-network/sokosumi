@@ -26,13 +26,15 @@ export const PromptInput = ({ className, ...props }: PromptInputProps) => (
 );
 
 export type PromptInputTextareaProps = ComponentProps<typeof Textarea> & {
-  minHeight?: number;
+  allowEnterToSubmitOnMobile?: boolean;
   maxHeight?: number;
+  minHeight?: number;
   disableAutoResize?: boolean;
   resizeOnNewLinesOnly?: boolean;
 };
 
 export const PromptInputTextarea = ({
+  allowEnterToSubmitOnMobile = true,
   onChange,
   className,
   placeholder,
@@ -52,6 +54,15 @@ export const PromptInputTextarea = ({
       }
 
       if (e.shiftKey) {
+        return;
+      }
+
+      if (
+        !allowEnterToSubmitOnMobile &&
+        typeof window !== "undefined" &&
+        window.innerWidth < 768
+      ) {
+        e.preventDefault();
         return;
       }
 

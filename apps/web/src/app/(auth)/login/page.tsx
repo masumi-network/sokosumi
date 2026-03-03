@@ -1,5 +1,17 @@
 import { redirect } from "next/navigation";
 
-export default function LoginRedirect() {
-  redirect("/signin");
+import {
+  AuthRedirectSearchParams,
+  getRedirectQueryString,
+} from "@/lib/utils/auth-redirect";
+
+interface LoginRedirectProps {
+  searchParams: Promise<AuthRedirectSearchParams>;
+}
+
+export default async function LoginRedirect({
+  searchParams,
+}: LoginRedirectProps) {
+  const query = await getRedirectQueryString(searchParams);
+  redirect(query ? `/signin?${query}` : "/signin");
 }

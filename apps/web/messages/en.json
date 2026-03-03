@@ -1893,6 +1893,7 @@
           "authorizeError": "Failed to authorize application",
           "authorizeErrorRedirectUri": "Failed to authorize application. Please check your redirect URI.",
           "authorizeErrorGeneric": "An error occurred during authorization",
+          "authorizeSuccess": "Application authorized successfully",
           "denyError": "Failed to deny application"
         }
       },
