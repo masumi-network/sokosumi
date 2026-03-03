@@ -28,6 +28,7 @@ export function ConsentActions() {
       toast.success(t("authorizeSuccess"));
       const { redirect, url } = result.data;
       const targetUrl = redirect && url ? url : "/";
+      setIsAuthorizing(false);
       setTimeout(() => {
         window.location.href = targetUrl;
       }, 300);
