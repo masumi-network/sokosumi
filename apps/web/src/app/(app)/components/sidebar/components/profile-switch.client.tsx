@@ -114,6 +114,16 @@ export default function ProfileSwitchClient({
   const { state } = useSidebar();
   const isPopoverVisible = state !== "collapsed" && isPopoverOpen;
 
+  const handlePopoverOpenChange = (open: boolean) => {
+    // Do not record open intent when sidebar is collapsed; otherwise when the
+    // sidebar is later expanded, isPopoverVisible would flip to true and the
+    // popover would open unexpectedly.
+    if (open && state === "collapsed") {
+      return;
+    }
+    setIsPopoverOpen(open);
+  };
+
   useEffect(() => {
     if (state === "collapsed") {
       setTimeout(() => {
@@ -164,7 +174,10 @@ export default function ProfileSwitchClient({
       <SidebarGroupContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Popover open={isPopoverVisible} onOpenChange={setIsPopoverOpen}>
+            <Popover
+              open={isPopoverVisible}
+              onOpenChange={handlePopoverOpenChange}
+            >
               <PopoverTrigger asChild>
                 <SidebarMenuButton
                   className="min-h-[56px] items-center md:p-2"
@@ -238,7 +251,6 @@ export default function ProfileSwitchClient({
                         className="flex cursor-pointer items-center gap-2 py-2"
                         onSelect={() => {
                           setIsPopoverOpen(false);
-                          handleSelectWorkspace(null);
                           router.push("/organizations/");
                         }}
                       >
