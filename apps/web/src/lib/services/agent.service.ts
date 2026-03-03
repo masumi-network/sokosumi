@@ -177,19 +177,27 @@ export const agentService = (() => {
       AgentWithCreditsPrice[]
     > => {
       const agents = await agentService.getAvailableAgents();
-      const results = await Promise.allSettled(
-        agents.map(async (agent) => {
-          const agentWithCreditsPrice =
-            await agentService.getAgentCreditsPrice(agent);
-          return agentWithCreditsPrice;
-        }),
-      );
-      return results
-        .filter(
-          (result): result is PromiseFulfilledResult<AgentWithCreditsPrice> =>
-            result.status === "fulfilled",
-        )
-        .map((result) => result.value);
+      const creditCosts = await creditCostRepository.getCreditCosts(prisma);
+      const creditCostByUnit = new Map<
+        CreditCost["unit"],
+        CreditCost["centsPerUnit"]
+      >(creditCosts.map((creditCost) => [creditCost.unit, creditCost.centsPerUnit]));
+
+      const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
+      for (const agent of agents) {
+        try {
+          const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(
+            agent,
+            prisma,
+            creditCostByUnit,
+          );
+          agentsWithCreditsPrice.push(agentWithCreditsPrice);
+        } catch {
+          continue;
+        }
+      }
+
+      return agentsWithCreditsPrice;
     },
 
     /**
@@ -262,6 +270,10 @@ export const agentService = (() => {
     getAgentCreditsPrice: async (
       agent: AgentWithRelations,
       tx: Prisma.TransactionClient = prisma,
+      creditCostByUnit?: Map<
+        CreditCost["unit"],
+        CreditCost["centsPerUnit"]
+      >,
     ): Promise<AgentWithCreditsPrice> => {
       const amounts = getAgentPricingAmounts(agent);
       if (!amounts) {
@@ -280,14 +292,15 @@ export const agentService = (() => {
 
       let totalCents = BigInt(0);
       for (const amount of amountsParsed) {
-        const creditCost = await creditCostRepository.getCreditCostByUnit(
-          amount.unit,
-          tx,
-        );
-        if (!creditCost) {
+        const centsPerUnit =
+          creditCostByUnit?.get(amount.unit) ??
+          (
+            await creditCostRepository.getCreditCostByUnit(amount.unit, tx)
+          )?.centsPerUnit;
+        if (!centsPerUnit) {
           throw new Error(`Credit cost not found for unit ${amount.unit}`);
         }
-        const cents = amount.amount * creditCost.centsPerUnit;
+        const cents = amount.amount * centsPerUnit;
         totalCents += cents;
       }
 
