@@ -132,7 +132,8 @@ export function transactionStatusToOnChainTransactionStatus(
     | "Pending"
     | "Confirmed"
     | "FailedViaTimeout"
-    | "RolledBack",
+    | "RolledBack"
+    | "FailedViaManualReset",
 ): OnChainTransactionStatus {
   switch (currentTransactionStatus) {
     case "Pending":
@@ -161,7 +162,12 @@ interface PurchaseForJobUpdate {
   NextAction: PurchaseNextAction;
   CurrentTransaction: {
     txHash: string | null;
-    status: "Pending" | "Confirmed" | "FailedViaTimeout" | "RolledBack";
+    status:
+      | "Pending"
+      | "Confirmed"
+      | "FailedViaTimeout"
+      | "RolledBack"
+      | "FailedViaManualReset";
   } | null;
 }
 
