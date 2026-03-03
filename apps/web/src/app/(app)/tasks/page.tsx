@@ -24,21 +24,25 @@ export const metadata = {
 };
 
 export default async function TasksPage() {
-  const t = await getTranslations("App.Tasks");
-  const tColumns = await getTranslations("App.Tasks.Columns");
-  const cookieStore = await cookies();
-  const authContext = await getAuthContext();
+  const [t, tColumns, cookieStore, authContext] = await Promise.all([
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Columns"),
+    cookies(),
+    getAuthContext(),
+  ]);
   const defaultViewMode =
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
 
-  const coworkers = await coworkerService.listCoworkers();
-  const tasksResult = await taskService.listTasks({ limit: 20 });
-  const agents = await agentService.getAvailableAgentsWithCreditsPrice();
-  const jobsPage = await userService.listMyJobsForActiveContextPaginated({
-    limit: 20,
-    authContext,
-  });
+  const [coworkers, tasksResult, agents, jobsPage] = await Promise.all([
+    coworkerService.listCoworkers(),
+    taskService.listTasks({ limit: 20 }),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    userService.listMyJobsForActiveContextPaginated({
+      limit: 20,
+      authContext,
+    }),
+  ]);
 
   const activeOrganizationId = authContext?.organizationId ?? null;
 
