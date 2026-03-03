@@ -28,11 +28,11 @@ export default async function GalleryPage() {
     return <AgentsNotAvailable />;
   }
 
-  const [categoryMap, coworkers] = await Promise.all([
+  const [categoryMap, favoriteAgents, coworkers] = await Promise.all([
     categoryService.getValidCategories(),
+    agentService.getFavoriteAgents(),
     coworkerService.listCoworkers(),
   ]);
-  const favoriteAgents = await agentService.getFavoriteAgents();
 
   // Fetch rating stats for all agents
   const agentIds = agentsWithPrice.map((agent) => agent.id);
