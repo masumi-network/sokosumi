@@ -123,35 +123,6 @@ export function parseDateValue(value: string): Date | undefined {
   return parsed;
 }
 
-export function parseDatetimeLocalValue(value: string): Date | undefined {
-  if (!DATETIME_LOCAL_VALUE_REGEX.test(value)) {
-    return undefined;
-  }
-
-  const [datePart, timePart] = value.split("T");
-  if (!datePart || !timePart) {
-    return undefined;
-  }
-
-  const date = parseDateValue(datePart);
-  if (!date) {
-    return undefined;
-  }
-
-  const [hoursStr, minutesStr] = timePart.split(":");
-  const hours = Number(hoursStr);
-  const minutes = Number(minutesStr);
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    hours,
-    minutes,
-    0,
-    0,
-  );
-}
-
 export function isDatetimeLocalValue(value: string): boolean {
   if (!DATETIME_LOCAL_VALUE_REGEX.test(value)) {
     return false;
