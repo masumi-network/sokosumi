@@ -18,22 +18,18 @@ import { useCoworkersContext } from "@/contexts/coworkers-context";
 
 const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
 
-function getBucketSlugFromPathname(
-  pathname: string,
-  routeBase: string,
-): string | null {
+const CHAT_ROUTE_BASE = "chat";
+
+function getBucketSlugFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== routeBase || segments.length < 2) return null;
+  if (segments[0] !== CHAT_ROUTE_BASE || segments.length < 2) return null;
   return segments[1] ?? null;
 }
 
-function getConversationIdFromPathname(
-  pathname: string,
-  routeBase: string,
-): string | null {
+function getConversationIdFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
   if (
-    segments[0] !== routeBase ||
+    segments[0] !== CHAT_ROUTE_BASE ||
     segments[2] !== "conversation" ||
     !segments[3]
   )
@@ -44,7 +40,6 @@ function getConversationIdFromPathname(
 interface ChatLayoutClientProps {
   mobileKeyboardOptimized?: boolean;
   organizationSlug: string | null;
-  routeBase?: "chat" | "chat_test";
   userImageUrl: string;
   userName: string | undefined;
 }
@@ -52,7 +47,6 @@ interface ChatLayoutClientProps {
 export function ChatLayoutClient({
   mobileKeyboardOptimized = false,
   organizationSlug,
-  routeBase = "chat",
   userImageUrl,
   userName,
 }: ChatLayoutClientProps) {
@@ -66,12 +60,12 @@ export function ChatLayoutClient({
   const openedFromList = searchParams?.get("open") === "1";
 
   const bucketSlug = useMemo(
-    () => getBucketSlugFromPathname(pathname ?? "", routeBase),
-    [pathname, routeBase],
+    () => getBucketSlugFromPathname(pathname ?? ""),
+    [pathname],
   );
   const conversationIdFromPath = useMemo(
-    () => getConversationIdFromPathname(pathname ?? "", routeBase),
-    [pathname, routeBase],
+    () => getConversationIdFromPathname(pathname ?? ""),
+    [pathname],
   );
 
   const isJustCreatedConversation =
@@ -90,7 +84,6 @@ export function ChatLayoutClient({
 
   const showSecondarySidebar = showFromContext && !isJustCreatedConversation;
 
-  const basePath = routeBase === "chat_test" ? "/chat_test" : "/chat";
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -98,10 +91,10 @@ export function ChatLayoutClient({
     if (bucket) {
       const slug = bucketKeyToSlug(bucket);
       if (slug && slug !== "other") {
-        router.replace(`${basePath}/${slug}`, { scroll: false });
+        router.replace(`/chat/${slug}`, { scroll: false });
       }
     }
-  }, [router, basePath]);
+  }, [router]);
 
   const bucket = useMemo(() => {
     if (!bucketSlug) return null;
