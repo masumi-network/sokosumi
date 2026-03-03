@@ -28,7 +28,7 @@ export function ConsentActions() {
       toast.success(t("authorizeSuccess"));
       const { redirect, url } = result.data;
       const targetUrl = redirect && url ? url : "/";
-      setIsAuthorizing(false);
+      // Do not reset isAuthorizing — keep buttons disabled until redirect (avoids double-submit in 300ms window)
       setTimeout(() => {
         window.location.href = targetUrl;
       }, 300);
