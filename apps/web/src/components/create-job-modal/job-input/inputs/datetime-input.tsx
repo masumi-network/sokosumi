@@ -14,6 +14,7 @@ import {
 import {
   DATETIME_LOCAL_VALUE_REGEX,
   formatDateValue,
+  isDateValueOutOfBounds,
   normalizeDatetimeLocalValidationBound,
   parseDateValue,
   TIME_VALUE_REGEX,
@@ -85,10 +86,10 @@ export function DatetimeInput({
             onSelect={handleSelectDate}
             disabled={(date) => {
               const dateValue = formatDateValue(date);
-              return (
-                (minDateValue ? dateValue < minDateValue : false) ||
-                (maxDateValue ? dateValue > maxDateValue : false)
-              );
+              return isDateValueOutOfBounds(dateValue, {
+                min: minDateValue,
+                max: maxDateValue,
+              });
             }}
             captionLayout="dropdown"
             autoFocus

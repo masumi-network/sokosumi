@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/popover";
 import {
   formatDateValue,
+  isDateValueOutOfBounds,
   normalizeDateValidationBound,
   parseDateValue,
 } from "@/lib/job-input/date-value";
@@ -56,10 +57,10 @@ export function DateInput({
           }
           disabled={(date) => {
             const dateValue = formatDateValue(date);
-            return (
-              (minDateValue ? dateValue < minDateValue : false) ||
-              (maxDateValue ? dateValue > maxDateValue : false)
-            );
+            return isDateValueOutOfBounds(dateValue, {
+              min: minDateValue,
+              max: maxDateValue,
+            });
           }}
           captionLayout="dropdown"
           autoFocus

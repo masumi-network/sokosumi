@@ -225,6 +225,43 @@ export function applyNumericValidations(
   return parsed.canBeOptional ? result.nullish() : result;
 }
 
+function applyDateRangeRefinements(
+  schema: z.ZodString,
+  parsed: ParsedValidationOptions,
+  name: string,
+  t: IntlTranslation<JobInputFormIntlPath> | undefined,
+  normalizeBound: (value: string | number) => string | undefined,
+  getBoundLabel?: (raw: string | number, normalized: string) => string,
+): z.ZodString {
+  let nextSchema = schema;
+
+  if (parsed.min !== undefined) {
+    const minDate = normalizeBound(parsed.min);
+    if (minDate) {
+      nextSchema = nextSchema.refine((value) => value >= minDate, {
+        error: t?.("Date.min", {
+          name,
+          value: getBoundLabel?.(parsed.min, minDate) ?? minDate,
+        }),
+      });
+    }
+  }
+
+  if (parsed.max !== undefined) {
+    const maxDate = normalizeBound(parsed.max);
+    if (maxDate) {
+      nextSchema = nextSchema.refine((value) => value <= maxDate, {
+        error: t?.("Date.max", {
+          name,
+          value: getBoundLabel?.(parsed.max, maxDate) ?? maxDate,
+        }),
+      });
+    }
+  }
+
+  return nextSchema;
+}
+
 /**
  * Apply date validations using strict YYYY-MM-DD strings
  */
@@ -243,23 +280,13 @@ export function applyDateStringValidations(
       error: t?.("String.format", { name, value: "date" }),
     });
 
-  if (parsed.min !== undefined) {
-    const minDate = normalizeDateValidationBound(parsed.min);
-    if (minDate) {
-      schema = schema.refine((value) => value >= minDate, {
-        error: t?.("Date.min", { name, value: minDate }),
-      });
-    }
-  }
-
-  if (parsed.max !== undefined) {
-    const maxDate = normalizeDateValidationBound(parsed.max);
-    if (maxDate) {
-      schema = schema.refine((value) => value <= maxDate, {
-        error: t?.("Date.max", { name, value: maxDate }),
-      });
-    }
-  }
+  schema = applyDateRangeRefinements(
+    schema,
+    parsed,
+    name,
+    t,
+    normalizeDateValidationBound,
+  );
 
   return parsed.canBeOptional ? schema.nullish() : schema;
 }
@@ -282,25 +309,14 @@ export function applyDatetimeLocalValidations(
       error: t?.("String.format", { name, value: "datetime-local" }),
     });
 
-  if (parsed.min !== undefined) {
-    const minDate = normalizeDatetimeLocalValidationBound(parsed.min);
-    if (minDate) {
-      const minLabel = typeof parsed.min === "string" ? parsed.min : minDate;
-      schema = schema.refine((value) => value >= minDate, {
-        error: t?.("Date.min", { name, value: minLabel }),
-      });
-    }
-  }
-
-  if (parsed.max !== undefined) {
-    const maxDate = normalizeDatetimeLocalValidationBound(parsed.max);
-    if (maxDate) {
-      const maxLabel = typeof parsed.max === "string" ? parsed.max : maxDate;
-      schema = schema.refine((value) => value <= maxDate, {
-        error: t?.("Date.max", { name, value: maxLabel }),
-      });
-    }
-  }
+  schema = applyDateRangeRefinements(
+    schema,
+    parsed,
+    name,
+    t,
+    normalizeDatetimeLocalValidationBound,
+    (raw, normalized) => (typeof raw === "string" ? raw : normalized),
+  );
 
   return parsed.canBeOptional ? schema.nullish() : schema;
 }

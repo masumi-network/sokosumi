@@ -3,6 +3,23 @@ export const TIME_VALUE_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export const DATETIME_LOCAL_VALUE_REGEX =
   /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):([0-5]\d)$/;
 
+type ValidationBoundValue = string | number | Date | null | undefined;
+
+interface DateBounds {
+  min?: string;
+  max?: string;
+}
+
+function parseDateLikeValue(value: number | Date): Date | undefined {
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function toNonEmptyString(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function formatDateValue(date: Date): string {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -11,56 +28,40 @@ export function formatDateValue(date: Date): string {
 }
 
 export function normalizeDateValidationBound(
-  value: string | number | Date | null | undefined,
+  value: ValidationBoundValue,
 ): string | undefined {
   if (value === null || value === undefined) {
     return undefined;
   }
 
   if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    if (trimmed.length === 0) {
+    const trimmed = toNonEmptyString(value);
+    if (!trimmed) {
       return undefined;
     }
 
-    if (parseDateValue(trimmed)) {
-      return trimmed;
-    }
-
-    const fromDatetimeLocal = parseDatetimeLocalValue(trimmed);
-    if (fromDatetimeLocal) {
-      return formatDateValue(fromDatetimeLocal);
-    }
-
-    if (/^\d+$/.test(trimmed)) {
-      const fromTimestamp = new Date(Number(trimmed));
-      return Number.isNaN(fromTimestamp.getTime())
-        ? undefined
-        : formatDateValue(fromTimestamp);
-    }
-
-    const fromIso = new Date(trimmed);
-    return Number.isNaN(fromIso.getTime())
-      ? undefined
-      : formatDateValue(fromIso);
+    const parsed =
+      parseDateValue(trimmed) ??
+      parseDatetimeLocalValue(trimmed) ??
+      (/^\d+$/.test(trimmed) ? parseDateLikeValue(Number(trimmed)) : undefined) ??
+      parseDateLikeValue(new Date(trimmed));
+    return parsed ? formatDateValue(parsed) : undefined;
   }
 
-  const parsed = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(parsed.getTime()) ? undefined : formatDateValue(parsed);
+  const parsed = parseDateLikeValue(value);
+  return parsed ? formatDateValue(parsed) : undefined;
 }
 
 export function normalizeDatetimeLocalValidationBound(
-  value: string | number | Date | null | undefined,
+  value: ValidationBoundValue,
 ): string | undefined {
   if (value === null || value === undefined) {
     return undefined;
   }
 
   if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    if (trimmed.length === 0) {
+    const trimmed = toNonEmptyString(value);
+    if (!trimmed) {
       return undefined;
     }
 
@@ -73,10 +74,8 @@ export function normalizeDatetimeLocalValidationBound(
     return undefined;
   }
 
-  const parsed = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? undefined
-    : formatDatetimeLocalValue(parsed);
+  const parsed = parseDateLikeValue(value);
+  return parsed ? formatDatetimeLocalValue(parsed) : undefined;
 }
 
 export function parseDateValue(value: string): Date | undefined {
@@ -147,4 +146,14 @@ export function formatDatetimeLocalValue(date: Date): string {
   const minutes = String(date.getMinutes()).padStart(2, "0");
 
   return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function isDateValueOutOfBounds(
+  dateValue: string,
+  bounds: DateBounds,
+): boolean {
+  return (
+    (bounds.min ? dateValue < bounds.min : false) ||
+    (bounds.max ? dateValue > bounds.max : false)
+  );
 }

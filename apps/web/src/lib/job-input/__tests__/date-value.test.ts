@@ -1,5 +1,6 @@
 import {
   formatDatetimeLocalValue,
+  isDateValueOutOfBounds,
   normalizeDateValidationBound,
   normalizeDatetimeLocalValidationBound,
 } from "@/lib/job-input/date-value";
@@ -47,5 +48,29 @@ describe("normalizeDatetimeLocalValidationBound", () => {
     expect(normalizeDatetimeLocalValidationBound(value.getTime())).toBe(
       formatDatetimeLocalValue(value),
     );
+  });
+});
+
+describe("isDateValueOutOfBounds", () => {
+  it("returns false when value is inside bounds", () => {
+    expect(
+      isDateValueOutOfBounds("2026-03-10", {
+        min: "2026-03-01",
+        max: "2026-03-31",
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true when value is below min or above max", () => {
+    expect(
+      isDateValueOutOfBounds("2026-02-28", {
+        min: "2026-03-01",
+      }),
+    ).toBe(true);
+    expect(
+      isDateValueOutOfBounds("2026-04-01", {
+        max: "2026-03-31",
+      }),
+    ).toBe(true);
   });
 });
