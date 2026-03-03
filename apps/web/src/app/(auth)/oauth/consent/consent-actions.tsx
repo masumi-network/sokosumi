@@ -25,14 +25,13 @@ export function ConsentActions() {
         return;
       }
 
+      toast.success(t("authorizeSuccess"));
       const { redirect, url } = result.data;
-      if (redirect && url) {
-        window.location.href = url;
-        return;
-      }
-
-      toast.error(t("authorizeError"));
-      setIsAuthorizing(false);
+      const targetUrl = redirect && url ? url : "/";
+      // Do not reset isAuthorizing — keep buttons disabled until redirect (avoids double-submit in 300ms window)
+      setTimeout(() => {
+        window.location.href = targetUrl;
+      }, 300);
     } catch (error) {
       console.error("OAuth authorization error:", error);
       toast.error(t("authorizeErrorGeneric"));
