@@ -717,8 +717,8 @@ model JobEvent {
   blobs Blob[]
   links Link[]
 
-  // @@unique([jobId], where: raw("status = 'INITIATED'"))
   @@index([jobId])
+  @@index([jobId, createdAt(sort: Desc)])
   @@index([status])
   @@index([jobId, status])
   @@map("jobEvent")
