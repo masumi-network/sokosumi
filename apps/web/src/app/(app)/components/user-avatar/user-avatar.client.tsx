@@ -229,8 +229,12 @@ export default function UserAvatarClient({
           </Tooltip>
         </TooltipProvider>
 
-        <DropdownMenuContent className="w-72" align="end">
+        <DropdownMenuContent className="w-64" align="end">
           <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-muted-foreground truncate rounded-t-sm py-2">
+              {sessionUser.email}
+            </DropdownMenuLabel>
+            {/* <DropdownMenuSeparator /> */}
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
               onClick={(e: React.MouseEvent) => handleClick(e, "/account")}
