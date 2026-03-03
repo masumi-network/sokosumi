@@ -70,7 +70,7 @@ export default function JobDetailsProvideInput({
     <ProvideInputForm
       key={formKey}
       jobId={job.id}
-      statusId={event.externalId}
+      eventId={event.id}
       inputSchema={parseResult}
     />
   );
@@ -78,13 +78,13 @@ export default function JobDetailsProvideInput({
 
 interface ProvideInputFormProps {
   jobId: string;
-  statusId?: string | null;
+  eventId?: string | null;
   inputSchema: InputSchemaSchemaType;
 }
 
 function ProvideInputForm({
   jobId,
-  statusId,
+  eventId,
   inputSchema,
 }: ProvideInputFormProps) {
   const t = useTranslations("Components.Jobs.JobDetails.AwaitingInput");
@@ -106,7 +106,7 @@ function ProvideInputForm({
 
   const { handleSubmit, isSubmitting } = useProvideJobInput({
     jobId,
-    statusId,
+    eventId,
     readonlyInputValues,
     inputFieldIdsInOrder,
   });

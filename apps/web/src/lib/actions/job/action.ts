@@ -235,7 +235,7 @@ export const provideJobInput = withAuthContext<
   return await Sentry.withScope(async (scope) => {
     try {
       const { userId } = authContext;
-      const { jobId, statusId, inputData } = input;
+      const { jobId, eventId, inputData } = input;
 
       // Validate input
       const parsedResult = provideJobInputSchema.safeParse(input);
@@ -279,7 +279,7 @@ export const provideJobInput = withAuthContext<
         level: "info",
         data: {
           jobId,
-          statusId,
+          eventId,
           userId,
         },
       });
@@ -287,7 +287,7 @@ export const provideJobInput = withAuthContext<
       // Call service to provide job input
       const { job } = await jobService.provideJobInput({
         jobId,
-        statusId,
+        eventId,
         userId,
         inputData,
       });
@@ -299,7 +299,7 @@ export const provideJobInput = withAuthContext<
         level: "info",
         data: {
           jobId: job.id,
-          statusId,
+          eventId,
           agentId: job.agentId,
         },
       });

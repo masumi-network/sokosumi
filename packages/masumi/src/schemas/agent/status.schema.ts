@@ -15,7 +15,6 @@ export type JobStatus = (typeof JOB_STATUS)[number];
 
 export const jobStatusResponseSchema = z
   .object({
-    id: z.string().nullish(),
     status: z.enum(JOB_STATUS),
     input_schema: inputSchemaSchema.nullish(),
     result: z.string().nullish(),

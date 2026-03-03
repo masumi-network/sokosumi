@@ -12,7 +12,7 @@ import { mergeReadonlyInputValues } from "@/lib/utils/job-input-transformers";
 
 export interface UseProvideJobInputOptions {
   jobId: string;
-  statusId: string | null | undefined;
+  eventId: string | null | undefined;
   readonlyInputValues?: Record<string, string>;
   inputFieldIdsInOrder?: string[];
   onSuccess?: () => void;
@@ -25,7 +25,7 @@ export interface UseProvideJobInputReturn {
 
 export function useProvideJobInput({
   jobId,
-  statusId,
+  eventId,
   readonlyInputValues,
   inputFieldIdsInOrder,
   onSuccess,
@@ -48,14 +48,14 @@ export function useProvideJobInput({
           inputFieldIdsInOrder,
         );
 
-        if (!statusId) {
-          throw new Error("Status ID is required");
+        if (!eventId) {
+          throw new Error("Event ID is required");
         }
 
         const result = await provideJobInput({
           input: {
             jobId,
-            statusId,
+            eventId,
             inputData,
           },
         });
@@ -89,7 +89,7 @@ export function useProvideJobInput({
       onSuccess,
       readonlyInputValues,
       router,
-      statusId,
+      eventId,
       t,
       tForm,
     ],

@@ -2,7 +2,10 @@
 
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
-import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import type {
+  InputFieldSchemaType,
+  InputSchemaSchemaType,
+} from "@sokosumi/masumi/schemas";
 import {
   CalendarClock,
   Clock,
@@ -36,6 +39,7 @@ interface StandardModeProps {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number | null;
   flatInputs: InputFieldSchemaType[];
+  inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   className?: string;
@@ -81,6 +85,7 @@ function JobInputsFlatFormStandard({
   agent,
   averageExecutionDuration,
   flatInputs,
+  inputSchema,
   demoValues,
   legal,
   className,
@@ -104,7 +109,7 @@ function JobInputsFlatFormStandard({
 
   const { handleSubmit } = useJobSubmission({
     agent,
-    flatInputs,
+    inputSchema,
     demoValues,
     scheduleSelection,
     setLoading,

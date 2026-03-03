@@ -2,7 +2,7 @@
 
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
-import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -24,7 +24,7 @@ import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
 
 export interface UseJobSubmissionOptions {
   agent: AgentWithCreditsPrice;
-  flatInputs: InputFieldSchemaType[];
+  inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
   scheduleSelection: JobScheduleSelectionType | null;
   setLoading: (loading: boolean) => void;
@@ -37,7 +37,7 @@ export interface UseJobSubmissionReturn {
 
 export function useJobSubmission({
   agent,
-  flatInputs,
+  inputSchema,
   demoValues,
   scheduleSelection,
   setLoading,
@@ -60,7 +60,7 @@ export function useJobSubmission({
           result = await startDemoJob({
             input: {
               agentId: agentId,
-              inputSchema: flatInputs,
+              inputSchema,
               inputData: prepareInputValues(demoValues.input),
             },
             jobStatusResponse: demoValues.output,
@@ -74,7 +74,7 @@ export function useJobSubmission({
           result = await createSchedule({
             input: {
               agentId: agentId,
-              inputSchema: flatInputs,
+              inputSchema,
               inputData: transformedInputData,
               maxAcceptedCents: creditsPrice.cents,
             },
@@ -87,7 +87,7 @@ export function useJobSubmission({
             input: {
               agentId: agentId,
               maxAcceptedCents: creditsPrice.cents,
-              inputSchema: flatInputs,
+              inputSchema,
               inputData: transformedInputData,
             },
           });
@@ -148,7 +148,7 @@ export function useJobSubmission({
       agent,
       agentId,
       creditsPrice.cents,
-      flatInputs,
+      inputSchema,
       onSuccess,
       router,
       t,
