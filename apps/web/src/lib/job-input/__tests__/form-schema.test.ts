@@ -74,21 +74,32 @@ describe("jobInputsFormSchema date and datetime-local validation", () => {
     });
 
     it("accepts DST-gap local datetimes without timezone-dependent rejection", () => {
-      const result = schema.safeParse({ startAt: "2026-03-08T02:30" });
-      expect(result.success).toBe(false);
+      const originalTimezone = process.env.TZ;
+      process.env.TZ = "America/New_York";
 
-      const relaxedRangeField: InputDatetimeSchemaType = {
-        ...datetimeField,
-        validations: [
-          { validation: InputValidation.MIN, value: "2026-03-08T00:00" },
-          { validation: InputValidation.MAX, value: "2026-03-08T23:59" },
-        ],
-      };
+      try {
+        const result = schema.safeParse({ startAt: "2026-03-08T02:30" });
+        expect(result.success).toBe(false);
 
-      const relaxedSchema = jobInputsFormSchema([relaxedRangeField]);
-      expect(relaxedSchema.safeParse({ startAt: "2026-03-08T02:30" }).success).toBe(
-        true,
-      );
+        const relaxedRangeField: InputDatetimeSchemaType = {
+          ...datetimeField,
+          validations: [
+            { validation: InputValidation.MIN, value: "2026-03-08T00:00" },
+            { validation: InputValidation.MAX, value: "2026-03-08T23:59" },
+          ],
+        };
+
+        const relaxedSchema = jobInputsFormSchema([relaxedRangeField]);
+        expect(
+          relaxedSchema.safeParse({ startAt: "2026-03-08T02:30" }).success,
+        ).toBe(true);
+      } finally {
+        if (originalTimezone === undefined) {
+          delete process.env.TZ;
+        } else {
+          process.env.TZ = originalTimezone;
+        }
+      }
     });
 
     it("rejects timezone-based ISO datetime strings", () => {
