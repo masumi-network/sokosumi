@@ -1972,7 +1972,7 @@
         "Metadata": {
           "Title": {
             "default": "{name}",
-            "template": "{name} - %"
+            "template": "{name} - %s"
           },
           "description": "Deine Organisation verwalten"
         },

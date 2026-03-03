@@ -342,7 +342,13 @@ export const coreClient = (() => {
     cursor?: string;
     limit?: number;
     agentId?: string;
-    status?: string;
+    status?:
+      | "RUNNING"
+      | "COMPLETED"
+      | "FAILED"
+      | "INITIATED"
+      | "AWAITING_PAYMENT"
+      | "AWAITING_INPUT";
   }) {
     return executeOperation(
       (client) =>
