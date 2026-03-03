@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { useChatRouteBase } from "@/app/chat/contexts/chat-route-base-context";
 import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";

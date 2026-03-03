@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 
+import { useChatRouteBase } from "@/app/chat/contexts/chat-route-base-context";
 import {
   AlertDialog,
   AlertDialogAction,

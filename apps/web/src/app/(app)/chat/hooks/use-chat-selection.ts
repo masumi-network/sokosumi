@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { useChatRouteBase } from "@/app/chat/contexts/chat-route-base-context";
 import {
   bucketKeyFromDisplaySlug,
   displaySlugFromMetadata,
