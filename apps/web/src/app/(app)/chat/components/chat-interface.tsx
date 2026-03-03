@@ -22,7 +22,6 @@ import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSelection } from "@/app/chat/hooks/use-chat-selection";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
-import { useKeyboardBottomOffset } from "@/app/chat/hooks/use-keyboard-bottom-offset";
 import { usePendingResponsePolling } from "@/app/chat/hooks/use-pending-response-polling";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
@@ -42,12 +41,14 @@ interface SlotPayload {
 }
 
 interface ChatInterfaceProps {
+  mobileKeyboardOptimized?: boolean;
   organizationSlug: string | null;
   userImageUrl: string;
   userName?: string;
 }
 
 export default function ChatInterface({
+  mobileKeyboardOptimized = false,
   organizationSlug,
   userImageUrl,
   userName,
@@ -615,8 +616,6 @@ export default function ChatInterface({
       refreshConversations,
     });
 
-  const keyboardBottomOffset = useKeyboardBottomOffset();
-
   const {
     createModelChat,
     createCoworkerChat,
@@ -885,20 +884,14 @@ export default function ChatInterface({
             )}
             {!isConversationLoading && (
               <>
-                <div
-                  className="absolute right-0 bottom-0 left-0 z-[5] h-[11rem] md:h-[8rem]"
-                  style={
-                    keyboardBottomOffset > 0
-                      ? { bottom: `${keyboardBottomOffset}px` }
-                      : undefined
-                  }
-                >
+                <div className="absolute right-0 bottom-0 left-0 z-[5] h-[11rem] md:h-[8rem]">
                   <div
                     aria-hidden
                     className="from-background via-background/60 pointer-events-none absolute top-0 right-0 bottom-auto left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
                   />
                   <ChatInputContainer
                     key={selectedChatId}
+                    mobileKeyboardOptimized={mobileKeyboardOptimized}
                     selectedChatId={selectedChatId}
                     input={input}
                     setInput={setInput}
@@ -919,6 +912,7 @@ export default function ChatInterface({
           </>
         ) : (
           <WelcomeScreen
+            mobileKeyboardOptimized={mobileKeyboardOptimized}
             userName={userName?.split(" ")[0] ?? userName}
             onSendMessage={handleSendMessage}
             isTransitioning={isWelcomeTransitioning}

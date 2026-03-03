@@ -26,13 +26,15 @@ export const PromptInput = ({ className, ...props }: PromptInputProps) => (
 );
 
 export type PromptInputTextareaProps = ComponentProps<typeof Textarea> & {
-  minHeight?: number;
+  allowEnterToSubmitOnMobile?: boolean;
   maxHeight?: number;
+  minHeight?: number;
   disableAutoResize?: boolean;
   resizeOnNewLinesOnly?: boolean;
 };
 
 export const PromptInputTextarea = ({
+  allowEnterToSubmitOnMobile = true,
   onChange,
   className,
   placeholder,
@@ -57,8 +59,11 @@ export const PromptInputTextarea = ({
 
       e.preventDefault();
 
-      // On mobile, require the send button; Enter must not submit (keyboard stays open).
-      if (typeof window !== "undefined" && window.innerWidth < 768) {
+      if (
+        !allowEnterToSubmitOnMobile &&
+        typeof window !== "undefined" &&
+        window.innerWidth < 768
+      ) {
         return;
       }
 

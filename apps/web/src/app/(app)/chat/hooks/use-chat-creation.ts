@@ -52,6 +52,7 @@ export function useChatCreation({
   conversations,
 }: UseChatCreationProps) {
   const router = useRouter();
+  const basePath = useChatRouteBase();
   const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
   const [showMessagesAfterTransition, setShowMessagesAfterTransition] =
@@ -111,13 +112,14 @@ export function useChatCreation({
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
         `model-${model.id.replace(/\//g, "-")}`;
-      router.push(`/chat/${slug}/conversation/${conversation.id}`, {
+      router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
         scroll: false,
       });
 
       return conversation;
     },
     [
+      basePath,
       createNewConversation,
       setMessages,
       setInput,
@@ -195,13 +197,14 @@ export function useChatCreation({
         (coworker.slug ? slugify(coworker.slug) : null) ||
         slugify(coworker.name) ||
         `coworker-${coworker.id}`;
-      router.push(`/chat/${slug}/conversation/${conversation.id}`, {
+      router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
         scroll: false,
       });
 
       return conversation;
     },
     [
+      basePath,
       createNewConversation,
       setMessages,
       setInput,
