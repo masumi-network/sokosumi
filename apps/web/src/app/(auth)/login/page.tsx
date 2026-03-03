@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import {
   AuthRedirectSearchParams,
   getRedirectQueryString,
-} from "@/app/(auth)/redirect-query";
+} from "@/lib/utils/auth-redirect";
 
 interface LoginRedirectProps {
   searchParams: Promise<AuthRedirectSearchParams>;
