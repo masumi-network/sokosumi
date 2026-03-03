@@ -52,6 +52,9 @@ const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 
 export const auth = betterAuth({
+  silenceWarnings: {
+    oauthAuthServerConfig: true,
+  },
   session: {
     cookieCache: {
       enabled: true,
