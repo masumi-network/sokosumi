@@ -5,6 +5,14 @@ import {
 } from "@sokosumi/masumi/types";
 import * as z from "zod";
 
+import {
+  DATE_VALUE_REGEX,
+  DATETIME_LOCAL_VALUE_REGEX,
+  isDatetimeLocalValue,
+  normalizeDatetimeLocalValidationBound,
+  normalizeDateValidationBound,
+  parseDateValue,
+} from "@/lib/job-input/date-value";
 import { parseISOWeek, parseMonth } from "@/lib/utils";
 
 import { JobInputFormIntlPath } from "./type";
@@ -217,36 +225,98 @@ export function applyNumericValidations(
   return parsed.canBeOptional ? result.nullish() : result;
 }
 
+function applyDateRangeRefinements(
+  schema: z.ZodString,
+  parsed: ParsedValidationOptions,
+  name: string,
+  t: IntlTranslation<JobInputFormIntlPath> | undefined,
+  normalizeBound: (value: string | number) => string | undefined,
+  getBoundLabel?: (raw: string | number, normalized: string) => string,
+): z.ZodString {
+  let nextSchema = schema;
+
+  if (parsed.min !== undefined) {
+    const minDate = normalizeBound(parsed.min);
+    if (minDate) {
+      nextSchema = nextSchema.refine((value) => value >= minDate, {
+        error: t?.("Date.min", {
+          name,
+          value: getBoundLabel?.(parsed.min, minDate) ?? minDate,
+        }),
+      });
+    }
+  }
+
+  if (parsed.max !== undefined) {
+    const maxDate = normalizeBound(parsed.max);
+    if (maxDate) {
+      nextSchema = nextSchema.refine((value) => value <= maxDate, {
+        error: t?.("Date.max", {
+          name,
+          value: getBoundLabel?.(parsed.max, maxDate) ?? maxDate,
+        }),
+      });
+    }
+  }
+
+  return nextSchema;
+}
+
 /**
- * Apply date validations using coerced date schema
+ * Apply date validations using strict YYYY-MM-DD strings
  */
-export function applyDateValidations(
+export function applyDateStringValidations(
   validations: ValidationEntry[] | null | undefined,
   name: string,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ): z.ZodTypeAny {
   const parsed = parseValidations(validations);
-  let schema = z.coerce.date<Date>({ error: t?.("String.required", { name }) });
-
-  if (parsed.min) {
-    const minDate =
-      typeof parsed.min === "number"
-        ? new Date(parsed.min)
-        : new Date(parsed.min);
-    schema = schema.min(minDate, {
-      error: t?.("Date.min", { name, value: minDate.toLocaleDateString() }),
+  let schema = z
+    .string({ error: t?.("String.required", { name }) })
+    .regex(DATE_VALUE_REGEX, {
+      error: t?.("String.format", { name, value: "date" }),
+    })
+    .refine((value) => !!parseDateValue(value), {
+      error: t?.("String.format", { name, value: "date" }),
     });
-  }
 
-  if (parsed.max) {
-    const maxDate =
-      typeof parsed.max === "number"
-        ? new Date(parsed.max)
-        : new Date(parsed.max);
-    schema = schema.max(maxDate, {
-      error: t?.("Date.max", { name, value: maxDate.toLocaleDateString() }),
+  schema = applyDateRangeRefinements(
+    schema,
+    parsed,
+    name,
+    t,
+    normalizeDateValidationBound,
+  );
+
+  return parsed.canBeOptional ? schema.nullish() : schema;
+}
+
+/**
+ * Apply datetime-local validations using strict YYYY-MM-DDTHH:mm strings
+ */
+export function applyDatetimeLocalValidations(
+  validations: ValidationEntry[] | null | undefined,
+  name: string,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const parsed = parseValidations(validations);
+  let schema = z
+    .string({ error: t?.("String.required", { name }) })
+    .regex(DATETIME_LOCAL_VALUE_REGEX, {
+      error: t?.("String.format", { name, value: "datetime-local" }),
+    })
+    .refine((value) => isDatetimeLocalValue(value), {
+      error: t?.("String.format", { name, value: "datetime-local" }),
     });
-  }
+
+  schema = applyDateRangeRefinements(
+    schema,
+    parsed,
+    name,
+    t,
+    normalizeDatetimeLocalValidationBound,
+    (raw, normalized) => (typeof raw === "string" ? raw : normalized),
+  );
 
   return parsed.canBeOptional ? schema.nullish() : schema;
 }

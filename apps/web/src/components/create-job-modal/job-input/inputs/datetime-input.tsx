@@ -1,6 +1,5 @@
 import { InputDatetimeSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { format } from "date-fns";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
@@ -12,7 +11,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { parseDate } from "@/lib/utils";
+import {
+  DATETIME_LOCAL_VALUE_REGEX,
+  formatDateValue,
+  isDateValueOutOfBounds,
+  normalizeDatetimeLocalValidationBound,
+  parseDateValue,
+  TIME_VALUE_REGEX,
+} from "@/lib/job-input/date-value";
 
 import { JobInputComponentProps } from "./types";
 
@@ -21,40 +27,45 @@ export function DatetimeInput({
   field,
   jobInputSchema,
 }: JobInputComponentProps<InputType.DATETIME, InputDatetimeSchemaType>) {
-  const valueDate = field.value instanceof Date ? field.value : undefined;
-  const timeString = valueDate ? format(valueDate, "HH:mm") : "";
+  const valueString =
+    typeof field.value === "string" &&
+    DATETIME_LOCAL_VALUE_REGEX.test(field.value)
+      ? field.value
+      : "";
+  const [datePart, timePart] = valueString.split("T");
+  const valueDate = datePart ? parseDateValue(datePart) : undefined;
+  const timeString =
+    typeof timePart === "string" && TIME_VALUE_REGEX.test(timePart)
+      ? timePart
+      : "";
 
   const handleSelectDate = (d?: Date) => {
     if (!d) return field.onChange(null);
-    const next = new Date(d);
-    if (valueDate) {
-      next.setHours(valueDate.getHours());
-      next.setMinutes(valueDate.getMinutes());
-      next.setSeconds(0, 0);
-    }
-    field.onChange(next);
+    const nextDatePart = formatDateValue(d);
+    const nextTimePart = timeString || "00:00";
+    field.onChange(`${nextDatePart}T${nextTimePart}`);
   };
 
   const handleTimeChange = (v: string) => {
-    const [hh, mm] = v.split(":").map((n) => Number(n));
-    const base = valueDate ?? new Date();
-    const next = new Date(base);
-    next.setHours(Number.isFinite(hh) ? hh : 0);
-    next.setMinutes(Number.isFinite(mm) ? mm : 0);
-    next.setSeconds(0, 0);
-    field.onChange(next);
+    const nextTimePart = TIME_VALUE_REGEX.test(v) ? v : "00:00";
+    const baseDatePart = datePart || formatDateValue(new Date());
+    field.onChange(`${baseDatePart}T${nextTimePart}`);
   };
 
-  const { minDate, maxDate } = useMemo(() => {
+  const { minDateValue, maxDateValue } = useMemo(() => {
     const transformedValidations =
       transformJobInputSchemaValidations(jobInputSchema);
-    const minDate = parseDate(
+    const minDateTimeValue = normalizeDatetimeLocalValidationBound(
       transformedValidations.min as string | number | undefined,
     );
-    const maxDate = parseDate(
+    const maxDateTimeValue = normalizeDatetimeLocalValidationBound(
       transformedValidations.max as string | number | undefined,
     );
-    return { minDate, maxDate };
+
+    return {
+      minDateValue: minDateTimeValue?.split("T")[0],
+      maxDateValue: maxDateTimeValue?.split("T")[0],
+    };
   }, [jobInputSchema]);
 
   return (
@@ -73,10 +84,13 @@ export function DatetimeInput({
             mode="single"
             selected={valueDate}
             onSelect={handleSelectDate}
-            disabled={(date) =>
-              (minDate ? date < minDate : false) ||
-              (maxDate ? date > maxDate : false)
-            }
+            disabled={(date) => {
+              const dateValue = formatDateValue(date);
+              return isDateValueOutOfBounds(dateValue, {
+                min: minDateValue,
+                max: maxDateValue,
+              });
+            }}
             captionLayout="dropdown"
             autoFocus
           />
