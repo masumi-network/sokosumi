@@ -10,6 +10,46 @@ export function formatDateValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+export function normalizeDateValidationBound(
+  value: string | number | Date | null | undefined,
+): string | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+
+    if (parseDateValue(trimmed)) {
+      return trimmed;
+    }
+
+    const fromDatetimeLocal = parseDatetimeLocalValue(trimmed);
+    if (fromDatetimeLocal) {
+      return formatDateValue(fromDatetimeLocal);
+    }
+
+    if (/^\d+$/.test(trimmed)) {
+      const fromTimestamp = new Date(Number(trimmed));
+      return Number.isNaN(fromTimestamp.getTime())
+        ? undefined
+        : formatDateValue(fromTimestamp);
+    }
+
+    const fromIso = new Date(trimmed);
+    return Number.isNaN(fromIso.getTime())
+      ? undefined
+      : formatDateValue(fromIso);
+  }
+
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : formatDateValue(parsed);
+}
+
 export function parseDateValue(value: string): Date | undefined {
   if (!DATE_VALUE_REGEX.test(value)) {
     return undefined;

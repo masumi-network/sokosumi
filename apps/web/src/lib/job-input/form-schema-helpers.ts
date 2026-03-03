@@ -9,9 +9,8 @@ import {
   DATE_VALUE_REGEX,
   DATETIME_LOCAL_VALUE_REGEX,
   formatDatetimeLocalValue,
-  formatDateValue,
   isDatetimeLocalValue,
-  parseDatetimeLocalValue,
+  normalizeDateValidationBound,
   parseDateValue,
 } from "@/lib/job-input/date-value";
 import { parseISOWeek, parseMonth } from "@/lib/utils";
@@ -226,48 +225,6 @@ export function applyNumericValidations(
   return parsed.canBeOptional ? result.nullish() : result;
 }
 
-function parseValidationDate(value: string | number): Date | undefined {
-  if (typeof value === "number") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? undefined : date;
-  }
-
-  const raw = String(value).trim();
-  const fromDateString = parseDateValue(raw);
-  if (fromDateString) {
-    return fromDateString;
-  }
-
-  const fromDatetimeLocalString = parseDatetimeLocalValue(raw);
-  if (fromDatetimeLocalString) {
-    return fromDatetimeLocalString;
-  }
-
-  if (/^\d+$/.test(raw)) {
-    const timestampDate = new Date(Number(raw));
-    return Number.isNaN(timestampDate.getTime()) ? undefined : timestampDate;
-  }
-
-  const fromIso = new Date(raw);
-  return Number.isNaN(fromIso.getTime()) ? undefined : fromIso;
-}
-
-function parseValidationDateString(value: string | number): string | undefined {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (parseDateValue(trimmed)) {
-      return trimmed;
-    }
-  }
-
-  const parsed = parseValidationDate(value);
-  if (!parsed) {
-    return undefined;
-  }
-
-  return formatDateValue(parsed);
-}
-
 function parseValidationDatetimeLocalString(
   value: string | number,
 ): string | undefined {
@@ -309,7 +266,7 @@ export function applyDateStringValidations(
     });
 
   if (parsed.min !== undefined) {
-    const minDate = parseValidationDateString(parsed.min);
+    const minDate = normalizeDateValidationBound(parsed.min);
     if (minDate) {
       schema = schema.refine((value) => value >= minDate, {
         error: t?.("Date.min", { name, value: minDate }),
@@ -318,7 +275,7 @@ export function applyDateStringValidations(
   }
 
   if (parsed.max !== undefined) {
-    const maxDate = parseValidationDateString(parsed.max);
+    const maxDate = normalizeDateValidationBound(parsed.max);
     if (maxDate) {
       schema = schema.refine((value) => value <= maxDate, {
         error: t?.("Date.max", { name, value: maxDate }),
