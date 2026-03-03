@@ -7,16 +7,16 @@ import {
 
 describe("parseLocalePreference", () => {
   it("returns exact locale match when supported", () => {
-    expect(parseLocalePreference("pt-BR")).toBe("pt-BR");
+    expect(parseLocalePreference("es")).toBe("es");
   });
 
   it("maps normalized values to supported locales", () => {
-    expect(parseLocalePreference("pt_br")).toBe("pt-BR");
-    expect(parseLocalePreference("fr-CA")).toBe("fr");
-    expect(parseLocalePreference("zh")).toBe("zh-Hans");
+    expect(parseLocalePreference("de_de")).toBe("de");
+    expect(parseLocalePreference("es-MX")).toBe("es");
   });
 
   it("returns null for unsupported values", () => {
+    expect(parseLocalePreference("pt-BR")).toBeNull();
     expect(parseLocalePreference("xx")).toBeNull();
     expect(parseLocalePreference(null)).toBeNull();
   });
@@ -26,7 +26,7 @@ describe("resolveLocaleFromAcceptLanguage", () => {
   it("resolves first supported locale from header", () => {
     expect(
       resolveLocaleFromAcceptLanguage("fr-CA,fr;q=0.9,en-US;q=0.8,en;q=0.7"),
-    ).toBe("fr");
+    ).toBe("en");
   });
 
   it("prefers the locale with higher q-value", () => {
@@ -41,8 +41,8 @@ describe("resolveLocaleFromAcceptLanguage", () => {
     expect(resolveLocaleFromAcceptLanguage("fr;q=oops,en;q=0.8")).toBe("en");
   });
 
-  it("maps base language to default variant", () => {
-    expect(resolveLocaleFromAcceptLanguage("zh,ja;q=0.8")).toBe("zh-Hans");
+  it("maps regional language tags to supported base locale", () => {
+    expect(resolveLocaleFromAcceptLanguage("es-MX,fr;q=0.8")).toBe("es");
   });
 });
 
@@ -50,11 +50,21 @@ describe("resolveRequestLocale", () => {
   it("prefers cookie locale over accept-language header", () => {
     expect(
       resolveRequestLocale({
+        cookieLocale: "de",
+        acceptLanguageHeader: "es-ES,es;q=0.8",
+        defaultLocale: DEFAULT_LOCALE,
+      }),
+    ).toBe("de");
+  });
+
+  it("ignores unsupported cookie locale and uses accept-language fallback", () => {
+    expect(
+      resolveRequestLocale({
         cookieLocale: "pt-BR",
         acceptLanguageHeader: "de-DE,de;q=0.8",
         defaultLocale: DEFAULT_LOCALE,
       }),
-    ).toBe("pt-BR");
+    ).toBe("de");
   });
 
   it("falls back to default locale when nothing matches", () => {
