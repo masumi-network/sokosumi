@@ -142,9 +142,12 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
+      "searchProfiles": "Search profiles...",
       "personalAccount": "Personal Account",
-      "noOrganizationsFound": "No organizations found",
+      "noProfilesFound": "No profiles found",
       "personalAccountHeading": "Personal",
+      "organization": "Organization",
+      "addOrganization": "Add Organization",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization"
     },
@@ -1474,7 +1477,7 @@
       },
       "Plan": {
         "upgradeCta": "Upgrade plan",
-        "userPlan": "{plan}",
+        "userPlan": "{plan} (Personal)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan unavailable"
       }
