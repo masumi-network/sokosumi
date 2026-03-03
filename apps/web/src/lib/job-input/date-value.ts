@@ -20,6 +20,16 @@ function toNonEmptyString(value: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function parseIsoDatePrefix(value: string): string | undefined {
+  const match = /^(\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))T/.exec(value);
+  if (!match) {
+    return undefined;
+  }
+
+  const datePart = match[1];
+  return parseDateValue(datePart) ? datePart : undefined;
+}
+
 export function formatDateValue(date: Date): string {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -38,6 +48,11 @@ export function normalizeDateValidationBound(
     const trimmed = toNonEmptyString(value);
     if (!trimmed) {
       return undefined;
+    }
+
+    const isoDatePrefix = parseIsoDatePrefix(trimmed);
+    if (isoDatePrefix) {
+      return isoDatePrefix;
     }
 
     const parsed =

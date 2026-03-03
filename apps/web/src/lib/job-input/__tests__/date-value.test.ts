@@ -19,6 +19,15 @@ describe("normalizeDateValidationBound", () => {
     );
   });
 
+  it("keeps calendar date for timezone-qualified ISO timestamps", () => {
+    expect(
+      normalizeDateValidationBound("2026-03-10T00:00:00.000+14:00"),
+    ).toBe("2026-03-10");
+    expect(
+      normalizeDateValidationBound("2026-03-10T23:59:59.999-12:00"),
+    ).toBe("2026-03-10");
+  });
+
   it("returns undefined for invalid values", () => {
     expect(normalizeDateValidationBound("not-a-date")).toBeUndefined();
   });

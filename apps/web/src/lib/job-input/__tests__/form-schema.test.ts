@@ -87,6 +87,29 @@ describe("jobInputsFormSchema date and datetime-local validation", () => {
         }
       }
     });
+
+    it("keeps timezone-qualified ISO bounds on the same calendar day", () => {
+      const dateFieldWithIsoTimestampBounds: InputDateSchemaType = {
+        id: "startDate",
+        type: InputType.DATE,
+        name: "Start date",
+        validations: [
+          {
+            validation: InputValidation.MIN,
+            value: "2026-03-10T00:00:00.000+14:00",
+          },
+          {
+            validation: InputValidation.MAX,
+            value: "2026-03-10T23:59:59.999-12:00",
+          },
+        ],
+      };
+      const schema = jobInputsFormSchema([dateFieldWithIsoTimestampBounds]);
+
+      expect(schema.safeParse({ startDate: "2026-03-09" }).success).toBe(false);
+      expect(schema.safeParse({ startDate: "2026-03-10" }).success).toBe(true);
+      expect(schema.safeParse({ startDate: "2026-03-11" }).success).toBe(false);
+    });
   });
 
   describe("DATETIME", () => {
