@@ -74,15 +74,14 @@ async function getAuthContextFromSession(
  * @returns Promise resolving to the user's context if authenticated, null otherwise
  *
  */
-export async function getAuthContext(): Promise<AuthContext | null> {
+export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
   const headersList = await headers();
   const key = headersList.get("x-api-key");
   if (key) {
     return await getAuthContextFromApiKey(key);
-  } else {
-    return await getAuthContextFromSession(headersList);
   }
-}
+  return await getAuthContextFromSession(headersList);
+});
 
 // ============================================================================
 // SESSION FUNCTIONS
