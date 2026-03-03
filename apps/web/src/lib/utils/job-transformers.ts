@@ -141,6 +141,7 @@ export function transactionStatusToOnChainTransactionStatus(
     case "Confirmed":
       return "COMPLETED";
     case "FailedViaTimeout":
+    case "FailedViaManualReset":
     case "RolledBack":
       return "FAILED";
     default:
