@@ -21,8 +21,9 @@ function toNonEmptyString(value: string): string | undefined {
 }
 
 function parseIsoDatePrefix(value: string): string | undefined {
-  const match =
-    /^(\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))T(.+)$/.exec(value);
+  const match = /^(\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))T(.+)$/.exec(
+    value,
+  );
   if (!match) {
     return undefined;
   }
@@ -63,8 +64,9 @@ export function normalizeDateValidationBound(
 
     const parsed =
       parseDateValue(trimmed) ??
-      parseDatetimeLocalValue(trimmed) ??
-      (/^\d+$/.test(trimmed) ? parseDateLikeValue(Number(trimmed)) : undefined) ??
+      (/^\d+$/.test(trimmed)
+        ? parseDateLikeValue(Number(trimmed))
+        : undefined) ??
       parseDateLikeValue(new Date(trimmed));
     return parsed ? formatDateValue(parsed) : undefined;
   }

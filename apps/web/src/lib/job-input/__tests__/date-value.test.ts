@@ -11,21 +11,17 @@ describe("normalizeDateValidationBound", () => {
   });
 
   it("normalizes datetime-local bounds to day precision", () => {
-    expect(normalizeDateValidationBound("2026-03-10T01:30")).toBe(
-      "2026-03-10",
-    );
-    expect(normalizeDateValidationBound("2026-03-10T23:59")).toBe(
-      "2026-03-10",
-    );
+    expect(normalizeDateValidationBound("2026-03-10T01:30")).toBe("2026-03-10");
+    expect(normalizeDateValidationBound("2026-03-10T23:59")).toBe("2026-03-10");
   });
 
   it("keeps calendar date for timezone-qualified ISO timestamps", () => {
-    expect(
-      normalizeDateValidationBound("2026-03-10T00:00:00.000+14:00"),
-    ).toBe("2026-03-10");
-    expect(
-      normalizeDateValidationBound("2026-03-10T23:59:59.999-12:00"),
-    ).toBe("2026-03-10");
+    expect(normalizeDateValidationBound("2026-03-10T00:00:00.000+14:00")).toBe(
+      "2026-03-10",
+    );
+    expect(normalizeDateValidationBound("2026-03-10T23:59:59.999-12:00")).toBe(
+      "2026-03-10",
+    );
   });
 
   it("returns undefined for malformed timestamp-like values", () => {
