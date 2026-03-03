@@ -1,4 +1,8 @@
-import { normalizeDateValidationBound } from "@/lib/job-input/date-value";
+import {
+  formatDatetimeLocalValue,
+  normalizeDateValidationBound,
+  normalizeDatetimeLocalValidationBound,
+} from "@/lib/job-input/date-value";
 
 describe("normalizeDateValidationBound", () => {
   it("keeps YYYY-MM-DD values unchanged", () => {
@@ -16,5 +20,32 @@ describe("normalizeDateValidationBound", () => {
 
   it("returns undefined for invalid values", () => {
     expect(normalizeDateValidationBound("not-a-date")).toBeUndefined();
+  });
+});
+
+describe("normalizeDatetimeLocalValidationBound", () => {
+  it("keeps valid datetime-local values unchanged", () => {
+    expect(normalizeDatetimeLocalValidationBound("2026-03-10T10:30")).toBe(
+      "2026-03-10T10:30",
+    );
+  });
+
+  it("ignores unsupported string bounds", () => {
+    expect(
+      normalizeDatetimeLocalValidationBound("2026-03-10T10:30:30"),
+    ).toBeUndefined();
+    expect(
+      normalizeDatetimeLocalValidationBound("2026-03-10T10:30:30Z"),
+    ).toBeUndefined();
+  });
+
+  it("normalizes number/date bounds to datetime-local precision", () => {
+    const value = new Date(2026, 2, 10, 10, 30, 15, 250);
+    expect(normalizeDatetimeLocalValidationBound(value)).toBe(
+      formatDatetimeLocalValue(value),
+    );
+    expect(normalizeDatetimeLocalValidationBound(value.getTime())).toBe(
+      formatDatetimeLocalValue(value),
+    );
   });
 });

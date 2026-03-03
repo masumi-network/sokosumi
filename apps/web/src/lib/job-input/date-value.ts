@@ -50,6 +50,35 @@ export function normalizeDateValidationBound(
   return Number.isNaN(parsed.getTime()) ? undefined : formatDateValue(parsed);
 }
 
+export function normalizeDatetimeLocalValidationBound(
+  value: string | number | Date | null | undefined,
+): string | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+
+    if (isDatetimeLocalValue(trimmed)) {
+      return trimmed;
+    }
+
+    // DATETIME form values are minute-precision local strings only.
+    // Ignore string bounds that are not in datetime-local format (e.g. with seconds/timezone).
+    return undefined;
+  }
+
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? undefined
+    : formatDatetimeLocalValue(parsed);
+}
+
 export function parseDateValue(value: string): Date | undefined {
   if (!DATE_VALUE_REGEX.test(value)) {
     return undefined;

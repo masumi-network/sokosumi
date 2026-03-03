@@ -8,8 +8,8 @@ import * as z from "zod";
 import {
   DATE_VALUE_REGEX,
   DATETIME_LOCAL_VALUE_REGEX,
-  formatDatetimeLocalValue,
   isDatetimeLocalValue,
+  normalizeDatetimeLocalValidationBound,
   normalizeDateValidationBound,
   parseDateValue,
 } from "@/lib/job-input/date-value";
@@ -225,28 +225,6 @@ export function applyNumericValidations(
   return parsed.canBeOptional ? result.nullish() : result;
 }
 
-function parseValidationDatetimeLocalString(
-  value: string | number,
-): string | undefined {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (isDatetimeLocalValue(trimmed)) {
-      return trimmed;
-    }
-
-    // DATETIME form values are minute-precision local strings only.
-    // Ignore string bounds that are not in datetime-local format (e.g. with seconds/timezone).
-    return undefined;
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return undefined;
-  }
-
-  return formatDatetimeLocalValue(parsed);
-}
-
 /**
  * Apply date validations using strict YYYY-MM-DD strings
  */
@@ -305,7 +283,7 @@ export function applyDatetimeLocalValidations(
     });
 
   if (parsed.min !== undefined) {
-    const minDate = parseValidationDatetimeLocalString(parsed.min);
+    const minDate = normalizeDatetimeLocalValidationBound(parsed.min);
     if (minDate) {
       const minLabel = typeof parsed.min === "string" ? parsed.min : minDate;
       schema = schema.refine((value) => value >= minDate, {
@@ -315,7 +293,7 @@ export function applyDatetimeLocalValidations(
   }
 
   if (parsed.max !== undefined) {
-    const maxDate = parseValidationDatetimeLocalString(parsed.max);
+    const maxDate = normalizeDatetimeLocalValidationBound(parsed.max);
     if (maxDate) {
       const maxLabel = typeof parsed.max === "string" ? parsed.max : maxDate;
       schema = schema.refine((value) => value <= maxDate, {

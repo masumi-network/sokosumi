@@ -14,10 +14,10 @@ import {
 import {
   DATETIME_LOCAL_VALUE_REGEX,
   formatDateValue,
+  normalizeDatetimeLocalValidationBound,
   parseDateValue,
   TIME_VALUE_REGEX,
 } from "@/lib/job-input/date-value";
-import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
 
@@ -51,16 +51,20 @@ export function DatetimeInput({
     field.onChange(`${baseDatePart}T${nextTimePart}`);
   };
 
-  const { minDate, maxDate } = useMemo(() => {
+  const { minDateValue, maxDateValue } = useMemo(() => {
     const transformedValidations =
       transformJobInputSchemaValidations(jobInputSchema);
-    const minDate = parseDate(
+    const minDateTimeValue = normalizeDatetimeLocalValidationBound(
       transformedValidations.min as string | number | undefined,
     );
-    const maxDate = parseDate(
+    const maxDateTimeValue = normalizeDatetimeLocalValidationBound(
       transformedValidations.max as string | number | undefined,
     );
-    return { minDate, maxDate };
+
+    return {
+      minDateValue: minDateTimeValue?.split("T")[0],
+      maxDateValue: maxDateTimeValue?.split("T")[0],
+    };
   }, [jobInputSchema]);
 
   return (
@@ -79,10 +83,13 @@ export function DatetimeInput({
             mode="single"
             selected={valueDate}
             onSelect={handleSelectDate}
-            disabled={(date) =>
-              (minDate ? date < minDate : false) ||
-              (maxDate ? date > maxDate : false)
-            }
+            disabled={(date) => {
+              const dateValue = formatDateValue(date);
+              return (
+                (minDateValue ? dateValue < minDateValue : false) ||
+                (maxDateValue ? dateValue > maxDateValue : false)
+              );
+            }}
             captionLayout="dropdown"
             autoFocus
           />
