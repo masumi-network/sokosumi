@@ -142,9 +142,12 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
+      "searchProfiles": "Search profiles...",
       "personalAccount": "Personal Account",
-      "noOrganizationsFound": "No organizations found",
+      "noProfilesFound": "No profiles found",
       "personalAccountHeading": "Personal",
+      "organization": "Organization",
+      "addOrganization": "Add Organization",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization"
     },
@@ -1474,7 +1477,7 @@
       },
       "Plan": {
         "upgradeCta": "Upgrade plan",
-        "userPlan": "{plan}",
+        "userPlan": "{plan} (Personal)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan unavailable"
       }
@@ -1508,7 +1511,7 @@
           "features": {
             "title": "Free Includes:",
             "items": {
-              "item1": "Limited Access to one Agentic Co-Worker",
+              "item1": "Limited Access to 1 Agentic Coworker",
               "item2": "Email and WhatsApp Access to Agents",
               "item3": "Latest Generation of Claude Models",
               "item4": "Access to 100+ Marketing Agents"
@@ -1521,10 +1524,10 @@
           "features": {
             "title": "Everything in Free, plus:",
             "items": {
-              "item1": "Full Access to all Agentic Co-Workers",
-              "item2": "Full access to Web Search for Agents",
+              "item1": "Access to our Research Coworker",
+              "item2": "Ability to buy more Credits on Demand",
               "item3": "Read & Create Office Documents",
-              "item4": "Integrate with Microsoft Teams"
+              "item4": "Integrate with Microsoft 365"
             }
           }
         },
@@ -1534,9 +1537,9 @@
           "features": {
             "title": "Everything in Starter, plus:",
             "items": {
-              "item1": "3x more Credits for Agents",
-              "item2": "Schedule recurring Co-worker tasks",
-              "item3": "20+ Marketing Tool Integrations"
+              "item1": "Access to our Coding Coworker",
+              "item2": "3x more Credits for Agents",
+              "item3": "Schedule recurring Coworker tasks"
             }
           }
         },
@@ -1547,7 +1550,7 @@
             "title": "Everything in Standard, plus:",
             "items": {
               "item1": "Massive Amount of Credits for Agents",
-              "item2": "Custom Templates for Office Docs",
+              "item2": "Custom Templates for Output Files",
               "item3": "Early Access to new Agents & Features"
             }
           }
