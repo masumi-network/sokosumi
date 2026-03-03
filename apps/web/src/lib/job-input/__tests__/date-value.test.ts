@@ -28,6 +28,13 @@ describe("normalizeDateValidationBound", () => {
     ).toBe("2026-03-10");
   });
 
+  it("returns undefined for malformed timestamp-like values", () => {
+    expect(normalizeDateValidationBound("2026-03-10T")).toBeUndefined();
+    expect(
+      normalizeDateValidationBound("2026-03-10Tnot-a-time"),
+    ).toBeUndefined();
+  });
+
   it("returns undefined for invalid values", () => {
     expect(normalizeDateValidationBound("not-a-date")).toBeUndefined();
   });

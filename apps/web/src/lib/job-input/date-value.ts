@@ -21,13 +21,19 @@ function toNonEmptyString(value: string): string | undefined {
 }
 
 function parseIsoDatePrefix(value: string): string | undefined {
-  const match = /^(\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))T/.exec(value);
+  const match =
+    /^(\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))T(.+)$/.exec(value);
   if (!match) {
     return undefined;
   }
 
   const datePart = match[1];
-  return parseDateValue(datePart) ? datePart : undefined;
+  if (!parseDateValue(datePart)) {
+    return undefined;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : datePart;
 }
 
 export function formatDateValue(date: Date): string {
