@@ -565,21 +565,19 @@ export async function getUserJobs(
   };
 
   const takePlusOne = take + 1;
-  const [jobs, count] = await Promise.all([
-    tx.job.findMany({
-      where,
-      take: takePlusOne,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      include: {
-        ...jobWithEvents,
-        ...jobWithTransaction,
-        ...jobWithPurchase,
-      },
-    }),
-    tx.job.count({ where }),
-  ]);
+  const jobs = await tx.job.findMany({
+    where,
+    take: takePlusOne,
+    skip,
+    cursor: cursor ? { id: cursor } : undefined,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    include: {
+      ...jobWithEvents,
+      ...jobWithTransaction,
+      ...jobWithPurchase,
+    },
+  });
+  const count = await tx.job.count({ where });
   return {
     jobs: jobs.slice(0, take).map(flattenJob),
     count,

@@ -77,20 +77,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const where = buildAvailableAgentWhereClause(creditCosts);
 
       const takePlusOne = take + 1;
-      const [agents, count] = await Promise.all([
-        tx.agent.findMany({
-          where,
-          take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
-          orderBy: [...agentOrderBy, { id: "desc" }],
-          include: {
-            ...agentPricingInclude,
-            ...agentJobsCountInclude,
-          },
-        }),
-        tx.agent.count({ where }),
-      ]);
+      const agents = await tx.agent.findMany({
+        where,
+        take: takePlusOne,
+        skip,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: [...agentOrderBy, { id: "desc" }],
+        include: {
+          ...agentPricingInclude,
+          ...agentJobsCountInclude,
+        },
+      });
+      const count = await tx.agent.count({ where });
 
       const agentsWithCredits = agents
         .slice(0, take)
