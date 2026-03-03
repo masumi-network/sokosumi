@@ -41,12 +41,14 @@ interface SlotPayload {
 }
 
 interface ChatInterfaceProps {
+  mobileKeyboardOptimized?: boolean;
   organizationSlug: string | null;
   userImageUrl: string;
   userName?: string;
 }
 
 export default function ChatInterface({
+  mobileKeyboardOptimized = false,
   organizationSlug,
   userImageUrl,
   userName,
@@ -889,6 +891,7 @@ export default function ChatInterface({
                   />
                   <ChatInputContainer
                     key={selectedChatId}
+                    mobileKeyboardOptimized={mobileKeyboardOptimized}
                     selectedChatId={selectedChatId}
                     input={input}
                     setInput={setInput}
@@ -909,6 +912,7 @@ export default function ChatInterface({
           </>
         ) : (
           <WelcomeScreen
+            mobileKeyboardOptimized={mobileKeyboardOptimized}
             userName={userName?.split(" ")[0] ?? userName}
             onSendMessage={handleSendMessage}
             isTransitioning={isWelcomeTransitioning}

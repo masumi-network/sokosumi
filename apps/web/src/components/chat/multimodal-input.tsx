@@ -58,6 +58,8 @@ interface MultimodalInputProps {
   coworkers?: Coworker[];
   coworkersLoading?: boolean;
   onCoworkerChange?: (coworker: Coworker) => void;
+  enterSubmitsOnMobile?: boolean;
+  blurOnSendOnMobile?: boolean;
 }
 
 function PureMultimodalInput({
@@ -78,6 +80,8 @@ function PureMultimodalInput({
   coworkers: propCoworkers,
   coworkersLoading: propCoworkersLoading,
   onCoworkerChange,
+  enterSubmitsOnMobile = true,
+  blurOnSendOnMobile = false,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -200,6 +204,10 @@ function PureMultimodalInput({
   };
 
   const submitForm = useCallback(() => {
+    if (blurOnSendOnMobile && width && width < 768) {
+      textareaRef.current?.blur();
+    }
+
     // Use onSendMessage if provided (for welcome screen to create conversation)
     // Otherwise use sendMessage from useChat hook
     if (onSendMessage) {
@@ -229,6 +237,7 @@ function PureMultimodalInput({
     resetHeight,
     selectedCoworker,
     selectedModel,
+    blurOnSendOnMobile,
   ]);
 
   const coworkers = propCoworkers ?? [];
@@ -339,6 +348,7 @@ function PureMultimodalInput({
       >
         <div className="flex flex-row items-start gap-1 sm:gap-2">
           <PromptInputTextarea
+            allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
             className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-2 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
             data-testid="multimodal-input"
             disableAutoResize={true}
@@ -395,6 +405,12 @@ export const MultimodalInput = memo(
       return false;
     }
     if (prevProps.coworkersLoading !== nextProps.coworkersLoading) {
+      return false;
+    }
+    if (prevProps.enterSubmitsOnMobile !== nextProps.enterSubmitsOnMobile) {
+      return false;
+    }
+    if (prevProps.blurOnSendOnMobile !== nextProps.blurOnSendOnMobile) {
       return false;
     }
 
