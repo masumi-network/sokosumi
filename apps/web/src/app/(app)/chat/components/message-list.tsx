@@ -18,7 +18,11 @@ import {
 } from "@/app/chat/utils/date-utils";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
+import { AssistantAvatarContent } from "./assistant-avatar-content";
 import ChatMessage from "./chat-message";
 import DaySeparator from "./day-separator";
 import LoadingIndicator from "./loading-indicator";
@@ -58,6 +62,7 @@ interface MessageListProps {
   pendingResponseFailed?: boolean;
   reasoningMessages?: Array<{ id: string; message: string }>;
   isCoworker?: boolean;
+  onResendLastMessage?: (lastUserMessageText: string) => void;
 }
 
 const MessageList = forwardRef<MessageListHandle, MessageListProps>(
@@ -74,6 +79,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       pendingResponseFailed = false,
       reasoningMessages = [],
       isCoworker = false,
+      onResendLastMessage,
     },
     ref,
   ) {
@@ -134,10 +140,6 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
 
     const sections = groupMessagesIntoSection(messagesWithTimestamps);
 
-    useEffect(() => {
-      if (sections.length > 1) scrollToMax();
-    }, [sections.length, scrollToMax]);
-
     const selectedChat = chats.find((c) => c.id === selectedChatId);
     const coworkerId = selectedChat?.coworker?.id;
     const coworkerName = selectedChat?.coworker?.name;
@@ -148,6 +150,60 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       selectedChat?.coworker?.avatar ?? coworkerFromList?.avatar;
     const modelName = selectedChat?.model?.name;
     const modelId = selectedChat?.model?.id;
+
+    const lastUserMessageText = (() => {
+      for (let i = messagesWithTimestamps.length - 1; i >= 0; i--) {
+        const msg = messagesWithTimestamps[i];
+        if ((msg.role as string) === "user") {
+          const text = extractMessageContent(msg).trim();
+          if (text) return text;
+          return "";
+        }
+      }
+      return "";
+    })();
+
+    const canResend = Boolean(
+      pendingResponseFailed && onResendLastMessage && lastUserMessageText,
+    );
+
+    const pendingErrorBlock = pendingResponseFailed && (
+      <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
+        <Avatar
+          className={cn(
+            "size-8 shrink-0 overflow-hidden rounded-full",
+            modelId && "bg-white dark:bg-black",
+          )}
+        >
+          <AssistantAvatarContent
+            coworkerId={coworkerId ?? undefined}
+            coworkerImageUrl={coworkerImageUrl}
+            coworkerName={coworkerName}
+            modelId={modelId ?? undefined}
+            modelName={modelName}
+          />
+        </Avatar>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <p className="text-muted-foreground text-sm">
+            {t("pendingResponseFailed")}
+          </p>
+          {canResend && (
+            <Button
+              className="w-fit"
+              onClick={() => onResendLastMessage?.(lastUserMessageText)}
+              size="sm"
+              variant="primary"
+            >
+              {t("resend")}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+
+    useEffect(() => {
+      if (sections.length > 1) scrollToMax();
+    }, [sections.length, scrollToMax]);
 
     function renderMessage(message: UIMessage, index: number) {
       const role = message.role as "user" | "assistant" | "system";
@@ -261,11 +317,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                       />
                     )}
                     {showLoadingIndicator && <LoadingIndicator />}
-                    {pendingResponseFailed && (
-                      <div className="text-muted-foreground flex min-h-11 items-start gap-3 px-4 py-1.5 text-sm">
-                        {t("pendingResponseFailed")}
-                      </div>
-                    )}
+                    {pendingErrorBlock}
                     <div
                       className="min-h-[160px] shrink-0"
                       aria-hidden
@@ -307,11 +359,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                           />
                         )}
                         {showLoadingIndicator && <LoadingIndicator />}
-                        {pendingResponseFailed && (
-                          <div className="text-muted-foreground flex min-h-11 items-start gap-3 px-4 py-1.5 text-sm">
-                            {t("pendingResponseFailed")}
-                          </div>
-                        )}
+                        {pendingErrorBlock}
                         {(showLoadingArea || pendingResponseFailed) && (
                           <div
                             className="min-h-[160px] shrink-0"

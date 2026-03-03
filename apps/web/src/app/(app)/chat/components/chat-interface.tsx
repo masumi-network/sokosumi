@@ -801,6 +801,14 @@ export default function ChatInterface({
     [selectedChatId, cachedMessagesByConversation, setMessagesForConversation],
   );
 
+  const handleResendLastMessage = useCallback(
+    (text: string) => {
+      if (!selectedChatId || !text.trim()) return;
+      sendInConversation(selectedChatId, text.trim());
+    },
+    [selectedChatId, sendInConversation],
+  );
+
   const handleStop = () => {
     stopSelectedChat();
   };
@@ -867,17 +875,18 @@ export default function ChatInterface({
                   </div>
                 ) : (
                   <MessageList
-                    messages={displayedMessages}
-                    selectedChatId={selectedChatId}
                     chats={chats}
                     coworkers={coworkers}
-                    userImageUrl={userImageUrl}
-                    userName={userName}
                     isLoading={isLoading}
+                    isCoworker={isSelectedChatCoworker}
                     isPollingForPendingResponse={isPollingForPendingResponse}
+                    messages={displayedMessages}
+                    onResendLastMessage={handleResendLastMessage}
                     pendingResponseFailed={pendingResponseFailed}
                     reasoningMessages={selectedChatReasoningMessages}
-                    isCoworker={isSelectedChatCoworker}
+                    selectedChatId={selectedChatId}
+                    userImageUrl={userImageUrl}
+                    userName={userName}
                   />
                 )}
               </>
