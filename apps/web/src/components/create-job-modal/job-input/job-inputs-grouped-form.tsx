@@ -3,8 +3,8 @@
 import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 import type {
-  InputFieldSchemaType,
   InputGroupSchemaType,
+  InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
 import {
   ArrowLeft,
@@ -53,7 +53,7 @@ interface CommonGroupedFormProps {
 interface StandardModeProps extends CommonGroupedFormProps {
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number | null;
-  flatInputs: InputFieldSchemaType[];
+  inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   customOnSubmit?: undefined;
@@ -73,7 +73,7 @@ interface CustomModeProps extends CommonGroupedFormProps {
   customIsActive: boolean;
   agent?: undefined;
   averageExecutionDuration?: undefined;
-  flatInputs?: undefined;
+  inputSchema?: undefined;
   demoValues?: undefined;
   legal?: undefined;
 }
@@ -98,7 +98,7 @@ function JobInputsGroupedFormStandard({
   agent,
   averageExecutionDuration,
   groups,
-  flatInputs,
+  inputSchema,
   demoValues,
   legal,
   className,
@@ -140,7 +140,7 @@ function JobInputsGroupedFormStandard({
 
   const { handleSubmit } = useJobSubmission({
     agent,
-    flatInputs,
+    inputSchema,
     demoValues,
     scheduleSelection,
     setLoading,

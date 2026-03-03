@@ -1,4 +1,4 @@
-import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 
 import {
   AgentJobStatus,
@@ -27,7 +27,7 @@ interface CreateDemoJobData {
   agentId: string;
   userId: string;
   organizationId?: string | null;
-  inputSchema: unknown[];
+  inputSchema: InputSchemaSchemaType;
   input: string;
   name: string | null;
   result?: string | null;
@@ -38,7 +38,7 @@ interface CreateJobBase {
   agentId: string;
   userId: string;
   organizationId: string | null | undefined;
-  inputSchema: unknown[];
+  inputSchema: InputSchemaSchemaType;
   input: string;
   inputHash: string | null;
   name: string | null;
@@ -201,13 +201,7 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
-      data.inputSchema,
-    );
-    if (inputSchemaSnapshotResult.isErr()) {
-      throw new Error(inputSchemaSnapshotResult.error);
-    }
-    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+    const inputSchemaSnapshot = JSON.stringify(data.inputSchema);
 
     const job = await tx.job.create({
       data: {
@@ -234,7 +228,7 @@ export const jobRepository = {
           create: {
             status: AgentJobStatus.INITIATED,
             result: null,
-            inputSchema: inputSchemaSnapshot.inputSchema,
+            inputSchema: inputSchemaSnapshot,
             input: {
               create: {
                 input: data.input,
@@ -272,13 +266,7 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient,
   ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshotResult = buildInputSchemaSnapshot(
-      data.inputSchema,
-    );
-    if (inputSchemaSnapshotResult.isErr()) {
-      throw new Error(inputSchemaSnapshotResult.error);
-    }
-    const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+    const inputSchemaSnapshot = JSON.stringify(data.inputSchema);
 
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
@@ -304,7 +292,7 @@ export const jobRepository = {
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchema: inputSchemaSnapshot,
           input: {
             create: {
               input: data.input,

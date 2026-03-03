@@ -19,7 +19,6 @@ import {
 } from "@/lib/api";
 import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
-import { flattenInputs } from "@/lib/schemas/job";
 import { agentService } from "@/lib/services";
 
 interface RouteParams {
@@ -115,7 +114,6 @@ export async function POST(
     const validatedInputSchema = inputSchemaSchema.parse(
       inputSchemaResponse.data,
     );
-    const flatInputSchema = flattenInputs(validatedInputSchema);
 
     // Convert credits back to cents for the job service
     const maxAcceptedCents = convertCreditsToCents(
@@ -127,7 +125,7 @@ export async function POST(
       input: {
         agentId,
         maxAcceptedCents,
-        inputSchema: flatInputSchema,
+        inputSchema: validatedInputSchema,
         inputData: validatedData.inputData,
       },
       authContext,

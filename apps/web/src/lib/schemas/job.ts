@@ -1,5 +1,4 @@
 import {
-  inputFieldSchema,
   InputFieldSchemaType,
   inputGroupsSchema,
   inputSchema,
@@ -15,7 +14,7 @@ export const startJobInputSchema = z.object({
   organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
-  inputSchema: z.array(inputFieldSchema),
+  inputSchema: inputSchemaResponseSchema,
   inputData: inputSchema,
   jobScheduleId: z.string().nullish(),
 });
@@ -125,7 +124,6 @@ export type JobStatusValue = (typeof JOB_STATUS_VALUES)[number];
 
 export const jobStatusResponseSchema = z
   .object({
-    id: z.string().nullish(),
     status: z.enum(JOB_STATUS_VALUES),
     input_schema: inputSchemaResponseSchema.nullish(),
     result: z.string().nullish(),
@@ -156,7 +154,7 @@ export const createJobScheduleInputSchema = z.object({
   cron: z.string().nullish(),
   oneTimeAtUtc: z.string().nullish(),
   timezone: z.string(),
-  inputSchema: z.array(inputFieldSchema),
+  inputSchema: inputSchemaResponseSchema,
   inputData: inputSchema,
   maxAcceptedCents: z.bigint(),
   endOnUtc: z.string().nullish(),
@@ -172,7 +170,7 @@ export type CreateJobScheduleInputSchemaType = z.infer<
 
 export const provideJobInputSchema = z.object({
   jobId: z.string(),
-  statusId: z.string(),
+  eventId: z.string(),
   inputData: inputSchema,
 });
 

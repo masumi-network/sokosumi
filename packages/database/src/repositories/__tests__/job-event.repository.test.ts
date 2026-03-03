@@ -6,7 +6,7 @@ import type { Prisma } from "../../generated/prisma/client.js";
 import { jobEventRepository } from "../job-event.repository.js";
 
 describe("jobEventRepository.createJobEventForJobId", () => {
-  it("does not store inputSchemaHash when inputSchema is provided", async () => {
+  it("stores statusHash when provided", async () => {
     const inputSchema = JSON.stringify([
       {
         id: "prompt",
@@ -30,16 +30,17 @@ describe("jobEventRepository.createJobEventForJobId", () => {
       "job-1",
       {
         status: AgentJobStatus.INITIATED,
+        statusHash: "status-hash-1",
         inputSchema,
       },
       tx,
     );
 
     const data = (createCall as { data: Record<string, unknown> }).data;
-    assert.equal("inputSchemaHash" in data, false);
+    assert.equal(data.statusHash, "status-hash-1");
   });
 
-  it("does not store inputSchemaHash when inputSchema is not provided", async () => {
+  it("does not store statusHash when it is not provided", async () => {
     let createCall: unknown;
     const tx = {
       jobEvent: {
@@ -61,6 +62,6 @@ describe("jobEventRepository.createJobEventForJobId", () => {
     );
 
     const data = (createCall as { data: Record<string, unknown> }).data;
-    assert.equal("inputSchemaHash" in data, false);
+    assert.equal(data.statusHash, undefined);
   });
 });

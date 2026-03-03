@@ -704,24 +704,21 @@ model JobEvent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  externalId String?
-
   jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   input JobInput?
 
-  status      AgentJobStatus @default(AWAITING_PAYMENT)
-  inputSchema String?
-  result      String?
+  statusHash  String? // Hash of the status response from the agent
+  status      AgentJobStatus @default(AWAITING_PAYMENT) // Status of the job
+  inputSchema String? // Input schema of the job
+  result      String? // Result of the job
 
   blobs Blob[]
   links Link[]
 
-  // @@unique([jobId], where: raw("status = 'INITIATED'"))
-  @@index([externalId])
   @@index([jobId])
-  @@index([status])
+  @@index([jobId, createdAt(sort: Desc)])
   @@index([jobId, status])
   @@map("jobEvent")
 }

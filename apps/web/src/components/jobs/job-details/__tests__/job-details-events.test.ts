@@ -16,7 +16,6 @@ function createEvent(
   return {
     id,
     jobId: "job-1",
-    externalId: null,
     status,
     inputSchema: null,
     result: null,

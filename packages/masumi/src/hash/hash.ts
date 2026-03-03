@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
-import { err, ok, type Result } from "neverthrow";
+
+import { normalizeAndValidateInputSchema } from "../schemas/input/input.schema.js";
 
 /**
  * Creates a SHA-256 hash of the input string.
@@ -10,6 +11,23 @@ import { err, ok, type Result } from "neverthrow";
  */
 const createHash = (input: string) => {
   return crypto.createHash("sha256").update(input, "utf-8").digest("hex");
+};
+
+/**
+ * Calculates a canonical SHA-256 hash for any JSON-serializable value.
+ *
+ * @param value - Parsed JSON value to canonicalize and hash
+ * @returns SHA-256 hash of canonicalized JSON, or null when canonicalization fails
+ */
+export const hashCanonicalJsonValue = (value: unknown): string | null => {
+  try {
+    const canonicalValue = canonicalizeEx(value, {
+      filterUndefined: true,
+    });
+    return createHash(canonicalValue);
+  } catch {
+    return null;
+  }
 };
 
 const _hashInput = (
@@ -55,10 +73,13 @@ export const hashInput = (input: string, identifierFromPurchaser: string) => {
 };
 
 /**
- * Calculates a hash for an input schema.
+ * Value to hash for provide_input's input_schema_hash. Accepts wrapped
+ * (`{ input_data }` / `{ input_groups }`) and legacy bare-array schemas.
+ * Hashes the full normalized schema object so persistence and hashing share
+ * the same canonical representation.
  *
- * @param inputSchema - The input schema as a JSON string
- * @returns SHA-256 hash of canonicalized input schema, or null if parsing fails
+ * @param inputSchema - Input schema JSON string
+ * @returns SHA-256 hash of the logical input schema, or null if input is invalid
  */
 export const hashInputSchema = (
   inputSchema: string | null | undefined,
@@ -69,10 +90,11 @@ export const hashInputSchema = (
 
   try {
     const object = JSON.parse(inputSchema);
-    const inputSchemaString = canonicalizeEx(object, {
-      filterUndefined: true,
-    });
-    return createHash(inputSchemaString);
+    const data = normalizeAndValidateInputSchema(object);
+    if (!data) {
+      return null;
+    }
+    return hashCanonicalJsonValue(data);
   } catch {
     return null;
   }
@@ -91,25 +113,3 @@ export const hashResult = (result: string, identifierFromPurchaser: string) => {
   const escaped = JSON.stringify(result).slice(1, -1);
   return createHash(identifierFromPurchaser + ";" + escaped);
 };
-
-/**
- * Builds an input schema snapshot by serializing and hashing the input schema.
- *
- * @param inputSchema - The input schema array to serialize and hash
- * @returns Result containing the serialized input schema and its hash, or an error if hashing fails
- */
-export function buildInputSchemaSnapshot(
-  inputSchema: unknown[],
-): Result<{ inputSchema: string; inputSchemaHash: string }, string> {
-  const serializedInputSchema = JSON.stringify(inputSchema);
-  const inputSchemaHash = hashInputSchema(serializedInputSchema);
-
-  if (!inputSchemaHash) {
-    return err("Failed to hash input schema");
-  }
-
-  return ok({
-    inputSchema: serializedInputSchema,
-    inputSchemaHash,
-  });
-}
