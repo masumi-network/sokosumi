@@ -63,7 +63,7 @@ function AuthLayoutFooter() {
   const t = useTranslations("Auth.Footer");
 
   return (
-    <div className="flex items-center justify-center gap-4">
+    <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:gap-4">
       <Link
         href="https://www.sokosumi.com/terms-of-service"
         target="_blank"
