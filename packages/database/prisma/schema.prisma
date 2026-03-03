@@ -719,7 +719,6 @@ model JobEvent {
 
   @@index([jobId])
   @@index([jobId, createdAt(sort: Desc)])
-  @@index([status])
   @@index([jobId, status])
   @@map("jobEvent")
 }
