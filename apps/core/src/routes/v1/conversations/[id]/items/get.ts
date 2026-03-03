@@ -98,16 +98,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           conversationId: conversation.id,
         };
 
-        const [items, count] = await Promise.all([
-          tx.conversationItem.findMany({
-            where,
-            take: takePlusOne,
-            skip,
-            cursor: cursor ? { id: cursor } : undefined,
-            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          }),
-          tx.conversationItem.count({ where }),
-        ]);
+        const items = await tx.conversationItem.findMany({
+          where,
+          take: takePlusOne,
+          skip,
+          cursor: cursor ? { id: cursor } : undefined,
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        });
+        const count = await tx.conversationItem.count({ where });
 
         return { items, count };
       });
