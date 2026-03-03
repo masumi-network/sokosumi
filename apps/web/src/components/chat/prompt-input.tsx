@@ -57,8 +57,6 @@ export const PromptInputTextarea = ({
         return;
       }
 
-      e.preventDefault();
-
       if (
         !allowEnterToSubmitOnMobile &&
         typeof window !== "undefined" &&
@@ -66,6 +64,8 @@ export const PromptInputTextarea = ({
       ) {
         return;
       }
+
+      e.preventDefault();
 
       const form = e.currentTarget.form;
       const submitButton = form?.querySelector(

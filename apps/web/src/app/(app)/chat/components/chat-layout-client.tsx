@@ -91,7 +91,7 @@ export function ChatLayoutClient({
 
   const showSecondarySidebar = showFromContext && !isJustCreatedConversation;
 
-  const basePathForEffect = routeBase === "chat_test" ? "/chat_test" : "/chat";
+  const basePath = routeBase === "chat_test" ? "/chat_test" : "/chat";
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -99,10 +99,10 @@ export function ChatLayoutClient({
     if (bucket) {
       const slug = bucketKeyToSlug(bucket);
       if (slug && slug !== "other") {
-        router.replace(`${basePathForEffect}/${slug}`, { scroll: false });
+        router.replace(`${basePath}/${slug}`, { scroll: false });
       }
     }
-  }, [router, basePathForEffect]);
+  }, [router, basePath]);
 
   const bucket = useMemo(() => {
     if (!bucketSlug) return null;
@@ -156,8 +156,6 @@ export function ChatLayoutClient({
       openedFromList ||
       !showTwoColumn ||
       !bucketSlug);
-
-  const basePath = routeBase === "chat_test" ? "/chat_test" : "/chat";
 
   return (
     <ChatRouteBaseContext.Provider value={{ basePath }}>
