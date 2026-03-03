@@ -26,7 +26,6 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   // Get appropriate credits based on context
   let planLabel: string;
-  let activeWorkspacePlanLabel: string;
   let currentPlan: string | null = null;
   let credits: number | null = null;
   let creditUsage: CreditUsage | null = null;
@@ -89,11 +88,9 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   if (currentPlan === null) {
     planLabel = tPlan("unavailable");
-    activeWorkspacePlanLabel = tPlan("unavailable");
   } else {
     try {
       const planName = tSubscriptions(`Plans.${currentPlan}.name`);
-      activeWorkspacePlanLabel = planName;
       planLabel = hasActiveOrganization
         ? tPlan("organizationPlan", {
             plan: planName,
@@ -103,7 +100,6 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     } catch (_error) {
       currentPlan = null;
       planLabel = tPlan("unavailable");
-      activeWorkspacePlanLabel = tPlan("unavailable");
     }
   }
 
@@ -133,7 +129,6 @@ export default async function UserCredits({ session }: UserCreditsProps) {
         secondaryLabel={planLabel}
         creditsLabel={creditsLabel}
         creditUsage={creditUsage}
-        activeWorkspacePlanLabel={activeWorkspacePlanLabel}
         subscriptionPeriodEndMs={subscriptionPeriodEndMs}
         currentTimestampMs={currentTimestampMs}
       />

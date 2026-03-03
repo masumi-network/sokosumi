@@ -1,6 +1,7 @@
 import { UserIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 interface UserAvatarContentProps {
   className?: string;
@@ -15,7 +16,7 @@ export default function UserAvatarContent({
 }: UserAvatarContentProps) {
   return (
     <>
-      <Avatar className="h-8 w-8 md:h-10 md:w-10">
+      <Avatar className={cn("size-8 md:size-10", className)}>
         {imageUrl && (
           <AvatarImage
             src={imageUrl}

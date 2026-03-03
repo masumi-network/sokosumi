@@ -50,14 +50,14 @@ export function FeedSummary({
   return (
     <Card className="dark:bg-card-background overflow-hidden bg-neutral-950 p-0 text-white">
       <CardContent className="p-0">
-        <div className="grid h-full gap-6 p-6 md:grid-cols-[220px_1fr] md:gap-0 md:p-0">
+        <div className="grid h-full gap-6 p-4 md:grid-cols-[220px_1fr] md:gap-0 md:p-0">
           <div className="flex flex-col justify-start gap-4 md:border-r md:border-white/10 md:p-8">
             <h2 className="text-2xl font-bold">{title}</h2>
             <p className="text-xs font-medium tracking-wider text-white/40 uppercase">
               {summaryDescription}
             </p>
           </div>
-          <div className="gap-6 p-6">
+          <div className="gap-6 p-0 md:p-6">
             {isGenerating ? (
               <div className="flex items-center gap-2">
                 <SokosumiLoader className="size-6" />
