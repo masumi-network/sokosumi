@@ -17,6 +17,7 @@ import {
 } from "@sokosumi/database/repositories";
 import { jobInclude } from "@sokosumi/database/types/job";
 import { headers } from "next/headers";
+import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
@@ -196,21 +197,23 @@ export const userService = (() => {
 
   /**
    * Retrieves all organization memberships for the currently authenticated user.
+   * Deduplicated per request via React cache() when used in Server Components
+   * (e.g. ProfileSwitch, UserAvatar on every page).
    *
    * @returns A promise that resolves to an array of MemberWithOrganization objects for the current user.
    */
-  async function getMyMembersWithOrganizations(): Promise<
-    MemberWithOrganization[]
-  > {
-    const context = await getAuthContext();
-    if (!context) {
-      return [];
-    }
-    return await memberRepository.getMembersWithOrganizationByUserId(
-      context.userId,
-      prisma,
-    );
-  }
+  const getMyMembersWithOrganizations = cache(
+    async (): Promise<MemberWithOrganization[]> => {
+      const context = await getAuthContext();
+      if (!context) {
+        return [];
+      }
+      return await memberRepository.getMembersWithOrganizationByUserId(
+        context.userId,
+        prisma,
+      );
+    },
+  );
 
   /**
    * Retrieves the membership record for the currently authenticated user in a specific organization.

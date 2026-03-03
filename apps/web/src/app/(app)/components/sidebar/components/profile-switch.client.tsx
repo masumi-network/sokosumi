@@ -126,10 +126,16 @@ export default function ProfileSwitchClient({
 
   useEffect(() => {
     if (state === "collapsed") {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setIsPopoverOpen(false);
       }, 100);
+      return () => clearTimeout(timer);
     }
+    // When expanding from collapsed, clear any stale open intent. This prevents
+    // the popover from opening unexpectedly if isPopoverOpen became true while
+    // the sidebar was collapsed (e.g. trigger click).
+    const timer = setTimeout(() => setIsPopoverOpen(false), 0);
+    return () => clearTimeout(timer);
   }, [state]);
 
   const workspaces = useMemo(
