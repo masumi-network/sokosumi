@@ -1,10 +1,9 @@
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, waitFor } from "@testing-library/react";
 
 import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
 
-import SocialButtons from "../social-buttons";
+import SocialSignupAutoInitiator from "../social-signup-auto-initiator";
 
 const mockSocialSignIn = jest.fn();
 
@@ -16,17 +15,7 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("next-intl", () => ({
   useTranslations: () => {
-    return (
-      key: string,
-      values?: {
-        provider?: string;
-      },
-    ) => {
-      if (key === "continueWith") {
-        return `continue-with-${values?.provider ?? "unknown"}`;
-      }
-      return key;
-    };
+    return (key: string) => key;
   },
 }));
 
@@ -48,37 +37,12 @@ jest.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-interface MockSocialButtonProps {
-  onClick?: () => void;
-  text?: string;
-}
-
-function MockSocialButton({ onClick, text }: MockSocialButtonProps) {
-  return (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  );
-}
-
-jest.mock("react-social-login-buttons", () => ({
-  GoogleLoginButton: MockSocialButton,
-  MicrosoftLoginButton: MockSocialButton,
-}));
-
-describe("SocialButtons", () => {
+describe("SocialSignupAutoInitiator", () => {
   beforeEach(() => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
     mockSearchParams = new URLSearchParams();
   });
-
-  async function clickGoogleButton() {
-    const user = userEvent.setup();
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Google" }),
-    );
-  }
 
   function getSubmittedReturnUrls(): {
     callbackReturnUrl: string | null;
@@ -101,22 +65,26 @@ describe("SocialButtons", () => {
     };
   }
 
-  it("passes provided returnUrl to social sign-in callbacks", async () => {
-    render(<SocialButtons returnUrl="/oauth/consent?client_id=prop-client" />);
+  it("uses explicit returnUrl from query for both callbacks", async () => {
+    mockSearchParams = new URLSearchParams({
+      returnUrl: "/oauth/consent?client_id=explicit-client",
+    });
 
-    await clickGoogleButton();
+    render(
+      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
+    );
 
     await waitFor(() => {
       expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
     });
 
     expect(getSubmittedReturnUrls()).toEqual({
-      callbackReturnUrl: "/oauth/consent?client_id=prop-client",
-      newUserCallbackReturnUrl: "/oauth/consent?client_id=prop-client",
+      callbackReturnUrl: "/oauth/consent?client_id=explicit-client",
+      newUserCallbackReturnUrl: "/oauth/consent?client_id=explicit-client",
     });
   });
 
-  it("builds oauth consent returnUrl from signed query when prop is missing", async () => {
+  it("builds oauth consent returnUrl from signed query when returnUrl is missing", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
       redirect_uri: "https://consumer.example.com/callback",
@@ -133,9 +101,9 @@ describe("SocialButtons", () => {
       new URLSearchParams(mockSearchParams.toString()),
     );
 
-    render(<SocialButtons />);
-
-    await clickGoogleButton();
+    render(
+      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
+    );
 
     await waitFor(() => {
       expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
