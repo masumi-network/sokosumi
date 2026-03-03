@@ -280,13 +280,14 @@ export const agentService = (() => {
 
       let totalCents = BigInt(0);
       for (const amount of amountsParsed) {
-        const centsPerUnit = (
-          await creditCostRepository.getCreditCostByUnit(amount.unit, tx)
-        )?.centsPerUnit;
-        if (!centsPerUnit) {
+        const creditCost = await creditCostRepository.getCreditCostByUnit(
+          amount.unit,
+          tx,
+        );
+        if (!creditCost) {
           throw new Error(`Credit cost not found for unit ${amount.unit}`);
         }
-        const cents = amount.amount * centsPerUnit;
+        const cents = amount.amount * creditCost.centsPerUnit;
         totalCents += cents;
       }
 

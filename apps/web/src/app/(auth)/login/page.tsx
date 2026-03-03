@@ -9,7 +9,9 @@ interface LoginRedirectProps {
   searchParams: Promise<AuthRedirectSearchParams>;
 }
 
-export default async function LoginRedirect({ searchParams }: LoginRedirectProps) {
+export default async function LoginRedirect({
+  searchParams,
+}: LoginRedirectProps) {
   const query = await getRedirectQueryString(searchParams);
   redirect(query ? `/signin?${query}` : "/signin");
 }
