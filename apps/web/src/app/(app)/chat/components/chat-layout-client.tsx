@@ -5,7 +5,6 @@ import { useEffect, useMemo } from "react";
 
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import ChatInterface from "@/app/chat/components/chat-interface";
-import { ChatRouteBaseContext } from "@/app/chat/contexts/chat-route-base-context";
 import {
   bucketKeyFromDisplaySlug,
   bucketKeyToSlug,
@@ -19,25 +18,15 @@ import { useCoworkersContext } from "@/contexts/coworkers-context";
 
 const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
 
-function getBucketSlugFromPathname(
-  pathname: string,
-  routeBase: string,
-): string | null {
+function getBucketSlugFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== routeBase || segments.length < 2) return null;
+  if (segments[0] !== "chat" || segments.length < 2) return null;
   return segments[1] ?? null;
 }
 
-function getConversationIdFromPathname(
-  pathname: string,
-  routeBase: string,
-): string | null {
+function getConversationIdFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
-  if (
-    segments[0] !== routeBase ||
-    segments[2] !== "conversation" ||
-    !segments[3]
-  )
+  if (segments[0] !== "chat" || segments[2] !== "conversation" || !segments[3])
     return null;
   return segments[3] ?? null;
 }
@@ -45,7 +34,6 @@ function getConversationIdFromPathname(
 interface ChatLayoutClientProps {
   mobileKeyboardOptimized?: boolean;
   organizationSlug: string | null;
-  routeBase?: "chat" | "chat_test";
   userImageUrl: string;
   userName: string | undefined;
 }
@@ -53,7 +41,6 @@ interface ChatLayoutClientProps {
 export function ChatLayoutClient({
   mobileKeyboardOptimized = false,
   organizationSlug,
-  routeBase = "chat",
   userImageUrl,
   userName,
 }: ChatLayoutClientProps) {
@@ -67,12 +54,12 @@ export function ChatLayoutClient({
   const openedFromList = searchParams?.get("open") === "1";
 
   const bucketSlug = useMemo(
-    () => getBucketSlugFromPathname(pathname ?? "", routeBase),
-    [pathname, routeBase],
+    () => getBucketSlugFromPathname(pathname ?? ""),
+    [pathname],
   );
   const conversationIdFromPath = useMemo(
-    () => getConversationIdFromPathname(pathname ?? "", routeBase),
-    [pathname, routeBase],
+    () => getConversationIdFromPathname(pathname ?? ""),
+    [pathname],
   );
 
   const isJustCreatedConversation =
@@ -91,7 +78,6 @@ export function ChatLayoutClient({
 
   const showSecondarySidebar = showFromContext && !isJustCreatedConversation;
 
-  const basePath = routeBase === "chat_test" ? "/chat_test" : "/chat";
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -99,10 +85,10 @@ export function ChatLayoutClient({
     if (bucket) {
       const slug = bucketKeyToSlug(bucket);
       if (slug && slug !== "other") {
-        router.replace(`${basePath}/${slug}`, { scroll: false });
+        router.replace(`/chat/${slug}`, { scroll: false });
       }
     }
-  }, [router, basePath]);
+  }, [router]);
 
   const bucket = useMemo(() => {
     if (!bucketSlug) return null;
@@ -158,29 +144,17 @@ export function ChatLayoutClient({
       !bucketSlug);
 
   return (
-    <ChatRouteBaseContext.Provider value={{ basePath }}>
-      <div
-        className={
-          showTwoColumn
-            ? "-mt-20 -mr-4 -mb-4 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
-            : "flex h-full min-h-0 w-full flex-1 flex-col"
-        }
-      >
-        {/* Conversation list: on mobile when list-only, full screen; on desktop when two-column, sidebar */}
-        {/* Mobile: full-screen list (hidden on lg). Desktop: sidebar (hidden below lg when conversation open). */}
-        {showTwoColumn && bucketSlug ? (
-          <>
-            {mobileListOnly ? (
-              <div className="bg-background fixed inset-0 z-20 flex h-dvh w-full flex-col overflow-hidden lg:hidden">
-                <ChatConversationsSidebar
-                  bucketSlug={bucketSlug}
-                  bucket={bucket ?? ""}
-                  displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
-                  conversations={bucketData?.conversations ?? []}
-                />
-              </div>
-            ) : null}
-            <div className="lg:border-border hidden lg:flex lg:max-h-full lg:min-h-0 lg:w-72 lg:shrink-0 lg:flex-col lg:overflow-hidden lg:rounded-none lg:border-t-0 lg:border-r lg:border-b-0 lg:border-l-0">
+    <div
+      className={
+        showTwoColumn
+          ? "-mt-20 -mr-4 -mb-4 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-4 md:-mt-4 lg:flex-row lg:gap-0"
+          : "flex h-full min-h-0 w-full flex-1 flex-col"
+      }
+    >
+      {showTwoColumn && bucketSlug ? (
+        <>
+          {mobileListOnly ? (
+            <div className="bg-background fixed inset-0 z-20 flex h-dvh w-full flex-col overflow-hidden lg:hidden">
               <ChatConversationsSidebar
                 bucketSlug={bucketSlug}
                 bucket={bucket ?? ""}
@@ -188,38 +162,45 @@ export function ChatLayoutClient({
                 conversations={bucketData?.conversations ?? []}
               />
             </div>
-          </>
-        ) : null}
-
-        {/* Chat area: on mobile list-only hide chat below lg; on desktop always show chat when two-column */}
-        <div
-          className={
-            mobileChatOnly
-              ? "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col lg:static lg:z-auto lg:mx-auto lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:pt-0 lg:pb-4"
-              : mobileListOnly
-                ? "hidden lg:mx-auto lg:flex lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:flex-col lg:pt-0 lg:pb-4 lg:pl-4"
-                : showTwoColumn
-                  ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col pt-20 pb-4 md:pt-4 md:pl-4 lg:min-w-0 lg:pt-0"
-                  : "mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-0 md:px-2"
-          }
-        >
-          <div
-            className={
-              (mobileChatOnly && conversationIdFromPath) ||
-              (mobileListOnly && conversationIdFromPath)
-                ? "flex min-h-0 flex-1 flex-col overflow-hidden lg:min-h-0"
-                : "flex h-full flex-col"
-            }
-          >
-            <ChatInterface
-              mobileKeyboardOptimized={mobileKeyboardOptimized}
-              organizationSlug={organizationSlug}
-              userImageUrl={userImageUrl}
-              userName={userName}
+          ) : null}
+          <div className="lg:border-border hidden lg:flex lg:max-h-full lg:min-h-0 lg:w-72 lg:shrink-0 lg:flex-col lg:overflow-hidden lg:rounded-none lg:border-t-0 lg:border-r lg:border-b-0 lg:border-l-0">
+            <ChatConversationsSidebar
+              bucketSlug={bucketSlug}
+              bucket={bucket ?? ""}
+              displayName={bucketData?.displayName ?? bucketSlug ?? "Chat"}
+              conversations={bucketData?.conversations ?? []}
             />
           </div>
+        </>
+      ) : null}
+
+      <div
+        className={
+          mobileChatOnly
+            ? "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col lg:static lg:z-auto lg:mx-auto lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:pt-0 lg:pb-4"
+            : mobileListOnly
+              ? "hidden lg:mx-auto lg:flex lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:flex-col lg:pt-0 lg:pb-4 lg:pl-4"
+              : showTwoColumn
+                ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col pt-20 pb-4 md:pt-4 md:pl-4 lg:min-w-0 lg:pt-0"
+                : "mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-0 md:px-2"
+        }
+      >
+        <div
+          className={
+            (mobileChatOnly && conversationIdFromPath) ||
+            (mobileListOnly && conversationIdFromPath)
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden lg:min-h-0"
+              : "flex h-full flex-col"
+          }
+        >
+          <ChatInterface
+            mobileKeyboardOptimized={mobileKeyboardOptimized}
+            organizationSlug={organizationSlug}
+            userImageUrl={userImageUrl}
+            userName={userName}
+          />
         </div>
       </div>
-    </ChatRouteBaseContext.Provider>
+    </div>
   );
 }
