@@ -118,28 +118,26 @@ export async function getCurrentSubscriptionCredits(params: {
         },
       };
 
-  const [totalAggregateResult, usedAggregateResult] = await Promise.all([
-    params.tx.creditBucket.aggregate({
-      _sum: {
-        amount: true,
+  const totalAggregateResult = await params.tx.creditBucket.aggregate({
+    _sum: {
+      amount: true,
+    },
+    where: currentPeriodBucketWhere,
+  });
+  const usedAggregateResult = await params.tx.creditConsumption.aggregate({
+    _sum: {
+      amount: true,
+    },
+    where: {
+      createdAt: {
+        gte: period.periodStart,
+        lt: now,
       },
-      where: currentPeriodBucketWhere,
-    }),
-    params.tx.creditConsumption.aggregate({
-      _sum: {
-        amount: true,
+      bucket: {
+        is: currentPeriodBucketWhere,
       },
-      where: {
-        createdAt: {
-          gte: period.periodStart,
-          lt: now,
-        },
-        bucket: {
-          is: currentPeriodBucketWhere,
-        },
-      },
-    }),
-  ]);
+    },
+  });
 
   const normalizedCents = normalizeSubscriptionCents(
     totalAggregateResult._sum.amount ?? 0n,
