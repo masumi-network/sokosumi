@@ -21,16 +21,16 @@ export function ConsentActions() {
 
       if (result.error) {
         toast.error(result.error.message || t("authorizeError"));
-      } else {
-        toast.success(t("authorizeSuccess"));
-        const { redirect, url } = result.data;
-        if (redirect && url) {
-          window.location.href = url;
-        } else {
-          window.location.href = "/";
-        }
+        setIsAuthorizing(false);
+        return;
       }
-      setIsAuthorizing(false);
+
+      toast.success(t("authorizeSuccess"));
+      const { redirect, url } = result.data;
+      const targetUrl = redirect && url ? url : "/";
+      setTimeout(() => {
+        window.location.href = targetUrl;
+      }, 300);
     } catch (error) {
       console.error("OAuth authorization error:", error);
       toast.error(t("authorizeErrorGeneric"));
