@@ -177,20 +177,12 @@ export const agentService = (() => {
       AgentWithCreditsPrice[]
     > => {
       const agents = await agentService.getAvailableAgents();
-      const creditCosts = await creditCostRepository.getCreditCosts(prisma);
-      const creditCostByUnit = new Map<
-        CreditCost["unit"],
-        CreditCost["centsPerUnit"]
-      >(creditCosts.map((creditCost) => [creditCost.unit, creditCost.centsPerUnit]));
 
       const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
       for (const agent of agents) {
         try {
-          const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(
-            agent,
-            prisma,
-            creditCostByUnit,
-          );
+          const agentWithCreditsPrice =
+            await agentService.getAgentCreditsPrice(agent);
           agentsWithCreditsPrice.push(agentWithCreditsPrice);
         } catch {
           continue;
@@ -270,10 +262,6 @@ export const agentService = (() => {
     getAgentCreditsPrice: async (
       agent: AgentWithRelations,
       tx: Prisma.TransactionClient = prisma,
-      creditCostByUnit?: Map<
-        CreditCost["unit"],
-        CreditCost["centsPerUnit"]
-      >,
     ): Promise<AgentWithCreditsPrice> => {
       const amounts = getAgentPricingAmounts(agent);
       if (!amounts) {
@@ -292,11 +280,9 @@ export const agentService = (() => {
 
       let totalCents = BigInt(0);
       for (const amount of amountsParsed) {
-        const centsPerUnit =
-          creditCostByUnit?.get(amount.unit) ??
-          (
-            await creditCostRepository.getCreditCostByUnit(amount.unit, tx)
-          )?.centsPerUnit;
+        const centsPerUnit = (
+          await creditCostRepository.getCreditCostByUnit(amount.unit, tx)
+        )?.centsPerUnit;
         if (!centsPerUnit) {
           throw new Error(`Credit cost not found for unit ${amount.unit}`);
         }
