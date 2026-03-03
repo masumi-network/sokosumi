@@ -1,6 +1,6 @@
 import { err, ok, type Result } from "neverthrow";
 
-import { hashInputSchema } from "../hash/index.js";
+import { hashCanonicalJsonValue, hashInputSchema } from "../hash/index.js";
 import {
   inputSchemaResponseSchema,
   InputSchemaResponseSchemaType,
@@ -339,7 +339,9 @@ export function createAgentClient(config?: AgentClientConfig) {
     async fetchAgentJobStatus(
       agent: Agent,
       jobId: string,
-    ): Promise<Result<JobStatusResponseSchemaType, string>> {
+    ): Promise<
+      Result<JobStatusResponseSchemaType & { statusHash: string }, string>
+    > {
       try {
         const jobStatusUrl = getAgentUrlWithPathComponent(agent, "status");
         jobStatusUrl.searchParams.set("job_id", jobId);
@@ -350,15 +352,21 @@ export function createAgentClient(config?: AgentClientConfig) {
         if (!jobStatusResponse.ok) {
           return err(jobStatusResponse.statusText);
         }
-        const parsedResult = jobStatusResponseSchema.safeParse(
-          await jobStatusResponse.json(),
-        );
+        const responseJson = await jobStatusResponse.json();
+        const parsedResult = jobStatusResponseSchema.safeParse(responseJson);
 
         if (!parsedResult.success) {
           return err("Failed to parse job status response");
         }
+        const statusHash = hashCanonicalJsonValue(parsedResult.data);
+        if (!statusHash) {
+          return err("Failed to hash job status response");
+        }
 
-        return ok(parsedResult.data);
+        return ok({
+          ...parsedResult.data,
+          statusHash,
+        });
       } catch (error) {
         return err(String(error));
       }
@@ -366,7 +374,6 @@ export function createAgentClient(config?: AgentClientConfig) {
 
     async provideJobInput(
       agent: Agent,
-      statusId: string,
       jobId: string,
       inputSchema: string,
       inputData: InputSchemaType,
@@ -384,7 +391,6 @@ export function createAgentClient(config?: AgentClientConfig) {
 
         const requestPayload: ProvideInputRequestSchemaType = {
           job_id: jobId,
-          status_id: statusId,
           input_schema_hash: inputSchemaHash,
           input_data: inputData,
         };

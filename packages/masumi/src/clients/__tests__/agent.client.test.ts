@@ -1,4 +1,4 @@
-import { hashInputSchema } from "../../hash/hash.js";
+import { hashCanonicalJsonValue, hashInputSchema } from "../../hash/hash.js";
 import type { Agent } from "../../types/agent.js";
 import { createAgentClient } from "../agent.client.js";
 
@@ -194,13 +194,15 @@ describe("createAgentClient provideJobInput", () => {
   });
 
   it("sends input_schema_hash in the provide_input request body", async () => {
-    const inputSchema = JSON.stringify([
-      {
-        id: "answer",
-        name: "Answer",
-        type: "string",
-      },
-    ]);
+    const inputSchema = JSON.stringify({
+      input_data: [
+        {
+          id: "answer",
+          name: "Answer",
+          type: "string",
+        },
+      ],
+    });
 
     const fetchMock = jest.fn().mockResolvedValue(
       new Response(
@@ -221,7 +223,6 @@ describe("createAgentClient provideJobInput", () => {
     const client = createAgentClient();
     const result = await client.provideJobInput(
       createAgent(),
-      "status-1",
       "job-1",
       inputSchema,
       {
@@ -240,7 +241,6 @@ describe("createAgentClient provideJobInput", () => {
     expect(requestOptions.method).toBe("POST");
     expect(JSON.parse(String(requestOptions.body))).toEqual({
       job_id: "job-1",
-      status_id: "status-1",
       input_schema_hash: hashInputSchema(inputSchema),
       input_data: {
         answer: "8",
@@ -255,7 +255,6 @@ describe("createAgentClient provideJobInput", () => {
     const client = createAgentClient();
     const result = await client.provideJobInput(
       createAgent(),
-      "status-1",
       "job-1",
       "not-json",
       {
@@ -268,5 +267,155 @@ describe("createAgentClient provideJobInput", () => {
       expect(result.error).toBe("Failed to hash input schema");
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts bare-array input schema for backward compatibility", async () => {
+    const bareSchema = JSON.stringify([
+      { id: "answer", name: "Answer", type: "string" },
+    ]);
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          input_hash: "hash-123",
+          signature: "sig-456",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.provideJobInput(
+      createAgent(),
+      "job-1",
+      bareSchema,
+      { answer: "8" },
+    );
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual({
+        input_hash: "hash-123",
+        signature: "sig-456",
+      });
+    }
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, requestOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(requestOptions.method).toBe("POST");
+    expect(JSON.parse(String(requestOptions.body))).toEqual({
+      job_id: "job-1",
+      input_schema_hash: hashInputSchema(bareSchema),
+      input_data: {
+        answer: "8",
+      },
+    });
+  });
+});
+
+describe("createAgentClient fetchAgentJobStatus", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("returns statusHash from canonical parsed status payload", async () => {
+    const responseBody = {
+      status: "awaiting_input",
+      input_schema: {
+        input_data: [
+          {
+            id: "prompt",
+            name: "Prompt",
+            type: "string",
+          },
+        ],
+      },
+      result: null,
+    };
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(JSON.stringify(responseBody), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const result = await client.fetchAgentJobStatus(createAgent(), "job-1");
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.status).toBe("awaiting_input");
+      expect(result.value.statusHash).toBe(
+        hashCanonicalJsonValue(responseBody),
+      );
+    }
+  });
+
+  it("ignores unknown fields when deriving statusHash", async () => {
+    const baseResponseBody = {
+      status: "running",
+      input_schema: null,
+      result: null,
+    };
+    const firstResponseBody = {
+      ...baseResponseBody,
+      id: "legacy-status-id",
+      timestamp: "2026-03-02T10:00:00.000Z",
+    };
+    const secondResponseBody = {
+      ...baseResponseBody,
+      id: "another-id",
+      timestamp: "2026-03-02T10:05:00.000Z",
+      trace_id: "trace-123",
+    };
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(firstResponseBody), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(secondResponseBody), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const client = createAgentClient();
+    const firstResult = await client.fetchAgentJobStatus(
+      createAgent(),
+      "job-1",
+    );
+    const secondResult = await client.fetchAgentJobStatus(
+      createAgent(),
+      "job-1",
+    );
+
+    expect(firstResult.isOk()).toBe(true);
+    expect(secondResult.isOk()).toBe(true);
+    if (firstResult.isOk() && secondResult.isOk()) {
+      expect(firstResult.value.statusHash).toBe(secondResult.value.statusHash);
+      expect(firstResult.value.statusHash).toBe(
+        hashCanonicalJsonValue(baseResponseBody),
+      );
+    }
   });
 });

@@ -78,7 +78,7 @@ function JobInputsFormInner({
         agent={agent}
         averageExecutionDuration={averageExecutionDuration}
         groups={inputs.groups}
-        flatInputs={inputs.flatInputs}
+        inputSchema={inputSchema}
         demoValues={demoValues}
         legal={legal}
         className={className}
@@ -99,6 +99,7 @@ function JobInputsFormInner({
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       flatInputs={inputs.flatInputs}
+      inputSchema={inputSchema}
       demoValues={demoValues}
       legal={legal}
       className={className}

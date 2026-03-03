@@ -20,9 +20,7 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
-import { buildInputSchemaSnapshot } from "@sokosumi/masumi/hash";
 import type {
-  InputFieldSchemaType,
   InputSchemaSchemaType,
   InputSchemaType,
   StartFreeJobResponseSchemaType,
@@ -39,7 +37,6 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { UserAuthenticationContext } from "@/middleware/auth";
 import {
-  flattenInputs,
   type StartPaidJobResponseSchemaType,
 } from "@/schemas/job.schema";
 import { agentPricingInclude } from "@/types/agent";
@@ -80,8 +77,8 @@ async function createPaidJob(
     agentId: string;
     userId: string;
     organizationId: string | null;
-    inputData: Record<string, unknown>;
-    inputSchema: InputFieldSchemaType[];
+    inputData: InputSchemaType;
+    inputSchema: InputSchemaSchemaType;
     name: string | null;
     taskId?: string | null;
     jobScheduleId?: string | null;
@@ -91,11 +88,7 @@ async function createPaidJob(
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const inputSchemaSnapshotResult = buildInputSchemaSnapshot(input.inputSchema);
-  if (inputSchemaSnapshotResult.isErr()) {
-    throw unprocessableEntity("Invalid input schema");
-  }
-  const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+  const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
     input.organizationId,
@@ -122,7 +115,7 @@ async function createPaidJob(
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchema: inputSchemaSnapshot,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
@@ -176,8 +169,8 @@ async function createFreeJob(
     agentId: string;
     userId: string;
     organizationId: string | null;
-    inputData: Record<string, unknown>;
-    inputSchema: InputFieldSchemaType[];
+    inputData: InputSchemaType;
+    inputSchema: InputSchemaSchemaType;
     name: string | null;
     taskId?: string | null;
     jobScheduleId?: string | null;
@@ -185,11 +178,7 @@ async function createFreeJob(
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
-  const inputSchemaSnapshotResult = buildInputSchemaSnapshot(input.inputSchema);
-  if (inputSchemaSnapshotResult.isErr()) {
-    throw unprocessableEntity("Invalid input schema");
-  }
-  const inputSchemaSnapshot = inputSchemaSnapshotResult.value;
+  const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   return await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
@@ -209,7 +198,7 @@ async function createFreeJob(
         create: {
           status: AgentJobStatus.INITIATED,
           result: null,
-          inputSchema: inputSchemaSnapshot.inputSchema,
+          inputSchema: inputSchemaSnapshot,
           input: {
             create: {
               input: JSON.stringify(input.inputData),
@@ -319,7 +308,6 @@ export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithEvents & JobWithTransaction & JobWithPurchase> {
   const { owner, agentInput, taskContext, scheduleContext } = input;
-  const flatInputSchema = flattenInputs(agentInput.inputSchema);
   const maxCents =
     agentInput.maxAcceptedCents ??
     (agentInput.maxCredits
@@ -372,7 +360,7 @@ export async function createAgentJobForUser(
     userId: owner.userId,
     organizationId: owner.organizationId,
     inputData: agentInput.inputData,
-    inputSchema: flatInputSchema,
+    inputSchema: agentInput.inputSchema,
     taskId: taskContext?.taskId,
     jobScheduleId: scheduleContext?.jobScheduleId,
   };

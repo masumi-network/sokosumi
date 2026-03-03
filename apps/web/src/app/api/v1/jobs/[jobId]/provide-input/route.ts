@@ -15,7 +15,7 @@ interface RouteParams {
 }
 
 const requestSchema = z.object({
-  statusId: z.string(),
+  eventId: z.string(),
   inputData: z.record(
     z.string(),
     z.union([
@@ -63,12 +63,12 @@ export async function POST(
       throw parseResult.error;
     }
 
-    const { statusId, inputData } = parseResult.data;
+    const { eventId, inputData } = parseResult.data;
 
     // Call the job service to provide input
     const { job } = await jobService.provideJobInput({
       jobId,
-      statusId,
+      eventId,
       userId,
       inputData,
     });
