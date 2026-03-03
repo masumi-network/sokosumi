@@ -84,6 +84,17 @@ function buildFreeAgent(id: string): AgentWithRelations {
   } as unknown as AgentWithRelations;
 }
 
+function buildUnknownAgent(id: string): AgentWithRelations {
+  return {
+    id,
+    isShown: true,
+    pricing: {
+      pricingType: PricingType.UNKNOWN,
+      fixedPricing: null,
+    },
+  } as unknown as AgentWithRelations;
+}
+
 describe("agent.service", () => {
   const txMock = { tx: "mock" };
 
@@ -93,6 +104,38 @@ describe("agent.service", () => {
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback(txMock),
     );
+  });
+
+  it("keeps availability filtering consistent between list and priced methods", async () => {
+    getShownAgentsWithRelationsByStatusMock.mockResolvedValue([
+      buildFixedAgent({
+        id: "agent-valid",
+        amounts: [{ unit: "token", amount: BigInt(2) }],
+      }),
+      buildFixedAgent({
+        id: "agent-hidden",
+        amounts: [{ unit: "token", amount: BigInt(1) }],
+        isShown: false,
+      }),
+      buildUnknownAgent("agent-unknown"),
+      buildFreeAgent("agent-free"),
+    ]);
+    getCreditCostsMock.mockResolvedValue([
+      { unit: "token", centsPerUnit: 10n },
+    ]);
+
+    const { agentService } = await import("../agent.service");
+    const availableAgents = await agentService.getAvailableAgents();
+    const agentsWithCreditsPrice =
+      await agentService.getAvailableAgentsWithCreditsPrice();
+
+    const availableAgentIds = availableAgents.map((agent) => agent.id).sort();
+    const pricedAgentIds = agentsWithCreditsPrice
+      .map((agent) => agent.id)
+      .sort();
+
+    expect(availableAgentIds).toEqual(["agent-free", "agent-valid"]);
+    expect(pricedAgentIds).toEqual(availableAgentIds);
   });
 
   it("gets credit costs once and computes prices for all available agents", async () => {
@@ -146,7 +189,9 @@ describe("agent.service", () => {
         amounts: [],
       }),
     ]);
-    getCreditCostsMock.mockResolvedValue([{ unit: "token", centsPerUnit: 10n }]);
+    getCreditCostsMock.mockResolvedValue([
+      { unit: "token", centsPerUnit: 10n },
+    ]);
 
     const { agentService } = await import("../agent.service");
     const result = await agentService.getAvailableAgentsWithCreditsPrice();

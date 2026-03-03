@@ -84,13 +84,41 @@ export const agentService = (() => {
   }
 
   /**
+   * Retrieves online agents and their credit costs, then applies shared availability filtering.
+   */
+  async function getAvailableOnlineAgentsAndCreditCosts(
+    tx: Prisma.TransactionClient,
+  ): Promise<{
+    availableAgents: AgentWithRelations[];
+    creditCosts: CreditCost[];
+  }> {
+    const creditCosts = await creditCostRepository.getCreditCosts(tx);
+    const onlineAgents =
+      await agentRepository.getShownAgentsWithRelationsByStatus(
+        AgentStatus.ONLINE,
+        tx,
+      );
+    const availableAgents = onlineAgents.filter((agent) =>
+      isAgentAvailable(agent, creditCosts),
+    );
+
+    return {
+      availableAgents,
+      creditCosts,
+    };
+  }
+
+  /**
    * Builds a fast lookup map for credit costs by unit.
    */
   function buildCreditCostByUnitMap(
     creditCosts: CreditCost[],
   ): Map<string, bigint> {
     return new Map(
-      creditCosts.map((creditCost) => [creditCost.unit, creditCost.centsPerUnit]),
+      creditCosts.map((creditCost) => [
+        creditCost.unit,
+        creditCost.centsPerUnit,
+      ]),
     );
   }
 
@@ -172,15 +200,9 @@ export const agentService = (() => {
      */
     getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
       return await prisma.$transaction(async (tx) => {
-        const creditCosts = await creditCostRepository.getCreditCosts(tx);
-        const onlineAgents =
-          await agentRepository.getShownAgentsWithRelationsByStatus(
-            AgentStatus.ONLINE,
-            tx,
-          );
-        return onlineAgents.filter((agent) =>
-          isAgentAvailable(agent, creditCosts),
-        );
+        const { availableAgents } =
+          await getAvailableOnlineAgentsAndCreditCosts(tx);
+        return availableAgents;
       });
     },
 
@@ -220,15 +242,8 @@ export const agentService = (() => {
       AgentWithCreditsPrice[]
     > => {
       return await prisma.$transaction(async (tx) => {
-        const creditCosts = await creditCostRepository.getCreditCosts(tx);
-        const onlineAgents =
-          await agentRepository.getShownAgentsWithRelationsByStatus(
-            AgentStatus.ONLINE,
-            tx,
-          );
-        const availableAgents = onlineAgents.filter((agent) =>
-          isAgentAvailable(agent, creditCosts),
-        );
+        const { availableAgents, creditCosts } =
+          await getAvailableOnlineAgentsAndCreditCosts(tx);
         const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
 
         const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
