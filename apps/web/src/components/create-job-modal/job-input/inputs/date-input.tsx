@@ -48,7 +48,9 @@ export function DateInput({
         <Calendar
           mode="single"
           selected={selectedDate}
-          onSelect={(date) => field.onChange(date ? formatDateValue(date) : null)}
+          onSelect={(date) =>
+            field.onChange(date ? formatDateValue(date) : null)
+          }
           disabled={(date) =>
             (minDate ? date < minDate : false) ||
             (maxDate ? date > maxDate : false)

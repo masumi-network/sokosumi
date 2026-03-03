@@ -27,7 +27,8 @@ export function DatetimeInput({
   jobInputSchema,
 }: JobInputComponentProps<InputType.DATETIME, InputDatetimeSchemaType>) {
   const valueString =
-    typeof field.value === "string" && DATETIME_LOCAL_VALUE_REGEX.test(field.value)
+    typeof field.value === "string" &&
+    DATETIME_LOCAL_VALUE_REGEX.test(field.value)
       ? field.value
       : "";
   const [datePart, timePart] = valueString.split("T");

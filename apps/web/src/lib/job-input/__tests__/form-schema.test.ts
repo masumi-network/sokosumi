@@ -53,6 +53,40 @@ describe("jobInputsFormSchema date and datetime-local validation", () => {
       expect(optionalSchema.safeParse({ startDate: null }).success).toBe(true);
       expect(optionalSchema.safeParse({}).success).toBe(true);
     });
+
+    it("uses local date for datetime-local min/max bounds (no UTC off-by-one)", () => {
+      const dateFieldWithDatetimeLocalBounds: InputDateSchemaType = {
+        id: "startDate",
+        type: InputType.DATE,
+        name: "Start date",
+        validations: [
+          { validation: InputValidation.MIN, value: "2026-03-10T01:30" },
+          { validation: InputValidation.MAX, value: "2026-03-10T23:00" },
+        ],
+      };
+      const schema = jobInputsFormSchema([dateFieldWithDatetimeLocalBounds]);
+
+      const originalTimezone = process.env.TZ;
+      process.env.TZ = "Pacific/Auckland";
+
+      try {
+        expect(schema.safeParse({ startDate: "2026-03-10" }).success).toBe(
+          true,
+        );
+        expect(schema.safeParse({ startDate: "2026-03-09" }).success).toBe(
+          false,
+        );
+        expect(schema.safeParse({ startDate: "2026-03-11" }).success).toBe(
+          false,
+        );
+      } finally {
+        if (originalTimezone === undefined) {
+          delete process.env.TZ;
+        } else {
+          process.env.TZ = originalTimezone;
+        }
+      }
+    });
   });
 
   describe("DATETIME", () => {

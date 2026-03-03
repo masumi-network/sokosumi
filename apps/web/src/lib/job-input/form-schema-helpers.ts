@@ -9,6 +9,7 @@ import {
   DATE_VALUE_REGEX,
   DATETIME_LOCAL_VALUE_REGEX,
   formatDatetimeLocalValue,
+  formatDateValue,
   isDatetimeLocalValue,
   parseDatetimeLocalValue,
   parseDateValue,
@@ -264,7 +265,7 @@ function parseValidationDateString(value: string | number): string | undefined {
     return undefined;
   }
 
-  return parsed.toISOString().slice(0, 10);
+  return formatDateValue(parsed);
 }
 
 function parseValidationDatetimeLocalString(
