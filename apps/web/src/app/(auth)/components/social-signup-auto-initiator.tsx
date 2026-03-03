@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
-import { resolveOAuthReturnUrl } from "@/lib/utils/auth-redirect";
+import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 interface SocialSignupAutoInitiatorProps {
@@ -24,7 +24,8 @@ export default function SocialSignupAutoInitiator({
   const t = useTranslations("Auth.Pages.SignUp");
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") ?? undefined;
-  const effectiveReturnUrl = resolveOAuthReturnUrl(returnUrl, searchParams);
+  const effectiveReturnUrl =
+    returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
 

@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
-import { resolveOAuthReturnUrl } from "@/lib/utils/auth-redirect";
+import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 interface SocialButtonsProps {
@@ -39,7 +39,8 @@ const socialButtons: Array<{
 export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
-  const effectiveReturnUrl = resolveOAuthReturnUrl(returnUrl, searchParams);
+  const effectiveReturnUrl =
+    returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
 
   const handleClick = async (key: SocialProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });

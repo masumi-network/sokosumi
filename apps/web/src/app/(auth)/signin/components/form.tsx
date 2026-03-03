@@ -19,9 +19,9 @@ import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 import {
+  buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   normalizeAuthReturnUrl,
-  resolveOAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -38,7 +38,10 @@ export default function SignInForm({
   const loginAreaFormStart = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const effectiveReturnUrl = resolveOAuthReturnUrl(returnUrl, searchParams);
+  const effectiveReturnUrl = useMemo(
+    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    [returnUrl, searchParams],
+  );
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(

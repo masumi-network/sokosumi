@@ -183,10 +183,3 @@ export function buildOAuthConsentReturnUrlFromSearchParams(
     sig: filteredSearchParams.get("sig") ?? undefined,
   });
 }
-
-export function resolveOAuthReturnUrl(
-  returnUrl: string | undefined,
-  searchParams: URLSearchParams,
-): string | undefined {
-  return returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
-}
