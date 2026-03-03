@@ -275,10 +275,14 @@ function parseValidationDatetimeLocalString(
     if (isDatetimeLocalValue(trimmed)) {
       return trimmed;
     }
+
+    // DATETIME form values are minute-precision local strings only.
+    // Ignore string bounds that are not in datetime-local format (e.g. with seconds/timezone).
+    return undefined;
   }
 
-  const parsed = parseValidationDate(value);
-  if (!parsed) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
     return undefined;
   }
 

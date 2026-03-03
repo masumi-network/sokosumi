@@ -109,6 +109,22 @@ describe("jobInputsFormSchema date and datetime-local validation", () => {
       expect(result.success).toBe(false);
     });
 
+    it("ignores unsupported second-precision string bounds", () => {
+      const secondsBoundField: InputDatetimeSchemaType = {
+        ...datetimeField,
+        validations: [
+          { validation: InputValidation.MIN, value: "2026-03-10T10:30:30Z" },
+          { validation: InputValidation.MAX, value: "2026-03-10T10:30:30" },
+        ],
+      };
+
+      const secondsBoundSchema = jobInputsFormSchema([secondsBoundField]);
+      const result = secondsBoundSchema.safeParse({
+        startAt: "2026-03-10T10:30",
+      });
+      expect(result.success).toBe(true);
+    });
+
     it("applies min and max constraints", () => {
       const belowMinResult = schema.safeParse({ startAt: "2026-03-10T08:59" });
       const aboveMaxResult = schema.safeParse({ startAt: "2026-03-10T12:01" });
