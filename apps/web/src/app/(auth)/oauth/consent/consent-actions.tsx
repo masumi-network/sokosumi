@@ -21,17 +21,15 @@ export function ConsentActions() {
 
       if (result.error) {
         toast.error(result.error.message || t("authorizeError"));
-        setIsAuthorizing(false);
-        return;
+      } else {
+        toast.success(t("authorizeSuccess"));
+        const { redirect, url } = result.data;
+        if (redirect && url) {
+          window.location.href = url;
+        } else {
+          window.location.href = "/";
+        }
       }
-
-      const { redirect, url } = result.data;
-      if (redirect && url) {
-        window.location.href = url;
-        return;
-      }
-
-      toast.error(t("authorizeError"));
       setIsAuthorizing(false);
     } catch (error) {
       console.error("OAuth authorization error:", error);
