@@ -3,7 +3,7 @@
 import { track } from "@vercel/analytics";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ComponentProps, useMemo } from "react";
+import { ComponentProps } from "react";
 import {
   GoogleLoginButton,
   MicrosoftLoginButton,
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
+import { resolveOAuthReturnUrl } from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 interface SocialButtonsProps {
@@ -39,10 +39,7 @@ const socialButtons: Array<{
 export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
+  const effectiveReturnUrl = resolveOAuthReturnUrl(returnUrl, searchParams);
 
   const handleClick = async (key: SocialProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });

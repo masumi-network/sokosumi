@@ -3,13 +3,13 @@
 import { track } from "@vercel/analytics";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
+import { resolveOAuthReturnUrl } from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 interface SocialSignupAutoInitiatorProps {
@@ -24,10 +24,7 @@ export default function SocialSignupAutoInitiator({
   const t = useTranslations("Auth.Pages.SignUp");
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") ?? undefined;
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
+  const effectiveReturnUrl = resolveOAuthReturnUrl(returnUrl, searchParams);
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
 

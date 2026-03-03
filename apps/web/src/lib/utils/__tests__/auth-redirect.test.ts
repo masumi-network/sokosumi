@@ -4,6 +4,7 @@ import {
   buildSignUpUrlFromSignIn,
   getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
+  resolveOAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
 
@@ -129,6 +130,38 @@ describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
     });
 
     expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
+      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid+offline_access&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+    );
+  });
+});
+
+describe("resolveOAuthReturnUrl", () => {
+  it("uses explicit returnUrl when provided", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+      code_challenge: "challenge_1",
+    });
+
+    expect(resolveOAuthReturnUrl("/oauth/consent?client_id=explicit", params)).toBe(
+      "/oauth/consent?client_id=explicit",
+    );
+  });
+
+  it("falls back to oauth consent return URL built from search params", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+      code_challenge: "challenge_1",
+      code_challenge_method: "S256",
+      scope: "openid offline_access",
+      state: "state_1",
+      response_type: "code",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+
+    expect(resolveOAuthReturnUrl(undefined, params)).toBe(
       "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid+offline_access&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
     );
   });
