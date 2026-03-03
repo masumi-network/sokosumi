@@ -2,7 +2,8 @@
 
 import { client } from './client.gen.js';
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
-import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeletePaymentSourceExtendedData, DeletePaymentSourceExtendedResponses, DeleteRegistryData, DeleteRegistryErrors, DeleteRegistryResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetHealthData, GetHealthResponses, GetPaymentData, GetPaymentErrors, GetPaymentResponses, GetPaymentSourceData, GetPaymentSourceExtendedData, GetPaymentSourceExtendedResponses, GetPaymentSourceResponses, GetPurchaseData, GetPurchaseErrors, GetPurchaseResponses, GetRegistryData, GetRegistryResponses, GetRegistryWalletData, GetRegistryWalletResponses, GetRpcApiKeysData, GetRpcApiKeysResponses, GetUtxosData, GetUtxosResponses, GetWalletData, GetWalletResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchPaymentSourceExtendedData, PatchPaymentSourceExtendedResponses, PatchWalletData, PatchWalletResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostPaymentAuthorizeRefundData, PostPaymentAuthorizeRefundErrors, PostPaymentAuthorizeRefundResponses, PostPaymentData, PostPaymentErrors, PostPaymentResolveBlockchainIdentifierData, PostPaymentResolveBlockchainIdentifierErrors, PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResponses, PostPaymentSourceExtendedData, PostPaymentSourceExtendedResponses, PostPaymentSubmitResultData, PostPaymentSubmitResultErrors, PostPaymentSubmitResultResponses, PostPurchaseCancelRefundRequestData, PostPurchaseCancelRefundRequestErrors, PostPurchaseCancelRefundRequestResponses, PostPurchaseData, PostPurchaseErrors, PostPurchaseRequestRefundData, PostPurchaseRequestRefundErrors, PostPurchaseRequestRefundResponses, PostPurchaseResolveBlockchainIdentifierData, PostPurchaseResolveBlockchainIdentifierErrors, PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResponses, PostRegistryData, PostRegistryDeregisterData, PostRegistryDeregisterResponses, PostRegistryResponses, PostRevealDataData, PostRevealDataResponses, PostWalletData, PostWalletResponses } from './types.gen.js';
+import { deletePaymentSourceExtendedResponseTransformer, deleteRegistryResponseTransformer, deleteWebhooksResponseTransformer, getPaymentDiffNextActionResponseTransformer, getPaymentDiffOnchainStateOrResultResponseTransformer, getPaymentDiffResponseTransformer, getPaymentResponseTransformer, getPaymentSourceExtendedResponseTransformer, getPaymentSourceResponseTransformer, getPurchaseDiffNextActionResponseTransformer, getPurchaseDiffOnchainStateOrResultResponseTransformer, getPurchaseDiffResponseTransformer, getPurchaseResponseTransformer, getRegistryDiffResponseTransformer, getRegistryResponseTransformer, getRpcApiKeysResponseTransformer, getWalletResponseTransformer, getWebhooksResponseTransformer, patchPaymentSourceExtendedResponseTransformer, patchWalletResponseTransformer, postPaymentAuthorizeRefundResponseTransformer, postPaymentErrorStateRecoveryResponseTransformer, postPaymentIncomeResponseTransformer, postPaymentResolveBlockchainIdentifierResponseTransformer, postPaymentResponseTransformer, postPaymentSourceExtendedResponseTransformer, postPaymentSubmitResultResponseTransformer, postPurchaseCancelRefundRequestResponseTransformer, postPurchaseRequestRefundResponseTransformer, postPurchaseResolveBlockchainIdentifierResponseTransformer, postPurchaseResponseTransformer, postPurchaseSpendingResponseTransformer, postRegistryDeregisterResponseTransformer, postRegistryResponseTransformer, postWebhooksResponseTransformer } from './transformers.gen.js';
+import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeletePaymentSourceExtendedData, DeletePaymentSourceExtendedResponses, DeleteRegistryData, DeleteRegistryErrors, DeleteRegistryResponses, DeleteWebhooksData, DeleteWebhooksErrors, DeleteWebhooksResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetHealthData, GetHealthResponses, GetMonitoringData, GetMonitoringErrors, GetMonitoringResponses, GetPaymentData, GetPaymentDiffData, GetPaymentDiffErrors, GetPaymentDiffNextActionData, GetPaymentDiffNextActionErrors, GetPaymentDiffNextActionResponses, GetPaymentDiffOnchainStateOrResultData, GetPaymentDiffOnchainStateOrResultErrors, GetPaymentDiffOnchainStateOrResultResponses, GetPaymentDiffResponses, GetPaymentErrors, GetPaymentResponses, GetPaymentSourceData, GetPaymentSourceExtendedData, GetPaymentSourceExtendedResponses, GetPaymentSourceResponses, GetPurchaseData, GetPurchaseDiffData, GetPurchaseDiffErrors, GetPurchaseDiffNextActionData, GetPurchaseDiffNextActionErrors, GetPurchaseDiffNextActionResponses, GetPurchaseDiffOnchainStateOrResultData, GetPurchaseDiffOnchainStateOrResultErrors, GetPurchaseDiffOnchainStateOrResultResponses, GetPurchaseDiffResponses, GetPurchaseErrors, GetPurchaseResponses, GetRegistryAgentIdentifierData, GetRegistryAgentIdentifierErrors, GetRegistryAgentIdentifierResponses, GetRegistryData, GetRegistryDiffData, GetRegistryDiffErrors, GetRegistryDiffResponses, GetRegistryResponses, GetRegistryWalletData, GetRegistryWalletResponses, GetRpcApiKeysData, GetRpcApiKeysResponses, GetUtxosData, GetUtxosResponses, GetWalletData, GetWalletResponses, GetWebhooksData, GetWebhooksErrors, GetWebhooksResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchPaymentSourceExtendedData, PatchPaymentSourceExtendedResponses, PatchWalletData, PatchWalletResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostMonitoringStartData, PostMonitoringStartErrors, PostMonitoringStartResponses, PostMonitoringStopData, PostMonitoringStopErrors, PostMonitoringStopResponses, PostMonitoringTriggerCycleData, PostMonitoringTriggerCycleErrors, PostMonitoringTriggerCycleResponses, PostPaymentAuthorizeRefundData, PostPaymentAuthorizeRefundErrors, PostPaymentAuthorizeRefundResponses, PostPaymentData, PostPaymentErrors, PostPaymentErrorStateRecoveryData, PostPaymentErrorStateRecoveryErrors, PostPaymentErrorStateRecoveryResponses, PostPaymentIncomeData, PostPaymentIncomeErrors, PostPaymentIncomeResponses, PostPaymentResolveBlockchainIdentifierData, PostPaymentResolveBlockchainIdentifierErrors, PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResponses, PostPaymentSourceExtendedData, PostPaymentSourceExtendedResponses, PostPaymentSubmitResultData, PostPaymentSubmitResultErrors, PostPaymentSubmitResultResponses, PostPurchaseCancelRefundRequestData, PostPurchaseCancelRefundRequestErrors, PostPurchaseCancelRefundRequestResponses, PostPurchaseData, PostPurchaseErrors, PostPurchaseErrorStateRecoveryData, PostPurchaseErrorStateRecoveryErrors, PostPurchaseErrorStateRecoveryResponses, PostPurchaseRequestRefundData, PostPurchaseRequestRefundErrors, PostPurchaseRequestRefundResponses, PostPurchaseResolveBlockchainIdentifierData, PostPurchaseResolveBlockchainIdentifierErrors, PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResponses, PostPurchaseSpendingData, PostPurchaseSpendingErrors, PostPurchaseSpendingResponses, PostRegistryData, PostRegistryDeregisterData, PostRegistryDeregisterResponses, PostRegistryResponses, PostRevealDataData, PostRevealDataResponses, PostWalletData, PostWalletResponses, PostWebhooksData, PostWebhooksErrors, PostWebhooksResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -40,6 +41,7 @@ export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: 
  * Gets wallet status
  */
 export const getWallet = <ThrowOnError extends boolean = false>(options: Options<GetWalletData, ThrowOnError>) => (options.client ?? client).get<GetWalletResponses, unknown, ThrowOnError>({
+    responseTransformer: getWalletResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/wallet/',
     ...options
@@ -51,6 +53,7 @@ export const getWallet = <ThrowOnError extends boolean = false>(options: Options
  * Updates a wallet
  */
 export const patchWallet = <ThrowOnError extends boolean = false>(options?: Options<PatchWalletData, ThrowOnError>) => (options?.client ?? client).patch<PatchWalletResponses, unknown, ThrowOnError>({
+    responseTransformer: patchWalletResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/wallet/',
     ...options,
@@ -152,6 +155,7 @@ export const postApiKey = <ThrowOnError extends boolean = false>(options?: Optio
  * Gets the payment status. It needs to be created first with a POST request.
  */
 export const getPayment = <ThrowOnError extends boolean = false>(options: Options<GetPaymentData, ThrowOnError>) => (options.client ?? client).get<GetPaymentResponses, GetPaymentErrors, ThrowOnError>({
+    responseTransformer: getPaymentResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment/',
     ...options
@@ -163,6 +167,7 @@ export const getPayment = <ThrowOnError extends boolean = false>(options: Option
  * Creates a payment request and identifier. This will check incoming payments in the background.
  */
 export const postPayment = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentResponses, PostPaymentErrors, ThrowOnError>({
+    responseTransformer: postPaymentResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment/',
     ...options,
@@ -173,11 +178,48 @@ export const postPayment = <ThrowOnError extends boolean = false>(options?: Opti
 });
 
 /**
+ * Diff payments by combined status timestamp (READ access required)
+ *
+ * Returns payments that changed since the provided timestamp (combined next-action + on-chain-state/result).
+ */
+export const getPaymentDiff = <ThrowOnError extends boolean = false>(options: Options<GetPaymentDiffData, ThrowOnError>) => (options.client ?? client).get<GetPaymentDiffResponses, GetPaymentDiffErrors, ThrowOnError>({
+    responseTransformer: getPaymentDiffResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/diff',
+    ...options
+});
+
+/**
+ * Diff payments by next-action timestamp (READ access required)
+ *
+ * Returns payments whose next action changed since lastUpdate.
+ */
+export const getPaymentDiffNextAction = <ThrowOnError extends boolean = false>(options: Options<GetPaymentDiffNextActionData, ThrowOnError>) => (options.client ?? client).get<GetPaymentDiffNextActionResponses, GetPaymentDiffNextActionErrors, ThrowOnError>({
+    responseTransformer: getPaymentDiffNextActionResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/diff/next-action',
+    ...options
+});
+
+/**
+ * Diff payments by on-chain-state/result timestamp (READ access required)
+ *
+ * Returns payments whose on-chain state or result hash changed since lastUpdate.
+ */
+export const getPaymentDiffOnchainStateOrResult = <ThrowOnError extends boolean = false>(options: Options<GetPaymentDiffOnchainStateOrResultData, ThrowOnError>) => (options.client ?? client).get<GetPaymentDiffOnchainStateOrResultResponses, GetPaymentDiffOnchainStateOrResultErrors, ThrowOnError>({
+    responseTransformer: getPaymentDiffOnchainStateOrResultResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/diff/onchain-state-or-result',
+    ...options
+});
+
+/**
  * Completes a payment request. This will collect the funds after the unlock time. (admin access required +PAY)
  *
  * Submit the hash of their completed job for a payment request, which triggers the fund unlock process so the seller can collect payment after the unlock time expires. (admin access required +PAY)
  */
 export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSubmitResultData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentSubmitResultResponses, PostPaymentSubmitResultErrors, ThrowOnError>({
+    responseTransformer: postPaymentSubmitResultResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment/submit-result',
     ...options,
@@ -193,8 +235,40 @@ export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(op
  * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party.
  */
 export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentAuthorizeRefundData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentAuthorizeRefundResponses, PostPaymentAuthorizeRefundErrors, ThrowOnError>({
+    responseTransformer: postPaymentAuthorizeRefundResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment/authorize-refund',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Clear error state for payment request (PAY access required)
+ *
+ * Clears error states for payment requests in WaitingForManualAction state and resets them up for retry or other actions. This endpoint provides manual intervention capability to recover from error states by clearing error fields.
+ */
+export const postPaymentErrorStateRecovery = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentErrorStateRecoveryData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentErrorStateRecoveryResponses, PostPaymentErrorStateRecoveryErrors, ThrowOnError>({
+    responseTransformer: postPaymentErrorStateRecoveryResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/error-state-recovery/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Clear error state for purchase request (PAY access required)
+ *
+ * Clears error states for purchase requests in WaitingForManualAction state and resets them up for retry or other actions. This endpoint provides manual intervention capability to recover from error states by clearing error fields.
+ */
+export const postPurchaseErrorStateRecovery = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseErrorStateRecoveryData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseErrorStateRecoveryResponses, PostPurchaseErrorStateRecoveryErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/error-state-recovery/',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -208,6 +282,7 @@ export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>
  * Gets the purchase status. It needs to be created first with a POST request.
  */
 export const getPurchase = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseData, ThrowOnError>) => (options.client ?? client).get<GetPurchaseResponses, GetPurchaseErrors, ThrowOnError>({
+    responseTransformer: getPurchaseResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/purchase/',
     ...options
@@ -219,6 +294,7 @@ export const getPurchase = <ThrowOnError extends boolean = false>(options: Optio
  * Creates a purchase and pays the seller. This requires funds to be available.
  */
 export const postPurchase = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseResponses, PostPurchaseErrors, ThrowOnError>({
+    responseTransformer: postPurchaseResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/purchase/',
     ...options,
@@ -229,11 +305,48 @@ export const postPurchase = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
+ * Diff purchases by combined status timestamp (READ access required)
+ *
+ * Returns purchases that changed since the provided timestamp (combined next-action + on-chain-state/result).
+ */
+export const getPurchaseDiff = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseDiffData, ThrowOnError>) => (options.client ?? client).get<GetPurchaseDiffResponses, GetPurchaseDiffErrors, ThrowOnError>({
+    responseTransformer: getPurchaseDiffResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/diff',
+    ...options
+});
+
+/**
+ * Diff purchases by next-action timestamp (READ access required)
+ *
+ * Returns purchases whose next action changed since lastUpdate.
+ */
+export const getPurchaseDiffNextAction = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseDiffNextActionData, ThrowOnError>) => (options.client ?? client).get<GetPurchaseDiffNextActionResponses, GetPurchaseDiffNextActionErrors, ThrowOnError>({
+    responseTransformer: getPurchaseDiffNextActionResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/diff/next-action',
+    ...options
+});
+
+/**
+ * Diff purchases by on-chain-state/result timestamp (READ access required)
+ *
+ * Returns purchases whose on-chain state or result hash changed since lastUpdate.
+ */
+export const getPurchaseDiffOnchainStateOrResult = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseDiffOnchainStateOrResultData, ThrowOnError>) => (options.client ?? client).get<GetPurchaseDiffOnchainStateOrResultResponses, GetPurchaseDiffOnchainStateOrResultErrors, ThrowOnError>({
+    responseTransformer: getPurchaseDiffOnchainStateOrResultResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/diff/onchain-state-or-result',
+    ...options
+});
+
+/**
  * Request a refund for a completed purchase, which will be automatically collected after the refund time period expires. (+PAY access required)
  *
  * Requests a refund for a completed purchase. This will collect the refund after the refund time.
  */
 export const postPurchaseRequestRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseRequestRefundData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseRequestRefundResponses, PostPurchaseRequestRefundErrors, ThrowOnError>({
+    responseTransformer: postPurchaseRequestRefundResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/purchase/request-refund',
     ...options,
@@ -249,6 +362,7 @@ export const postPurchaseRequestRefund = <ThrowOnError extends boolean = false>(
  * Requests a refund for a completed purchase. This will collect the refund after the refund time.
  */
 export const postPurchaseCancelRefundRequest = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseCancelRefundRequestData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseCancelRefundRequestResponses, PostPurchaseCancelRefundRequestErrors, ThrowOnError>({
+    responseTransformer: postPurchaseCancelRefundRequestResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/purchase/cancel-refund-request',
     ...options,
@@ -264,6 +378,7 @@ export const postPurchaseCancelRefundRequest = <ThrowOnError extends boolean = f
  * Resolves a payment request by its blockchain identifier.
  */
 export const postPaymentResolveBlockchainIdentifier = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentResolveBlockchainIdentifierData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResolveBlockchainIdentifierErrors, ThrowOnError>({
+    responseTransformer: postPaymentResolveBlockchainIdentifierResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment/resolve-blockchain-identifier',
     ...options,
@@ -279,6 +394,7 @@ export const postPaymentResolveBlockchainIdentifier = <ThrowOnError extends bool
  * Resolves a purchase request by its blockchain identifier.
  */
 export const postPurchaseResolveBlockchainIdentifier = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseResolveBlockchainIdentifierData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResolveBlockchainIdentifierErrors, ThrowOnError>({
+    responseTransformer: postPurchaseResolveBlockchainIdentifierResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/purchase/resolve-blockchain-identifier',
     ...options,
@@ -300,11 +416,23 @@ export const getRegistryWallet = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
+ * Fetch the current metadata for a given agentIdentifier. (READ access required)
+ *
+ * Gets the on-chain metadata for a specific agent by its identifier.
+ */
+export const getRegistryAgentIdentifier = <ThrowOnError extends boolean = false>(options: Options<GetRegistryAgentIdentifierData, ThrowOnError>) => (options.client ?? client).get<GetRegistryAgentIdentifierResponses, GetRegistryAgentIdentifierErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/agent-identifier',
+    ...options
+});
+
+/**
  * Delete an agent registration record. (admin access required)
  *
  * Permanently deletes an agent registration record from the database. This action is irreversible and should only be used for registrations in specific failed or completed states.
  */
 export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistryData, ThrowOnError>) => (options?.client ?? client).delete<DeleteRegistryResponses, DeleteRegistryErrors, ThrowOnError>({
+    responseTransformer: deleteRegistryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/registry/',
     ...options,
@@ -320,6 +448,7 @@ export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: O
  * Gets the agent metadata.
  */
 export const getRegistry = <ThrowOnError extends boolean = false>(options: Options<GetRegistryData, ThrowOnError>) => (options.client ?? client).get<GetRegistryResponses, unknown, ThrowOnError>({
+    responseTransformer: getRegistryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/registry/',
     ...options
@@ -331,6 +460,7 @@ export const getRegistry = <ThrowOnError extends boolean = false>(options: Optio
  * Registers an agent to the registry (Please note that while it it is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
  */
 export const postRegistry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryResponses, unknown, ThrowOnError>({
+    responseTransformer: postRegistryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/registry/',
     ...options,
@@ -341,11 +471,24 @@ export const postRegistry = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
+ * Diff registry entries by state-change timestamp (READ access required)
+ *
+ * Returns registry entries that changed since the provided timestamp (registrationStateLastChangedAt).
+ */
+export const getRegistryDiff = <ThrowOnError extends boolean = false>(options: Options<GetRegistryDiffData, ThrowOnError>) => (options.client ?? client).get<GetRegistryDiffResponses, GetRegistryDiffErrors, ThrowOnError>({
+    responseTransformer: getRegistryDiffResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/diff',
+    ...options
+});
+
+/**
  * Deregisters an agent from the specified registry. (admin access required +PAY)
  *
  * Deregisters a agent from the specified registry (Please note that while the command is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
  */
 export const postRegistryDeregister = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDeregisterData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryDeregisterResponses, unknown, ThrowOnError>({
+    responseTransformer: postRegistryDeregisterResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/registry/deregister',
     ...options,
@@ -361,6 +504,7 @@ export const postRegistryDeregister = <ThrowOnError extends boolean = false>(opt
  * Gets the payment source.
  */
 export const getPaymentSource = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceData, ThrowOnError>) => (options?.client ?? client).get<GetPaymentSourceResponses, unknown, ThrowOnError>({
+    responseTransformer: getPaymentSourceResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment-source/',
     ...options
@@ -372,6 +516,7 @@ export const getPaymentSource = <ThrowOnError extends boolean = false>(options?:
  * Deletes a payment source. WARNING will also delete all associated wallets and transactions.
  */
 export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<DeletePaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).delete<DeletePaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    responseTransformer: deletePaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment-source-extended/',
     ...options,
@@ -387,6 +532,7 @@ export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false
  * Gets the payment contracts including the status.
  */
 export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).get<GetPaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    responseTransformer: getPaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment-source-extended/',
     ...options
@@ -398,6 +544,7 @@ export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(o
  * Updates a payment source.
  */
 export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PatchPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).patch<PatchPaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    responseTransformer: patchPaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment-source-extended/',
     ...options,
@@ -413,6 +560,7 @@ export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>
  * Creates a payment source.
  */
 export const postPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    responseTransformer: postPaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/payment-source-extended/',
     ...options,
@@ -439,7 +587,132 @@ export const getUtxos = <ThrowOnError extends boolean = false>(options: Options<
  * Gets rpc api keys, currently only blockfrost is supported (internal)
  */
 export const getRpcApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetRpcApiKeysData, ThrowOnError>) => (options?.client ?? client).get<GetRpcApiKeysResponses, unknown, ThrowOnError>({
+    responseTransformer: getRpcApiKeysResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
     url: '/rpc-api-keys/',
+    ...options
+});
+
+/**
+ * Get agent purchase spending analytics. (READ access required)
+ *
+ * Get agent spending, fees, and volume analytics for Purchase Request transactions only, over specified time periods.
+ */
+export const postPurchaseSpending = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseSpendingData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseSpendingResponses, PostPurchaseSpendingErrors, ThrowOnError>({
+    responseTransformer: postPurchaseSpendingResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/spending',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Get payment income analytics. (READ access required)
+ *
+ * Get payment income analytics for Payment Request transactions, over specified time periods.
+ */
+export const postPaymentIncome = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentIncomeData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentIncomeResponses, PostPaymentIncomeErrors, ThrowOnError>({
+    responseTransformer: postPaymentIncomeResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/income',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Delete an existing webhook endpoint. Only the creator or admin can delete a webhook. (pay-authenticated access required)
+ *
+ * Delete a webhook endpoint
+ */
+export const deleteWebhooks = <ThrowOnError extends boolean = false>(options?: Options<DeleteWebhooksData, ThrowOnError>) => (options?.client ?? client).delete<DeleteWebhooksResponses, DeleteWebhooksErrors, ThrowOnError>({
+    responseTransformer: deleteWebhooksResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/webhooks/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * List all webhook endpoints registered by your API key. (pay-authenticated access required)
+ *
+ * List webhook endpoints
+ */
+export const getWebhooks = <ThrowOnError extends boolean = false>(options?: Options<GetWebhooksData, ThrowOnError>) => (options?.client ?? client).get<GetWebhooksResponses, GetWebhooksErrors, ThrowOnError>({
+    responseTransformer: getWebhooksResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/webhooks/',
+    ...options
+});
+
+/**
+ * Register a new webhook endpoint to receive event notifications. (pay-authenticated access required)
+ *
+ * Register a new webhook endpoint
+ */
+export const postWebhooks = <ThrowOnError extends boolean = false>(options?: Options<PostWebhooksData, ThrowOnError>) => (options?.client ?? client).post<PostWebhooksResponses, PostWebhooksErrors, ThrowOnError>({
+    responseTransformer: postWebhooksResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/webhooks/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Get monitoring service status. (admin access required)
+ *
+ * Gets the current status of the blockchain state monitoring service
+ */
+export const getMonitoring = <ThrowOnError extends boolean = false>(options?: Options<GetMonitoringData, ThrowOnError>) => (options?.client ?? client).get<GetMonitoringResponses, GetMonitoringErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/monitoring/',
+    ...options
+});
+
+/**
+ * Trigger a manual monitoring cycle. (admin access required)
+ *
+ * Manually triggers a monitoring cycle to check blockchain state
+ */
+export const postMonitoringTriggerCycle = <ThrowOnError extends boolean = false>(options?: Options<PostMonitoringTriggerCycleData, ThrowOnError>) => (options?.client ?? client).post<PostMonitoringTriggerCycleResponses, PostMonitoringTriggerCycleErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/monitoring/trigger-cycle/',
+    ...options
+});
+
+/**
+ * Start the monitoring service. (admin access required)
+ *
+ * Starts the blockchain state monitoring service with a specified interval
+ */
+export const postMonitoringStart = <ThrowOnError extends boolean = false>(options?: Options<PostMonitoringStartData, ThrowOnError>) => (options?.client ?? client).post<PostMonitoringStartResponses, PostMonitoringStartErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/monitoring/start/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Stop the monitoring service. (admin access required)
+ *
+ * Stops the blockchain state monitoring service
+ */
+export const postMonitoringStop = <ThrowOnError extends boolean = false>(options?: Options<PostMonitoringStopData, ThrowOnError>) => (options?.client ?? client).post<PostMonitoringStopResponses, PostMonitoringStopErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/monitoring/stop/',
     ...options
 });

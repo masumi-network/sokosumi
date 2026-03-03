@@ -122,6 +122,7 @@ function transactionStatusToOnChainTransactionStatus(
     | "Pending"
     | "Confirmed"
     | "FailedViaTimeout"
+    | "FailedViaManualReset"
     | "RolledBack",
 ): OnChainTransactionStatus {
   switch (currentTransactionStatus) {
@@ -130,6 +131,7 @@ function transactionStatusToOnChainTransactionStatus(
     case "Confirmed":
       return "COMPLETED";
     case "FailedViaTimeout":
+    case "FailedViaManualReset":
     case "RolledBack":
       return "FAILED";
     default:
@@ -189,6 +191,7 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
         | "Pending"
         | "Confirmed"
         | "FailedViaTimeout"
+        | "FailedViaManualReset"
         | "RolledBack",
     );
   }
