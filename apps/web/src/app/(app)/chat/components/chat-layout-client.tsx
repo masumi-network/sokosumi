@@ -5,7 +5,6 @@ import { useEffect, useMemo } from "react";
 
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import ChatInterface from "@/app/chat/components/chat-interface";
-import { ChatRouteBaseContext } from "@/app/chat/contexts/chat-route-base-context";
 import {
   bucketKeyFromDisplaySlug,
   bucketKeyToSlug,
