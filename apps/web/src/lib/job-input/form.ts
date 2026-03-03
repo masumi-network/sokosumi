@@ -67,7 +67,7 @@ export const jobInputsFormSchema = (
  *
  * Key differences from InputSchemaType:
  * - May contain null/undefined for optional fields
- * - Fields are validated according to input type (e.g., dates are Date objects)
+ * - Fields are validated according to input type (e.g., date/time fields are strings)
  * - Used with react-hook-form for form state management
  *
  * @see InputSchemaType for the API-compatible type
@@ -76,33 +76,6 @@ export const jobInputsFormSchema = (
 export type JobInputsFormSchemaType = z.infer<
   ReturnType<typeof jobInputsFormSchema>
 >;
-
-/**
- * Serializes InputSchemaType to a format compatible with the API.
- *
- * @param values - InputSchemaType
- * @returns InputSchemaType
- */
-function serializeInputValues(values: InputSchemaType): InputSchemaType {
-  return Object.fromEntries(
-    Object.entries(values).map(([key, value]) => {
-      if (value instanceof Date) {
-        return [key, value.toISOString()];
-      }
-
-      if (Array.isArray(value)) {
-        return [
-          key,
-          value.map((item) =>
-            item instanceof Date ? item.toISOString() : item,
-          ) as InputSchemaType[string],
-        ];
-      }
-
-      return [key, value];
-    }),
-  ) as InputSchemaType;
-}
 
 /**
  * Converts form state to API-compatible format by removing null/undefined values.
@@ -135,7 +108,7 @@ function filterOutNullValues(values: JobInputsFormSchemaType): InputSchemaType {
 }
 
 /**
- * Prepares input values for submission by filtering out null/undefined values and serializing Date values.
+ * Prepares input values for submission by filtering out null/undefined values.
  *
  * @param values - JobInputsFormSchemaType
  * @returns InputSchemaType
@@ -143,9 +116,7 @@ function filterOutNullValues(values: JobInputsFormSchemaType): InputSchemaType {
 export function prepareInputValues(
   values: JobInputsFormSchemaType,
 ): InputSchemaType {
-  const filteredValues = filterOutNullValues(values);
-  const serializedValues = serializeInputValues(filteredValues);
-  return serializedValues;
+  return filterOutNullValues(values);
 }
 
 /**
@@ -305,7 +276,7 @@ export function isValidFormValue(
       );
     case InputType.DATE:
     case InputType.DATETIME:
-      return value instanceof Date;
+      return typeof value === "string";
     default:
       return typeof value === "string";
   }

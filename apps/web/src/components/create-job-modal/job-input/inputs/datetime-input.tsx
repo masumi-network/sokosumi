@@ -1,6 +1,5 @@
 import { InputDatetimeSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
-import { format } from "date-fns";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
@@ -16,33 +15,67 @@ import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
 
+const DATE_VALUE_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+const TIME_VALUE_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const DATETIME_LOCAL_VALUE_REGEX =
+  /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):([0-5]\d)$/;
+
+function parseDatePart(value: string): Date | undefined {
+  if (!DATE_VALUE_REGEX.test(value)) {
+    return undefined;
+  }
+
+  const [yearStr, monthStr, dayStr] = value.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+function formatDatePart(date: Date): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function DatetimeInput({
   id,
   field,
   jobInputSchema,
 }: JobInputComponentProps<InputType.DATETIME, InputDatetimeSchemaType>) {
-  const valueDate = field.value instanceof Date ? field.value : undefined;
-  const timeString = valueDate ? format(valueDate, "HH:mm") : "";
+  const valueString =
+    typeof field.value === "string" && DATETIME_LOCAL_VALUE_REGEX.test(field.value)
+      ? field.value
+      : "";
+  const [datePart, timePart] = valueString.split("T");
+  const valueDate = datePart ? parseDatePart(datePart) : undefined;
+  const timeString =
+    typeof timePart === "string" && TIME_VALUE_REGEX.test(timePart)
+      ? timePart
+      : "";
 
   const handleSelectDate = (d?: Date) => {
     if (!d) return field.onChange(null);
-    const next = new Date(d);
-    if (valueDate) {
-      next.setHours(valueDate.getHours());
-      next.setMinutes(valueDate.getMinutes());
-      next.setSeconds(0, 0);
-    }
-    field.onChange(next);
+    const nextDatePart = formatDatePart(d);
+    const nextTimePart = timeString || "00:00";
+    field.onChange(`${nextDatePart}T${nextTimePart}`);
   };
 
   const handleTimeChange = (v: string) => {
-    const [hh, mm] = v.split(":").map((n) => Number(n));
-    const base = valueDate ?? new Date();
-    const next = new Date(base);
-    next.setHours(Number.isFinite(hh) ? hh : 0);
-    next.setMinutes(Number.isFinite(mm) ? mm : 0);
-    next.setSeconds(0, 0);
-    field.onChange(next);
+    const nextTimePart = TIME_VALUE_REGEX.test(v) ? v : "00:00";
+    const baseDatePart = datePart || formatDatePart(new Date());
+    field.onChange(`${baseDatePart}T${nextTimePart}`);
   };
 
   const { minDate, maxDate } = useMemo(() => {

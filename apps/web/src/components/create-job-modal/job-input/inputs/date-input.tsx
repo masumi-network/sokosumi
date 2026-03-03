@@ -14,11 +14,42 @@ import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
 
+const DATE_VALUE_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+function parseDateValue(value: unknown): Date | undefined {
+  if (typeof value !== "string" || !DATE_VALUE_REGEX.test(value)) {
+    return undefined;
+  }
+
+  const [yearStr, monthStr, dayStr] = value.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+function formatDateValue(date: Date): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function DateInput({
   field,
   jobInputSchema,
 }: JobInputComponentProps<InputType.DATE, InputDateSchemaType>) {
-  const selectedDate = field.value instanceof Date ? field.value : undefined;
+  const selectedDate = parseDateValue(field.value);
 
   const { minDate, maxDate } = useMemo(() => {
     const transformedValidations =
@@ -46,7 +77,7 @@ export function DateInput({
         <Calendar
           mode="single"
           selected={selectedDate}
-          onSelect={(d) => field.onChange(d ?? null)}
+          onSelect={(date) => field.onChange(date ? formatDateValue(date) : null)}
           disabled={(date) =>
             (minDate ? date < minDate : false) ||
             (maxDate ? date > maxDate : false)
