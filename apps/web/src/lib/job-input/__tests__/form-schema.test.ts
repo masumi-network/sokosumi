@@ -73,6 +73,24 @@ describe("jobInputsFormSchema date and datetime-local validation", () => {
       expect(result.success).toBe(true);
     });
 
+    it("accepts DST-gap local datetimes without timezone-dependent rejection", () => {
+      const result = schema.safeParse({ startAt: "2026-03-08T02:30" });
+      expect(result.success).toBe(false);
+
+      const relaxedRangeField: InputDatetimeSchemaType = {
+        ...datetimeField,
+        validations: [
+          { validation: InputValidation.MIN, value: "2026-03-08T00:00" },
+          { validation: InputValidation.MAX, value: "2026-03-08T23:59" },
+        ],
+      };
+
+      const relaxedSchema = jobInputsFormSchema([relaxedRangeField]);
+      expect(relaxedSchema.safeParse({ startAt: "2026-03-08T02:30" }).success).toBe(
+        true,
+      );
+    });
+
     it("rejects timezone-based ISO datetime strings", () => {
       const result = schema.safeParse({
         startAt: "2026-03-10T10:30:00.000Z",

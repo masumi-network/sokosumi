@@ -51,7 +51,7 @@ export function parseDatetimeLocalValue(value: string): Date | undefined {
   const [hoursStr, minutesStr] = timePart.split(":");
   const hours = Number(hoursStr);
   const minutes = Number(minutesStr);
-  const parsed = new Date(
+  return new Date(
     date.getFullYear(),
     date.getMonth(),
     date.getDate(),
@@ -60,16 +60,23 @@ export function parseDatetimeLocalValue(value: string): Date | undefined {
     0,
     0,
   );
+}
 
-  if (
-    parsed.getFullYear() !== date.getFullYear() ||
-    parsed.getMonth() !== date.getMonth() ||
-    parsed.getDate() !== date.getDate() ||
-    parsed.getHours() !== hours ||
-    parsed.getMinutes() !== minutes
-  ) {
-    return undefined;
+export function isDatetimeLocalValue(value: string): boolean {
+  if (!DATETIME_LOCAL_VALUE_REGEX.test(value)) {
+    return false;
   }
 
-  return parsed;
+  const [datePart] = value.split("T");
+  return !!datePart && !!parseDateValue(datePart);
+}
+
+export function formatDatetimeLocalValue(date: Date): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }

@@ -8,6 +8,8 @@ import * as z from "zod";
 import {
   DATE_VALUE_REGEX,
   DATETIME_LOCAL_VALUE_REGEX,
+  formatDatetimeLocalValue,
+  isDatetimeLocalValue,
   parseDatetimeLocalValue,
   parseDateValue,
 } from "@/lib/job-input/date-value";
@@ -265,6 +267,24 @@ function parseValidationDateString(value: string | number): string | undefined {
   return parsed.toISOString().slice(0, 10);
 }
 
+function parseValidationDatetimeLocalString(
+  value: string | number,
+): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (isDatetimeLocalValue(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  const parsed = parseValidationDate(value);
+  if (!parsed) {
+    return undefined;
+  }
+
+  return formatDatetimeLocalValue(parsed);
+}
+
 /**
  * Apply date validations using strict YYYY-MM-DD strings
  */
@@ -318,41 +338,27 @@ export function applyDatetimeLocalValidations(
     .regex(DATETIME_LOCAL_VALUE_REGEX, {
       error: t?.("String.format", { name, value: "datetime-local" }),
     })
-    .refine((value) => !!parseDatetimeLocalValue(value), {
+    .refine((value) => isDatetimeLocalValue(value), {
       error: t?.("String.format", { name, value: "datetime-local" }),
     });
 
   if (parsed.min !== undefined) {
-    const minDate = parseValidationDate(parsed.min);
+    const minDate = parseValidationDatetimeLocalString(parsed.min);
     if (minDate) {
-      const minLabel =
-        typeof parsed.min === "string" ? parsed.min : minDate.toISOString();
-      schema = schema.refine(
-        (value) => {
-          const parsedValue = parseDatetimeLocalValue(value);
-          return !!parsedValue && parsedValue.getTime() >= minDate.getTime();
-        },
-        {
-          error: t?.("Date.min", { name, value: minLabel }),
-        },
-      );
+      const minLabel = typeof parsed.min === "string" ? parsed.min : minDate;
+      schema = schema.refine((value) => value >= minDate, {
+        error: t?.("Date.min", { name, value: minLabel }),
+      });
     }
   }
 
   if (parsed.max !== undefined) {
-    const maxDate = parseValidationDate(parsed.max);
+    const maxDate = parseValidationDatetimeLocalString(parsed.max);
     if (maxDate) {
-      const maxLabel =
-        typeof parsed.max === "string" ? parsed.max : maxDate.toISOString();
-      schema = schema.refine(
-        (value) => {
-          const parsedValue = parseDatetimeLocalValue(value);
-          return !!parsedValue && parsedValue.getTime() <= maxDate.getTime();
-        },
-        {
-          error: t?.("Date.max", { name, value: maxLabel }),
-        },
-      );
+      const maxLabel = typeof parsed.max === "string" ? parsed.max : maxDate;
+      schema = schema.refine((value) => value <= maxDate, {
+        error: t?.("Date.max", { name, value: maxLabel }),
+      });
     }
   }
 
