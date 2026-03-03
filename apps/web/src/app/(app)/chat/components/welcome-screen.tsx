@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const PROMPT_KEYS = ["1", "2", "3"] as const;
 
 interface WelcomeScreenProps {
+  mobileKeyboardOptimized?: boolean;
   userName?: string;
   onSendMessage: (message: string, coworker?: Coworker) => void;
   isTransitioning: boolean;
@@ -31,6 +32,7 @@ interface WelcomeScreenProps {
 }
 
 export default function WelcomeScreen({
+  mobileKeyboardOptimized = false,
   userName,
   onSendMessage,
   input,
@@ -122,10 +124,11 @@ export default function WelcomeScreen({
         aria-hidden
         className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
       />
-      {/* On mobile: fixed to viewport bottom so input matches chat view (main has p-4). On md+: absolute in flow. */}
       <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-0">
         <div className="w-full max-w-4xl">
           <MultimodalInput
+            blurOnSendOnMobile={mobileKeyboardOptimized}
+            enterSubmitsOnMobile={!mobileKeyboardOptimized}
             input={input}
             setInput={setInput}
             status={status}

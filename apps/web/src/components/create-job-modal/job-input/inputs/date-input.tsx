@@ -10,7 +10,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { parseDate } from "@/lib/utils";
+import {
+  formatDateValue,
+  isDateValueOutOfBounds,
+  normalizeDateValidationBound,
+  parseDateValue,
+} from "@/lib/job-input/date-value";
 
 import { JobInputComponentProps } from "./types";
 
@@ -18,18 +23,19 @@ export function DateInput({
   field,
   jobInputSchema,
 }: JobInputComponentProps<InputType.DATE, InputDateSchemaType>) {
-  const selectedDate = field.value instanceof Date ? field.value : undefined;
+  const selectedDate =
+    typeof field.value === "string" ? parseDateValue(field.value) : undefined;
 
-  const { minDate, maxDate } = useMemo(() => {
+  const { minDateValue, maxDateValue } = useMemo(() => {
     const transformedValidations =
       transformJobInputSchemaValidations(jobInputSchema);
-    const minDate = parseDate(
+    const minDateValue = normalizeDateValidationBound(
       transformedValidations.min as string | number | undefined,
     );
-    const maxDate = parseDate(
+    const maxDateValue = normalizeDateValidationBound(
       transformedValidations.max as string | number | undefined,
     );
-    return { minDate, maxDate };
+    return { minDateValue, maxDateValue };
   }, [jobInputSchema]);
 
   return (
@@ -46,11 +52,16 @@ export function DateInput({
         <Calendar
           mode="single"
           selected={selectedDate}
-          onSelect={(d) => field.onChange(d ?? null)}
-          disabled={(date) =>
-            (minDate ? date < minDate : false) ||
-            (maxDate ? date > maxDate : false)
+          onSelect={(date) =>
+            field.onChange(date ? formatDateValue(date) : null)
           }
+          disabled={(date) => {
+            const dateValue = formatDateValue(date);
+            return isDateValueOutOfBounds(dateValue, {
+              min: minDateValue,
+              max: maxDateValue,
+            });
+          }}
           captionLayout="dropdown"
           autoFocus
         />

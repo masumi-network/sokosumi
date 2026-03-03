@@ -275,6 +275,30 @@ export default function UserAvatarClient({
               {t("help")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink(
+                    "https://docs.sokosumi.com/documentation",
+                  );
+                }}
+              >
+                <BookOpen className="text-muted-foreground size-4" />
+                {t("documentation")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleOpenExternalLink("mailto:info@sokosumi.com");
+                }}
+              >
+                <CircleHelp className="text-muted-foreground size-4" />
+                {t("support")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-muted-foreground text-xs">
                 {t("legal")}
               </DropdownMenuLabel>
@@ -319,30 +343,6 @@ export default function UserAvatarClient({
                 }}
               >
                 {t("acceptableUse")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink(
-                    "https://docs.sokosumi.com/documentation",
-                  );
-                }}
-              >
-                <BookOpen className="text-muted-foreground size-4" />
-                {t("documentation")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink("mailto:info@sokosumi.com");
-                }}
-              >
-                <CircleHelp className="text-muted-foreground size-4" />
-                {t("support")}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>

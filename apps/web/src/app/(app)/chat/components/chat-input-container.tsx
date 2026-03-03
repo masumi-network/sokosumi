@@ -25,6 +25,7 @@ interface ChatInputContainerProps {
   onSelectModel: (model: { id: string; name: string } | null) => void;
   selectedChatCoworker?: Coworker;
   coworkers?: Coworker[];
+  mobileKeyboardOptimized?: boolean;
 }
 
 export default function ChatInputContainer({
@@ -41,12 +42,15 @@ export default function ChatInputContainer({
   onSelectModel,
   selectedChatCoworker,
   coworkers,
+  mobileKeyboardOptimized = false,
 }: ChatInputContainerProps) {
   return (
     <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:px-0">
       <div className="w-full max-w-4xl">
         <MultimodalInput
+          blurOnSendOnMobile={mobileKeyboardOptimized}
           chatId={selectedChatId || undefined}
+          enterSubmitsOnMobile={!mobileKeyboardOptimized}
           input={input}
           setInput={setInput}
           status={status}

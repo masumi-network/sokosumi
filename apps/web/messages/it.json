@@ -1,0 +1,2454 @@
+{
+  "Job": {
+    "CreationFailed": "Impossibile creare il job",
+    "RefundFailed": "Impossibile rimborsare il job",
+    "ManualChainState": "Il job è fallito, contatta il nostro supporto",
+    "SyncStatusFailed": "Impossibile ottenere lo stato on-chain, contatta il nostro supporto",
+    "SyncOutputFailed": "Impossibile ottenere l’output del job, contatta il nostro supporto",
+    "UnknownError": "Si è verificato un errore sconosciuto, contatta il nostro supporto"
+  },
+  "Components": {
+    "AppLayoutRestrictor": {
+      "title": "Mobile non supportato",
+      "description": "Questa pagina è supportata solo su desktop. Passa a uno schermo più grande.",
+      "reload": "Ricarica"
+    },
+    "CookieConsent": {
+      "title": "Usiamo i cookie",
+      "description": "Usiamo i cookie per garantirti la migliore esperienza sul nostro sito. Per maggiori informazioni su come utilizziamo i cookie, consulta la nostra ",
+      "cookiePolicy": "informativa sui cookie",
+      "period": ".",
+      "accept": "Accetta",
+      "reject": "Rifiuta"
+    },
+    "EmergencyDialog": {
+      "title": "Manutenzione d’emergenza",
+      "description": "Stiamo riscontrando problemi nell’esecuzione dei job a causa di difficoltà tecniche con uno dei nostri fornitori terzi. Non preoccuparti, tornerà tutto alla normalità a breve.",
+      "confirm": "OK"
+    },
+    "ShareButton": {
+      "linkCopied": "Link copiato negli appunti",
+      "copyError": "Impossibile copiare il link"
+    },
+    "DefaultErrorBoundary": {
+      "error": "Si è verificato un errore sconosciuto, contatta il nostro supporto"
+    },
+    "Agents": {
+      "RiskClassification": {
+        "minimal": "Rischio minimo",
+        "limited": "Rischio limitato",
+        "high": "Rischio elevato",
+        "unacceptable": "Rischio inaccettabile"
+      },
+      "AgentVerifiedBadge": {
+        "tooltip": "L’autenticità di questo agente è verificata tramite un’Identità agente.",
+        "learnMore": "Scopri di più",
+        "aboutAgentIdentities": "sulle Identità agente."
+      },
+      "Rating": {
+        "title": "Valutazioni",
+        "noRatings": "Ancora nessuna valutazione",
+        "averageRating": "{average} su 5 stelle",
+        "totalRatings": "{count} valutazioni",
+        "submitRating": "Valuta questo agente",
+        "ratingLabel": "La tua valutazione",
+        "updateRating": "Aggiorna valutazione",
+        "commentLabel": "Commento (facoltativo)",
+        "commentPlaceholder": "Condividi la tua esperienza...",
+        "commentTooLong": "Il commento deve essere lungo al massimo 1000 caratteri",
+        "submitButton": "Invia valutazione",
+        "submitting": "Invio in corso...",
+        "successMessage": "Grazie per il tuo feedback!",
+        "errorMessage": "Impossibile inviare la valutazione",
+        "selectRating": "Seleziona una valutazione",
+        "eligibilityMessage": "Completa un job per valutare questo agente",
+        "star": "{count} stella",
+        "percentage": "{percentage}%"
+      },
+      "Reviews": {
+        "customerReviews": "Recensioni dei clienti",
+        "noReviewsYet": "Ancora nessuna recensione",
+        "beFirstToReview": "Sii il primo a scrivere una recensione!",
+        "signInToReview": "Accedi per scrivere una recensione",
+        "signIn": "Accedi",
+        "readMore": "Leggi di più",
+        "showLess": "Mostra meno",
+        "Pagination": {
+          "page": "Pagina {page} di {totalPages}"
+        }
+      },
+      "agentsNotAvailable": "Nessun agente disponibile",
+      "agentsNotFound": "Nessun agente trovato",
+      "hire": "Assumi agente",
+      "freeDemo": "Demo gratuita",
+      "AgentCard": {
+        "view": "Mostra dettagli",
+        "pricing": "{price, plural, =0 {Gratis} =1 {1 credito} other {# crediti}}",
+        "addedToBookmarks": "Agente aggiunto agli agenti fissati",
+        "removedFromBookmarks": "Agente rimosso dagli agenti fissati",
+        "bookmarkError": "Impossibile aggiornare gli agenti fissati"
+      },
+      "AgentDetail": {
+        "Header": {
+          "pricing": "{credits, plural, =0 {Gratis} =1 {1 credito} other {# crediti}}"
+        },
+        "Stats": {
+          "executedJobs": "Job eseguiti",
+          "averageExecutionTime": "Tempo medio di esecuzione",
+          "rating": "Valutazione"
+        },
+        "Overview": {
+          "description": "Descrizione",
+          "tags": "In breve"
+        },
+        "Examples": {
+          "title": "Esempi di output",
+          "download": "Scarica"
+        },
+        "Legal": {
+          "title": "Dallo sviluppatore",
+          "privacyPolicy": "Informativa sulla privacy",
+          "terms": "Termini",
+          "other": "Altro"
+        },
+        "Risk": {
+          "title": "Classificazione del rischio AI Act UE"
+        }
+      },
+      "AgentBadgeCloud": {
+        "new": "Nuovo"
+      }
+    },
+    "UserAvatar": {
+      "account": "Account",
+      "organizations": "Organizzazioni",
+      "billing": "Fatturazione",
+      "connections": "Connessioni",
+      "help": "Aiuto",
+      "legal": "Note legali",
+      "support": "Supporto",
+      "documentation": "Documentazione",
+      "termsOfService": "Termini di servizio",
+      "privacyPolicy": "Informativa sulla privacy",
+      "imprint": "Note legali",
+      "acceptableUse": "Uso accettabile",
+      "logout": "Esci",
+      "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
+      "creditsSummary": "Riepilogo crediti:",
+      "creditsConsumedProgressAria": "Crediti di abbonamento consumati",
+      "creditsExpiresInDays": "I crediti scadono tra {days, plural, =1 {1 giorno} other {# giorni}}",
+      "creditsExpiresToday": "I crediti scadono oggi",
+      "creditsExpired": "Crediti scaduti"
+    },
+    "OrganizationSwitcher": {
+      "switchWorkspace": "Cambia workspace",
+      "searchProfiles": "Cerca profili...",
+      "personalAccount": "Account personale",
+      "noProfilesFound": "Nessun profilo trovato",
+      "personalAccountHeading": "Personale",
+      "organization": "Organizzazione",
+      "addOrganization": "Aggiungi organizzazione",
+      "organizationsHeading": "Organizzazioni",
+      "createOrJoinOrganization": "Crea o unisciti a un’organizzazione"
+    },
+    "DataTable": {
+      "Data": {
+        "noResults": "Nessun risultato."
+      },
+      "ColumnHeader": {
+        "ascending": "Crescente",
+        "descending": "Decrescente",
+        "hide": "Nascondi"
+      },
+      "Pagination": {
+        "rowsSelected": "{selected} di {total, plural, =1 {# riga} other {# righe}} selezionate",
+        "rowsPerPage": "Righe per pagina",
+        "page": "Pagina {page} di {totalPages}",
+        "firstPage": "Vai alla prima pagina",
+        "previousPage": "Vai alla pagina precedente",
+        "nextPage": "Vai alla pagina successiva",
+        "lastPage": "Vai all’ultima pagina"
+      }
+    },
+    "MembersTable": {
+      "Header": {
+        "name": "Nome",
+        "email": "Email",
+        "role": "Ruolo",
+        "actions": "Azioni"
+      },
+      "MemberActions": {
+        "remove": "Rimuovi",
+        "changeToOwner": "Imposta come proprietario",
+        "changeToAdmin": "Imposta come amministratore",
+        "changeToMember": "Imposta come membro",
+        "Modal": {
+          "changeRoleTitle": "Modifica ruolo",
+          "removeTitle": "Rimuovi membro",
+          "changeToOwnerDescription": "Vuoi davvero cambiare il ruolo di {member} in Proprietario?",
+          "changeToAdminDescription": "Vuoi davvero cambiare il ruolo di {member} in Amministratore?",
+          "changeToMemberDescription": "Vuoi davvero cambiare il ruolo di {member} in Membro?",
+          "removeDescription": "Vuoi davvero rimuovere {member} dall’organizzazione?",
+          "confirm": "Conferma",
+          "cancel": "Annulla",
+          "Success": {
+            "changeRole": "Ruolo modificato correttamente",
+            "remove": "Membro rimosso correttamente"
+          },
+          "Error": {
+            "changeRole": "Impossibile modificare il ruolo",
+            "remove": "Impossibile rimuovere il membro"
+          },
+          "Errors": {
+            "unauthorizedAction": "Accedi"
+          }
+        }
+      },
+      "InvitationActions": {
+        "resend": "Reinvia invito",
+        "cancel": "Annulla invito",
+        "CancelModal": {
+          "title": "Annulla invito",
+          "description": "Vuoi davvero annullare l’invito di {email}?",
+          "confirm": "Conferma",
+          "cancel": "Annulla",
+          "success": "Invito annullato correttamente",
+          "error": "Impossibile annullare l’invito",
+          "Errors": {
+            "unauthorizedAction": "Accedi"
+          }
+        },
+        "resendSuccess": "Invito reinviato correttamente",
+        "resendError": "Impossibile reinviare l’invito"
+      }
+    },
+    "Breadcrumb": {
+      "jobs": "Job",
+      "agents": "Galleria",
+      "credits": "Crediti",
+      "coupon": "Coupon",
+      "subscriptions": "Abbonamenti",
+      "billing": "Fatturazione",
+      "account": "Account",
+      "organizations": "Organizzazioni",
+      "api-docs": "Documentazione API",
+      "mcp": "Protocollo Model Context (MCP)",
+      "schedules": "Agenti programmati",
+      "chat": "Chat",
+      "tasks": "Gestione task",
+      "connections": "Connessioni",
+      "feed": "Il mio feed"
+    },
+    "Jobs": {
+      "StatusBadge": {
+        "demo": "Demo",
+        "started": "Avviato",
+        "completed": "Completato",
+        "failed": "Fallito",
+        "paymentPending": "Assunzione",
+        "paymentFailed": "Assunzione non riuscita",
+        "processing": "In lavorazione",
+        "agentConnectionFailed": "Connessione all’agente non riuscita",
+        "paymentNodeConnectionFailed": "Connessione al nodo non riuscita",
+        "inputRequired": "Input richiesto",
+        "disputeRequested": "Contestazione in attesa",
+        "disputeResolved": "Contestazione risolta",
+        "refundRequested": "Rimborso richiesto",
+        "refundResolved": "Rimborsato",
+        "resultPending": "Risultato mancante",
+        "unknown": "Sconosciuto"
+      },
+      "AgentStatusBadge": {
+        "initiated": "Iniziato",
+        "awaitingPayment": "In attesa di pagamento",
+        "awaitingInput": "Input richiesto",
+        "running": "In lavorazione",
+        "completed": "Completato",
+        "failed": "Fallito",
+        "unknown": "Sconosciuto"
+      },
+      "SharedBadge": {
+        "shared": "Condiviso",
+        "sharedBy": "Condiviso da"
+      },
+      "JobDetails": {
+        "activity": "Attività",
+        "actionUpdatedStatus": "ha cambiato lo stato in",
+        "emptyActivity": "Nessuna attività ancora.",
+        "Header": {
+          "JobName": {
+            "Schema": {
+              "Name": {
+                "invalid": "Il nome deve essere una stringa valida",
+                "min": "Il nome deve avere almeno 2 caratteri",
+                "max": "Il nome deve avere al massimo 80 caratteri"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "Inserisci il nome del job"
+              }
+            },
+            "edit": "Modifica",
+            "save": "Salva",
+            "cancel": "Annulla",
+            "noName": "Senza nome",
+            "shared": "Condiviso pubblicamente",
+            "organizationShared": "Condiviso con l’organizzazione",
+            "private": "Privato",
+            "success": "Nome del job aggiornato correttamente",
+            "error": "Impossibile aggiornare il nome del job",
+            "Errors": {
+              "unauthenticated": "Devi essere autenticato per aggiornare il nome del job.",
+              "unauthenticatedAction": "Accedi",
+              "jobNotFound": "Job non trovato",
+              "unauthorized": "Non sei il proprietario di questo job."
+            }
+          }
+        },
+        "Meta": {
+          "propertiesTitle": "Proprietà",
+          "status": "Stato",
+          "task": "Task",
+          "coworker": "Coworker",
+          "openTask": "Apri task",
+          "created": "Creato",
+          "updated": "Aggiornato",
+          "jobId": "ID job",
+          "txId": "ID transazione",
+          "inputHash": "Hash input",
+          "resultHash": "Hash risultato",
+          "onChain": "On-Chain",
+          "calculated": "Sokosumi",
+          "missing": "Mancante",
+          "started": "Avviato",
+          "finished": "Terminato",
+          "credits": "Crediti"
+        },
+        "InitiatedSection": {
+          "title": "Cosa hai inviato all’agente per questo job"
+        },
+        "JobShare": {
+          "share": "Condividi",
+          "Modal": {
+            "title": "Condividi job",
+            "publicAccessTitle": "Accesso pubblico",
+            "publicAccessDescription": "Chiunque abbia il link può visualizzare",
+            "organizationAccessTitle": "Accesso organizzazione",
+            "organizationAccessDescription": "Chiunque in {organizationName} può visualizzare",
+            "privateAccessTitle": "Accesso privato",
+            "privateAccessDescription": "Solo tu puoi visualizzare",
+            "allowSearchIndexing": "Consenti l’indicizzazione di questo risultato da parte dei motori di ricerca",
+            "getLink": "Ottieni link",
+            "copyLink": "Copia link",
+            "close": "Chiudi",
+            "Success": {
+              "share": "Condivisione aggiornata correttamente",
+              "copyLink": "Link copiato correttamente"
+            },
+            "Error": {
+              "share": "Impossibile aggiornare la condivisione",
+              "copyLink": "Impossibile copiare il link"
+            },
+            "Errors": {
+              "unauthenticated": "Devi essere autenticato.",
+              "unauthenticatedAction": "Accedi",
+              "jobNotFound": "Job non trovato",
+              "jobShareNotFound": "Condivisione job non trovata",
+              "unauthorized": "Non sei il proprietario di questo job."
+            }
+          }
+        },
+        "VerificationBadge": {
+          "verified": "L’hash {direction} è verificato. Clicca qui per saperne di più",
+          "unverified": "L’hash {direction} non è verificato. Clicca qui per saperne di più",
+          "pending": "La verifica dell’hash {direction} è in corso. Clicca qui per saperne di più",
+          "notApplicable": "La verifica dell’hash {direction} non è disponibile per i job gratuiti. Clicca qui per saperne di più"
+        },
+        "Input": {
+          "title": "Input",
+          "failedToParseInput": "Impossibile analizzare l’input",
+          "none": "Nessun input",
+          "expand": "Espandi",
+          "collapse": "Mostra meno",
+          "yes": "Sì",
+          "no": "No"
+        },
+        "Output": {
+          "result": "Risultato",
+          "failedToParseResult": "Impossibile analizzare il risultato",
+          "none": "Nessun risultato disponibile",
+          "download": "Scarica",
+          "copy": "Copia",
+          "copySuccess": "Risultato copiato negli appunti",
+          "copyError": "Impossibile copiare il risultato",
+          "maximize": "Massimizza",
+          "expand": "Espandi",
+          "collapse": "Mostra meno",
+          "maximizeTitle": "Risultato del job",
+          "close": "Chiudi",
+          "exportingMarkdown": "Esportazione Markdown…",
+          "exportingPdf": "Esportazione PDF…",
+          "exportingDocx": "Esportazione Word…",
+          "exportMarkdownError": "Impossibile esportare in Markdown",
+          "exportPdfError": "Impossibile esportare in PDF",
+          "exportDocxError": "Impossibile esportare il documento Word",
+          "exportAsPdf": "Esporta come PDF",
+          "exportAsDocx": "Esporta come documento Word",
+          "exportAsMarkdown": "Esporta come Markdown",
+          "Refund": {
+            "error": "Impossibile richiedere un rimborso",
+            "request": "Richiedi rimborso",
+            "requested": "Rimborso richiesto",
+            "disputePending": "Contestazione in attesa",
+            "disputeResolved": "Contestazione risolta",
+            "refunded": "Rimborsato",
+            "confirmTitle": "Richiedere un rimborso?",
+            "confirmDescription": "Vuoi davvero richiedere un rimborso per questo job?",
+            "learnMore": "Scopri di più su rimborsi e contestazioni",
+            "cancel": "Annulla",
+            "confirm": "Richiedi rimborso",
+            "Tooltip": {
+              "available": {
+                "title": "Rimborso disponibile",
+                "description": "Puoi richiedere un rimborso fino a {unlockAt}."
+              },
+              "unavailable": {
+                "title": "Rimborso non più disponibile",
+                "description": "Avresti potuto richiedere un rimborso fino a {unlockAt}."
+              },
+              "failed": {
+                "title": "Rimborso automatico in attesa",
+                "description": "Un rimborso automatico verrà elaborato alle {unlockAt}"
+              }
+            },
+            "Errors": {
+              "unauthenticated": "Devi essere autenticato per richiedere un rimborso.",
+              "unauthenticatedAction": "Accedi",
+              "jobNotFound": "Job non trovato",
+              "unauthorized": "Devi essere il proprietario del job per richiedere un rimborso"
+            }
+          }
+        },
+        "AwaitingInput": {
+          "title": "In attesa di input",
+          "submit": "Invia",
+          "submitSuccess": "Input inviato correttamente",
+          "submitError": "Impossibile inviare l’input",
+          "noInputsRequired": "Non sono richiesti ulteriori input"
+        },
+        "Sources": {
+          "title": "Link e file",
+          "files": "File",
+          "links": "Link"
+        },
+        "BlobStatusBadge": {
+          "pending": "In attesa",
+          "failed": "Fallito"
+        },
+        "CollapsedEvents": {
+          "seeMore": "Vedi di più ({count})"
+        }
+      },
+      "JobsTable": {
+        "Header": {
+          "started": "Avviato",
+          "status": "Stato",
+          "name": "Nome"
+        }
+      },
+      "JobsSearch": {
+        "placeholder": "Cerca job...",
+        "clear": "Cancella ricerca",
+        "resultsCount": "{found} di {total} risultati trovati"
+      },
+      "JobsList": {
+        "noExecutedJobs": "Nessun job eseguito",
+        "emptyJobs": "Nessun job ancora."
+      }
+    },
+    "Organizations": {
+      "Role": {
+        "owner": "Proprietario",
+        "admin": "Amministratore",
+        "member": "Membro",
+        "pending": "In attesa",
+        "expired": "Scaduto"
+      },
+      "InformationModal": {
+        "Title": {
+          "create": "Crea organizzazione",
+          "edit": "Modifica organizzazione"
+        },
+        "Form": {
+          "Submit": {
+            "create": "Crea",
+            "edit": "Salva"
+          },
+          "cancel": "Annulla",
+          "Success": {
+            "create": "Organizzazione creata correttamente",
+            "edit": "Organizzazione aggiornata correttamente"
+          },
+          "Error": {
+            "create": "Impossibile creare l’organizzazione",
+            "edit": "Impossibile aggiornare l’organizzazione"
+          },
+          "Errors": {
+            "unauthorizedAction": "Accedi"
+          },
+          "Fields": {
+            "Name": {
+              "placeholder": "Nome (ad es. \"La mia organizzazione\")"
+            }
+          }
+        },
+        "Schema": {
+          "Name": {
+            "min": "Il nome dell’organizzazione deve avere almeno 2 caratteri.",
+            "max": "Il nome dell’organizzazione deve avere al massimo 50 caratteri.",
+            "invalid": "Il nome dell’organizzazione deve essere una stringa valida.",
+            "required": "Il nome dell’organizzazione è obbligatorio"
+          }
+        }
+      },
+      "RemoveModal": {
+        "title": "Rimuovi organizzazione",
+        "description": "Vuoi davvero rimuovere l’organizzazione \"{organization}\"?",
+        "confirm": "Conferma",
+        "cancel": "Annulla",
+        "success": "Organizzazione rimossa correttamente",
+        "error": "Impossibile rimuovere l’organizzazione",
+        "confirmLabelPrefix": "Digita",
+        "confirmLabelSuffix": "per confermare l’eliminazione:",
+        "Errors": {
+          "unauthorizedAction": "Accedi"
+        },
+        "Schema": {
+          "Organization": {
+            "invalid": "Il nome dell’organizzazione deve essere una stringa valida.",
+            "required": "Il nome dell’organizzazione è obbligatorio",
+            "min": "Il nome dell’organizzazione deve avere almeno 2 caratteri.",
+            "max": "Il nome dell’organizzazione deve avere al massimo 50 caratteri."
+          },
+          "ConfirmOrganization": {
+            "invalid": "Il nome dell’organizzazione di conferma deve essere una stringa valida.",
+            "required": "Il nome dell’organizzazione di conferma è obbligatorio",
+            "mismatch": "Il nome dell’organizzazione non corrisponde"
+          }
+        }
+      },
+      "InviteMemberModal": {
+        "title": "Invita un membro",
+        "Form": {
+          "submit": "Invita un membro",
+          "cancel": "Annulla",
+          "success": "Membro invitato correttamente",
+          "error": "Impossibile invitare il membro",
+          "Errors": {
+            "unauthorizedAction": "Accedi"
+          },
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            },
+            "Role": {
+              "label": "Ruolo"
+            }
+          }
+        },
+        "Schema": {
+          "Email": {
+            "invalid": "Inserisci un indirizzo email valido.",
+            "required": "L’email è obbligatoria"
+          },
+          "Role": {
+            "invalid": "Ruolo non valido"
+          }
+        }
+      },
+      "LeaveOrganizationModal": {
+        "title": "Vuoi davvero uscire dall’organizzazione?",
+        "description": "Esci dall’organizzazione \"{organization}\".",
+        "leave": "Esci",
+        "cancel": "Annulla",
+        "success": "Hai lasciato l’organizzazione",
+        "error": "Impossibile lasciare l’organizzazione",
+        "Errors": {
+          "unauthorizedAction": "Accedi"
+        }
+      }
+    },
+    "Modals": {
+      "AuthenticationModal": {
+        "title": "Bentornato",
+        "description": "Accedi o registrati per assumere agenti e avviare i job.",
+        "login": "Accedi",
+        "register": "Registrati"
+      },
+      "LogoutModal": {
+        "title": "Vuoi davvero uscire?",
+        "description": "Esci da Sokosumi per \"{email}\".",
+        "logout": "Esci",
+        "cancel": "Annulla",
+        "error": "Impossibile uscire"
+      }
+    },
+    "HashValue": {
+      "copy": "Copia",
+      "copySuccess": "Copiato negli appunti",
+      "copyError": "Impossibile copiare"
+    }
+  },
+  "AcceptInvitation": {
+    "InvitationCard": {
+      "title": "Invito all’organizzazione",
+      "description": "Sei stato invitato a unirti a un’organizzazione",
+      "hasInvitedYouToJoin": "ti ha invitato a unirti",
+      "acceptedTitle": "Benvenuto in {organizationName}!",
+      "acceptedDescription": "Ti sei unito all’organizzazione correttamente. Siamo felici di averti con noi!",
+      "goToOrganization": "Vai all’organizzazione",
+      "declinedTitle": "Invito rifiutato",
+      "declinedDescription": "Hai rifiutato l’invito a unirti a {organizationName}.",
+      "goToHome": "Vai alla home",
+      "Actions": {
+        "accept": "Accetta",
+        "decline": "Rifiuta",
+        "logout": "Esci",
+        "ignore": "Ignora",
+        "emailMismatch": "Non sei l’utente invitato.",
+        "WithoutSession": {
+          "ifYouAlreadyHaveAnAccount": "Se hai già un account, puoi accedere e accettare l’invito.",
+          "ifYouDontHaveAnAccount": "Se non hai un account, puoi registrarti e unirti all’organizzazione.",
+          "login": "Accedi",
+          "register": "Registrati"
+        },
+        "Success": {
+          "accept": "Invito accettato correttamente",
+          "decline": "Invito rifiutato correttamente"
+        },
+        "Error": {
+          "accept": "Impossibile accettare l’invito",
+          "decline": "Impossibile rifiutare l’invito"
+        },
+        "Errors": {
+          "unauthorizedAction": "Accedi"
+        }
+      }
+    },
+    "InvitationErrorCard": {
+      "NotFound": {
+        "title": "Invito non trovato",
+        "description": "Si è verificato un problema con il tuo invito.",
+        "content": "Non esiste alcun invito con questo ID.",
+        "footer": "Torna alla home"
+      },
+      "Expired": {
+        "title": "Invito scaduto",
+        "description": "Si è verificato un problema con il tuo invito.",
+        "content": "L’invito a cui stai tentando di accedere è scaduto.",
+        "footer": "Torna alla home"
+      },
+      "InviterNotFound": {
+        "title": "Mittente non trovato",
+        "description": "Si è verificato un problema con il tuo invito.",
+        "content": "Il mittente dell’invito a cui stai tentando di accedere non è stato trovato.",
+        "footer": "Torna alla home"
+      }
+    }
+  },
+  "Landing": {
+    "Error": {
+      "title": "Qualcosa è andato storto",
+      "description": "Si è verificato un errore imprevisto. Il nostro team è stato avvisato e stiamo lavorando per risolverlo.",
+      "errorId": "ID errore: {errorId}",
+      "tryAgain": "Riprova",
+      "goHome": "Vai alla homepage"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace di agenti IA",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Assumi agenti IA con un clic"
+    },
+    "Header": {
+      "FreeCreditsBanner": {
+        "start": "Solo per un periodo limitato: ",
+        "main": "Ottieni 30$ gratis",
+        "end": " in crediti al momento dell’iscrizione"
+      },
+      "Navigation": {
+        "agents": "Galleria agenti",
+        "howItWorks": "Come funziona",
+        "community": "Comunità",
+        "monetize": "Monetizza"
+      },
+      "Connection": {
+        "app": "Apri app"
+      }
+    },
+    "Page": {
+      "Hero": {
+        "caption": "Accelera la tua produttività creando il tuo team di agenti con un clic",
+        "title": "Assumi oggi il tuo primo coworker agentico",
+        "AgentSearchInput": {
+          "placeholder": "Cerca agenti"
+        },
+        "AgentsShowcase": {
+          "viewAgent": "Visualizza agente"
+        },
+        "HeroBanner": {
+          "button": "Registrati ora e ottieni 30$ di crediti gratuiti"
+        }
+      },
+      "Endorsements": {
+        "title": "Consigliato dai brand leader"
+      },
+      "FeaturedAgents": {
+        "title": "Agenti in evidenza",
+        "button": "Esplora tutti"
+      },
+      "NumberTalks": {
+        "title": "I numeri parlano",
+        "Numbers": {
+          "Duration": {
+            "title": "Ore più intelligenti",
+            "description": "Lascia che gli agenti si occupino del lavoro ripetitivo: gli utenti riportano di risparmiare fino a 2 ore al giorno delegando task ripetitivi all’IA.",
+            "number": "120",
+            "caption": "min"
+          },
+          "Cost": {
+            "title": "Costi più bassi",
+            "description": "Sostituisci il lavoro manuale costoso con un’automazione conveniente. In media, gli utenti riducono le spese del 42%.",
+            "number": "42",
+            "caption": "% di costi in meno"
+          },
+          "Savings": {
+            "title": "Potenza scalabile",
+            "description": "Migliaia di agenti vengono addestrati e distribuiti, pronti a scalare con le tue esigenze e a sbloccare una vera libertà operativa.",
+            "number": "1000+",
+            "caption": " più tempo libero"
+          }
+        }
+      },
+      "HowItWorks": {
+        "title": "Come funziona",
+        "Steps": {
+          "SelectAndTest": {
+            "title": "Scegli il tuo agente",
+            "description": "Sfoglia una selezione curata di agenti IA specializzati in attività come ricerca, design, sviluppo e automazione. Scegli quello più adatto alle tue esigenze."
+          },
+          "RunAndMonitor": {
+            "title": "Assegna un task",
+            "description": "Fornisci istruzioni chiare al tuo agente oppure usa prompt predefiniti. L’agente inizia subito a lavorare, con aggiornamenti in tempo reale."
+          },
+          "GetResults": {
+            "title": "Rivedi e itera",
+            "description": "Ricevi i risultati, fornisci feedback e lascia che l’agente perfezioni il lavoro. Tu resti al comando mentre l’agente si occupa della parte più impegnativa."
+          }
+        }
+      },
+      "Testimonials": {
+        "title": "Cosa dicono i nostri utenti",
+        "users": {
+          "0": {
+            "name": "Frederik Gregaard",
+            "quote": "Usare questa piattaforma ci ha fatto risparmiare tantissimo tempo. È una svolta!",
+            "company": "Cardano Foundation",
+            "position": "Amministratore delegato"
+          },
+          "1": {
+            "name": "Florian Haller",
+            "quote": "Sokosumi apre nuovi modi di vendere servizi con gli agenti IA!",
+            "company": "Serviceplan Group",
+            "position": "Amministratore delegato"
+          }
+        }
+      },
+      "JoinOurCommunity": {
+        "title": "Unisciti alla community",
+        "subtitle": "Siamo online"
+      },
+      "MonetizeYourAgent": {
+        "title": "FOR DEVELOPERS",
+        "subtitle": "Distribuisci i tuoi agenti su Masumi",
+        "description": "Portare il tuo agente IA su Sokosumi è semplice. Crea o affina il tuo agente usando il framework che preferisci, poi distribuiscilo su Masumi Network — il nostro protocollo blockchain sottostante progettato per l’economia degli agenti. Una volta registrato, il tuo agente riceve un’identità unica (DID), può accettare pagamenti ed è immediatamente individuabile su Sokosumi. Da lì, gli utenti possono assumere il tuo agente, assegnare job e attivare pagamenti basati su smart contract automaticamente.",
+        "docs": "Visita la documentazione",
+        "visit": "Visita Masumi Network"
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "Galleria agenti",
+        "description": "Esplora la nostra collezione di agenti."
+      }
+    }
+  },
+  "Auth": {
+    "Error": {
+      "title": "Qualcosa è andato storto",
+      "description": "Si è verificato un errore imprevisto. Il nostro team è stato avvisato e stiamo lavorando per risolverlo.",
+      "errorId": "ID errore: {errorId}",
+      "tryAgain": "Riprova",
+      "goLogin": "Vai all’accesso"
+    },
+    "Footer": {
+      "termsOfServices": "Termini di servizio",
+      "privacyPolicy": "Informativa sulla privacy",
+      "imprint": "Note legali",
+      "acceptableUse": "Uso accettabile"
+    },
+    "Schema": {
+      "Email": {
+        "invalid": "Inserisci un indirizzo email valido.",
+        "required": "L’email è obbligatoria"
+      },
+      "Name": {
+        "min": "Il nome deve avere almeno 2 caratteri.",
+        "max": "Il nome deve avere al massimo 128 caratteri.",
+        "invalid": "Il nome deve essere una stringa valida.",
+        "required": "Il nome è obbligatorio"
+      },
+      "Password": {
+        "invalid": "La password deve essere una stringa valida.",
+        "min": "La password deve avere almeno 8 caratteri",
+        "max": "La password deve avere al massimo 128 caratteri",
+        "lowercase": "La password deve contenere almeno una lettera minuscola.",
+        "uppercase": "La password deve contenere almeno una lettera maiuscola.",
+        "number": "La password deve contenere almeno un numero.",
+        "required": "La password è obbligatoria"
+      },
+      "CurrentPassword": {
+        "invalid": "La password attuale deve essere una stringa valida.",
+        "required": "La password attuale è obbligatoria"
+      },
+      "InputPassword": {
+        "invalid": "La password deve essere una stringa valida.",
+        "required": "La password è obbligatoria"
+      },
+      "ConfirmPassword": {
+        "invalid": "La conferma della password deve essere una stringa valida.",
+        "match": "La password non corrisponde",
+        "required": "La conferma della password è obbligatoria"
+      }
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Accedi / Registrati",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+    },
+    "SocialButtons": {
+      "continueWith": "Continua con {provider}",
+      "divider": "oppure continua con",
+      "success": "Accesso riuscito",
+      "error": "Accesso non riuscito"
+    },
+    "Words": {
+      "signIn": "Accedi",
+      "signUp": "Registrati"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "Accedi",
+          "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+        },
+        "Header": {
+          "title": "Accedi",
+          "description": "Assumi agenti sulla nostra piattaforma"
+        },
+        "Form": {
+          "submit": "Accedi",
+          "success": "Accesso riuscito",
+          "error": "Email o password non validi",
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            },
+            "Password": {
+              "placeholder": "Password"
+            },
+            "RememberMe": {
+              "label": "Resta connesso"
+            }
+          },
+          "forgotPassword": "Password dimenticata?",
+          "Register": {
+            "message": "Non hai un account?",
+            "link": "Registrati"
+          },
+          "Errors": {
+            "termsNotAccepted": "Devi accettare termini e condizioni per accedere"
+          }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "Registrati",
+          "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+        },
+        "Google": {
+          "title": "Autentica con Google",
+          "description": "Reindirizzamento a Google...",
+          "error": "Impossibile avviare l’autenticazione Google. Riprova.",
+          "retry": "Riprova"
+        },
+        "Microsoft": {
+          "title": "Autentica con Microsoft",
+          "description": "Reindirizzamento a Microsoft...",
+          "error": "Impossibile avviare l’autenticazione Microsoft. Riprova.",
+          "retry": "Riprova"
+        },
+        "Header": {
+          "title": "Registrati",
+          "viaInvitation": "(tramite invito)",
+          "description": "Assumi agenti sulla nostra piattaforma"
+        },
+        "Form": {
+          "submit": "Registrati",
+          "success": "Registrazione riuscita",
+          "error": "Registrazione non riuscita",
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            },
+            "Name": {
+              "placeholder": "Nome"
+            },
+            "TermsAccepted": {
+              "Label": {
+                "iAgreeTo": "Accetto i",
+                "termsOfService": "Termini di servizio",
+                "and": "e",
+                "privacyPolicy": "Informativa sulla privacy"
+              }
+            },
+            "MarketingOptIn": {
+              "label": "Vorrei ricevere aggiornamenti e novità da Sokosumi"
+            },
+            "Organization": {
+              "placeholder": "Seleziona un’organizzazione",
+              "search": "Cerca organizzazioni",
+              "create": "Crea {organization}",
+              "new": "Nuova organizzazione",
+              "createPlaceholder": "Nome della nuova organizzazione",
+              "success": "Organizzazione creata correttamente",
+              "error": "Impossibile creare l’organizzazione",
+              "invalidEmail": "Inserisci un’email valida per vedere o creare organizzazioni"
+            },
+            "Password": {
+              "placeholder": "Password"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Conferma password"
+            }
+          },
+          "Errors": {
+            "termsNotAccepted": "Devi accettare termini e condizioni per registrarti",
+            "emailDomainNotAllowed": "Dominio email non consentito",
+            "badInput": "Compila correttamente il modulo."
+          },
+          "Login": {
+            "message": "Hai già un account?",
+            "link": "Accedi"
+          }
+        }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "Reimposta password",
+          "description": "Reimposta la password per riottenere accesso al tuo account"
+        },
+        "Header": {
+          "title": "Reimposta password",
+          "description": "Inserisci il tuo indirizzo email e ti invieremo un link per reimpostare la password"
+        },
+        "Form": {
+          "success": "Ti abbiamo inviato un’email per reimpostare la password",
+          "error": "Impossibile reimpostare la password",
+          "reset_password": "Reimposta password",
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "Reimposta password",
+          "description": "Imposta una nuova password per il tuo account"
+        },
+        "title": "Reimposta password",
+        "description": "Inserisci la tua nuova password qui sotto",
+        "Form": {
+          "submit": "Reimposta password",
+          "success": "Password reimpostata correttamente",
+          "error": "Reimpostazione della password non riuscita",
+          "Fields": {
+            "Password": {
+              "placeholder": "Nuova password"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Conferma password"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Onboarding": {
+    "Metadata": {
+      "title": "Benvenuto su Sokosumi",
+      "description": "Invita i tuoi colleghi e guadagna 10$ in crediti per ciascuno, fino a un massimo di 40$."
+    },
+    "Dialog": {
+      "navigation": {
+        "skip": "Salta",
+        "back": "Indietro",
+        "next": "Avanti",
+        "getStarted": "Inizia"
+      },
+      "coworkerTooltip": "{name} · {role}",
+      "defaultRole": "Coworker",
+      "alt": {
+        "coworkerAvatar": "Avatar di {name}"
+      },
+      "welcome": {
+        "coworkersSummary": "{first}, {second} e altri"
+      },
+      "intro": {
+        "welcome": {
+          "title": "Benvenuto su Sokosumi",
+          "description": "Il tuo hub di marketing IA. Incontra i tuoi nuovi coworker: sono pronti a mettersi al lavoro."
+        },
+        "chat": {
+          "title": "Di’ loro cosa ti serve",
+          "description": "Chatta in modo naturale con i tuoi coworker. Descrivi ciò che ti serve e loro si occuperanno del resto."
+        },
+        "taskboard": {
+          "title": "Il lavoro si organizza",
+          "description": "Il tuo coworker crea task, monitora i progressi sulla bacheca e mantiene tutto sotto controllo."
+        },
+        "orchestration": {
+          "title": "Gestiscono il resto",
+          "description": "Il tuo coworker assume agenti specializzati per ricerca, scrittura, analisi: tutto ciò che serve al task."
+        }
+      },
+      "visuals": {
+        "chat": {
+          "userMessage": "Crea una campagna marketing per il lancio del nostro prodotto",
+          "reply": "Ci penso io! Studierò il mercato e preparerò una strategia di campagna."
+        },
+        "taskboard": {
+          "taskTitle": "Campagna marketing",
+          "todo": "Da fare",
+          "inProgress": "In corso"
+        },
+        "orchestration": {
+          "hires": "Assunzioni",
+          "workDelivered": "Lavoro consegnato",
+          "agents": {
+            "research": "Ricerca",
+            "writing": "Scrittura",
+            "analytics": "Analisi"
+          }
+        }
+      }
+    },
+    "Actions": {
+      "Errors": {
+        "failedToComplete": "Impossibile completare l’onboarding",
+        "unexpectedError": "Si è verificato un errore imprevisto"
+      }
+    }
+  },
+  "App": {
+    "enabled": "Attivo",
+    "disabled": "Disattivato",
+    "delete": "Elimina",
+    "cancel": "Annulla",
+    "save": "Salva",
+    "Chat": {
+      "Metadata": {
+        "title": "Chat",
+        "description": "Chatta con i tuoi coworker IA"
+      },
+      "title": "Chat",
+      "description": "Chatta con i tuoi coworker IA",
+      "Chat": {
+        "newChat": "Nuova chat",
+        "noChats": "Ancora nessuna chat",
+        "noCoworkersAvailable": "Nessun coworker disponibile. Riprova più tardi.",
+        "emptyState": {
+          "title": "Avvia una conversazione",
+          "titleWithName": "Avvia una conversazione con {name}",
+          "description": "Questa chat è vuota.{specialization} Invia un messaggio per iniziare!",
+          "suggestionTitle": "Prova a chiedere:"
+        },
+        "welcomeScreen": {
+          "greeting": "Benvenuto!",
+          "greetingWithName": "Benvenuto {name}!",
+          "question": "Come possiamo aiutarti oggi?",
+          "title": "Benvenuto! Come possiamo aiutarti oggi?",
+          "titleWithName": "Benvenuto {name}! Come possiamo aiutarti oggi?",
+          "placeholder": "A cosa stai pensando?",
+          "suggestionsLabel": "Prova a chiedere",
+          "prompts": {
+            "alex": {
+              "1": "Costruiscimi una dashboard per i miei risultati di ricerca.",
+              "2": "Crea una visualizzazione dei dati per il mio foglio Excel.",
+              "3": "Analizza i dati nella mia cartella OneDrive."
+            },
+            "hannah": {
+              "1": "Studia i nostri competitor e confrontaci con loro.",
+              "2": "Analizza le prestazioni SEO del sito e come veniamo citati da ChatGPT.",
+              "3": "Analizza il nostro pubblico target: bisogni, comportamenti, abitudini mediatiche."
+            },
+            "elena": {
+              "1": "Come posso usare Sokosumi per la mia attività e da dove iniziare?",
+              "2": "Mostrami lo stato di tutti i miei task aperti e cosa richiede la mia attenzione.",
+              "3": "Quali agenti e capacità possono aiutare a migliorare il mio sito web?"
+            }
+          }
+        },
+        "introducingCoworkers": "Presentiamo: Coworker agentici",
+        "emptyTitle": "Avvia una conversazione",
+        "emptyDescription": "Chiedimi qualsiasi cosa e ti aiuterò. Puoi avviare una nuova chat o continuare una chat esistente.",
+        "inputPlaceholder": "Scrivi il tuo messaggio...",
+        "inputHint": "Premi Invio per inviare, Maiusc+Invio per andare a capo",
+        "assistant": "Assistente",
+        "filterAll": "Tutti",
+        "filterActive": "Attivi",
+        "filterAwaiting": "In attesa",
+        "statusActive": "Attivo",
+        "statusAwaiting": "In attesa",
+        "statusResolved": "Risolto",
+        "justNow": "Proprio ora",
+        "minutesAgo": "{count} min fa",
+        "hoursAgo": "{count} ore fa",
+        "daysAgo": "{count} giorni fa",
+        "deleteDialog": {
+          "title": "Elimina chat",
+          "description": "Vuoi davvero eliminare questa chat? Questa azione non può essere annullata.",
+          "cancel": "Annulla",
+          "delete": "Elimina"
+        },
+        "selectCoworker": {
+          "title": "Seleziona un coworker agentico",
+          "description": "Scegli un coworker per iniziare una conversazione.",
+          "placeholder": "Seleziona un coworker...",
+          "useCase": "Caso d’uso",
+          "cancel": "Annulla",
+          "confirm": "Avvia chat",
+          "selectButton": "Avvia chat con {coworker}"
+        },
+        "comingSoon": "In arrivo",
+        "agenticCoworkers": "Coworker agentici",
+        "models": "Modelli",
+        "ConversationsSidebar": {
+          "searchPlaceholder": "Cerca conversazioni...",
+          "clearSearch": "Cancella ricerca",
+          "resultsCount": "{found} di {total}",
+          "noResults": "Nessuna conversazione corrispondente",
+          "noConversations": "Ancora nessuna conversazione"
+        },
+        "uploadFileError": "Caricamento del file non riuscito",
+        "uploadFileErrorRetry": "Caricamento del file non riuscito, riprova!",
+        "uploadPastedImageError": "Caricamento delle immagini incollate non riuscito",
+        "pendingResponseFailed": "Qualcosa è andato storto da parte nostra. Prova a reinviare il tuo ultimo messaggio.",
+        "waitForResponses": "Attendi il completamento delle altre risposte (max 3 alla volta).",
+        "imageAttachment": "Un allegato immagine",
+        "fileLabel": "File",
+        "loaderTitle": "Caricamento",
+        "modelAlt": "Modello",
+        "coworkerAlt": "Coworker",
+        "userAvatarAlt": "Avatar utente",
+        "authorize": "Autorizza",
+        "reasoning": {
+          "processing": "Elaborazione...",
+          "thinking": "Sto pensando...",
+          "searchingFiles": "Ricerca nei file...",
+          "callingTools": "Esecuzione degli strumenti..."
+        },
+        "chatErrorTitle": "Errore chat",
+        "errorFallbackDescription": "Si è verificato un problema con l’interfaccia della chat. Prova ad aggiornare la pagina o contatta il supporto se il problema persiste.",
+        "promptPlaceholder": "Cosa vuoi sapere?",
+        "pastedImage": "Immagine incollata",
+        "errorTitle": "Errore",
+        "errorDescription": "Si è verificato un errore durante l’elaborazione del tuo messaggio. Riprova.",
+        "tryAgain": "Riprova",
+        "networkErrorAfterRetry": "Non siamo riusciti a raggiungere il server dopo alcuni tentativi. Controlla la connessione e riprova."
+      }
+    },
+    "Schedules": {
+      "empty": {
+        "title": "Ancora nessuna programmazione",
+        "description": "Assumi un agente e configura la sua programmazione usando la funzione di pianificazione dei job."
+      },
+      "lastRun": "Ultima esecuzione",
+      "nextRun": "Prossima esecuzione",
+      "inputPreview": "Anteprima input",
+      "confirmDeleteTitle": "Elimina programmazione",
+      "confirmDeleteDescription": "Questa operazione non può essere annullata. La programmazione verrà eliminata definitivamente.",
+      "pausedReason": "Motivo della pausa",
+      "loading": "Caricamento programmazioni..."
+    },
+    "Feed": {
+      "title": "Il mio feed",
+      "aiInsights": "Insight IA",
+      "summaryDescription": "Qui trovi i tuoi task e job completati più recenti.",
+      "description": "Una vista unificata del tuo lavoro completato più recente.",
+      "earlier": "In precedenza",
+      "recentActivity": "Attività recente",
+      "summary": "Qui trovi i tuoi task e job completati più recenti.",
+      "resultsTitle": "Risultati",
+      "emptyState": "Nessun risultato completato.",
+      "backToFeed": "Torna al feed",
+      "unknownAgent": "Agente",
+      "unknownCoworker": "Coworker sconosciuto",
+      "openOriginal": "Vedi dettaglio",
+      "missingResult": "Questo risultato del feed non è più disponibile.",
+      "fallbackPreview": "Nessun dettaglio aggiuntivo disponibile.",
+      "sourcesFiles": "File",
+      "sourcesLinks": "Link",
+      "untitledJob": "Job senza titolo",
+      "untitledTask": "Task senza titolo",
+      "search": "Cerca task o job",
+      "clearSearch": "Cancella ricerca",
+      "loadMore": "Carica di più",
+      "loadingMore": "Caricamento...",
+      "generating": "Sto pensando...",
+      "generationError": "Impossibile generare insight al momento.",
+      "type": {
+        "job": "Job",
+        "task": "Task"
+      }
+    },
+    "Tasks": {
+      "Page": {
+        "title": "Gestione task",
+        "description": "Crea task da far eseguire agli agenti e gestisci il tuo lavoro in modo efficiente in una vista collaborativa."
+      },
+      "Tabs": {
+        "tasks": "Task",
+        "jobs": "Job"
+      },
+      "Columns": {
+        "backlog": "Backlog",
+        "todo": "Da fare",
+        "inProgress": "In corso",
+        "inputRequired": "Input richiesto",
+        "done": "Completato"
+      },
+      "Actions": {
+        "add": "Aggiungi",
+        "addTask": "Aggiungi task",
+        "loading": "Caricamento...",
+        "loadMore": "Carica altro"
+      },
+      "Errors": {
+        "updateStatus": "Impossibile aggiornare lo stato del task"
+      },
+      "Card": {
+        "comments": "Commenti",
+        "coworker": "Coworker",
+        "date": "Data"
+      },
+      "Display": {
+        "button": "Visualizzazione",
+        "list": "Elenco",
+        "board": "Bacheca"
+      },
+      "List": {
+        "placeholder": "Nessun task"
+      },
+      "Jobs": {
+        "filterButton": "Stato",
+        "filterHideFailed": "Nascondi falliti",
+        "filterShowAll": "Mostra tutti",
+        "recentTitle": "Recenti",
+        "emptyRecent": "Nessun job completato di recente.",
+        "emptyList": "Nessun job ancora.",
+        "emptySection": "Nessun job in questo stato.",
+        "untitled": "Job senza titolo",
+        "unknownAgent": "Agente sconosciuto",
+        "unknownCoworker": "Coworker sconosciuto"
+      },
+      "Detail": {
+        "back": "Torna ai task",
+        "properties": "Proprietà",
+        "status": "Stato",
+        "coworker": "Coworker",
+        "created": "Creato",
+        "updated": "Aggiornato",
+        "description": "Descrizione",
+        "jobs": "Job",
+        "jobsEmpty": "Nessun job ancora.",
+        "jobsUntitled": "Job senza titolo",
+        "jobsUnknownAgent": "Agente non disponibile",
+        "activity": "Attività",
+        "sourcesFiles": "File",
+        "sourcesLinks": "Link",
+        "commentPlaceholder": "Scrivi un commento...",
+        "attach": "Allega",
+        "fileLabel": "File",
+        "uploadFileErrorRetry": "Caricamento del file non riuscito, riprova!",
+        "removeAttachment": "Rimuovi allegato",
+        "submit": "Invia",
+        "sendWith": "Invia con",
+        "ctrl": "Ctrl",
+        "authenticate": "Autentica",
+        "expand": "Espandi",
+        "collapse": "Mostra meno",
+        "actorCoworker": "Coworker",
+        "actorUser": "Utente",
+        "actorSystem": "Sistema",
+        "originFromApp": "da {appName}",
+        "originApp": {
+          "sokosumi": "Sokosumi",
+          "slack": "Slack",
+          "teams": "Teams",
+          "email": "Email",
+          "linear": "Linear",
+          "github": "GitHub",
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "chat": "Chat",
+          "unknown": "Sconosciuto"
+        },
+        "actionCommented": "ha commentato",
+        "actionUpdatedStatus": "ha cambiato lo stato in",
+        "actionChargedCredits": "ha addebitato {credits, plural, =1 {# credito} other {# crediti}}",
+        "statusLabels": {
+          "outOfCredits": "Crediti esauriti",
+          "creditsToppedUp": "Crediti ricaricati",
+          "cancelRequested": "Annullamento richiesto"
+        },
+        "billingCta": {
+          "upgradePlan": "Aggiorna il tuo piano",
+          "addCredits": "Aggiungi crediti",
+          "placeholder": "Questo task richiede crediti per continuare. Apri la fatturazione per procedere."
+        },
+        "actions": {
+          "edit": "Modifica",
+          "delete": "Elimina",
+          "confirmDelete": "Eliminare questo task?",
+          "confirmDeleteDescription": "Questa operazione non può essere annullata. Il task verrà eliminato definitivamente.",
+          "deleteError": "Impossibile eliminare il task",
+          "markAsReady": "Segna come pronto",
+          "revertToDraft": "Ripristina bozza",
+          "cancelRequest": "Annulla richiesta",
+          "updateStatusSuccess": "Stato del task aggiornato"
+        },
+        "switchedWorkspace": "Passato all’account {account}"
+      },
+      "NewTask": {
+        "title": "Nuovo task",
+        "details": "Dettagli",
+        "detailsDescription": "Descrivi brevemente il task da svolgere",
+        "name": "Nome del task",
+        "namePlaceholder": "Inserisci un titolo breve",
+        "descriptionPlaceholder": "Inserisci i dettagli del task...",
+        "coworker": "Coworker",
+        "coworkerDescription": "Scegli un coworker LLM che gestirà questo task per te",
+        "status": "Stato",
+        "statusDescription": "Scegli lo stato iniziale per questo task",
+        "statusDraft": "Bozza",
+        "statusReady": "Pronto",
+        "back": "Indietro",
+        "uploadFile": "Carica file",
+        "uploadFileError": "Caricamento del file non riuscito",
+        "removeAttachment": "Rimuovi allegato",
+        "saveDraft": "Salva",
+        "saveAsDraft": "Salva come bozza",
+        "createTask": "Crea task",
+        "cancel": "Annulla",
+        "ctrl": "Ctrl"
+      },
+      "EditTask": {
+        "title": "Modifica task",
+        "details": "Dettagli",
+        "detailsDescription": "Aggiorna i dettagli del task prima di inviarlo",
+        "name": "Nome del task",
+        "namePlaceholder": "Inserisci un titolo breve",
+        "descriptionPlaceholder": "Aggiorna i dettagli del task...",
+        "coworker": "Coworker",
+        "coworkerDescription": "Scegli un coworker LLM che gestirà questo task per te",
+        "status": "Stato",
+        "statusDescription": "Scegli lo stato per questo task",
+        "statusDraft": "Bozza",
+        "statusReady": "Pronto",
+        "back": "Indietro",
+        "uploadFile": "Carica file",
+        "uploadFileError": "Caricamento del file non riuscito",
+        "removeAttachment": "Rimuovi allegato",
+        "save": "Salva",
+        "cancel": "Annulla",
+        "ctrl": "Ctrl"
+      }
+    },
+    "Error": {
+      "title": "Qualcosa è andato storto",
+      "description": "Si è verificato un errore imprevisto. Il nostro team è stato avvisato e stiamo lavorando per risolverlo.",
+      "errorId": "ID errore: {errorId}",
+      "tryAgain": "Riprova",
+      "goApp": "Vai all’app"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace per interazioni umano-agente",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+    },
+    "Sidebar": {
+      "Content": {
+        "MenuItems": {
+          "chat": "Chat",
+          "newChat": "Nuova chat",
+          "exploreAgents": "Esplora agenti",
+          "myFeed": "Il mio feed",
+          "filesAndOutputs": "File e output",
+          "taskManager": "Gestione task",
+          "scheduledAgents": "Agenti programmati"
+        },
+        "ChatLists": {
+          "title": "Chat recenti",
+          "noChats": "Ancora nessuna chat",
+          "untitledChat": "Chat senza titolo",
+          "modelAlt": "Modello",
+          "coworkerAlt": "Coworker",
+          "deleteChatAriaLabel": "Elimina chat",
+          "deleteDialog": {
+            "title": "Elimina chat",
+            "description": "Vuoi davvero eliminare questa chat? Questa azione non può essere annullata.",
+            "cancel": "Annulla",
+            "delete": "Elimina"
+          }
+        },
+        "AgentLists": {
+          "pinnedTitle": "Agenti fissati",
+          "hiredTitle": "Agenti recenti",
+          "noAgents": "Ancora nessun agente {type}",
+          "pinnedType": "fissati",
+          "hiredType": "assunti",
+          "Statuses": {
+            "completed": "Completato",
+            "failed": "Fallito",
+            "paymentPending": "Assunzione",
+            "paymentFailed": "Assunzione non riuscita",
+            "processing": "In lavorazione",
+            "agentConnectionFailed": "Connessione all’agente non riuscita",
+            "paymentNodeConnectionFailed": "Connessione al nodo non riuscita",
+            "inputRequired": "Input richiesto",
+            "disputeRequested": "Contestazione in attesa",
+            "disputeResolved": "Contestazione risolta",
+            "refundRequested": "Rimborso richiesto",
+            "refundResolved": "Rimborsato",
+            "outputPending": "Output mancante",
+            "resultPending": "Risultato in attesa"
+          }
+        }
+      }
+    },
+    "NoticeDialog": {
+      "defaultTitle": "Avviso",
+      "actions": {
+        "confirm": "Conferma",
+        "seeMore": "Vedi di più",
+        "openLink": "Apri link"
+      },
+      "errors": {
+        "acknowledgeFailed": "Impossibile confermare l’avviso"
+      }
+    },
+    "Header": {
+      "Credit": {
+        "buy": "Aggiungi crediti",
+        "extraCredits": "{credits, plural, =0 {0 crediti extra} =1 {1 credito extra} other {# crediti extra}}",
+        "userBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}}",
+        "organizationBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}} ({organization})",
+        "unavailable": "Crediti non disponibili"
+      },
+      "Plan": {
+        "upgradeCta": "Aggiorna piano",
+        "userPlan": "{plan} (Personale)",
+        "organizationPlan": "{plan} ({organization})",
+        "unavailable": "Piano non disponibile"
+      }
+    },
+    "EmailVerificationNotice": {
+      "title": "Verifica il tuo indirizzo email",
+      "description": "Devi verificare il tuo indirizzo email per continuare a usare le funzionalità a pagamento dell’account.",
+      "button": "Invia di nuovo l’email di verifica",
+      "sendSuccess": "Email di verifica inviata. Controlla la tua casella di posta.",
+      "sendError": "Impossibile inviare l’email di verifica. Riprova."
+    },
+    "Subscriptions": {
+      "statusSuccess": "Abbonamento aggiornato correttamente.",
+      "statusCancel": "Il pagamento dell’abbonamento è stato annullato.",
+      "currentPlanBadge": "Attuale",
+      "pricePerMonth": "al mese",
+      "includedCredits": "{credits, plural, =0 {Nessun credito} =1 {# credito incluso} other {# crediti inclusi}}",
+      "upgrading": "Reindirizzamento...",
+      "currentPlanCta": "Piano attuale",
+      "upgradePlanCta": "Scegli un piano",
+      "billingPortalTitle": "Portale di fatturazione",
+      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire il tuo abbonamento e le tue fatture.",
+      "billingPortalDescriptionWithPlan": "Attualmente sei su {plan}. Gestisci i dettagli di fatturazione e le fatture in Stripe.",
+      "openingBillingPortal": "Apertura in corso...",
+      "billingPortalCta": "Apri il portale di fatturazione",
+      "freePrice": "Gratis",
+      "Plans": {
+        "free": {
+          "name": "Gratuito",
+          "description": "Per iniziare a lavorare con gli agenti di marketing.",
+          "features": {
+            "title": "Il piano gratuito include:",
+            "items": {
+              "item1": "Accesso limitato a 1 coworker agentico",
+              "item2": "Accesso agli agenti via email e WhatsApp",
+              "item3": "Ultima generazione di modelli Claude",
+              "item4": "Accesso a oltre 100 agenti di marketing"
+            }
+          }
+        },
+        "starter": {
+          "name": "Starter",
+          "description": "Per freelance e microimprese.",
+          "features": {
+            "title": "Tutto ciò che è incluso nel piano gratuito, più:",
+            "items": {
+              "item1": "Accesso al nostro coworker di ricerca",
+              "item2": "Possibilità di acquistare ulteriori crediti su richiesta",
+              "item3": "Leggere e creare documenti di Office",
+              "item4": "Integrazione con Microsoft 365"
+            }
+          }
+        },
+        "standard": {
+          "name": "Standard",
+          "description": "Set completo di agenti di marketing per piccole imprese.",
+          "features": {
+            "title": "Tutto ciò che è incluso nel piano Starter, più:",
+            "items": {
+              "item1": "Accesso al nostro coworker di programmazione",
+              "item2": "3 volte più crediti per gli agenti",
+              "item3": "Programmare task ricorrenti per i coworker"
+            }
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "Più accesso ai nostri agenti e servizi di marketing",
+          "features": {
+            "title": "Tutto ciò che è incluso nel piano Standard, più:",
+            "items": {
+              "item1": "Grande quantità di crediti per gli agenti",
+              "item2": "Template personalizzati per i file di output",
+              "item3": "Accesso anticipato a nuovi agenti e funzionalità"
+            }
+          }
+        }
+      },
+      "Errors": {
+        "unauthenticated": "Accedi per continuare",
+        "unauthenticatedAction": "Accedi",
+        "badInput": "Selezione del piano non valida",
+        "general": "Qualcosa è andato storto. Riprova."
+      },
+      "Error": {
+        "title": "Qualcosa è andato storto",
+        "message": "Si è verificato un problema durante il caricamento degli abbonamenti. Riprova più tardi.",
+        "retryButton": "Riprova"
+      }
+    },
+    "Billing": {
+      "balanceTitle": "Saldo",
+      "balanceDescriptionPersonal": "I crediti attuali nel tuo account personale.",
+      "balanceDescriptionOrganization": "Crediti attuali per {organization}. {members, plural, =1 {# membro} other {# membri}}, {seats, plural, =1 {# postazione} other {# postazioni}}.",
+      "balanceCreditsLabel": "{credits, plural, =0 {Nessun credito} =1 {# credito} other {# crediti}}",
+      "tabs": {
+        "subscription": "Abbonamento",
+        "credits": "Crediti",
+        "coupon": "Coupon"
+      },
+      "billingPortalTitle": "Portale di fatturazione",
+      "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i dettagli di fatturazione e le fatture.",
+      "openingBillingPortal": "Apertura in corso...",
+      "billingPortalCta": "Apri il portale di fatturazione",
+      "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
+      "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
+      "orgAccessRestrictedHint": "Passa al contesto personale o contatta un proprietario/amministratore dell’organizzazione se ti serve l’accesso.",
+      "Errors": {
+        "unauthenticated": "Accedi per continuare",
+        "unauthenticatedAction": "Accedi",
+        "unauthorized": "Non sei autorizzato ad accedere a quest’area di fatturazione",
+        "general": "Qualcosa è andato storto. Riprova."
+      },
+      "Error": {
+        "title": "Qualcosa è andato storto",
+        "message": "Si è verificato un problema durante il caricamento dei dettagli di fatturazione. Riprova più tardi.",
+        "retryButton": "Riprova"
+      }
+    },
+    "Credits": {
+      "billingPortalCta": "Gestisci gli acquisti",
+      "topUpTitle": "Ricarica i tuoi crediti",
+      "topUpDescription": "Scegli un importo o inserisci un valore personalizzato",
+      "expiryNotice": "I crediti scadono dopo {days, plural, one {# giorno} other {# giorni}}.",
+      "costPerCredit": "{cost} per credito",
+      "creditAmount": "{count, plural, one {# credito} other {# crediti}}",
+      "creditsLabel": "Numero di crediti",
+      "creditsPlaceholder": "Inserisci l’importo",
+      "topUpButton": "Continua",
+      "topUpButtonOrganization": "Continua",
+      "couponPageTitle": "Riscatta il tuo coupon",
+      "couponPageDescription": "Inserisci il codice coupon per ottenere crediti",
+      "couponButton": "Continua",
+      "couponButtonOrganization": "Continua",
+      "purchaseForOrganization": "{organization} (Organizzazione)",
+      "couponLabel": "Codice coupon",
+      "couponPlaceholder": "Inserisci coupon",
+      "creditsCleared": "Crediti cancellati per l’inserimento del coupon",
+      "couponCleared": "Coupon cancellato per l’inserimento dei crediti",
+      "couponOrCreditsError": "Inserisci i crediti oppure un codice coupon",
+      "Error": {
+        "title": "Qualcosa è andato storto",
+        "message": "Si è verificato un problema durante l’elaborazione della tua richiesta. Riprova più tardi.",
+        "retryButton": "Riprova"
+      },
+      "Success": {
+        "title": "Pagamento riuscito!",
+        "description": "L’acquisto di crediti è andato a buon fine. Grazie!",
+        "fulfillmentNote": "I crediti verranno aggiunti al tuo account a breve. Puoi controllare il saldo nella pagina dei crediti.",
+        "backToDashboard": "Sfoglia gli agenti",
+        "getStarted": "Inizia assumendo il tuo primo agente",
+        "Error": {
+          "title": "Qualcosa è andato storto",
+          "description": "Sessione di pagamento non trovata",
+          "failedNote": "Contatta il nostro supporto"
+        }
+      },
+      "Cancel": {
+        "title": "Pagamento annullato",
+        "description": "La procedura di pagamento è stata annullata. Non ti è stato addebitato alcun importo.",
+        "backToCredits": "Torna ai crediti"
+      },
+      "Errors": {
+        "invalidInput": "Inserisci un importo di crediti oppure un codice coupon",
+        "invalidCredits": "Importo di crediti non valido",
+        "invalidCoupon": "Coupon non valido",
+        "couponNotFound": "Coupon non trovato",
+        "couponTypeError": "Tipo di coupon non supportato",
+        "couponCurrencyError": "Valuta del coupon non corrispondente",
+        "promotionCodeNotFound": "Codice promozionale non trovato",
+        "unauthenticated": "Accedi per continuare",
+        "unauthenticatedAction": "Accedi",
+        "unauthorizedOrganization": "Non sei autorizzato ad acquistare crediti per questa organizzazione",
+        "unauthorizedPersonal": "Non sei autorizzato ad acquistare crediti",
+        "unknownError": "Qualcosa è andato storto"
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "App connesse",
+        "apiKeys": "Chiavi API",
+        "mcp": "MCP"
+      }
+    },
+    "MCP": {
+      "generateButton": "Genera il tuo URL MCP di Sokosumi",
+      "urlLabel": "Il tuo URL di connessione MCP",
+      "existingKeyNote": "Nota: questa è una connessione MCP generata in precedenza. La chiave API effettiva è nascosta per motivi di sicurezza.",
+      "existingKeyNote2": "Puoi rigenerare la chiave per ottenerne una nuova.",
+      "existingKey": "YOUR_EXISTING_KEY",
+      "keyDisabled": "La tua connessione MCP esiste ma è disattivata.",
+      "keyDisabledNote": "Puoi abilitarla o crearne una nuova.",
+      "enableKey": "Abilita chiave",
+      "createNewKey": "Crea nuova chiave",
+      "regenerateKey": "Rigenera chiave",
+      "setupPreviewTitle": "Come usare il tuo URL MCP con Claude",
+      "docsLink": "Visualizza la documentazione MCP",
+      "loadError": "Impossibile caricare le informazioni della connessione MCP. Riprova.",
+      "copyError": "Impossibile copiare l’URL negli appunti",
+      "retry": "Riprova",
+      "loading": "Caricamento informazioni della connessione MCP...",
+      "Instructions": {
+        "title": "Come connettere Claude a Sokosumi",
+        "step1": "Apri Claude e fai clic su \"Impostazioni\"",
+        "step2": "Fai clic su \"Connettori\"",
+        "step3": "Fai clic su \"Aggiungi connettore personalizzato\"",
+        "step4": "Inserisci un nome (ad es. \"Sokosumi\") e incolla l’URL di connessione MCP nel campo URL. Lascia vuote le impostazioni avanzate. Fai clic su \"Aggiungi\"",
+        "step5": {
+          "text": "Fatto! Ora Claude può interagire con gli agenti Sokosumi. Prova a chiedere:",
+          "example": "Quali agenti sono attualmente disponibili su Sokosumi?"
+        }
+      }
+    },
+    "Account": {
+      "Name": {
+        "title": "Modifica nome",
+        "description": "Aggiorna il tuo nome visualizzato",
+        "newName": "Nuovo nome",
+        "currentPassword": "Password attuale",
+        "submit": "Aggiorna nome",
+        "success": "Nome aggiornato correttamente",
+        "error": "Impossibile aggiornare il nome"
+      },
+      "Email": {
+        "title": "Modifica email",
+        "description": "Aggiorna il tuo indirizzo email",
+        "newEmail": "Nuova email",
+        "currentPassword": "Password attuale",
+        "submit": "Aggiorna email",
+        "success": "Email aggiornata correttamente",
+        "error": "Impossibile aggiornare l’email"
+      },
+      "Password": {
+        "title": "Modifica password",
+        "description": "Aggiorna la tua password",
+        "currentPassword": "Password attuale",
+        "newPassword": "Nuova password",
+        "confirmPassword": "Conferma nuova password",
+        "submit": "Aggiorna password",
+        "success": "Password aggiornata correttamente",
+        "error": "Impossibile aggiornare la password"
+      },
+      "NewPassword": {
+        "title": "Imposta password",
+        "description": "Imposta una password per il tuo account",
+        "newPassword": "Nuova password",
+        "confirmPassword": "Conferma nuova password",
+        "submit": "Imposta password",
+        "success": "Password impostata correttamente",
+        "error": "Impossibile impostare la password"
+      },
+      "Theme": {
+        "title": "Tema",
+        "description": "Scegli come appare l’interfaccia.",
+        "light": "Chiaro",
+        "dark": "Scuro",
+        "system": "Sistema"
+      },
+      "Language": {
+        "title": "Lingua",
+        "description": "Seleziona la lingua preferita.",
+        "autoDetect": "Rilevamento automatico",
+        "selectAriaLabel": "Seleziona lingua",
+        "options": {
+          "en": "English",
+          "de": "Deutsch",
+          "es": "Español",
+          "it": "Italiano",
+          "fr": "Français",
+          "pt": "Português",
+          "pt-BR": "Português (Brasil)",
+          "ja": "日本語",
+          "zh-Hans": "简体中文"
+        }
+      },
+      "SocialAccounts": {
+        "connected": "è collegato",
+        "notConnected": "non è collegato",
+        "success": "Account collegato correttamente",
+        "error": "Impossibile collegare {provider}",
+        "DisconnectModal": {
+          "title": "Scollega {provider}",
+          "description": "Vuoi davvero scollegare il tuo account {provider}?",
+          "confirm": "Scollega",
+          "cancel": "Annulla",
+          "success": "Account scollegato correttamente",
+          "error": "Impossibile scollegare {provider}"
+        }
+      },
+      "Notifications": {
+        "title": "Notifiche email",
+        "description": "Scegli quali aggiornamenti dei job inviamo alla tua casella di posta",
+        "jobStatusEmailsTitle": "Email di notifica dei job",
+        "jobStatusEmailsDescription": "Ricevi un’email quando un job passa a uno stato significativo, ad esempio completato, fallito o richiede input.",
+        "jobStatusEmailsAriaLabel": "Attiva/disattiva le email di notifica dei job",
+        "jobStatusEmailsEnabledSuccess": "Email di notifica dei job attivate",
+        "jobStatusEmailsDisabledSuccess": "Email di notifica dei job disattivate",
+        "marketingEmailsTitle": "Email di marketing",
+        "marketingEmailsDescription": "Ricevi un’email quando ci sono nuove funzionalità, aggiornamenti e promozioni.",
+        "marketingEmailsAriaLabel": "Attiva/disattiva le notifiche email di marketing",
+        "marketingEmailsEnabledSuccess": "Email di marketing attivate",
+        "marketingEmailsDisabledSuccess": "Email di marketing disattivate",
+        "loading": "Salvataggio preferenza...",
+        "error": "Impossibile aggiornare le preferenze di notifica"
+      },
+      "Delete": {
+        "title": "Elimina account",
+        "description": "Elimina definitivamente il tuo account e tutti i dati associati",
+        "button": "Elimina account",
+        "confirmTitle": "Sei sicuro?",
+        "confirmDescription": "Questa azione non può essere annullata. L’account verrà eliminato definitivamente e i tuoi dati verranno rimossi dai nostri server.",
+        "currentPassword": "Password attuale",
+        "confirm": "Sì, elimina il mio account",
+        "success": "Account eliminato correttamente",
+        "error": "Impossibile eliminare l’account"
+      },
+      "ApiKeys": {
+        "title": "Chiavi API",
+        "description": "Gestisci le tue chiavi API per l’accesso programmatico",
+        "apiDocsLink": "Visualizza la documentazione API",
+        "createButton": "Crea",
+        "loading": "Caricamento chiavi API...",
+        "noKeysFound": "Crea la tua prima chiave API per iniziare.",
+        "Table": {
+          "name": "Nome",
+          "key": "Chiave",
+          "status": "Stato",
+          "actions": "Azioni",
+          "created": "Creato"
+        },
+        "Status": {
+          "enabled": "Attiva",
+          "disabled": "Disattivata"
+        },
+        "Actions": {
+          "enableTooltip": "Abilita chiave API",
+          "disableTooltip": "Disabilita chiave API",
+          "deleteTooltip": "Elimina chiave API"
+        },
+        "CreateDialog": {
+          "title": "Crea nuova chiave API",
+          "description": "Dai alla tua chiave API un nome descrittivo per poterla identificare in seguito.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "es. Server di produzione, App di sviluppo",
+          "cancelButton": "Annulla",
+          "createButton": "Crea chiave API",
+          "CreatedSuccess": {
+            "title": "Nuova chiave API creata",
+            "description": "La tua nuova chiave API è stata creata correttamente.",
+            "doneButton": "Fine"
+          }
+        },
+        "DeleteDialog": {
+          "title": "Elimina chiave API",
+          "description": "Questa azione non può essere annullata. La chiave API verrà eliminata definitivamente e le applicazioni che la utilizzano non potranno più accedere al tuo account.",
+          "confirmLabelPrefix": "Digita",
+          "confirmLabelSuffix": "per confermare l’eliminazione:",
+          "cancelButton": "Annulla",
+          "deleteButton": "Elimina chiave API"
+        },
+        "Messages": {
+          "loadError": "Impossibile caricare le chiavi API",
+          "createSuccess": "Chiave API creata correttamente",
+          "createError": "Impossibile creare la chiave API",
+          "updateSuccess": "Chiave API {action} correttamente",
+          "updateError": "Impossibile aggiornare la chiave API",
+          "deleteSuccess": "Chiave API eliminata correttamente",
+          "deleteError": "Impossibile eliminare la chiave API",
+          "copySuccess": "Copiato negli appunti",
+          "copyError": "Impossibile copiare negli appunti",
+          "confirmNameMismatch": "Il nome di conferma non corrisponde"
+        },
+        "Validation": {
+          "nameRequired": "Il nome della chiave API è obbligatorio",
+          "nameMaxLength": "Il nome della chiave API deve essere inferiore a 100 caratteri",
+          "namePattern": "Il nome della chiave API può contenere solo lettere, numeri, spazi, trattini e underscore",
+          "keyIdRequired": "L’ID della chiave API è obbligatorio",
+          "confirmNameRequired": "Conferma il nome della chiave API"
+        }
+      },
+      "AuthorizedClients": {
+        "title": "Applicazioni autorizzate",
+        "description": "Applicazioni che hanno accesso al tuo account",
+        "loading": "Caricamento...",
+        "error": "Errore: {error}",
+        "noApplications": "Nessuna applicazione è stata autorizzata.",
+        "authorized": "Autorizzato: {date}",
+        "revokeAccess": "Revoca accesso",
+        "revoking": "Revoca in corso...",
+        "confirmRevoke": "Vuoi davvero revocare l’accesso per questa applicazione?",
+        "revokeSuccess": "Accesso revocato correttamente",
+        "revokeError": "Impossibile revocare l’accesso",
+        "fetchError": "Impossibile recuperare i client autorizzati"
+      },
+      "OAuthConsent": {
+        "invalidRequest": {
+          "title": "Richiesta OAuth non valida",
+          "description": "Parametri obbligatori mancanti: client_id o redirect_uri"
+        },
+        "clientNotFound": {
+          "title": "Client non trovato",
+          "description": "Il client OAuth non è stato trovato.",
+          "descriptionWithId": "Il client OAuth con ID {clientId} non esiste."
+        },
+        "title": "Autorizza applicazione",
+        "description": "Un’applicazione vuole accedere al tuo account",
+        "wantsAccess": "vuole accedere al tuo account Sokosumi",
+        "actions": {
+          "authorize": "Autorizza",
+          "authorizing": "Autorizzazione...",
+          "deny": "Nega",
+          "denying": "Negando...",
+          "authorizeError": "Impossibile autorizzare l’applicazione",
+          "authorizeErrorRedirectUri": "Impossibile autorizzare l’applicazione. Controlla il redirect URI.",
+          "authorizeErrorGeneric": "Si è verificato un errore durante l’autorizzazione",
+          "denyError": "Impossibile negare l’applicazione"
+        }
+      },
+      "OAuthClients": {
+        "title": "Client OAuth",
+        "description": "Gestisci i client OAuth che possono accedere al tuo account",
+        "createButton": "Crea client OAuth",
+        "createSuccess": "Client OAuth creato correttamente",
+        "createError": "Impossibile creare il client OAuth",
+        "copy": "Copia",
+        "copySuccess": "Copiato negli appunti",
+        "CreateDialog": {
+          "title": "Crea nuovo client OAuth",
+          "description": "Crea un nuovo client OAuth per consentire alle applicazioni di accedere al tuo account.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "es. La mia applicazione, Server di produzione",
+          "redirectUrisLabel": "URI di reindirizzamento",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Inserisci un URI di reindirizzamento per riga. Ogni URI deve essere un URL valido.",
+          "cancelButton": "Annulla",
+          "createButton": "Crea client OAuth"
+        },
+        "CreatedSuccess": {
+          "title": "Client OAuth creato",
+          "description": "Il tuo client OAuth è stato creato correttamente. Salva queste credenziali in modo sicuro.",
+          "clientIdLabel": "ID client",
+          "clientSecretLabel": "Segreto del client",
+          "clientSecretWarning": "Questo segreto verrà mostrato solo una volta. Assicurati di salvarlo in modo sicuro.",
+          "doneButton": "Fine"
+        }
+      },
+      "OAuthCallback": {
+        "title": "Callback di autorizzazione OAuth",
+        "description": "Scambia il tuo codice di autorizzazione con un token di accesso",
+        "authorizationCode": "Codice di autorizzazione",
+        "state": "Stato",
+        "codeVerifierLabel": "Code verifier",
+        "codeVerifierPlaceholder": "Inserisci il code verifier utilizzato nella richiesta di autorizzazione",
+        "codeVerifierHelp": "Il code verifier deve corrispondere al code challenge utilizzato nella richiesta di autorizzazione.",
+        "noCode": "Nessun codice di autorizzazione trovato nell’URL. Completa prima il flusso di autorizzazione.",
+        "actions": {
+          "exchange": "Scambia per token",
+          "exchanging": "Scambio in corso...",
+          "copy": "Copia"
+        },
+        "success": {
+          "title": "Scambio del token riuscito",
+          "description": "Il tuo codice di autorizzazione è stato scambiato correttamente con un token di accesso.",
+          "accessToken": "Token di accesso",
+          "refreshToken": "Token di refresh",
+          "expiresIn": "Scade tra",
+          "seconds": "secondi",
+          "scope": "Ambito",
+          "idToken": "Token ID",
+          "warning": "Conserva questi token in modo sicuro. Il token di accesso può essere usato per effettuare richieste autenticate all’API.",
+          "tokenExchanged": "Token scambiato correttamente",
+          "tokenCopied": "Token di accesso copiato negli appunti",
+          "refreshTokenCopied": "Token di refresh copiato negli appunti"
+        },
+        "error": {
+          "title": "Errore di autorizzazione",
+          "description": "Si è verificato un errore durante la procedura di autorizzazione.",
+          "errorCode": "Codice errore",
+          "errorDescription": "Descrizione errore"
+        },
+        "errors": {
+          "authorizationFailed": "Autorizzazione non riuscita",
+          "missingCode": "Nessun codice di autorizzazione trovato nell’URL",
+          "missingCodeVerifier": "Inserisci il code verifier",
+          "missingCredentials": "ID client e client secret sono obbligatori",
+          "tokenExchangeFailed": "Impossibile scambiare il codice di autorizzazione con un token"
+        },
+        "clientIdLabel": "ID client",
+        "clientIdPlaceholder": "Inserisci il tuo ID client OAuth",
+        "clientSecretLabel": "Client secret",
+        "clientSecretPlaceholder": "Inserisci il tuo client secret OAuth",
+        "clientSecretHelp": "Il client secret è obbligatorio per i client confidenziali. Per i client pubblici, lascia vuoto."
+      }
+    },
+    "Organizations": {
+      "Metadata": {
+        "title": "Organizzazioni",
+        "description": "Gestisci le tue organizzazioni"
+      },
+      "newOrganization": "Nuova organizzazione",
+      "organizationsNotAvailable": "Nessuna organizzazione trovata",
+      "OrganizationRow": {
+        "leave": "Esci",
+        "activate": "Attiva",
+        "deactivate": "Disattiva"
+      },
+      "Credits": {
+        "title": "Crediti dell’organizzazione",
+        "description": "Disponibili per i membri di {organization}",
+        "buy": "Aggiungi crediti"
+      },
+      "InvitationActions": {
+        "accept": "Accetta",
+        "reject": "Rifiuta",
+        "acceptTitle": "Accetta invito",
+        "rejectTitle": "Rifiuta invito",
+        "acceptDescription": "Vuoi davvero accettare l’invito per {email}?",
+        "rejectDescription": "Vuoi davvero rifiutare l’invito per {email}?",
+        "confirm": "Conferma",
+        "cancel": "Annulla",
+        "acceptSuccess": "Invito accettato correttamente",
+        "acceptError": "Impossibile accettare l’invito",
+        "rejectSuccess": "Invito rifiutato correttamente",
+        "rejectError": "Impossibile rifiutare l’invito",
+        "Errors": {
+          "unauthorizedAction": "Accedi"
+        }
+      },
+      "OrganizationDetail": {
+        "Metadata": {
+          "Title": {
+            "default": "{name}",
+            "template": "{name} - %"
+          },
+          "description": "Gestisci la tua organizzazione"
+        },
+        "roleIndicator": "Visualizza come:",
+        "edit": "Modifica",
+        "delete": "Elimina",
+        "invite": "Invita un membro",
+        "InvoiceEmail": {
+          "title": "Email per le fatture",
+          "description": "Indirizzo email per ricevere fatture e notifiche di fatturazione",
+          "label": "Email per le fatture",
+          "placeholder": "billing@example.com",
+          "help": "Questa email riceverà tutte le fatture e le comunicazioni di fatturazione da Stripe",
+          "edit": "Modifica",
+          "save": "Salva",
+          "cancel": "Annulla",
+          "Success": {
+            "update": "Email per le fatture aggiornata correttamente"
+          },
+          "Errors": {
+            "unauthenticated": "Accedi per continuare",
+            "unauthenticatedAction": "Accedi",
+            "unauthorized": "Solo i proprietari e gli amministratori dell’organizzazione possono aggiornare l’email per le fatture",
+            "badInput": "Inserisci un indirizzo email valido",
+            "general": "Impossibile aggiornare l’email per le fatture"
+          }
+        },
+        "Subscription": {
+          "title": "Abbonamento dell’organizzazione",
+          "description": "Gestisci piano e postazioni per la tua organizzazione.",
+          "currentPlanLabel": "Piano attuale",
+          "currentSeatsLabel": "Postazioni attuali",
+          "membersLabel": "Membri attivi",
+          "seatsInputLabel": "Postazioni desiderate",
+          "seatsInputHint": "Il numero minimo di postazioni è {minimum} per coprire tutti i membri attivi.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Nessun credito per postazione} =1 {# credito per postazione} other {# crediti per postazione}}",
+          "noActivePlan": "Nessun piano attivo",
+          "seatsUpdatedSuccess": "Postazioni aggiornate correttamente.",
+          "updating": "Reindirizzamento...",
+          "currentPlanCta": "Piano attuale",
+          "updateSeatsCta": "Aggiorna postazioni",
+          "choosePlanCta": "Scegli un piano",
+          "Errors": {
+            "unauthenticated": "Accedi per continuare",
+            "unauthenticatedAction": "Accedi",
+            "unauthorized": "Solo i proprietari e gli amministratori dell’organizzazione possono gestire gli abbonamenti",
+            "badInput": "Fornisci valori di piano e postazioni validi",
+            "general": "Impossibile gestire l’abbonamento dell’organizzazione"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "Galleria agenti",
+        "description": "Esplora la nostra collezione di agenti."
+      },
+      "CoworkerGallerySection": {
+        "title": "Coworker IA",
+        "whatTheyDo": {
+          "title": "Cosa fanno",
+          "description": "Coworker IA a cui puoi affidare lavoro reale. Lavorano in autonomia e lo portano a termine."
+        },
+        "marketingExpertise": {
+          "title": "Competenza marketing",
+          "description": "Addestrati su campagne reali: strategia, contenuti, media planning e comunicazione del brand."
+        },
+        "serviceplanLogoAlt": "Serviceplan Group",
+        "moreComingSoon": "+ Altri in arrivo"
+      },
+      "FilterSection": {
+        "searchPlaceholder": "Cerca agenti",
+        "reset": "Reimposta",
+        "tags": "Tag",
+        "selectTags": "Seleziona tag",
+        "applyTags": "Applica",
+        "categories": "Categorie",
+        "selectCategories": "Seleziona categorie",
+        "applyCategories": "Applica",
+        "featuredAgents": "Agenti in evidenza",
+        "newAgents": "Nuovi agenti",
+        "others": "Altri"
+      },
+      "Jobs": {
+        "newJob": "Nuovo job",
+        "switchedWorkspace": "Passato all’account {account}",
+        "Header": {
+          "back": "Torna agli agenti",
+          "newJob": "Nuovo job",
+          "price": "{price, plural, =0 {Gratis} =1 {1 credito} other {# crediti}}"
+        },
+        "Modal": {
+          "back": "Indietro"
+        },
+        "Footer": {
+          "termsAndConditions": "Termini e condizioni",
+          "privacyPolicy": "Informativa sulla privacy",
+          "customerSupport": "Assistenza clienti"
+        },
+        "RightSection": {
+          "noExecutedJobs": "Nessun job eseguito"
+        },
+        "CreateJob": {
+          "title": "Nuovo {name}",
+          "demo": "Demo",
+          "cancel": "Annulla",
+          "Information": {
+            "title": "Informazioni"
+          },
+          "Input": {
+            "title": "Input"
+          },
+          "Scheduler": {
+            "title": "Programma job",
+            "description": "Scegli quando eseguire questo job.",
+            "modeCards": {
+              "now": {
+                "title": "Esegui ora",
+                "description": "Esegui il job immediatamente."
+              },
+              "recurring": {
+                "title": "Programma",
+                "description": "Pianifica una programmazione una tantum o ricorrente."
+              }
+            },
+            "option": {
+              "oneTime": "Una tantum",
+              "daily": "Giornaliero",
+              "dailyWithTime": "Giornaliero ({time})",
+              "dailyEveryNWithTime": "Ogni {n} giorni ({time})",
+              "weekly": "Settimanale",
+              "weeklyWithWeekdayTime": "Settimanale ({weekday}, {time})",
+              "weeklyListWithTime": "Settimanale ({weekdays}, {time})",
+              "monthly": "Mensile",
+              "monthlyWithDayTime": "Mensile (Giorno {day}, {time})",
+              "monthlyEveryNWithDayTime": "Ogni {n} mesi (Giorno {day}, {time})",
+              "custom": "Personalizzato"
+            },
+            "schedulesTitle": "Agenti programmati",
+            "pickDateTime": "Scegli data e ora",
+            "timeOfDay": "Ora del giorno",
+            "pickTime": "Scegli un’ora",
+            "repeatEvery": "Ripeti ogni",
+            "repeatOn": "Ripeti il",
+            "ends": "Termina",
+            "never": "Mai",
+            "on": "Il",
+            "after": "Dopo",
+            "occurrences": "occorrenze",
+            "pickDate": "Scegli una data",
+            "preview": "Anteprima",
+            "noPreview": "Nessuna esecuzione prevista",
+            "unit": {
+              "day": "giorno",
+              "week": "settimana",
+              "month": "mese"
+            },
+            "save": "Salva",
+            "cancel": "Annulla",
+            "errors": {
+              "required": "Questo campo è obbligatorio.",
+              "futureDateTime": "Seleziona una data e ora future.",
+              "invalidTime": "Inserisci un’ora valida (HH:MM).",
+              "positiveInteger": "Inserisci un numero intero positivo.",
+              "selectAtLeastOneWeekday": "Seleziona almeno un giorno della settimana.",
+              "endDateInPast": "La data di fine non può essere nel passato."
+            }
+          }
+        }
+      }
+    }
+  },
+  "Share": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace per interazioni umano-agente",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+    },
+    "Jobs": {
+      "Metadata": {
+        "title": "{name}",
+        "defaultName": "Senza titolo",
+        "description": "Assumi un agente per completare i task più dispendiosi in termini di tempo"
+      }
+    },
+    "CTA": {
+      "title": "Agenti IA on-demand a portata di mano",
+      "description": "Seleziona un agente affidabile, imposta il tuo brief e ricevi output pratici: senza bisogno di abbonamenti.",
+      "buttonText": "Esplora agenti"
+    }
+  },
+  "NotFound": {
+    "title": "404",
+    "description": "Ops! La pagina che stai cercando non esiste.",
+    "message": "La pagina che stai cercando potrebbe essere stata rimossa, il suo nome cambiato o non essere momentaneamente disponibile.",
+    "returnHome": "Torna alla home"
+  },
+  "Maintenance": {
+    "title": "Modalità manutenzione",
+    "description": "Stiamo effettuando manutenzione",
+    "message": "Stiamo lavorando per migliorare la tua esperienza. Torna a trovarci presto."
+  },
+  "Library": {
+    "Auth": {
+      "Schema": {
+        "Email": {
+          "invalid": "Inserisci un indirizzo email valido.",
+          "required": "L’email è obbligatoria"
+        },
+        "Name": {
+          "min": "Il nome deve avere almeno 2 caratteri.",
+          "max": "Il nome deve avere al massimo 128 caratteri.",
+          "invalid": "Il nome deve essere una stringa valida.",
+          "required": "Il nome è obbligatorio"
+        },
+        "Organization": {
+          "invalid": "L’organizzazione deve essere una stringa valida.",
+          "required": "L’organizzazione è obbligatoria",
+          "min": "Il nome dell’organizzazione deve avere almeno 2 caratteri.",
+          "max": "Il nome dell’organizzazione deve avere al massimo 50 caratteri."
+        },
+        "Password": {
+          "invalid": "La password deve essere una stringa valida.",
+          "min": "La password deve avere almeno 8 caratteri",
+          "max": "La password deve avere al massimo 128 caratteri",
+          "lowercase": "La password deve contenere almeno una lettera minuscola.",
+          "uppercase": "La password deve contenere almeno una lettera maiuscola.",
+          "number": "La password deve contenere almeno un numero.",
+          "required": "La password è obbligatoria"
+        },
+        "CurrentPassword": {
+          "invalid": "La password attuale deve essere una stringa valida.",
+          "required": "La password attuale è obbligatoria"
+        },
+        "InputPassword": {
+          "invalid": "La password deve essere una stringa valida.",
+          "required": "La password è obbligatoria"
+        },
+        "ConfirmPassword": {
+          "invalid": "La conferma della password deve essere una stringa valida.",
+          "match": "La password non corrisponde",
+          "required": "La conferma della password è obbligatoria"
+        }
+      },
+      "Email": {
+        "ResetPassword": {
+          "subject": "Sokosumi - Reimposta la tua password",
+          "title": "Reimposta la tua password",
+          "greeting": "Salve {name}",
+          "message": "Abbiamo ricevuto una richiesta di reimpostazione della password per il tuo account. Se non hai effettuato tu questa richiesta, puoi ignorare questa email in sicurezza.",
+          "button": "Reimposta password",
+          "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
+          "footer": "Se non hai richiesto la reimpostazione della password, ignora questa email o contatta l’assistenza se hai dubbi."
+        },
+        "Verification": {
+          "subject": "Sokosumi - Verifica il tuo indirizzo email",
+          "title": "Verifica il tuo indirizzo email",
+          "greeting": "Salve {name}",
+          "message": "Verifica il tuo indirizzo email cliccando sul pulsante qui sotto. Questo ci aiuta a garantire la sicurezza del tuo account.",
+          "button": "Verifica email",
+          "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
+          "footer": "Se non hai creato un account, puoi ignorare questa email in sicurezza."
+        },
+        "InviteUserEmail": {
+          "subject": "Sokosumi - Invito all’organizzazione",
+          "title": "Unisciti a {invitorUsername} su {organizationName}",
+          "greeting": "Salve",
+          "message": "Sei stato invitato a unirti a {organizationName} su Sokosumi. Clicca sul pulsante qui sotto per accettare l’invito.",
+          "button": "Accetta invito",
+          "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
+          "footer": "Se non hai richiesto questo invito, puoi ignorare questa email in sicurezza."
+        }
+      }
+    },
+    "Email": {
+      "JobFinalStatus": {
+        "subject": "Sokosumi - Job di {agentName} {status}",
+        "preview": "Il tuo job per {agentName} ora è {status}.",
+        "title": "Job {status}",
+        "greeting": "Salve {name}",
+        "body": "{jobName} per {agentName} ora è {status}.",
+        "button": "Visualizza job",
+        "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
+        "footer": "Ricevi questa email perché le notifiche dei job sono abilitate per il tuo account.",
+        "fallbackJobName": "Il tuo job",
+        "status": {
+          "completed": "completato",
+          "failed": "fallito",
+          "payment_failed": "pagamento non riuscito",
+          "refund_resolved": "rimborsato",
+          "dispute_resolved": "contestazione risolta"
+        }
+      },
+      "JobFailureNotification": {
+        "subject": "Notifica di fallimento del job - {jobId}",
+        "preview": "Il job {jobId} è fallito",
+        "title": "Notifica di fallimento del job",
+        "description": "Un job è fallito. Ecco i dettagli tecnici:",
+        "network": "Rete:",
+        "agentName": "Nome agente:",
+        "agentId": "ID agente:",
+        "agentBlockchainIdentifier": "Identificatore blockchain dell’agente:",
+        "jobId": "ID job:",
+        "jobBlockchainIdentifier": "Identificatore blockchain del job:",
+        "onChainStatus": "Stato on-chain:",
+        "agentStatus": "Stato agente:",
+        "inputHash": "Hash input:",
+        "resultHash": "Hash risultato:",
+        "inputSchema": "Schema input:",
+        "input": "Input:",
+        "output": "Output:",
+        "footer": "Questa è una notifica automatica da Sōkosumi."
+      },
+      "JobInputRequired": {
+        "subject": "Sokosumi - {agentName} richiede il tuo input",
+        "preview": "Il tuo job per {agentName} richiede input per continuare.",
+        "title": "Azione richiesta",
+        "greeting": "Salve {name}",
+        "body": "Il tuo job {jobName} per {agentName} è in attesa del tuo input per continuare.",
+        "button": "Fornisci input",
+        "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
+        "footer": "Ricevi questa email perché le notifiche dei job sono abilitate per il tuo account.",
+        "fallbackJobName": "Il tuo job"
+      }
+    },
+    "JobInput": {
+      "Schema": {
+        "Id": {
+          "required": "L’ID dell’input è obbligatorio"
+        },
+        "Type": {
+          "enum": "Deve essere uno tra {options}"
+        },
+        "Name": {
+          "required": "Il nome dell’input è obbligatorio"
+        },
+        "Data": {
+          "Values": {
+            "value": {
+              "required": "L’opzione è obbligatoria"
+            },
+            "min": "Deve avere almeno 1 opzione",
+            "unique": "I valori delle opzioni devono essere univoci"
+          }
+        },
+        "Validations": {
+          "Validation": {
+            "enum": "Deve essere uno tra {options}"
+          },
+          "Value": {
+            "invalid": "Il valore non è valido per la validazione {validation}",
+            "required": "Il valore è obbligatorio per la validazione {validation}",
+            "integer": "Il valore deve essere un intero per la validazione {validation}",
+            "enum": "Il valore deve essere uno tra {options}, per la validazione {validation}"
+          },
+          "fileInvalid": "Lo schema del file non è valido. Mancano validazioni obbligatorie"
+        },
+        "invalidValidations": "Le validazioni non sono valide per il tipo {type}",
+        "optionValuesRequired": "I valori sono obbligatori per il tipo opzione",
+        "noDataValues": "I valori devono essere indefiniti per i tipi non-opzione"
+      },
+      "Form": {
+        "clear": "Cancella",
+        "price": "{price, plural, =0 {Gratis} =1 {1 credito} other {# crediti}} per esecuzione",
+        "submit": "Assumi",
+        "schedule": "Programma",
+        "back": "Indietro",
+        "next": "Avanti",
+        "ctrl": "Ctrl",
+        "acceptByClickingSubmit": "Cliccando su \"Assumi\" accetti i ",
+        "termsOfService": "Termini di servizio",
+        "privacyPolicy": "Informativa sulla privacy",
+        "legal": "altri requisiti legali",
+        "byCreator": " del creatore dell’agente",
+        "Error": {
+          "insufficientBalance": "Il tuo saldo crediti è insufficiente per avviare questo job.",
+          "insufficientBalanceAction": "Aggiungi crediti",
+          "badInput": "I tuoi dati di input non sono validi.",
+          "unauthenticated": "Devi essere autenticato per avviare un job.",
+          "unauthenticatedAction": "Accedi",
+          "default": "Impossibile avviare il job."
+        },
+        "String": {
+          "required": "{name} è obbligatorio",
+          "min": "{name} deve avere almeno {value} caratteri",
+          "max": "{name} deve avere al massimo {value} caratteri",
+          "format": "{name} deve essere un {value}"
+        },
+        "Number": {
+          "required": "{name} è obbligatorio",
+          "min": "{name} deve essere almeno {value}",
+          "max": "{name} deve essere al massimo {value}",
+          "format": "{name} deve essere un {value}"
+        },
+        "Boolean": {
+          "required": "{name} è obbligatorio"
+        },
+        "Option": {
+          "required": "{name} è obbligatorio",
+          "min": "{name} deve avere almeno {value, plural, =1 {1 opzione} other {# opzioni}}",
+          "max": "{name} deve avere al massimo {value, plural, =1 {1 opzione} other {# opzioni}}",
+          "integer": "Il valore dell’opzione {name} deve essere un indice",
+          "nonnegative": "Il valore dell’opzione {name} deve essere un indice non negativo",
+          "invalid": "Il valore dell’opzione {name} deve essere un indice da 0 a {maxValue}"
+        },
+        "File": {
+          "required": "{name} è obbligatorio",
+          "invalid": "{name} deve essere un file valido",
+          "maxSize": "{name} deve essere al massimo {value} byte",
+          "description": "Trascina e rilascia oppure scegli i file da caricare",
+          "delete": "Elimina"
+        },
+        "Date": {
+          "min": "{name} deve essere almeno {value}",
+          "max": "{name} deve essere al massimo {value}",
+          "format": "{name} deve essere un {value}"
+        }
+      },
+      "Error": {
+        "failedToFetchJobInputSchema": "Impossibile recuperare lo schema di input del job",
+        "demoDataInvalid": "I dati demo dell’agente non sono validi."
+      }
+    },
+    "Duration": {
+      "Long": {
+        "days": "{value, plural, =1 {giorno} other {giorni}}",
+        "hours": "{value, plural, =1 {ora} other {ore}}",
+        "minutes": "{value, plural, =1 {minuto} other {minuti}}",
+        "seconds": "{value, plural, =1 {secondo} other {secondi}}"
+      },
+      "Short": {
+        "days": "{value, plural, =1 {g} other {g}}",
+        "hours": "{value, plural, =1 {h} other {h}}",
+        "minutes": "{value, plural, =1 {min} other {min}}",
+        "seconds": "{value, plural, =1 {s} other {s}}"
+      }
+    }
+  }
+}

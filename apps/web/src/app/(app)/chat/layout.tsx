@@ -7,6 +7,14 @@ import { userService } from "@/lib/services";
 import { ChatErrorFallback } from "./components/chat-error-fallback";
 import { ChatLayoutClient } from "./components/chat-layout-client";
 
+/**
+ * When the virtual keyboard opens on mobile, the layout viewport resizes so
+ * the chat input stays above the keyboard.
+ */
+export const viewport = {
+  interactiveWidget: "resizes-content" as const,
+};
+
 export default async function ChatLayout({
   children: _children,
 }: {
@@ -31,6 +39,7 @@ export default async function ChatLayout({
   return (
     <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
       <ChatLayoutClient
+        mobileKeyboardOptimized
         organizationSlug={organizationSlug}
         userImageUrl={userImageUrl}
         userName={session.user.name ?? undefined}

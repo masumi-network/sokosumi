@@ -1739,8 +1739,19 @@
       "Language": {
         "title": "Language",
         "description": "Select your preferred language.",
-        "currentLanguage": "English",
-        "comingSoon": "More languages coming soon"
+        "autoDetect": "Auto-detect",
+        "selectAriaLabel": "Select language",
+        "options": {
+          "en": "English",
+          "de": "Deutsch",
+          "es": "Español",
+          "it": "Italiano",
+          "fr": "Français",
+          "pt": "Português",
+          "pt-BR": "Português (Brasil)",
+          "ja": "日本語",
+          "zh-Hans": "简体中文"
+        }
       },
       "SocialAccounts": {
         "connected": "is connected",

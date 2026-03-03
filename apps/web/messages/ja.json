@@ -1,0 +1,2454 @@
+{
+  "Job": {
+    "CreationFailed": "ジョブの作成に失敗しました",
+    "RefundFailed": "ジョブの払い戻しに失敗しました",
+    "ManualChainState": "ジョブが失敗しました。サポートにお問い合わせください",
+    "SyncStatusFailed": "オンチェーンのステータス取得に失敗しました。サポートにお問い合わせください",
+    "SyncOutputFailed": "ジョブの出力取得に失敗しました。サポートにお問い合わせください",
+    "UnknownError": "不明なエラーが発生しました。サポートにお問い合わせください"
+  },
+  "Components": {
+    "AppLayoutRestrictor": {
+      "title": "モバイルは未対応です",
+      "description": "このページはデスクトップ端末のみ対応しています。大きい画面に切り替えてください。",
+      "reload": "再読み込み"
+    },
+    "CookieConsent": {
+      "title": "クッキーを使用しています",
+      "description": "当サイトでは最適な体験を提供するためにクッキーを使用します。クッキーの使用方法について詳しくは、",
+      "cookiePolicy": "クッキーポリシー",
+      "period": ".",
+      "accept": "同意する",
+      "reject": "拒否する"
+    },
+    "EmergencyDialog": {
+      "title": "緊急メンテナンス",
+      "description": "現在、外部プロバイダーの技術的な問題によりジョブの実行に不具合が発生しています。ご安心ください。まもなく通常どおりご利用いただけます。",
+      "confirm": "OK"
+    },
+    "ShareButton": {
+      "linkCopied": "リンクをクリップボードにコピーしました",
+      "copyError": "リンクのコピーに失敗しました"
+    },
+    "DefaultErrorBoundary": {
+      "error": "不明なエラーが発生しました。サポートにお問い合わせください"
+    },
+    "Agents": {
+      "RiskClassification": {
+        "minimal": "最小リスク",
+        "limited": "限定リスク",
+        "high": "高リスク",
+        "unacceptable": "許容できないリスク"
+      },
+      "AgentVerifiedBadge": {
+        "tooltip": "このエージェントの真正性は、Agent Identity により検証されています。",
+        "learnMore": "詳しく見る",
+        "aboutAgentIdentities": "Agent Identitiesについて。"
+      },
+      "Rating": {
+        "title": "評価",
+        "noRatings": "まだ評価はありません",
+        "averageRating": "5つ星中{average}",
+        "totalRatings": "{count}件の評価",
+        "submitRating": "このエージェントを評価",
+        "ratingLabel": "評価",
+        "updateRating": "評価を更新",
+        "commentLabel": "コメント（任意）",
+        "commentPlaceholder": "体験を共有してください...",
+        "commentTooLong": "コメントは1000文字以内である必要があります",
+        "submitButton": "評価を送信",
+        "submitting": "送信中...",
+        "successMessage": "フィードバックありがとうございます！",
+        "errorMessage": "評価の送信に失敗しました",
+        "selectRating": "評価を選択してください",
+        "eligibilityMessage": "このエージェントを評価するにはジョブを完了してください",
+        "star": "{count}つ星",
+        "percentage": "{percentage}%"
+      },
+      "Reviews": {
+        "customerReviews": "カスタマーレビュー",
+        "noReviewsYet": "まだレビューはありません",
+        "beFirstToReview": "最初のレビューを書きましょう！",
+        "signInToReview": "レビューを書くにはサインインしてください",
+        "signIn": "サインイン",
+        "readMore": "続きを読む",
+        "showLess": "折りたたむ",
+        "Pagination": {
+          "page": "ページ {page} / {totalPages}"
+        }
+      },
+      "agentsNotAvailable": "利用可能なエージェントはありません",
+      "agentsNotFound": "エージェントが見つかりません",
+      "hire": "エージェントを雇う",
+      "freeDemo": "無料デモ",
+      "AgentCard": {
+        "view": "詳細を見る",
+        "pricing": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}}",
+        "addedToBookmarks": "エージェントをピン留めに追加しました",
+        "removedFromBookmarks": "エージェントをピン留めから削除しました",
+        "bookmarkError": "ピン留めの更新に失敗しました"
+      },
+      "AgentDetail": {
+        "Header": {
+          "pricing": "{credits, plural, =0 {無料} =1 {1クレジット} other {# クレジット}}"
+        },
+        "Stats": {
+          "executedJobs": "実行済みジョブ",
+          "averageExecutionTime": "平均実行時間",
+          "rating": "評価"
+        },
+        "Overview": {
+          "description": "説明",
+          "tags": "概要"
+        },
+        "Examples": {
+          "title": "出力例",
+          "download": "ダウンロード"
+        },
+        "Legal": {
+          "title": "開発者より",
+          "privacyPolicy": "プライバシーポリシー",
+          "terms": "利用規約",
+          "other": "その他"
+        },
+        "Risk": {
+          "title": "EU AI Act リスク分類"
+        }
+      },
+      "AgentBadgeCloud": {
+        "new": "新着"
+      }
+    },
+    "UserAvatar": {
+      "account": "アカウント",
+      "organizations": "組織",
+      "billing": "請求",
+      "connections": "接続",
+      "help": "ヘルプ",
+      "legal": "法務",
+      "support": "サポート",
+      "documentation": "ドキュメント",
+      "termsOfService": "利用規約",
+      "privacyPolicy": "プライバシーポリシー",
+      "imprint": "会社情報",
+      "acceptableUse": "利用規定",
+      "logout": "ログアウト",
+      "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
+      "creditsSummary": "クレジット概要:",
+      "creditsConsumedProgressAria": "サブスクリプションクレジットの消費",
+      "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後に失効します",
+      "creditsExpiresToday": "クレジットは本日失効します",
+      "creditsExpired": "クレジットが失効しました"
+    },
+    "OrganizationSwitcher": {
+      "switchWorkspace": "ワークスペースを切り替える",
+      "searchProfiles": "プロフィールを検索...",
+      "personalAccount": "個人アカウント",
+      "noProfilesFound": "プロフィールが見つかりません",
+      "personalAccountHeading": "個人",
+      "organization": "組織",
+      "addOrganization": "組織を追加",
+      "organizationsHeading": "組織",
+      "createOrJoinOrganization": "組織を作成または参加"
+    },
+    "DataTable": {
+      "Data": {
+        "noResults": "結果がありません。"
+      },
+      "ColumnHeader": {
+        "ascending": "昇順",
+        "descending": "降順",
+        "hide": "非表示"
+      },
+      "Pagination": {
+        "rowsSelected": "{selected} / {total, plural, =1 {#行} other {#行}} 選択済み",
+        "rowsPerPage": "1ページあたりの行数",
+        "page": "ページ {page} / {totalPages}",
+        "firstPage": "最初のページへ",
+        "previousPage": "前のページへ",
+        "nextPage": "次のページへ",
+        "lastPage": "最後のページへ"
+      }
+    },
+    "MembersTable": {
+      "Header": {
+        "name": "名前",
+        "email": "メール",
+        "role": "役割",
+        "actions": "操作"
+      },
+      "MemberActions": {
+        "remove": "削除",
+        "changeToOwner": "オーナーに変更",
+        "changeToAdmin": "管理者に変更",
+        "changeToMember": "メンバーに変更",
+        "Modal": {
+          "changeRoleTitle": "役割を変更",
+          "removeTitle": "メンバーを削除",
+          "changeToOwnerDescription": "{member}の役割をオーナーに変更してよろしいですか？",
+          "changeToAdminDescription": "{member}の役割を管理者に変更してよろしいですか？",
+          "changeToMemberDescription": "{member}の役割をメンバーに変更してよろしいですか？",
+          "removeDescription": "組織から{member}を削除してよろしいですか？",
+          "confirm": "確認",
+          "cancel": "キャンセル",
+          "Success": {
+            "changeRole": "役割を変更しました",
+            "remove": "メンバーを削除しました"
+          },
+          "Error": {
+            "changeRole": "役割の変更に失敗しました",
+            "remove": "メンバーの削除に失敗しました"
+          },
+          "Errors": {
+            "unauthorizedAction": "ログイン"
+          }
+        }
+      },
+      "InvitationActions": {
+        "resend": "招待を再送信",
+        "cancel": "招待を取り消す",
+        "CancelModal": {
+          "title": "招待を取り消す",
+          "description": "{email}への招待を取り消してよろしいですか？",
+          "confirm": "確認",
+          "cancel": "キャンセル",
+          "success": "招待を取り消しました",
+          "error": "招待の取り消しに失敗しました",
+          "Errors": {
+            "unauthorizedAction": "ログイン"
+          }
+        },
+        "resendSuccess": "招待を再送信しました",
+        "resendError": "招待の再送信に失敗しました"
+      }
+    },
+    "Breadcrumb": {
+      "jobs": "ジョブ",
+      "agents": "ギャラリー",
+      "credits": "クレジット",
+      "coupon": "クーポン",
+      "subscriptions": "サブスクリプション",
+      "billing": "請求",
+      "account": "アカウント",
+      "organizations": "組織",
+      "api-docs": "APIドキュメント",
+      "mcp": "Model Context Protocol（MCP）",
+      "schedules": "スケジュール済みエージェント",
+      "chat": "チャット",
+      "tasks": "タスク管理",
+      "connections": "接続",
+      "feed": "マイフィード"
+    },
+    "Jobs": {
+      "StatusBadge": {
+        "demo": "デモ",
+        "started": "開始",
+        "completed": "完了",
+        "failed": "失敗",
+        "paymentPending": "採用中",
+        "paymentFailed": "採用に失敗",
+        "processing": "処理中",
+        "agentConnectionFailed": "エージェント接続失敗",
+        "paymentNodeConnectionFailed": "ノード接続失敗",
+        "inputRequired": "入力が必要",
+        "disputeRequested": "異議申し立て中",
+        "disputeResolved": "異議申し立て解決",
+        "refundRequested": "返金申請済み",
+        "refundResolved": "返金済み",
+        "resultPending": "結果がありません",
+        "unknown": "不明"
+      },
+      "AgentStatusBadge": {
+        "initiated": "開始済み",
+        "awaitingPayment": "支払い待ち",
+        "awaitingInput": "入力が必要",
+        "running": "処理中",
+        "completed": "完了",
+        "failed": "失敗",
+        "unknown": "不明"
+      },
+      "SharedBadge": {
+        "shared": "共有",
+        "sharedBy": "共有者"
+      },
+      "JobDetails": {
+        "activity": "アクティビティ",
+        "actionUpdatedStatus": "ステータスを次に変更しました",
+        "emptyActivity": "アクティビティはまだありません。",
+        "Header": {
+          "JobName": {
+            "Schema": {
+              "Name": {
+                "invalid": "名前は有効な文字列である必要があります",
+                "min": "名前は2文字以上である必要があります",
+                "max": "名前は80文字以内である必要があります"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "ジョブ名を入力してください"
+              }
+            },
+            "edit": "編集",
+            "save": "保存",
+            "cancel": "キャンセル",
+            "noName": "名前なし",
+            "shared": "公開共有",
+            "organizationShared": "組織と共有",
+            "private": "非公開",
+            "success": "ジョブ名を更新しました",
+            "error": "ジョブ名の更新に失敗しました",
+            "Errors": {
+              "unauthenticated": "ジョブ名を更新するにはログインが必要です。",
+              "unauthenticatedAction": "ログイン",
+              "jobNotFound": "ジョブが見つかりません",
+              "unauthorized": "このジョブの所有者ではありません。"
+            }
+          }
+        },
+        "Meta": {
+          "propertiesTitle": "プロパティ",
+          "status": "ステータス",
+          "task": "タスク",
+          "coworker": "同僚",
+          "openTask": "タスクを開く",
+          "created": "作成日",
+          "updated": "更新日",
+          "jobId": "ジョブID",
+          "txId": "取引ID",
+          "inputHash": "入力ハッシュ",
+          "resultHash": "結果ハッシュ",
+          "onChain": "オンチェーン",
+          "calculated": "Sokosumi",
+          "missing": "欠落",
+          "started": "開始",
+          "finished": "完了",
+          "credits": "クレジット"
+        },
+        "InitiatedSection": {
+          "title": "このジョブでエージェントに送信した内容"
+        },
+        "JobShare": {
+          "share": "共有",
+          "Modal": {
+            "title": "ジョブを共有",
+            "publicAccessTitle": "公開アクセス",
+            "publicAccessDescription": "リンクを知っている方は誰でも閲覧できます",
+            "organizationAccessTitle": "組織アクセス",
+            "organizationAccessDescription": "{organizationName} 内の方は誰でも閲覧できます",
+            "privateAccessTitle": "非公開アクセス",
+            "privateAccessDescription": "閲覧できるのはあなただけです",
+            "allowSearchIndexing": "この結果を検索エンジンにインデックスさせる",
+            "getLink": "リンクを取得",
+            "copyLink": "リンクをコピー",
+            "close": "閉じる",
+            "Success": {
+              "share": "共有設定を更新しました",
+              "copyLink": "リンクをコピーしました"
+            },
+            "Error": {
+              "share": "共有設定の更新に失敗しました",
+              "copyLink": "リンクのコピーに失敗しました"
+            },
+            "Errors": {
+              "unauthenticated": "ログインが必要です。",
+              "unauthenticatedAction": "ログイン",
+              "jobNotFound": "ジョブが見つかりません",
+              "jobShareNotFound": "ジョブ共有が見つかりません",
+              "unauthorized": "このジョブの所有者ではありません。"
+            }
+          }
+        },
+        "VerificationBadge": {
+          "verified": "{direction} ハッシュは検証済みです。クリックして詳細を見る",
+          "unverified": "{direction} ハッシュは未検証です。クリックして詳細を見る",
+          "pending": "{direction} ハッシュの検証は保留中です。クリックして詳細を見る",
+          "notApplicable": "{direction} ハッシュの検証は無料ジョブでは利用できません。クリックして詳細を見る"
+        },
+        "Input": {
+          "title": "入力",
+          "failedToParseInput": "入力の解析に失敗しました",
+          "none": "入力なし",
+          "expand": "展開",
+          "collapse": "折りたたむ",
+          "yes": "はい",
+          "no": "いいえ"
+        },
+        "Output": {
+          "result": "結果",
+          "failedToParseResult": "結果の解析に失敗しました",
+          "none": "利用可能な結果がありません",
+          "download": "ダウンロード",
+          "copy": "コピー",
+          "copySuccess": "結果をクリップボードにコピーしました",
+          "copyError": "結果のコピーに失敗しました",
+          "maximize": "最大化",
+          "expand": "展開",
+          "collapse": "折りたたむ",
+          "maximizeTitle": "ジョブ結果",
+          "close": "閉じる",
+          "exportingMarkdown": "Markdownをエクスポートしています…",
+          "exportingPdf": "PDFをエクスポートしています…",
+          "exportingDocx": "Wordをエクスポートしています…",
+          "exportMarkdownError": "Markdownのエクスポートに失敗しました",
+          "exportPdfError": "PDFのエクスポートに失敗しました",
+          "exportDocxError": "Wordドキュメントのエクスポートに失敗しました",
+          "exportAsPdf": "PDFとしてエクスポート",
+          "exportAsDocx": "Wordドキュメントとしてエクスポート",
+          "exportAsMarkdown": "Markdownとしてエクスポート",
+          "Refund": {
+            "error": "返金申請に失敗しました",
+            "request": "返金を申請",
+            "requested": "返金申請済み",
+            "disputePending": "異議申し立て中",
+            "disputeResolved": "異議申し立て解決",
+            "refunded": "返金済み",
+            "confirmTitle": "返金を申請しますか？",
+            "confirmDescription": "このジョブの返金を申請してよろしいですか？",
+            "learnMore": "返金と異議申し立てについて詳しく見る",
+            "cancel": "キャンセル",
+            "confirm": "返金を申請",
+            "Tooltip": {
+              "available": {
+                "title": "返金可能です",
+                "description": "{unlockAt}まで返金を申請できます。"
+              },
+              "unavailable": {
+                "title": "返金はできません",
+                "description": "{unlockAt}まで返金を申請できました。"
+              },
+              "failed": {
+                "title": "自動返金は保留中です",
+                "description": "{unlockAt}に自動返金が処理されます"
+              }
+            },
+            "Errors": {
+              "unauthenticated": "返金を申請するにはログインが必要です。",
+              "unauthenticatedAction": "ログイン",
+              "jobNotFound": "ジョブが見つかりません",
+              "unauthorized": "返金を申請するにはジョブの所有者である必要があります"
+            }
+          }
+        },
+        "AwaitingInput": {
+          "title": "入力待ち",
+          "submit": "送信",
+          "submitSuccess": "入力を送信しました",
+          "submitError": "入力の送信に失敗しました",
+          "noInputsRequired": "追加の入力は不要です"
+        },
+        "Sources": {
+          "title": "リンクとファイル",
+          "files": "ファイル",
+          "links": "リンク"
+        },
+        "BlobStatusBadge": {
+          "pending": "保留中",
+          "failed": "失敗"
+        },
+        "CollapsedEvents": {
+          "seeMore": "さらに表示（{count}）"
+        }
+      },
+      "JobsTable": {
+        "Header": {
+          "started": "開始",
+          "status": "ステータス",
+          "name": "名前"
+        }
+      },
+      "JobsSearch": {
+        "placeholder": "ジョブを検索...",
+        "clear": "検索をクリア",
+        "resultsCount": "{total}件中{found}件が見つかりました"
+      },
+      "JobsList": {
+        "noExecutedJobs": "実行済みのジョブはありません",
+        "emptyJobs": "ジョブはまだありません。"
+      }
+    },
+    "Organizations": {
+      "Role": {
+        "owner": "オーナー",
+        "admin": "管理者",
+        "member": "メンバー",
+        "pending": "保留中",
+        "expired": "期限切れ"
+      },
+      "InformationModal": {
+        "Title": {
+          "create": "組織を作成",
+          "edit": "組織を編集"
+        },
+        "Form": {
+          "Submit": {
+            "create": "作成",
+            "edit": "保存"
+          },
+          "cancel": "キャンセル",
+          "Success": {
+            "create": "組織を作成しました",
+            "edit": "組織を更新しました"
+          },
+          "Error": {
+            "create": "組織の作成に失敗しました",
+            "edit": "組織の更新に失敗しました"
+          },
+          "Errors": {
+            "unauthorizedAction": "ログイン"
+          },
+          "Fields": {
+            "Name": {
+              "placeholder": "名前（例: 'My Organization'）"
+            }
+          }
+        },
+        "Schema": {
+          "Name": {
+            "min": "組織名は2文字以上である必要があります。",
+            "max": "組織名は50文字以内である必要があります。",
+            "invalid": "組織名は有効な文字列である必要があります。",
+            "required": "組織名は必須です"
+          }
+        }
+      },
+      "RemoveModal": {
+        "title": "組織を削除",
+        "description": "組織「{organization}」を削除してよろしいですか？",
+        "confirm": "確認",
+        "cancel": "キャンセル",
+        "success": "組織を削除しました",
+        "error": "組織の削除に失敗しました",
+        "confirmLabelPrefix": "次を入力",
+        "confirmLabelSuffix": "して削除を確認:",
+        "Errors": {
+          "unauthorizedAction": "ログイン"
+        },
+        "Schema": {
+          "Organization": {
+            "invalid": "組織名は有効な文字列である必要があります。",
+            "required": "組織名は必須です",
+            "min": "組織名は2文字以上である必要があります。",
+            "max": "組織名は50文字以内である必要があります。"
+          },
+          "ConfirmOrganization": {
+            "invalid": "確認用の組織名は有効な文字列である必要があります。",
+            "required": "確認用の組織名は必須です",
+            "mismatch": "組織名が一致しません"
+          }
+        }
+      },
+      "InviteMemberModal": {
+        "title": "メンバーを招待",
+        "Form": {
+          "submit": "メンバーを招待",
+          "cancel": "キャンセル",
+          "success": "メンバーを招待しました",
+          "error": "メンバーの招待に失敗しました",
+          "Errors": {
+            "unauthorizedAction": "ログイン"
+          },
+          "Fields": {
+            "Email": {
+              "placeholder": "メール"
+            },
+            "Role": {
+              "label": "役割"
+            }
+          }
+        },
+        "Schema": {
+          "Email": {
+            "invalid": "有効なメールアドレスを入力してください。",
+            "required": "メールアドレスは必須です"
+          },
+          "Role": {
+            "invalid": "役割が無効です"
+          }
+        }
+      },
+      "LeaveOrganizationModal": {
+        "title": "本当に組織から退出しますか？",
+        "description": "組織「{organization}」から退出します。",
+        "leave": "退出",
+        "cancel": "キャンセル",
+        "success": "組織から退出しました",
+        "error": "組織からの退出に失敗しました",
+        "Errors": {
+          "unauthorizedAction": "ログイン"
+        }
+      }
+    },
+    "Modals": {
+      "AuthenticationModal": {
+        "title": "おかえりなさい",
+        "description": "サインインまたは登録してエージェントを雇い、ジョブを開始しましょう。",
+        "login": "ログイン",
+        "register": "登録"
+      },
+      "LogoutModal": {
+        "title": "本当にログアウトしますか？",
+        "description": "Sokosumiから「{email}」をログアウトします。",
+        "logout": "ログアウト",
+        "cancel": "キャンセル",
+        "error": "ログアウトに失敗しました"
+      }
+    },
+    "HashValue": {
+      "copy": "コピー",
+      "copySuccess": "クリップボードにコピーしました",
+      "copyError": "コピーに失敗しました"
+    }
+  },
+  "AcceptInvitation": {
+    "InvitationCard": {
+      "title": "組織への招待",
+      "description": "組織への参加に招待されています",
+      "hasInvitedYouToJoin": "が参加に招待しました",
+      "acceptedTitle": "ようこそ {organizationName} へ！",
+      "acceptedDescription": "組織への参加が完了しました。ようこそ！",
+      "goToOrganization": "組織へ移動",
+      "declinedTitle": "招待を辞退しました",
+      "declinedDescription": "{organizationName} への招待を辞退しました。",
+      "goToHome": "ホームへ移動",
+      "Actions": {
+        "accept": "承諾",
+        "decline": "辞退",
+        "logout": "ログアウト",
+        "ignore": "無視",
+        "emailMismatch": "招待されたユーザーではありません。",
+        "WithoutSession": {
+          "ifYouAlreadyHaveAnAccount": "すでにアカウントをお持ちの場合は、ログインして招待を承諾してください。",
+          "ifYouDontHaveAnAccount": "アカウントをお持ちでない場合は、新規登録して組織に参加できます。",
+          "login": "ログイン",
+          "register": "登録"
+        },
+        "Success": {
+          "accept": "招待を承諾しました",
+          "decline": "招待を辞退しました"
+        },
+        "Error": {
+          "accept": "招待の承諾に失敗しました",
+          "decline": "招待の辞退に失敗しました"
+        },
+        "Errors": {
+          "unauthorizedAction": "ログイン"
+        }
+      }
+    },
+    "InvitationErrorCard": {
+      "NotFound": {
+        "title": "招待が見つかりません",
+        "description": "招待に問題があります。",
+        "content": "このIDの招待は存在しません。",
+        "footer": "ホームに戻る"
+      },
+      "Expired": {
+        "title": "招待の有効期限が切れています",
+        "description": "招待に問題があります。",
+        "content": "アクセスしようとしている招待は期限切れです。",
+        "footer": "ホームに戻る"
+      },
+      "InviterNotFound": {
+        "title": "招待者が見つかりません",
+        "description": "招待に問題があります。",
+        "content": "アクセスしようとしている招待の招待者が見つかりませんでした。",
+        "footer": "ホームに戻る"
+      }
+    }
+  },
+  "Landing": {
+    "Error": {
+      "title": "問題が発生しました",
+      "description": "予期しないエラーが発生しました。チームに通知されており、解決に向けて対応しています。",
+      "errorId": "エラーID: {errorId}",
+      "tryAgain": "再試行",
+      "goHome": "ホームページへ"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - AIエージェント・マーケットプレイス",
+        "template": "Sokosumi - %s"
+      },
+      "description": "ワンクリックでAIエージェントを雇えます"
+    },
+    "Header": {
+      "FreeCreditsBanner": {
+        "start": "期間限定: ",
+        "main": "30$を無料で獲得",
+        "end": " サインアップでクレジットを受け取れます"
+      },
+      "Navigation": {
+        "agents": "エージェントギャラリー",
+        "howItWorks": "使い方",
+        "community": "コミュニティ",
+        "monetize": "収益化"
+      },
+      "Connection": {
+        "app": "アプリを開く"
+      }
+    },
+    "Page": {
+      "Hero": {
+        "caption": "ワンクリックで自分だけのエージェントチームを作成し、生産性を加速させましょう",
+        "title": "今日から最初のエージェント型AI同僚を雇いましょう",
+        "AgentSearchInput": {
+          "placeholder": "エージェントを検索"
+        },
+        "AgentsShowcase": {
+          "viewAgent": "エージェントを見る"
+        },
+        "HeroBanner": {
+          "button": "今すぐ登録して$30分の無料クレジットを獲得"
+        }
+      },
+      "Endorsements": {
+        "title": "主要ブランドが推奨"
+      },
+      "FeaturedAgents": {
+        "title": "注目のエージェント",
+        "button": "すべて見る"
+      },
+      "NumberTalks": {
+        "title": "数字で見る",
+        "Numbers": {
+          "Duration": {
+            "title": "スマートな時間",
+            "description": "単調な作業はエージェントに任せましょう。ユーザーは繰り返し作業をAIに委任することで、1日あたり最大2時間の時間短縮を報告しています。",
+            "number": "120",
+            "caption": "分"
+          },
+          "Cost": {
+            "title": "コスト削減",
+            "description": "高額な手作業を手頃な自動化に置き換えられます。平均で42%のコスト削減につながっています。",
+            "number": "42",
+            "caption": "% コスト削減"
+          },
+          "Savings": {
+            "title": "スケールする力",
+            "description": "数千のエージェントが訓練・展開されており、ニーズに合わせて拡張し、本当の業務の自由を実現します。",
+            "number": "1000+",
+            "caption": " 自由時間の増加"
+          }
+        }
+      },
+      "HowItWorks": {
+        "title": "使い方",
+        "Steps": {
+          "SelectAndTest": {
+            "title": "エージェントを選ぶ",
+            "description": "リサーチ、デザイン、コーディング、自動化などのタスクに特化したAIエージェントを厳選してご用意しています。目的に合うエージェントを選択してください。"
+          },
+          "RunAndMonitor": {
+            "title": "タスクを依頼する",
+            "description": "明確な指示を与えるか、用意されたプロンプトを使用してください。エージェントはすぐに作業を開始し、リアルタイムの更新も確認できます。"
+          },
+          "GetResults": {
+            "title": "レビューして改善する",
+            "description": "結果を受け取り、フィードバックを行い、エージェントに改善を任せましょう。あなたが主導権を持ちつつ、エージェントが作業を進めます。"
+          }
+        }
+      },
+      "Testimonials": {
+        "title": "ユーザーの声",
+        "users": {
+          "0": {
+            "name": "Frederik Gregaard",
+            "quote": "このプラットフォームを使うことで大幅に時間を節約できました。まさにゲームチェンジャーです。",
+            "company": "Cardano Foundation",
+            "position": "Chief Executive Officer"
+          },
+          "1": {
+            "name": "Florian Haller",
+            "quote": "Sokosumiは、AIエージェントによるサービス販売の新しい可能性を切り開きます！",
+            "company": "Serviceplan Group",
+            "position": "Chief Executive Officer"
+          }
+        }
+      },
+      "JoinOurCommunity": {
+        "title": "コミュニティに参加",
+        "subtitle": "オンラインで活動中"
+      },
+      "MonetizeYourAgent": {
+        "title": "開発者向け",
+        "subtitle": "Masumiにエージェントをデプロイ",
+        "description": "SokosumiにAIエージェントを公開するのは簡単です。お好みのフレームワークでエージェントを構築または微調整し、エージェント経済のために設計された基盤ブロックチェーンプロトコルであるMasumi Networkへデプロイしてください。登録が完了すると、エージェントは一意のID（DID）を取得し、決済を受け付けられるようになり、Sokosumi上ですぐに検索・発見可能になります。その後、ユーザーはあなたのエージェントを雇用し、ジョブを割り当て、スマートコントラクトに基づく支払いを自動的に実行できます。",
+        "docs": "ドキュメントを見る",
+        "visit": "Masumi Networkを見る"
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "エージェントギャラリー",
+        "description": "エージェントのコレクションをご覧ください。"
+      }
+    }
+  },
+  "Auth": {
+    "Error": {
+      "title": "問題が発生しました",
+      "description": "予期しないエラーが発生しました。チームに通知されており、解決に向けて対応しています。",
+      "errorId": "エラーID: {errorId}",
+      "tryAgain": "再試行",
+      "goLogin": "ログインへ"
+    },
+    "Footer": {
+      "termsOfServices": "利用規約",
+      "privacyPolicy": "プライバシーポリシー",
+      "imprint": "会社情報",
+      "acceptableUse": "利用規定"
+    },
+    "Schema": {
+      "Email": {
+        "invalid": "有効なメールアドレスを入力してください。",
+        "required": "メールアドレスは必須です"
+      },
+      "Name": {
+        "min": "名前は2文字以上である必要があります。",
+        "max": "名前は128文字以内である必要があります。",
+        "invalid": "名前は有効な文字列である必要があります。",
+        "required": "名前は必須です"
+      },
+      "Password": {
+        "invalid": "パスワードは有効な文字列である必要があります。",
+        "min": "パスワードは8文字以上である必要があります",
+        "max": "パスワードは128文字以内である必要があります",
+        "lowercase": "パスワードには小文字を少なくとも1文字含める必要があります。",
+        "uppercase": "パスワードには大文字を少なくとも1文字含める必要があります。",
+        "number": "パスワードには数字を少なくとも1文字含める必要があります。",
+        "required": "パスワードは必須です"
+      },
+      "CurrentPassword": {
+        "invalid": "現在のパスワードは有効な文字列である必要があります。",
+        "required": "現在のパスワードは必須です"
+      },
+      "InputPassword": {
+        "invalid": "パスワードは有効な文字列である必要があります。",
+        "required": "パスワードは必須です"
+      },
+      "ConfirmPassword": {
+        "invalid": "確認用パスワードは有効な文字列である必要があります。",
+        "match": "パスワードが一致しません",
+        "required": "確認用パスワードは必須です"
+      }
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - ログイン / 登録",
+        "template": "Sokosumi - %s"
+      },
+      "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
+    },
+    "SocialButtons": {
+      "continueWith": "{provider}で続行",
+      "divider": "または次で続行",
+      "success": "ログインしました",
+      "error": "ログインに失敗しました"
+    },
+    "Words": {
+      "signIn": "ログイン",
+      "signUp": "登録"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "ログイン",
+          "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
+        },
+        "Header": {
+          "title": "ログイン",
+          "description": "当プラットフォームでエージェントを雇いましょう"
+        },
+        "Form": {
+          "submit": "ログイン",
+          "success": "ログインしました",
+          "error": "メールアドレスまたはパスワードが正しくありません",
+          "Fields": {
+            "Email": {
+              "placeholder": "メール"
+            },
+            "Password": {
+              "placeholder": "パスワード"
+            },
+            "RememberMe": {
+              "label": "ログイン状態を保持する"
+            }
+          },
+          "forgotPassword": "パスワードをお忘れですか？",
+          "Register": {
+            "message": "アカウントをお持ちでないですか？",
+            "link": "登録"
+          },
+          "Errors": {
+            "termsNotAccepted": "ログインするには利用規約に同意する必要があります"
+          }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "登録",
+          "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
+        },
+        "Google": {
+          "title": "Googleで認証",
+          "description": "Googleへリダイレクトしています...",
+          "error": "Google認証の開始に失敗しました。もう一度お試しください。",
+          "retry": "再試行"
+        },
+        "Microsoft": {
+          "title": "Microsoftで認証",
+          "description": "Microsoftへリダイレクトしています...",
+          "error": "Microsoft認証の開始に失敗しました。もう一度お試しください。",
+          "retry": "再試行"
+        },
+        "Header": {
+          "title": "登録",
+          "viaInvitation": "（招待経由）",
+          "description": "当プラットフォームでエージェントを雇いましょう"
+        },
+        "Form": {
+          "submit": "登録",
+          "success": "登録が完了しました",
+          "error": "登録に失敗しました",
+          "Fields": {
+            "Email": {
+              "placeholder": "メール"
+            },
+            "Name": {
+              "placeholder": "名前"
+            },
+            "TermsAccepted": {
+              "Label": {
+                "iAgreeTo": "次に同意します:",
+                "termsOfService": "利用規約",
+                "and": "および",
+                "privacyPolicy": "プライバシーポリシー"
+              }
+            },
+            "MarketingOptIn": {
+              "label": "Sokosumiからの更新情報やニュースを受け取りたい"
+            },
+            "Organization": {
+              "placeholder": "組織を選択",
+              "search": "組織を検索",
+              "create": "{organization}を作成",
+              "new": "新しい組織",
+              "createPlaceholder": "新しい組織名",
+              "success": "組織を作成しました",
+              "error": "組織の作成に失敗しました",
+              "invalidEmail": "有効なメールアドレスを入力すると、組織の表示または作成ができます"
+            },
+            "Password": {
+              "placeholder": "パスワード"
+            },
+            "ConfirmPassword": {
+              "placeholder": "パスワードを確認"
+            }
+          },
+          "Errors": {
+            "termsNotAccepted": "登録するには利用規約に同意する必要があります",
+            "emailDomainNotAllowed": "メールドメインが許可されていません",
+            "badInput": "フォームを正しく入力してください。"
+          },
+          "Login": {
+            "message": "すでにアカウントをお持ちですか？",
+            "link": "ログイン"
+          }
+        }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "パスワードをリセット",
+          "description": "アカウントへのアクセスを取り戻すためにパスワードをリセットします"
+        },
+        "Header": {
+          "title": "パスワードをリセット",
+          "description": "メールアドレスを入力すると、パスワードリセット用のリンクをお送りします"
+        },
+        "Form": {
+          "success": "パスワードリセット用のメールを送信しました",
+          "error": "パスワードのリセットに失敗しました",
+          "reset_password": "パスワードをリセット",
+          "Fields": {
+            "Email": {
+              "placeholder": "メール"
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "パスワードをリセット",
+          "description": "アカウントの新しいパスワードを設定します"
+        },
+        "title": "パスワードをリセット",
+        "description": "新しいパスワードを入力してください",
+        "Form": {
+          "submit": "パスワードをリセット",
+          "success": "パスワードをリセットしました",
+          "error": "パスワードのリセットに失敗しました",
+          "Fields": {
+            "Password": {
+              "placeholder": "新しいパスワード"
+            },
+            "ConfirmPassword": {
+              "placeholder": "パスワードを確認"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Onboarding": {
+    "Metadata": {
+      "title": "Sokosumiへようこそ",
+      "description": "同僚を招待すると、1人につき$10のクレジットを獲得できます（最大$40）。"
+    },
+    "Dialog": {
+      "navigation": {
+        "skip": "スキップ",
+        "back": "戻る",
+        "next": "次へ",
+        "getStarted": "開始する"
+      },
+      "coworkerTooltip": "{name} · {role}",
+      "defaultRole": "同僚",
+      "alt": {
+        "coworkerAvatar": "{name}のアバター"
+      },
+      "welcome": {
+        "coworkersSummary": "{first}、{second} ほか"
+      },
+      "intro": {
+        "welcome": {
+          "title": "Sokosumiへようこそ",
+          "description": "AIマーケティングの拠点です。新しい同僚に会いましょう。すぐに仕事を始められます。"
+        },
+        "chat": {
+          "title": "必要なことを伝える",
+          "description": "同僚と自然にチャットできます。やりたいことを伝えれば、あとは任せられます。"
+        },
+        "taskboard": {
+          "title": "作業が整理される",
+          "description": "同僚がタスクを作成し、タスクボードで進捗を追跡し、すべてを着実に進めます。"
+        },
+        "orchestration": {
+          "title": "あとは同僚が対応",
+          "description": "同僚が必要に応じて、リサーチ、執筆、分析などの専門エージェントを雇用します。"
+        }
+      },
+      "visuals": {
+        "chat": {
+          "userMessage": "製品ローンチのマーケティングキャンペーンを作成してください",
+          "reply": "承知しました。市場を調査し、キャンペーン戦略のドラフトを作成します。"
+        },
+        "taskboard": {
+          "taskTitle": "マーケティングキャンペーン",
+          "todo": "未着手",
+          "inProgress": "進行中"
+        },
+        "orchestration": {
+          "hires": "依頼",
+          "workDelivered": "成果物を受領",
+          "agents": {
+            "research": "リサーチ",
+            "writing": "ライティング",
+            "analytics": "分析"
+          }
+        }
+      }
+    },
+    "Actions": {
+      "Errors": {
+        "failedToComplete": "オンボーディングの完了に失敗しました",
+        "unexpectedError": "予期しないエラーが発生しました"
+      }
+    }
+  },
+  "App": {
+    "enabled": "有効",
+    "disabled": "無効",
+    "delete": "削除",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "Chat": {
+      "Metadata": {
+        "title": "チャット",
+        "description": "AI同僚とチャット"
+      },
+      "title": "チャット",
+      "description": "AI同僚とチャット",
+      "Chat": {
+        "newChat": "新しいチャット",
+        "noChats": "チャットはまだありません",
+        "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
+        "emptyState": {
+          "title": "会話を開始",
+          "titleWithName": "{name}と会話を開始",
+          "description": "このチャットは空です。{specialization} メッセージを送信して開始してください！",
+          "suggestionTitle": "試してみる:"
+        },
+        "welcomeScreen": {
+          "greeting": "ようこそ！",
+          "greetingWithName": "{name}さん、ようこそ！",
+          "question": "本日はどのようにお手伝いできますか？",
+          "title": "ようこそ！本日はどのようにお手伝いできますか？",
+          "titleWithName": "ようこそ {name} さん！本日はどのようにお手伝いできますか？",
+          "placeholder": "何をお考えですか？",
+          "suggestionsLabel": "試してみる",
+          "prompts": {
+            "alex": {
+              "1": "調査結果のダッシュボードを作成してください。",
+              "2": "Excelシートのデータ可視化を作成してください。",
+              "3": "OneDriveフォルダ内のデータを分析してください。"
+            },
+            "hannah": {
+              "1": "競合を調査し、当社と比較してください。",
+              "2": "WebサイトのSEOパフォーマンスと、ChatGPTでの言及状況を分析してください。",
+              "3": "ターゲットオーディエンス（ニーズ、行動、メディア習慣）を分析してください。"
+            },
+            "elena": {
+              "1": "ビジネスでSokosumiをどのように活用でき、どこから始めるべきか教えてください。",
+              "2": "未完了タスクのステータスと、対応が必要なものを表示してください。",
+              "3": "Webサイト改善に役立つエージェントや機能を教えてください。"
+            }
+          }
+        },
+        "introducingCoworkers": "紹介: エージェント型AI同僚",
+        "emptyTitle": "会話を開始",
+        "emptyDescription": "何でも聞いてください。新しいチャットを開始するか、既存のチャットを続けることができます。",
+        "inputPlaceholder": "メッセージを入力...",
+        "inputHint": "Enterで送信、Shift+Enterで改行",
+        "assistant": "アシスタント",
+        "filterAll": "すべて",
+        "filterActive": "対応中",
+        "filterAwaiting": "待機中",
+        "statusActive": "対応中",
+        "statusAwaiting": "待機中",
+        "statusResolved": "解決済み",
+        "justNow": "たった今",
+        "minutesAgo": "{count}分前",
+        "hoursAgo": "{count}時間前",
+        "daysAgo": "{count}日前",
+        "deleteDialog": {
+          "title": "チャットを削除",
+          "description": "このチャットを削除してよろしいですか？この操作は取り消せません。",
+          "cancel": "キャンセル",
+          "delete": "削除"
+        },
+        "selectCoworker": {
+          "title": "エージェント型AI同僚を選択",
+          "description": "会話を開始する同僚を選択してください。",
+          "placeholder": "同僚を選択...",
+          "useCase": "用途",
+          "cancel": "キャンセル",
+          "confirm": "チャットを開始",
+          "selectButton": "{coworker}とのチャットを開始"
+        },
+        "comingSoon": "近日公開",
+        "agenticCoworkers": "エージェント型AI同僚",
+        "models": "モデル",
+        "ConversationsSidebar": {
+          "searchPlaceholder": "会話を検索...",
+          "clearSearch": "検索をクリア",
+          "resultsCount": "{total}件中{found}件",
+          "noResults": "一致する会話がありません",
+          "noConversations": "会話はまだありません"
+        },
+        "uploadFileError": "ファイルのアップロードに失敗しました",
+        "uploadFileErrorRetry": "ファイルのアップロードに失敗しました。もう一度お試しください。",
+        "uploadPastedImageError": "貼り付けた画像のアップロードに失敗しました",
+        "pendingResponseFailed": "こちら側で問題が発生しました。最後のメッセージを再送してみてください。",
+        "waitForResponses": "他の回答が完了するまでお待ちください（同時最大3件）。",
+        "imageAttachment": "画像の添付ファイル",
+        "fileLabel": "ファイル",
+        "loaderTitle": "読み込み",
+        "modelAlt": "モデル",
+        "coworkerAlt": "同僚",
+        "userAvatarAlt": "ユーザーのアバター",
+        "authorize": "承認",
+        "reasoning": {
+          "processing": "処理中...",
+          "thinking": "考え中...",
+          "searchingFiles": "ファイルを検索中...",
+          "callingTools": "ツールを呼び出し中..."
+        },
+        "chatErrorTitle": "チャットエラー",
+        "errorFallbackDescription": "チャット画面で問題が発生しました。ページを更新するか、問題が続く場合はサポートにお問い合わせください。",
+        "promptPlaceholder": "何を知りたいですか？",
+        "pastedImage": "貼り付けた画像",
+        "errorTitle": "エラー",
+        "errorDescription": "メッセージの処理中にエラーが発生しました。もう一度お試しください。",
+        "tryAgain": "再試行",
+        "networkErrorAfterRetry": "数回試しましたがサーバーに接続できませんでした。接続状況を確認して再試行してください。"
+      }
+    },
+    "Schedules": {
+      "empty": {
+        "title": "スケジュールはまだありません",
+        "description": "エージェントを雇い、「ジョブをスケジュール」でスケジュールを設定してください。"
+      },
+      "lastRun": "最終実行",
+      "nextRun": "次回実行",
+      "inputPreview": "入力プレビュー",
+      "confirmDeleteTitle": "スケジュールを削除",
+      "confirmDeleteDescription": "この操作は取り消せません。スケジュールは完全に削除されます。",
+      "pausedReason": "一時停止の理由",
+      "loading": "スケジュールを読み込んでいます..."
+    },
+    "Feed": {
+      "title": "マイフィード",
+      "aiInsights": "AIインサイト",
+      "summaryDescription": "最近完了したタスクとジョブがここに表示されます。",
+      "description": "最近完了した作業をまとめて表示します。",
+      "earlier": "以前",
+      "recentActivity": "最近のアクティビティ",
+      "summary": "最近完了したタスクとジョブがここに表示されます。",
+      "resultsTitle": "結果",
+      "emptyState": "完了した結果はまだありません。",
+      "backToFeed": "フィードに戻る",
+      "unknownAgent": "不明なエージェント",
+      "unknownCoworker": "不明な同僚",
+      "openOriginal": "詳細を見る",
+      "missingResult": "このフィード結果は利用できなくなりました。",
+      "fallbackPreview": "追加の詳細はありません。",
+      "sourcesFiles": "ファイル",
+      "sourcesLinks": "リンク",
+      "untitledJob": "無題のジョブ",
+      "untitledTask": "無題のタスク",
+      "search": "タスクまたはジョブを検索",
+      "clearSearch": "検索をクリア",
+      "loadMore": "さらに読み込む",
+      "loadingMore": "読み込み中...",
+      "generating": "考え中...",
+      "generationError": "現在インサイトを生成できません。",
+      "type": {
+        "job": "ジョブ",
+        "task": "タスク"
+      }
+    },
+    "Tasks": {
+      "Page": {
+        "title": "タスク管理",
+        "description": "エージェントが実行するタスクを作成し、共同ビューで効率的に作業を管理できます。"
+      },
+      "Tabs": {
+        "tasks": "タスク",
+        "jobs": "ジョブ"
+      },
+      "Columns": {
+        "backlog": "バックログ",
+        "todo": "未着手",
+        "inProgress": "進行中",
+        "inputRequired": "入力が必要",
+        "done": "完了"
+      },
+      "Actions": {
+        "add": "追加",
+        "addTask": "タスクを追加",
+        "loading": "読み込み中...",
+        "loadMore": "さらに読み込む"
+      },
+      "Errors": {
+        "updateStatus": "タスクステータスの更新に失敗しました"
+      },
+      "Card": {
+        "comments": "コメント",
+        "coworker": "同僚",
+        "date": "日付"
+      },
+      "Display": {
+        "button": "表示",
+        "list": "リスト",
+        "board": "ボード"
+      },
+      "List": {
+        "placeholder": "タスクはありません"
+      },
+      "Jobs": {
+        "filterButton": "ステータス",
+        "filterHideFailed": "失敗を非表示",
+        "filterShowAll": "すべて表示",
+        "recentTitle": "最近",
+        "emptyRecent": "最近完了したジョブはありません。",
+        "emptyList": "ジョブはまだありません。",
+        "emptySection": "このステータスのジョブはありません。",
+        "untitled": "無題のジョブ",
+        "unknownAgent": "不明なエージェント",
+        "unknownCoworker": "不明な同僚"
+      },
+      "Detail": {
+        "back": "タスクに戻る",
+        "properties": "プロパティ",
+        "status": "ステータス",
+        "coworker": "同僚",
+        "created": "作成日",
+        "updated": "更新日",
+        "description": "説明",
+        "jobs": "ジョブ",
+        "jobsEmpty": "ジョブはまだありません。",
+        "jobsUntitled": "無題のジョブ",
+        "jobsUnknownAgent": "エージェントは利用できません",
+        "activity": "アクティビティ",
+        "sourcesFiles": "ファイル",
+        "sourcesLinks": "リンク",
+        "commentPlaceholder": "コメントを書く...",
+        "attach": "添付",
+        "fileLabel": "ファイル",
+        "uploadFileErrorRetry": "ファイルのアップロードに失敗しました。もう一度お試しください！",
+        "removeAttachment": "添付ファイルを削除",
+        "submit": "送信",
+        "sendWith": "送信方法",
+        "ctrl": "Ctrl",
+        "authenticate": "認証",
+        "expand": "展開",
+        "collapse": "折りたたむ",
+        "actorCoworker": "同僚",
+        "actorUser": "ユーザー",
+        "actorSystem": "システム",
+        "originFromApp": "{appName}から",
+        "originApp": {
+          "sokosumi": "Sokosumi",
+          "slack": "Slack",
+          "teams": "Teams",
+          "email": "メール",
+          "linear": "Linear",
+          "github": "GitHub",
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "chat": "チャット",
+          "unknown": "不明"
+        },
+        "actionCommented": "コメントしました",
+        "actionUpdatedStatus": "ステータスを次に変更しました",
+        "actionChargedCredits": "{credits, plural, =1 {# クレジットを消費} other {# クレジットを消費}}",
+        "statusLabels": {
+          "outOfCredits": "クレジット不足",
+          "creditsToppedUp": "クレジットを追加しました",
+          "cancelRequested": "キャンセル申請済み"
+        },
+        "billingCta": {
+          "upgradePlan": "プランをアップグレード",
+          "addCredits": "クレジットを追加",
+          "placeholder": "このタスクを続行するにはクレジットが必要です。請求を開いて続行してください。"
+        },
+        "actions": {
+          "edit": "編集",
+          "delete": "削除",
+          "confirmDelete": "このタスクを削除しますか？",
+          "confirmDeleteDescription": "この操作は取り消せません。タスクは完全に削除されます。",
+          "deleteError": "タスクの削除に失敗しました",
+          "markAsReady": "準備完了にする",
+          "revertToDraft": "下書きに戻す",
+          "cancelRequest": "キャンセルを申請",
+          "updateStatusSuccess": "タスクステータスを更新しました"
+        },
+        "switchedWorkspace": "{account} アカウントに切り替えました"
+      },
+      "NewTask": {
+        "title": "新しいタスク",
+        "details": "詳細",
+        "detailsDescription": "実施するタスクを簡潔に説明してください",
+        "name": "タスク名",
+        "namePlaceholder": "短いタイトルを入力",
+        "descriptionPlaceholder": "タスクの詳細を入力...",
+        "coworker": "同僚",
+        "coworkerDescription": "このタスクを管理する同僚LLMを選択してください",
+        "status": "ステータス",
+        "statusDescription": "このタスクの初期ステータスを選択してください",
+        "statusDraft": "下書き",
+        "statusReady": "準備完了",
+        "back": "戻る",
+        "uploadFile": "ファイルをアップロード",
+        "uploadFileError": "ファイルのアップロードに失敗しました",
+        "removeAttachment": "添付ファイルを削除",
+        "saveDraft": "保存",
+        "saveAsDraft": "下書きとして保存",
+        "createTask": "タスクを作成",
+        "cancel": "キャンセル",
+        "ctrl": "Ctrl"
+      },
+      "EditTask": {
+        "title": "タスクを編集",
+        "details": "詳細",
+        "detailsDescription": "送信前にタスクの詳細を更新してください",
+        "name": "タスク名",
+        "namePlaceholder": "短いタイトルを入力",
+        "descriptionPlaceholder": "タスクの詳細を更新...",
+        "coworker": "同僚",
+        "coworkerDescription": "このタスクを管理する同僚LLMを選択してください",
+        "status": "ステータス",
+        "statusDescription": "このタスクのステータスを選択してください",
+        "statusDraft": "下書き",
+        "statusReady": "準備完了",
+        "back": "戻る",
+        "uploadFile": "ファイルをアップロード",
+        "uploadFileError": "ファイルのアップロードに失敗しました",
+        "removeAttachment": "添付ファイルを削除",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "ctrl": "Ctrl"
+      }
+    },
+    "Error": {
+      "title": "問題が発生しました",
+      "description": "予期しないエラーが発生しました。チームに通知されており、解決に向けて対応しています。",
+      "errorId": "エラーID: {errorId}",
+      "tryAgain": "再試行",
+      "goApp": "アプリへ"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - 人とエージェントのインタラクションのマーケットプレイス",
+        "template": "Sokosumi - %s"
+      },
+      "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
+    },
+    "Sidebar": {
+      "Content": {
+        "MenuItems": {
+          "chat": "チャット",
+          "newChat": "新しいチャット",
+          "exploreAgents": "エージェントを探す",
+          "myFeed": "マイフィード",
+          "filesAndOutputs": "ファイルと出力",
+          "taskManager": "タスク管理",
+          "scheduledAgents": "スケジュール済みエージェント"
+        },
+        "ChatLists": {
+          "title": "最近のチャット",
+          "noChats": "チャットはまだありません",
+          "untitledChat": "無題のチャット",
+          "modelAlt": "モデル",
+          "coworkerAlt": "同僚",
+          "deleteChatAriaLabel": "チャットを削除",
+          "deleteDialog": {
+            "title": "チャットを削除",
+            "description": "このチャットを削除してよろしいですか？この操作は取り消せません。",
+            "cancel": "キャンセル",
+            "delete": "削除"
+          }
+        },
+        "AgentLists": {
+          "pinnedTitle": "ピン留めしたエージェント",
+          "hiredTitle": "最近のエージェント",
+          "noAgents": "{type} のエージェントはまだありません",
+          "pinnedType": "ピン留め",
+          "hiredType": "最近",
+          "Statuses": {
+            "completed": "完了",
+            "failed": "失敗",
+            "paymentPending": "採用中",
+            "paymentFailed": "採用に失敗",
+            "processing": "処理中",
+            "agentConnectionFailed": "エージェント接続失敗",
+            "paymentNodeConnectionFailed": "ノード接続失敗",
+            "inputRequired": "入力が必要",
+            "disputeRequested": "異議申し立て中",
+            "disputeResolved": "異議申し立て解決",
+            "refundRequested": "返金申請済み",
+            "refundResolved": "返金済み",
+            "outputPending": "出力がありません",
+            "resultPending": "結果待ち"
+          }
+        }
+      }
+    },
+    "NoticeDialog": {
+      "defaultTitle": "お知らせ",
+      "actions": {
+        "confirm": "確認",
+        "seeMore": "さらに表示",
+        "openLink": "リンクを開く"
+      },
+      "errors": {
+        "acknowledgeFailed": "お知らせの確認に失敗しました"
+      }
+    },
+    "Header": {
+      "Credit": {
+        "buy": "クレジットを追加",
+        "extraCredits": "{credits, plural, =0 {追加クレジット0} =1 {追加クレジット1} other {追加クレジット#}}",
+        "userBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}",
+        "organizationBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}（{organization}）",
+        "unavailable": "クレジットを利用できません"
+      },
+      "Plan": {
+        "upgradeCta": "プランをアップグレード",
+        "userPlan": "{plan}（個人）",
+        "organizationPlan": "{plan}（{organization}）",
+        "unavailable": "プランを利用できません"
+      }
+    },
+    "EmailVerificationNotice": {
+      "title": "メールアドレスを確認してください",
+      "description": "有料アカウント機能を利用し続けるには、メールアドレスの確認が必要です。",
+      "button": "確認メールを再送信",
+      "sendSuccess": "確認メールを送信しました。受信箱をご確認ください。",
+      "sendError": "確認メールの送信に失敗しました。もう一度お試しください。"
+    },
+    "Subscriptions": {
+      "statusSuccess": "サブスクリプションが更新されました。",
+      "statusCancel": "サブスクリプションのチェックアウトはキャンセルされました。",
+      "currentPlanBadge": "現在",
+      "pricePerMonth": "／月",
+      "includedCredits": "{credits, plural, =0 {クレジットなし} =1 {# クレジットが含まれます} other {# クレジットが含まれます}}",
+      "upgrading": "リダイレクトしています...",
+      "currentPlanCta": "現在のプラン",
+      "upgradePlanCta": "プランを選択",
+      "billingPortalTitle": "請求ポータル",
+      "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプションと請求書を管理します。",
+      "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe で請求情報と請求書を管理してください。",
+      "openingBillingPortal": "開いています...",
+      "billingPortalCta": "請求ポータルを開く",
+      "freePrice": "無料",
+      "Plans": {
+        "free": {
+          "name": "無料",
+          "description": "マーケティングエージェントの利用を開始するためのプランです。",
+          "features": {
+            "title": "無料プランに含まれる内容:",
+            "items": {
+              "item1": "1人のエージェント型AI同僚への限定アクセス",
+              "item2": "エージェントへのメールおよびWhatsAppアクセス",
+              "item3": "最新世代のClaudeモデル",
+              "item4": "100以上のマーケティングエージェントへのアクセス"
+            }
+          }
+        },
+        "starter": {
+          "name": "スターター",
+          "description": "フリーランスおよび小規模事業者向け。",
+          "features": {
+            "title": "無料プランの内容に加えて:",
+            "items": {
+              "item1": "リサーチ同僚へのアクセス",
+              "item2": "必要に応じて追加クレジットを購入可能",
+              "item3": "Officeドキュメントの閲覧・作成",
+              "item4": "Microsoft 365 との連携"
+            }
+          }
+        },
+        "standard": {
+          "name": "スタンダード",
+          "description": "小規模企業向けのマーケティングエージェント一式。",
+          "features": {
+            "title": "スターターの内容に加えて:",
+            "items": {
+              "item1": "コーディング同僚へのアクセス",
+              "item2": "エージェント向けクレジットが3倍",
+              "item3": "同僚タスクの定期スケジュール"
+            }
+          }
+        },
+        "pro": {
+          "name": "プロ",
+          "description": "マーケティングエージェントとサービスへのアクセスを拡大します",
+          "features": {
+            "title": "スタンダードの内容に加えて:",
+            "items": {
+              "item1": "エージェント向けの大量クレジット",
+              "item2": "出力ファイル用のカスタムテンプレート",
+              "item3": "新しいエージェント／機能への先行アクセス"
+            }
+          }
+        }
+      },
+      "Errors": {
+        "unauthenticated": "続行するにはサインインしてください",
+        "unauthenticatedAction": "サインイン",
+        "badInput": "プランの選択が無効です",
+        "general": "問題が発生しました。もう一度お試しください。"
+      },
+      "Error": {
+        "title": "問題が発生しました",
+        "message": "サブスクリプションの読み込み中に問題が発生しました。しばらくしてから再度お試しください。",
+        "retryButton": "再試行"
+      }
+    },
+    "Billing": {
+      "balanceTitle": "残高",
+      "balanceDescriptionPersonal": "個人アカウントの現在のクレジットです。",
+      "balanceDescriptionOrganization": "{organization} の現在のクレジットです。{members, plural, =1 {# メンバー} other {# メンバー}}、{seats, plural, =1 {# シート} other {# シート}}。",
+      "balanceCreditsLabel": "{credits, plural, =0 {クレジットなし} =1 {# クレジット} other {# クレジット}}",
+      "tabs": {
+        "subscription": "サブスクリプション",
+        "credits": "クレジット",
+        "coupon": "クーポン"
+      },
+      "billingPortalTitle": "請求ポータル",
+      "billingPortalDescription": "Stripe の請求ポータルを開いて、請求情報と請求書を管理します。",
+      "openingBillingPortal": "開いています...",
+      "billingPortalCta": "請求ポータルを開く",
+      "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
+      "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
+      "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
+      "Errors": {
+        "unauthenticated": "続行するにはサインインしてください",
+        "unauthenticatedAction": "サインイン",
+        "unauthorized": "この請求エリアにアクセスする権限がありません",
+        "general": "問題が発生しました。もう一度お試しください。"
+      },
+      "Error": {
+        "title": "問題が発生しました",
+        "message": "請求情報の読み込み中に問題が発生しました。しばらくしてから再度お試しください。",
+        "retryButton": "再試行"
+      }
+    },
+    "Credits": {
+      "billingPortalCta": "購入を管理",
+      "topUpTitle": "クレジットを追加購入",
+      "topUpDescription": "金額を選択するか、任意の値を入力してください",
+      "expiryNotice": "クレジットは{days, plural, one {# 日} other {# 日}}後に失効します。",
+      "costPerCredit": "1クレジットあたり{cost}",
+      "creditAmount": "{count, plural, one {# クレジット} other {# クレジット}}",
+      "creditsLabel": "クレジット数",
+      "creditsPlaceholder": "数量を入力",
+      "topUpButton": "続行",
+      "topUpButtonOrganization": "続行",
+      "couponPageTitle": "クーポンを引き換える",
+      "couponPageDescription": "クーポンコードを入力してクレジットを受け取ってください",
+      "couponButton": "続行",
+      "couponButtonOrganization": "続行",
+      "purchaseForOrganization": "{organization}（組織）",
+      "couponLabel": "クーポンコード",
+      "couponPlaceholder": "クーポンを入力",
+      "creditsCleared": "クーポン入力のため、クレジット数をクリアしました",
+      "couponCleared": "クレジット入力のため、クーポンをクリアしました",
+      "couponOrCreditsError": "クレジット数またはクーポンコードのいずれかを入力してください",
+      "Error": {
+        "title": "問題が発生しました",
+        "message": "リクエストの処理中に問題が発生しました。しばらくしてから再度お試しください。",
+        "retryButton": "再試行"
+      },
+      "Success": {
+        "title": "お支払いが完了しました！",
+        "description": "クレジットの購入が完了しました。ありがとうございます。",
+        "fulfillmentNote": "クレジットはまもなくアカウントに追加されます。クレジットページで残高をご確認いただけます。",
+        "backToDashboard": "エージェントを探す",
+        "getStarted": "最初のエージェントを雇って開始する",
+        "Error": {
+          "title": "問題が発生しました",
+          "description": "チェックアウトセッションが見つかりません",
+          "failedNote": "サポートにお問い合わせください"
+        }
+      },
+      "Cancel": {
+        "title": "お支払いがキャンセルされました",
+        "description": "お支払い手続きがキャンセルされました。請求は発生していません。",
+        "backToCredits": "クレジットに戻る"
+      },
+      "Errors": {
+        "invalidInput": "クレジット数またはクーポンコードのいずれかを入力してください",
+        "invalidCredits": "クレジット数が無効です",
+        "invalidCoupon": "クーポンが無効です",
+        "couponNotFound": "クーポンが見つかりません",
+        "couponTypeError": "このクーポンタイプはサポートされていません",
+        "couponCurrencyError": "クーポンの通貨が一致しません",
+        "promotionCodeNotFound": "プロモーションコードが見つかりません",
+        "unauthenticated": "続行するにはサインインしてください",
+        "unauthenticatedAction": "サインイン",
+        "unauthorizedOrganization": "この組織のクレジットを購入する権限がありません",
+        "unauthorizedPersonal": "クレジットを購入する権限がありません",
+        "unknownError": "問題が発生しました"
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "接続済みアプリ",
+        "apiKeys": "APIキー",
+        "mcp": "MCP"
+      }
+    },
+    "MCP": {
+      "generateButton": "Sokosumi MCP URLを生成",
+      "urlLabel": "MCP接続URL",
+      "existingKeyNote": "注: これは以前に生成されたMCP接続です。実際のAPIキーはセキュリティ上の理由により非表示です。",
+      "existingKeyNote2": "キーを再生成して新しいキーを取得できます。",
+      "existingKey": "YOUR_EXISTING_KEY",
+      "keyDisabled": "MCP接続は存在しますが無効になっています。",
+      "keyDisabledNote": "有効化するか、新しく作成できます。",
+      "enableKey": "キーを有効化",
+      "createNewKey": "新しいキーを作成",
+      "regenerateKey": "キーを再生成",
+      "setupPreviewTitle": "ClaudeでMCP URLを使う方法",
+      "docsLink": "MCPドキュメントを見る",
+      "loadError": "MCP接続情報の読み込みに失敗しました。もう一度お試しください。",
+      "copyError": "URLのクリップボードへのコピーに失敗しました",
+      "retry": "再試行",
+      "loading": "MCP接続情報を読み込んでいます...",
+      "Instructions": {
+        "title": "ClaudeをSokosumiに接続する方法",
+        "step1": "Claudeを開き、「Settings」をクリックします",
+        "step2": "「Connectors」をクリックします",
+        "step3": "「Add custom connector」をクリックします",
+        "step4": "名前（例:「Sokosumi」）を入力し、URL欄にMCP接続URLを貼り付けます。Advanced Settingsは空欄のままにしてください。「Add」をクリックします",
+        "step5": {
+          "text": "成功！ClaudeがSokosumiエージェントと連携できるようになりました。次のように質問してみてください:",
+          "example": "Sokosumiで現在利用可能なエージェントは何ですか？"
+        }
+      }
+    },
+    "Account": {
+      "Name": {
+        "title": "名前を変更",
+        "description": "表示名を更新します",
+        "newName": "新しい名前",
+        "currentPassword": "現在のパスワード",
+        "submit": "名前を更新",
+        "success": "名前を更新しました",
+        "error": "名前の更新に失敗しました"
+      },
+      "Email": {
+        "title": "メールアドレスを変更",
+        "description": "メールアドレスを更新します",
+        "newEmail": "新しいメールアドレス",
+        "currentPassword": "現在のパスワード",
+        "submit": "メールアドレスを更新",
+        "success": "メールアドレスを更新しました",
+        "error": "メールアドレスの更新に失敗しました"
+      },
+      "Password": {
+        "title": "パスワードを変更",
+        "description": "パスワードを更新します",
+        "currentPassword": "現在のパスワード",
+        "newPassword": "新しいパスワード",
+        "confirmPassword": "新しいパスワードを確認",
+        "submit": "パスワードを更新",
+        "success": "パスワードを更新しました",
+        "error": "パスワードの更新に失敗しました"
+      },
+      "NewPassword": {
+        "title": "パスワードを設定",
+        "description": "アカウントのパスワードを設定します",
+        "newPassword": "新しいパスワード",
+        "confirmPassword": "新しいパスワードを確認",
+        "submit": "パスワードを設定",
+        "success": "パスワードを設定しました",
+        "error": "パスワードの設定に失敗しました"
+      },
+      "Theme": {
+        "title": "テーマ",
+        "description": "インターフェースの表示方法を選択します。",
+        "light": "ライト",
+        "dark": "ダーク",
+        "system": "システム"
+      },
+      "Language": {
+        "title": "言語",
+        "description": "希望する言語を選択します。",
+        "autoDetect": "自動検出",
+        "selectAriaLabel": "言語を選択",
+        "options": {
+          "en": "English",
+          "de": "Deutsch",
+          "es": "Español",
+          "it": "Italiano",
+          "fr": "Français",
+          "pt": "Português",
+          "pt-BR": "Português (Brasil)",
+          "ja": "日本語",
+          "zh-Hans": "简体中文"
+        }
+      },
+      "SocialAccounts": {
+        "connected": "が接続されています",
+        "notConnected": "は接続されていません",
+        "success": "アカウントを接続しました",
+        "error": "{provider} の接続に失敗しました",
+        "DisconnectModal": {
+          "title": "{provider} の接続を解除",
+          "description": "{provider} アカウントの接続を解除してよろしいですか？",
+          "confirm": "接続を解除",
+          "cancel": "キャンセル",
+          "success": "アカウントの接続を解除しました",
+          "error": "{provider} の接続解除に失敗しました"
+        }
+      },
+      "Notifications": {
+        "title": "メール通知",
+        "description": "受信するジョブ更新通知を選択します",
+        "jobStatusEmailsTitle": "ジョブ通知メール",
+        "jobStatusEmailsDescription": "完了、失敗、入力が必要など、ジョブが重要なステータスに変化した際にメールを受け取ります。",
+        "jobStatusEmailsAriaLabel": "ジョブ通知メールを切り替え",
+        "jobStatusEmailsEnabledSuccess": "ジョブ通知メールを有効にしました",
+        "jobStatusEmailsDisabledSuccess": "ジョブ通知メールを無効にしました",
+        "marketingEmailsTitle": "マーケティングメール",
+        "marketingEmailsDescription": "新機能、更新、プロモーションがある際にメールを受け取ります。",
+        "marketingEmailsAriaLabel": "マーケティングメール通知を切り替え",
+        "marketingEmailsEnabledSuccess": "マーケティングメールを有効にしました",
+        "marketingEmailsDisabledSuccess": "マーケティングメールを無効にしました",
+        "loading": "設定を保存しています...",
+        "error": "通知設定の更新に失敗しました"
+      },
+      "Delete": {
+        "title": "アカウントを削除",
+        "description": "アカウントと関連するすべてのデータを完全に削除します",
+        "button": "アカウントを削除",
+        "confirmTitle": "よろしいですか？",
+        "confirmDescription": "この操作は取り消せません。アカウントが完全に削除され、サーバーからデータが削除されます。",
+        "currentPassword": "現在のパスワード",
+        "confirm": "はい、アカウントを削除します",
+        "success": "アカウントを削除しました",
+        "error": "アカウントの削除に失敗しました"
+      },
+      "ApiKeys": {
+        "title": "APIキー",
+        "description": "プログラムからアクセスするためのAPIキーを管理します",
+        "apiDocsLink": "APIドキュメントを見る",
+        "createButton": "作成",
+        "loading": "APIキーを読み込んでいます...",
+        "noKeysFound": "まずは最初のAPIキーを作成してください。",
+        "Table": {
+          "name": "名前",
+          "key": "キー",
+          "status": "ステータス",
+          "actions": "操作",
+          "created": "作成日"
+        },
+        "Status": {
+          "enabled": "有効",
+          "disabled": "無効"
+        },
+        "Actions": {
+          "enableTooltip": "APIキーを有効化",
+          "disableTooltip": "APIキーを無効化",
+          "deleteTooltip": "APIキーを削除"
+        },
+        "CreateDialog": {
+          "title": "新しいAPIキーを作成",
+          "description": "後で識別しやすいよう、APIキーに分かりやすい名前を付けてください。",
+          "nameLabel": "名前",
+          "namePlaceholder": "例: Production Server、Development App",
+          "cancelButton": "キャンセル",
+          "createButton": "APIキーを作成",
+          "CreatedSuccess": {
+            "title": "新しいAPIキーを作成しました",
+            "description": "新しいAPIキーを作成しました。",
+            "doneButton": "完了"
+          }
+        },
+        "DeleteDialog": {
+          "title": "APIキーを削除",
+          "description": "この操作は取り消せません。APIキーは完全に削除され、このキーを使用しているアプリケーションはあなたのアカウントにアクセスできなくなります。",
+          "confirmLabelPrefix": "次を入力",
+          "confirmLabelSuffix": "して削除を確認:",
+          "cancelButton": "キャンセル",
+          "deleteButton": "APIキーを削除"
+        },
+        "Messages": {
+          "loadError": "APIキーの読み込みに失敗しました",
+          "createSuccess": "APIキーを作成しました",
+          "createError": "APIキーの作成に失敗しました",
+          "updateSuccess": "APIキーを{action}しました",
+          "updateError": "APIキーの更新に失敗しました",
+          "deleteSuccess": "APIキーを削除しました",
+          "deleteError": "APIキーの削除に失敗しました",
+          "copySuccess": "クリップボードにコピーしました",
+          "copyError": "クリップボードへのコピーに失敗しました",
+          "confirmNameMismatch": "確認用の名前が一致しません"
+        },
+        "Validation": {
+          "nameRequired": "APIキー名は必須です",
+          "nameMaxLength": "APIキー名は100文字未満である必要があります",
+          "namePattern": "APIキー名に使用できるのは、英数字、スペース、ハイフン、アンダースコアのみです",
+          "keyIdRequired": "APIキーIDは必須です",
+          "confirmNameRequired": "APIキー名を確認してください"
+        }
+      },
+      "AuthorizedClients": {
+        "title": "承認済みアプリケーション",
+        "description": "あなたのアカウントにアクセスできるアプリケーション",
+        "loading": "読み込み中...",
+        "error": "エラー: {error}",
+        "noApplications": "承認済みのアプリケーションはありません。",
+        "authorized": "承認日: {date}",
+        "revokeAccess": "アクセスを取り消す",
+        "revoking": "取り消しています...",
+        "confirmRevoke": "このアプリケーションのアクセスを取り消してよろしいですか？",
+        "revokeSuccess": "アクセスを取り消しました",
+        "revokeError": "アクセスの取り消しに失敗しました",
+        "fetchError": "承認済みクライアントの取得に失敗しました"
+      },
+      "OAuthConsent": {
+        "invalidRequest": {
+          "title": "無効なOAuthリクエスト",
+          "description": "必須パラメータが不足しています: client_id または redirect_uri"
+        },
+        "clientNotFound": {
+          "title": "クライアントが見つかりません",
+          "description": "OAuthクライアントが見つかりませんでした。",
+          "descriptionWithId": "ID {clientId} のOAuthクライアントは存在しません。"
+        },
+        "title": "アプリケーションを承認",
+        "description": "アプリケーションがあなたのアカウントへのアクセスを要求しています",
+        "wantsAccess": "があなたのSokosumiアカウントへのアクセスを要求しています",
+        "actions": {
+          "authorize": "承認",
+          "authorizing": "承認しています...",
+          "deny": "拒否",
+          "denying": "拒否しています...",
+          "authorizeError": "アプリケーションの承認に失敗しました",
+          "authorizeErrorRedirectUri": "アプリケーションの承認に失敗しました。リダイレクトURIを確認してください。",
+          "authorizeErrorGeneric": "承認中にエラーが発生しました",
+          "denyError": "アプリケーションの拒否に失敗しました"
+        }
+      },
+      "OAuthClients": {
+        "title": "OAuthクライアント",
+        "description": "あなたのアカウントにアクセスできるOAuthクライアントを管理します",
+        "createButton": "OAuthクライアントを作成",
+        "createSuccess": "OAuthクライアントを作成しました",
+        "createError": "OAuthクライアントの作成に失敗しました",
+        "copy": "コピー",
+        "copySuccess": "クリップボードにコピーしました",
+        "CreateDialog": {
+          "title": "新しいOAuthクライアントを作成",
+          "description": "アプリケーションがあなたのアカウントにアクセスできるように、新しいOAuthクライアントを作成します。",
+          "nameLabel": "名前",
+          "namePlaceholder": "例: My Application、Production Server",
+          "redirectUrisLabel": "リダイレクトURI",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "1行に1つずつリダイレクトURIを入力してください。各URIは有効なURLである必要があります。",
+          "cancelButton": "キャンセル",
+          "createButton": "OAuthクライアントを作成"
+        },
+        "CreatedSuccess": {
+          "title": "OAuthクライアントを作成しました",
+          "description": "OAuthクライアントを作成しました。これらの認証情報は安全に保管してください。",
+          "clientIdLabel": "クライアントID",
+          "clientSecretLabel": "クライアントシークレット",
+          "clientSecretWarning": "このシークレットは一度しか表示されません。必ず安全に保管してください。",
+          "doneButton": "完了"
+        }
+      },
+      "OAuthCallback": {
+        "title": "OAuth認可コールバック",
+        "description": "認可コードをアクセストークンに交換します",
+        "authorizationCode": "認可コード",
+        "state": "State",
+        "codeVerifierLabel": "コードベリファイア",
+        "codeVerifierPlaceholder": "認可リクエストで使用したコードベリファイアを入力してください",
+        "codeVerifierHelp": "コードベリファイアは、認可リクエストで使用したコードチャレンジと一致している必要があります。",
+        "noCode": "URLに認可コードが見つかりません。先に認可フローを完了してください。",
+        "actions": {
+          "exchange": "トークンに交換",
+          "exchanging": "交換しています...",
+          "copy": "コピー"
+        },
+        "success": {
+          "title": "トークンの交換が完了しました",
+          "description": "認可コードをアクセストークンに交換しました。",
+          "accessToken": "アクセストークン",
+          "refreshToken": "リフレッシュトークン",
+          "expiresIn": "有効期限",
+          "seconds": "秒",
+          "scope": "スコープ",
+          "idToken": "IDトークン",
+          "warning": "これらのトークンは安全に保管してください。アクセストークンはAPIへの認証済みリクエストに使用できます。",
+          "tokenExchanged": "トークンを交換しました",
+          "tokenCopied": "アクセストークンをクリップボードにコピーしました",
+          "refreshTokenCopied": "リフレッシュトークンをクリップボードにコピーしました"
+        },
+        "error": {
+          "title": "認可エラー",
+          "description": "認可処理中にエラーが発生しました。",
+          "errorCode": "エラーコード",
+          "errorDescription": "エラー内容"
+        },
+        "errors": {
+          "authorizationFailed": "認可に失敗しました",
+          "missingCode": "URLに認可コードが見つかりません",
+          "missingCodeVerifier": "コードベリファイアを入力してください",
+          "missingCredentials": "クライアントIDとクライアントシークレットが必要です",
+          "tokenExchangeFailed": "認可コードのトークン交換に失敗しました"
+        },
+        "clientIdLabel": "クライアントID",
+        "clientIdPlaceholder": "OAuthクライアントIDを入力してください",
+        "clientSecretLabel": "クライアントシークレット",
+        "clientSecretPlaceholder": "OAuthクライアントシークレットを入力してください",
+        "clientSecretHelp": "機密クライアントにはクライアントシークレットが必要です。公開クライアントの場合は空欄のままにしてください。"
+      }
+    },
+    "Organizations": {
+      "Metadata": {
+        "title": "組織",
+        "description": "組織を管理します"
+      },
+      "newOrganization": "新しい組織",
+      "organizationsNotAvailable": "組織が見つかりません",
+      "OrganizationRow": {
+        "leave": "退出",
+        "activate": "有効化",
+        "deactivate": "無効化"
+      },
+      "Credits": {
+        "title": "組織のクレジット",
+        "description": "{organization} のメンバーが利用できます",
+        "buy": "クレジットを追加"
+      },
+      "InvitationActions": {
+        "accept": "承諾",
+        "reject": "拒否",
+        "acceptTitle": "招待を承諾",
+        "rejectTitle": "招待を拒否",
+        "acceptDescription": "{email} 宛ての招待を承諾してよろしいですか？",
+        "rejectDescription": "{email} 宛ての招待を拒否してよろしいですか？",
+        "confirm": "確認",
+        "cancel": "キャンセル",
+        "acceptSuccess": "招待を承諾しました",
+        "acceptError": "招待の承諾に失敗しました",
+        "rejectSuccess": "招待を拒否しました",
+        "rejectError": "招待の拒否に失敗しました",
+        "Errors": {
+          "unauthorizedAction": "ログイン"
+        }
+      },
+      "OrganizationDetail": {
+        "Metadata": {
+          "Title": {
+            "default": "{name}",
+            "template": "{name} - %"
+          },
+          "description": "組織を管理します"
+        },
+        "roleIndicator": "表示形式:",
+        "edit": "編集",
+        "delete": "削除",
+        "invite": "メンバーを招待",
+        "InvoiceEmail": {
+          "title": "請求書送付先メール",
+          "description": "請求書および請求関連の通知を受け取るメールアドレス",
+          "label": "請求書送付先メール",
+          "placeholder": "billing@example.com",
+          "help": "このメールアドレス宛てに、Stripe からの請求書および請求に関する連絡が届きます",
+          "edit": "編集",
+          "save": "保存",
+          "cancel": "キャンセル",
+          "Success": {
+            "update": "請求書送付先メールを更新しました"
+          },
+          "Errors": {
+            "unauthenticated": "続行するにはログインしてください",
+            "unauthenticatedAction": "ログイン",
+            "unauthorized": "請求書送付先メールを更新できるのは、組織のオーナーと管理者のみです",
+            "badInput": "有効なメールアドレスを入力してください",
+            "general": "請求書送付先メールの更新に失敗しました"
+          }
+        },
+        "Subscription": {
+          "title": "組織のサブスクリプション",
+          "description": "組織のプランとシート数を管理します。",
+          "currentPlanLabel": "現在のプラン",
+          "currentSeatsLabel": "現在のシート数",
+          "membersLabel": "アクティブなメンバー",
+          "seatsInputLabel": "目標シート数",
+          "seatsInputHint": "アクティブなメンバー全員をカバーするため、最小シート数は{minimum}です。",
+          "includedCreditsPerSeat": "{credits, plural, =0 {シートあたりクレジットなし} =1 {シートあたり# クレジット} other {シートあたり# クレジット}}",
+          "noActivePlan": "有効なプランがありません",
+          "seatsUpdatedSuccess": "シート数を更新しました。",
+          "updating": "リダイレクトしています...",
+          "currentPlanCta": "現在のプラン",
+          "updateSeatsCta": "シート数を更新",
+          "choosePlanCta": "プランを選択",
+          "Errors": {
+            "unauthenticated": "続行するにはログインしてください",
+            "unauthenticatedAction": "ログイン",
+            "unauthorized": "サブスクリプションを管理できるのは、組織のオーナーと管理者のみです",
+            "badInput": "有効なプランとシート数を指定してください",
+            "general": "組織のサブスクリプション管理に失敗しました"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "エージェントギャラリー",
+        "description": "エージェントのコレクションをご覧ください。"
+      },
+      "CoworkerGallerySection": {
+        "title": "AI同僚",
+        "whatTheyDo": {
+          "title": "できること",
+          "description": "AI同僚に実際の業務を任せられます。自律的に作業し、成果を届けます。"
+        },
+        "marketingExpertise": {
+          "title": "マーケティングの専門性",
+          "description": "実際のキャンペーン業務で訓練されています — 戦略、コンテンツ、メディアプランニング、ブランドコミュニケーション。"
+        },
+        "serviceplanLogoAlt": "Serviceplan Group",
+        "moreComingSoon": "+ 近日追加予定"
+      },
+      "FilterSection": {
+        "searchPlaceholder": "エージェントを検索",
+        "reset": "リセット",
+        "tags": "タグ",
+        "selectTags": "タグを選択",
+        "applyTags": "適用",
+        "categories": "カテゴリ",
+        "selectCategories": "カテゴリを選択",
+        "applyCategories": "適用",
+        "featuredAgents": "注目のエージェント",
+        "newAgents": "新着エージェント",
+        "others": "その他"
+      },
+      "Jobs": {
+        "newJob": "新しいジョブ",
+        "switchedWorkspace": "{account} アカウントに切り替えました",
+        "Header": {
+          "back": "エージェントに戻る",
+          "newJob": "新しいジョブ",
+          "price": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}}"
+        },
+        "Modal": {
+          "back": "戻る"
+        },
+        "Footer": {
+          "termsAndConditions": "利用規約",
+          "privacyPolicy": "プライバシーポリシー",
+          "customerSupport": "カスタマーサポート"
+        },
+        "RightSection": {
+          "noExecutedJobs": "実行済みのジョブはありません"
+        },
+        "CreateJob": {
+          "title": "新しい{name}",
+          "demo": "デモ",
+          "cancel": "キャンセル",
+          "Information": {
+            "title": "情報"
+          },
+          "Input": {
+            "title": "入力"
+          },
+          "Scheduler": {
+            "title": "ジョブをスケジュール",
+            "description": "このジョブを実行する日時を選択してください。",
+            "modeCards": {
+              "now": {
+                "title": "今すぐ実行",
+                "description": "ジョブをすぐに実行します。"
+              },
+              "recurring": {
+                "title": "スケジュール",
+                "description": "1回または定期のスケジュールを設定します。"
+              }
+            },
+            "option": {
+              "oneTime": "1回",
+              "daily": "毎日",
+              "dailyWithTime": "毎日（{time}）",
+              "dailyEveryNWithTime": "{n}日ごと（{time}）",
+              "weekly": "毎週",
+              "weeklyWithWeekdayTime": "毎週（{weekday}、{time}）",
+              "weeklyListWithTime": "毎週（{weekdays}、{time}）",
+              "monthly": "毎月",
+              "monthlyWithDayTime": "毎月（{day}日、{time}）",
+              "monthlyEveryNWithDayTime": "{n}か月ごと（{day}日、{time}）",
+              "custom": "カスタム"
+            },
+            "schedulesTitle": "スケジュール済みエージェント",
+            "pickDateTime": "日時を選択",
+            "timeOfDay": "時間帯",
+            "pickTime": "時間を選択",
+            "repeatEvery": "繰り返し間隔",
+            "repeatOn": "繰り返し曜日",
+            "ends": "終了",
+            "never": "なし",
+            "on": "日付",
+            "after": "回数",
+            "occurrences": "回",
+            "pickDate": "日付を選択",
+            "preview": "プレビュー",
+            "noPreview": "次回の実行予定はありません",
+            "unit": {
+              "day": "日",
+              "week": "週",
+              "month": "月"
+            },
+            "save": "保存",
+            "cancel": "キャンセル",
+            "errors": {
+              "required": "この項目は必須です。",
+              "futureDateTime": "未来の日時を選択してください。",
+              "invalidTime": "有効な時刻（HH:MM）を入力してください。",
+              "positiveInteger": "正の整数を入力してください。",
+              "selectAtLeastOneWeekday": "少なくとも1つの曜日を選択してください。",
+              "endDateInPast": "終了日は過去に設定できません。"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Share": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - 人とエージェントのインタラクションのマーケットプレイス",
+        "template": "Sokosumi - %s"
+      },
+      "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
+    },
+    "Jobs": {
+      "Metadata": {
+        "title": "{name}",
+        "defaultName": "無題",
+        "description": "最も時間のかかる作業を終えるために、エージェントを雇いましょう"
+      }
+    },
+    "CTA": {
+      "title": "必要なときに、すぐにAIエージェントを活用",
+      "description": "信頼できるエージェントを選び、依頼内容を設定し、すぐに実用的な成果物を受け取れます。サブスクリプションは不要です。",
+      "buttonText": "エージェントを見る"
+    }
+  },
+  "NotFound": {
+    "title": "404",
+    "description": "お探しのページは存在しません。",
+    "message": "アクセスしようとしたページは削除された、名前が変更された、または一時的に利用できない可能性があります。",
+    "returnHome": "ホームに戻る"
+  },
+  "Maintenance": {
+    "title": "メンテナンスモード",
+    "description": "現在メンテナンスを実施しています",
+    "message": "体験向上のため作業を行っています。しばらくしてから再度ご確認ください。"
+  },
+  "Library": {
+    "Auth": {
+      "Schema": {
+        "Email": {
+          "invalid": "有効なメールアドレスを入力してください。",
+          "required": "メールアドレスは必須です"
+        },
+        "Name": {
+          "min": "名前は2文字以上である必要があります。",
+          "max": "名前は128文字以内である必要があります。",
+          "invalid": "名前は有効な文字列である必要があります。",
+          "required": "名前は必須です"
+        },
+        "Organization": {
+          "invalid": "組織は有効な文字列である必要があります。",
+          "required": "組織は必須です",
+          "min": "組織名は2文字以上である必要があります。",
+          "max": "組織名は50文字以内である必要があります。"
+        },
+        "Password": {
+          "invalid": "パスワードは有効な文字列である必要があります。",
+          "min": "パスワードは8文字以上である必要があります",
+          "max": "パスワードは128文字以内である必要があります",
+          "lowercase": "パスワードには小文字を少なくとも1文字含める必要があります。",
+          "uppercase": "パスワードには大文字を少なくとも1文字含める必要があります。",
+          "number": "パスワードには数字を少なくとも1文字含める必要があります。",
+          "required": "パスワードは必須です"
+        },
+        "CurrentPassword": {
+          "invalid": "現在のパスワードは有効な文字列である必要があります。",
+          "required": "現在のパスワードは必須です"
+        },
+        "InputPassword": {
+          "invalid": "パスワードは有効な文字列である必要があります。",
+          "required": "パスワードは必須です"
+        },
+        "ConfirmPassword": {
+          "invalid": "確認用パスワードは有効な文字列である必要があります。",
+          "match": "パスワードが一致しません",
+          "required": "確認用パスワードは必須です"
+        }
+      },
+      "Email": {
+        "ResetPassword": {
+          "subject": "Sokosumi - パスワードをリセット",
+          "title": "パスワードをリセット",
+          "greeting": "こんにちは {name}",
+          "message": "アカウントのパスワードをリセットするリクエストを受け取りました。心当たりがない場合は、このメールを無視して問題ありません。",
+          "button": "パスワードをリセット",
+          "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
+          "footer": "パスワードリセットを依頼していない場合は、このメールを無視するか、不安がある場合はサポートにご連絡ください。"
+        },
+        "Verification": {
+          "subject": "Sokosumi - メールアドレスを確認",
+          "title": "メールアドレスを確認",
+          "greeting": "こんにちは {name}",
+          "message": "下のボタンをクリックしてメールアドレスを確認してください。これはアカウントの安全性を確保するためです。",
+          "button": "メールアドレスを確認",
+          "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
+          "footer": "アカウントを作成していない場合は、このメールを無視して問題ありません。"
+        },
+        "InviteUserEmail": {
+          "subject": "Sokosumi - 組織への招待",
+          "title": "{organizationName}で{invitorUsername}に参加",
+          "greeting": "こんにちは",
+          "message": "Sokosumiで{organizationName}への参加に招待されています。下のボタンをクリックして招待を承諾してください。",
+          "button": "招待を承諾",
+          "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
+          "footer": "この招待に心当たりがない場合は、このメールを無視して問題ありません。"
+        }
+      }
+    },
+    "Email": {
+      "JobFinalStatus": {
+        "subject": "Sokosumi - {agentName} のジョブが{status}",
+        "preview": "{agentName} のジョブは現在{status}です。",
+        "title": "ジョブが{status}になりました",
+        "greeting": "こんにちは {name}",
+        "body": "{agentName} の{jobName}は現在{status}です。",
+        "button": "ジョブを見る",
+        "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
+        "footer": "このメールは、アカウントでジョブ通知が有効になっているため送信されています。",
+        "fallbackJobName": "あなたのジョブ",
+        "status": {
+          "completed": "完了",
+          "failed": "失敗",
+          "payment_failed": "支払い失敗",
+          "refund_resolved": "返金済み",
+          "dispute_resolved": "異議申し立て解決"
+        }
+      },
+      "JobFailureNotification": {
+        "subject": "ジョブ失敗通知 - {jobId}",
+        "preview": "ジョブ{jobId}が失敗しました",
+        "title": "ジョブ失敗通知",
+        "description": "ジョブが失敗しました。技術的な詳細は以下のとおりです:",
+        "network": "ネットワーク:",
+        "agentName": "エージェント名:",
+        "agentId": "エージェントID:",
+        "agentBlockchainIdentifier": "エージェントのブロックチェーン識別子:",
+        "jobId": "ジョブID:",
+        "jobBlockchainIdentifier": "ジョブのブロックチェーン識別子:",
+        "onChainStatus": "オンチェーンステータス:",
+        "agentStatus": "エージェントステータス:",
+        "inputHash": "入力ハッシュ:",
+        "resultHash": "結果ハッシュ:",
+        "inputSchema": "入力スキーマ:",
+        "input": "入力:",
+        "output": "出力:",
+        "footer": "これはSōkosumiからの自動通知です。"
+      },
+      "JobInputRequired": {
+        "subject": "Sokosumi - {agentName} が入力を必要としています",
+        "preview": "{agentName} のジョブを続行するには入力が必要です。",
+        "title": "対応が必要です",
+        "greeting": "こんにちは {name}",
+        "body": "{agentName} のジョブ{jobName}は、続行するための入力を待っています。",
+        "button": "入力する",
+        "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
+        "footer": "このメールは、アカウントでジョブ通知が有効になっているため送信されています。",
+        "fallbackJobName": "あなたのジョブ"
+      }
+    },
+    "JobInput": {
+      "Schema": {
+        "Id": {
+          "required": "入力IDは必須です"
+        },
+        "Type": {
+          "enum": "{options}のいずれかである必要があります"
+        },
+        "Name": {
+          "required": "入力名は必須です"
+        },
+        "Data": {
+          "Values": {
+            "value": {
+              "required": "選択肢は必須です"
+            },
+            "min": "少なくとも1つの選択肢が必要です",
+            "unique": "選択肢の値は一意である必要があります"
+          }
+        },
+        "Validations": {
+          "Validation": {
+            "enum": "{options}のいずれかである必要があります"
+          },
+          "Value": {
+            "invalid": "検証{validation}に対して値が無効です",
+            "required": "検証{validation}には値が必要です",
+            "integer": "検証{validation}の値は整数である必要があります",
+            "enum": "検証{validation}の値は{options}のいずれかである必要があります"
+          },
+          "fileInvalid": "ファイルのスキーマが無効です。必須の検証が不足しています"
+        },
+        "invalidValidations": "タイプ{type}では検証ルールが無効です",
+        "optionValuesRequired": "オプションタイプには値が必要です",
+        "noDataValues": "オプション以外のタイプではValuesは未定義である必要があります"
+      },
+      "Form": {
+        "clear": "クリア",
+        "price": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}} / 回",
+        "submit": "依頼",
+        "schedule": "スケジュール",
+        "back": "戻る",
+        "next": "次へ",
+        "ctrl": "Ctrl",
+        "acceptByClickingSubmit": "「依頼」をクリックすると、次に同意したことになります: ",
+        "termsOfService": "利用規約",
+        "privacyPolicy": "プライバシーポリシー",
+        "legal": "その他の法的要件",
+        "byCreator": "（エージェント作成者による）",
+        "Error": {
+          "insufficientBalance": "このジョブを開始するにはクレジット残高が不足しています。",
+          "insufficientBalanceAction": "クレジットを追加",
+          "badInput": "入力データが無効です。",
+          "unauthenticated": "ジョブを開始するにはログインが必要です。",
+          "unauthenticatedAction": "ログイン",
+          "default": "ジョブの開始に失敗しました。"
+        },
+        "String": {
+          "required": "{name}は必須です",
+          "min": "{name}は{value}文字以上である必要があります",
+          "max": "{name}は{value}文字以内である必要があります",
+          "format": "{name}は{value}である必要があります"
+        },
+        "Number": {
+          "required": "{name}は必須です",
+          "min": "{name}は{value}以上である必要があります",
+          "max": "{name}は{value}以下である必要があります",
+          "format": "{name}は{value}である必要があります"
+        },
+        "Boolean": {
+          "required": "{name}は必須です"
+        },
+        "Option": {
+          "required": "{name}は必須です",
+          "min": "{name}には少なくとも{value, plural, =1 {1件} other {#件}}の選択肢が必要です",
+          "max": "{name}は最大で{value, plural, =1 {1件} other {#件}}の選択肢にしてください",
+          "integer": "{name}の選択肢の値はインデックスである必要があります",
+          "nonnegative": "{name}の選択肢の値は0以上のインデックスである必要があります",
+          "invalid": "{name}の選択肢の値は0から{maxValue}までのインデックスである必要があります"
+        },
+        "File": {
+          "required": "{name}は必須です",
+          "invalid": "{name}は有効なファイルである必要があります",
+          "maxSize": "{name}は{value}バイト以内である必要があります",
+          "description": "ドラッグ＆ドロップするか、アップロードするファイルを選択してください",
+          "delete": "削除"
+        },
+        "Date": {
+          "min": "{name}は{value}以上である必要があります",
+          "max": "{name}は{value}以下である必要があります",
+          "format": "{name}は{value}である必要があります"
+        }
+      },
+      "Error": {
+        "failedToFetchJobInputSchema": "ジョブ入力スキーマの取得に失敗しました",
+        "demoDataInvalid": "エージェントのデモデータが無効です。"
+      }
+    },
+    "Duration": {
+      "Long": {
+        "days": "{value, plural, =1 {#日} other {#日}}",
+        "hours": "{value, plural, =1 {#時間} other {#時間}}",
+        "minutes": "{value, plural, =1 {#分} other {#分}}",
+        "seconds": "{value, plural, =1 {#秒} other {#秒}}"
+      },
+      "Short": {
+        "days": "{value, plural, =1 {#日} other {#日}}",
+        "hours": "{value, plural, =1 {#時間} other {#時間}}",
+        "minutes": "{value, plural, =1 {#分} other {#分}}",
+        "seconds": "{value, plural, =1 {#秒} other {#秒}}"
+      }
+    }
+  }
+}

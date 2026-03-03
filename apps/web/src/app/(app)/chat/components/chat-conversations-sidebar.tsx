@@ -182,6 +182,7 @@ export function ChatConversationsSidebar({
   const conversationId = params?.conversationId ?? null;
   const { deleteConversationById } = useConversationsContext();
 
+  const basePath = "/chat";
   const [searchValue, setSearchValue] = useState("");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
@@ -206,11 +207,11 @@ export function ChatConversationsSidebar({
 
   const handleConversationClick = useCallback(
     (convId: string) => {
-      router.push(`/chat/${bucketSlug}/conversation/${convId}?open=1`, {
+      router.push(`${basePath}/${bucketSlug}/conversation/${convId}?open=1`, {
         scroll: false,
       });
     },
-    [bucketSlug, router],
+    [basePath, bucketSlug, router],
   );
 
   const handleDeleteClick = useCallback(
@@ -239,19 +240,20 @@ export function ChatConversationsSidebar({
     await deleteConversationById(deletedId);
 
     if (remaining.length === 0) {
-      router.push("/chat", { scroll: false });
+      router.push(basePath, { scroll: false });
       return;
     }
     if (isActive) {
       if (nextId) {
-        router.push(`/chat/${bucketSlug}/conversation/${nextId}`, {
+        router.push(`${basePath}/${bucketSlug}/conversation/${nextId}`, {
           scroll: false,
         });
       } else {
-        router.push(`/chat/${bucketSlug}`, { scroll: false });
+        router.push(`${basePath}/${bucketSlug}`, { scroll: false });
       }
     }
   }, [
+    basePath,
     bucketSlug,
     chatToDelete,
     conversationId,

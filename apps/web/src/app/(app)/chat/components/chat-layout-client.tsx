@@ -18,26 +18,34 @@ import { useCoworkersContext } from "@/contexts/coworkers-context";
 
 const PENDING_CONVERSATION_KEY = "chat-pending-conversation-id";
 
+const CHAT_ROUTE_BASE = "chat";
+
 function getBucketSlugFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== "chat" || segments.length < 2) return null;
+  if (segments[0] !== CHAT_ROUTE_BASE || segments.length < 2) return null;
   return segments[1] ?? null;
 }
 
 function getConversationIdFromPathname(pathname: string): string | null {
   const segments = pathname.split("/").filter(Boolean);
-  if (segments[0] !== "chat" || segments[2] !== "conversation" || !segments[3])
+  if (
+    segments[0] !== CHAT_ROUTE_BASE ||
+    segments[2] !== "conversation" ||
+    !segments[3]
+  )
     return null;
   return segments[3] ?? null;
 }
 
 interface ChatLayoutClientProps {
+  mobileKeyboardOptimized?: boolean;
   organizationSlug: string | null;
   userImageUrl: string;
   userName: string | undefined;
 }
 
 export function ChatLayoutClient({
+  mobileKeyboardOptimized = false,
   organizationSlug,
   userImageUrl,
   userName,
@@ -149,8 +157,6 @@ export function ChatLayoutClient({
           : "flex h-full min-h-0 w-full flex-1 flex-col"
       }
     >
-      {/* Conversation list: on mobile when list-only, full screen; on desktop when two-column, sidebar */}
-      {/* Mobile: full-screen list (hidden on lg). Desktop: sidebar (hidden below lg when conversation open). */}
       {showTwoColumn && bucketSlug ? (
         <>
           {mobileListOnly ? (
@@ -174,7 +180,6 @@ export function ChatLayoutClient({
         </>
       ) : null}
 
-      {/* Chat area: on mobile list-only hide chat below lg; on desktop always show chat when two-column */}
       <div
         className={
           mobileChatOnly
@@ -195,6 +200,7 @@ export function ChatLayoutClient({
           }
         >
           <ChatInterface
+            mobileKeyboardOptimized={mobileKeyboardOptimized}
             organizationSlug={organizationSlug}
             userImageUrl={userImageUrl}
             userName={userName}
