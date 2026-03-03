@@ -1,0 +1,2454 @@
+{
+  "Job": {
+    "CreationFailed": "Falha ao criar o job",
+    "RefundFailed": "Falha ao reembolsar o job",
+    "ManualChainState": "O job falhou, contacte o nosso suporte",
+    "SyncStatusFailed": "Falha ao obter o estado on-chain, contacte o nosso suporte",
+    "SyncOutputFailed": "Falha ao obter o output do job, contacte o nosso suporte",
+    "UnknownError": "Ocorreu um erro desconhecido, contacte o nosso suporte"
+  },
+  "Components": {
+    "AppLayoutRestrictor": {
+      "title": "Mobile não suportado",
+      "description": "Esta página é suportada apenas em computadores. Mude para um ecrã maior.",
+      "reload": "Recarregar"
+    },
+    "CookieConsent": {
+      "title": "Usamos cookies",
+      "description": "Usamos cookies para garantir a melhor experiência no nosso website. Para mais informações sobre como usamos cookies, consulte a nossa ",
+      "cookiePolicy": "política de cookies",
+      "period": ".",
+      "accept": "Aceitar",
+      "reject": "Recusar"
+    },
+    "EmergencyDialog": {
+      "title": "Manutenção de emergência",
+      "description": "Estamos a enfrentar problemas na execução de jobs devido a dificuldades técnicas com um dos nossos fornecedores terceiros. Não se preocupe, tudo voltará ao normal em breve.",
+      "confirm": "OK"
+    },
+    "ShareButton": {
+      "linkCopied": "Link copiado para a área de transferência",
+      "copyError": "Falha ao copiar o link"
+    },
+    "DefaultErrorBoundary": {
+      "error": "Ocorreu um erro desconhecido, contacte o nosso suporte"
+    },
+    "Agents": {
+      "RiskClassification": {
+        "minimal": "Minimal Risk",
+        "limited": "Limited Risk",
+        "high": "High Risk",
+        "unacceptable": "Unacceptable Risk"
+      },
+      "AgentVerifiedBadge": {
+        "tooltip": "This agent's authenticity is verified through an Agent Identity.",
+        "learnMore": "Learn more",
+        "aboutAgentIdentities": "about Agent Identities."
+      },
+      "Rating": {
+        "title": "Ratings",
+        "noRatings": "No ratings yet",
+        "averageRating": "{average} out of 5 stars",
+        "totalRatings": "{count} ratings",
+        "submitRating": "Rate this agent",
+        "ratingLabel": "Your rating",
+        "updateRating": "Update rating",
+        "commentLabel": "Comment (optional)",
+        "commentPlaceholder": "Share your experience...",
+        "commentTooLong": "Comment must be 1000 characters or less",
+        "submitButton": "Submit rating",
+        "submitting": "Submitting...",
+        "successMessage": "Thank you for your feedback!",
+        "errorMessage": "Failed to submit rating",
+        "selectRating": "Please select a rating",
+        "eligibilityMessage": "Complete a job to rate this agent",
+        "star": "{count} star",
+        "percentage": "{percentage}%"
+      },
+      "Reviews": {
+        "customerReviews": "Customer Reviews",
+        "noReviewsYet": "No reviews yet",
+        "beFirstToReview": "Be the first to write a review!",
+        "signInToReview": "Sign in to write a review",
+        "signIn": "Sign in",
+        "readMore": "Read more",
+        "showLess": "Show less",
+        "Pagination": {
+          "page": "Page {page} of {totalPages}"
+        }
+      },
+      "agentsNotAvailable": "No agents available",
+      "agentsNotFound": "No Agents found",
+      "hire": "Hire Agent",
+      "freeDemo": "Free Demo",
+      "AgentCard": {
+        "view": "Show Details",
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
+        "addedToBookmarks": "Agent added to pinned agents",
+        "removedFromBookmarks": "Agent removed from pinned agents",
+        "bookmarkError": "Failed to update pinned agents"
+      },
+      "AgentDetail": {
+        "Header": {
+          "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+        },
+        "Stats": {
+          "executedJobs": "Executed Jobs",
+          "averageExecutionTime": "Average Execution Time",
+          "rating": "Rating"
+        },
+        "Overview": {
+          "description": "Description",
+          "tags": "At a Glance"
+        },
+        "Examples": {
+          "title": "Example Outputs",
+          "download": "Download"
+        },
+        "Legal": {
+          "title": "From the developer",
+          "privacyPolicy": "Privacy Policy",
+          "terms": "Terms",
+          "other": "Other"
+        },
+        "Risk": {
+          "title": "EU AI Act Risk Classification"
+        }
+      },
+      "AgentBadgeCloud": {
+        "new": "New"
+      }
+    },
+    "UserAvatar": {
+      "account": "Conta",
+      "organizations": "Organizações",
+      "billing": "Faturação",
+      "connections": "Ligações",
+      "help": "Ajuda",
+      "legal": "Legal",
+      "support": "Suporte",
+      "documentation": "Documentação",
+      "termsOfService": "Termos de serviço",
+      "privacyPolicy": "Política de privacidade",
+      "imprint": "Aviso legal",
+      "acceptableUse": "Uso aceitável",
+      "logout": "Terminar sessão",
+      "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
+      "creditsSummary": "Resumo de créditos:",
+      "creditsConsumedProgressAria": "Créditos de subscrição consumidos",
+      "creditsExpiresInDays": "Os créditos expiram em {days, plural, =1 {1 dia} other {# dias}}",
+      "creditsExpiresToday": "Os créditos expiram hoje",
+      "creditsExpired": "Créditos expirados"
+    },
+    "OrganizationSwitcher": {
+      "switchWorkspace": "Mudar workspace",
+      "searchProfiles": "Pesquisar perfis...",
+      "personalAccount": "Conta pessoal",
+      "noProfilesFound": "Nenhum perfil encontrado",
+      "personalAccountHeading": "Pessoal",
+      "organization": "Organização",
+      "addOrganization": "Adicionar organização",
+      "organizationsHeading": "Organizações",
+      "createOrJoinOrganization": "Criar ou aderir a uma organização"
+    },
+    "DataTable": {
+      "Data": {
+        "noResults": "Sem resultados."
+      },
+      "ColumnHeader": {
+        "ascending": "Ascendente",
+        "descending": "Descendente",
+        "hide": "Ocultar"
+      },
+      "Pagination": {
+        "rowsSelected": "{selected} de {total, plural, =1 {# linha} other {# linhas}} selecionadas",
+        "rowsPerPage": "Linhas por página",
+        "page": "Página {page} de {totalPages}",
+        "firstPage": "Ir para a primeira página",
+        "previousPage": "Ir para a página anterior",
+        "nextPage": "Ir para a página seguinte",
+        "lastPage": "Ir para a última página"
+      }
+    },
+    "MembersTable": {
+      "Header": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "actions": "Actions"
+      },
+      "MemberActions": {
+        "remove": "Remove",
+        "changeToOwner": "Change to Owner",
+        "changeToAdmin": "Change to Admin",
+        "changeToMember": "Change to Member",
+        "Modal": {
+          "changeRoleTitle": "Change Role",
+          "removeTitle": "Remove Member",
+          "changeToOwnerDescription": "Are you sure you want to change the role of {member} to Owner?",
+          "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
+          "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
+          "removeDescription": "Are you sure you want to remove {member} from the organization?",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "Success": {
+            "changeRole": "Role changed successfully",
+            "remove": "Member removed successfully"
+          },
+          "Error": {
+            "changeRole": "Failed to change role",
+            "remove": "Failed to remove member"
+          },
+          "Errors": {
+            "unauthorizedAction": "Login"
+          }
+        }
+      },
+      "InvitationActions": {
+        "resend": "Resend Invitation",
+        "cancel": "Cancel Invitation",
+        "CancelModal": {
+          "title": "Cancel Invitation",
+          "description": "Are you sure you want to cancel the invitation of {email}?",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "success": "Invitation canceled successfully",
+          "error": "Failed to cancel invitation",
+          "Errors": {
+            "unauthorizedAction": "Login"
+          }
+        },
+        "resendSuccess": "Invitation resent successfully",
+        "resendError": "Failed to resend invitation"
+      }
+    },
+    "Breadcrumb": {
+      "jobs": "Jobs",
+      "agents": "Gallery",
+      "credits": "Credits",
+      "coupon": "Coupon",
+      "subscriptions": "Subscriptions",
+      "billing": "Billing",
+      "account": "Account",
+      "organizations": "Organizations",
+      "api-docs": "API Documentation",
+      "mcp": "Model Context Protocol (MCP)",
+      "schedules": "Scheduled Agents",
+      "chat": "Chat",
+      "tasks": "Task Manager",
+      "connections": "Connections",
+      "feed": "My Feed"
+    },
+    "Jobs": {
+      "StatusBadge": {
+        "demo": "Demonstração",
+        "started": "Iniciado",
+        "completed": "Concluído",
+        "failed": "Falhado",
+        "paymentPending": "A contratar",
+        "paymentFailed": "Falha ao contratar",
+        "processing": "A trabalhar",
+        "agentConnectionFailed": "Falha de ligação ao agente",
+        "paymentNodeConnectionFailed": "Falha de ligação ao nó",
+        "inputRequired": "Input necessário",
+        "disputeRequested": "Disputa pendente",
+        "disputeResolved": "Disputa resolvida",
+        "refundRequested": "Reembolso solicitado",
+        "refundResolved": "Reembolsado",
+        "resultPending": "Resultado em falta",
+        "unknown": "Desconhecido"
+      },
+      "AgentStatusBadge": {
+        "initiated": "Iniciado",
+        "awaitingPayment": "A aguardar pagamento",
+        "awaitingInput": "Input necessário",
+        "running": "A trabalhar",
+        "completed": "Concluído",
+        "failed": "Falhado",
+        "unknown": "Desconhecido"
+      },
+      "SharedBadge": {
+        "shared": "Partilhado",
+        "sharedBy": "Partilhado por"
+      },
+      "JobDetails": {
+        "activity": "Atividade",
+        "actionUpdatedStatus": "alterou o estado para",
+        "emptyActivity": "Ainda não há atividades.",
+        "Header": {
+          "JobName": {
+            "Schema": {
+              "Name": {
+                "invalid": "O nome tem de ser uma string válida",
+                "min": "O nome tem de ter pelo menos 2 caracteres",
+                "max": "O nome tem de ter no máximo 80 caracteres"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "Introduza o nome do job"
+              }
+            },
+            "edit": "Editar",
+            "save": "Guardar",
+            "cancel": "Cancelar",
+            "noName": "Sem nome",
+            "shared": "Partilhado publicamente",
+            "organizationShared": "Partilhado com a organização",
+            "private": "Privado",
+            "success": "Nome do job atualizado com sucesso",
+            "error": "Falha ao atualizar o nome do job",
+            "Errors": {
+              "unauthenticated": "Tem de iniciar sessão para atualizar o nome do job.",
+              "unauthenticatedAction": "Iniciar sessão",
+              "jobNotFound": "Job não encontrado",
+              "unauthorized": "Não é o proprietário deste job."
+            }
+          }
+        },
+        "Meta": {
+          "propertiesTitle": "Propriedades",
+          "status": "Estado",
+          "task": "Tarefa",
+          "coworker": "Colega de trabalho",
+          "openTask": "Abrir tarefa",
+          "created": "Criado",
+          "updated": "Atualizado",
+          "jobId": "ID do job",
+          "txId": "ID da transação",
+          "inputHash": "Hash do input",
+          "resultHash": "Hash do resultado",
+          "onChain": "On-chain",
+          "calculated": "Sokosumi",
+          "missing": "Em falta",
+          "started": "Iniciado",
+          "finished": "Concluído",
+          "credits": "Créditos"
+        },
+        "InitiatedSection": {
+          "title": "O que enviou ao agente para este job"
+        },
+        "JobShare": {
+          "share": "Partilhar",
+          "Modal": {
+            "title": "Partilhar job",
+            "publicAccessTitle": "Acesso público",
+            "publicAccessDescription": "Qualquer pessoa com o link pode ver",
+            "organizationAccessTitle": "Acesso da organização",
+            "organizationAccessDescription": "Qualquer pessoa dentro de {organizationName} pode ver",
+            "privateAccessTitle": "Acesso privado",
+            "privateAccessDescription": "Apenas pode ver",
+            "allowSearchIndexing": "Permitir que este resultado seja indexado por motores de pesquisa",
+            "getLink": "Obter link",
+            "copyLink": "Copiar link",
+            "close": "Fechar",
+            "Success": {
+              "share": "Partilha atualizada com sucesso",
+              "copyLink": "Link copiado com sucesso"
+            },
+            "Error": {
+              "share": "Falha ao atualizar a partilha",
+              "copyLink": "Falha ao copiar o link"
+            },
+            "Errors": {
+              "unauthenticated": "Tem de iniciar sessão.",
+              "unauthenticatedAction": "Iniciar sessão",
+              "jobNotFound": "Job não encontrado",
+              "jobShareNotFound": "Partilha do job não encontrada",
+              "unauthorized": "Não é o proprietário deste job."
+            }
+          }
+        },
+        "VerificationBadge": {
+          "verified": "O hash {direction} está verificado. Clique aqui para saber mais",
+          "unverified": "O hash {direction} não está verificado. Clique aqui para saber mais",
+          "pending": "A verificação do hash {direction} está pendente. Clique aqui para saber mais",
+          "notApplicable": "A verificação do hash {direction} não está disponível para jobs gratuitos. Clique aqui para saber mais"
+        },
+        "Input": {
+          "title": "Input",
+          "failedToParseInput": "Falha ao analisar o input",
+          "none": "Sem input",
+          "expand": "Expandir",
+          "collapse": "Mostrar menos",
+          "yes": "Sim",
+          "no": "Não"
+        },
+        "Output": {
+          "result": "Resultado",
+          "failedToParseResult": "Falha ao analisar o resultado",
+          "none": "Não existe resultado disponível",
+          "download": "Transferir",
+          "copy": "Copiar",
+          "copySuccess": "Resultado copiado para a área de transferência",
+          "copyError": "Falha ao copiar o resultado",
+          "maximize": "Maximizar",
+          "expand": "Expandir",
+          "collapse": "Mostrar menos",
+          "maximizeTitle": "Resultado do job",
+          "close": "Fechar",
+          "exportingMarkdown": "A exportar Markdown…",
+          "exportingPdf": "A exportar PDF…",
+          "exportingDocx": "A exportar Word…",
+          "exportMarkdownError": "Falha ao exportar Markdown",
+          "exportPdfError": "Falha ao exportar PDF",
+          "exportDocxError": "Falha ao exportar documento Word",
+          "exportAsPdf": "Exportar como PDF",
+          "exportAsDocx": "Exportar como documento Word",
+          "exportAsMarkdown": "Exportar como Markdown",
+          "Refund": {
+            "error": "Falha ao solicitar reembolso",
+            "request": "Solicitar reembolso",
+            "requested": "Reembolso solicitado",
+            "disputePending": "Disputa pendente",
+            "disputeResolved": "Disputa resolvida",
+            "refunded": "Reembolsado",
+            "confirmTitle": "Solicitar reembolso?",
+            "confirmDescription": "Tem a certeza de que pretende solicitar um reembolso para este job?",
+            "learnMore": "Saiba mais sobre reembolsos e disputas",
+            "cancel": "Cancelar",
+            "confirm": "Solicitar reembolso",
+            "Tooltip": {
+              "available": {
+                "title": "Reembolso disponível",
+                "description": "Pode solicitar um reembolso até {unlockAt}."
+              },
+              "unavailable": {
+                "title": "Reembolso já não disponível",
+                "description": "Poderia ter solicitado um reembolso até {unlockAt}."
+              },
+              "failed": {
+                "title": "Reembolso automático pendente",
+                "description": "Um reembolso automático será processado em {unlockAt}"
+              }
+            },
+            "Errors": {
+              "unauthenticated": "Tem de iniciar sessão para solicitar um reembolso.",
+              "unauthenticatedAction": "Iniciar sessão",
+              "jobNotFound": "Job não encontrado",
+              "unauthorized": "Tem de ser o proprietário do job para solicitar um reembolso"
+            }
+          }
+        },
+        "AwaitingInput": {
+          "title": "A aguardar input",
+          "submit": "Submeter",
+          "submitSuccess": "Input submetido com sucesso",
+          "submitError": "Falha ao submeter input",
+          "noInputsRequired": "Não são necessários inputs adicionais"
+        },
+        "Sources": {
+          "title": "Links e ficheiros",
+          "files": "Ficheiros",
+          "links": "Links"
+        },
+        "BlobStatusBadge": {
+          "pending": "Pendente",
+          "failed": "Falhado"
+        },
+        "CollapsedEvents": {
+          "seeMore": "Ver mais ({count})"
+        }
+      },
+      "JobsTable": {
+        "Header": {
+          "started": "Iniciado",
+          "status": "Estado",
+          "name": "Nome"
+        }
+      },
+      "JobsSearch": {
+        "placeholder": "Pesquisar jobs...",
+        "clear": "Limpar pesquisa",
+        "resultsCount": "{found} de {total} resultados encontrados"
+      },
+      "JobsList": {
+        "noExecutedJobs": "Nenhum job executado",
+        "emptyJobs": "Ainda não existem jobs."
+      }
+    },
+    "Organizations": {
+      "Role": {
+        "owner": "Proprietário",
+        "admin": "Administrador",
+        "member": "Membro",
+        "pending": "Pendente",
+        "expired": "Expirado"
+      },
+      "InformationModal": {
+        "Title": {
+          "create": "Criar organização",
+          "edit": "Editar organização"
+        },
+        "Form": {
+          "Submit": {
+            "create": "Create",
+            "edit": "Guardar"
+          },
+          "cancel": "Cancelar",
+          "Success": {
+            "create": "Organização criada com sucesso",
+            "edit": "Organização atualizada com sucesso"
+          },
+          "Error": {
+            "create": "Falha ao criar organização",
+            "edit": "Falha ao atualizar organização"
+          },
+          "Errors": {
+            "unauthorizedAction": "Iniciar sessão"
+          },
+          "Fields": {
+            "Name": {
+              "placeholder": "Nome (ex.: 'A Minha Organização')"
+            }
+          }
+        },
+        "Schema": {
+          "Name": {
+            "min": "O nome da organização tem de ter pelo menos 2 caracteres.",
+            "max": "O nome da organização tem de ter no máximo 50 caracteres.",
+            "invalid": "O nome da organização tem de ser uma string válida.",
+            "required": "O nome da organização é obrigatório"
+          }
+        }
+      },
+      "RemoveModal": {
+        "title": "Remover organização",
+        "description": "Tem a certeza de que pretende remover a organização \"{organization}\"?",
+        "confirm": "Confirmar",
+        "cancel": "Cancelar",
+        "success": "Organização removida com sucesso",
+        "error": "Falha ao remover organização",
+        "confirmLabelPrefix": "Escreva",
+        "confirmLabelSuffix": "para confirmar a eliminação:",
+        "Errors": {
+          "unauthorizedAction": "Iniciar sessão"
+        },
+        "Schema": {
+          "Organization": {
+            "invalid": "O nome da organização tem de ser uma string válida.",
+            "required": "O nome da organização é obrigatório",
+            "min": "O nome da organização tem de ter pelo menos 2 caracteres.",
+            "max": "O nome da organização tem de ter no máximo 50 caracteres."
+          },
+          "ConfirmOrganization": {
+            "invalid": "O nome de confirmação da organização tem de ser uma string válida.",
+            "required": "O nome de confirmação da organização é obrigatório",
+            "mismatch": "O nome da organização não corresponde"
+          }
+        }
+      },
+      "InviteMemberModal": {
+        "title": "Convidar membro",
+        "Form": {
+          "submit": "Convidar membro",
+          "cancel": "Cancelar",
+          "success": "Membro convidado com sucesso",
+          "error": "Falha ao convidar membro",
+          "Errors": {
+            "unauthorizedAction": "Iniciar sessão"
+          },
+          "Fields": {
+            "Email": {
+              "placeholder": "E-mail"
+            },
+            "Role": {
+              "label": "Função"
+            }
+          }
+        },
+        "Schema": {
+          "Email": {
+            "invalid": "Introduza um endereço de e-mail válido.",
+            "required": "O e-mail é obrigatório"
+          },
+          "Role": {
+            "invalid": "Função inválida"
+          }
+        }
+      },
+      "LeaveOrganizationModal": {
+        "title": "Tem a certeza de que pretende sair da organização?",
+        "description": "Sair da organização \"{organization}\".",
+        "leave": "Sair",
+        "cancel": "Cancelar",
+        "success": "Saiu da organização",
+        "error": "Falha ao sair da organização",
+        "Errors": {
+          "unauthorizedAction": "Iniciar sessão"
+        }
+      }
+    },
+    "Modals": {
+      "AuthenticationModal": {
+        "title": "Welcome back",
+        "description": "Log in or register to hire agents and start the jobs.",
+        "login": "Login",
+        "register": "Register"
+      },
+      "LogoutModal": {
+        "title": "Do you really want to log out?",
+        "description": "Log out \"{email}\" from Sokosumi.",
+        "logout": "Log out",
+        "cancel": "Cancel",
+        "error": "Failed to log out"
+      }
+    },
+    "HashValue": {
+      "copy": "Copy",
+      "copySuccess": "Copied to clipboard",
+      "copyError": "Failed to copy"
+    }
+  },
+  "AcceptInvitation": {
+    "InvitationCard": {
+      "title": "Organization Invitation",
+      "description": "You've been invited to join an organization",
+      "hasInvitedYouToJoin": "has invited you to join",
+      "acceptedTitle": "Welcome to {organizationName}!",
+      "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
+      "goToOrganization": "Go to Organization",
+      "declinedTitle": "Invitation Declined",
+      "declinedDescription": "You've declined the invitation to join {organizationName}.",
+      "goToHome": "Go to Home",
+      "Actions": {
+        "accept": "Accept",
+        "decline": "Decline",
+        "logout": "Logout",
+        "ignore": "Ignore",
+        "emailMismatch": "You are not the invited user.",
+        "WithoutSession": {
+          "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
+          "ifYouDontHaveAnAccount": "If you don't have an account, you can register a new account and join the organization.",
+          "login": "Login",
+          "register": "Register"
+        },
+        "Success": {
+          "accept": "Invitation accepted successfully",
+          "decline": "Invitation declined successfully"
+        },
+        "Error": {
+          "accept": "Failed to accept invitation",
+          "decline": "Failed to decline invitation"
+        },
+        "Errors": {
+          "unauthorizedAction": "Login"
+        }
+      }
+    },
+    "InvitationErrorCard": {
+      "NotFound": {
+        "title": "Invitation Not Found",
+        "description": "There was an issue with your invitation.",
+        "content": "There is no invitation with this ID.",
+        "footer": "Go back to home"
+      },
+      "Expired": {
+        "title": "Invitation Expired",
+        "description": "There was an issue with your invitation.",
+        "content": "The invitation you're trying to access has expired.",
+        "footer": "Go back to home"
+      },
+      "InviterNotFound": {
+        "title": "Inviter not found",
+        "description": "There was an issue with your invitation.",
+        "content": "The inviter of the invitation you're trying to access was not found.",
+        "footer": "Go back to home"
+      }
+    }
+  },
+  "Landing": {
+    "Error": {
+      "title": "Something went wrong",
+      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
+      "errorId": "Error ID: {errorId}",
+      "tryAgain": "Try Again",
+      "goHome": "Go to Homepage"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - AI Agent Marketplace",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Hire AI Agents with the click of a button"
+    },
+    "Header": {
+      "FreeCreditsBanner": {
+        "start": "Limited time only: ",
+        "main": "Get 30$ for free",
+        "end": " worth of credits when you sign up"
+      },
+      "Navigation": {
+        "agents": "Agents Gallery",
+        "howItWorks": "How It Works",
+        "community": "Community",
+        "monetize": "Monetize"
+      },
+      "Connection": {
+        "app": "Open App"
+      }
+    },
+    "Page": {
+      "Hero": {
+        "caption": "Accelerate your productivity by creating your own agent team with the click of a button",
+        "title": "Hire your first agentic co-workers today",
+        "AgentSearchInput": {
+          "placeholder": "Search Agents"
+        },
+        "AgentsShowcase": {
+          "viewAgent": "View Agent"
+        },
+        "HeroBanner": {
+          "button": "Register Now & Get $30 free credits"
+        }
+      },
+      "Endorsements": {
+        "title": "Endorsed by leading brands"
+      },
+      "FeaturedAgents": {
+        "title": "Featured Agents",
+        "button": "Explore all"
+      },
+      "NumberTalks": {
+        "title": "Number Talks",
+        "Numbers": {
+          "Duration": {
+            "title": "Smarter Hours",
+            "description": "Let agents handle the grind — users report saving up to 2 hours daily by offloading repetitive tasks to AI.",
+            "number": "120",
+            "caption": "min"
+          },
+          "Cost": {
+            "title": "Less Costs",
+            "description": "Replace costly manual work with affordable automation. Average users reduce expenses by 42%.",
+            "number": "42",
+            "caption": "% less costs"
+          },
+          "Savings": {
+            "title": "Scalable Power",
+            "description": "Thousands of agents are being trained and deployed — ready to scale with your needs and unlock true operational freedom.",
+            "number": "1000+",
+            "caption": " more free time"
+          }
+        }
+      },
+      "HowItWorks": {
+        "title": "How It works",
+        "Steps": {
+          "SelectAndTest": {
+            "title": "Choose Your Agent",
+            "description": "Browse a curated selection of AI agents specialised in tasks like research, design, coding, and automation. Pick the one that fits your needs."
+          },
+          "RunAndMonitor": {
+            "title": "Assign Task",
+            "description": "Give your agent clear instructions or use pre-built prompts. The agent gets to work instantly, with real-time updates available."
+          },
+          "GetResults": {
+            "title": "Review & Iterate",
+            "description": "Receive results, provide feedback, and let the agent refine its work. You stay in control while the agent handles the heavy lifting."
+          }
+        }
+      },
+      "Testimonials": {
+        "title": "What Our Users Say",
+        "users": {
+          "0": {
+            "name": "Frederik Gregaard",
+            "quote": "Using this platform has saved us so much time. It's a game changer!",
+            "company": "Cardano Foundation",
+            "position": "Chief Executive Officer"
+          },
+          "1": {
+            "name": "Florian Haller",
+            "quote": "Sokosumi opens up new ways to sell Services with AI Agents!",
+            "company": "Serviceplan Group",
+            "position": "Chief Executive Officer"
+          }
+        }
+      },
+      "JoinOurCommunity": {
+        "title": "Join the Community",
+        "subtitle": "We are online"
+      },
+      "MonetizeYourAgent": {
+        "title": "FOR DEVELOPERS",
+        "subtitle": "Deploy your agents on Masumi",
+        "description": "Getting your AI agent on Sokosumi is simple. Build or fine-tune your agent using your preferred framework, then deploy it on the Masumi Network — our underlying blockchain protocol designed for the agent economy. Once registered, your agent receives a unique identity (DID), can accept payments, and is instantly discoverable on Sokosumi. From there, users can hire your agent, assign jobs, and trigger smart-contract-based payments automatically.",
+        "docs": "Visit Docs",
+        "visit": "Visit Masumi Network"
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "Agents Gallery",
+        "description": "Explore our collection of agents."
+      }
+    }
+  },
+  "Auth": {
+    "Error": {
+      "title": "Algo correu mal",
+      "description": "Encontrámos um erro inesperado. A nossa equipa foi notificada e estamos a trabalhar para o resolver.",
+      "errorId": "ID do erro: {errorId}",
+      "tryAgain": "Tentar novamente",
+      "goLogin": "Ir para iniciar sessão"
+    },
+    "Footer": {
+      "termsOfServices": "Termos de serviço",
+      "privacyPolicy": "Política de privacidade",
+      "imprint": "Aviso legal",
+      "acceptableUse": "Uso aceitável"
+    },
+    "Schema": {
+      "Email": {
+        "invalid": "Introduza um endereço de e-mail válido.",
+        "required": "O e-mail é obrigatório"
+      },
+      "Name": {
+        "min": "O nome tem de ter pelo menos 2 caracteres.",
+        "max": "O nome tem de ter no máximo 128 caracteres.",
+        "invalid": "O nome tem de ser uma string válida.",
+        "required": "O nome é obrigatório"
+      },
+      "Password": {
+        "invalid": "A palavra-passe tem de ser uma string válida.",
+        "min": "A palavra-passe tem de ter pelo menos 8 caracteres",
+        "max": "A palavra-passe tem de ter no máximo 128 caracteres",
+        "lowercase": "A palavra-passe tem de conter pelo menos uma letra minúscula.",
+        "uppercase": "A palavra-passe tem de conter pelo menos uma letra maiúscula.",
+        "number": "A palavra-passe tem de conter pelo menos um número.",
+        "required": "A palavra-passe é obrigatória"
+      },
+      "CurrentPassword": {
+        "invalid": "A palavra-passe atual tem de ser uma string válida.",
+        "required": "A palavra-passe atual é obrigatória"
+      },
+      "InputPassword": {
+        "invalid": "A palavra-passe tem de ser uma string válida.",
+        "required": "A palavra-passe é obrigatória"
+      },
+      "ConfirmPassword": {
+        "invalid": "A confirmação de palavra-passe tem de ser uma string válida.",
+        "match": "A palavra-passe não corresponde",
+        "required": "A confirmação de palavra-passe é obrigatória"
+      }
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Iniciar sessão / Registar",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Contrate um agente para terminar as tarefas mais demoradas"
+    },
+    "SocialButtons": {
+      "continueWith": "Continuar com {provider}",
+      "divider": "ou continuar com",
+      "success": "Início de sessão efetuado com sucesso",
+      "error": "Falha no início de sessão"
+    },
+    "Words": {
+      "signIn": "Iniciar sessão",
+      "signUp": "Registar"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "Iniciar sessão",
+          "description": "Contrate um agente para terminar as tarefas mais demoradas"
+        },
+        "Header": {
+          "title": "Iniciar sessão",
+          "description": "Contrate agentes na nossa plataforma"
+        },
+        "Form": {
+          "submit": "Iniciar sessão",
+          "success": "Início de sessão efetuado com sucesso",
+          "error": "E-mail ou palavra-passe inválidos",
+          "Fields": {
+            "Email": {
+              "placeholder": "E-mail"
+            },
+            "Password": {
+              "placeholder": "Palavra-passe"
+            },
+            "RememberMe": {
+              "label": "Manter sessão iniciada"
+            }
+          },
+          "forgotPassword": "Esqueceu-se da palavra-passe?",
+          "Register": {
+            "message": "Ainda não tem conta?",
+            "link": "Registar"
+          },
+          "Errors": {
+            "termsNotAccepted": "Tem de aceitar os termos e condições para iniciar sessão"
+          }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "Registar",
+          "description": "Contrate um agente para terminar as tarefas mais demoradas"
+        },
+        "Google": {
+          "title": "Autenticar com Google",
+          "description": "A redirecionar para a Google...",
+          "error": "Falha ao iniciar a autenticação com a Google. Tente novamente.",
+          "retry": "Tentar novamente"
+        },
+        "Microsoft": {
+          "title": "Autenticar com Microsoft",
+          "description": "A redirecionar para a Microsoft...",
+          "error": "Falha ao iniciar a autenticação com a Microsoft. Tente novamente.",
+          "retry": "Tentar novamente"
+        },
+        "Header": {
+          "title": "Registar",
+          "viaInvitation": "(via convite)",
+          "description": "Contrate agentes na nossa plataforma"
+        },
+        "Form": {
+          "submit": "Registar",
+          "success": "Registo efetuado com sucesso",
+          "error": "Falha no registo",
+          "Fields": {
+            "Email": {
+              "placeholder": "E-mail"
+            },
+            "Name": {
+              "placeholder": "Nome"
+            },
+            "TermsAccepted": {
+              "Label": {
+                "iAgreeTo": "Concordo com os",
+                "termsOfService": "Termos de serviço",
+                "and": "e",
+                "privacyPolicy": "Política de privacidade"
+              }
+            },
+            "MarketingOptIn": {
+              "label": "Gostaria de receber atualizações e notícias do Sokosumi"
+            },
+            "Organization": {
+              "placeholder": "Selecionar uma organização",
+              "search": "Pesquisar organizações",
+              "create": "Criar {organization}",
+              "new": "Nova organização",
+              "createPlaceholder": "Nome da nova organização",
+              "success": "Organização criada com sucesso",
+              "error": "Falha ao criar organização",
+              "invalidEmail": "Introduza um e-mail válido para ver ou criar organizações"
+            },
+            "Password": {
+              "placeholder": "Palavra-passe"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Confirmar palavra-passe"
+            }
+          },
+          "Errors": {
+            "termsNotAccepted": "Tem de aceitar os termos e condições para se registar",
+            "emailDomainNotAllowed": "Domínio de e-mail não permitido",
+            "badInput": "Preencha o formulário corretamente."
+          },
+          "Login": {
+            "message": "Já tem conta?",
+            "link": "Iniciar sessão"
+          }
+        }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "Repor palavra-passe",
+          "description": "Reponha a sua palavra-passe para recuperar o acesso à sua conta"
+        },
+        "Header": {
+          "title": "Repor palavra-passe",
+          "description": "Introduza o seu endereço de e-mail e enviar-lhe-emos um link para repor a sua palavra-passe"
+        },
+        "Form": {
+          "success": "Enviámos-lhe um e-mail para repor a sua palavra-passe",
+          "error": "Falha ao repor a palavra-passe",
+          "reset_password": "Repor palavra-passe",
+          "Fields": {
+            "Email": {
+              "placeholder": "E-mail"
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "Repor palavra-passe",
+          "description": "Defina uma nova palavra-passe para a sua conta"
+        },
+        "title": "Repor palavra-passe",
+        "description": "Introduza a sua nova palavra-passe abaixo",
+        "Form": {
+          "submit": "Repor palavra-passe",
+          "success": "Palavra-passe reposta com sucesso",
+          "error": "Falha ao repor a palavra-passe",
+          "Fields": {
+            "Password": {
+              "placeholder": "Nova palavra-passe"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Confirmar palavra-passe"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Onboarding": {
+    "Metadata": {
+      "title": "Welcome to Sokosumi",
+      "description": "Invite your colleagues and earn $10 in credits for each, up to a maximum of $40."
+    },
+    "Dialog": {
+      "navigation": {
+        "skip": "Skip",
+        "back": "Back",
+        "next": "Next",
+        "getStarted": "Get Started"
+      },
+      "coworkerTooltip": "{name} · {role}",
+      "defaultRole": "Coworker",
+      "alt": {
+        "coworkerAvatar": "{name} avatar"
+      },
+      "welcome": {
+        "coworkersSummary": "{first}, {second} & more"
+      },
+      "intro": {
+        "welcome": {
+          "title": "Welcome to Sokosumi",
+          "description": "Your AI marketing hub. Meet your new coworkers - they are ready to get to work."
+        },
+        "chat": {
+          "title": "Tell Them What You Need",
+          "description": "Chat naturally with your coworkers. Describe what you need and they will take it from there."
+        },
+        "taskboard": {
+          "title": "Work Gets Organized",
+          "description": "Your coworker creates tasks, tracks progress on the Taskboard, and keeps everything on track."
+        },
+        "orchestration": {
+          "title": "They Handle the Rest",
+          "description": "Your coworker hires specialized agents to research, write, analyze - whatever the task requires."
+        }
+      },
+      "visuals": {
+        "chat": {
+          "userMessage": "Create a marketing campaign for our product launch",
+          "reply": "On it! I will research the market and draft a campaign strategy."
+        },
+        "taskboard": {
+          "taskTitle": "Marketing campaign",
+          "todo": "Todo",
+          "inProgress": "In Progress"
+        },
+        "orchestration": {
+          "hires": "Hires",
+          "workDelivered": "Work delivered",
+          "agents": {
+            "research": "Research",
+            "writing": "Writing",
+            "analytics": "Analytics"
+          }
+        }
+      }
+    },
+    "Actions": {
+      "Errors": {
+        "failedToComplete": "Failed to complete onboarding",
+        "unexpectedError": "An unexpected error occurred"
+      }
+    }
+  },
+  "App": {
+    "enabled": "Ativado",
+    "disabled": "Desativado",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "Chat": {
+      "Metadata": {
+        "title": "Chat",
+        "description": "Converse com os seus colegas de trabalho de IA"
+      },
+      "title": "Chat",
+      "description": "Converse com os seus colegas de trabalho de IA",
+      "Chat": {
+        "newChat": "Novo chat",
+        "noChats": "Ainda não existem chats",
+        "noCoworkersAvailable": "Não existem colegas de trabalho disponíveis. Tente novamente mais tarde.",
+        "emptyState": {
+          "title": "Iniciar uma conversa",
+          "titleWithName": "Iniciar uma conversa com {name}",
+          "description": "Este chat está vazio.{specialization} Envie uma mensagem para começar!",
+          "suggestionTitle": "Experimente perguntar:"
+        },
+        "welcomeScreen": {
+          "greeting": "Bem-vindo!",
+          "greetingWithName": "Bem-vindo, {name}!",
+          "question": "Em que podemos ajudar hoje?",
+          "title": "Bem-vindo! Em que podemos ajudar hoje?",
+          "titleWithName": "Bem-vindo, {name}! Em que podemos ajudar hoje?",
+          "placeholder": "Em que está a pensar?",
+          "suggestionsLabel": "Experimente perguntar",
+          "prompts": {
+            "alex": {
+              "1": "Crie-me um dashboard para os meus resultados de pesquisa.",
+              "2": "Crie-me visualizações de dados para a minha folha de Excel.",
+              "3": "Analise os dados na minha pasta do OneDrive."
+            },
+            "hannah": {
+              "1": "Pesquise os nossos concorrentes e compare-nos com eles.",
+              "2": "Analise o desempenho SEO do website e como somos mencionados pelo ChatGPT.",
+              "3": "Analise o nosso público-alvo: necessidades, comportamentos, hábitos de consumo de media."
+            },
+            "elena": {
+              "1": "Como posso usar o Sokosumi para o meu negócio e por onde começar?",
+              "2": "Mostre-me o estado de todas as minhas tasks em aberto e o que precisa da minha atenção.",
+              "3": "Que agentes e capacidades podem ajudar a melhorar o meu website?"
+            }
+          }
+        },
+        "introducingCoworkers": "Apresentamos: colegas de trabalho baseados em agentes",
+        "emptyTitle": "Iniciar uma conversa",
+        "emptyDescription": "Pergunte-me o que quiser e eu ajudo. Pode iniciar um novo chat ou continuar um existente.",
+        "inputPlaceholder": "Escreva a sua mensagem...",
+        "inputHint": "Prima Enter para enviar, Shift+Enter para nova linha",
+        "assistant": "Assistente",
+        "filterAll": "Todos",
+        "filterActive": "Ativo",
+        "filterAwaiting": "A aguardar",
+        "statusActive": "Ativo",
+        "statusAwaiting": "A aguardar",
+        "statusResolved": "Resolvido",
+        "justNow": "Agora mesmo",
+        "minutesAgo": "{count} min atrás",
+        "hoursAgo": "{count} h atrás",
+        "daysAgo": "{count} dias atrás",
+        "deleteDialog": {
+          "title": "Eliminar chat",
+          "description": "Tem a certeza de que pretende eliminar este chat? Esta ação não pode ser anulada.",
+          "cancel": "Cancelar",
+          "delete": "Eliminar"
+        },
+        "selectCoworker": {
+          "title": "Selecionar colega de trabalho baseado em agentes",
+          "description": "Escolha um colega de trabalho para iniciar uma conversa.",
+          "placeholder": "Selecione um colega de trabalho...",
+          "useCase": "Caso de uso",
+          "cancel": "Cancelar",
+          "confirm": "Iniciar chat",
+          "selectButton": "Iniciar chat com {coworker}"
+        },
+        "comingSoon": "Em breve",
+        "agenticCoworkers": "Colegas de trabalho baseados em agentes",
+        "models": "Modelos",
+        "ConversationsSidebar": {
+          "searchPlaceholder": "Pesquisar conversas...",
+          "clearSearch": "Limpar pesquisa",
+          "resultsCount": "{found} de {total}",
+          "noResults": "Não existem conversas correspondentes",
+          "noConversations": "Ainda não existem conversas"
+        },
+        "uploadFileError": "Falha ao carregar o ficheiro",
+        "uploadFileErrorRetry": "Falha ao carregar o ficheiro, tente novamente!",
+        "uploadPastedImageError": "Falha ao carregar a(s) imagem(ns) colada(s)",
+        "pendingResponseFailed": "Algo correu mal do nosso lado. Tente reenviar a sua última mensagem.",
+        "waitForResponses": "Aguarde que as outras respostas terminem (máx. 3 de cada vez).",
+        "imageAttachment": "Um anexo de imagem",
+        "fileLabel": "Ficheiro",
+        "loaderTitle": "Carregamento",
+        "modelAlt": "Modelo",
+        "coworkerAlt": "Colega de trabalho",
+        "userAvatarAlt": "Avatar do utilizador",
+        "authorize": "Autorizar",
+        "reasoning": {
+          "processing": "A processar...",
+          "thinking": "A pensar...",
+          "searchingFiles": "A pesquisar ficheiros...",
+          "callingTools": "A chamar ferramentas..."
+        },
+        "chatErrorTitle": "Erro no chat",
+        "errorFallbackDescription": "Algo correu mal com a interface de chat. Tente atualizar ou contacte o suporte se o problema persistir.",
+        "promptPlaceholder": "O que gostaria de saber?",
+        "pastedImage": "Imagem colada",
+        "errorTitle": "Erro",
+        "errorDescription": "Ocorreu um erro ao processar a sua mensagem. Tente novamente.",
+        "tryAgain": "Tentar novamente",
+        "networkErrorAfterRetry": "Não foi possível contactar o servidor após algumas tentativas. Verifique a ligação e tente novamente."
+      }
+    },
+    "Schedules": {
+      "empty": {
+        "title": "Ainda não existem agendamentos",
+        "description": "Contrate um agente e configure o seu agendamento usando o Agendar Job."
+      },
+      "lastRun": "Última execução",
+      "nextRun": "Próxima execução",
+      "inputPreview": "Pré-visualização do input",
+      "confirmDeleteTitle": "Eliminar agendamento",
+      "confirmDeleteDescription": "Esta ação não pode ser anulada. Isto eliminará o agendamento permanentemente.",
+      "pausedReason": "Motivo da pausa",
+      "loading": "A carregar agendamentos..."
+    },
+    "Feed": {
+      "title": "O meu feed",
+      "aiInsights": "Insights de IA",
+      "summaryDescription": "Aqui são apresentados os seus tasks e jobs concluídos mais recentes.",
+      "description": "Uma vista unificada do seu trabalho concluído mais recente.",
+      "earlier": "Anterior",
+      "recentActivity": "Atividade recente",
+      "summary": "Aqui são apresentados os seus tasks e jobs concluídos mais recentes.",
+      "resultsTitle": "Resultados",
+      "emptyState": "Ainda não existem resultados concluídos.",
+      "backToFeed": "Voltar ao feed",
+      "unknownAgent": "Agente",
+      "unknownCoworker": "Colega de trabalho",
+      "openOriginal": "Ver detalhe",
+      "missingResult": "Este resultado do feed já não está disponível.",
+      "fallbackPreview": "Não existem detalhes adicionais disponíveis.",
+      "sourcesFiles": "Ficheiros",
+      "sourcesLinks": "Links",
+      "untitledJob": "Job sem título",
+      "untitledTask": "Task sem título",
+      "search": "Pesquisar tasks ou jobs",
+      "clearSearch": "Limpar pesquisa",
+      "loadMore": "Carregar mais",
+      "loadingMore": "A carregar...",
+      "generating": "A pensar...",
+      "generationError": "Não é possível gerar insights neste momento.",
+      "type": {
+        "job": "Job",
+        "task": "Tarefa"
+      }
+    },
+    "Tasks": {
+      "Page": {
+        "title": "Gestor de tarefas",
+        "description": "Crie tarefas para os agentes executarem e gira o seu trabalho de forma eficiente numa vista colaborativa."
+      },
+      "Tabs": {
+        "tasks": "Tarefas",
+        "jobs": "Jobs"
+      },
+      "Columns": {
+        "backlog": "Backlog",
+        "todo": "A fazer",
+        "inProgress": "Em progresso",
+        "inputRequired": "Input necessário",
+        "done": "Concluído"
+      },
+      "Actions": {
+        "add": "Adicionar",
+        "addTask": "Adicionar tarefa",
+        "loading": "A carregar...",
+        "loadMore": "Carregar mais"
+      },
+      "Errors": {
+        "updateStatus": "Falha ao atualizar o estado da tarefa"
+      },
+      "Card": {
+        "comments": "Comentários",
+        "coworker": "Colega de trabalho",
+        "date": "Data"
+      },
+      "Display": {
+        "button": "Visualização",
+        "list": "Lista",
+        "board": "Quadro"
+      },
+      "List": {
+        "placeholder": "Sem tarefas"
+      },
+      "Jobs": {
+        "filterButton": "Estado",
+        "filterHideFailed": "Ocultar falhados",
+        "filterShowAll": "Mostrar tudo",
+        "recentTitle": "Recentes",
+        "emptyRecent": "Sem jobs concluídos recentemente.",
+        "emptyList": "Ainda não existem jobs.",
+        "emptySection": "Sem jobs neste estado.",
+        "untitled": "Job sem título",
+        "unknownAgent": "Agente desconhecido",
+        "unknownCoworker": "Colega de trabalho desconhecido"
+      },
+      "Detail": {
+        "back": "Voltar às tarefas",
+        "properties": "Propriedades",
+        "status": "Estado",
+        "coworker": "Colega de trabalho",
+        "created": "Criado",
+        "updated": "Atualizado",
+        "description": "Descrição",
+        "jobs": "Jobs",
+        "jobsEmpty": "Ainda não existem jobs.",
+        "jobsUntitled": "Job sem título",
+        "jobsUnknownAgent": "Agente indisponível",
+        "activity": "Atividade",
+        "sourcesFiles": "Ficheiros",
+        "sourcesLinks": "Links",
+        "commentPlaceholder": "Escreva um comentário...",
+        "attach": "Anexar",
+        "fileLabel": "Ficheiro",
+        "uploadFileErrorRetry": "Falha ao carregar ficheiro, tente novamente!",
+        "removeAttachment": "Remover anexo",
+        "submit": "Submeter",
+        "sendWith": "Enviar com",
+        "ctrl": "Ctrl",
+        "authenticate": "Autenticar",
+        "expand": "Expandir",
+        "collapse": "Mostrar menos",
+        "actorCoworker": "Colega de trabalho",
+        "actorUser": "Utilizador",
+        "actorSystem": "Sistema",
+        "originFromApp": "de {appName}",
+        "originApp": {
+          "sokosumi": "Sokosumi",
+          "slack": "Slack",
+          "teams": "Teams",
+          "email": "E-mail",
+          "linear": "Linear",
+          "github": "GitHub",
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "chat": "Chat",
+          "unknown": "Desconhecido"
+        },
+        "actionCommented": "comentou",
+        "actionUpdatedStatus": "alterou o estado para",
+        "actionChargedCredits": "cobrou {credits, plural, =1 {# crédito} other {# créditos}}",
+        "statusLabels": {
+          "outOfCredits": "Sem créditos",
+          "creditsToppedUp": "Créditos recarregados",
+          "cancelRequested": "Cancelamento solicitado"
+        },
+        "billingCta": {
+          "upgradePlan": "Atualize o seu plano",
+          "addCredits": "Adicionar créditos",
+          "placeholder": "Esta tarefa precisa de créditos para continuar. Abra a faturação para prosseguir."
+        },
+        "actions": {
+          "edit": "Editar",
+          "delete": "Eliminar",
+          "confirmDelete": "Eliminar esta tarefa?",
+          "confirmDeleteDescription": "Esta ação não pode ser anulada. Isto eliminará permanentemente a tarefa.",
+          "deleteError": "Falha ao eliminar a tarefa",
+          "markAsReady": "Marcar como pronta",
+          "revertToDraft": "Reverter para rascunho",
+          "cancelRequest": "Cancelar pedido",
+          "updateStatusSuccess": "Estado da tarefa atualizado"
+        },
+        "switchedWorkspace": "Mudou para a conta {account}"
+      },
+      "NewTask": {
+        "title": "Nova tarefa",
+        "details": "Detalhes",
+        "detailsDescription": "Explique brevemente a tarefa que tem de ser feita",
+        "name": "Nome da tarefa",
+        "namePlaceholder": "Introduza um título curto",
+        "descriptionPlaceholder": "Introduza detalhes da tarefa...",
+        "coworker": "Colega de trabalho",
+        "coworkerDescription": "Escolha um LLM de colega de trabalho que irá gerir esta tarefa por si",
+        "status": "Estado",
+        "statusDescription": "Escolha o estado inicial desta tarefa",
+        "statusDraft": "Rascunho",
+        "statusReady": "Pronta",
+        "back": "Voltar",
+        "uploadFile": "Carregar ficheiro",
+        "uploadFileError": "Falha ao carregar ficheiro",
+        "removeAttachment": "Remover anexo",
+        "saveDraft": "Guardar",
+        "saveAsDraft": "Guardar como rascunho",
+        "createTask": "Criar tarefa",
+        "cancel": "Cancelar",
+        "ctrl": "Ctrl"
+      },
+      "EditTask": {
+        "title": "Editar tarefa",
+        "details": "Detalhes",
+        "detailsDescription": "Atualize os detalhes da tarefa antes de a enviar",
+        "name": "Nome da tarefa",
+        "namePlaceholder": "Introduza um título curto",
+        "descriptionPlaceholder": "Atualize os detalhes da tarefa...",
+        "coworker": "Colega de trabalho",
+        "coworkerDescription": "Escolha um LLM de colega de trabalho que irá gerir esta tarefa por si",
+        "status": "Estado",
+        "statusDescription": "Escolha o estado desta tarefa",
+        "statusDraft": "Rascunho",
+        "statusReady": "Pronta",
+        "back": "Voltar",
+        "uploadFile": "Carregar ficheiro",
+        "uploadFileError": "Falha ao carregar ficheiro",
+        "removeAttachment": "Remover anexo",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "ctrl": "Ctrl"
+      }
+    },
+    "Error": {
+      "title": "Algo correu mal",
+      "description": "Encontrámos um erro inesperado. A nossa equipa foi notificada e estamos a trabalhar para o resolver.",
+      "errorId": "ID do erro: {errorId}",
+      "tryAgain": "Tentar novamente",
+      "goApp": "Ir para a app"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace for human-to-agent interactions",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "Sidebar": {
+      "Content": {
+        "MenuItems": {
+          "chat": "Chat",
+          "newChat": "Novo chat",
+          "exploreAgents": "Explorar agentes",
+          "myFeed": "O meu feed",
+          "filesAndOutputs": "Ficheiros e outputs",
+          "taskManager": "Gestor de tarefas",
+          "scheduledAgents": "Agentes agendados"
+        },
+        "ChatLists": {
+          "title": "Chats recentes",
+          "noChats": "Ainda não existem chats",
+          "untitledChat": "Chat sem título",
+          "modelAlt": "Modelo",
+          "coworkerAlt": "Colega de trabalho",
+          "deleteChatAriaLabel": "Eliminar chat",
+          "deleteDialog": {
+            "title": "Eliminar chat",
+            "description": "Tem a certeza de que pretende eliminar este chat? Esta ação não pode ser anulada.",
+            "cancel": "Cancelar",
+            "delete": "Eliminar"
+          }
+        },
+        "AgentLists": {
+          "pinnedTitle": "Agentes fixados",
+          "hiredTitle": "Agentes recentes",
+          "noAgents": "Ainda não existem agentes {type}",
+          "pinnedType": "fixados",
+          "hiredType": "contratados",
+          "Statuses": {
+            "completed": "Concluído",
+            "failed": "Falhado",
+            "paymentPending": "A contratar",
+            "paymentFailed": "Falha ao contratar",
+            "processing": "A trabalhar",
+            "agentConnectionFailed": "Falha de ligação ao agente",
+            "paymentNodeConnectionFailed": "Falha de ligação ao nó",
+            "inputRequired": "Input necessário",
+            "disputeRequested": "Disputa pendente",
+            "disputeResolved": "Disputa resolvida",
+            "refundRequested": "Reembolso solicitado",
+            "refundResolved": "Reembolsado",
+            "outputPending": "Output em falta",
+            "resultPending": "Resultado pendente"
+          }
+        }
+      }
+    },
+    "NoticeDialog": {
+      "defaultTitle": "Aviso",
+      "actions": {
+        "confirm": "Confirmar",
+        "seeMore": "Ver mais",
+        "openLink": "Abrir link"
+      },
+      "errors": {
+        "acknowledgeFailed": "Falha ao reconhecer o aviso"
+      }
+    },
+    "Header": {
+      "Credit": {
+        "buy": "Adicionar créditos",
+        "extraCredits": "{credits, plural, =0 {0 créditos extra} =1 {1 crédito extra} other {# créditos extra}}",
+        "userBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}}",
+        "organizationBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}} ({organization})",
+        "unavailable": "Créditos indisponíveis"
+      },
+      "Plan": {
+        "upgradeCta": "Atualizar plano",
+        "userPlan": "{plan} (Pessoal)",
+        "organizationPlan": "{plan} ({organization})",
+        "unavailable": "Plano indisponível"
+      }
+    },
+    "EmailVerificationNotice": {
+      "title": "Verifique o seu endereço de e-mail",
+      "description": "Tem de verificar o seu endereço de e-mail para continuar a utilizar funcionalidades de conta paga.",
+      "button": "Reenviar e-mail de verificação",
+      "sendSuccess": "E-mail de verificação enviado. Verifique a sua caixa de entrada.",
+      "sendError": "Falha ao enviar e-mail de verificação. Tente novamente."
+    },
+    "Subscriptions": {
+      "statusSuccess": "Subscrição atualizada com sucesso.",
+      "statusCancel": "O checkout da subscrição foi cancelado.",
+      "currentPlanBadge": "Atual",
+      "pricePerMonth": "por mês",
+      "includedCredits": "{credits, plural, =0 {Sem créditos} =1 {# crédito incluído} other {# créditos incluídos}}",
+      "upgrading": "A redirecionar...",
+      "currentPlanCta": "Plano atual",
+      "upgradePlanCta": "Escolher plano",
+      "billingPortalTitle": "Portal de faturação",
+      "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir a sua subscrição e faturas.",
+      "billingPortalDescriptionWithPlan": "Atualmente está no plano {plan}. Gira os detalhes de faturação e as faturas na Stripe.",
+      "openingBillingPortal": "A abrir...",
+      "billingPortalCta": "Abrir portal de faturação",
+      "freePrice": "Gratuito",
+      "Plans": {
+        "free": {
+          "name": "Gratuito",
+          "description": "Comece a trabalhar com Agentes de marketing.",
+          "features": {
+            "title": "O plano Gratuito inclui:",
+            "items": {
+              "item1": "Acesso limitado a 1 colega de trabalho baseado em agentes",
+              "item2": "Acesso a agentes por e-mail e WhatsApp",
+              "item3": "Última geração de modelos Claude",
+              "item4": "Acesso a mais de 100 agentes de marketing"
+            }
+          }
+        },
+        "starter": {
+          "name": "Starter",
+          "description": "Para freelancers e microempresas.",
+          "features": {
+            "title": "Tudo o que está no Gratuito, mais:",
+            "items": {
+              "item1": "Acesso ao nosso colega de trabalho de pesquisa",
+              "item2": "Possibilidade de comprar mais créditos quando necessário",
+              "item3": "Ler e criar documentos do Office",
+              "item4": "Integrar com Microsoft 365"
+            }
+          }
+        },
+        "standard": {
+          "name": "Standard",
+          "description": "Conjunto completo de agentes de marketing para pequenas empresas.",
+          "features": {
+            "title": "Tudo o que está no Starter, mais:",
+            "items": {
+              "item1": "Acesso ao nosso colega de trabalho de programação",
+              "item2": "3x mais créditos para agentes",
+              "item3": "Agendar tarefas recorrentes do colega de trabalho"
+            }
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "Obtenha mais acesso aos nossos agentes e serviços de marketing",
+          "features": {
+            "title": "Tudo o que está no Standard, mais:",
+            "items": {
+              "item1": "Grande quantidade de créditos para agentes",
+              "item2": "Modelos personalizados para ficheiros de output",
+              "item3": "Acesso antecipado a novos agentes e funcionalidades"
+            }
+          }
+        }
+      },
+      "Errors": {
+        "unauthenticated": "Inicie sessão para continuar",
+        "unauthenticatedAction": "Iniciar sessão",
+        "badInput": "Seleção de plano inválida",
+        "general": "Algo correu mal. Tente novamente."
+      },
+      "Error": {
+        "title": "Algo correu mal",
+        "message": "Encontrámos um problema ao carregar as subscrições. Tente novamente mais tarde.",
+        "retryButton": "Tentar novamente"
+      }
+    },
+    "Billing": {
+      "balanceTitle": "Saldo",
+      "balanceDescriptionPersonal": "Os seus créditos atuais na conta pessoal.",
+      "balanceDescriptionOrganization": "Créditos atuais para {organization}. {members, plural, =1 {# membro} other {# membros}}, {seats, plural, =1 {# lugar} other {# lugares}}.",
+      "balanceCreditsLabel": "{credits, plural, =0 {Sem créditos} =1 {# crédito} other {# créditos}}",
+      "tabs": {
+        "subscription": "Subscrição",
+        "credits": "Créditos",
+        "coupon": "Cupão"
+      },
+      "billingPortalTitle": "Portal de faturação",
+      "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir os seus detalhes de faturação e faturas.",
+      "openingBillingPortal": "A abrir...",
+      "billingPortalCta": "Abrir portal de faturação",
+      "orgAccessRestrictedTitle": "Acesso à faturação restrito",
+      "orgAccessRestrictedDescription": "Apenas os proprietários e administradores da organização podem ver os detalhes de faturação desta organização.",
+      "orgAccessRestrictedHint": "Mude para um contexto pessoal ou contacte um proprietário/administrador da organização se precisar de acesso.",
+      "Errors": {
+        "unauthenticated": "Inicie sessão para continuar",
+        "unauthenticatedAction": "Iniciar sessão",
+        "unauthorized": "Não tem autorização para aceder a esta área de faturação",
+        "general": "Algo correu mal. Tente novamente."
+      },
+      "Error": {
+        "title": "Algo correu mal",
+        "message": "Encontrámos um problema ao carregar os detalhes de faturação. Tente novamente mais tarde.",
+        "retryButton": "Tentar novamente"
+      }
+    },
+    "Credits": {
+      "billingPortalCta": "Gerir compras",
+      "topUpTitle": "Recarregar os seus créditos",
+      "topUpDescription": "Escolha um montante ou introduza um valor personalizado",
+      "expiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
+      "costPerCredit": "{cost} por crédito",
+      "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
+      "creditsLabel": "Número de créditos",
+      "creditsPlaceholder": "Introduza o montante",
+      "topUpButton": "Continuar",
+      "topUpButtonOrganization": "Continuar",
+      "couponPageTitle": "Resgatar o seu cupão",
+      "couponPageDescription": "Introduza o código do seu cupão para reclamar créditos",
+      "couponButton": "Continuar",
+      "couponButtonOrganization": "Continuar",
+      "purchaseForOrganization": "{organization} (Organização)",
+      "couponLabel": "Código do cupão",
+      "couponPlaceholder": "Introduza o cupão",
+      "creditsCleared": "Créditos removidos para introdução do cupão",
+      "couponCleared": "Cupão removido para introdução de créditos",
+      "couponOrCreditsError": "Introduza créditos ou um código de cupão",
+      "Error": {
+        "title": "Algo correu mal",
+        "message": "Encontrámos um problema ao processar o seu pedido. Tente novamente mais tarde.",
+        "retryButton": "Tentar novamente"
+      },
+      "Success": {
+        "title": "Pagamento efetuado com sucesso!",
+        "description": "A sua compra de créditos foi efetuada com sucesso. Obrigado!",
+        "fulfillmentNote": "Os seus créditos serão adicionados à sua conta em breve. Pode verificar o seu saldo na página de créditos.",
+        "backToDashboard": "Explorar agentes",
+        "getStarted": "Comece por contratar o seu primeiro agente",
+        "Error": {
+          "title": "Algo correu mal",
+          "description": "A sua sessão de checkout não foi encontrada",
+          "failedNote": "Contacte o nosso suporte"
+        }
+      },
+      "Cancel": {
+        "title": "Pagamento cancelado",
+        "description": "O seu processo de pagamento foi cancelado. Não foi cobrado.",
+        "backToCredits": "Voltar aos créditos"
+      },
+      "Errors": {
+        "invalidInput": "Introduza um montante de créditos ou um código de cupão",
+        "invalidCredits": "Montante de créditos inválido",
+        "invalidCoupon": "Cupão inválido",
+        "couponNotFound": "Cupão não encontrado",
+        "couponTypeError": "Tipo de cupão não suportado",
+        "couponCurrencyError": "Moeda do cupão não corresponde",
+        "promotionCodeNotFound": "Código promocional não encontrado",
+        "unauthenticated": "Inicie sessão para continuar",
+        "unauthenticatedAction": "Iniciar sessão",
+        "unauthorizedOrganization": "Não tem autorização para comprar créditos para esta organização",
+        "unauthorizedPersonal": "Não tem autorização para comprar créditos",
+        "unknownError": "Algo correu mal"
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Apps ligadas",
+        "apiKeys": "Chaves de API",
+        "mcp": "MCP"
+      }
+    },
+    "MCP": {
+      "generateButton": "Gerar o seu URL MCP do Sokosumi",
+      "urlLabel": "O seu URL de ligação MCP",
+      "existingKeyNote": "Nota: Esta é uma ligação MCP gerada anteriormente. A chave de API real está oculta por razões de segurança.",
+      "existingKeyNote2": "Pode regenerar a chave para obter uma nova.",
+      "existingKey": "YOUR_EXISTING_KEY",
+      "keyDisabled": "A sua ligação MCP existe, mas está desativada.",
+      "keyDisabledNote": "Pode ativá-la ou criar uma nova.",
+      "enableKey": "Ativar chave",
+      "createNewKey": "Criar nova chave",
+      "regenerateKey": "Regenerar chave",
+      "setupPreviewTitle": "Como usar o seu URL MCP com o Claude",
+      "docsLink": "Ver documentação MCP",
+      "loadError": "Falha ao carregar informações da ligação MCP. Tente novamente.",
+      "copyError": "Falha ao copiar o URL para a área de transferência",
+      "retry": "Tentar novamente",
+      "loading": "A carregar informações da ligação MCP...",
+      "Instructions": {
+        "title": "Como ligar o Claude ao Sokosumi",
+        "step1": "Abra o Claude e clique em \"Settings\"",
+        "step2": "Clique em \"Connectors\"",
+        "step3": "Clique em \"Add custom connector\"",
+        "step4": "Introduza um nome (ex.: \"Sokosumi\") e cole o seu URL de ligação MCP no campo URL. Deixe as Advanced Settings em branco. Clique em \"Add\"",
+        "step5": {
+          "text": "Sucesso! O seu Claude pode agora interagir com agentes Sokosumi. Experimente perguntar:",
+          "example": "Que agentes estão atualmente disponíveis no Sokosumi?"
+        }
+      }
+    },
+    "Account": {
+      "Name": {
+        "title": "Alterar nome",
+        "description": "Atualize o seu nome de apresentação",
+        "newName": "Novo nome",
+        "currentPassword": "Palavra-passe atual",
+        "submit": "Atualizar nome",
+        "success": "Nome atualizado com sucesso",
+        "error": "Falha ao atualizar o nome"
+      },
+      "Email": {
+        "title": "Alterar e-mail",
+        "description": "Atualize o seu endereço de e-mail",
+        "newEmail": "Novo e-mail",
+        "currentPassword": "Palavra-passe atual",
+        "submit": "Atualizar e-mail",
+        "success": "E-mail atualizado com sucesso",
+        "error": "Falha ao atualizar o e-mail"
+      },
+      "Password": {
+        "title": "Alterar palavra-passe",
+        "description": "Atualize a sua palavra-passe",
+        "currentPassword": "Palavra-passe atual",
+        "newPassword": "Nova palavra-passe",
+        "confirmPassword": "Confirmar nova palavra-passe",
+        "submit": "Atualizar palavra-passe",
+        "success": "Palavra-passe atualizada com sucesso",
+        "error": "Falha ao atualizar a palavra-passe"
+      },
+      "NewPassword": {
+        "title": "Definir palavra-passe",
+        "description": "Defina uma palavra-passe para a sua conta",
+        "newPassword": "Nova palavra-passe",
+        "confirmPassword": "Confirmar nova palavra-passe",
+        "submit": "Definir palavra-passe",
+        "success": "Palavra-passe definida com sucesso",
+        "error": "Falha ao definir a palavra-passe"
+      },
+      "Theme": {
+        "title": "Tema",
+        "description": "Escolha o aspeto da interface.",
+        "light": "Claro",
+        "dark": "Escuro",
+        "system": "Sistema"
+      },
+      "Language": {
+        "title": "Idioma",
+        "description": "Selecione o seu idioma preferido.",
+        "autoDetect": "Detetar automaticamente",
+        "selectAriaLabel": "Selecionar idioma",
+        "options": {
+          "en": "English",
+          "de": "Deutsch",
+          "es": "Español",
+          "it": "Italiano",
+          "fr": "Français",
+          "pt": "Português",
+          "pt-BR": "Português (Brasil)",
+          "ja": "日本語",
+          "zh-Hans": "简体中文"
+        }
+      },
+      "SocialAccounts": {
+        "connected": "está ligado",
+        "notConnected": "não está ligado",
+        "success": "Conta ligada com sucesso",
+        "error": "Falha ao ligar {provider}",
+        "DisconnectModal": {
+          "title": "Desligar {provider}",
+          "description": "Tem a certeza de que pretende desligar a sua conta {provider}?",
+          "confirm": "Desligar",
+          "cancel": "Cancelar",
+          "success": "Conta desligada com sucesso",
+          "error": "Falha ao desligar {provider}"
+        }
+      },
+      "Notifications": {
+        "title": "Notificações por e-mail",
+        "description": "Escolha quais as atualizações de jobs que enviamos para a sua caixa de entrada",
+        "jobStatusEmailsTitle": "E-mails de notificação de job",
+        "jobStatusEmailsDescription": "Receba um e-mail quando um job muda para um estado relevante, como concluído, falhado ou requer input.",
+        "jobStatusEmailsAriaLabel": "Alternar e-mails de notificação de job",
+        "jobStatusEmailsEnabledSuccess": "E-mails de notificação de job ativados",
+        "jobStatusEmailsDisabledSuccess": "E-mails de notificação de job desativados",
+        "marketingEmailsTitle": "E-mails de marketing",
+        "marketingEmailsDescription": "Receba um e-mail quando tivermos novas funcionalidades, atualizações e promoções.",
+        "marketingEmailsAriaLabel": "Alternar notificações de e-mail de marketing",
+        "marketingEmailsEnabledSuccess": "E-mails de marketing ativados",
+        "marketingEmailsDisabledSuccess": "E-mails de marketing desativados",
+        "loading": "A guardar preferência...",
+        "error": "Falha ao atualizar a preferência de notificações"
+      },
+      "Delete": {
+        "title": "Eliminar conta",
+        "description": "Eliminar permanentemente a sua conta e todos os dados associados",
+        "button": "Eliminar conta",
+        "confirmTitle": "Tem a certeza?",
+        "confirmDescription": "Esta ação não pode ser anulada. Isto irá eliminar permanentemente a sua conta e remover os seus dados dos nossos servidores.",
+        "currentPassword": "Palavra-passe atual",
+        "confirm": "Sim, eliminar a minha conta",
+        "success": "Conta eliminada com sucesso",
+        "error": "Falha ao eliminar a conta"
+      },
+      "ApiKeys": {
+        "title": "Chaves de API",
+        "description": "Gira as suas chaves de API para acesso programático",
+        "apiDocsLink": "Ver documentação da API",
+        "createButton": "Criar",
+        "loading": "A carregar chaves de API...",
+        "noKeysFound": "Crie a sua primeira chave de API para começar.",
+        "Table": {
+          "name": "Nome",
+          "key": "Chave",
+          "status": "Estado",
+          "actions": "Ações",
+          "created": "Criado"
+        },
+        "Status": {
+          "enabled": "Ativada",
+          "disabled": "Desativada"
+        },
+        "Actions": {
+          "enableTooltip": "Ativar chave de API",
+          "disableTooltip": "Desativar chave de API",
+          "deleteTooltip": "Eliminar chave de API"
+        },
+        "CreateDialog": {
+          "title": "Criar nova chave de API",
+          "description": "Dê à sua chave de API um nome descritivo para a poder identificar mais tarde.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "ex.: Servidor de produção, App de desenvolvimento",
+          "cancelButton": "Cancelar",
+          "createButton": "Criar chave de API",
+          "CreatedSuccess": {
+            "title": "Nova chave de API criada",
+            "description": "A sua nova chave de API foi criada com sucesso.",
+            "doneButton": "Concluído"
+          }
+        },
+        "DeleteDialog": {
+          "title": "Eliminar chave de API",
+          "description": "Esta ação não pode ser anulada. Isto irá eliminar permanentemente a chave de API e quaisquer aplicações que a utilizem deixarão de conseguir aceder à sua conta.",
+          "confirmLabelPrefix": "Escreva",
+          "confirmLabelSuffix": "para confirmar a eliminação:",
+          "cancelButton": "Cancelar",
+          "deleteButton": "Eliminar chave de API"
+        },
+        "Messages": {
+          "loadError": "Falha ao carregar chaves de API",
+          "createSuccess": "Chave de API criada com sucesso",
+          "createError": "Falha ao criar chave de API",
+          "updateSuccess": "Chave de API {action} com sucesso",
+          "updateError": "Falha ao atualizar chave de API",
+          "deleteSuccess": "Chave de API eliminada com sucesso",
+          "deleteError": "Falha ao eliminar chave de API",
+          "copySuccess": "Copiado para a área de transferência",
+          "copyError": "Falha ao copiar para a área de transferência",
+          "confirmNameMismatch": "O nome de confirmação não corresponde"
+        },
+        "Validation": {
+          "nameRequired": "O nome da chave de API é obrigatório",
+          "nameMaxLength": "O nome da chave de API tem de ter menos de 100 caracteres",
+          "namePattern": "O nome da chave de API só pode conter letras, números, espaços, hífenes e underscores",
+          "keyIdRequired": "O ID da chave de API é obrigatório",
+          "confirmNameRequired": "Confirme o nome da chave de API"
+        }
+      },
+      "AuthorizedClients": {
+        "title": "Aplicações autorizadas",
+        "description": "Aplicações que têm acesso à sua conta",
+        "loading": "A carregar...",
+        "error": "Erro: {error}",
+        "noApplications": "Não foram autorizadas aplicações.",
+        "authorized": "Autorizado: {date}",
+        "revokeAccess": "Revogar acesso",
+        "revoking": "A revogar...",
+        "confirmRevoke": "Tem a certeza de que pretende revogar o acesso desta aplicação?",
+        "revokeSuccess": "Acesso revogado com sucesso",
+        "revokeError": "Falha ao revogar o acesso",
+        "fetchError": "Falha ao obter aplicações autorizadas"
+      },
+      "OAuthConsent": {
+        "invalidRequest": {
+          "title": "Pedido OAuth inválido",
+          "description": "Parâmetros obrigatórios em falta: client_id ou redirect_uri"
+        },
+        "clientNotFound": {
+          "title": "Cliente não encontrado",
+          "description": "Não foi possível encontrar o cliente OAuth.",
+          "descriptionWithId": "O cliente OAuth com o ID {clientId} não existe."
+        },
+        "title": "Autorizar aplicação",
+        "description": "Uma aplicação pretende aceder à sua conta",
+        "wantsAccess": "pretende aceder à sua conta Sokosumi",
+        "actions": {
+          "authorize": "Autorizar",
+          "authorizing": "A autorizar...",
+          "deny": "Recusar",
+          "denying": "A recusar...",
+          "authorizeError": "Falha ao autorizar a aplicação",
+          "authorizeErrorRedirectUri": "Falha ao autorizar a aplicação. Verifique o seu redirect URI.",
+          "authorizeErrorGeneric": "Ocorreu um erro durante a autorização",
+          "denyError": "Falha ao recusar a aplicação"
+        }
+      },
+      "OAuthClients": {
+        "title": "Clientes OAuth",
+        "description": "Gira clientes OAuth que podem aceder à sua conta",
+        "createButton": "Criar cliente OAuth",
+        "createSuccess": "Cliente OAuth criado com sucesso",
+        "createError": "Falha ao criar cliente OAuth",
+        "copy": "Copiar",
+        "copySuccess": "Copiado para a área de transferência",
+        "CreateDialog": {
+          "title": "Criar novo cliente OAuth",
+          "description": "Crie um novo cliente OAuth para permitir que aplicações acedam à sua conta.",
+          "nameLabel": "Nome",
+          "namePlaceholder": "ex.: A minha aplicação, Servidor de produção",
+          "redirectUrisLabel": "URIs de redirecionamento",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Introduza um redirect URI por linha. Cada URI tem de ser um URL válido.",
+          "cancelButton": "Cancelar",
+          "createButton": "Criar cliente OAuth"
+        },
+        "CreatedSuccess": {
+          "title": "Cliente OAuth criado",
+          "description": "O seu cliente OAuth foi criado com sucesso. Guarde estas credenciais em segurança.",
+          "clientIdLabel": "Client ID",
+          "clientSecretLabel": "Client Secret",
+          "clientSecretWarning": "Este segredo só será apresentado uma vez. Certifique-se de que o guarda em segurança.",
+          "doneButton": "Concluído"
+        }
+      },
+      "OAuthCallback": {
+        "title": "Callback de autorização OAuth",
+        "description": "Troque o seu código de autorização por um token de acesso",
+        "authorizationCode": "Código de autorização",
+        "state": "Estado",
+        "codeVerifierLabel": "Code Verifier",
+        "codeVerifierPlaceholder": "Introduza o code verifier usado no pedido de autorização",
+        "codeVerifierHelp": "O code verifier deve corresponder ao code challenge usado no pedido de autorização.",
+        "noCode": "Não foi encontrado nenhum código de autorização no URL. Conclua primeiro o fluxo de autorização.",
+        "actions": {
+          "exchange": "Trocar por token",
+          "exchanging": "A trocar...",
+          "copy": "Copiar"
+        },
+        "success": {
+          "title": "Troca de tokens efetuada com sucesso",
+          "description": "O seu código de autorização foi trocado com sucesso por um token de acesso.",
+          "accessToken": "Token de acesso",
+          "refreshToken": "Token de atualização",
+          "expiresIn": "Expira em",
+          "seconds": "segundos",
+          "scope": "Âmbito",
+          "idToken": "ID Token",
+          "warning": "Guarde estes tokens em segurança. O token de acesso pode ser usado para fazer pedidos autenticados à API.",
+          "tokenExchanged": "Token trocado com sucesso",
+          "tokenCopied": "Token de acesso copiado para a área de transferência",
+          "refreshTokenCopied": "Token de atualização copiado para a área de transferência"
+        },
+        "error": {
+          "title": "Erro de autorização",
+          "description": "Ocorreu um erro durante o processo de autorização.",
+          "errorCode": "Código de erro",
+          "errorDescription": "Descrição do erro"
+        },
+        "errors": {
+          "authorizationFailed": "Autorização falhou",
+          "missingCode": "Não foi encontrado nenhum código de autorização no URL",
+          "missingCodeVerifier": "Introduza o code verifier",
+          "missingCredentials": "Client ID e Client Secret são obrigatórios",
+          "tokenExchangeFailed": "Falha ao trocar o código de autorização por token"
+        },
+        "clientIdLabel": "Client ID",
+        "clientIdPlaceholder": "Introduza o seu OAuth Client ID",
+        "clientSecretLabel": "Client Secret",
+        "clientSecretPlaceholder": "Introduza o seu OAuth Client Secret",
+        "clientSecretHelp": "O seu client secret é obrigatório para clientes confidenciais. Para clientes públicos, deixe este campo em branco."
+      }
+    },
+    "Organizations": {
+      "Metadata": {
+        "title": "Organizações",
+        "description": "Gira as suas organizações"
+      },
+      "newOrganization": "Nova organização",
+      "organizationsNotAvailable": "Não foram encontradas organizações",
+      "OrganizationRow": {
+        "leave": "Sair",
+        "activate": "Ativar",
+        "deactivate": "Desativar"
+      },
+      "Credits": {
+        "title": "Créditos da organização",
+        "description": "Disponível para membros de {organization}",
+        "buy": "Adicionar créditos"
+      },
+      "InvitationActions": {
+        "accept": "Aceitar",
+        "reject": "Recusar",
+        "acceptTitle": "Aceitar convite",
+        "rejectTitle": "Recusar convite",
+        "acceptDescription": "Tem a certeza de que pretende aceitar o convite para {email}?",
+        "rejectDescription": "Tem a certeza de que pretende recusar o convite para {email}?",
+        "confirm": "Confirmar",
+        "cancel": "Cancelar",
+        "acceptSuccess": "Convite aceite com sucesso",
+        "acceptError": "Falha ao aceitar o convite",
+        "rejectSuccess": "Convite recusado com sucesso",
+        "rejectError": "Falha ao recusar o convite",
+        "Errors": {
+          "unauthorizedAction": "Iniciar sessão"
+        }
+      },
+      "OrganizationDetail": {
+        "Metadata": {
+          "Title": {
+            "default": "{name}",
+            "template": "{name} - %"
+          },
+          "description": "Gira a sua organização"
+        },
+        "roleIndicator": "Ver como:",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "invite": "Convidar membro",
+        "InvoiceEmail": {
+          "title": "E-mail de faturação",
+          "description": "Endereço de e-mail para receber faturas e notificações de faturação",
+          "label": "E-mail de faturação",
+          "placeholder": "billing@example.com",
+          "help": "Este e-mail receberá todas as faturas e comunicações relacionadas com faturação da Stripe",
+          "edit": "Editar",
+          "save": "Guardar",
+          "cancel": "Cancelar",
+          "Success": {
+            "update": "E-mail de faturação atualizado com sucesso"
+          },
+          "Errors": {
+            "unauthenticated": "Inicie sessão para continuar",
+            "unauthenticatedAction": "Iniciar sessão",
+            "unauthorized": "Apenas os proprietários e administradores da organização podem atualizar o e-mail de faturação",
+            "badInput": "Introduza um endereço de e-mail válido",
+            "general": "Falha ao atualizar o e-mail de faturação"
+          }
+        },
+        "Subscription": {
+          "title": "Subscrição da organização",
+          "description": "Gira o plano e os lugares da sua organização.",
+          "currentPlanLabel": "Plano atual",
+          "currentSeatsLabel": "Lugares atuais",
+          "membersLabel": "Membros ativos",
+          "seatsInputLabel": "Lugares pretendidos",
+          "seatsInputHint": "O mínimo de lugares é {minimum} para cobrir todos os membros ativos.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Sem créditos por lugar} =1 {# crédito por lugar} other {# créditos por lugar}}",
+          "noActivePlan": "Sem plano ativo",
+          "seatsUpdatedSuccess": "Lugares atualizados com sucesso.",
+          "updating": "A redirecionar...",
+          "currentPlanCta": "Plano atual",
+          "updateSeatsCta": "Atualizar lugares",
+          "choosePlanCta": "Escolher plano",
+          "Errors": {
+            "unauthenticated": "Inicie sessão para continuar",
+            "unauthenticatedAction": "Iniciar sessão",
+            "unauthorized": "Apenas os proprietários e administradores da organização podem gerir subscrições",
+            "badInput": "Forneça valores válidos de plano e lugares",
+            "general": "Falha ao gerir a subscrição da organização"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "Galeria de agentes",
+        "description": "Explore a nossa coleção de agentes."
+      },
+      "CoworkerGallerySection": {
+        "title": "Colegas de trabalho de IA",
+        "whatTheyDo": {
+          "title": "O que fazem",
+          "description": "Colegas de trabalho de IA a quem pode atribuir trabalho real. Trabalham de forma autónoma e concluem a tarefa."
+        },
+        "marketingExpertise": {
+          "title": "Especialização em marketing",
+          "description": "Treinados com trabalho real de campanhas — estratégia, conteúdo, planeamento de media e comunicação de marca."
+        },
+        "serviceplanLogoAlt": "Serviceplan Group",
+        "moreComingSoon": "+ Mais em breve"
+      },
+      "FilterSection": {
+        "searchPlaceholder": "Pesquisar agentes",
+        "reset": "Repor",
+        "tags": "Tags",
+        "selectTags": "Selecionar tags",
+        "applyTags": "Aplicar",
+        "categories": "Categorias",
+        "selectCategories": "Selecionar categorias",
+        "applyCategories": "Aplicar",
+        "featuredAgents": "Agentes em destaque",
+        "newAgents": "Novos agentes",
+        "others": "Outros"
+      },
+      "Jobs": {
+        "newJob": "Novo job",
+        "switchedWorkspace": "Mudou para a conta {account}",
+        "Header": {
+          "back": "Voltar aos agentes",
+          "newJob": "Novo job",
+          "price": "{price, plural, =0 {Gratuito} =1 {1 crédito} other {# créditos}}"
+        },
+        "Modal": {
+          "back": "Voltar"
+        },
+        "Footer": {
+          "termsAndConditions": "Termos e condições",
+          "privacyPolicy": "Política de privacidade",
+          "customerSupport": "Suporte ao cliente"
+        },
+        "RightSection": {
+          "noExecutedJobs": "Nenhum job executado"
+        },
+        "CreateJob": {
+          "title": "Novo {name}",
+          "demo": "Demo",
+          "cancel": "Cancelar",
+          "Information": {
+            "title": "Informação"
+          },
+          "Input": {
+            "title": "Input"
+          },
+          "Scheduler": {
+            "title": "Agendar job",
+            "description": "Escolha quando executar este job.",
+            "modeCards": {
+              "now": {
+                "title": "Executar agora",
+                "description": "Executar o job imediatamente."
+              },
+              "recurring": {
+                "title": "Agendar",
+                "description": "Planear um agendamento único ou recorrente."
+              }
+            },
+            "option": {
+              "oneTime": "Único",
+              "daily": "Diário",
+              "dailyWithTime": "Diário ({time})",
+              "dailyEveryNWithTime": "A cada {n} dias ({time})",
+              "weekly": "Semanal",
+              "weeklyWithWeekdayTime": "Semanal ({weekday}, {time})",
+              "weeklyListWithTime": "Semanal ({weekdays}, {time})",
+              "monthly": "Mensal",
+              "monthlyWithDayTime": "Mensal (Dia {day}, {time})",
+              "monthlyEveryNWithDayTime": "A cada {n} meses (Dia {day}, {time})",
+              "custom": "Personalizado"
+            },
+            "schedulesTitle": "Agentes agendados",
+            "pickDateTime": "Escolher data e hora",
+            "timeOfDay": "Hora do dia",
+            "pickTime": "Escolher uma hora",
+            "repeatEvery": "Repetir a cada",
+            "repeatOn": "Repetir em",
+            "ends": "Termina",
+            "never": "Nunca",
+            "on": "Em",
+            "after": "Após",
+            "occurrences": "ocorrências",
+            "pickDate": "Escolher uma data",
+            "preview": "Pré-visualização",
+            "noPreview": "Sem execuções futuras",
+            "unit": {
+              "day": "dia",
+              "week": "semana",
+              "month": "mês"
+            },
+            "save": "Guardar",
+            "cancel": "Cancelar",
+            "errors": {
+              "required": "Este campo é obrigatório.",
+              "futureDateTime": "Selecione uma data e hora futuras.",
+              "invalidTime": "Introduza uma hora válida (HH:MM).",
+              "positiveInteger": "Introduza um número inteiro positivo.",
+              "selectAtLeastOneWeekday": "Selecione pelo menos um dia da semana.",
+              "endDateInPast": "A data de fim não pode ser no passado."
+            }
+          }
+        }
+      }
+    }
+  },
+  "Share": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace de interações entre humanos e agentes",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Contrate um agente para terminar as tarefas mais demoradas"
+    },
+    "Jobs": {
+      "Metadata": {
+        "title": "{name}",
+        "defaultName": "Sem título",
+        "description": "Contrate um agente para terminar as tarefas mais demoradas"
+      }
+    },
+    "CTA": {
+      "title": "Agentes de IA on-demand ao seu alcance",
+      "description": "Selecione um agente de confiança, defina o seu briefing e receba outputs acionáveis — sem necessidade de subscrições.",
+      "buttonText": "Explorar agentes"
+    }
+  },
+  "NotFound": {
+    "title": "404",
+    "description": "Oops! The page you're looking for doesn't exist.",
+    "message": "The page you're trying to access might have been removed, had its name changed, or is temporarily unavailable.",
+    "returnHome": "Return Home"
+  },
+  "Maintenance": {
+    "title": "Maintenance Mode",
+    "description": "We're currently performing maintenance",
+    "message": "We're working hard to improve your experience. Please check back soon."
+  },
+  "Library": {
+    "Auth": {
+      "Schema": {
+        "Email": {
+          "invalid": "Introduza um endereço de e-mail válido.",
+          "required": "O e-mail é obrigatório"
+        },
+        "Name": {
+          "min": "O nome tem de ter pelo menos 2 caracteres.",
+          "max": "O nome tem de ter no máximo 128 caracteres.",
+          "invalid": "O nome tem de ser uma string válida.",
+          "required": "O nome é obrigatório"
+        },
+        "Organization": {
+          "invalid": "A organização tem de ser uma string válida.",
+          "required": "A organização é obrigatória",
+          "min": "O nome da organização tem de ter pelo menos 2 caracteres.",
+          "max": "O nome da organização tem de ter no máximo 50 caracteres."
+        },
+        "Password": {
+          "invalid": "A palavra-passe tem de ser uma string válida.",
+          "min": "A palavra-passe tem de ter pelo menos 8 caracteres",
+          "max": "A palavra-passe tem de ter no máximo 128 caracteres",
+          "lowercase": "A palavra-passe tem de conter pelo menos uma letra minúscula.",
+          "uppercase": "A palavra-passe tem de conter pelo menos uma letra maiúscula.",
+          "number": "A palavra-passe tem de conter pelo menos um número.",
+          "required": "A palavra-passe é obrigatória"
+        },
+        "CurrentPassword": {
+          "invalid": "A palavra-passe atual tem de ser uma string válida.",
+          "required": "A palavra-passe atual é obrigatória"
+        },
+        "InputPassword": {
+          "invalid": "A palavra-passe tem de ser uma string válida.",
+          "required": "A palavra-passe é obrigatória"
+        },
+        "ConfirmPassword": {
+          "invalid": "A confirmação de palavra-passe tem de ser uma string válida.",
+          "match": "A palavra-passe não corresponde",
+          "required": "A confirmação de palavra-passe é obrigatória"
+        }
+      },
+      "Email": {
+        "ResetPassword": {
+          "subject": "Sokosumi - Repor a sua palavra-passe",
+          "title": "Repor a sua palavra-passe",
+          "greeting": "Olá {name}",
+          "message": "Recebemos um pedido para repor a palavra-passe da sua conta. Se não fez este pedido, pode ignorar este e-mail em segurança.",
+          "button": "Repor palavra-passe",
+          "linkInstructions": "Ou copie e cole este URL no seu navegador:",
+          "footer": "Se não solicitou a reposição da palavra-passe, ignore este e-mail ou contacte o suporte se tiver dúvidas."
+        },
+        "Verification": {
+          "subject": "Sokosumi - Verifique o seu endereço de e-mail",
+          "title": "Verifique o seu endereço de e-mail",
+          "greeting": "Olá {name}",
+          "message": "Verifique o seu endereço de e-mail clicando no botão abaixo. Isto ajuda-nos a garantir a segurança da sua conta.",
+          "button": "Verificar e-mail",
+          "linkInstructions": "Ou copie e cole este URL no seu navegador:",
+          "footer": "Se não criou uma conta, pode ignorar este e-mail em segurança."
+        },
+        "InviteUserEmail": {
+          "subject": "Sokosumi - Convite para organização",
+          "title": "Junte-se a {invitorUsername} em {organizationName}",
+          "greeting": "Olá",
+          "message": "Foi convidado a juntar-se a {organizationName} no Sokosumi. Clique no botão abaixo para aceitar o convite.",
+          "button": "Aceitar convite",
+          "linkInstructions": "Ou copie e cole este URL no seu navegador:",
+          "footer": "Se não solicitou este convite, pode ignorar este e-mail em segurança."
+        }
+      }
+    },
+    "Email": {
+      "JobFinalStatus": {
+        "subject": "Sokosumi - Job de {agentName} {status}",
+        "preview": "O seu job para {agentName} está agora {status}.",
+        "title": "Job: {status}",
+        "greeting": "Olá {name}",
+        "body": "{jobName} para {agentName} está agora {status}.",
+        "button": "Ver job",
+        "linkInstructions": "Ou copie e cole este URL no seu navegador:",
+        "footer": "Está a receber este e-mail porque as notificações de job estão ativadas na sua conta.",
+        "fallbackJobName": "O seu job",
+        "status": {
+          "completed": "concluído",
+          "failed": "falhado",
+          "payment_failed": "pagamento falhado",
+          "refund_resolved": "reembolsado",
+          "dispute_resolved": "disputa resolvida"
+        }
+      },
+      "JobFailureNotification": {
+        "subject": "Notificação de falha do job - {jobId}",
+        "preview": "O job {jobId} falhou",
+        "title": "Notificação de falha do job",
+        "description": "Um job falhou. Aqui estão os detalhes técnicos:",
+        "network": "Rede:",
+        "agentName": "Nome do agente:",
+        "agentId": "ID do agente:",
+        "agentBlockchainIdentifier": "Identificador blockchain do agente:",
+        "jobId": "ID do job:",
+        "jobBlockchainIdentifier": "Identificador blockchain do job:",
+        "onChainStatus": "Estado on-chain:",
+        "agentStatus": "Estado do agente:",
+        "inputHash": "Hash do input:",
+        "resultHash": "Hash do resultado:",
+        "inputSchema": "Schema do input:",
+        "input": "Entrada:",
+        "output": "Saída:",
+        "footer": "Esta é uma notificação automática do Sōkosumi."
+      },
+      "JobInputRequired": {
+        "subject": "Sokosumi - {agentName} precisa do seu input",
+        "preview": "O seu job para {agentName} requer input para continuar.",
+        "title": "Ação necessária",
+        "greeting": "Olá {name}",
+        "body": "O seu job {jobName} para {agentName} está a aguardar o seu input para continuar.",
+        "button": "Fornecer input",
+        "linkInstructions": "Ou copie e cole este URL no seu navegador:",
+        "footer": "Está a receber este e-mail porque as notificações de job estão ativadas na sua conta.",
+        "fallbackJobName": "O seu job"
+      }
+    },
+    "JobInput": {
+      "Schema": {
+        "Id": {
+          "required": "O ID do input é obrigatório"
+        },
+        "Type": {
+          "enum": "Tem de ser um dos seguintes: {options}"
+        },
+        "Name": {
+          "required": "O nome do input é obrigatório"
+        },
+        "Data": {
+          "Values": {
+            "value": {
+              "required": "A opção é obrigatória"
+            },
+            "min": "Tem de ter pelo menos 1 opção",
+            "unique": "Os valores das opções têm de ser únicos"
+          }
+        },
+        "Validations": {
+          "Validation": {
+            "enum": "Tem de ser um dos seguintes: {options}"
+          },
+          "Value": {
+            "invalid": "O valor é inválido para a validação {validation}",
+            "required": "O valor é obrigatório para a validação {validation}",
+            "integer": "O valor tem de ser um número inteiro para a validação {validation}",
+            "enum": "O valor tem de ser um dos seguintes: {options}, para a validação {validation}"
+          },
+          "fileInvalid": "O schema do ficheiro é inválido. Faltam validações obrigatórias"
+        },
+        "invalidValidations": "As validações não são válidas para o tipo {type}",
+        "optionValuesRequired": "Os valores são obrigatórios para o tipo opção",
+        "noDataValues": "Os valores devem ser indefinidos para tipos que não sejam opção"
+      },
+      "Form": {
+        "clear": "Limpar",
+        "price": "{price, plural, =0 {Gratuito} =1 {1 crédito} other {# créditos}} por execução",
+        "submit": "Contratar",
+        "schedule": "Agendar",
+        "back": "Voltar",
+        "next": "Seguinte",
+        "ctrl": "Ctrl",
+        "acceptByClickingSubmit": "Ao clicar em \"Contratar\" está a aceitar os ",
+        "termsOfService": "Termos de serviço",
+        "privacyPolicy": "Política de privacidade",
+        "legal": "outros requisitos legais",
+        "byCreator": " do criador do agente",
+        "Error": {
+          "insufficientBalance": "O seu saldo de créditos é insuficiente para iniciar este job.",
+          "insufficientBalanceAction": "Adicionar créditos",
+          "badInput": "Os seus dados de input são inválidos.",
+          "unauthenticated": "Tem de iniciar sessão para iniciar um job.",
+          "unauthenticatedAction": "Iniciar sessão",
+          "default": "Falha ao iniciar o job."
+        },
+        "String": {
+          "required": "{name} é obrigatório",
+          "min": "{name} tem de ter pelo menos {value} caracteres",
+          "max": "{name} tem de ter no máximo {value} caracteres",
+          "format": "{name} tem de ser um(a) {value}"
+        },
+        "Number": {
+          "required": "{name} é obrigatório",
+          "min": "{name} tem de ser pelo menos {value}",
+          "max": "{name} tem de ser no máximo {value}",
+          "format": "{name} tem de ser um(a) {value}"
+        },
+        "Boolean": {
+          "required": "{name} é obrigatório"
+        },
+        "Option": {
+          "required": "{name} é obrigatório",
+          "min": "{name} tem de ter pelo menos {value, plural, =1 {1 opção} other {# opções}}",
+          "max": "{name} tem de ter no máximo {value, plural, =1 {1 opção} other {# opções}}",
+          "integer": "O valor da opção de {name} tem de ser um índice",
+          "nonnegative": "O valor da opção de {name} tem de ser um índice não negativo",
+          "invalid": "O valor da opção de {name} tem de ser um índice de 0 a {maxValue}"
+        },
+        "File": {
+          "required": "{name} é obrigatório",
+          "invalid": "{name} tem de ser um ficheiro válido",
+          "maxSize": "{name} tem de ter no máximo {value} bytes",
+          "description": "Arraste e largue ou escolha ficheiros para carregar",
+          "delete": "Eliminar"
+        },
+        "Date": {
+          "min": "{name} tem de ser pelo menos {value}",
+          "max": "{name} tem de ser no máximo {value}",
+          "format": "{name} tem de ser um(a) {value}"
+        }
+      },
+      "Error": {
+        "failedToFetchJobInputSchema": "Falha ao obter o schema de input do job",
+        "demoDataInvalid": "Os dados de demonstração do agente são inválidos."
+      }
+    },
+    "Duration": {
+      "Long": {
+        "days": "{value, plural, =1 {dia} other {dias}}",
+        "hours": "{value, plural, =1 {hora} other {horas}}",
+        "minutes": "{value, plural, =1 {minuto} other {minutos}}",
+        "seconds": "{value, plural, =1 {segundo} other {segundos}}"
+      },
+      "Short": {
+        "days": "{value, plural, =1 {dia} other {dias}}",
+        "hours": "{value, plural, =1 {h} other {h}}",
+        "minutes": "{value, plural, =1 {min} other {min}}",
+        "seconds": "{value, plural, =1 {s} other {s}}"
+      }
+    }
+  }
+}

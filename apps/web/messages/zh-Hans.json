@@ -1,0 +1,2454 @@
+{
+  "Job": {
+    "CreationFailed": "创建任务失败",
+    "RefundFailed": "任务退款失败",
+    "ManualChainState": "任务失败，请联系支持",
+    "SyncStatusFailed": "获取链上状态失败，请联系支持",
+    "SyncOutputFailed": "获取任务输出失败，请联系支持",
+    "UnknownError": "发生未知错误，请联系支持"
+  },
+  "Components": {
+    "AppLayoutRestrictor": {
+      "title": "不支持移动端",
+      "description": "此页面仅支持桌面设备。请切换到大屏幕。",
+      "reload": "重新加载"
+    },
+    "CookieConsent": {
+      "title": "我们使用 Cookie",
+      "description": "我们使用 Cookie 以确保您在我们的网站上获得最佳体验。有关我们如何使用 Cookie 的更多信息，请参阅我们的",
+      "cookiePolicy": "Cookie 政策",
+      "period": ".",
+      "accept": "接受",
+      "reject": "拒绝"
+    },
+    "EmergencyDialog": {
+      "title": "紧急维护",
+      "description": "由于某个第三方服务提供商的技术问题，我们目前在任务执行方面遇到了一些问题。请放心，稍后将恢复正常。",
+      "confirm": "确定"
+    },
+    "ShareButton": {
+      "linkCopied": "链接已复制到剪贴板",
+      "copyError": "复制链接失败"
+    },
+    "DefaultErrorBoundary": {
+      "error": "发生未知错误，请联系支持"
+    },
+    "Agents": {
+      "RiskClassification": {
+        "minimal": "最低风险",
+        "limited": "有限风险",
+        "high": "高风险",
+        "unacceptable": "不可接受的风险"
+      },
+      "AgentVerifiedBadge": {
+        "tooltip": "该智能体的真实性已通过智能体身份验证。",
+        "learnMore": "了解更多",
+        "aboutAgentIdentities": "关于智能体身份。"
+      },
+      "Rating": {
+        "title": "评分",
+        "noRatings": "暂无评分",
+        "averageRating": "{average} / 5 星",
+        "totalRatings": "{count} 条评分",
+        "submitRating": "为此智能体评分",
+        "ratingLabel": "您的评分",
+        "updateRating": "更新评分",
+        "commentLabel": "评论（可选）",
+        "commentPlaceholder": "分享您的体验...",
+        "commentTooLong": "评论长度不得超过 1000 个字符",
+        "submitButton": "提交评分",
+        "submitting": "提交中...",
+        "successMessage": "感谢您的反馈！",
+        "errorMessage": "提交评分失败",
+        "selectRating": "请选择评分",
+        "eligibilityMessage": "完成一次作业后即可为此智能体评分",
+        "star": "{count} 星",
+        "percentage": "{percentage}%"
+      },
+      "Reviews": {
+        "customerReviews": "客户评价",
+        "noReviewsYet": "暂无评价",
+        "beFirstToReview": "成为第一个撰写评价的人！",
+        "signInToReview": "登录后撰写评价",
+        "signIn": "登录",
+        "readMore": "查看更多",
+        "showLess": "收起",
+        "Pagination": {
+          "page": "第 {page} 页 / 共 {totalPages} 页"
+        }
+      },
+      "agentsNotAvailable": "暂无可用智能体",
+      "agentsNotFound": "未找到智能体",
+      "hire": "雇用智能体",
+      "freeDemo": "免费演示",
+      "AgentCard": {
+        "view": "查看详情",
+        "pricing": "{price, plural, =0 {免费} =1 {1 积分} other {# 积分}}",
+        "addedToBookmarks": "已将智能体添加到置顶列表",
+        "removedFromBookmarks": "已将智能体从置顶列表移除",
+        "bookmarkError": "更新置顶智能体失败"
+      },
+      "AgentDetail": {
+        "Header": {
+          "pricing": "{credits, plural, =0 {免费} =1 {1 积分} other {# 积分}}"
+        },
+        "Stats": {
+          "executedJobs": "已执行作业",
+          "averageExecutionTime": "平均执行时长",
+          "rating": "评分"
+        },
+        "Overview": {
+          "description": "描述",
+          "tags": "概览"
+        },
+        "Examples": {
+          "title": "示例输出",
+          "download": "下载"
+        },
+        "Legal": {
+          "title": "来自开发者",
+          "privacyPolicy": "隐私政策",
+          "terms": "条款",
+          "other": "其他"
+        },
+        "Risk": {
+          "title": "欧盟 AI 法案风险分类"
+        }
+      },
+      "AgentBadgeCloud": {
+        "new": "新"
+      }
+    },
+    "UserAvatar": {
+      "account": "账户",
+      "organizations": "组织",
+      "billing": "账单",
+      "connections": "连接",
+      "help": "帮助",
+      "legal": "法律",
+      "support": "支持",
+      "documentation": "文档",
+      "termsOfService": "服务条款",
+      "privacyPolicy": "隐私政策",
+      "imprint": "法律声明",
+      "acceptableUse": "可接受使用政策",
+      "logout": "退出登录",
+      "creditsUsedOfTotal": "{used, number} / {total, number} 已使用积分",
+      "creditsSummary": "积分摘要：",
+      "creditsConsumedProgressAria": "已消耗订阅积分",
+      "creditsExpiresInDays": "积分将在 {days, plural, =1 {1 天} other {# 天}}后过期",
+      "creditsExpiresToday": "积分今日过期",
+      "creditsExpired": "积分已过期"
+    },
+    "OrganizationSwitcher": {
+      "switchWorkspace": "切换工作区",
+      "searchProfiles": "搜索资料...",
+      "personalAccount": "个人账户",
+      "noProfilesFound": "未找到资料",
+      "personalAccountHeading": "个人",
+      "organization": "组织",
+      "addOrganization": "添加组织",
+      "organizationsHeading": "组织",
+      "createOrJoinOrganization": "创建或加入组织"
+    },
+    "DataTable": {
+      "Data": {
+        "noResults": "无结果。"
+      },
+      "ColumnHeader": {
+        "ascending": "升序",
+        "descending": "降序",
+        "hide": "隐藏"
+      },
+      "Pagination": {
+        "rowsSelected": "已选择 {selected} / {total, plural, =1 {# 行} other {# 行}}",
+        "rowsPerPage": "每页行数",
+        "page": "第 {page} 页 / 共 {totalPages} 页",
+        "firstPage": "跳到第一页",
+        "previousPage": "上一页",
+        "nextPage": "下一页",
+        "lastPage": "跳到最后一页"
+      }
+    },
+    "MembersTable": {
+      "Header": {
+        "name": "名称",
+        "email": "邮箱",
+        "role": "角色",
+        "actions": "操作"
+      },
+      "MemberActions": {
+        "remove": "移除",
+        "changeToOwner": "设为所有者",
+        "changeToAdmin": "设为管理员",
+        "changeToMember": "设为成员",
+        "Modal": {
+          "changeRoleTitle": "更改角色",
+          "removeTitle": "移除成员",
+          "changeToOwnerDescription": "确定要将 {member} 的角色更改为所有者吗？",
+          "changeToAdminDescription": "确定要将 {member} 的角色更改为管理员吗？",
+          "changeToMemberDescription": "确定要将 {member} 的角色更改为成员吗？",
+          "removeDescription": "确定要将 {member} 从组织中移除吗？",
+          "confirm": "确认",
+          "cancel": "取消",
+          "Success": {
+            "changeRole": "角色更改成功",
+            "remove": "成员移除成功"
+          },
+          "Error": {
+            "changeRole": "更改角色失败",
+            "remove": "移除成员失败"
+          },
+          "Errors": {
+            "unauthorizedAction": "登录"
+          }
+        }
+      },
+      "InvitationActions": {
+        "resend": "重新发送邀请",
+        "cancel": "取消邀请",
+        "CancelModal": {
+          "title": "取消邀请",
+          "description": "确定要取消对 {email} 的邀请吗？",
+          "confirm": "确认",
+          "cancel": "取消",
+          "success": "邀请取消成功",
+          "error": "取消邀请失败",
+          "Errors": {
+            "unauthorizedAction": "登录"
+          }
+        },
+        "resendSuccess": "邀请重新发送成功",
+        "resendError": "重新发送邀请失败"
+      }
+    },
+    "Breadcrumb": {
+      "jobs": "作业",
+      "agents": "智能体画廊",
+      "credits": "积分",
+      "coupon": "优惠券",
+      "subscriptions": "订阅",
+      "billing": "计费",
+      "account": "账户",
+      "organizations": "组织",
+      "api-docs": "API 文档",
+      "mcp": "模型上下文协议（MCP）",
+      "schedules": "计划智能体",
+      "chat": "聊天",
+      "tasks": "任务管理",
+      "connections": "连接",
+      "feed": "我的动态"
+    },
+    "Jobs": {
+      "StatusBadge": {
+        "demo": "演示",
+        "started": "已开始",
+        "completed": "已完成",
+        "failed": "已失败",
+        "paymentPending": "雇用中",
+        "paymentFailed": "雇用失败",
+        "processing": "处理中",
+        "agentConnectionFailed": "连接智能体失败",
+        "paymentNodeConnectionFailed": "连接节点失败",
+        "inputRequired": "需要输入",
+        "disputeRequested": "争议处理中",
+        "disputeResolved": "争议已解决",
+        "refundRequested": "已申请退款",
+        "refundResolved": "已退款",
+        "resultPending": "结果缺失",
+        "unknown": "未知"
+      },
+      "AgentStatusBadge": {
+        "initiated": "已发起",
+        "awaitingPayment": "等待付款",
+        "awaitingInput": "需要输入",
+        "running": "处理中",
+        "completed": "已完成",
+        "failed": "已失败",
+        "unknown": "未知"
+      },
+      "SharedBadge": {
+        "shared": "已共享",
+        "sharedBy": "共享者"
+      },
+      "JobDetails": {
+        "activity": "活动",
+        "actionUpdatedStatus": "将状态更改为",
+        "emptyActivity": "暂无活动。",
+        "Header": {
+          "JobName": {
+            "Schema": {
+              "Name": {
+                "invalid": "名称必须为有效字符串",
+                "min": "名称至少需要 2 个字符",
+                "max": "名称最多为 80 个字符"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "请输入任务名称"
+              }
+            },
+            "edit": "编辑",
+            "save": "保存",
+            "cancel": "取消",
+            "noName": "无名称",
+            "shared": "公开共享",
+            "organizationShared": "与组织共享",
+            "private": "私有",
+            "success": "任务名称更新成功",
+            "error": "更新任务名称失败",
+            "Errors": {
+              "unauthenticated": "请登录以更新任务名称。",
+              "unauthenticatedAction": "登录",
+              "jobNotFound": "未找到任务",
+              "unauthorized": "您不是此任务的所有者。"
+            }
+          }
+        },
+        "Meta": {
+          "propertiesTitle": "属性",
+          "status": "状态",
+          "task": "任务",
+          "coworker": "协作伙伴",
+          "openTask": "打开任务",
+          "created": "创建时间",
+          "updated": "更新时间",
+          "jobId": "任务 ID",
+          "txId": "交易 ID",
+          "inputHash": "输入哈希",
+          "resultHash": "结果哈希",
+          "onChain": "链上",
+          "calculated": "Sokosumi",
+          "missing": "缺失",
+          "started": "开始",
+          "finished": "完成",
+          "credits": "积分"
+        },
+        "InitiatedSection": {
+          "title": "您为此任务发送给智能体的内容"
+        },
+        "JobShare": {
+          "share": "分享",
+          "Modal": {
+            "title": "分享任务",
+            "publicAccessTitle": "公开访问",
+            "publicAccessDescription": "任何拥有链接的人都可以查看",
+            "organizationAccessTitle": "组织访问",
+            "organizationAccessDescription": "{organizationName} 内的任何人都可以查看",
+            "privateAccessTitle": "私有访问",
+            "privateAccessDescription": "仅您可以查看",
+            "allowSearchIndexing": "允许搜索引擎索引此结果",
+            "getLink": "获取链接",
+            "copyLink": "复制链接",
+            "close": "关闭",
+            "Success": {
+              "share": "更新共享设置成功",
+              "copyLink": "复制链接成功"
+            },
+            "Error": {
+              "share": "更新共享设置失败",
+              "copyLink": "复制链接失败"
+            },
+            "Errors": {
+              "unauthenticated": "请登录。",
+              "unauthenticatedAction": "登录",
+              "jobNotFound": "未找到任务",
+              "jobShareNotFound": "未找到任务分享",
+              "unauthorized": "您不是此任务的所有者。"
+            }
+          }
+        },
+        "VerificationBadge": {
+          "verified": "{direction} 哈希已验证。点击此处了解更多",
+          "unverified": "{direction} 哈希未验证。点击此处了解更多",
+          "pending": "{direction} 哈希验证处理中。点击此处了解更多",
+          "notApplicable": "{direction} 哈希验证不适用于免费任务。点击此处了解更多"
+        },
+        "Input": {
+          "title": "输入",
+          "failedToParseInput": "解析输入失败",
+          "none": "无输入",
+          "expand": "展开",
+          "collapse": "收起",
+          "yes": "是",
+          "no": "否"
+        },
+        "Output": {
+          "result": "结果",
+          "failedToParseResult": "解析结果失败",
+          "none": "无可用结果",
+          "download": "下载",
+          "copy": "复制",
+          "copySuccess": "结果已复制到剪贴板",
+          "copyError": "复制结果失败",
+          "maximize": "最大化",
+          "expand": "展开",
+          "collapse": "收起",
+          "maximizeTitle": "任务结果",
+          "close": "关闭",
+          "exportingMarkdown": "正在导出 Markdown…",
+          "exportingPdf": "正在导出 PDF…",
+          "exportingDocx": "正在导出 Word…",
+          "exportMarkdownError": "导出 Markdown 失败",
+          "exportPdfError": "导出 PDF 失败",
+          "exportDocxError": "导出 Word 文档失败",
+          "exportAsPdf": "导出为 PDF",
+          "exportAsDocx": "导出为 Word 文档",
+          "exportAsMarkdown": "导出为 Markdown",
+          "Refund": {
+            "error": "申请退款失败",
+            "request": "申请退款",
+            "requested": "已申请退款",
+            "disputePending": "争议处理中",
+            "disputeResolved": "争议已解决",
+            "refunded": "已退款",
+            "confirmTitle": "申请退款？",
+            "confirmDescription": "确定要为此任务申请退款吗？",
+            "learnMore": "了解更多关于退款和争议的信息",
+            "cancel": "取消",
+            "confirm": "申请退款",
+            "Tooltip": {
+              "available": {
+                "title": "可退款",
+                "description": "您可以在 {unlockAt} 之前申请退款。"
+              },
+              "unavailable": {
+                "title": "不再可退款",
+                "description": "您原本可在 {unlockAt} 之前申请退款。"
+              },
+              "failed": {
+                "title": "自动退款处理中",
+                "description": "将于 {unlockAt} 处理自动退款"
+              }
+            },
+            "Errors": {
+              "unauthenticated": "请登录以申请退款。",
+              "unauthenticatedAction": "登录",
+              "jobNotFound": "未找到任务",
+              "unauthorized": "您必须是任务所有者才能申请退款"
+            }
+          }
+        },
+        "AwaitingInput": {
+          "title": "等待输入",
+          "submit": "提交",
+          "submitSuccess": "输入提交成功",
+          "submitError": "输入提交失败",
+          "noInputsRequired": "无需额外输入"
+        },
+        "Sources": {
+          "title": "链接与文件",
+          "files": "文件",
+          "links": "链接"
+        },
+        "BlobStatusBadge": {
+          "pending": "待处理",
+          "failed": "失败"
+        },
+        "CollapsedEvents": {
+          "seeMore": "查看更多（{count}）"
+        }
+      },
+      "JobsTable": {
+        "Header": {
+          "started": "开始",
+          "status": "状态",
+          "name": "名称"
+        }
+      },
+      "JobsSearch": {
+        "placeholder": "搜索任务...",
+        "clear": "清除搜索",
+        "resultsCount": "在 {total} 条结果中找到 {found} 条"
+      },
+      "JobsList": {
+        "noExecutedJobs": "暂无已执行任务",
+        "emptyJobs": "暂无任务。"
+      }
+    },
+    "Organizations": {
+      "Role": {
+        "owner": "所有者",
+        "admin": "管理员",
+        "member": "成员",
+        "pending": "待处理",
+        "expired": "已过期"
+      },
+      "InformationModal": {
+        "Title": {
+          "create": "创建组织",
+          "edit": "编辑组织"
+        },
+        "Form": {
+          "Submit": {
+            "create": "创建",
+            "edit": "保存"
+          },
+          "cancel": "取消",
+          "Success": {
+            "create": "组织创建成功",
+            "edit": "组织更新成功"
+          },
+          "Error": {
+            "create": "创建组织失败",
+            "edit": "更新组织失败"
+          },
+          "Errors": {
+            "unauthorizedAction": "登录"
+          },
+          "Fields": {
+            "Name": {
+              "placeholder": "名称（例如 '我的组织'）"
+            }
+          }
+        },
+        "Schema": {
+          "Name": {
+            "min": "组织名称至少需要 2 个字符。",
+            "max": "组织名称最多为 50 个字符。",
+            "invalid": "组织名称必须为有效字符串。",
+            "required": "组织名称为必填项"
+          }
+        }
+      },
+      "RemoveModal": {
+        "title": "移除组织",
+        "description": "确定要移除组织 \"{organization}\" 吗？",
+        "confirm": "确认",
+        "cancel": "取消",
+        "success": "组织移除成功",
+        "error": "移除组织失败",
+        "confirmLabelPrefix": "请输入",
+        "confirmLabelSuffix": "以确认删除：",
+        "Errors": {
+          "unauthorizedAction": "登录"
+        },
+        "Schema": {
+          "Organization": {
+            "invalid": "组织名称必须为有效字符串。",
+            "required": "组织名称为必填项",
+            "min": "组织名称至少需要 2 个字符。",
+            "max": "组织名称最多为 50 个字符。"
+          },
+          "ConfirmOrganization": {
+            "invalid": "确认的组织名称必须为有效字符串。",
+            "required": "确认的组织名称为必填项",
+            "mismatch": "组织名称不匹配"
+          }
+        }
+      },
+      "InviteMemberModal": {
+        "title": "邀请成员",
+        "Form": {
+          "submit": "邀请成员",
+          "cancel": "取消",
+          "success": "成员邀请成功",
+          "error": "邀请成员失败",
+          "Errors": {
+            "unauthorizedAction": "登录"
+          },
+          "Fields": {
+            "Email": {
+              "placeholder": "邮箱"
+            },
+            "Role": {
+              "label": "角色"
+            }
+          }
+        },
+        "Schema": {
+          "Email": {
+            "invalid": "请输入有效的邮箱地址。",
+            "required": "邮箱为必填项"
+          },
+          "Role": {
+            "invalid": "角色无效"
+          }
+        }
+      },
+      "LeaveOrganizationModal": {
+        "title": "您确定要退出该组织吗？",
+        "description": "退出组织 \"{organization}\"。",
+        "leave": "退出",
+        "cancel": "取消",
+        "success": "您已退出该组织",
+        "error": "退出组织失败",
+        "Errors": {
+          "unauthorizedAction": "登录"
+        }
+      }
+    },
+    "Modals": {
+      "AuthenticationModal": {
+        "title": "欢迎回来",
+        "description": "登录或注册以雇用智能体并开始执行作业。",
+        "login": "登录",
+        "register": "注册"
+      },
+      "LogoutModal": {
+        "title": "您确定要退出登录吗？",
+        "description": "将 \"{email}\" 从 Sokosumi 退出登录。",
+        "logout": "退出登录",
+        "cancel": "取消",
+        "error": "退出登录失败"
+      }
+    },
+    "HashValue": {
+      "copy": "复制",
+      "copySuccess": "已复制到剪贴板",
+      "copyError": "复制失败"
+    }
+  },
+  "AcceptInvitation": {
+    "InvitationCard": {
+      "title": "组织邀请",
+      "description": "您已被邀请加入一个组织",
+      "hasInvitedYouToJoin": "邀请您加入",
+      "acceptedTitle": "欢迎加入 {organizationName}！",
+      "acceptedDescription": "您已成功加入该组织。我们很高兴您加入！",
+      "goToOrganization": "前往组织",
+      "declinedTitle": "邀请已拒绝",
+      "declinedDescription": "您已拒绝加入 {organizationName} 的邀请。",
+      "goToHome": "返回首页",
+      "Actions": {
+        "accept": "接受",
+        "decline": "拒绝",
+        "logout": "退出登录",
+        "ignore": "忽略",
+        "emailMismatch": "您不是受邀用户。",
+        "WithoutSession": {
+          "ifYouAlreadyHaveAnAccount": "如果您已经有账户，可以登录并接受邀请。",
+          "ifYouDontHaveAnAccount": "如果您没有账户，可以注册新账户并加入该组织。",
+          "login": "登录",
+          "register": "注册"
+        },
+        "Success": {
+          "accept": "邀请接受成功",
+          "decline": "邀请拒绝成功"
+        },
+        "Error": {
+          "accept": "接受邀请失败",
+          "decline": "拒绝邀请失败"
+        },
+        "Errors": {
+          "unauthorizedAction": "登录"
+        }
+      }
+    },
+    "InvitationErrorCard": {
+      "NotFound": {
+        "title": "未找到邀请",
+        "description": "您的邀请出现问题。",
+        "content": "没有此 ID 的邀请。",
+        "footer": "返回首页"
+      },
+      "Expired": {
+        "title": "邀请已过期",
+        "description": "您的邀请出现问题。",
+        "content": "您尝试访问的邀请已过期。",
+        "footer": "返回首页"
+      },
+      "InviterNotFound": {
+        "title": "未找到邀请人",
+        "description": "您的邀请出现问题。",
+        "content": "未找到您尝试访问的邀请的邀请人。",
+        "footer": "返回首页"
+      }
+    }
+  },
+  "Landing": {
+    "Error": {
+      "title": "出现问题",
+      "description": "我们遇到了意外错误。团队已收到通知，正在处理该问题。",
+      "errorId": "错误 ID：{errorId}",
+      "tryAgain": "重试",
+      "goHome": "前往首页"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - AI 智能体市场",
+        "template": "Sokosumi - %s"
+      },
+      "description": "一键雇用 AI 智能体"
+    },
+    "Header": {
+      "FreeCreditsBanner": {
+        "start": "限时优惠：",
+        "main": "免费获得 $30",
+        "end": " 等值积分（注册即可）"
+      },
+      "Navigation": {
+        "agents": "智能体画廊",
+        "howItWorks": "运作方式",
+        "community": "社区",
+        "monetize": "变现"
+      },
+      "Connection": {
+        "app": "打开应用"
+      }
+    },
+    "Page": {
+      "Hero": {
+        "caption": "一键创建专属智能体团队，全面提升生产力",
+        "title": "立即雇用您的第一位智能协作伙伴",
+        "AgentSearchInput": {
+          "placeholder": "搜索智能体"
+        },
+        "AgentsShowcase": {
+          "viewAgent": "查看智能体"
+        },
+        "HeroBanner": {
+          "button": "立即注册并获得 $30 免费积分"
+        }
+      },
+      "Endorsements": {
+        "title": "获得领先品牌认可"
+      },
+      "FeaturedAgents": {
+        "title": "精选智能体",
+        "button": "查看全部"
+      },
+      "NumberTalks": {
+        "title": "数据说明一切",
+        "Numbers": {
+          "Duration": {
+            "title": "更聪明的工作时长",
+            "description": "让智能体处理繁琐工作——用户反馈将重复性任务交给 AI 后，每天最多可节省 2 小时。",
+            "number": "120",
+            "caption": "分钟"
+          },
+          "Cost": {
+            "title": "更低成本",
+            "description": "用更经济的自动化替代高成本的人工工作。平均用户可降低 42% 的支出。",
+            "number": "42",
+            "caption": "% 成本降低"
+          },
+          "Savings": {
+            "title": "可扩展的能力",
+            "description": "数千个智能体正在训练与部署中——可随需求扩展，真正释放运营自由。",
+            "number": "1000+",
+            "caption": " 更多空闲时间"
+          }
+        }
+      },
+      "HowItWorks": {
+        "title": "如何运作",
+        "Steps": {
+          "SelectAndTest": {
+            "title": "选择智能体",
+            "description": "浏览精选 AI 智能体，覆盖调研、设计、编程与自动化等任务。选择最适合您需求的智能体。"
+          },
+          "RunAndMonitor": {
+            "title": "分配任务",
+            "description": "为智能体提供清晰指令或使用预置提示词。智能体会立即开始工作，并提供实时进度更新。"
+          },
+          "GetResults": {
+            "title": "审阅并迭代",
+            "description": "获取结果、提供反馈，让智能体持续优化。您始终掌控全局，繁重工作交由智能体完成。"
+          }
+        }
+      },
+      "Testimonials": {
+        "title": "用户怎么说",
+        "users": {
+          "0": {
+            "name": "Frederik Gregaard",
+            "quote": "使用该平台为我们节省了大量时间。它彻底改变了工作方式！",
+            "company": "Cardano Foundation",
+            "position": "Chief Executive Officer"
+          },
+          "1": {
+            "name": "Florian Haller",
+            "quote": "Sokosumi 为通过 AI 智能体销售服务开辟了新路径！",
+            "company": "Serviceplan Group",
+            "position": "Chief Executive Officer"
+          }
+        }
+      },
+      "JoinOurCommunity": {
+        "title": "加入社区",
+        "subtitle": "我们在线上"
+      },
+      "MonetizeYourAgent": {
+        "title": "面向开发者",
+        "subtitle": "在 Masumi 上部署您的智能体",
+        "description": "将您的 AI 智能体上线 Sokosumi 很简单。使用您偏好的框架构建或微调智能体，然后部署到 Masumi Network——这是我们为智能体经济打造的底层区块链协议。注册后，您的智能体将获得唯一身份（DID），可接受付款，并可在 Sokosumi 上被即时发现。用户随后即可雇用您的智能体、分配任务，并自动触发基于智能合约的付款。",
+        "docs": "访问文档",
+        "visit": "访问 Masumi Network"
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "智能体画廊",
+        "description": "探索我们的智能体集合。"
+      }
+    }
+  },
+  "Auth": {
+    "Error": {
+      "title": "出现问题",
+      "description": "我们遇到了意外错误。团队已收到通知，正在处理该问题。",
+      "errorId": "错误 ID：{errorId}",
+      "tryAgain": "重试",
+      "goLogin": "前往登录"
+    },
+    "Footer": {
+      "termsOfServices": "服务条款",
+      "privacyPolicy": "隐私政策",
+      "imprint": "法律声明",
+      "acceptableUse": "可接受使用政策"
+    },
+    "Schema": {
+      "Email": {
+        "invalid": "请输入有效的邮箱地址。",
+        "required": "邮箱为必填项"
+      },
+      "Name": {
+        "min": "名称至少需要 2 个字符。",
+        "max": "名称最多为 128 个字符。",
+        "invalid": "名称必须为有效字符串。",
+        "required": "名称为必填项"
+      },
+      "Password": {
+        "invalid": "密码必须为有效字符串。",
+        "min": "密码至少需要 8 个字符",
+        "max": "密码最多为 128 个字符",
+        "lowercase": "密码必须包含至少一个小写字母。",
+        "uppercase": "密码必须包含至少一个大写字母。",
+        "number": "密码必须包含至少一个数字。",
+        "required": "密码为必填项"
+      },
+      "CurrentPassword": {
+        "invalid": "当前密码必须为有效字符串。",
+        "required": "当前密码为必填项"
+      },
+      "InputPassword": {
+        "invalid": "密码必须为有效字符串。",
+        "required": "密码为必填项"
+      },
+      "ConfirmPassword": {
+        "invalid": "确认密码必须为有效字符串。",
+        "match": "密码不一致",
+        "required": "确认密码为必填项"
+      }
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - 登录 / 注册",
+        "template": "Sokosumi - %s"
+      },
+      "description": "雇用智能体来完成最耗时的任务"
+    },
+    "SocialButtons": {
+      "continueWith": "使用 {provider} 继续",
+      "divider": "或使用以下方式继续",
+      "success": "登录成功",
+      "error": "登录失败"
+    },
+    "Words": {
+      "signIn": "登录",
+      "signUp": "注册"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "登录",
+          "description": "雇用智能体来完成最耗时的任务"
+        },
+        "Header": {
+          "title": "登录",
+          "description": "在我们的平台雇用智能体"
+        },
+        "Form": {
+          "submit": "登录",
+          "success": "登录成功",
+          "error": "邮箱或密码无效",
+          "Fields": {
+            "Email": {
+              "placeholder": "邮箱"
+            },
+            "Password": {
+              "placeholder": "密码"
+            },
+            "RememberMe": {
+              "label": "保持登录状态"
+            }
+          },
+          "forgotPassword": "忘记密码？",
+          "Register": {
+            "message": "没有账户？",
+            "link": "注册"
+          },
+          "Errors": {
+            "termsNotAccepted": "您必须接受条款和条件才能登录"
+          }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "注册",
+          "description": "雇用智能体来完成最耗时的任务"
+        },
+        "Google": {
+          "title": "通过 Google 验证身份",
+          "description": "正在跳转至 Google...",
+          "error": "无法启动 Google 身份验证。请重试。",
+          "retry": "重试"
+        },
+        "Microsoft": {
+          "title": "通过 Microsoft 验证身份",
+          "description": "正在跳转至 Microsoft...",
+          "error": "无法启动 Microsoft 身份验证。请重试。",
+          "retry": "重试"
+        },
+        "Header": {
+          "title": "注册",
+          "viaInvitation": "（通过邀请）",
+          "description": "在我们的平台雇用智能体"
+        },
+        "Form": {
+          "submit": "注册",
+          "success": "注册成功",
+          "error": "注册失败",
+          "Fields": {
+            "Email": {
+              "placeholder": "邮箱"
+            },
+            "Name": {
+              "placeholder": "名称"
+            },
+            "TermsAccepted": {
+              "Label": {
+                "iAgreeTo": "我同意",
+                "termsOfService": "服务条款",
+                "and": "以及",
+                "privacyPolicy": "隐私政策"
+              }
+            },
+            "MarketingOptIn": {
+              "label": "我希望接收来自 Sokosumi 的更新和新闻"
+            },
+            "Organization": {
+              "placeholder": "选择组织",
+              "search": "搜索组织",
+              "create": "创建 {organization}",
+              "new": "新建组织",
+              "createPlaceholder": "新组织名称",
+              "success": "组织创建成功",
+              "error": "创建组织失败",
+              "invalidEmail": "请输入有效邮箱以查看或创建组织"
+            },
+            "Password": {
+              "placeholder": "密码"
+            },
+            "ConfirmPassword": {
+              "placeholder": "确认密码"
+            }
+          },
+          "Errors": {
+            "termsNotAccepted": "您必须接受条款和条件才能注册",
+            "emailDomainNotAllowed": "不允许的邮箱域名",
+            "badInput": "请正确填写表单。"
+          },
+          "Login": {
+            "message": "已有账户？",
+            "link": "登录"
+          }
+        }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "重置密码",
+          "description": "重置密码以重新访问您的账户"
+        },
+        "Header": {
+          "title": "重置密码",
+          "description": "输入您的邮箱地址，我们将向您发送重置密码的链接"
+        },
+        "Form": {
+          "success": "我们已向您发送重置密码的邮件",
+          "error": "重置密码失败",
+          "reset_password": "重置密码",
+          "Fields": {
+            "Email": {
+              "placeholder": "邮箱"
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "重置密码",
+          "description": "为您的账户设置新密码"
+        },
+        "title": "重置密码",
+        "description": "请在下方输入新密码",
+        "Form": {
+          "submit": "重置密码",
+          "success": "密码重置成功",
+          "error": "密码重置失败",
+          "Fields": {
+            "Password": {
+              "placeholder": "新密码"
+            },
+            "ConfirmPassword": {
+              "placeholder": "确认密码"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Onboarding": {
+    "Metadata": {
+      "title": "欢迎使用 Sokosumi",
+      "description": "邀请同事加入，每位可获得 $10 积分，最多 $40。"
+    },
+    "Dialog": {
+      "navigation": {
+        "skip": "跳过",
+        "back": "返回",
+        "next": "下一步",
+        "getStarted": "开始使用"
+      },
+      "coworkerTooltip": "{name} · {role}",
+      "defaultRole": "协作伙伴",
+      "alt": {
+        "coworkerAvatar": "{name} 头像"
+      },
+      "welcome": {
+        "coworkersSummary": "{first}、{second} 等"
+      },
+      "intro": {
+        "welcome": {
+          "title": "欢迎使用 Sokosumi",
+          "description": "您的 AI 营销中枢。认识您的新协作伙伴——他们已准备好开始工作。"
+        },
+        "chat": {
+          "title": "告诉他们您的需求",
+          "description": "与协作伙伴自然对话。描述您的需求，他们会从这里开始推进。"
+        },
+        "taskboard": {
+          "title": "工作井然有序",
+          "description": "您的协作伙伴会创建任务，在任务看板中跟踪进度，并确保一切按计划推进。"
+        },
+        "orchestration": {
+          "title": "其余交给他们",
+          "description": "您的协作伙伴会雇用专业智能体来进行调研、写作与分析——满足任务所需的一切。"
+        }
+      },
+      "visuals": {
+        "chat": {
+          "userMessage": "为我们的产品发布创建一套营销活动",
+          "reply": "收到！我会调研市场并拟定活动策略。"
+        },
+        "taskboard": {
+          "taskTitle": "营销活动",
+          "todo": "待办",
+          "inProgress": "进行中"
+        },
+        "orchestration": {
+          "hires": "雇用",
+          "workDelivered": "交付成果",
+          "agents": {
+            "research": "研究",
+            "writing": "写作",
+            "analytics": "分析"
+          }
+        }
+      }
+    },
+    "Actions": {
+      "Errors": {
+        "failedToComplete": "完成新手引导失败",
+        "unexpectedError": "发生意外错误"
+      }
+    }
+  },
+  "App": {
+    "enabled": "已启用",
+    "disabled": "已停用",
+    "delete": "删除",
+    "cancel": "取消",
+    "save": "保存",
+    "Chat": {
+      "Metadata": {
+        "title": "聊天",
+        "description": "与您的 AI 协作伙伴聊天"
+      },
+      "title": "聊天",
+      "description": "与您的 AI 协作伙伴聊天",
+      "Chat": {
+        "newChat": "新建聊天",
+        "noChats": "暂无聊天",
+        "noCoworkersAvailable": "暂无可用协作伙伴。请稍后重试。",
+        "emptyState": {
+          "title": "开始对话",
+          "titleWithName": "与 {name} 开始对话",
+          "description": "此聊天为空。{specialization} 发送消息开始吧！",
+          "suggestionTitle": "试试问："
+        },
+        "welcomeScreen": {
+          "greeting": "欢迎！",
+          "greetingWithName": "欢迎 {name}！",
+          "question": "今天我们能如何帮助您？",
+          "title": "欢迎！今天我们能如何帮助您？",
+          "titleWithName": "欢迎 {name}！今天我们能如何帮助您？",
+          "placeholder": "您在想什么？",
+          "suggestionsLabel": "试试问",
+          "prompts": {
+            "alex": {
+              "1": "为我的研究结果搭建一个仪表板。",
+              "2": "为我的 Excel 表格创建数据可视化。",
+              "3": "分析我 OneDrive 文件夹中的数据。"
+            },
+            "hannah": {
+              "1": "调研我们的竞争对手，并与我们进行对比。",
+              "2": "分析网站 SEO 表现以及我们在 ChatGPT 中被提及的情况。",
+              "3": "分析我们的目标受众：需求、行为、媒介习惯。"
+            },
+            "elena": {
+              "1": "我如何将 Sokosumi 用于我的业务，并从哪里开始？",
+              "2": "展示我所有未完成任务的状态，以及哪些需要我处理。",
+              "3": "哪些智能体与能力可以帮助改进我的网站？"
+            }
+          }
+        },
+        "introducingCoworkers": "介绍：智能协作伙伴",
+        "emptyTitle": "开始对话",
+        "emptyDescription": "您可以问我任何问题，我会帮助您。您可以开始新的聊天或继续现有聊天。",
+        "inputPlaceholder": "输入您的消息...",
+        "inputHint": "按 Enter 发送，Shift+Enter 换行",
+        "assistant": "助手",
+        "filterAll": "全部",
+        "filterActive": "进行中",
+        "filterAwaiting": "等待中",
+        "statusActive": "进行中",
+        "statusAwaiting": "等待中",
+        "statusResolved": "已解决",
+        "justNow": "刚刚",
+        "minutesAgo": "{count} 分钟前",
+        "hoursAgo": "{count} 小时前",
+        "daysAgo": "{count} 天前",
+        "deleteDialog": {
+          "title": "删除聊天",
+          "description": "确定要删除此聊天吗？此操作无法撤销。",
+          "cancel": "取消",
+          "delete": "删除"
+        },
+        "selectCoworker": {
+          "title": "选择智能协作伙伴",
+          "description": "选择一位协作伙伴开始对话。",
+          "placeholder": "选择协作伙伴...",
+          "useCase": "使用场景",
+          "cancel": "取消",
+          "confirm": "开始聊天",
+          "selectButton": "与 {coworker} 开始聊天"
+        },
+        "comingSoon": "即将推出",
+        "agenticCoworkers": "智能协作伙伴",
+        "models": "模型",
+        "ConversationsSidebar": {
+          "searchPlaceholder": "搜索对话...",
+          "clearSearch": "清除搜索",
+          "resultsCount": "{found} / {total}",
+          "noResults": "没有匹配的对话",
+          "noConversations": "暂无对话"
+        },
+        "uploadFileError": "上传文件失败",
+        "uploadFileErrorRetry": "上传文件失败，请重试！",
+        "uploadPastedImageError": "上传粘贴的图片失败",
+        "pendingResponseFailed": "我们这边出了点问题。请尝试重新发送上一条消息。",
+        "waitForResponses": "请等待其他回复完成（最多同时 3 个）。",
+        "imageAttachment": "图片附件",
+        "fileLabel": "文件",
+        "loaderTitle": "加载中",
+        "modelAlt": "模型",
+        "coworkerAlt": "协作伙伴",
+        "userAvatarAlt": "用户头像",
+        "authorize": "授权",
+        "reasoning": {
+          "processing": "处理中...",
+          "thinking": "思考中...",
+          "searchingFiles": "正在搜索文件...",
+          "callingTools": "正在调用工具..."
+        },
+        "chatErrorTitle": "聊天错误",
+        "errorFallbackDescription": "聊天界面出现问题。请尝试刷新页面，若问题仍然存在请联系支持。",
+        "promptPlaceholder": "你想了解什么？",
+        "pastedImage": "粘贴的图片",
+        "errorTitle": "错误",
+        "errorDescription": "处理你的消息时发生错误。请重试。",
+        "tryAgain": "重试",
+        "networkErrorAfterRetry": "多次尝试后仍无法连接服务器。请检查网络连接后重试。"
+      }
+    },
+    "Schedules": {
+      "empty": {
+        "title": "暂无计划",
+        "description": "雇用智能体并使用“计划任务”配置其执行计划。"
+      },
+      "lastRun": "上次运行",
+      "nextRun": "下次运行",
+      "inputPreview": "输入预览",
+      "confirmDeleteTitle": "删除计划",
+      "confirmDeleteDescription": "此操作无法撤销。将永久删除该计划。",
+      "pausedReason": "暂停原因",
+      "loading": "正在加载计划..."
+    },
+    "Feed": {
+      "title": "我的动态",
+      "aiInsights": "AI 洞察",
+      "summaryDescription": "这里会显示你最近完成的任务和作业。",
+      "description": "统一查看你最近完成的工作。",
+      "earlier": "更早",
+      "recentActivity": "近期活动",
+      "summary": "这里会显示你最近完成的任务和作业。",
+      "resultsTitle": "结果",
+      "emptyState": "暂无已完成的结果。",
+      "backToFeed": "返回动态",
+      "unknownAgent": "智能体",
+      "unknownCoworker": "协作伙伴",
+      "openOriginal": "查看详情",
+      "missingResult": "该动态结果已不可用。",
+      "fallbackPreview": "没有更多可用详情。",
+      "sourcesFiles": "文件",
+      "sourcesLinks": "链接",
+      "untitledJob": "未命名作业",
+      "untitledTask": "未命名任务",
+      "search": "搜索任务或作业",
+      "clearSearch": "清除搜索",
+      "loadMore": "加载更多",
+      "loadingMore": "加载中...",
+      "generating": "思考中...",
+      "generationError": "当前无法生成洞察。",
+      "type": {
+        "job": "作业",
+        "task": "任务"
+      }
+    },
+    "Tasks": {
+      "Page": {
+        "title": "任务管理",
+        "description": "为智能体创建任务，并在协作视图中高效管理您的工作。"
+      },
+      "Tabs": {
+        "tasks": "任务",
+        "jobs": "作业"
+      },
+      "Columns": {
+        "backlog": "待规划",
+        "todo": "待办",
+        "inProgress": "进行中",
+        "inputRequired": "需要输入",
+        "done": "已完成"
+      },
+      "Actions": {
+        "add": "添加",
+        "addTask": "添加任务",
+        "loading": "加载中...",
+        "loadMore": "加载更多"
+      },
+      "Errors": {
+        "updateStatus": "更新任务状态失败"
+      },
+      "Card": {
+        "comments": "评论",
+        "coworker": "协作伙伴",
+        "date": "日期"
+      },
+      "Display": {
+        "button": "显示",
+        "list": "列表",
+        "board": "看板"
+      },
+      "List": {
+        "placeholder": "暂无任务"
+      },
+      "Jobs": {
+        "filterButton": "状态",
+        "filterHideFailed": "隐藏失败",
+        "filterShowAll": "显示全部",
+        "recentTitle": "最近",
+        "emptyRecent": "暂无最近完成的作业。",
+        "emptyList": "暂无作业。",
+        "emptySection": "该状态下暂无作业。",
+        "untitled": "未命名作业",
+        "unknownAgent": "未知智能体",
+        "unknownCoworker": "未知协作伙伴"
+      },
+      "Detail": {
+        "back": "返回任务列表",
+        "properties": "属性",
+        "status": "状态",
+        "coworker": "协作伙伴",
+        "created": "创建时间",
+        "updated": "更新时间",
+        "description": "描述",
+        "jobs": "作业",
+        "jobsEmpty": "暂无作业。",
+        "jobsUntitled": "未命名作业",
+        "jobsUnknownAgent": "智能体不可用",
+        "activity": "活动",
+        "sourcesFiles": "文件",
+        "sourcesLinks": "链接",
+        "commentPlaceholder": "写下评论...",
+        "attach": "添加附件",
+        "fileLabel": "文件",
+        "uploadFileErrorRetry": "上传文件失败，请重试！",
+        "removeAttachment": "移除附件",
+        "submit": "提交",
+        "sendWith": "发送方式",
+        "ctrl": "Ctrl",
+        "authenticate": "验证身份",
+        "expand": "展开",
+        "collapse": "收起",
+        "actorCoworker": "协作伙伴",
+        "actorUser": "用户",
+        "actorSystem": "系统",
+        "originFromApp": "来自 {appName}",
+        "originApp": {
+          "sokosumi": "Sokosumi",
+          "slack": "Slack",
+          "teams": "Teams",
+          "email": "邮箱",
+          "linear": "Linear",
+          "github": "GitHub",
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "chat": "聊天",
+          "unknown": "未知"
+        },
+        "actionCommented": "评论了",
+        "actionUpdatedStatus": "将状态更改为",
+        "actionChargedCredits": "扣除 {credits, plural, =1 {# 积分} other {# 积分}}",
+        "statusLabels": {
+          "outOfCredits": "积分不足",
+          "creditsToppedUp": "已充值积分",
+          "cancelRequested": "已请求取消"
+        },
+        "billingCta": {
+          "upgradePlan": "升级套餐",
+          "addCredits": "添加积分",
+          "placeholder": "此任务需要积分才能继续。请打开计费页面以继续。"
+        },
+        "actions": {
+          "edit": "编辑",
+          "delete": "删除",
+          "confirmDelete": "删除此任务？",
+          "confirmDeleteDescription": "此操作无法撤销。将永久删除该任务。",
+          "deleteError": "删除任务失败",
+          "markAsReady": "标记为就绪",
+          "revertToDraft": "恢复为草稿",
+          "cancelRequest": "请求取消",
+          "updateStatusSuccess": "任务状态已更新"
+        },
+        "switchedWorkspace": "已切换到 {account} 账户"
+      },
+      "NewTask": {
+        "title": "新建任务",
+        "details": "详情",
+        "detailsDescription": "简要说明需要完成的任务",
+        "name": "任务名称",
+        "namePlaceholder": "输入简短标题",
+        "descriptionPlaceholder": "输入任务详情...",
+        "coworker": "协作伙伴",
+        "coworkerDescription": "选择一个协作伙伴 LLM 来为您管理此任务",
+        "status": "状态",
+        "statusDescription": "选择此任务的初始状态",
+        "statusDraft": "草稿",
+        "statusReady": "就绪",
+        "back": "返回",
+        "uploadFile": "上传文件",
+        "uploadFileError": "上传文件失败",
+        "removeAttachment": "移除附件",
+        "saveDraft": "保存",
+        "saveAsDraft": "保存为草稿",
+        "createTask": "创建任务",
+        "cancel": "取消",
+        "ctrl": "Ctrl"
+      },
+      "EditTask": {
+        "title": "编辑任务",
+        "details": "详情",
+        "detailsDescription": "在发送前更新任务详情",
+        "name": "任务名称",
+        "namePlaceholder": "输入简短标题",
+        "descriptionPlaceholder": "更新任务详情...",
+        "coworker": "协作伙伴",
+        "coworkerDescription": "选择一个协作伙伴 LLM 来为您管理此任务",
+        "status": "状态",
+        "statusDescription": "选择此任务的状态",
+        "statusDraft": "草稿",
+        "statusReady": "就绪",
+        "back": "返回",
+        "uploadFile": "上传文件",
+        "uploadFileError": "上传文件失败",
+        "removeAttachment": "移除附件",
+        "save": "保存",
+        "cancel": "取消",
+        "ctrl": "Ctrl"
+      }
+    },
+    "Error": {
+      "title": "出现问题",
+      "description": "我们遇到了意外错误。团队已收到通知，正在处理该问题。",
+      "errorId": "错误 ID：{errorId}",
+      "tryAgain": "重试",
+      "goApp": "前往应用"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - 人类与智能体交互的市场",
+        "template": "Sokosumi - %s"
+      },
+      "description": "雇用智能体来完成最耗时的任务"
+    },
+    "Sidebar": {
+      "Content": {
+        "MenuItems": {
+          "chat": "聊天",
+          "newChat": "新建聊天",
+          "exploreAgents": "探索智能体",
+          "myFeed": "我的动态",
+          "filesAndOutputs": "文件与输出",
+          "taskManager": "任务管理",
+          "scheduledAgents": "计划智能体"
+        },
+        "ChatLists": {
+          "title": "最近聊天",
+          "noChats": "暂无聊天",
+          "untitledChat": "未命名聊天",
+          "modelAlt": "模型",
+          "coworkerAlt": "协作伙伴",
+          "deleteChatAriaLabel": "删除聊天",
+          "deleteDialog": {
+            "title": "删除聊天",
+            "description": "确定要删除此聊天吗？此操作无法撤销。",
+            "cancel": "取消",
+            "delete": "删除"
+          }
+        },
+        "AgentLists": {
+          "pinnedTitle": "置顶智能体",
+          "hiredTitle": "最近智能体",
+          "noAgents": "暂无{type}智能体",
+          "pinnedType": "置顶",
+          "hiredType": "已雇用",
+          "Statuses": {
+            "completed": "已完成",
+            "failed": "已失败",
+            "paymentPending": "雇用中",
+            "paymentFailed": "雇用失败",
+            "processing": "处理中",
+            "agentConnectionFailed": "连接智能体失败",
+            "paymentNodeConnectionFailed": "连接节点失败",
+            "inputRequired": "需要输入",
+            "disputeRequested": "争议处理中",
+            "disputeResolved": "争议已解决",
+            "refundRequested": "已申请退款",
+            "refundResolved": "已退款",
+            "outputPending": "输出缺失",
+            "resultPending": "结果处理中"
+          }
+        }
+      }
+    },
+    "NoticeDialog": {
+      "defaultTitle": "通知",
+      "actions": {
+        "confirm": "确认",
+        "seeMore": "查看更多",
+        "openLink": "打开链接"
+      },
+      "errors": {
+        "acknowledgeFailed": "确认通知失败"
+      }
+    },
+    "Header": {
+      "Credit": {
+        "buy": "添加积分",
+        "extraCredits": "{credits, plural, =0 {0 额外积分} =1 {1 额外积分} other {# 额外积分}}",
+        "userBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}}",
+        "organizationBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}} ({organization})",
+        "unavailable": "积分不可用"
+      },
+      "Plan": {
+        "upgradeCta": "升级套餐",
+        "userPlan": "{plan}（个人）",
+        "organizationPlan": "{plan}（{organization}）",
+        "unavailable": "套餐不可用"
+      }
+    },
+    "EmailVerificationNotice": {
+      "title": "验证您的邮箱地址",
+      "description": "您必须验证邮箱地址才能继续使用付费账户功能。",
+      "button": "重新发送验证邮件",
+      "sendSuccess": "验证邮件已发送。请检查您的收件箱。",
+      "sendError": "发送验证邮件失败。请重试。"
+    },
+    "Subscriptions": {
+      "statusSuccess": "订阅更新成功。",
+      "statusCancel": "订阅结账已取消。",
+      "currentPlanBadge": "当前",
+      "pricePerMonth": "每月",
+      "includedCredits": "{credits, plural, =0 {无积分} =1 {包含 # 积分} other {包含 # 积分}}",
+      "upgrading": "正在跳转...",
+      "currentPlanCta": "当前套餐",
+      "upgradePlanCta": "选择套餐",
+      "billingPortalTitle": "计费门户",
+      "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅和发票。",
+      "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理账单信息和发票。",
+      "openingBillingPortal": "正在打开...",
+      "billingPortalCta": "打开计费门户",
+      "freePrice": "免费",
+      "Plans": {
+        "free": {
+          "name": "免费",
+          "description": "开始使用营销智能体。",
+          "features": {
+            "title": "免费版包含：",
+            "items": {
+              "item1": "可有限访问 1 位智能协作伙伴",
+              "item2": "通过电子邮件和 WhatsApp 访问智能体",
+              "item3": "最新一代 Claude 模型",
+              "item4": "访问 100+ 营销智能体"
+            }
+          }
+        },
+        "starter": {
+          "name": "入门",
+          "description": "面向自由职业者和微型企业。",
+          "features": {
+            "title": "包含免费版全部内容，另加：",
+            "items": {
+              "item1": "访问我们的研究协作伙伴",
+              "item2": "可按需购买更多积分",
+              "item3": "读取并创建 Office 文档",
+              "item4": "与 Microsoft 365 集成"
+            }
+          }
+        },
+        "standard": {
+          "name": "标准",
+          "description": "适用于小型企业的完整营销智能体套件。",
+          "features": {
+            "title": "包含入门版全部内容，另加：",
+            "items": {
+              "item1": "访问我们的编程协作伙伴",
+              "item2": "为智能体提供 3 倍积分",
+              "item3": "安排协作伙伴的周期性任务"
+            }
+          }
+        },
+        "pro": {
+          "name": "专业",
+          "description": "获得更多对我们的营销智能体与服务的访问权限",
+          "features": {
+            "title": "包含标准版全部内容，另加：",
+            "items": {
+              "item1": "为智能体提供大量积分",
+              "item2": "输出文件的自定义模板",
+              "item3": "抢先体验新智能体与功能"
+            }
+          }
+        }
+      },
+      "Errors": {
+        "unauthenticated": "请登录以继续",
+        "unauthenticatedAction": "登录",
+        "badInput": "套餐选择无效",
+        "general": "出现问题。请重试。"
+      },
+      "Error": {
+        "title": "出现问题",
+        "message": "加载订阅时遇到问题。请稍后重试。",
+        "retryButton": "重试"
+      }
+    },
+    "Billing": {
+      "balanceTitle": "余额",
+      "balanceDescriptionPersonal": "您个人账户的当前积分。",
+      "balanceDescriptionOrganization": "{organization} 的当前积分。{members, plural, =1 {# 名成员} other {# 名成员}}, {seats, plural, =1 {# 个席位} other {# 个席位}}。",
+      "balanceCreditsLabel": "{credits, plural, =0 {无积分} =1 {# 积分} other {# 积分}}",
+      "tabs": {
+        "subscription": "订阅",
+        "credits": "积分",
+        "coupon": "优惠券"
+      },
+      "billingPortalTitle": "计费门户",
+      "billingPortalDescription": "打开 Stripe 计费门户以管理您的账单信息和发票。",
+      "openingBillingPortal": "正在打开...",
+      "billingPortalCta": "打开计费门户",
+      "orgAccessRestrictedTitle": "计费访问受限",
+      "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
+      "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",
+      "Errors": {
+        "unauthenticated": "请登录以继续",
+        "unauthenticatedAction": "登录",
+        "unauthorized": "您无权访问该计费区域",
+        "general": "出现问题。请重试。"
+      },
+      "Error": {
+        "title": "出现问题",
+        "message": "加载计费详情时遇到问题。请稍后重试。",
+        "retryButton": "重试"
+      }
+    },
+    "Credits": {
+      "billingPortalCta": "管理购买记录",
+      "topUpTitle": "充值积分",
+      "topUpDescription": "选择金额或输入自定义数值",
+      "expiryNotice": "积分将在 {days, plural, one {# 天} other {# 天}}后过期。",
+      "costPerCredit": "{cost} / 积分",
+      "creditAmount": "{count, plural, one {# 积分} other {# 积分}}",
+      "creditsLabel": "积分数量",
+      "creditsPlaceholder": "输入数量",
+      "topUpButton": "继续",
+      "topUpButtonOrganization": "继续",
+      "couponPageTitle": "兑换优惠券",
+      "couponPageDescription": "输入优惠券码以领取积分",
+      "couponButton": "继续",
+      "couponButtonOrganization": "继续",
+      "purchaseForOrganization": "{organization}（组织）",
+      "couponLabel": "优惠券码",
+      "couponPlaceholder": "输入优惠券",
+      "creditsCleared": "已清空积分输入",
+      "couponCleared": "已清空优惠券输入",
+      "couponOrCreditsError": "请输入积分数量或优惠券码（二选一）",
+      "Error": {
+        "title": "出现问题",
+        "message": "处理您的请求时遇到问题。请稍后重试。",
+        "retryButton": "重试"
+      },
+      "Success": {
+        "title": "支付成功！",
+        "description": "您的积分购买已成功。感谢您！",
+        "fulfillmentNote": "您的积分将在稍后添加到您的账户。您可以在积分页面查看余额。",
+        "backToDashboard": "浏览智能体",
+        "getStarted": "从雇用您的第一个智能体开始",
+        "Error": {
+          "title": "出现问题",
+          "description": "未找到您的结账会话",
+          "failedNote": "请联系支持"
+        }
+      },
+      "Cancel": {
+        "title": "支付已取消",
+        "description": "您的支付流程已取消。您不会被扣款。",
+        "backToCredits": "返回积分"
+      },
+      "Errors": {
+        "invalidInput": "请输入积分数量或优惠券码（二选一）",
+        "invalidCredits": "积分数量无效",
+        "invalidCoupon": "优惠券无效",
+        "couponNotFound": "未找到优惠券",
+        "couponTypeError": "不支持的优惠券类型",
+        "couponCurrencyError": "优惠券币种不匹配",
+        "promotionCodeNotFound": "未找到促销码",
+        "unauthenticated": "请登录以继续",
+        "unauthenticatedAction": "登录",
+        "unauthorizedOrganization": "您无权为该组织购买积分",
+        "unauthorizedPersonal": "您无权购买积分",
+        "unknownError": "出现问题"
+      }
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "已连接的应用",
+        "apiKeys": "API 密钥",
+        "mcp": "MCP"
+      }
+    },
+    "MCP": {
+      "generateButton": "生成您的 Sokosumi MCP URL",
+      "urlLabel": "您的 MCP 连接 URL",
+      "existingKeyNote": "注意：这是之前生成的 MCP 连接。出于安全原因，实际 API 密钥已隐藏。",
+      "existingKeyNote2": "您可以重新生成密钥以获取新的密钥。",
+      "existingKey": "YOUR_EXISTING_KEY",
+      "keyDisabled": "您的 MCP 连接已存在，但处于停用状态。",
+      "keyDisabledNote": "您可以启用它或创建新的连接。",
+      "enableKey": "启用密钥",
+      "createNewKey": "创建新密钥",
+      "regenerateKey": "重新生成密钥",
+      "setupPreviewTitle": "如何在 Claude 中使用您的 MCP URL",
+      "docsLink": "查看 MCP 文档",
+      "loadError": "加载 MCP 连接信息失败。请重试。",
+      "copyError": "复制 URL 到剪贴板失败",
+      "retry": "重试",
+      "loading": "正在加载 MCP 连接信息...",
+      "Instructions": {
+        "title": "如何将 Claude 连接到 Sokosumi",
+        "step1": "打开 Claude 并点击 \"Settings\"",
+        "step2": "点击 \"Connectors\"",
+        "step3": "点击 \"Add custom connector\"",
+        "step4": "输入名称（例如 \"Sokosumi\"），并将您的 MCP 连接 URL 粘贴到 URL 字段中。\"Advanced Settings\" 留空。点击 \"Add\"",
+        "step5": {
+          "text": "成功！您的 Claude 现在可以与 Sokosumi 智能体交互。您可以尝试询问：",
+          "example": "Sokosumi 上目前有哪些智能体可用？"
+        }
+      }
+    },
+    "Account": {
+      "Name": {
+        "title": "更改名称",
+        "description": "更新您的显示名称",
+        "newName": "新名称",
+        "currentPassword": "当前密码",
+        "submit": "更新名称",
+        "success": "名称更新成功",
+        "error": "更新名称失败"
+      },
+      "Email": {
+        "title": "更改邮箱",
+        "description": "更新您的邮箱地址",
+        "newEmail": "新邮箱",
+        "currentPassword": "当前密码",
+        "submit": "更新邮箱",
+        "success": "邮箱更新成功",
+        "error": "更新邮箱失败"
+      },
+      "Password": {
+        "title": "更改密码",
+        "description": "更新您的密码",
+        "currentPassword": "当前密码",
+        "newPassword": "新密码",
+        "confirmPassword": "确认新密码",
+        "submit": "更新密码",
+        "success": "密码更新成功",
+        "error": "更新密码失败"
+      },
+      "NewPassword": {
+        "title": "设置密码",
+        "description": "为您的账户设置密码",
+        "newPassword": "新密码",
+        "confirmPassword": "确认新密码",
+        "submit": "设置密码",
+        "success": "密码设置成功",
+        "error": "设置密码失败"
+      },
+      "Theme": {
+        "title": "主题",
+        "description": "选择界面外观。",
+        "light": "浅色",
+        "dark": "深色",
+        "system": "跟随系统"
+      },
+      "Language": {
+        "title": "语言",
+        "description": "选择您的首选语言。",
+        "autoDetect": "自动检测",
+        "selectAriaLabel": "选择语言",
+        "options": {
+          "en": "English",
+          "de": "Deutsch",
+          "es": "Español",
+          "it": "Italiano",
+          "fr": "Français",
+          "pt": "Português",
+          "pt-BR": "Português (Brasil)",
+          "ja": "日本語",
+          "zh-Hans": "简体中文"
+        }
+      },
+      "SocialAccounts": {
+        "connected": "已连接",
+        "notConnected": "未连接",
+        "success": "账号连接成功",
+        "error": "连接 {provider} 失败",
+        "DisconnectModal": {
+          "title": "断开 {provider}",
+          "description": "确定要断开您的 {provider} 账号吗？",
+          "confirm": "断开连接",
+          "cancel": "取消",
+          "success": "账号已断开连接",
+          "error": "断开 {provider} 失败"
+        }
+      },
+      "Notifications": {
+        "title": "电子邮件通知",
+        "description": "选择我们向您的收件箱发送哪些任务更新",
+        "jobStatusEmailsTitle": "任务通知邮件",
+        "jobStatusEmailsDescription": "当任务变为重要状态（例如已完成、已失败或需要输入）时接收邮件通知。",
+        "jobStatusEmailsAriaLabel": "切换任务通知邮件",
+        "jobStatusEmailsEnabledSuccess": "已启用任务通知邮件",
+        "jobStatusEmailsDisabledSuccess": "已停用任务通知邮件",
+        "marketingEmailsTitle": "营销邮件",
+        "marketingEmailsDescription": "当我们有新功能、更新和促销活动时接收邮件。",
+        "marketingEmailsAriaLabel": "切换营销邮件通知",
+        "marketingEmailsEnabledSuccess": "已启用营销邮件",
+        "marketingEmailsDisabledSuccess": "已停用营销邮件",
+        "loading": "正在保存偏好设置...",
+        "error": "更新通知偏好失败"
+      },
+      "Delete": {
+        "title": "删除账户",
+        "description": "永久删除您的账户及所有关联数据",
+        "button": "删除账户",
+        "confirmTitle": "确定吗？",
+        "confirmDescription": "此操作无法撤销。这将永久删除您的账户，并从我们的服务器中移除您的数据。",
+        "currentPassword": "当前密码",
+        "confirm": "是的，删除我的账户",
+        "success": "账户删除成功",
+        "error": "删除账户失败"
+      },
+      "ApiKeys": {
+        "title": "API 密钥",
+        "description": "管理用于程序化访问的 API 密钥",
+        "apiDocsLink": "查看 API 文档",
+        "createButton": "创建",
+        "loading": "正在加载 API 密钥...",
+        "noKeysFound": "创建您的第一个 API 密钥以开始使用。",
+        "Table": {
+          "name": "名称",
+          "key": "密钥",
+          "status": "状态",
+          "actions": "操作",
+          "created": "创建时间"
+        },
+        "Status": {
+          "enabled": "已启用",
+          "disabled": "已停用"
+        },
+        "Actions": {
+          "enableTooltip": "启用 API 密钥",
+          "disableTooltip": "停用 API 密钥",
+          "deleteTooltip": "删除 API 密钥"
+        },
+        "CreateDialog": {
+          "title": "创建新的 API 密钥",
+          "description": "为您的 API 密钥设置一个描述性名称，以便日后识别。",
+          "nameLabel": "名称",
+          "namePlaceholder": "例如：生产服务器、开发应用",
+          "cancelButton": "取消",
+          "createButton": "创建 API 密钥",
+          "CreatedSuccess": {
+            "title": "新 API 密钥已创建",
+            "description": "您的新 API 密钥已创建成功。",
+            "doneButton": "完成"
+          }
+        },
+        "DeleteDialog": {
+          "title": "删除 API 密钥",
+          "description": "此操作无法撤销。这将永久删除该 API 密钥，任何使用该密钥的应用将无法再访问您的账户。",
+          "confirmLabelPrefix": "请输入",
+          "confirmLabelSuffix": "以确认删除：",
+          "cancelButton": "取消",
+          "deleteButton": "删除 API 密钥"
+        },
+        "Messages": {
+          "loadError": "加载 API 密钥失败",
+          "createSuccess": "API 密钥创建成功",
+          "createError": "创建 API 密钥失败",
+          "updateSuccess": "API 密钥{action}成功",
+          "updateError": "更新 API 密钥失败",
+          "deleteSuccess": "API 密钥删除成功",
+          "deleteError": "删除 API 密钥失败",
+          "copySuccess": "已复制到剪贴板",
+          "copyError": "复制到剪贴板失败",
+          "confirmNameMismatch": "确认名称不匹配"
+        },
+        "Validation": {
+          "nameRequired": "API 密钥名称为必填项",
+          "nameMaxLength": "API 密钥名称长度必须少于 100 个字符",
+          "namePattern": "API 密钥名称只能包含字母、数字、空格、连字符和下划线",
+          "keyIdRequired": "API 密钥 ID 为必填项",
+          "confirmNameRequired": "请确认 API 密钥名称"
+        }
+      },
+      "AuthorizedClients": {
+        "title": "已授权的应用",
+        "description": "可访问您账户的应用",
+        "loading": "加载中...",
+        "error": "错误：{error}",
+        "noApplications": "尚未授权任何应用。",
+        "authorized": "授权日期：{date}",
+        "revokeAccess": "撤销访问权限",
+        "revoking": "正在撤销...",
+        "confirmRevoke": "确定要撤销此应用的访问权限吗？",
+        "revokeSuccess": "访问权限已成功撤销",
+        "revokeError": "撤销访问权限失败",
+        "fetchError": "获取已授权客户端失败"
+      },
+      "OAuthConsent": {
+        "invalidRequest": {
+          "title": "OAuth 请求无效",
+          "description": "缺少必需参数：client_id 或 redirect_uri"
+        },
+        "clientNotFound": {
+          "title": "未找到客户端",
+          "description": "未找到该 OAuth 客户端。",
+          "descriptionWithId": "ID 为 {clientId} 的 OAuth 客户端不存在。"
+        },
+        "title": "授权应用",
+        "description": "某个应用希望访问您的账户",
+        "wantsAccess": "希望访问您的 Sokosumi 账户",
+        "actions": {
+          "authorize": "授权",
+          "authorizing": "正在授权...",
+          "deny": "拒绝",
+          "denying": "正在拒绝...",
+          "authorizeError": "授权应用失败",
+          "authorizeErrorRedirectUri": "授权应用失败。请检查您的重定向 URI。",
+          "authorizeErrorGeneric": "授权过程中发生错误",
+          "denyError": "拒绝应用失败"
+        }
+      },
+      "OAuthClients": {
+        "title": "OAuth 客户端",
+        "description": "管理可访问您账户的 OAuth 客户端",
+        "createButton": "创建 OAuth 客户端",
+        "createSuccess": "OAuth 客户端创建成功",
+        "createError": "创建 OAuth 客户端失败",
+        "copy": "复制",
+        "copySuccess": "已复制到剪贴板",
+        "CreateDialog": {
+          "title": "创建新的 OAuth 客户端",
+          "description": "创建一个新的 OAuth 客户端以允许应用访问您的账户。",
+          "nameLabel": "名称",
+          "namePlaceholder": "例如：我的应用、生产服务器",
+          "redirectUrisLabel": "重定向 URI",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "每行输入一个重定向 URI。每个 URI 必须是有效的 URL。",
+          "cancelButton": "取消",
+          "createButton": "创建 OAuth 客户端"
+        },
+        "CreatedSuccess": {
+          "title": "OAuth 客户端已创建",
+          "description": "您的 OAuth 客户端已成功创建。请安全保存这些凭据。",
+          "clientIdLabel": "客户端 ID",
+          "clientSecretLabel": "客户端密钥",
+          "clientSecretWarning": "该密钥仅显示一次。请务必安全保存。",
+          "doneButton": "完成"
+        }
+      },
+      "OAuthCallback": {
+        "title": "OAuth 授权回调",
+        "description": "使用授权码兑换访问令牌",
+        "authorizationCode": "授权码",
+        "state": "状态",
+        "codeVerifierLabel": "代码校验器",
+        "codeVerifierPlaceholder": "输入在授权请求中使用的代码校验器",
+        "codeVerifierHelp": "代码校验器必须与授权请求中使用的代码挑战相匹配。",
+        "noCode": "URL 中未找到授权码。请先完成授权流程。",
+        "actions": {
+          "exchange": "兑换令牌",
+          "exchanging": "正在兑换...",
+          "copy": "复制"
+        },
+        "success": {
+          "title": "令牌兑换成功",
+          "description": "您的授权码已成功兑换为访问令牌。",
+          "accessToken": "访问令牌",
+          "refreshToken": "刷新令牌",
+          "expiresIn": "有效期",
+          "seconds": "秒",
+          "scope": "范围",
+          "idToken": "ID 令牌",
+          "warning": "请安全保存这些令牌。访问令牌可用于向 API 发起已认证的请求。",
+          "tokenExchanged": "令牌兑换成功",
+          "tokenCopied": "访问令牌已复制到剪贴板",
+          "refreshTokenCopied": "刷新令牌已复制到剪贴板"
+        },
+        "error": {
+          "title": "授权错误",
+          "description": "授权过程中发生错误。",
+          "errorCode": "错误代码",
+          "errorDescription": "错误描述"
+        },
+        "errors": {
+          "authorizationFailed": "授权失败",
+          "missingCode": "URL 中未找到授权码",
+          "missingCodeVerifier": "请输入代码校验器",
+          "missingCredentials": "客户端 ID 和客户端密钥为必填项",
+          "tokenExchangeFailed": "使用授权码兑换令牌失败"
+        },
+        "clientIdLabel": "客户端 ID",
+        "clientIdPlaceholder": "输入您的 OAuth 客户端 ID",
+        "clientSecretLabel": "客户端密钥",
+        "clientSecretPlaceholder": "输入您的 OAuth 客户端密钥",
+        "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。"
+      }
+    },
+    "Organizations": {
+      "Metadata": {
+        "title": "组织",
+        "description": "管理您的组织"
+      },
+      "newOrganization": "新建组织",
+      "organizationsNotAvailable": "未找到组织",
+      "OrganizationRow": {
+        "leave": "退出",
+        "activate": "启用",
+        "deactivate": "停用"
+      },
+      "Credits": {
+        "title": "组织积分",
+        "description": "供 {organization} 成员使用",
+        "buy": "添加积分"
+      },
+      "InvitationActions": {
+        "accept": "接受",
+        "reject": "拒绝",
+        "acceptTitle": "接受邀请",
+        "rejectTitle": "拒绝邀请",
+        "acceptDescription": "确定要接受 {email} 的邀请吗？",
+        "rejectDescription": "确定要拒绝 {email} 的邀请吗？",
+        "confirm": "确认",
+        "cancel": "取消",
+        "acceptSuccess": "邀请已成功接受",
+        "acceptError": "接受邀请失败",
+        "rejectSuccess": "邀请已成功拒绝",
+        "rejectError": "拒绝邀请失败",
+        "Errors": {
+          "unauthorizedAction": "登录"
+        }
+      },
+      "OrganizationDetail": {
+        "Metadata": {
+          "Title": {
+            "default": "{name}",
+            "template": "{name} - %"
+          },
+          "description": "管理您的组织"
+        },
+        "roleIndicator": "查看身份：",
+        "edit": "编辑",
+        "delete": "删除",
+        "invite": "邀请成员",
+        "InvoiceEmail": {
+          "title": "发票邮箱",
+          "description": "用于接收发票和计费通知的邮箱地址",
+          "label": "发票邮箱",
+          "placeholder": "billing@example.com",
+          "help": "该邮箱将接收来自 Stripe 的所有发票和计费相关通信",
+          "edit": "编辑",
+          "save": "保存",
+          "cancel": "取消",
+          "Success": {
+            "update": "发票邮箱更新成功"
+          },
+          "Errors": {
+            "unauthenticated": "请登录以继续",
+            "unauthenticatedAction": "登录",
+            "unauthorized": "只有组织所有者和管理员可以更新发票邮箱",
+            "badInput": "请输入有效的邮箱地址",
+            "general": "更新发票邮箱失败"
+          }
+        },
+        "Subscription": {
+          "title": "组织订阅",
+          "description": "管理您组织的套餐和席位。",
+          "currentPlanLabel": "当前套餐",
+          "currentSeatsLabel": "当前席位",
+          "membersLabel": "活跃成员",
+          "seatsInputLabel": "目标席位",
+          "seatsInputHint": "最少席位数为 {minimum}，以覆盖所有活跃成员。",
+          "includedCreditsPerSeat": "{credits, plural, =0 {每席位无积分} =1 {每席位 # 积分} other {每席位 # 积分}}",
+          "noActivePlan": "无有效套餐",
+          "seatsUpdatedSuccess": "席位更新成功。",
+          "updating": "正在跳转...",
+          "currentPlanCta": "当前套餐",
+          "updateSeatsCta": "更新席位",
+          "choosePlanCta": "选择套餐",
+          "Errors": {
+            "unauthenticated": "请登录以继续",
+            "unauthenticatedAction": "登录",
+            "unauthorized": "只有组织所有者和管理员可以管理订阅",
+            "badInput": "请提供有效的套餐和席位数",
+            "general": "管理组织订阅失败"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "智能体画廊",
+        "description": "探索我们的智能体集合。"
+      },
+      "CoworkerGallerySection": {
+        "title": "AI 协作伙伴",
+        "whatTheyDo": {
+          "title": "他们能做什么",
+          "description": "您可以将真实工作交给 AI 协作伙伴。他们会自主完成并交付结果。"
+        },
+        "marketingExpertise": {
+          "title": "营销专长",
+          "description": "基于真实活动工作训练——策略、内容、媒介规划与品牌传播。"
+        },
+        "serviceplanLogoAlt": "Serviceplan Group",
+        "moreComingSoon": "+ 更多即将上线"
+      },
+      "FilterSection": {
+        "searchPlaceholder": "搜索智能体",
+        "reset": "重置",
+        "tags": "标签",
+        "selectTags": "选择标签",
+        "applyTags": "应用",
+        "categories": "分类",
+        "selectCategories": "选择分类",
+        "applyCategories": "应用",
+        "featuredAgents": "精选智能体",
+        "newAgents": "新智能体",
+        "others": "其他"
+      },
+      "Jobs": {
+        "newJob": "新建作业",
+        "switchedWorkspace": "已切换到 {account} 账户",
+        "Header": {
+          "back": "返回智能体",
+          "newJob": "新建作业",
+          "price": "{price, plural, =0 {免费} =1 {1 积分} other {# 积分}}"
+        },
+        "Modal": {
+          "back": "返回"
+        },
+        "Footer": {
+          "termsAndConditions": "条款与条件",
+          "privacyPolicy": "隐私政策",
+          "customerSupport": "客户支持"
+        },
+        "RightSection": {
+          "noExecutedJobs": "暂无已执行作业"
+        },
+        "CreateJob": {
+          "title": "新建 {name}",
+          "demo": "演示",
+          "cancel": "取消",
+          "Information": {
+            "title": "信息"
+          },
+          "Input": {
+            "title": "输入"
+          },
+          "Scheduler": {
+            "title": "计划作业",
+            "description": "选择此作业的运行时间。",
+            "modeCards": {
+              "now": {
+                "title": "立即运行",
+                "description": "立即执行该作业。"
+              },
+              "recurring": {
+                "title": "计划",
+                "description": "设置一次性或重复计划。"
+              }
+            },
+            "option": {
+              "oneTime": "一次性",
+              "daily": "每天",
+              "dailyWithTime": "每天（{time}）",
+              "dailyEveryNWithTime": "每 {n} 天（{time}）",
+              "weekly": "每周",
+              "weeklyWithWeekdayTime": "每周（{weekday}，{time}）",
+              "weeklyListWithTime": "每周（{weekdays}，{time}）",
+              "monthly": "每月",
+              "monthlyWithDayTime": "每月（第 {day} 天，{time}）",
+              "monthlyEveryNWithDayTime": "每 {n} 个月（第 {day} 天，{time}）",
+              "custom": "自定义"
+            },
+            "schedulesTitle": "计划智能体",
+            "pickDateTime": "选择日期和时间",
+            "timeOfDay": "一天中的时间",
+            "pickTime": "选择时间",
+            "repeatEvery": "重复间隔",
+            "repeatOn": "重复于",
+            "ends": "结束",
+            "never": "从不",
+            "on": "于",
+            "after": "在…之后",
+            "occurrences": "次",
+            "pickDate": "选择日期",
+            "preview": "预览",
+            "noPreview": "暂无即将运行的计划",
+            "unit": {
+              "day": "天",
+              "week": "周",
+              "month": "月"
+            },
+            "save": "保存",
+            "cancel": "取消",
+            "errors": {
+              "required": "此字段为必填项。",
+              "futureDateTime": "请选择未来的日期和时间。",
+              "invalidTime": "请输入有效时间（HH:MM）。",
+              "positiveInteger": "请输入正整数。",
+              "selectAtLeastOneWeekday": "请至少选择一个工作日。",
+              "endDateInPast": "结束日期不能早于今天。"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Share": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - 人类与智能体交互的市场",
+        "template": "Sokosumi - %s"
+      },
+      "description": "雇用智能体来完成最耗时的任务"
+    },
+    "Jobs": {
+      "Metadata": {
+        "title": "{name}",
+        "defaultName": "未命名",
+        "description": "雇用智能体来完成最耗时的任务"
+      }
+    },
+    "CTA": {
+      "title": "触手可及的按需 AI 智能体",
+      "description": "选择可信的智能体，设置任务需求并获得可执行的产出——无需订阅。",
+      "buttonText": "探索智能体"
+    }
+  },
+  "NotFound": {
+    "title": "404",
+    "description": "哎呀！您要访问的页面不存在。",
+    "message": "您尝试访问的页面可能已被移除、更名，或暂时不可用。",
+    "returnHome": "返回首页"
+  },
+  "Maintenance": {
+    "title": "维护模式",
+    "description": "我们正在进行维护",
+    "message": "我们正在努力改善您的体验。请稍后再试。"
+  },
+  "Library": {
+    "Auth": {
+      "Schema": {
+        "Email": {
+          "invalid": "请输入有效的邮箱地址。",
+          "required": "邮箱为必填项"
+        },
+        "Name": {
+          "min": "名称至少需要 2 个字符。",
+          "max": "名称最多为 128 个字符。",
+          "invalid": "名称必须为有效字符串。",
+          "required": "名称为必填项"
+        },
+        "Organization": {
+          "invalid": "组织必须为有效字符串。",
+          "required": "组织为必填项",
+          "min": "组织名称至少需要 2 个字符。",
+          "max": "组织名称最多为 50 个字符。"
+        },
+        "Password": {
+          "invalid": "密码必须为有效字符串。",
+          "min": "密码至少需要 8 个字符",
+          "max": "密码最多为 128 个字符",
+          "lowercase": "密码必须包含至少一个小写字母。",
+          "uppercase": "密码必须包含至少一个大写字母。",
+          "number": "密码必须包含至少一个数字。",
+          "required": "密码为必填项"
+        },
+        "CurrentPassword": {
+          "invalid": "当前密码必须为有效字符串。",
+          "required": "当前密码为必填项"
+        },
+        "InputPassword": {
+          "invalid": "密码必须为有效字符串。",
+          "required": "密码为必填项"
+        },
+        "ConfirmPassword": {
+          "invalid": "确认密码必须为有效字符串。",
+          "match": "密码不一致",
+          "required": "确认密码为必填项"
+        }
+      },
+      "Email": {
+        "ResetPassword": {
+          "subject": "Sokosumi - 重置您的密码",
+          "title": "重置您的密码",
+          "greeting": "您好 {name}",
+          "message": "我们收到了为您的账户重置密码的请求。如果这不是您发起的请求，您可以放心忽略此邮件。",
+          "button": "重置密码",
+          "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
+          "footer": "如果您未请求重置密码，请忽略此邮件；如有疑问，请联系支持。"
+        },
+        "Verification": {
+          "subject": "Sokosumi - 验证您的邮箱地址",
+          "title": "验证您的邮箱地址",
+          "greeting": "您好 {name}",
+          "message": "请点击下方按钮验证您的邮箱地址。这有助于我们保障您的账户安全。",
+          "button": "验证邮箱",
+          "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
+          "footer": "如果您未创建账户，您可以放心忽略此邮件。"
+        },
+        "InviteUserEmail": {
+          "subject": "Sokosumi - 组织邀请",
+          "title": "加入 {organizationName}，与 {invitorUsername} 一起协作",
+          "greeting": "您好",
+          "message": "您已被邀请在 Sokosumi 加入 {organizationName}。点击下方按钮接受邀请。",
+          "button": "接受邀请",
+          "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
+          "footer": "如果您未请求此邀请，您可以放心忽略此邮件。"
+        }
+      }
+    },
+    "Email": {
+      "JobFinalStatus": {
+        "subject": "Sokosumi - {agentName} 作业{status}",
+        "preview": "您针对 {agentName} 的作业现在为 {status}。",
+        "title": "作业{status}",
+        "greeting": "您好 {name}",
+        "body": "{agentName} 的 {jobName} 作业现在为 {status}。",
+        "button": "查看作业",
+        "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
+        "footer": "您收到此邮件是因为您的账户已启用作业通知。",
+        "fallbackJobName": "您的作业",
+        "status": {
+          "completed": "已完成",
+          "failed": "已失败",
+          "payment_failed": "付款失败",
+          "refund_resolved": "已退款",
+          "dispute_resolved": "争议已解决"
+        }
+      },
+      "JobFailureNotification": {
+        "subject": "作业失败通知 - {jobId}",
+        "preview": "作业 {jobId} 已失败",
+        "title": "作业失败通知",
+        "description": "某个作业已失败。以下为技术详情：",
+        "network": "网络：",
+        "agentName": "智能体名称：",
+        "agentId": "智能体 ID：",
+        "agentBlockchainIdentifier": "智能体区块链标识：",
+        "jobId": "作业 ID：",
+        "jobBlockchainIdentifier": "作业区块链标识：",
+        "onChainStatus": "链上状态：",
+        "agentStatus": "智能体状态：",
+        "inputHash": "输入哈希：",
+        "resultHash": "结果哈希：",
+        "inputSchema": "输入 Schema：",
+        "input": "输入：",
+        "output": "输出：",
+        "footer": "这是来自 Sōkosumi 的自动通知。"
+      },
+      "JobInputRequired": {
+        "subject": "Sokosumi - {agentName} 需要您的输入",
+        "preview": "您针对 {agentName} 的作业需要输入才能继续。",
+        "title": "需要您处理",
+        "greeting": "您好 {name}",
+        "body": "您针对 {agentName} 的作业 {jobName} 正在等待您的输入以继续。",
+        "button": "提供输入",
+        "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
+        "footer": "您收到此邮件是因为您的账户已启用作业通知。",
+        "fallbackJobName": "您的作业"
+      }
+    },
+    "JobInput": {
+      "Schema": {
+        "Id": {
+          "required": "输入 ID 为必填项"
+        },
+        "Type": {
+          "enum": "必须为以下之一：{options}"
+        },
+        "Name": {
+          "required": "输入名称为必填项"
+        },
+        "Data": {
+          "Values": {
+            "value": {
+              "required": "选项为必填项"
+            },
+            "min": "至少需要 1 个选项",
+            "unique": "选项值必须唯一"
+          }
+        },
+        "Validations": {
+          "Validation": {
+            "enum": "必须为以下之一：{options}"
+          },
+          "Value": {
+            "invalid": "对于校验 {validation}，值无效",
+            "required": "对于校验 {validation}，值为必填项",
+            "integer": "对于校验 {validation}，值必须为整数",
+            "enum": "对于校验 {validation}，值必须为以下之一：{options}"
+          },
+          "fileInvalid": "文件的 Schema 无效。缺少必需校验"
+        },
+        "invalidValidations": "类型 {type} 不支持这些校验",
+        "optionValuesRequired": "选项类型需要提供 Values",
+        "noDataValues": "非选项类型不得定义 Values"
+      },
+      "Form": {
+        "clear": "清除",
+        "price": "{price, plural, =0 {免费} =1 {1 积分} other {# 积分}} / 次运行",
+        "submit": "雇用",
+        "schedule": "计划",
+        "back": "返回",
+        "next": "下一步",
+        "ctrl": "Ctrl",
+        "acceptByClickingSubmit": "点击“雇用”即表示您接受 ",
+        "termsOfService": "服务条款",
+        "privacyPolicy": "隐私政策",
+        "legal": "其他法律要求",
+        "byCreator": "（由智能体创建者提供）",
+        "Error": {
+          "insufficientBalance": "您的积分余额不足，无法开始此作业。",
+          "insufficientBalanceAction": "添加积分",
+          "badInput": "您的输入数据无效。",
+          "unauthenticated": "您必须登录才能开始作业。",
+          "unauthenticatedAction": "登录",
+          "default": "开始作业失败。"
+        },
+        "String": {
+          "required": "{name} 为必填项",
+          "min": "{name} 至少需要 {value} 个字符",
+          "max": "{name} 最多为 {value} 个字符",
+          "format": "{name} 必须为 {value}"
+        },
+        "Number": {
+          "required": "{name} 为必填项",
+          "min": "{name} 至少为 {value}",
+          "max": "{name} 最多为 {value}",
+          "format": "{name} 必须为 {value}"
+        },
+        "Boolean": {
+          "required": "{name} 为必填项"
+        },
+        "Option": {
+          "required": "{name} 为必填项",
+          "min": "{name} 至少需要 {value, plural, =1 {1 个选项} other {# 个选项}}",
+          "max": "{name} 最多为 {value, plural, =1 {1 个选项} other {# 个选项}}",
+          "integer": "{name} 的选项值必须为索引",
+          "nonnegative": "{name} 的选项值必须为非负索引",
+          "invalid": "{name} 的选项值必须为 0 到 {maxValue} 之间的索引"
+        },
+        "File": {
+          "required": "{name} 为必填项",
+          "invalid": "{name} 必须是有效文件",
+          "maxSize": "{name} 最大为 {value} 字节",
+          "description": "拖拽或选择文件上传",
+          "delete": "删除"
+        },
+        "Date": {
+          "min": "{name} 至少为 {value}",
+          "max": "{name} 最多为 {value}",
+          "format": "{name} 必须为 {value}"
+        }
+      },
+      "Error": {
+        "failedToFetchJobInputSchema": "获取作业输入 Schema 失败",
+        "demoDataInvalid": "智能体的演示数据无效。"
+      }
+    },
+    "Duration": {
+      "Long": {
+        "days": "{value, plural, =1 {天} other {天}}",
+        "hours": "{value, plural, =1 {小时} other {小时}}",
+        "minutes": "{value, plural, =1 {分钟} other {分钟}}",
+        "seconds": "{value, plural, =1 {秒} other {秒}}"
+      },
+      "Short": {
+        "days": "{value, plural, =1 {天} other {天}}",
+        "hours": "{value, plural, =1 {小时} other {小时}}",
+        "minutes": "{value, plural, =1 {分} other {分}}",
+        "seconds": "{value, plural, =1 {秒} other {秒}}"
+      }
+    }
+  }
+}
