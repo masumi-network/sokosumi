@@ -1,9 +1,9 @@
 "use client";
 
 import { Languages, Monitor, Moon, Sun } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   Card,
@@ -11,12 +11,40 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  parseLocalePreference,
+  serializeLocaleCookie,
+  serializeLocaleCookieDelete,
+} from "@/i18n/locale-resolution";
+import {
+  AUTO_DETECT_VALUE,
+  LOCALE_LOCALSTORAGE_KEY,
+  type LocalePreference,
+  SUPPORTED_LOCALES,
+} from "@/i18n/locales";
 
 export function PreferencesSection() {
   const themeTranslations = useTranslations("App.Account.Theme");
   const languageTranslations = useTranslations("App.Account.Language");
+  const currentLocale = useLocale();
   const { theme, setTheme } = useTheme();
+  const [selectedLanguage, setSelectedLanguage] = useState<LocalePreference>(
+    () =>
+      parseLocalePreference(
+        typeof window === "undefined"
+          ? null
+          : window.localStorage.getItem(LOCALE_LOCALSTORAGE_KEY),
+      ) ?? AUTO_DETECT_VALUE,
+  );
 
   const selectedTheme = useMemo(() => {
     if (theme === "light" || theme === "dark" || theme === "system") {
@@ -35,6 +63,31 @@ export function PreferencesSection() {
       setTheme(nextTheme);
     }
   };
+
+  const handleLanguageChange = (nextValue: string) => {
+    if (nextValue === AUTO_DETECT_VALUE) {
+      window.localStorage.removeItem(LOCALE_LOCALSTORAGE_KEY);
+      document.cookie = serializeLocaleCookieDelete();
+      setSelectedLanguage(AUTO_DETECT_VALUE);
+      window.location.reload();
+      return;
+    }
+
+    const parsedLocale = parseLocalePreference(nextValue);
+    if (!parsedLocale) {
+      return;
+    }
+
+    window.localStorage.setItem(LOCALE_LOCALSTORAGE_KEY, parsedLocale);
+    document.cookie = serializeLocaleCookie(parsedLocale);
+    setSelectedLanguage(parsedLocale);
+    window.location.reload();
+  };
+
+  const visibleLanguageValue =
+    selectedLanguage === AUTO_DETECT_VALUE
+      ? AUTO_DETECT_VALUE
+      : selectedLanguage || currentLocale;
 
   return (
     <div className="w-full space-y-4">
@@ -88,15 +141,31 @@ export function PreferencesSection() {
               {languageTranslations("description")}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2 rounded-md border px-3 py-2">
-            <Languages className="text-muted-foreground size-4" />
-            <p className="text-sm font-medium">
-              {languageTranslations("currentLanguage")}
-            </p>
-            <span className="text-muted-foreground text-sm">
-              {languageTranslations("comingSoon")}
-            </span>
-          </div>
+          <Select
+            value={visibleLanguageValue}
+            onValueChange={handleLanguageChange}
+          >
+            <SelectTrigger
+              aria-label={languageTranslations("selectAriaLabel")}
+              className="w-full md:w-72"
+            >
+              <div className="flex items-center gap-2">
+                <Languages className="text-muted-foreground size-4" />
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={AUTO_DETECT_VALUE}>
+                {languageTranslations("autoDetect")}
+              </SelectItem>
+              <SelectSeparator />
+              {SUPPORTED_LOCALES.map((locale) => (
+                <SelectItem key={locale} value={locale}>
+                  {languageTranslations(`options.${locale}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
     </div>

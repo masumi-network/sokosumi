@@ -4415,6 +4415,10 @@ export type GetJobsData = {
          */
         agentId?: string;
         /**
+         * Filter jobs by status
+         */
+        status?: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+        /**
          * Comma-separated scope filters. Allowed values: context, owned, shared. Example: context,shared
          */
         scope?: Array<'context' | 'owned' | 'shared'>;
