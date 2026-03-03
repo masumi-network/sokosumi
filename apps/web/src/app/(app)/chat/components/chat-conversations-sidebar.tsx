@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 
-import { useChatRouteBase } from "@/app/chat/contexts/chat-route-base-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -183,6 +182,7 @@ export function ChatConversationsSidebar({
   const conversationId = params?.conversationId ?? null;
   const { deleteConversationById } = useConversationsContext();
 
+  const basePath = "/chat";
   const [searchValue, setSearchValue] = useState("");
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
@@ -205,7 +205,6 @@ export function ChatConversationsSidebar({
     [filteredConversations, getDateGroupKey],
   );
 
-  const basePath = useChatRouteBase();
   const handleConversationClick = useCallback(
     (convId: string) => {
       router.push(`${basePath}/${bucketSlug}/conversation/${convId}?open=1`, {

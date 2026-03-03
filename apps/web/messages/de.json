@@ -1,0 +1,2454 @@
+{
+  "Job": {
+    "CreationFailed": "Job konnte nicht erstellt werden",
+    "RefundFailed": "Rückerstattung fehlgeschlagen",
+    "ManualChainState": "Der Job ist fehlgeschlagen. Bitte kontaktiere unseren Support",
+    "SyncStatusFailed": "On-Chain-Status konnte nicht abgerufen werden. Bitte kontaktiere unseren Support",
+    "SyncOutputFailed": "Job-Output konnte nicht abgerufen werden. Bitte kontaktiere unseren Support",
+    "UnknownError": "Ein unbekannter Fehler ist aufgetreten. Bitte kontaktiere unseren Support"
+  },
+  "Components": {
+    "AppLayoutRestrictor": {
+      "title": "Mobile nicht unterstützt",
+      "description": "Diese Seite ist nur auf Desktop-Geräten verfügbar. Bitte wechsle zu einem größeren Bildschirm.",
+      "reload": "Neu laden"
+    },
+    "CookieConsent": {
+      "title": "Wir verwenden Cookies",
+      "description": "Wir verwenden Cookies, um dir die bestmögliche Erfahrung auf unserer Website zu bieten. Weitere Informationen zur Cookie-Nutzung findest du in unserer ",
+      "cookiePolicy": "Cookie-Richtlinie",
+      "period": ".",
+      "accept": "Akzeptieren",
+      "reject": "Ablehnen"
+    },
+    "EmergencyDialog": {
+      "title": "Notfallwartung",
+      "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",
+      "confirm": "OK"
+    },
+    "ShareButton": {
+      "linkCopied": "Link in Zwischenablage kopiert",
+      "copyError": "Link konnte nicht kopiert werden"
+    },
+    "DefaultErrorBoundary": {
+      "error": "Ein unbekannter Fehler ist aufgetreten. Bitte kontaktiere unseren Support"
+    },
+    "Agents": {
+      "RiskClassification": {
+        "minimal": "Minimales Risiko",
+        "limited": "Begrenztes Risiko",
+        "high": "Hohes Risiko",
+        "unacceptable": "Inakzeptables Risiko"
+      },
+      "AgentVerifiedBadge": {
+        "tooltip": "Die Authentizität dieses Agents ist durch eine Agent-Identität verifiziert.",
+        "learnMore": "Mehr erfahren",
+        "aboutAgentIdentities": "über Agent-Identitäten."
+      },
+      "Rating": {
+        "title": "Bewertungen",
+        "noRatings": "Noch keine Bewertungen",
+        "averageRating": "{average} von 5 Sternen",
+        "totalRatings": "{count} Bewertungen",
+        "submitRating": "Diesen Agent bewerten",
+        "ratingLabel": "Deine Bewertung",
+        "updateRating": "Bewertung aktualisieren",
+        "commentLabel": "Kommentar (optional)",
+        "commentPlaceholder": "Teile deine Erfahrung...",
+        "commentTooLong": "Der Kommentar darf maximal 1000 Zeichen enthalten",
+        "submitButton": "Bewertung absenden",
+        "submitting": "Wird gesendet...",
+        "successMessage": "Danke für dein Feedback!",
+        "errorMessage": "Bewertung konnte nicht übermittelt werden",
+        "selectRating": "Bitte wähle eine Bewertung aus",
+        "eligibilityMessage": "Führe einen Job aus, um diesen Agent zu bewerten",
+        "star": "{count} Stern",
+        "percentage": "{percentage}%"
+      },
+      "Reviews": {
+        "customerReviews": "Kundenbewertungen",
+        "noReviewsYet": "Noch keine Rezensionen",
+        "beFirstToReview": "Schreib die erste Rezension!",
+        "signInToReview": "Melde dich an, um eine Rezension zu schreiben",
+        "signIn": "Anmelden",
+        "readMore": "Mehr lesen",
+        "showLess": "Weniger anzeigen",
+        "Pagination": {
+          "page": "Seite {page} von {totalPages}"
+        }
+      },
+      "agentsNotAvailable": "Keine Agents verfügbar",
+      "agentsNotFound": "Keine Agents gefunden",
+      "hire": "Agent beauftragen",
+      "freeDemo": "Kostenlose Demo",
+      "AgentCard": {
+        "view": "Details anzeigen",
+        "pricing": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
+        "addedToBookmarks": "Agent angeheftet",
+        "removedFromBookmarks": "Agent losgeheftet",
+        "bookmarkError": "Angeheftete Agents konnten nicht aktualisiert werden"
+      },
+      "AgentDetail": {
+        "Header": {
+          "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+        },
+        "Stats": {
+          "executedJobs": "Ausgeführte Jobs",
+          "averageExecutionTime": "Durchschnittliche Ausführungszeit",
+          "rating": "Bewertung"
+        },
+        "Overview": {
+          "description": "Beschreibung",
+          "tags": "Auf einen Blick"
+        },
+        "Examples": {
+          "title": "Beispiel-Outputs",
+          "download": "Herunterladen"
+        },
+        "Legal": {
+          "title": "Vom Entwickler",
+          "privacyPolicy": "Datenschutzrichtlinie",
+          "terms": "Nutzungsbedingungen",
+          "other": "Sonstiges"
+        },
+        "Risk": {
+          "title": "EU-KI-Gesetz Risikoklassifizierung"
+        }
+      },
+      "AgentBadgeCloud": {
+        "new": "Neu"
+      }
+    },
+    "UserAvatar": {
+      "account": "Konto",
+      "organizations": "Organisationen",
+      "billing": "Abrechnung",
+      "connections": "Verbindungen",
+      "support": "Support",
+      "logout": "Abmelden",
+      "creditsUsedOfTotal": "{used, number} / {total, number} Credits verwendet",
+      "creditsConsumedProgressAria": "Verbrauchte Abo-Credits",
+      "help": "Hilfe",
+      "legal": "Rechtliches",
+      "documentation": "Dokumentation",
+      "termsOfService": "Nutzungsbedingungen",
+      "privacyPolicy": "Datenschutzrichtlinie",
+      "imprint": "Impressum",
+      "acceptableUse": "Zulässige Nutzung",
+      "creditsSummary": "Credits-Übersicht:",
+      "creditsExpiresInDays": "Credits verfallen in {days, plural, =1 {1 Tag} other {# Tagen}}",
+      "creditsExpiresToday": "Credits verfallen heute",
+      "creditsExpired": "Credits verfallen"
+    },
+    "OrganizationSwitcher": {
+      "switchWorkspace": "Workspace wechseln",
+      "personalAccount": "Persönlicher Account",
+      "personalAccountHeading": "Persönlich",
+      "organizationsHeading": "Organisationen",
+      "createOrJoinOrganization": "Organisation erstellen oder beitreten",
+      "searchProfiles": "Profile suchen...",
+      "noProfilesFound": "Keine Profile gefunden",
+      "organization": "Organisation",
+      "addOrganization": "Organisation hinzufügen"
+    },
+    "DataTable": {
+      "Data": {
+        "noResults": "Keine Ergebnisse."
+      },
+      "ColumnHeader": {
+        "ascending": "Aufsteigend",
+        "descending": "Absteigend",
+        "hide": "Ausblenden"
+      },
+      "Pagination": {
+        "rowsSelected": "{selected} von {total, plural, =1 {# Zeile} other {# Zeilen}} ausgewählt",
+        "rowsPerPage": "Zeilen pro Seite",
+        "page": "Seite {page} von {totalPages}",
+        "firstPage": "Zur ersten Seite",
+        "previousPage": "Zur vorherigen Seite",
+        "nextPage": "Zur nächsten Seite",
+        "lastPage": "Zur letzten Seite"
+      }
+    },
+    "MembersTable": {
+      "Header": {
+        "name": "Name",
+        "email": "E-Mail",
+        "role": "Rolle",
+        "actions": "Aktionen"
+      },
+      "MemberActions": {
+        "remove": "Entfernen",
+        "changeToOwner": "Zu Eigentümer ändern",
+        "changeToAdmin": "Zu Admin ändern",
+        "changeToMember": "Zu Mitglied ändern",
+        "Modal": {
+          "changeRoleTitle": "Rolle ändern",
+          "removeTitle": "Mitglied entfernen",
+          "changeToOwnerDescription": "Möchtest du die Rolle von {member} wirklich zu Eigentümer ändern?",
+          "changeToAdminDescription": "Möchtest du die Rolle von {member} wirklich zu Admin ändern?",
+          "changeToMemberDescription": "Möchtest du die Rolle von {member} wirklich zu Mitglied ändern?",
+          "removeDescription": "Möchtest du {member} wirklich aus der Organisation entfernen?",
+          "confirm": "Bestätigen",
+          "cancel": "Abbrechen",
+          "Success": {
+            "changeRole": "Rolle erfolgreich geändert",
+            "remove": "Mitglied erfolgreich entfernt"
+          },
+          "Error": {
+            "changeRole": "Rolle konnte nicht geändert werden",
+            "remove": "Mitglied konnte nicht entfernt werden"
+          },
+          "Errors": {
+            "unauthorizedAction": "Anmelden"
+          }
+        }
+      },
+      "InvitationActions": {
+        "resend": "Einladung erneut senden",
+        "cancel": "Einladung abbrechen",
+        "CancelModal": {
+          "title": "Einladung abbrechen",
+          "description": "Möchtest du die Einladung von {email} wirklich abbrechen?",
+          "confirm": "Bestätigen",
+          "cancel": "Abbrechen",
+          "success": "Einladung erfolgreich abgebrochen",
+          "error": "Einladung konnte nicht abgebrochen werden",
+          "Errors": {
+            "unauthorizedAction": "Anmelden"
+          }
+        },
+        "resendSuccess": "Einladung erfolgreich erneut gesendet",
+        "resendError": "Einladung konnte nicht erneut gesendet werden"
+      }
+    },
+    "Breadcrumb": {
+      "jobs": "Jobs",
+      "agents": "Galerie",
+      "credits": "Credits",
+      "coupon": "Gutschein",
+      "subscriptions": "Abonnements",
+      "billing": "Abrechnung",
+      "account": "Konto",
+      "organizations": "Organisationen",
+      "api-docs": "API-Dokumentation",
+      "mcp": "Model Context Protocol (MCP)",
+      "schedules": "Geplante Agents",
+      "chat": "Chat",
+      "tasks": "Task Manager",
+      "connections": "Verbindungen",
+      "feed": "Mein Feed"
+    },
+    "Jobs": {
+      "StatusBadge": {
+        "demo": "Demo",
+        "started": "Gestartet",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "paymentPending": "In Beauftragung",
+        "paymentFailed": "Beauftragung fehlgeschlagen",
+        "processing": "In Bearbeitung",
+        "agentConnectionFailed": "Agent-Verbindung fehlgeschlagen",
+        "paymentNodeConnectionFailed": "Knoten-Verbindung fehlgeschlagen",
+        "inputRequired": "Input erforderlich",
+        "disputeRequested": "Einspruch ausstehend",
+        "disputeResolved": "Einspruch gelöst",
+        "refundRequested": "Rückerstattung beantragt",
+        "refundResolved": "Erstattet",
+        "resultPending": "Ergebnis fehlt",
+        "unknown": "Unbekannt"
+      },
+      "AgentStatusBadge": {
+        "initiated": "Initiiert",
+        "awaitingPayment": "Zahlung ausstehend",
+        "awaitingInput": "Input erforderlich",
+        "running": "In Bearbeitung",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "unknown": "Unbekannt"
+      },
+      "SharedBadge": {
+        "shared": "Geteilt",
+        "sharedBy": "Geteilt von"
+      },
+      "JobDetails": {
+        "activity": "Aktivität",
+        "actionUpdatedStatus": "Status geändert zu",
+        "emptyActivity": "Noch keine Aktivitäten.",
+        "Header": {
+          "JobName": {
+            "Schema": {
+              "Name": {
+                "invalid": "Name muss eine gültige Zeichenkette sein",
+                "min": "Name muss mindestens 2 Zeichen lang sein",
+                "max": "Name darf maximal 80 Zeichen lang sein"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "Job-Namen eingeben"
+              }
+            },
+            "edit": "Bearbeiten",
+            "save": "Speichern",
+            "cancel": "Abbrechen",
+            "noName": "Kein Name",
+            "shared": "Öffentlich geteilt",
+            "organizationShared": "Mit Organisation geteilt",
+            "private": "Privat",
+            "success": "Job-Name erfolgreich aktualisiert",
+            "error": "Job-Name konnte nicht aktualisiert werden",
+            "Errors": {
+              "unauthenticated": "Du musst angemeldet sein, um den Job-Namen zu ändern.",
+              "unauthenticatedAction": "Anmelden",
+              "jobNotFound": "Job nicht gefunden",
+              "unauthorized": "Du bist nicht der Eigentümer dieses Jobs."
+            }
+          }
+        },
+        "Meta": {
+          "propertiesTitle": "Eigenschaften",
+          "status": "Status",
+          "task": "Task",
+          "coworker": "Coworker",
+          "openTask": "Task öffnen",
+          "created": "Erstellt",
+          "updated": "Aktualisiert",
+          "jobId": "Job-ID",
+          "txId": "Transaktions-ID",
+          "inputHash": "Input-Hash",
+          "resultHash": "Ergebnis-Hash",
+          "onChain": "On-Chain",
+          "calculated": "Sokosumi",
+          "missing": "Fehlend",
+          "started": "Gestartet",
+          "finished": "Abgeschlossen",
+          "credits": "Credits"
+        },
+        "InitiatedSection": {
+          "title": "Was du für diesen Job an den Agent gesendet hast"
+        },
+        "JobShare": {
+          "share": "Teilen",
+          "Modal": {
+            "title": "Job teilen",
+            "publicAccessTitle": "Öffentlicher Zugriff",
+            "publicAccessDescription": "Jeder mit dem Link kann den Inhalt sehen",
+            "organizationAccessTitle": "Organisations-Zugriff",
+            "organizationAccessDescription": "Alle Mitglieder von {organizationName} können den Inhalt sehen",
+            "privateAccessTitle": "Privater Zugriff",
+            "privateAccessDescription": "Nur du kannst den Inhalt sehen",
+            "allowSearchIndexing": "Dieses Ergebnis durch Suchmaschinen indexieren lassen",
+            "getLink": "Link abrufen",
+            "copyLink": "Link kopieren",
+            "close": "Schließen",
+            "Success": {
+              "share": "Freigabe erfolgreich aktualisiert",
+              "copyLink": "Link erfolgreich kopiert"
+            },
+            "Error": {
+              "share": "Freigabe konnte nicht aktualisiert werden",
+              "copyLink": "Link konnte nicht kopiert werden"
+            },
+            "Errors": {
+              "unauthenticated": "Du musst angemeldet sein.",
+              "unauthenticatedAction": "Anmelden",
+              "jobNotFound": "Job nicht gefunden",
+              "jobShareNotFound": "Job-Freigabe nicht gefunden",
+              "unauthorized": "Du bist nicht der Eigentümer dieses Jobs."
+            }
+          }
+        },
+        "VerificationBadge": {
+          "verified": "{direction}-Hash ist verifiziert. Hier klicken für mehr Informationen",
+          "unverified": "{direction}-Hash ist nicht verifiziert. Hier klicken für mehr Informationen",
+          "pending": "{direction}-Hash-Verifizierung ausstehend. Hier klicken für mehr Informationen",
+          "notApplicable": "{direction}-Hash-Verifizierung ist für kostenlose Jobs nicht verfügbar. Hier klicken für mehr Informationen"
+        },
+        "Input": {
+          "title": "Input",
+          "failedToParseInput": "Input konnte nicht verarbeitet werden",
+          "none": "Kein Input",
+          "expand": "Ausklappen",
+          "collapse": "Weniger anzeigen",
+          "yes": "Ja",
+          "no": "Nein"
+        },
+        "Output": {
+          "result": "Ergebnis",
+          "failedToParseResult": "Ergebnis konnte nicht verarbeitet werden",
+          "none": "Kein Ergebnis verfügbar",
+          "download": "Herunterladen",
+          "copy": "Kopieren",
+          "copySuccess": "Ergebnis in Zwischenablage kopiert",
+          "copyError": "Ergebnis konnte nicht kopiert werden",
+          "maximize": "Maximieren",
+          "expand": "Ausklappen",
+          "collapse": "Weniger anzeigen",
+          "maximizeTitle": "Job-Ergebnis",
+          "close": "Schließen",
+          "exportingMarkdown": "Markdown wird exportiert…",
+          "exportingPdf": "PDF wird exportiert…",
+          "exportingDocx": "Word wird exportiert…",
+          "exportMarkdownError": "Markdown-Export fehlgeschlagen",
+          "exportPdfError": "PDF-Export fehlgeschlagen",
+          "exportDocxError": "Word-Dokument-Export fehlgeschlagen",
+          "exportAsPdf": "Als PDF exportieren",
+          "exportAsDocx": "Als Word-Dokument exportieren",
+          "exportAsMarkdown": "Als Markdown exportieren",
+          "Refund": {
+            "error": "Rückerstattung konnte nicht beantragt werden",
+            "request": "Rückerstattung beantragen",
+            "requested": "Rückerstattung beantragt",
+            "disputePending": "Einspruch ausstehend",
+            "disputeResolved": "Einspruch gelöst",
+            "refunded": "Erstattet",
+            "confirmTitle": "Rückerstattung beantragen?",
+            "confirmDescription": "Möchtest du für diesen Job wirklich eine Rückerstattung beantragen?",
+            "learnMore": "Mehr über Rückerstattungen und Einsprüche erfahren",
+            "cancel": "Abbrechen",
+            "confirm": "Rückerstattung beantragen",
+            "Tooltip": {
+              "available": {
+                "title": "Rückerstattung möglich",
+                "description": "Du kannst bis {unlockAt} eine Rückerstattung beantragen."
+              },
+              "unavailable": {
+                "title": "Rückerstattung nicht mehr möglich",
+                "description": "Du hättest bis {unlockAt} eine Rückerstattung beantragen können."
+              },
+              "failed": {
+                "title": "Automatische Rückerstattung ausstehend",
+                "description": "Eine automatische Rückerstattung wird am {unlockAt} verarbeitet"
+              }
+            },
+            "Errors": {
+              "unauthenticated": "Du musst angemeldet sein, um eine Rückerstattung zu beantragen.",
+              "unauthenticatedAction": "Anmelden",
+              "jobNotFound": "Job nicht gefunden",
+              "unauthorized": "Nur der Job-Eigentümer kann eine Rückerstattung beantragen"
+            }
+          }
+        },
+        "AwaitingInput": {
+          "title": "Input erforderlich",
+          "submit": "Absenden",
+          "submitSuccess": "Input erfolgreich übermittelt",
+          "submitError": "Input konnte nicht übermittelt werden",
+          "noInputsRequired": "Kein weiterer Input erforderlich"
+        },
+        "Sources": {
+          "title": "Links & Dateien",
+          "files": "Dateien",
+          "links": "Links"
+        },
+        "BlobStatusBadge": {
+          "pending": "Ausstehend",
+          "failed": "Fehlgeschlagen"
+        },
+        "CollapsedEvents": {
+          "seeMore": "Mehr anzeigen ({count})"
+        }
+      },
+      "JobsTable": {
+        "Header": {
+          "started": "Gestartet",
+          "status": "Status",
+          "name": "Name"
+        }
+      },
+      "JobsSearch": {
+        "placeholder": "Jobs durchsuchen...",
+        "clear": "Suche zurücksetzen",
+        "resultsCount": "{found} von {total} Ergebnissen gefunden"
+      },
+      "JobsList": {
+        "noExecutedJobs": "Keine ausgeführten Jobs",
+        "emptyJobs": "Noch keine Jobs."
+      }
+    },
+    "Organizations": {
+      "Role": {
+        "owner": "Eigentümer",
+        "admin": "Admin",
+        "member": "Mitglied",
+        "pending": "Ausstehend",
+        "expired": "Abgelaufen"
+      },
+      "InformationModal": {
+        "Title": {
+          "create": "Organisation erstellen",
+          "edit": "Organisation bearbeiten"
+        },
+        "Form": {
+          "Submit": {
+            "create": "Erstellen",
+            "edit": "Speichern"
+          },
+          "cancel": "Abbrechen",
+          "Success": {
+            "create": "Organisation erfolgreich erstellt",
+            "edit": "Organisation erfolgreich aktualisiert"
+          },
+          "Error": {
+            "create": "Organisation konnte nicht erstellt werden",
+            "edit": "Organisation konnte nicht aktualisiert werden"
+          },
+          "Errors": {
+            "unauthorizedAction": "Anmelden"
+          },
+          "Fields": {
+            "Name": {
+              "placeholder": "Name (z. B. 'Meine Organisation')"
+            }
+          }
+        },
+        "Schema": {
+          "Name": {
+            "min": "Organisationsname muss mindestens 2 Zeichen lang sein.",
+            "max": "Organisationsname darf maximal 50 Zeichen lang sein.",
+            "invalid": "Organisationsname muss eine gültige Zeichenkette sein.",
+            "required": "Organisationsname ist erforderlich"
+          }
+        }
+      },
+      "RemoveModal": {
+        "title": "Organisation entfernen",
+        "description": "Möchtest du die Organisation \"{organization}\" wirklich entfernen?",
+        "confirm": "Bestätigen",
+        "cancel": "Abbrechen",
+        "success": "Organisation erfolgreich entfernt",
+        "error": "Organisation konnte nicht entfernt werden",
+        "confirmLabelPrefix": "Tippe",
+        "confirmLabelSuffix": "zur Bestätigung der Löschung:",
+        "Errors": {
+          "unauthorizedAction": "Anmelden"
+        },
+        "Schema": {
+          "Organization": {
+            "invalid": "Organisationsname muss eine gültige Zeichenkette sein.",
+            "required": "Organisationsname ist erforderlich",
+            "min": "Organisationsname muss mindestens 2 Zeichen lang sein.",
+            "max": "Organisationsname darf maximal 50 Zeichen lang sein."
+          },
+          "ConfirmOrganization": {
+            "invalid": "Bestätigungs-Organisationsname muss eine gültige Zeichenkette sein.",
+            "required": "Bestätigungs-Organisationsname ist erforderlich",
+            "mismatch": "Organisationsname stimmt nicht überein"
+          }
+        }
+      },
+      "InviteMemberModal": {
+        "title": "Mitglied einladen",
+        "Form": {
+          "submit": "Mitglied einladen",
+          "cancel": "Abbrechen",
+          "success": "Mitglied erfolgreich eingeladen",
+          "error": "Mitglied konnte nicht eingeladen werden",
+          "Errors": {
+            "unauthorizedAction": "Anmelden"
+          },
+          "Fields": {
+            "Email": {
+              "placeholder": "E-Mail"
+            },
+            "Role": {
+              "label": "Rolle"
+            }
+          }
+        },
+        "Schema": {
+          "Email": {
+            "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
+            "required": "E-Mail ist erforderlich"
+          },
+          "Role": {
+            "invalid": "Ungültige Rolle"
+          }
+        }
+      },
+      "LeaveOrganizationModal": {
+        "title": "Möchtest du die Organisation wirklich verlassen?",
+        "description": "Organisation \"{organization}\" verlassen.",
+        "leave": "Verlassen",
+        "cancel": "Abbrechen",
+        "success": "Du hast die Organisation verlassen",
+        "error": "Organisation konnte nicht verlassen werden",
+        "Errors": {
+          "unauthorizedAction": "Anmelden"
+        }
+      }
+    },
+    "Modals": {
+      "AuthenticationModal": {
+        "title": "Willkommen zurück",
+        "description": "Melde dich an oder registriere dich, um Agents zu beauftragen und Jobs zu starten.",
+        "login": "Anmelden",
+        "register": "Registrieren"
+      },
+      "LogoutModal": {
+        "title": "Möchtest du dich wirklich abmelden?",
+        "description": "\"{email}\" von Sokosumi abmelden.",
+        "logout": "Abmelden",
+        "cancel": "Abbrechen",
+        "error": "Abmelden fehlgeschlagen"
+      }
+    },
+    "HashValue": {
+      "copy": "Kopieren",
+      "copySuccess": "In Zwischenablage kopiert",
+      "copyError": "Kopieren fehlgeschlagen"
+    }
+  },
+  "AcceptInvitation": {
+    "InvitationCard": {
+      "title": "Organisationseinladung",
+      "description": "Du wurdest eingeladen, einer Organisation beizutreten",
+      "hasInvitedYouToJoin": "hat dich eingeladen, beizutreten",
+      "acceptedTitle": "Willkommen bei {organizationName}!",
+      "acceptedDescription": "Du bist der Organisation erfolgreich beigetreten. Schön, dass du dabei bist!",
+      "goToOrganization": "Zur Organisation",
+      "declinedTitle": "Einladung abgelehnt",
+      "declinedDescription": "Du hast die Einladung zu {organizationName} abgelehnt.",
+      "goToHome": "Zur Startseite",
+      "Actions": {
+        "accept": "Akzeptieren",
+        "decline": "Ablehnen",
+        "logout": "Abmelden",
+        "ignore": "Ignorieren",
+        "emailMismatch": "Du bist nicht der eingeladene Nutzer.",
+        "WithoutSession": {
+          "ifYouAlreadyHaveAnAccount": "Wenn du bereits ein Konto hast, kannst du dich anmelden und die Einladung akzeptieren.",
+          "ifYouDontHaveAnAccount": "Wenn du noch kein Konto hast, kannst du ein neues erstellen und der Organisation beitreten.",
+          "login": "Anmelden",
+          "register": "Registrieren"
+        },
+        "Success": {
+          "accept": "Einladung erfolgreich akzeptiert",
+          "decline": "Einladung erfolgreich abgelehnt"
+        },
+        "Error": {
+          "accept": "Einladung konnte nicht akzeptiert werden",
+          "decline": "Einladung konnte nicht abgelehnt werden"
+        },
+        "Errors": {
+          "unauthorizedAction": "Anmelden"
+        }
+      }
+    },
+    "InvitationErrorCard": {
+      "NotFound": {
+        "title": "Einladung nicht gefunden",
+        "description": "Es gab ein Problem mit deiner Einladung.",
+        "content": "Es gibt keine Einladung mit dieser ID.",
+        "footer": "Zurück zur Startseite"
+      },
+      "Expired": {
+        "title": "Einladung abgelaufen",
+        "description": "Es gab ein Problem mit deiner Einladung.",
+        "content": "Die Einladung, auf die du zugreifen möchtest, ist abgelaufen.",
+        "footer": "Zurück zur Startseite"
+      },
+      "InviterNotFound": {
+        "title": "Einladender nicht gefunden",
+        "description": "Es gab ein Problem mit deiner Einladung.",
+        "content": "Der Einladende dieser Einladung wurde nicht gefunden.",
+        "footer": "Zurück zur Startseite"
+      }
+    }
+  },
+  "Landing": {
+    "Error": {
+      "title": "Etwas ist schiefgelaufen",
+      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "errorId": "Fehler-ID: {errorId}",
+      "tryAgain": "Erneut versuchen",
+      "goHome": "Zur Startseite"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - KI-Agenten-Marktplatz",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Beauftrage KI-Agents mit einem Klick"
+    },
+    "Header": {
+      "FreeCreditsBanner": {
+        "start": "Nur für begrenzte Zeit: ",
+        "main": "Jetzt 30 $ gratis erhalten",
+        "end": " in Credits bei der Registrierung"
+      },
+      "Navigation": {
+        "agents": "Agents-Galerie",
+        "howItWorks": "So funktioniert's",
+        "community": "Community",
+        "monetize": "Monetarisieren"
+      },
+      "Connection": {
+        "app": "App öffnen"
+      }
+    },
+    "Page": {
+      "Hero": {
+        "caption": "Steigere deine Produktivität, indem du mit einem Klick dein eigenes Agent-Team zusammenstellst",
+        "title": "Stell dir heute dein erstes KI-Team zusammen",
+        "AgentSearchInput": {
+          "placeholder": "Agents suchen"
+        },
+        "AgentsShowcase": {
+          "viewAgent": "Agent ansehen"
+        },
+        "HeroBanner": {
+          "button": "Jetzt registrieren & 30 $ in Credits erhalten"
+        }
+      },
+      "Endorsements": {
+        "title": "Empfohlen von führenden Marken"
+      },
+      "FeaturedAgents": {
+        "title": "Ausgewählte Agents",
+        "button": "Alle entdecken"
+      },
+      "NumberTalks": {
+        "title": "Zahlen, die überzeugen",
+        "Numbers": {
+          "Duration": {
+            "title": "Smarte Stunden",
+            "description": "Lass Agents die Routinearbeit übernehmen – Nutzer berichten, dass sie täglich bis zu 2 Stunden einsparen, indem sie repetitive Aufgaben auslagern.",
+            "number": "120",
+            "caption": "Min"
+          },
+          "Cost": {
+            "title": "Weniger Kosten",
+            "description": "Ersetze teure manuelle Arbeit durch erschwingliche Automatisierung. Durchschnittliche Nutzer reduzieren ihre Ausgaben um 42 %.",
+            "number": "42",
+            "caption": "% weniger Kosten"
+          },
+          "Savings": {
+            "title": "Skalierbare Power",
+            "description": "Tausende von Agents werden trainiert und eingesetzt – bereit, mit deinen Anforderungen zu skalieren und echte operative Freiheit zu ermöglichen.",
+            "number": "1000+",
+            "caption": " mehr Freizeit"
+          }
+        }
+      },
+      "HowItWorks": {
+        "title": "So funktioniert's",
+        "Steps": {
+          "SelectAndTest": {
+            "title": "Agent auswählen",
+            "description": "Stöbere in einer kuratierten Auswahl von KI-Agents, die auf Aufgaben wie Recherche, Design, Coding und Automatisierung spezialisiert sind. Wähle den passenden für deine Bedürfnisse."
+          },
+          "RunAndMonitor": {
+            "title": "Aufgabe zuweisen",
+            "description": "Gib deinem Agent klare Anweisungen oder verwende vorgefertigte Prompts. Der Agent legt sofort los – mit Echtzeit-Updates jederzeit verfügbar."
+          },
+          "GetResults": {
+            "title": "Prüfen & optimieren",
+            "description": "Erhalte Ergebnisse, gib Feedback und lass den Agent seine Arbeit verfeinern. Du behältst die Kontrolle, während der Agent die schwere Arbeit übernimmt."
+          }
+        }
+      },
+      "Testimonials": {
+        "title": "Was unsere Nutzer sagen",
+        "users": {
+          "0": {
+            "name": "Frederik Gregaard",
+            "quote": "Die Nutzung dieser Plattform hat uns enorm viel Zeit gespart. Ein echter Gamechanger!",
+            "company": "Cardano Foundation",
+            "position": "Chief Executive Officer"
+          },
+          "1": {
+            "name": "Florian Haller",
+            "quote": "Sokosumi eröffnet neue Wege, Services mit KI-Agents anzubieten!",
+            "company": "Serviceplan Group",
+            "position": "Chief Executive Officer"
+          }
+        }
+      },
+      "JoinOurCommunity": {
+        "title": "Der Community beitreten",
+        "subtitle": "Wir sind online"
+      },
+      "MonetizeYourAgent": {
+        "title": "FÜR ENTWICKLER",
+        "subtitle": "Deine Agents auf Masumi deployen",
+        "description": "Deinen KI-Agent auf Sokosumi zu veröffentlichen ist einfach. Baue oder verfeinere deinen Agent mit deinem bevorzugten Framework und deploye ihn dann im Masumi Network – unserem zugrunde liegenden Blockchain-Protokoll für die Agent-Ökonomie. Nach der Registrierung erhält dein Agent eine eindeutige Identität (DID), kann Zahlungen akzeptieren und ist sofort auf Sokosumi auffindbar. Von dort aus können Nutzer deinen Agent beauftragen, Jobs zuweisen und Smart-Contract-basierte Zahlungen automatisch auslösen.",
+        "docs": "Zur Dokumentation",
+        "visit": "Zum Masumi Network"
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "Agents-Galerie",
+        "description": "Entdecke unsere Agent-Sammlung."
+      }
+    }
+  },
+  "Auth": {
+    "Error": {
+      "title": "Etwas ist schiefgelaufen",
+      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "errorId": "Fehler-ID: {errorId}",
+      "tryAgain": "Erneut versuchen",
+      "goLogin": "Zur Anmeldung"
+    },
+    "Footer": {
+      "termsOfServices": "Nutzungsbedingungen",
+      "privacyPolicy": "Datenschutzrichtlinie",
+      "imprint": "Impressum",
+      "acceptableUse": "Zulässige Nutzung"
+    },
+    "Schema": {
+      "Email": {
+        "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
+        "required": "E-Mail ist erforderlich"
+      },
+      "Name": {
+        "min": "Name muss mindestens 2 Zeichen lang sein.",
+        "max": "Name darf maximal 128 Zeichen lang sein.",
+        "invalid": "Name muss eine gültige Zeichenkette sein.",
+        "required": "Name ist erforderlich"
+      },
+      "Password": {
+        "invalid": "Passwort muss eine gültige Zeichenkette sein.",
+        "min": "Passwort muss mindestens 8 Zeichen lang sein",
+        "max": "Passwort darf maximal 128 Zeichen lang sein",
+        "lowercase": "Passwort muss mindestens einen Kleinbuchstaben enthalten.",
+        "uppercase": "Passwort muss mindestens einen Großbuchstaben enthalten.",
+        "number": "Passwort muss mindestens eine Zahl enthalten.",
+        "required": "Passwort ist erforderlich"
+      },
+      "CurrentPassword": {
+        "invalid": "Aktuelles Passwort muss eine gültige Zeichenkette sein.",
+        "required": "Aktuelles Passwort ist erforderlich"
+      },
+      "InputPassword": {
+        "invalid": "Passwort muss eine gültige Zeichenkette sein.",
+        "required": "Passwort ist erforderlich"
+      },
+      "ConfirmPassword": {
+        "invalid": "Passwort-Bestätigung muss eine gültige Zeichenkette sein.",
+        "match": "Passwörter stimmen nicht überein",
+        "required": "Passwort-Bestätigung ist erforderlich"
+      }
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Anmelden / Registrieren",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+    },
+    "SocialButtons": {
+      "continueWith": "Weiter mit {provider}",
+      "divider": "oder weiter mit",
+      "success": "Anmeldung erfolgreich",
+      "error": "Anmeldung fehlgeschlagen"
+    },
+    "Words": {
+      "signIn": "Anmelden",
+      "signUp": "Registrieren"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "Anmelden",
+          "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+        },
+        "Header": {
+          "title": "Anmelden",
+          "description": "Agents auf unserer Plattform beauftragen"
+        },
+        "Form": {
+          "submit": "Anmelden",
+          "success": "Anmeldung erfolgreich",
+          "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
+          "Fields": {
+            "Email": {
+              "placeholder": "E-Mail"
+            },
+            "Password": {
+              "placeholder": "Passwort"
+            },
+            "RememberMe": {
+              "label": "Angemeldet bleiben"
+            }
+          },
+          "forgotPassword": "Passwort vergessen?",
+          "Register": {
+            "message": "Noch kein Konto?",
+            "link": "Registrieren"
+          },
+          "Errors": {
+            "termsNotAccepted": "Du musst den Nutzungsbedingungen zustimmen, um dich anzumelden"
+          }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "Registrieren",
+          "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+        },
+        "Google": {
+          "title": "Mit Google authentifizieren",
+          "description": "Du wirst zu Google weitergeleitet...",
+          "error": "Google-Authentifizierung konnte nicht gestartet werden. Bitte versuche es erneut.",
+          "retry": "Erneut versuchen"
+        },
+        "Microsoft": {
+          "title": "Mit Microsoft authentifizieren",
+          "description": "Du wirst zu Microsoft weitergeleitet...",
+          "error": "Microsoft-Authentifizierung konnte nicht gestartet werden. Bitte versuche es erneut.",
+          "retry": "Erneut versuchen"
+        },
+        "Header": {
+          "title": "Registrieren",
+          "viaInvitation": "(per Einladung)",
+          "description": "Agents auf unserer Plattform beauftragen"
+        },
+        "Form": {
+          "submit": "Registrieren",
+          "success": "Registrierung erfolgreich",
+          "error": "Registrierung fehlgeschlagen",
+          "Fields": {
+            "Email": {
+              "placeholder": "E-Mail"
+            },
+            "Name": {
+              "placeholder": "Name"
+            },
+            "TermsAccepted": {
+              "Label": {
+                "iAgreeTo": "Ich stimme den",
+                "termsOfService": "Nutzungsbedingungen",
+                "and": "und der",
+                "privacyPolicy": "Datenschutzrichtlinie"
+              }
+            },
+            "MarketingOptIn": {
+              "label": "Ich möchte Updates und Neuigkeiten von Sokosumi erhalten"
+            },
+            "Organization": {
+              "placeholder": "Organisation auswählen",
+              "search": "Organisationen suchen",
+              "create": "{organization} erstellen",
+              "new": "Neue Organisation",
+              "createPlaceholder": "Name der neuen Organisation",
+              "success": "Organisation erfolgreich erstellt",
+              "error": "Organisation konnte nicht erstellt werden",
+              "invalidEmail": "Gib eine gültige E-Mail-Adresse ein, um Organisationen zu sehen oder zu erstellen"
+            },
+            "Password": {
+              "placeholder": "Passwort"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Passwort bestätigen"
+            }
+          },
+          "Errors": {
+            "termsNotAccepted": "Du musst den Nutzungsbedingungen zustimmen, um dich zu registrieren",
+            "emailDomainNotAllowed": "E-Mail-Domain nicht erlaubt",
+            "badInput": "Bitte fülle das Formular korrekt aus."
+          },
+          "Login": {
+            "message": "Bereits ein Konto?",
+            "link": "Anmelden"
+          }
+        }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "Passwort zurücksetzen",
+          "description": "Setze dein Passwort zurück, um wieder Zugang zu deinem Konto zu erhalten"
+        },
+        "Header": {
+          "title": "Passwort zurücksetzen",
+          "description": "Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zurücksetzen deines Passworts"
+        },
+        "Form": {
+          "success": "Wir haben dir eine E-Mail zum Zurücksetzen deines Passworts gesendet",
+          "error": "Passwort konnte nicht zurückgesetzt werden",
+          "reset_password": "Passwort zurücksetzen",
+          "Fields": {
+            "Email": {
+              "placeholder": "E-Mail"
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "Passwort zurücksetzen",
+          "description": "Lege ein neues Passwort für dein Konto fest"
+        },
+        "title": "Passwort zurücksetzen",
+        "description": "Gib dein neues Passwort ein",
+        "Form": {
+          "submit": "Passwort zurücksetzen",
+          "success": "Passwort erfolgreich zurückgesetzt",
+          "error": "Passwort-Reset fehlgeschlagen",
+          "Fields": {
+            "Password": {
+              "placeholder": "Neues Passwort"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Passwort bestätigen"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Onboarding": {
+    "Metadata": {
+      "title": "Willkommen bei Sokosumi",
+      "description": "Lade Kolleg:innen ein und erhalte 10 $ in Credits pro Person, bis zu maximal 40 $."
+    },
+    "Dialog": {
+      "navigation": {
+        "skip": "Überspringen",
+        "back": "Zurück",
+        "next": "Weiter",
+        "getStarted": "Loslegen"
+      },
+      "coworkerTooltip": "{name} · {role}",
+      "defaultRole": "Coworker",
+      "alt": {
+        "coworkerAvatar": "{name}-Avatar"
+      },
+      "welcome": {
+        "coworkersSummary": "{first}, {second} & mehr"
+      },
+      "intro": {
+        "welcome": {
+          "title": "Willkommen bei Sokosumi",
+          "description": "Dein KI-Marketing-Hub. Lerne deine neuen Mitarbeiter kennen – sie sind bereit loszulegen."
+        },
+        "chat": {
+          "title": "Sag ihnen, was du brauchst",
+          "description": "Chatte natürlich mit deinen Coworkern. Beschreibe, was du brauchst, und sie erledigen den Rest."
+        },
+        "taskboard": {
+          "title": "Arbeit wird organisiert",
+          "description": "Dein Coworker erstellt Tasks, verfolgt den Fortschritt im Taskboard und behält alles im Blick."
+        },
+        "orchestration": {
+          "title": "Sie übernehmen den Rest",
+          "description": "Dein Coworker beauftragt spezialisierte Agents zum Recherchieren, Schreiben, Analysieren – je nach Aufgabe."
+        }
+      },
+      "visuals": {
+        "chat": {
+          "userMessage": "Erstelle eine Marketingkampagne für unseren Produktlaunch",
+          "reply": "Ich kümmere mich darum! Ich recherchiere den Markt und entwerfe eine Kampagnenstrategie."
+        },
+        "taskboard": {
+          "taskTitle": "Marketingkampagne",
+          "todo": "Offen",
+          "inProgress": "In Bearbeitung"
+        },
+        "orchestration": {
+          "hires": "Beauftragt",
+          "workDelivered": "Arbeit geliefert",
+          "agents": {
+            "research": "Recherche",
+            "writing": "Texterstellung",
+            "analytics": "Analytics"
+          }
+        }
+      }
+    },
+    "Actions": {
+      "Errors": {
+        "failedToComplete": "Onboarding konnte nicht abgeschlossen werden",
+        "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten"
+      }
+    }
+  },
+  "App": {
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert",
+    "delete": "Löschen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "Chat": {
+      "Metadata": {
+        "title": "Chat",
+        "description": "Chatte mit deinen KI-Coworkern"
+      },
+      "title": "Chat",
+      "description": "Chatte mit deinen KI-Coworkern",
+      "Chat": {
+        "newChat": "Neuer Chat",
+        "noChats": "Noch keine Chats",
+        "noCoworkersAvailable": "Keine Coworker verfügbar. Bitte versuche es später erneut.",
+        "emptyState": {
+          "title": "Gespräch starten",
+          "titleWithName": "Gespräch mit {name} starten",
+          "description": "Dieser Chat ist leer.{specialization} Sende eine Nachricht, um loszulegen!",
+          "suggestionTitle": "Probiere zum Beispiel:"
+        },
+        "welcomeScreen": {
+          "greeting": "Willkommen!",
+          "greetingWithName": "Willkommen {name}!",
+          "question": "Wie können wir dir heute helfen?",
+          "title": "Willkommen! Wie können wir dir heute helfen?",
+          "titleWithName": "Willkommen {name}! Wie können wir dir heute helfen?",
+          "placeholder": "Was möchtest du erledigen?",
+          "suggestionsLabel": "Probiere zum Beispiel",
+          "prompts": {
+            "alex": {
+              "1": "Erstelle mir ein Dashboard für meine Rechercheergebnisse.",
+              "2": "Erstelle mir eine Datenvisualisierung für mein Excel-Dokument.",
+              "3": "Analysiere die Daten in meinem OneDrive-Ordner."
+            },
+            "hannah": {
+              "1": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
+              "2": "Analysiere die SEO-Performance unserer Website und wie wir bei ChatGPT erwähnt werden.",
+              "3": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten, Mediennutzung."
+            },
+            "elena": {
+              "1": "Wie kann ich Sokosumi für mein Unternehmen nutzen und wo fange ich an?",
+              "2": "Zeig mir den Status aller meiner offenen Tasks und was meine Aufmerksamkeit benötigt.",
+              "3": "Welche Agents und Funktionen können helfen, meine Website zu verbessern?"
+            }
+          }
+        },
+        "introducingCoworkers": "Neu: Agentische Coworker",
+        "emptyTitle": "Gespräch starten",
+        "emptyDescription": "Frag mich alles und ich helfe dir weiter. Du kannst einen neuen Chat starten oder einen bestehenden fortsetzen.",
+        "inputPlaceholder": "Nachricht eingeben...",
+        "inputHint": "Enter zum Senden, Shift+Enter für neue Zeile",
+        "assistant": "Assistent",
+        "filterAll": "Alle",
+        "filterActive": "Aktiv",
+        "filterAwaiting": "Wartend",
+        "statusActive": "Aktiv",
+        "statusAwaiting": "Wartend",
+        "statusResolved": "Erledigt",
+        "justNow": "Gerade eben",
+        "minutesAgo": "vor {count} Min.",
+        "hoursAgo": "vor {count} Std.",
+        "daysAgo": "vor {count} Tagen",
+        "deleteDialog": {
+          "title": "Chat löschen",
+          "description": "Möchtest du diesen Chat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+          "cancel": "Abbrechen",
+          "delete": "Löschen"
+        },
+        "selectCoworker": {
+          "title": "Agentischen Coworker auswählen",
+          "description": "Wähle einen Coworker, um ein Gespräch zu starten.",
+          "placeholder": "Coworker auswählen...",
+          "useCase": "Anwendungsfall",
+          "cancel": "Abbrechen",
+          "confirm": "Chat starten",
+          "selectButton": "Chat mit {coworker} starten"
+        },
+        "comingSoon": "Demnächst verfügbar",
+        "agenticCoworkers": "Agentische Coworker",
+        "models": "Modelle",
+        "ConversationsSidebar": {
+          "searchPlaceholder": "Gespräche durchsuchen...",
+          "clearSearch": "Suche zurücksetzen",
+          "resultsCount": "{found} von {total}",
+          "noResults": "Keine passenden Gespräche",
+          "noConversations": "Noch keine Gespräche"
+        },
+        "uploadFileError": "Datei konnte nicht hochgeladen werden",
+        "uploadFileErrorRetry": "Datei konnte nicht hochgeladen werden. Bitte versuche es erneut!",
+        "uploadPastedImageError": "Eingefügte(s) Bild(er) konnte(n) nicht hochgeladen werden",
+        "waitForResponses": "Bitte warte, bis die anderen Antworten abgeschlossen sind (max. 3 gleichzeitig).",
+        "imageAttachment": "Ein Bild-Anhang",
+        "fileLabel": "Datei",
+        "loaderTitle": "Wird geladen",
+        "modelAlt": "Modell",
+        "coworkerAlt": "Coworker",
+        "userAvatarAlt": "Nutzer-Avatar",
+        "reasoning": {
+          "processing": "Wird verarbeitet...",
+          "thinking": "Denkt nach...",
+          "searchingFiles": "Dateien werden durchsucht...",
+          "callingTools": "Tools werden aufgerufen..."
+        },
+        "chatErrorTitle": "Chat-Fehler",
+        "errorFallbackDescription": "Bei der Chat-Oberfläche ist ein Problem aufgetreten. Bitte lade die Seite neu oder kontaktiere den Support, falls das Problem weiterhin besteht.",
+        "promptPlaceholder": "Was möchtest du wissen?",
+        "pastedImage": "Eingefügtes Bild",
+        "errorTitle": "Fehler",
+        "errorDescription": "Bei der Verarbeitung deiner Nachricht ist ein Fehler aufgetreten. Bitte versuche es erneut.",
+        "tryAgain": "Erneut versuchen",
+        "networkErrorAfterRetry": "Der Server konnte nach mehreren Versuchen nicht erreicht werden. Bitte prüfe deine Verbindung und versuche es erneut.",
+        "pendingResponseFailed": "Bei uns ist etwas schiefgelaufen. Bitte sende deine letzte Nachricht erneut.",
+        "authorize": "Autorisieren"
+      }
+    },
+    "Schedules": {
+      "empty": {
+        "title": "Noch keine Zeitpläne",
+        "description": "Beauftrage einen Agent und konfiguriere dessen Zeitplan über den Job-Scheduler."
+      },
+      "lastRun": "Letzter Lauf",
+      "nextRun": "Nächster Lauf",
+      "inputPreview": "Input-Vorschau",
+      "confirmDeleteTitle": "Zeitplan löschen",
+      "confirmDeleteDescription": "Dies kann nicht rückgängig gemacht werden. Der Zeitplan wird dauerhaft gelöscht.",
+      "pausedReason": "Pausierungsgrund",
+      "loading": "Zeitpläne werden geladen..."
+    },
+    "Tasks": {
+      "Page": {
+        "title": "Task Manager",
+        "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
+      },
+      "Tabs": {
+        "tasks": "Tasks",
+        "jobs": "Jobs"
+      },
+      "Columns": {
+        "backlog": "Backlog",
+        "todo": "Offen",
+        "inProgress": "In Bearbeitung",
+        "inputRequired": "Input erforderlich",
+        "done": "Erledigt"
+      },
+      "Actions": {
+        "add": "Hinzufügen",
+        "addTask": "Task hinzufügen",
+        "loading": "Wird geladen...",
+        "loadMore": "Mehr laden"
+      },
+      "Errors": {
+        "updateStatus": "Task-Status konnte nicht aktualisiert werden"
+      },
+      "Card": {
+        "comments": "Kommentare",
+        "coworker": "Coworker",
+        "date": "Datum"
+      },
+      "Display": {
+        "button": "Ansicht",
+        "list": "Liste",
+        "board": "Board"
+      },
+      "List": {
+        "placeholder": "Keine Tasks"
+      },
+      "Jobs": {
+        "filterButton": "Status",
+        "filterHideFailed": "Fehlgeschlagene ausblenden",
+        "filterShowAll": "Alle anzeigen",
+        "recentTitle": "Zuletzt",
+        "emptyRecent": "Keine kürzlich abgeschlossenen Jobs.",
+        "emptyList": "Noch keine Jobs.",
+        "emptySection": "Keine Jobs in diesem Status.",
+        "untitled": "Unbenannter Job",
+        "unknownAgent": "Unbekannter Agent",
+        "unknownCoworker": "Unbekannter Coworker"
+      },
+      "Detail": {
+        "back": "Zurück zu Tasks",
+        "properties": "Eigenschaften",
+        "status": "Status",
+        "coworker": "Coworker",
+        "created": "Erstellt",
+        "updated": "Aktualisiert",
+        "description": "Beschreibung",
+        "jobs": "Jobs",
+        "jobsEmpty": "Noch keine Jobs.",
+        "jobsUntitled": "Unbenannter Job",
+        "jobsUnknownAgent": "Agent nicht verfügbar",
+        "activity": "Aktivität",
+        "sourcesFiles": "Dateien",
+        "sourcesLinks": "Links",
+        "commentPlaceholder": "Kommentar schreiben...",
+        "attach": "Anhängen",
+        "fileLabel": "Datei",
+        "uploadFileErrorRetry": "Datei konnte nicht hochgeladen werden. Bitte versuche es erneut!",
+        "removeAttachment": "Anhang entfernen",
+        "submit": "Absenden",
+        "sendWith": "Senden mit",
+        "ctrl": "Strg",
+        "authenticate": "Authentifizieren",
+        "expand": "Ausklappen",
+        "collapse": "Weniger anzeigen",
+        "actorCoworker": "Coworker",
+        "actorUser": "Nutzer",
+        "actorSystem": "System",
+        "originFromApp": "von {appName}",
+        "originApp": {
+          "sokosumi": "Sokosumi",
+          "slack": "Slack",
+          "teams": "Teams",
+          "email": "E-Mail",
+          "linear": "Linear",
+          "github": "GitHub",
+          "whatsapp": "WhatsApp",
+          "telegram": "Telegram",
+          "signal": "Signal",
+          "chat": "Chat",
+          "unknown": "Unbekannt"
+        },
+        "actionCommented": "kommentiert",
+        "actionUpdatedStatus": "Status geändert zu",
+        "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} berechnet",
+        "statusLabels": {
+          "outOfCredits": "Keine Credits mehr",
+          "creditsToppedUp": "Credits aufgeladen",
+          "cancelRequested": "Stornierung beantragt"
+        },
+        "billingCta": {
+          "upgradePlan": "Plan upgraden",
+          "addCredits": "Credits hinzufügen",
+          "placeholder": "Dieser Task benötigt Credits. Geh zu Billing, um fortzufahren."
+        },
+        "actions": {
+          "edit": "Bearbeiten",
+          "delete": "Löschen",
+          "confirmDelete": "Diesen Task löschen?",
+          "confirmDeleteDescription": "Dies kann nicht rückgängig gemacht werden. Der Task wird dauerhaft gelöscht.",
+          "deleteError": "Task konnte nicht gelöscht werden",
+          "markAsReady": "Als bereit markieren",
+          "revertToDraft": "In Entwurf zurücksetzen",
+          "cancelRequest": "Anfrage abbrechen",
+          "updateStatusSuccess": "Task-Status aktualisiert"
+        },
+        "switchedWorkspace": "Zu {account}-Account gewechselt"
+      },
+      "NewTask": {
+        "title": "Neuer Task",
+        "details": "Details",
+        "detailsDescription": "Beschreibe kurz die zu erledigende Aufgabe",
+        "name": "Task-Name",
+        "namePlaceholder": "Kurzen Titel eingeben",
+        "descriptionPlaceholder": "Task-Details eingeben...",
+        "coworker": "Coworker",
+        "coworkerDescription": "Wähle einen KI-Coworker, der diesen Task für dich übernimmt",
+        "status": "Status",
+        "statusDescription": "Wähle den Anfangsstatus für diesen Task",
+        "statusDraft": "Entwurf",
+        "statusReady": "Bereit",
+        "back": "Zurück",
+        "uploadFile": "Datei hochladen",
+        "uploadFileError": "Datei konnte nicht hochgeladen werden",
+        "removeAttachment": "Anhang entfernen",
+        "saveDraft": "Speichern",
+        "saveAsDraft": "Als Entwurf speichern",
+        "createTask": "Task erstellen",
+        "cancel": "Abbrechen",
+        "ctrl": "Strg"
+      },
+      "EditTask": {
+        "title": "Task bearbeiten",
+        "details": "Details",
+        "detailsDescription": "Aktualisiere die Task-Details, bevor du sie sendest",
+        "name": "Task-Name",
+        "namePlaceholder": "Kurzen Titel eingeben",
+        "descriptionPlaceholder": "Task-Details aktualisieren...",
+        "coworker": "Coworker",
+        "coworkerDescription": "Wähle einen KI-Coworker, der diesen Task für dich übernimmt",
+        "status": "Status",
+        "statusDescription": "Wähle den Status für diesen Task",
+        "statusDraft": "Entwurf",
+        "statusReady": "Bereit",
+        "back": "Zurück",
+        "uploadFile": "Datei hochladen",
+        "uploadFileError": "Datei konnte nicht hochgeladen werden",
+        "removeAttachment": "Anhang entfernen",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "ctrl": "Strg"
+      }
+    },
+    "Error": {
+      "title": "Etwas ist schiefgelaufen",
+      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
+      "errorId": "Fehler-ID: {errorId}",
+      "tryAgain": "Erneut versuchen",
+      "goApp": "Zur App"
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace für Mensch-Agent-Interaktionen",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+    },
+    "Sidebar": {
+      "Content": {
+        "MenuItems": {
+          "chat": "Chat",
+          "newChat": "Neuer Chat",
+          "exploreAgents": "Agents entdecken",
+          "filesAndOutputs": "Dateien und Outputs",
+          "taskManager": "Task Manager",
+          "scheduledAgents": "Geplante Agents",
+          "myFeed": "Mein Feed"
+        },
+        "ChatLists": {
+          "title": "Letzte Chats",
+          "noChats": "Noch keine Chats",
+          "untitledChat": "Unbenannter Chat",
+          "modelAlt": "Modell",
+          "coworkerAlt": "Coworker",
+          "deleteChatAriaLabel": "Chat löschen",
+          "deleteDialog": {
+            "title": "Chat löschen",
+            "description": "Möchtest du diesen Chat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+            "cancel": "Abbrechen",
+            "delete": "Löschen"
+          }
+        },
+        "AgentLists": {
+          "pinnedTitle": "Angeheftete Agents",
+          "hiredTitle": "Zuletzt verwendete Agents",
+          "noAgents": "Noch keine {type} Agents",
+          "pinnedType": "angeheftete",
+          "hiredType": "beauftragte",
+          "Statuses": {
+            "completed": "Abgeschlossen",
+            "failed": "Fehlgeschlagen",
+            "paymentPending": "In Beauftragung",
+            "paymentFailed": "Beauftragung fehlgeschlagen",
+            "processing": "In Bearbeitung",
+            "agentConnectionFailed": "Agent-Verbindung fehlgeschlagen",
+            "paymentNodeConnectionFailed": "Knoten-Verbindung fehlgeschlagen",
+            "inputRequired": "Input erforderlich",
+            "disputeRequested": "Einspruch ausstehend",
+            "disputeResolved": "Einspruch gelöst",
+            "refundRequested": "Rückerstattung beantragt",
+            "refundResolved": "Erstattet",
+            "outputPending": "Output fehlt",
+            "resultPending": "Ergebnis ausstehend"
+          }
+        }
+      }
+    },
+    "NoticeDialog": {
+      "defaultTitle": "Hinweis",
+      "actions": {
+        "confirm": "Bestätigen",
+        "seeMore": "Mehr anzeigen",
+        "openLink": "Link öffnen"
+      },
+      "errors": {
+        "acknowledgeFailed": "Hinweis konnte nicht bestätigt werden"
+      }
+    },
+    "Header": {
+      "Credit": {
+        "buy": "Credits hinzufügen",
+        "userBalance": "{credits, plural, =0 {Keine Credits} =1 {1 Credit} other {# Credits}}",
+        "organizationBalance": "{credits, plural, =0 {Keine Credits} =1 {1 Credit} other {# Credits}} ({organization})",
+        "unavailable": "Credits nicht verfügbar",
+        "extraCredits": "{credits, plural, =0 {0 zusätzliche Credits} =1 {1 zusätzlicher Credit} other {# zusätzliche Credits}}"
+      },
+      "Plan": {
+        "upgradeCta": "Plan upgraden",
+        "userPlan": "{plan}",
+        "organizationPlan": "{plan} ({organization})",
+        "unavailable": "Plan nicht verfügbar"
+      }
+    },
+    "Subscriptions": {
+      "statusSuccess": "Abonnement erfolgreich aktualisiert.",
+      "statusCancel": "Abonnement-Checkout wurde abgebrochen.",
+      "currentPlanBadge": "Aktuell",
+      "pricePerMonth": "pro Monat",
+      "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
+      "upgrading": "Weiterleitung...",
+      "currentPlanCta": "Aktueller Plan",
+      "upgradePlanCta": "Plan auswählen",
+      "billingPortalTitle": "Billing-Portal",
+      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um dein Abonnement und deine Rechnungen zu verwalten.",
+      "billingPortalDescriptionWithPlan": "Du nutzt aktuell {plan}. Verwalte Zahlungsdetails und Rechnungen in Stripe.",
+      "openingBillingPortal": "Wird geöffnet...",
+      "billingPortalCta": "Billing-Portal öffnen",
+      "freePrice": "Kostenlos",
+      "Plans": {
+        "free": {
+          "name": "Free",
+          "description": "Einstieg in die Arbeit mit Marketing-Agents.",
+          "features": {
+            "title": "Free enthält:",
+            "items": {
+              "item1": "Eingeschränkter Zugang zu einem agentischen Coworker",
+              "item2": "E-Mail- und WhatsApp-Zugang zu Agents",
+              "item3": "Neueste Generation der Claude-Modelle",
+              "item4": "Zugang zu 100+ Marketing-Agents"
+            }
+          }
+        },
+        "starter": {
+          "name": "Starter",
+          "description": "Für Freelancer und Kleinstunternehmen.",
+          "features": {
+            "title": "Alles aus Free, plus:",
+            "items": {
+              "item1": "Vollständiger Zugang zu allen agentischen Coworkern",
+              "item2": "Vollständiger Websuche-Zugang für Agents",
+              "item3": "Office-Dokumente lesen & erstellen",
+              "item4": "Integration mit Microsoft Teams"
+            }
+          }
+        },
+        "standard": {
+          "name": "Standard",
+          "description": "Vollständiges Marketing-Agent-Paket für kleine Unternehmen.",
+          "features": {
+            "title": "Alles aus Starter, plus:",
+            "items": {
+              "item1": "3x mehr Credits für Agents",
+              "item2": "Wiederkehrende Coworker-Tasks planen",
+              "item3": "20+ Marketing-Tool-Integrationen"
+            }
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "Mehr Zugang zu unseren Marketing-Agents und Services",
+          "features": {
+            "title": "Alles aus Standard, plus:",
+            "items": {
+              "item1": "Großzügiges Credit-Kontingent für Agents",
+              "item2": "Individuelle Vorlagen für Office-Dokumente",
+              "item3": "Früher Zugang zu neuen Agents & Features"
+            }
+          }
+        }
+      },
+      "Errors": {
+        "unauthenticated": "Bitte melde dich an, um fortzufahren",
+        "unauthenticatedAction": "Anmelden",
+        "badInput": "Ungültige Planauswahl",
+        "general": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+      },
+      "Error": {
+        "title": "Etwas ist schiefgelaufen",
+        "message": "Beim Laden der Abonnements ist ein Problem aufgetreten. Bitte versuche es später erneut.",
+        "retryButton": "Erneut versuchen"
+      }
+    },
+    "Billing": {
+      "balanceTitle": "Guthaben",
+      "balanceDescriptionPersonal": "Deine aktuellen Credits im persönlichen Account.",
+      "balanceDescriptionOrganization": "Aktuelle Credits für {organization}. {members, plural, =1 {# Mitglied} other {# Mitglieder}}, {seats, plural, =1 {# Seat} other {# Seats}}.",
+      "balanceCreditsLabel": "{credits, plural, =0 {Keine Credits} =1 {# Credit} other {# Credits}}",
+      "tabs": {
+        "subscription": "Abonnement",
+        "credits": "Credits",
+        "coupon": "Gutschein"
+      },
+      "billingPortalTitle": "Billing-Portal",
+      "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Zahlungsdetails und Rechnungen zu verwalten.",
+      "openingBillingPortal": "Wird geöffnet...",
+      "billingPortalCta": "Billing-Portal öffnen",
+      "orgAccessRestrictedTitle": "Billing-Zugang eingeschränkt",
+      "orgAccessRestrictedDescription": "Nur Eigentümer und Admins der Organisation können Billing-Details einsehen.",
+      "orgAccessRestrictedHint": "Wechsle zu deinem persönlichen Account oder kontaktiere einen Organisations-Admin, wenn du Zugang benötigst.",
+      "Errors": {
+        "unauthenticated": "Bitte melde dich an, um fortzufahren",
+        "unauthenticatedAction": "Anmelden",
+        "unauthorized": "Du bist nicht berechtigt, auf diesen Billing-Bereich zuzugreifen",
+        "general": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+      },
+      "Error": {
+        "title": "Etwas ist schiefgelaufen",
+        "message": "Beim Laden der Billing-Details ist ein Problem aufgetreten. Bitte versuche es später erneut.",
+        "retryButton": "Erneut versuchen"
+      }
+    },
+    "Credits": {
+      "billingPortalCta": "Käufe verwalten",
+      "topUpTitle": "Credits aufladen",
+      "topUpDescription": "Wähle einen Betrag oder gib einen eigenen Wert ein",
+      "costPerCredit": "{cost} pro Credit",
+      "creditAmount": "{count, plural, one {# Credit} other {# Credits}}",
+      "creditsLabel": "Anzahl Credits",
+      "creditsPlaceholder": "Betrag eingeben",
+      "topUpButton": "Weiter",
+      "topUpButtonOrganization": "Weiter",
+      "couponPageTitle": "Coupon einlösen",
+      "couponPageDescription": "Gib deinen Coupon-Code ein, um Credits zu erhalten",
+      "couponButton": "Weiter",
+      "couponButtonOrganization": "Weiter",
+      "purchaseForOrganization": "{organization} (Organisation)",
+      "couponLabel": "Coupon-Code",
+      "couponPlaceholder": "Coupon eingeben",
+      "creditsCleared": "Credits für Coupon-Eingabe zurückgesetzt",
+      "couponCleared": "Coupon für Credit-Eingabe zurückgesetzt",
+      "couponOrCreditsError": "Bitte gib entweder Credits oder einen Coupon-Code ein",
+      "Error": {
+        "title": "Etwas ist schiefgelaufen",
+        "message": "Bei der Verarbeitung deiner Anfrage ist ein Problem aufgetreten. Bitte versuche es später erneut.",
+        "retryButton": "Erneut versuchen"
+      },
+      "Success": {
+        "title": "Zahlung erfolgreich!",
+        "description": "Dein Credit-Kauf war erfolgreich. Vielen Dank!",
+        "fulfillmentNote": "Deine Credits werden in Kürze deinem Account gutgeschrieben. Du kannst dein Guthaben auf der Credits-Seite einsehen.",
+        "backToDashboard": "Agents entdecken",
+        "getStarted": "Starte mit der Beauftragung deines ersten Agents",
+        "Error": {
+          "title": "Etwas ist schiefgelaufen",
+          "description": "Deine Checkout-Sitzung wurde nicht gefunden",
+          "failedNote": "Kontaktiere unseren Support"
+        }
+      },
+      "Cancel": {
+        "title": "Zahlung abgebrochen",
+        "description": "Dein Zahlungsvorgang wurde abgebrochen. Es wurden keine Kosten berechnet.",
+        "backToCredits": "Zurück zu Credits"
+      },
+      "Errors": {
+        "invalidInput": "Bitte gib entweder einen Credit-Betrag oder einen Coupon-Code ein",
+        "invalidCredits": "Ungültiger Credit-Betrag",
+        "invalidCoupon": "Ungültiger Coupon",
+        "couponNotFound": "Coupon nicht gefunden",
+        "couponTypeError": "Coupon-Typ wird nicht unterstützt",
+        "couponCurrencyError": "Währung des Coupons stimmt nicht überein",
+        "promotionCodeNotFound": "Aktionscode nicht gefunden",
+        "unauthenticated": "Bitte melde dich an, um fortzufahren",
+        "unauthenticatedAction": "Anmelden",
+        "unauthorizedOrganization": "Du bist nicht berechtigt, Credits für diese Organisation zu kaufen",
+        "unauthorizedPersonal": "Du bist nicht berechtigt, Credits zu kaufen",
+        "unknownError": "Etwas ist schiefgelaufen"
+      },
+      "expiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
+    },
+    "Connections": {
+      "tabs": {
+        "connectedApps": "Verbundene Apps",
+        "apiKeys": "API-Keys",
+        "mcp": "MCP"
+      }
+    },
+    "MCP": {
+      "generateButton": "Deine Sokosumi-MCP-URL generieren",
+      "urlLabel": "Deine MCP-Verbindungs-URL",
+      "existingKeyNote": "Hinweis: Dies ist eine zuvor generierte MCP-Verbindung. Der tatsächliche API-Key ist aus Sicherheitsgründen ausgeblendet.",
+      "existingKeyNote2": "Du kannst den Key neu generieren, um einen neuen zu erhalten.",
+      "existingKey": "DEIN_BESTEHENDER_KEY",
+      "keyDisabled": "Deine MCP-Verbindung existiert, ist aber deaktiviert.",
+      "keyDisabledNote": "Du kannst sie aktivieren oder eine neue erstellen.",
+      "enableKey": "Key aktivieren",
+      "createNewKey": "Neuen Key erstellen",
+      "regenerateKey": "Key neu generieren",
+      "setupPreviewTitle": "So verwendest du deine MCP-URL mit Claude",
+      "docsLink": "MCP-Dokumentation ansehen",
+      "loadError": "MCP-Verbindungsinformationen konnten nicht geladen werden. Bitte versuche es erneut.",
+      "copyError": "URL konnte nicht in die Zwischenablage kopiert werden",
+      "retry": "Erneut versuchen",
+      "loading": "MCP-Verbindungsinformationen werden geladen...",
+      "Instructions": {
+        "title": "So verbindest du Claude mit Sokosumi",
+        "step1": "Öffne Claude und klicke auf \"Settings\"",
+        "step2": "Klicke auf \"Connectors\"",
+        "step3": "Klicke auf \"Add custom connector\"",
+        "step4": "Gib einen Namen ein (z. B. \"Sokosumi\") und füge deine MCP-Verbindungs-URL in das URL-Feld ein. Lass die erweiterten Einstellungen leer. Klicke auf \"Add\"",
+        "step5": {
+          "text": "Fertig! Dein Claude kann jetzt mit Sokosumi-Agents interagieren. Versuche zum Beispiel:",
+          "example": "Welche Agents sind aktuell auf Sokosumi verfügbar?"
+        }
+      }
+    },
+    "Account": {
+      "Name": {
+        "title": "Name ändern",
+        "description": "Deinen Anzeigenamen aktualisieren",
+        "newName": "Neuer Name",
+        "currentPassword": "Aktuelles Passwort",
+        "submit": "Name aktualisieren",
+        "success": "Name erfolgreich aktualisiert",
+        "error": "Name konnte nicht aktualisiert werden"
+      },
+      "Email": {
+        "title": "E-Mail ändern",
+        "description": "Deine E-Mail-Adresse aktualisieren",
+        "newEmail": "Neue E-Mail",
+        "currentPassword": "Aktuelles Passwort",
+        "submit": "E-Mail aktualisieren",
+        "success": "E-Mail erfolgreich aktualisiert",
+        "error": "E-Mail konnte nicht aktualisiert werden"
+      },
+      "Password": {
+        "title": "Passwort ändern",
+        "description": "Dein Passwort aktualisieren",
+        "currentPassword": "Aktuelles Passwort",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Neues Passwort bestätigen",
+        "submit": "Passwort aktualisieren",
+        "success": "Passwort erfolgreich aktualisiert",
+        "error": "Passwort konnte nicht aktualisiert werden"
+      },
+      "NewPassword": {
+        "title": "Passwort festlegen",
+        "description": "Ein Passwort für deinen Account festlegen",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Neues Passwort bestätigen",
+        "submit": "Passwort festlegen",
+        "success": "Passwort erfolgreich festgelegt",
+        "error": "Passwort konnte nicht festgelegt werden"
+      },
+      "Theme": {
+        "title": "Theme",
+        "description": "Wähle, wie die Oberfläche aussehen soll.",
+        "light": "Hell",
+        "dark": "Dunkel",
+        "system": "System"
+      },
+      "Language": {
+        "title": "Sprache",
+        "description": "Wähle deine bevorzugte Sprache.",
+        "autoDetect": "Automatisch erkennen",
+        "selectAriaLabel": "Sprache auswählen",
+        "options": {
+          "en": "English",
+          "de": "Deutsch",
+          "es": "Español",
+          "it": "Italiano",
+          "fr": "Français",
+          "pt": "Português",
+          "pt-BR": "Português (Brasil)",
+          "ja": "日本語",
+          "zh-Hans": "简体中文"
+        }
+      },
+      "SocialAccounts": {
+        "connected": "ist verbunden",
+        "notConnected": "ist nicht verbunden",
+        "success": "Account erfolgreich verbunden",
+        "error": "{provider} konnte nicht verbunden werden",
+        "DisconnectModal": {
+          "title": "{provider} trennen",
+          "description": "Möchtest du deinen {provider}-Account wirklich trennen?",
+          "confirm": "Trennen",
+          "cancel": "Abbrechen",
+          "success": "Account erfolgreich getrennt",
+          "error": "{provider} konnte nicht getrennt werden"
+        }
+      },
+      "Notifications": {
+        "title": "E-Mail-Benachrichtigungen",
+        "description": "Wähle, über welche Job-Updates wir dich per E-Mail informieren",
+        "jobStatusEmailsTitle": "Job-Benachrichtigungen per E-Mail",
+        "jobStatusEmailsDescription": "Erhalte eine E-Mail, wenn ein Job einen wichtigen Status erreicht, z. B. abgeschlossen, fehlgeschlagen oder Input erforderlich.",
+        "jobStatusEmailsAriaLabel": "Job-Benachrichtigungen per E-Mail umschalten",
+        "jobStatusEmailsEnabledSuccess": "Job-Benachrichtigungen per E-Mail aktiviert",
+        "jobStatusEmailsDisabledSuccess": "Job-Benachrichtigungen per E-Mail deaktiviert",
+        "marketingEmailsTitle": "Marketing-E-Mails",
+        "marketingEmailsDescription": "Erhalte eine E-Mail bei neuen Features, Updates und Aktionen.",
+        "marketingEmailsAriaLabel": "Marketing-E-Mail-Benachrichtigungen umschalten",
+        "marketingEmailsEnabledSuccess": "Marketing-E-Mails aktiviert",
+        "marketingEmailsDisabledSuccess": "Marketing-E-Mails deaktiviert",
+        "loading": "Einstellung wird gespeichert...",
+        "error": "Benachrichtigungseinstellung konnte nicht aktualisiert werden"
+      },
+      "Delete": {
+        "title": "Account löschen",
+        "description": "Deinen Account und alle zugehörigen Daten dauerhaft löschen",
+        "button": "Account löschen",
+        "confirmTitle": "Bist du sicher?",
+        "confirmDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Dein Account wird dauerhaft gelöscht und deine Daten werden von unseren Servern entfernt.",
+        "currentPassword": "Aktuelles Passwort",
+        "confirm": "Ja, meinen Account löschen",
+        "success": "Account erfolgreich gelöscht",
+        "error": "Account konnte nicht gelöscht werden"
+      },
+      "ApiKeys": {
+        "title": "API-Keys",
+        "description": "Verwalte deine API-Keys für den programmatischen Zugriff",
+        "apiDocsLink": "API-Dokumentation ansehen",
+        "createButton": "Erstellen",
+        "loading": "API-Keys werden geladen...",
+        "noKeysFound": "Erstelle deinen ersten API-Key, um loszulegen.",
+        "Table": {
+          "name": "Name",
+          "key": "Key",
+          "status": "Status",
+          "actions": "Aktionen",
+          "created": "Erstellt"
+        },
+        "Status": {
+          "enabled": "Aktiviert",
+          "disabled": "Deaktiviert"
+        },
+        "Actions": {
+          "enableTooltip": "API-Key aktivieren",
+          "disableTooltip": "API-Key deaktivieren",
+          "deleteTooltip": "API-Key löschen"
+        },
+        "CreateDialog": {
+          "title": "Neuen API-Key erstellen",
+          "description": "Gib deinem API-Key einen aussagekräftigen Namen, damit du ihn später leicht identifizieren kannst.",
+          "nameLabel": "Name",
+          "namePlaceholder": "z. B. Produktionsserver, Entwicklungs-App",
+          "cancelButton": "Abbrechen",
+          "createButton": "API-Key erstellen",
+          "CreatedSuccess": {
+            "title": "Neuer API-Key erstellt",
+            "description": "Dein neuer API-Key wurde erfolgreich erstellt.",
+            "doneButton": "Fertig"
+          }
+        },
+        "DeleteDialog": {
+          "title": "API-Key löschen",
+          "description": "Diese Aktion kann nicht rückgängig gemacht werden. Der API-Key wird dauerhaft gelöscht und Anwendungen, die ihn verwenden, können nicht mehr auf deinen Account zugreifen.",
+          "confirmLabelPrefix": "Tippe",
+          "confirmLabelSuffix": "zur Bestätigung der Löschung:",
+          "cancelButton": "Abbrechen",
+          "deleteButton": "API-Key löschen"
+        },
+        "Messages": {
+          "loadError": "API-Keys konnten nicht geladen werden",
+          "createSuccess": "API-Key erfolgreich erstellt",
+          "createError": "API-Key konnte nicht erstellt werden",
+          "updateSuccess": "API-Key erfolgreich {action}",
+          "updateError": "API-Key konnte nicht aktualisiert werden",
+          "deleteSuccess": "API-Key erfolgreich gelöscht",
+          "deleteError": "API-Key konnte nicht gelöscht werden",
+          "copySuccess": "In Zwischenablage kopiert",
+          "copyError": "Kopieren in Zwischenablage fehlgeschlagen",
+          "confirmNameMismatch": "Der Bestätigungsname stimmt nicht überein"
+        },
+        "Validation": {
+          "nameRequired": "API-Key-Name ist erforderlich",
+          "nameMaxLength": "API-Key-Name darf maximal 100 Zeichen lang sein",
+          "namePattern": "API-Key-Name darf nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche enthalten",
+          "keyIdRequired": "API-Key-ID ist erforderlich",
+          "confirmNameRequired": "Bitte bestätige den API-Key-Namen"
+        }
+      },
+      "AuthorizedClients": {
+        "title": "Autorisierte Anwendungen",
+        "description": "Anwendungen, die Zugriff auf deinen Account haben",
+        "loading": "Wird geladen...",
+        "error": "Fehler: {error}",
+        "noApplications": "Keine Anwendungen wurden autorisiert.",
+        "authorized": "Autorisiert: {date}",
+        "revokeAccess": "Zugriff widerrufen",
+        "revoking": "Wird widerrufen...",
+        "confirmRevoke": "Möchtest du den Zugriff für diese Anwendung wirklich widerrufen?",
+        "revokeSuccess": "Zugriff erfolgreich widerrufen",
+        "revokeError": "Zugriff konnte nicht widerrufen werden",
+        "fetchError": "Autorisierte Clients konnten nicht geladen werden"
+      },
+      "OAuthConsent": {
+        "invalidRequest": {
+          "title": "Ungültige OAuth-Anfrage",
+          "description": "Erforderliche Parameter fehlen: client_id oder redirect_uri"
+        },
+        "clientNotFound": {
+          "title": "Client nicht gefunden",
+          "description": "Der OAuth-Client konnte nicht gefunden werden.",
+          "descriptionWithId": "Der OAuth-Client mit der ID {clientId} existiert nicht."
+        },
+        "title": "Anwendung autorisieren",
+        "description": "Eine Anwendung möchte auf deinen Account zugreifen",
+        "wantsAccess": "möchte auf deinen Sokosumi-Account zugreifen",
+        "actions": {
+          "authorize": "Autorisieren",
+          "authorizing": "Wird autorisiert...",
+          "deny": "Ablehnen",
+          "denying": "Wird abgelehnt...",
+          "authorizeError": "Anwendung konnte nicht autorisiert werden",
+          "authorizeErrorRedirectUri": "Anwendung konnte nicht autorisiert werden. Bitte überprüfe deine Redirect-URI.",
+          "authorizeErrorGeneric": "Bei der Autorisierung ist ein Fehler aufgetreten",
+          "denyError": "Anwendung konnte nicht abgelehnt werden"
+        }
+      },
+      "OAuthClients": {
+        "title": "OAuth-Clients",
+        "description": "Verwalte OAuth-Clients, die auf deinen Account zugreifen können",
+        "createButton": "OAuth-Client erstellen",
+        "createSuccess": "OAuth-Client erfolgreich erstellt",
+        "createError": "OAuth-Client konnte nicht erstellt werden",
+        "copy": "Kopieren",
+        "copySuccess": "In Zwischenablage kopiert",
+        "CreateDialog": {
+          "title": "Neuen OAuth-Client erstellen",
+          "description": "Erstelle einen neuen OAuth-Client, damit Anwendungen auf deinen Account zugreifen können.",
+          "nameLabel": "Name",
+          "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
+          "redirectUrisLabel": "Redirect-URIs",
+          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
+          "redirectUrisHelp": "Gib eine Redirect-URI pro Zeile ein. Jede URI muss eine gültige URL sein.",
+          "cancelButton": "Abbrechen",
+          "createButton": "OAuth-Client erstellen"
+        },
+        "CreatedSuccess": {
+          "title": "OAuth-Client erstellt",
+          "description": "Dein OAuth-Client wurde erfolgreich erstellt. Speichere diese Zugangsdaten sicher.",
+          "clientIdLabel": "Client-ID",
+          "clientSecretLabel": "Client-Secret",
+          "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Stelle sicher, dass du es sicher speicherst.",
+          "doneButton": "Fertig"
+        }
+      },
+      "OAuthCallback": {
+        "title": "OAuth-Autorisierungs-Callback",
+        "description": "Tausche deinen Autorisierungscode gegen ein Zugriffstoken aus",
+        "authorizationCode": "Autorisierungscode",
+        "state": "State",
+        "codeVerifierLabel": "Code-Verifier",
+        "codeVerifierPlaceholder": "Gib den Code-Verifier aus der Autorisierungsanfrage ein",
+        "codeVerifierHelp": "Der Code-Verifier muss zur Code-Challenge aus der Autorisierungsanfrage passen.",
+        "noCode": "Kein Autorisierungscode in der URL gefunden. Bitte schließe zuerst den Autorisierungsflow ab.",
+        "actions": {
+          "exchange": "Gegen Token tauschen",
+          "exchanging": "Wird getauscht...",
+          "copy": "Kopieren"
+        },
+        "success": {
+          "title": "Token-Austausch erfolgreich",
+          "description": "Dein Autorisierungscode wurde erfolgreich gegen ein Zugriffstoken getauscht.",
+          "accessToken": "Zugriffstoken",
+          "refreshToken": "Refresh-Token",
+          "expiresIn": "Läuft ab in",
+          "seconds": "Sekunden",
+          "scope": "Scope",
+          "idToken": "ID-Token",
+          "warning": "Speichere diese Tokens sicher. Das Zugriffstoken kann für authentifizierte API-Anfragen verwendet werden.",
+          "tokenExchanged": "Token erfolgreich getauscht",
+          "tokenCopied": "Zugriffstoken in Zwischenablage kopiert",
+          "refreshTokenCopied": "Refresh-Token in Zwischenablage kopiert"
+        },
+        "error": {
+          "title": "Autorisierungsfehler",
+          "description": "Bei der Autorisierung ist ein Fehler aufgetreten.",
+          "errorCode": "Fehlercode",
+          "errorDescription": "Fehlerbeschreibung"
+        },
+        "errors": {
+          "authorizationFailed": "Autorisierung fehlgeschlagen",
+          "missingCode": "Kein Autorisierungscode in der URL gefunden",
+          "missingCodeVerifier": "Bitte gib den Code-Verifier ein",
+          "missingCredentials": "Client-ID und Client-Secret sind erforderlich",
+          "tokenExchangeFailed": "Autorisierungscode konnte nicht gegen Token getauscht werden"
+        },
+        "clientIdLabel": "Client-ID",
+        "clientIdPlaceholder": "Deine OAuth-Client-ID eingeben",
+        "clientSecretLabel": "Client-Secret",
+        "clientSecretPlaceholder": "Dein OAuth-Client-Secret eingeben",
+        "clientSecretHelp": "Dein Client-Secret ist für vertrauliche Clients erforderlich. Bei öffentlichen Clients lass dieses Feld leer."
+      }
+    },
+    "Organizations": {
+      "Metadata": {
+        "title": "Organisationen",
+        "description": "Deine Organisationen verwalten"
+      },
+      "newOrganization": "Neue Organisation",
+      "organizationsNotAvailable": "Keine Organisationen gefunden",
+      "OrganizationRow": {
+        "leave": "Verlassen",
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren"
+      },
+      "Credits": {
+        "title": "Organisations-Credits",
+        "description": "Verfügbar für {organization}-Mitglieder",
+        "buy": "Credits hinzufügen"
+      },
+      "InvitationActions": {
+        "accept": "Akzeptieren",
+        "reject": "Ablehnen",
+        "acceptTitle": "Einladung akzeptieren",
+        "rejectTitle": "Einladung ablehnen",
+        "acceptDescription": "Möchtest du die Einladung für {email} wirklich akzeptieren?",
+        "rejectDescription": "Möchtest du die Einladung für {email} wirklich ablehnen?",
+        "confirm": "Bestätigen",
+        "cancel": "Abbrechen",
+        "acceptSuccess": "Einladung erfolgreich akzeptiert",
+        "acceptError": "Einladung konnte nicht akzeptiert werden",
+        "rejectSuccess": "Einladung erfolgreich abgelehnt",
+        "rejectError": "Einladung konnte nicht abgelehnt werden",
+        "Errors": {
+          "unauthorizedAction": "Anmelden"
+        }
+      },
+      "OrganizationDetail": {
+        "Metadata": {
+          "Title": {
+            "default": "{name}",
+            "template": "{name} - %s"
+          },
+          "description": "Deine Organisation verwalten"
+        },
+        "roleIndicator": "Ansicht als:",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "invite": "Mitglied einladen",
+        "InvoiceEmail": {
+          "title": "Rechnungs-E-Mail",
+          "description": "E-Mail-Adresse für den Empfang von Rechnungen und Billing-Benachrichtigungen",
+          "label": "Rechnungs-E-Mail",
+          "placeholder": "billing@example.com",
+          "help": "Diese E-Mail-Adresse erhält alle Rechnungen und billing-bezogenen Mitteilungen von Stripe",
+          "edit": "Bearbeiten",
+          "save": "Speichern",
+          "cancel": "Abbrechen",
+          "Success": {
+            "update": "Rechnungs-E-Mail erfolgreich aktualisiert"
+          },
+          "Errors": {
+            "unauthenticated": "Bitte melde dich an, um fortzufahren",
+            "unauthenticatedAction": "Anmelden",
+            "unauthorized": "Nur Eigentümer und Admins der Organisation können die Rechnungs-E-Mail aktualisieren",
+            "badInput": "Bitte gib eine gültige E-Mail-Adresse ein",
+            "general": "Rechnungs-E-Mail konnte nicht aktualisiert werden"
+          }
+        },
+        "Subscription": {
+          "title": "Organisations-Abonnement",
+          "description": "Plan und Seats für deine Organisation verwalten.",
+          "currentPlanLabel": "Aktueller Plan",
+          "currentSeatsLabel": "Aktuelle Seats",
+          "membersLabel": "Aktive Mitglieder",
+          "seatsInputLabel": "Gewünschte Seats",
+          "seatsInputHint": "Mindestanzahl an Seats ist {minimum}, um alle aktiven Mitglieder abzudecken.",
+          "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
+          "noActivePlan": "Kein aktiver Plan",
+          "seatsUpdatedSuccess": "Seats erfolgreich aktualisiert.",
+          "updating": "Weiterleitung...",
+          "currentPlanCta": "Aktueller Plan",
+          "updateSeatsCta": "Seats aktualisieren",
+          "choosePlanCta": "Plan auswählen",
+          "Errors": {
+            "unauthenticated": "Bitte melde dich an, um fortzufahren",
+            "unauthenticatedAction": "Anmelden",
+            "unauthorized": "Nur Eigentümer und Admins der Organisation können Abonnements verwalten",
+            "badInput": "Bitte gib gültige Plan- und Seat-Werte an",
+            "general": "Organisations-Abonnement konnte nicht verwaltet werden"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "Metadata": {
+        "title": "Agents-Galerie",
+        "description": "Entdecke unsere Agent-Sammlung."
+      },
+      "CoworkerGallerySection": {
+        "title": "Agentische Coworker",
+        "whatTheyDo": {
+          "title": "Was sie tun",
+          "description": "KI-Coworker, denen du echte Arbeit übertragen kannst. Sie arbeiten selbstständig und bringen Ergebnisse."
+        },
+        "marketingExpertise": {
+          "title": "Marketing-Expertise",
+          "description": "Trainiert auf echter Kampagnenarbeit – Strategie, Content, Mediaplanung und Markenkommunikation."
+        },
+        "serviceplanLogoAlt": "Serviceplan Group",
+        "moreComingSoon": "+ Mehr folgt in Kürze"
+      },
+      "FilterSection": {
+        "searchPlaceholder": "Agents suchen",
+        "reset": "Zurücksetzen",
+        "tags": "Tags",
+        "selectTags": "Tags auswählen",
+        "applyTags": "Anwenden",
+        "categories": "Kategorien",
+        "selectCategories": "Kategorien auswählen",
+        "applyCategories": "Anwenden",
+        "featuredAgents": "Featured Agents",
+        "newAgents": "Neue Agents",
+        "others": "Sonstige"
+      },
+      "Jobs": {
+        "newJob": "Neuer Job",
+        "switchedWorkspace": "Zu {account}-Account gewechselt",
+        "Header": {
+          "back": "Zurück zu Agents",
+          "newJob": "Neuer Job",
+          "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
+        },
+        "Modal": {
+          "back": "Zurück"
+        },
+        "Footer": {
+          "termsAndConditions": "Allgemeine Geschäftsbedingungen",
+          "privacyPolicy": "Datenschutzrichtlinie",
+          "customerSupport": "Kundensupport"
+        },
+        "RightSection": {
+          "noExecutedJobs": "Keine ausgeführten Jobs"
+        },
+        "CreateJob": {
+          "title": "Neuer {name}",
+          "demo": "Demo",
+          "cancel": "Abbrechen",
+          "Information": {
+            "title": "Informationen"
+          },
+          "Input": {
+            "title": "Input"
+          },
+          "Scheduler": {
+            "title": "Job planen",
+            "description": "Wähle, wann dieser Job ausgeführt werden soll.",
+            "modeCards": {
+              "now": {
+                "title": "Jetzt ausführen",
+                "description": "Job sofort ausführen."
+              },
+              "recurring": {
+                "title": "Planen",
+                "description": "Einen einmaligen oder wiederkehrenden Zeitplan festlegen."
+              }
+            },
+            "option": {
+              "oneTime": "Einmalig",
+              "daily": "Täglich",
+              "dailyWithTime": "Täglich ({time})",
+              "dailyEveryNWithTime": "Alle {n} Tage ({time})",
+              "weekly": "Wöchentlich",
+              "weeklyWithWeekdayTime": "Wöchentlich ({weekday}, {time})",
+              "weeklyListWithTime": "Wöchentlich ({weekdays}, {time})",
+              "monthly": "Monatlich",
+              "monthlyWithDayTime": "Monatlich (Tag {day}, {time})",
+              "monthlyEveryNWithDayTime": "Alle {n} Monate (Tag {day}, {time})",
+              "custom": "Benutzerdefiniert"
+            },
+            "schedulesTitle": "Geplante Agents",
+            "pickDateTime": "Datum & Uhrzeit auswählen",
+            "timeOfDay": "Uhrzeit",
+            "pickTime": "Uhrzeit auswählen",
+            "repeatEvery": "Wiederholen alle",
+            "repeatOn": "Wiederholen am",
+            "ends": "Endet",
+            "never": "Nie",
+            "on": "Am",
+            "after": "Nach",
+            "occurrences": "Wiederholungen",
+            "pickDate": "Datum auswählen",
+            "preview": "Vorschau",
+            "noPreview": "Keine geplanten Ausführungen",
+            "unit": {
+              "day": "Tag",
+              "week": "Woche",
+              "month": "Monat"
+            },
+            "save": "Speichern",
+            "cancel": "Abbrechen",
+            "errors": {
+              "required": "Dieses Feld ist erforderlich.",
+              "futureDateTime": "Wähle einen zukünftigen Zeitpunkt aus.",
+              "invalidTime": "Gib eine gültige Uhrzeit ein (HH:MM).",
+              "positiveInteger": "Gib eine positive ganze Zahl ein.",
+              "selectAtLeastOneWeekday": "Wähle mindestens einen Wochentag aus.",
+              "endDateInPast": "Das Enddatum darf nicht in der Vergangenheit liegen."
+            }
+          }
+        }
+      }
+    },
+    "Feed": {
+      "title": "Mein Feed",
+      "aiInsights": "KI-Insights",
+      "summaryDescription": "Hier siehst du deine zuletzt abgeschlossenen Tasks und Jobs.",
+      "description": "Eine einheitliche Übersicht deiner zuletzt abgeschlossenen Arbeit.",
+      "earlier": "Früher",
+      "recentActivity": "Letzte Aktivitäten",
+      "summary": "Hier siehst du deine zuletzt abgeschlossenen Tasks und Jobs.",
+      "resultsTitle": "Ergebnisse",
+      "emptyState": "Noch keine abgeschlossenen Ergebnisse.",
+      "backToFeed": "Zurück zum Feed",
+      "unknownAgent": "Agent",
+      "unknownCoworker": "Coworker",
+      "openOriginal": "Details ansehen",
+      "missingResult": "Dieses Feed-Ergebnis ist nicht mehr verfügbar.",
+      "fallbackPreview": "Keine weiteren Details verfügbar.",
+      "sourcesFiles": "Dateien",
+      "sourcesLinks": "Links",
+      "untitledJob": "Unbenannter Job",
+      "untitledTask": "Unbenannter Task",
+      "search": "Tasks oder Jobs suchen",
+      "clearSearch": "Suche zurücksetzen",
+      "loadMore": "Mehr laden",
+      "loadingMore": "Wird geladen...",
+      "generating": "Denkt nach...",
+      "generationError": "Insights können derzeit nicht generiert werden.",
+      "type": {
+        "job": "Job",
+        "task": "Task"
+      }
+    },
+    "EmailVerificationNotice": {
+      "title": "Bestätige deine E-Mail-Adresse",
+      "description": "Du musst deine E-Mail-Adresse bestätigen, um kostenpflichtige Account-Funktionen weiter zu nutzen.",
+      "button": "Bestätigungs-E-Mail erneut senden",
+      "sendSuccess": "Bestätigungs-E-Mail wurde gesendet. Bitte prüfe deinen Posteingang.",
+      "sendError": "Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte versuche es erneut."
+    }
+  },
+  "Share": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace für Mensch-Agent-Interaktionen",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+    },
+    "Jobs": {
+      "Metadata": {
+        "title": "{name}",
+        "defaultName": "Unbenannt",
+        "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+      }
+    },
+    "CTA": {
+      "title": "KI-Agents auf Abruf",
+      "description": "Wähle einen vertrauenswürdigen Agent, definiere deine Anforderungen und erhalte umsetzbare Ergebnisse – ohne Abonnement.",
+      "buttonText": "Agents entdecken"
+    }
+  },
+  "NotFound": {
+    "title": "404",
+    "description": "Hoppla! Die gesuchte Seite existiert nicht.",
+    "message": "Die Seite, auf die du zugreifen möchtest, wurde möglicherweise entfernt, umbenannt oder ist vorübergehend nicht verfügbar.",
+    "returnHome": "Zur Startseite"
+  },
+  "Maintenance": {
+    "title": "Wartungsmodus",
+    "description": "Wir führen derzeit Wartungsarbeiten durch",
+    "message": "Wir arbeiten daran, dein Erlebnis zu verbessern. Schau bald wieder vorbei."
+  },
+  "Library": {
+    "Auth": {
+      "Schema": {
+        "Email": {
+          "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
+          "required": "E-Mail ist erforderlich"
+        },
+        "Name": {
+          "min": "Name muss mindestens 2 Zeichen lang sein.",
+          "max": "Name darf maximal 128 Zeichen lang sein.",
+          "invalid": "Name muss eine gültige Zeichenkette sein.",
+          "required": "Name ist erforderlich"
+        },
+        "Organization": {
+          "invalid": "Organisation muss eine gültige Zeichenkette sein.",
+          "required": "Organisation ist erforderlich",
+          "min": "Organisationsname muss mindestens 2 Zeichen lang sein.",
+          "max": "Organisationsname darf maximal 50 Zeichen lang sein."
+        },
+        "Password": {
+          "invalid": "Passwort muss eine gültige Zeichenkette sein.",
+          "min": "Passwort muss mindestens 8 Zeichen lang sein",
+          "max": "Passwort darf maximal 128 Zeichen lang sein",
+          "lowercase": "Passwort muss mindestens einen Kleinbuchstaben enthalten.",
+          "uppercase": "Passwort muss mindestens einen Großbuchstaben enthalten.",
+          "number": "Passwort muss mindestens eine Zahl enthalten.",
+          "required": "Passwort ist erforderlich"
+        },
+        "CurrentPassword": {
+          "invalid": "Aktuelles Passwort muss eine gültige Zeichenkette sein.",
+          "required": "Aktuelles Passwort ist erforderlich"
+        },
+        "InputPassword": {
+          "invalid": "Passwort muss eine gültige Zeichenkette sein.",
+          "required": "Passwort ist erforderlich"
+        },
+        "ConfirmPassword": {
+          "invalid": "Passwort-Bestätigung muss eine gültige Zeichenkette sein.",
+          "match": "Passwörter stimmen nicht überein",
+          "required": "Passwort-Bestätigung ist erforderlich"
+        }
+      },
+      "Email": {
+        "ResetPassword": {
+          "subject": "Sokosumi - Passwort zurücksetzen",
+          "title": "Dein Passwort zurücksetzen",
+          "greeting": "Hallo {name}",
+          "message": "Wir haben eine Anfrage erhalten, das Passwort für deinen Account zurückzusetzen. Wenn du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.",
+          "button": "Passwort zurücksetzen",
+          "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
+          "footer": "Wenn du keine Passwort-Zurücksetzung angefordert hast, ignoriere diese E-Mail oder kontaktiere unseren Support, wenn du Bedenken hast."
+        },
+        "Verification": {
+          "subject": "Sokosumi - E-Mail-Adresse bestätigen",
+          "title": "Deine E-Mail-Adresse bestätigen",
+          "greeting": "Hallo {name}",
+          "message": "Bitte bestätige deine E-Mail-Adresse, indem du auf den Button unten klickst. So stellen wir die Sicherheit deines Accounts sicher.",
+          "button": "E-Mail bestätigen",
+          "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
+          "footer": "Wenn du kein Konto erstellt hast, kannst du diese E-Mail ignorieren."
+        },
+        "InviteUserEmail": {
+          "subject": "Sokosumi - Organisationseinladung",
+          "title": "Tritt {invitorUsername} bei {organizationName} bei",
+          "greeting": "Hallo",
+          "message": "Du wurdest eingeladen, {organizationName} auf Sokosumi beizutreten. Klicke auf den Button unten, um die Einladung anzunehmen.",
+          "button": "Einladung annehmen",
+          "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
+          "footer": "Wenn du diese Einladung nicht angefordert hast, kannst du diese E-Mail ignorieren."
+        }
+      }
+    },
+    "Email": {
+      "JobFinalStatus": {
+        "subject": "Sokosumi - {agentName}-Job {status}",
+        "preview": "Dein Job für {agentName} ist jetzt {status}.",
+        "title": "Job {status}",
+        "greeting": "Hallo {name}",
+        "body": "{jobName} für {agentName} ist jetzt {status}.",
+        "button": "Job ansehen",
+        "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
+        "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind.",
+        "fallbackJobName": "Dein Job",
+        "status": {
+          "completed": "abgeschlossen",
+          "failed": "fehlgeschlagen",
+          "payment_failed": "Zahlung fehlgeschlagen",
+          "refund_resolved": "erstattet",
+          "dispute_resolved": "Einspruch gelöst"
+        }
+      },
+      "JobFailureNotification": {
+        "subject": "Job-Fehlerbenachrichtigung - {jobId}",
+        "preview": "Job {jobId} ist fehlgeschlagen",
+        "title": "Job-Fehlerbenachrichtigung",
+        "description": "Ein Job ist fehlgeschlagen. Hier sind die technischen Details:",
+        "network": "Netzwerk:",
+        "agentName": "Agent-Name:",
+        "agentId": "Agent-ID:",
+        "agentBlockchainIdentifier": "Agent-Blockchain-Kennung:",
+        "jobId": "Job-ID:",
+        "jobBlockchainIdentifier": "Job-Blockchain-Kennung:",
+        "onChainStatus": "On-Chain-Status:",
+        "agentStatus": "Agent-Status:",
+        "inputHash": "Input-Hash:",
+        "resultHash": "Ergebnis-Hash:",
+        "inputSchema": "Input-Schema:",
+        "input": "Input:",
+        "output": "Output:",
+        "footer": "Dies ist eine automatische Benachrichtigung von Sōkosumi."
+      },
+      "JobInputRequired": {
+        "subject": "Sokosumi - {agentName} benötigt deinen Input",
+        "preview": "Dein Job für {agentName} benötigt Input, um fortzufahren.",
+        "title": "Aktion erforderlich",
+        "greeting": "Hallo {name}",
+        "body": "Dein Job {jobName} für {agentName} wartet auf deinen Input, um fortzufahren.",
+        "button": "Input bereitstellen",
+        "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
+        "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind.",
+        "fallbackJobName": "Dein Job"
+      }
+    },
+    "JobInput": {
+      "Schema": {
+        "Id": {
+          "required": "Input-ID ist erforderlich"
+        },
+        "Type": {
+          "enum": "Muss einer der folgenden Werte sein: {options}"
+        },
+        "Name": {
+          "required": "Input-Name ist erforderlich"
+        },
+        "Data": {
+          "Values": {
+            "value": {
+              "required": "Option ist erforderlich"
+            },
+            "min": "Mindestens 1 Option erforderlich",
+            "unique": "Optionswerte müssen eindeutig sein"
+          }
+        },
+        "Validations": {
+          "Validation": {
+            "enum": "Muss einer der folgenden Werte sein: {options}"
+          },
+          "Value": {
+            "invalid": "Wert ist ungültig für Validierung {validation}",
+            "required": "Wert ist erforderlich für Validierung {validation}",
+            "integer": "Wert muss eine ganze Zahl sein für Validierung {validation}",
+            "enum": "Wert muss einer der folgenden sein: {options}, für Validierung {validation}"
+          },
+          "fileInvalid": "Schema der Datei ist ungültig. Erforderliche Validierungen fehlen"
+        },
+        "invalidValidations": "Validierungen sind nicht gültig für Typ {type}",
+        "optionValuesRequired": "Werte sind für den Optionstyp erforderlich",
+        "noDataValues": "Werte müssen für Nicht-Optionstypen undefiniert sein"
+      },
+      "Form": {
+        "clear": "Zurücksetzen",
+        "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}} pro Ausführung",
+        "submit": "Beauftragen",
+        "schedule": "Planen",
+        "back": "Zurück",
+        "next": "Weiter",
+        "ctrl": "Strg",
+        "acceptByClickingSubmit": "Mit Klick auf \"Beauftragen\" stimmst du den ",
+        "termsOfService": "Nutzungsbedingungen",
+        "privacyPolicy": "Datenschutzrichtlinie",
+        "legal": "weiteren rechtlichen Anforderungen",
+        "byCreator": " des Erstellers des Agents zu",
+        "Error": {
+          "insufficientBalance": "Dein Credit-Guthaben reicht nicht aus, um diesen Job zu starten.",
+          "insufficientBalanceAction": "Credits hinzufügen",
+          "badInput": "Deine Eingabedaten sind ungültig.",
+          "unauthenticated": "Du musst angemeldet sein, um einen Job zu starten.",
+          "unauthenticatedAction": "Anmelden",
+          "default": "Job konnte nicht gestartet werden."
+        },
+        "String": {
+          "required": "{name} ist erforderlich",
+          "min": "{name} muss mindestens {value} Zeichen lang sein",
+          "max": "{name} darf maximal {value} Zeichen lang sein",
+          "format": "{name} muss ein/eine {value} sein"
+        },
+        "Number": {
+          "required": "{name} ist erforderlich",
+          "min": "{name} muss mindestens {value} betragen",
+          "max": "{name} darf maximal {value} betragen",
+          "format": "{name} muss ein/eine {value} sein"
+        },
+        "Boolean": {
+          "required": "{name} ist erforderlich"
+        },
+        "Option": {
+          "required": "{name} ist erforderlich",
+          "min": "{name} muss mindestens {value, plural, =1 {1 Option} other {# Optionen}} enthalten",
+          "max": "{name} darf maximal {value, plural, =1 {1 Option} other {# Optionen}} enthalten",
+          "integer": "{name}-Optionswert muss ein Index sein",
+          "nonnegative": "{name}-Optionswert muss ein nicht-negativer Index sein",
+          "invalid": "{name}-Optionswert muss ein Index von 0 bis {maxValue} sein"
+        },
+        "File": {
+          "required": "{name} ist erforderlich",
+          "invalid": "{name} muss eine gültige Datei sein",
+          "maxSize": "{name} darf maximal {value} Bytes groß sein",
+          "description": "Dateien hierher ziehen oder auswählen",
+          "delete": "Löschen"
+        },
+        "Date": {
+          "min": "{name} muss mindestens {value} betragen",
+          "max": "{name} darf maximal {value} betragen",
+          "format": "{name} muss ein/eine {value} sein"
+        }
+      },
+      "Error": {
+        "failedToFetchJobInputSchema": "Job-Input-Schema konnte nicht abgerufen werden",
+        "demoDataInvalid": "Demo-Daten des Agents sind ungültig."
+      }
+    },
+    "Duration": {
+      "Long": {
+        "days": "{value, plural, =1 {Tag} other {Tage}}",
+        "hours": "{value, plural, =1 {Stunde} other {Stunden}}",
+        "minutes": "{value, plural, =1 {Minute} other {Minuten}}",
+        "seconds": "{value, plural, =1 {Sekunde} other {Sekunden}}"
+      },
+      "Short": {
+        "days": "{value, plural, =1 {Tag} other {Tage}}",
+        "hours": "{value, plural, =1 {Std.} other {Std.}}",
+        "minutes": "{value, plural, =1 {Min.} other {Min.}}",
+        "seconds": "{value, plural, =1 {Sek.} other {Sek.}}"
+      }
+    }
+  }
+}

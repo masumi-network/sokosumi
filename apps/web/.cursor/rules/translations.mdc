@@ -103,6 +103,39 @@ return <div>{t('title')}</div>; // Uses "Components.CookieConsent.title"
 
 5. If `Components` becomes empty, consider removing it (unless other components use it)
 
+### When `messages/en.json` Keys Change
+
+`apps/web/messages/en.json` is the source-of-truth catalog. Any key shape changes must be synchronized to every supported locale catalog.
+
+Supported locale catalogs:
+
+- `apps/web/messages/de.json`
+- `apps/web/messages/es.json`
+- `apps/web/messages/it.json`
+- `apps/web/messages/fr.json`
+- `apps/web/messages/pt.json`
+- `apps/web/messages/pt-BR.json`
+- `apps/web/messages/ja.json`
+- `apps/web/messages/zh-Hans.json`
+
+#### Add key
+
+1. Add the key to `apps/web/messages/en.json`.
+2. Add the same key path to every supported locale file.
+3. If a translated value is not available yet, temporarily copy the English string so the key exists in all locales.
+
+#### Remove key
+
+1. Remove the key from `apps/web/messages/en.json`.
+2. Remove the same key path from every supported locale file.
+3. Remove empty parent objects after deletion.
+
+#### Rename / move key
+
+1. Apply the rename/move in `apps/web/messages/en.json`.
+2. Apply the same rename/move to every supported locale file.
+3. Preserve values during the move in each locale file.
+
 ## Rules
 
 ### ✅ DO
@@ -112,6 +145,8 @@ return <div>{t('title')}</div>; // Uses "Components.CookieConsent.title"
 - Remove empty parent objects after removing all children
 - Preserve JSON formatting and indentation
 - Handle nested keys correctly (check both full path and namespace + key patterns)
+- Keep locale key paths in sync when `messages/en.json` changes
+- Add/update/remove translation keys in all locale catalogs in the same change
 
 ### ❌ DON'T
 
@@ -119,14 +154,17 @@ return <div>{t('title')}</div>; // Uses "Components.CookieConsent.title"
 - Remove parent objects that still have used children
 - Break JSON structure when removing keys
 - Remove keys that are used in other files
+- Add keys only in `messages/en.json` and leave other locale files missing them
+- Rename/move keys in `messages/en.json` without applying the same path change to all locales
 
 ## Verification
 
-After removing translation keys:
+After adding/removing/renaming translation keys:
 
-1. Verify JSON is still valid: `cat messages/en.json | jq .` (should not error)
-2. Check that no broken references exist in code
-3. Ensure the file is properly formatted (run `pnpm web:format`)
+1. Verify JSON is still valid for all locale files.
+2. Verify key-path parity between `apps/web/messages/en.json` and all supported locale files (no missing/extra keys).
+3. Check that no broken references exist in code.
+4. Ensure files are properly formatted (run `pnpm web:format`).
 
 ## Tools
 
