@@ -180,7 +180,7 @@ export default function ProfileSwitchClient({
             >
               <PopoverTrigger asChild>
                 <SidebarMenuButton
-                  className="min-h-[56px] items-center md:p-2"
+                  className="min-h-[56px] cursor-pointer items-center md:p-2"
                   aria-label={tOrganizationSwitcher("switchWorkspace")}
                   disabled={isPending}
                 >
