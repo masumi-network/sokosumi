@@ -12,7 +12,7 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
-import { getAuthContext, getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentDescription, getAgentName } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
@@ -82,7 +82,7 @@ async function JobLayoutInner({
     return notFound();
   }
 
-  const authContext = await getAuthContext();
+  const userId = session.user.id;
 
   const [
     agentJobs,
@@ -100,16 +100,8 @@ async function JobLayoutInner({
     agentService.getAvailableAgentById(agentId),
     agentService.getAgentRatingStats(agentId),
     jobRepository.getAverageExecutionDurationByAgentId(agentId, prisma),
-    authContext?.userId
-      ? agentService.canUserRateAgent(authContext.userId, agentId)
-      : Promise.resolve(false),
-    authContext?.userId
-      ? agentRatingRepository.getUserRatingForAgent(
-          authContext.userId,
-          agentId,
-          prisma,
-        )
-      : Promise.resolve(null),
+    agentService.canUserRateAgent(userId, agentId),
+    agentRatingRepository.getUserRatingForAgent(userId, agentId, prisma),
   ]);
 
   return (

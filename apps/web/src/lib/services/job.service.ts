@@ -38,7 +38,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
 import prisma from "@/lib/db/prisma";
 import {
@@ -1196,12 +1196,12 @@ export const jobService = (() => {
     agentIds: string[],
     tx: Prisma.TransactionClient = prisma,
   ): Promise<(JobStatusData | null)[]> => {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getSession();
+    if (!session) {
       return [];
     }
-    const userId = context.userId;
-    const activeOrganizationId = context.organizationId;
+    const userId = session.user.id;
+    const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
     return await Promise.all(
       agentIds.map(async (agentId) => {

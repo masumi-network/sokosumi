@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { uploadFileForUser } from "@/lib/blob/utils";
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const authContext = await getAuthContext();
-  if (!authContext) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const uploaded = await uploadFileForUser(authContext.userId, file);
+    const uploaded = await uploadFileForUser(session.user.id, file);
     return NextResponse.json({
       url: uploaded.url,
       name: file.name,

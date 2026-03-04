@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { userService } from "@/lib/services";
 import {
@@ -68,12 +68,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const t = await getTranslations("App.Billing");
   const query = await searchParams;
   const activeTab = parseBillingTab(query.tab);
-  const authContext = await getAuthContext();
+  const session = await getSession();
   const activeOrganization = await userService.getActiveOrganization();
 
-  if (!authContext) {
+  if (!session) {
     return null;
   }
+  const userId = session.user.id;
 
   if (activeOrganization) {
     const [member, requestHeaders, subscriptionCatalog] = await Promise.all([
@@ -129,7 +130,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         : undefined;
 
     const balanceInCents = await creditBucketRepository.getBalance(
-      authContext.userId,
+      userId,
       activeOrganization.id,
       prisma,
     );
@@ -222,7 +223,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   const [balanceInCents, requestHeaders, subscriptionCatalog] =
     await Promise.all([
-      creditBucketRepository.getBalance(authContext.userId, null, prisma),
+      creditBucketRepository.getBalance(userId, null, prisma),
       headers(),
       getSubscriptionCatalog(stripeInstance),
     ]);

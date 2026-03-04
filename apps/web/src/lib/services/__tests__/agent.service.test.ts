@@ -12,7 +12,7 @@ const getShownAgentsWithRelationsByStatusMock = jest.fn();
 const getCreditCostsMock = jest.fn();
 const getCreditCostByUnitMock = jest.fn();
 const transactionMock = jest.fn();
-const getAuthContextMock = jest.fn();
+const getSessionMock = jest.fn();
 
 jest.mock("@sokosumi/database/repositories", () => ({
   agentListRepository: {
@@ -42,7 +42,7 @@ jest.mock("@sokosumi/database/repositories", () => ({
 }));
 
 jest.mock("@/lib/auth/utils", () => ({
-  getAuthContext: (...args: unknown[]) => getAuthContextMock(...args),
+  getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
 jest.mock("@/lib/db/prisma", () => ({
@@ -121,7 +121,7 @@ describe("agent.service", () => {
       buildFreeAgent("agent-free"),
     ]);
     getCreditCostsMock.mockResolvedValue([
-      { unit: "token", centsPerUnit: 10n },
+      { unit: "token", centsPerUnit: BigInt(10) },
     ]);
 
     const { agentService } = await import("../agent.service");
@@ -190,7 +190,7 @@ describe("agent.service", () => {
       }),
     ]);
     getCreditCostsMock.mockResolvedValue([
-      { unit: "token", centsPerUnit: 10n },
+      { unit: "token", centsPerUnit: BigInt(10) },
     ]);
 
     const { agentService } = await import("../agent.service");
@@ -200,7 +200,7 @@ describe("agent.service", () => {
     expect(result[0]).toEqual(
       expect.objectContaining({
         id: "agent-valid",
-        creditsPrice: { cents: 20n },
+        creditsPrice: { cents: BigInt(20) },
       }),
     );
   });
@@ -209,14 +209,14 @@ describe("agent.service", () => {
     const agent = buildFixedAgent({
       id: "agent-1",
       amounts: [
-        { unit: "token", amount: 2n },
-        { unit: "second", amount: 3n },
+        { unit: "token", amount: BigInt(2) },
+        { unit: "second", amount: BigInt(3) },
       ],
     });
     const tx = { tx: "single" };
     getCreditCostsMock.mockResolvedValue([
-      { unit: "token", centsPerUnit: 10n },
-      { unit: "second", centsPerUnit: 5n },
+      { unit: "token", centsPerUnit: BigInt(10) },
+      { unit: "second", centsPerUnit: BigInt(5) },
     ]);
 
     const { agentService } = await import("../agent.service");
@@ -227,6 +227,6 @@ describe("agent.service", () => {
 
     expect(getCreditCostsMock).toHaveBeenCalledWith(tx);
     expect(getCreditCostByUnitMock).not.toHaveBeenCalled();
-    expect(result.creditsPrice.cents).toBe(35n);
+    expect(result.creditsPrice.cents).toBe(BigInt(35));
   });
 });

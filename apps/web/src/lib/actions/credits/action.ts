@@ -14,7 +14,7 @@ import { Err, Ok, Result } from "@/lib/ts-res";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 import {
   AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 interface PurchaseCreditsParameters extends AuthenticatedRequest {
@@ -23,11 +23,11 @@ interface PurchaseCreditsParameters extends AuthenticatedRequest {
   returnPath?: string;
 }
 
-export const purchaseCredits = withAuthContext<
+export const purchaseCredits = withSession<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, credits, authContext, returnPath }) => {
-  const { userId } = authContext;
+>(async ({ organizationId, credits, session, returnPath }) => {
+  const userId = session.user.id;
 
   // Validate input
   if (!isPositiveIntegerCredits(credits)) {
@@ -76,11 +76,11 @@ interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   returnPath?: string;
 }
 
-export const claimFreeCreditsWithCoupon = withAuthContext<
+export const claimFreeCreditsWithCoupon = withSession<
   ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, couponId, authContext, returnPath }) => {
-  const { userId } = authContext;
+>(async ({ organizationId, couponId, session, returnPath }) => {
+  const userId = session.user.id;
 
   // If organizationId is provided, verify user is a member
   if (organizationId) {

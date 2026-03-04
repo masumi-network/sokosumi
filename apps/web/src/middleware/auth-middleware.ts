@@ -1,25 +1,24 @@
+import { type Session } from "@/lib/auth/auth";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { AuthContext, getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 
 export interface AuthenticatedRequest {
-  authContext?: AuthContext;
+  session?: Session;
 }
 
-export function withAuthContext<T extends AuthenticatedRequest, R>(
-  handler: (params: T & { authContext: AuthContext }) => Promise<R>,
+export function withSession<T extends AuthenticatedRequest, R>(
+  handler: (params: T & { session: Session }) => Promise<R>,
 ) {
   return async (params: T): Promise<R> => {
-    // If auth is already provided, use it
-    if (params.authContext) {
-      return handler(params as T & { authContext: AuthContext });
+    if (params.session) {
+      return handler(params as T & { session: Session });
     }
 
-    // Otherwise, get the auth context
-    const authContext = await getAuthContext();
-    if (!authContext) {
+    const session = await getSession();
+    if (!session) {
       throw new UnAuthenticatedError();
     }
 
-    return handler({ ...params, authContext });
+    return handler({ ...params, session });
   };
 }

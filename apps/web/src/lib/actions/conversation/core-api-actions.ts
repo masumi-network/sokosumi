@@ -14,7 +14,7 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import {
   AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 /** Conversation shape returned by server actions (dates serialized as ISO strings). */
@@ -84,7 +84,7 @@ async function makeCoreApiRequest<T>(
  * Lists conversations for the current user via Core API
  * CRITICAL: Only returns conversations owned by the authenticated user.
  */
-export const listConversations = withAuthContext<
+export const listConversations = withSession<
   ListConversationsParameters,
   Result<Conversation[], ActionError>
 >(async () => {
@@ -112,7 +112,7 @@ export const listConversations = withAuthContext<
  * CRITICAL: Validates ownership before returning.
  * Returns items and pagination metadata for cursor-based pagination.
  */
-export const getConversationItems = withAuthContext<
+export const getConversationItems = withSession<
   GetConversationItemsParameters,
   Result<
     { items: ConversationItem[]; pagination: CoreApiPagination | null },
@@ -153,7 +153,7 @@ export const getConversationItems = withAuthContext<
  * CRITICAL: Validates ownership before returning.
  * Fetches conversation items from the database.
  */
-export const getConversation = withAuthContext<
+export const getConversation = withSession<
   GetConversationParameters,
   Result<ConversationWithItems, ActionError>
 >(async ({ id }) => {
@@ -214,7 +214,7 @@ export const getConversation = withAuthContext<
 /**
  * Creates a new conversation via Core API
  */
-export const createConversation = withAuthContext<
+export const createConversation = withSession<
   CreateConversationParameters,
   Result<Conversation, ActionError>
 >(async ({ conversationId, metadata, title }) => {
@@ -244,7 +244,7 @@ export const createConversation = withAuthContext<
  * Updates a conversation via Core API
  * CRITICAL: Validates ownership before updating.
  */
-export const updateConversation = withAuthContext<
+export const updateConversation = withSession<
   UpdateConversationParameters,
   Result<Conversation, ActionError>
 >(async ({ id, metadata, title }) => {
@@ -272,7 +272,7 @@ export const updateConversation = withAuthContext<
  * Archives a conversation via Core API
  * CRITICAL: Validates ownership before archiving.
  */
-export const deleteConversation = withAuthContext<
+export const deleteConversation = withSession<
   GetConversationParameters,
   Result<Conversation, ActionError>
 >(async ({ id }) => {
@@ -298,7 +298,7 @@ export const deleteConversation = withAuthContext<
  * CRITICAL: Validates ownership before returning.
  * Returns the internal conversation ID for use with API endpoints.
  */
-export const getConversationId = withAuthContext<
+export const getConversationId = withSession<
   GetConversationParameters,
   Result<{ conversationId: string }, ActionError>
 >(async ({ id }) => {
@@ -320,7 +320,7 @@ export const getConversationId = withAuthContext<
  * Adds an item to a conversation via Core API
  * Used by chat route to store messages in conversations
  */
-export const addConversationItem = withAuthContext<
+export const addConversationItem = withSession<
   AddConversationItemParameters,
   Result<{ id: string }, ActionError>
 >(async ({ conversationId, role, content }) => {

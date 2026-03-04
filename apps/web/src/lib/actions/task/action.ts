@@ -7,7 +7,7 @@ import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { taskService } from "@/lib/services/task.service";
 import {
   type AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 interface CreateTaskParameters extends AuthenticatedRequest {
@@ -45,39 +45,35 @@ function buildFallbackName(description: string): string {
   return (firstLine ?? "").trim().slice(0, 60);
 }
 
-export const createTask = withAuthContext<
-  CreateTaskParameters,
-  { taskId: string }
->(async ({ description, coworkerId, status }) => {
-  const trimmedDescription = description.trim();
-  if (!trimmedDescription) {
-    throw new Error("Description required");
-  }
+export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
+  async ({ description, coworkerId, status }) => {
+    const trimmedDescription = description.trim();
+    if (!trimmedDescription) {
+      throw new Error("Description required");
+    }
 
-  try {
-    const generatedName =
-      await openrouterClient.generateTaskName(trimmedDescription);
-    const candidate = generatedName ?? buildFallbackName(description);
-    const name = candidate.trim() || "Untitled Task";
-    const task = await taskService.createTask({
-      name,
-      description: trimmedDescription,
-      coworkerId: coworkerId ? coworkerId : null,
-      status,
-    });
+    try {
+      const generatedName =
+        await openrouterClient.generateTaskName(trimmedDescription);
+      const candidate = generatedName ?? buildFallbackName(description);
+      const name = candidate.trim() || "Untitled Task";
+      const task = await taskService.createTask({
+        name,
+        description: trimmedDescription,
+        coworkerId: coworkerId ? coworkerId : null,
+        status,
+      });
 
-    revalidatePath("/tasks");
-    return { taskId: task.id };
-  } catch (error) {
-    console.error("Failed to create task", error);
-    throw new Error("Failed to create task");
-  }
-});
+      revalidatePath("/tasks");
+      return { taskId: task.id };
+    } catch (error) {
+      console.error("Failed to create task", error);
+      throw new Error("Failed to create task");
+    }
+  },
+);
 
-export const updateTask = withAuthContext<
-  UpdateTaskParameters,
-  { taskId: string }
->(
+export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
   async ({
     taskId,
     name,
@@ -118,7 +114,7 @@ export const updateTask = withAuthContext<
   },
 );
 
-export const setTaskStatusFromDrag = withAuthContext<
+export const setTaskStatusFromDrag = withSession<
   SetTaskStatusFromDragParameters,
   { taskId: string }
 >(async ({ taskId, desiredStatus }) => {
@@ -136,38 +132,36 @@ export const setTaskStatusFromDrag = withAuthContext<
   }
 });
 
-export const deleteTask = withAuthContext<
-  DeleteTaskParameters,
-  { taskId: string }
->(async ({ taskId }) => {
-  try {
-    await taskService.deleteTask(taskId);
-    revalidatePath("/tasks");
-    revalidatePath(`/tasks/${taskId}`);
-    return { taskId };
-  } catch (error) {
-    console.error("Failed to delete task", error);
-    throw new Error("Failed to delete task");
-  }
-});
+export const deleteTask = withSession<DeleteTaskParameters, { taskId: string }>(
+  async ({ taskId }) => {
+    try {
+      await taskService.deleteTask(taskId);
+      revalidatePath("/tasks");
+      revalidatePath(`/tasks/${taskId}`);
+      return { taskId };
+    } catch (error) {
+      console.error("Failed to delete task", error);
+      throw new Error("Failed to delete task");
+    }
+  },
+);
 
-export const createTaskComment = withAuthContext<
-  CreateTaskCommentParameters,
-  void
->(async ({ taskId, comment }) => {
-  const trimmedComment = comment.trim();
-  if (!trimmedComment) {
-    return;
-  }
+export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
+  async ({ taskId, comment }) => {
+    const trimmedComment = comment.trim();
+    if (!trimmedComment) {
+      return;
+    }
 
-  try {
-    await taskService.createTaskEvent(taskId, {
-      comment: trimmedComment,
-    });
-    revalidatePath("/tasks");
-    revalidatePath(`/tasks/${taskId}`);
-  } catch (error) {
-    console.error("Failed to create task comment", error);
-    throw new Error("Failed to create task comment");
-  }
-});
+    try {
+      await taskService.createTaskEvent(taskId, {
+        comment: trimmedComment,
+      });
+      revalidatePath("/tasks");
+      revalidatePath(`/tasks/${taskId}`);
+    } catch (error) {
+      console.error("Failed to create task comment", error);
+      throw new Error("Failed to create task comment");
+    }
+  },
+);
