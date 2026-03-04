@@ -41,11 +41,14 @@ function makeApiKey(input: {
   id: string;
   enabled: boolean;
   name?: string;
+  configId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
   metadata?: Record<string, unknown> | null;
 }) {
   return {
     id: input.id,
-    configId: "default",
+    configId: input.configId ?? "default",
     name: input.name ?? "MCP",
     start: "soko_",
     prefix: "soko_",
@@ -61,8 +64,8 @@ function makeApiKey(input: {
     remaining: null,
     lastRequest: null,
     expiresAt: null,
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    createdAt: input.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: input.updatedAt ?? new Date("2026-01-01T00:00:00.000Z"),
     metadata: input.metadata ?? null,
     permissions: null,
   };
@@ -161,5 +164,85 @@ describe("useMcpApiKey", () => {
     const deleteOrder = deleteMock.mock.invocationCallOrder[0];
     const createOrder = createMock.mock.invocationCallOrder[0];
     expect(deleteOrder).toBeLessThan(createOrder);
+  });
+
+  it("uses deterministic selection when multiple MCP keys exist", async () => {
+    listMock.mockResolvedValue({
+      data: {
+        apiKeys: [
+          makeApiKey({
+            id: "mcp-disabled-newer",
+            enabled: false,
+            updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          }),
+          makeApiKey({
+            id: "mcp-enabled-older",
+            enabled: true,
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          }),
+          makeApiKey({
+            id: "mcp-other-config",
+            enabled: true,
+            configId: "legacy",
+          }),
+        ],
+        total: 3,
+        limit: undefined,
+        offset: undefined,
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useMcpApiKey(true, "org-1"));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isKeyExisting).toBe(true);
+    expect(result.current.isKeyDisabled).toBe(false);
+  });
+
+  it("regenerate deletes all matching personal MCP keys before create", async () => {
+    listMock.mockResolvedValue({
+      data: {
+        apiKeys: [
+          makeApiKey({ id: "mcp-old-a", enabled: false }),
+          makeApiKey({ id: "mcp-old-b", enabled: true }),
+          makeApiKey({ id: "mcp-legacy-config", enabled: true, configId: "legacy" }),
+          makeApiKey({ id: "not-mcp", enabled: true, name: "Other" }),
+        ],
+        total: 4,
+        limit: undefined,
+        offset: undefined,
+      },
+      error: null,
+    });
+    deleteMock.mockResolvedValue({ data: { success: true }, error: null });
+    createMock.mockResolvedValue({
+      data: {
+        id: "mcp-new",
+        key: "new-secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useMcpApiKey(true, "org-1"));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.generateMcpUrl();
+    });
+
+    expect(deleteMock).toHaveBeenCalledTimes(2);
+    expect(deleteMock).toHaveBeenCalledWith({ keyId: "mcp-old-a" });
+    expect(deleteMock).toHaveBeenCalledWith({ keyId: "mcp-old-b" });
+
+    const latestDeleteOrder = Math.max(...deleteMock.mock.invocationCallOrder);
+    const createOrder = createMock.mock.invocationCallOrder[0];
+    expect(latestDeleteOrder).toBeLessThan(createOrder);
   });
 });
