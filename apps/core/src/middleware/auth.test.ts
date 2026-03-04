@@ -163,7 +163,7 @@ describe("authMiddleware", () => {
     verifyApiKeyMock.mockResolvedValue({
       valid: true,
       key: {
-        userId: "user_api_key",
+        referenceId: "user_api_key",
         metadata: {
           organizationId: "org_api_key",
         },
@@ -198,7 +198,7 @@ describe("authMiddleware", () => {
     verifyApiKeyMock.mockResolvedValue({
       valid: true,
       key: {
-        userId: "user_api_key",
+        referenceId: "user_api_key",
         metadata: {
           organizationId: "org_api_key",
           coworkerId: "cow_123",
@@ -218,6 +218,9 @@ describe("authMiddleware", () => {
       actor: "user",
       userId: "user_api_key",
       organizationId: null,
+    });
+    expect(verifyApiKeyMock).toHaveBeenCalledWith({
+      body: { configId: "default", key: "token" },
     });
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();

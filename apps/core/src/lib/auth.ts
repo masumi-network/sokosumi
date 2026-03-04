@@ -1,8 +1,10 @@
+import { apiKey } from "@better-auth/api-key";
+import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
-import { admin, apiKey, jwt, openAPI, organization } from "better-auth/plugins";
-import { localization } from "better-auth-localization";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { authTranslations } from "@sokosumi/masumi/auth";
+import { betterAuth } from "better-auth/minimal";
+import { admin, jwt, openAPI, organization } from "better-auth/plugins";
 
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -66,12 +68,16 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    localization({
-      defaultLocale: "default",
+    i18n({
+      translations: authTranslations,
+      defaultLocale: "en",
+      detection: ["header", "cookie"],
     }),
     openAPI(),
     admin(),
     apiKey({
+      configId: "default",
+      references: "user",
       rateLimit: {
         enabled: true,
         timeWindow: TIME.RATE_LIMIT_WINDOW,

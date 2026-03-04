@@ -80,7 +80,7 @@ async function verifyApiKey(
   c: Context<AuthEnv>,
 ): Promise<boolean> {
   const apiKeyResult = await auth.api.verifyApiKey({
-    body: { key: token },
+    body: { configId: "default", key: token },
   });
 
   if (apiKeyResult.valid && apiKeyResult.key) {
@@ -88,7 +88,7 @@ async function verifyApiKey(
       isAuthenticated: true,
       authContext: {
         actor: "user",
-        userId: apiKeyResult.key.userId,
+        userId: apiKeyResult.key.referenceId,
         organizationId: null,
       },
     });

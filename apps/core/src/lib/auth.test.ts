@@ -4,8 +4,8 @@ const {
   adminPluginMock,
   apiKeyPluginMock,
   betterAuthMock,
+  i18nPluginMock,
   jwtPluginMock,
-  localizationPluginMock,
   oauthProviderPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
@@ -14,36 +14,39 @@ const {
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
   betterAuthMock: vi.fn(),
+  i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
-  localizationPluginMock: vi.fn(),
   oauthProviderPluginMock: vi.fn(),
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
 }));
 
-vi.mock("better-auth", () => ({
+vi.mock("better-auth/minimal", () => ({
   betterAuth: (...args: unknown[]) => betterAuthMock(...args),
 }));
 
-vi.mock("better-auth/adapters/prisma", () => ({
+vi.mock("@better-auth/prisma-adapter", () => ({
   prismaAdapter: (...args: unknown[]) => prismaAdapterMock(...args),
 }));
 
 vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
-  apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
+}));
+
+vi.mock("@better-auth/api-key", () => ({
+  apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
 }));
 
 vi.mock("@better-auth/oauth-provider", () => ({
   oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
 }));
 
-vi.mock("better-auth-localization", () => ({
-  localization: (...args: unknown[]) => localizationPluginMock(...args),
+vi.mock("@better-auth/i18n", () => ({
+  i18n: (...args: unknown[]) => i18nPluginMock(...args),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -65,8 +68,8 @@ describe("core auth config", () => {
 
     adminPluginMock.mockReturnValue("admin-plugin");
     apiKeyPluginMock.mockReturnValue("api-key-plugin");
+    i18nPluginMock.mockReturnValue("i18n-plugin");
     jwtPluginMock.mockReturnValue("jwt-plugin");
-    localizationPluginMock.mockReturnValue("localization-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");

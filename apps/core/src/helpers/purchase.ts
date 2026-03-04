@@ -4,8 +4,7 @@ import {
   OnChainJobStatus,
   OnChainTransactionStatus,
 } from "@sokosumi/database";
-
-import type { PostPurchaseResponses } from "@/clients/openapi/generated/payment";
+import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 
 type Purchase = PostPurchaseResponses["200"]["data"];
 

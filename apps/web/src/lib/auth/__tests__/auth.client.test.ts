@@ -20,11 +20,14 @@ jest.mock("better-auth/react", () => ({
 
 jest.mock("better-auth/client/plugins", () => ({
   adminClient: adminClientMock,
-  apiKeyClient: apiKeyClientMock,
   inferAdditionalFields: inferAdditionalFieldsMock,
   inferOrgAdditionalFields: inferOrgAdditionalFieldsMock,
   jwtClient: jwtClientMock,
   organizationClient: organizationClientMock,
+}));
+
+jest.mock("@better-auth/api-key/client", () => ({
+  apiKeyClient: apiKeyClientMock,
 }));
 
 jest.mock("@better-auth/oauth-provider/client", () => ({

@@ -1,8 +1,8 @@
+import { apiKeyClient } from "@better-auth/api-key/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { stripeClient } from "@better-auth/stripe/client";
 import {
   adminClient,
-  apiKeyClient,
   inferAdditionalFields,
   inferOrgAdditionalFields,
   jwtClient,

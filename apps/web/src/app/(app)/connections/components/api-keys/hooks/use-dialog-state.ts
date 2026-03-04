@@ -1,9 +1,11 @@
 "use client";
 
-import { Apikey } from "@sokosumi/database";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { DialogState } from "@/app/connections/components/api-keys/types";
+import {
+  ApiKeyRecord,
+  DialogState,
+} from "@/app/connections/components/api-keys/types";
 import { DIALOG_CLEANUP_TIMEOUT } from "@/app/connections/components/api-keys/utils";
 
 export function useDialogState(): DialogState {
@@ -11,7 +13,7 @@ export function useDialogState(): DialogState {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [keyToDelete, setKeyToDelete] = useState<Apikey | null>(null);
+  const [keyToDelete, setKeyToDelete] = useState<ApiKeyRecord | null>(null);
 
   const dialogTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);

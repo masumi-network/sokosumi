@@ -24,7 +24,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.4.21",
+    "@better-auth/api-key": "1.5.3",
+    "@better-auth/i18n": "1.5.3",
+    "@better-auth/oauth-provider": "1.5.3",
+    "@better-auth/prisma-adapter": "1.5.3",
     "@better-auth/utils": "0.3.1",
     "@hono/node-server": "1.19.10",
     "@hono/zod-openapi": "1.2.2",
@@ -40,8 +43,7 @@
     "@vercel/functions": "3.4.3",
     "ably": "2.19.0",
     "ai": "6.0.111",
-    "better-auth": "1.4.21",
-    "better-auth-localization": "2.3.1",
+    "better-auth": "1.5.3",
     "cron-parser": "5.5.0",
     "dotenv": "17.3.1",
     "hono": "4.12.5",
