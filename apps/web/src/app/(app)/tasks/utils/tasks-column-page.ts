@@ -26,7 +26,7 @@ type ColumnPaginationState = {
   buffer: TaskWithCoworker[];
 };
 
-export type ColumnCursor = string | null;
+type ColumnCursor = string | null;
 
 const CURSOR_STATE_VERSION = 2;
 const MAX_CURSOR_BUFFER_SIZE = 500;
