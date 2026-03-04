@@ -52,7 +52,7 @@ export async function uploadTaskAttachment(file: File): Promise<string> {
   const formData = new FormData();
   formData.set("file", file);
 
-  const response = await fetch("/api/v1/uploads/task-attachments", {
+  const response = await fetch("/api/internal/uploads/task-attachments", {
     method: "POST",
     body: formData,
   });

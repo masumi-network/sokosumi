@@ -19,26 +19,34 @@ jest.mock("@/lib/clients/core.client", () => ({
 }));
 
 jest.mock("@/middleware/auth-middleware", () => ({
-  withAuthContext:
+  withSession:
     (handler: (params: Record<string, unknown>) => Promise<unknown>) =>
     async (params: Record<string, unknown>) => {
-      const nextParams = params.authContext
+      const nextParams = params.session
         ? params
         : {
             ...params,
-            authContext: {
-              userId: "user-1",
-              organizationId: null,
+            session: {
+              user: {
+                id: "user-1",
+              },
+              session: {
+                activeOrganizationId: null,
+              },
             },
           };
       return handler(nextParams);
     },
 }));
 
-const authContext = {
-  userId: "user-1",
-  organizationId: null,
-};
+const session = {
+  user: {
+    id: "user-1",
+  },
+  session: {
+    activeOrganizationId: null,
+  },
+} as never;
 
 describe("core conversation api actions", () => {
   beforeEach(async () => {
@@ -65,7 +73,7 @@ describe("core conversation api actions", () => {
     });
 
     const { listConversations } = await import("../core-api-actions");
-    const result = await listConversations({ authContext });
+    const result = await listConversations({ session });
 
     expect(coreClientMock.getConversations).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
@@ -105,7 +113,7 @@ describe("core conversation api actions", () => {
 
     const { getConversationItems } = await import("../core-api-actions");
     const result = await getConversationItems({
-      authContext,
+      session,
       conversationId: "conv-1",
       cursor: null,
       limit: 20,
@@ -153,7 +161,7 @@ describe("core conversation api actions", () => {
 
     const { getConversation } = await import("../core-api-actions");
     const result = await getConversation({
-      authContext,
+      session,
       id: "conv-1",
     });
 
@@ -182,7 +190,7 @@ describe("core conversation api actions", () => {
     });
 
     const { listConversations } = await import("../core-api-actions");
-    const result = await listConversations({ authContext });
+    const result = await listConversations({ session });
 
     expect(result).toEqual({
       ok: false,
@@ -205,7 +213,7 @@ describe("core conversation api actions", () => {
 
     const { addConversationItem } = await import("../core-api-actions");
     const result = await addConversationItem({
-      authContext,
+      session,
       conversationId: "conv-1",
       role: "user",
       content: "hello",

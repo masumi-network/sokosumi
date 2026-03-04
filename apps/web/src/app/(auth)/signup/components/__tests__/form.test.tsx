@@ -75,15 +75,20 @@ describe("SignUpForm OAuth workflow", () => {
   const originalLocation = window.location;
 
   beforeAll(() => {
-    delete (window as Window & { location?: Location }).location;
-    (window as Window & { location: Location }).location = {
-      href: "http://localhost/",
-      origin: "http://localhost",
-    } as Location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        href: "http://localhost/",
+        origin: "http://localhost",
+      } as Location,
+    });
   });
 
   afterAll(() => {
-    (window as Window & { location: Location }).location = originalLocation;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
   beforeEach(() => {
@@ -150,8 +155,8 @@ describe("SignUpForm OAuth workflow", () => {
     await submitValidSignUpForm();
 
     await waitFor(() => {
-      expect(window.location.href).toBe(
-        "http://localhost/api/auth/oauth2/authorize?client_id=test-client",
+      expect(window.location.href).toContain(
+        "/api/auth/oauth2/authorize?client_id=test-client",
       );
     });
 

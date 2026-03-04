@@ -4,9 +4,7 @@ import { transformPurchaseToJobUpdate } from "./purchase";
 
 type PurchaseInput = Parameters<typeof transformPurchaseToJobUpdate>[0];
 
-function buildPurchase(
-  overrides?: Partial<PurchaseInput>,
-): PurchaseInput {
+function buildPurchase(overrides?: Partial<PurchaseInput>): PurchaseInput {
   return {
     id: "purchase_1",
     onChainState: "FundsLocked",

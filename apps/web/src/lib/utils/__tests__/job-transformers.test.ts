@@ -5,9 +5,7 @@ import {
 
 type PurchaseInput = Parameters<typeof transformPurchaseToJobUpdate>[0];
 
-function buildPurchase(
-  overrides?: Partial<PurchaseInput>,
-): PurchaseInput {
+function buildPurchase(overrides?: Partial<PurchaseInput>): PurchaseInput {
   return {
     id: "purchase_1",
     onChainState: "FundsLocked",
@@ -28,8 +26,9 @@ function buildPurchase(
 
 describe("transactionStatusToOnChainTransactionStatus", () => {
   it("maps FailedViaManualReset transaction status to FAILED", () => {
-    const status =
-      transactionStatusToOnChainTransactionStatus("FailedViaManualReset");
+    const status = transactionStatusToOnChainTransactionStatus(
+      "FailedViaManualReset",
+    );
 
     expect(status).toBe("FAILED");
   });

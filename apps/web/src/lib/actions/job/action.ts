@@ -30,7 +30,7 @@ import { callAgentHiredWebHook, jobService, userService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 import { handleInputDataFileUploads } from "./utils";
@@ -40,11 +40,11 @@ interface StartDemoJobParameters extends AuthenticatedRequest {
   jobStatusResponse: JobStatusResponseSchemaType;
 }
 
-export const startDemoJob = withAuthContext<
+export const startDemoJob = withSession<
   StartDemoJobParameters,
   Result<{ jobId: string }, ActionError>
->(async ({ input, jobStatusResponse, authContext }) => {
-  const { userId } = authContext;
+>(async ({ input, jobStatusResponse, session }) => {
+  const userId = session.user.id;
 
   const inputDataForService: StartJobInputSchemaType = {
     ...input,
@@ -72,13 +72,14 @@ interface StartJobParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "organizationId">;
 }
 
-export const startJob = withAuthContext<
+export const startJob = withSession<
   StartJobParameters,
   Result<{ jobId: string }, ActionError>
->(async ({ input, authContext }) => {
+>(async ({ input, session }) => {
   return await Sentry.withScope(async (scope) => {
     try {
-      const { userId, organizationId } = authContext;
+      const userId = session.user.id;
+      const organizationId = session.session.activeOrganizationId ?? null;
       const inputDataForService: StartJobInputSchemaType = {
         ...input,
         userId,
@@ -228,13 +229,13 @@ interface ProvideJobInputParameters extends AuthenticatedRequest {
   input: ProvideJobInputSchemaType;
 }
 
-export const provideJobInput = withAuthContext<
+export const provideJobInput = withSession<
   ProvideJobInputParameters,
   Result<{ jobId: string }, ActionError>
->(async ({ input, authContext }) => {
+>(async ({ input, session }) => {
   return await Sentry.withScope(async (scope) => {
     try {
-      const { userId } = authContext;
+      const userId = session.user.id;
       const { jobId, eventId, inputData } = input;
 
       // Validate input
@@ -342,11 +343,11 @@ interface UpdateJobNameParameters extends AuthenticatedRequest {
   data: JobDetailsNameFormSchemaType;
 }
 
-export const updateJobName = withAuthContext<
+export const updateJobName = withSession<
   UpdateJobNameParameters,
   Result<void, ActionError>
->(async ({ jobId, data, authContext }) => {
-  const { userId } = authContext;
+>(async ({ jobId, data, session }) => {
+  const userId = session.user.id;
 
   const parsedResult = jobDetailsNameFormSchema().safeParse(data);
   if (!parsedResult.success) {
@@ -386,11 +387,11 @@ interface RequestRefundJobByBlockchainIdentifierParameters extends Authenticated
   blockchainIdentifier: string;
 }
 
-export const requestRefundJobByBlockchainIdentifier = withAuthContext<
+export const requestRefundJobByBlockchainIdentifier = withSession<
   RequestRefundJobByBlockchainIdentifierParameters,
   Result<{ job: PaidJobWithStatus }, ActionError>
->(async ({ blockchainIdentifier, authContext }) => {
-  const { userId } = authContext;
+>(async ({ blockchainIdentifier, session }) => {
+  const userId = session.user.id;
   const foundJob = await jobRepository.getJobByBlockchainIdentifier(
     blockchainIdentifier,
     prisma,
@@ -422,11 +423,11 @@ interface ShareJobInPublicParameters extends AuthenticatedRequest {
   allowSearchIndexing?: boolean;
 }
 
-const shareJobInPublic = withAuthContext<
+const shareJobInPublic = withSession<
   ShareJobInPublicParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, sharePublic, allowSearchIndexing, authContext }) => {
-  const { userId } = authContext;
+>(async ({ jobId, sharePublic, allowSearchIndexing, session }) => {
+  const userId = session.user.id;
   try {
     return await prisma.$transaction(async (tx) => {
       const job = await jobRepository.getJobById(jobId, tx);
@@ -467,27 +468,27 @@ interface ShareJobPubliclyParameters extends AuthenticatedRequest {
   allowSearchIndexing?: boolean;
 }
 
-export const shareJobPublicly = withAuthContext<
+export const shareJobPublicly = withSession<
   ShareJobPubliclyParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, allowSearchIndexing, authContext }) => {
+>(async ({ jobId, allowSearchIndexing, session }) => {
   return await shareJobInPublic({
     jobId,
     sharePublic: true,
     allowSearchIndexing: allowSearchIndexing ?? true,
-    authContext,
+    session,
   });
 });
 
-export const unshareJobPublicly = withAuthContext<
+export const unshareJobPublicly = withSession<
   ShareJobPubliclyParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, allowSearchIndexing, authContext }) => {
+>(async ({ jobId, allowSearchIndexing, session }) => {
   return await shareJobInPublic({
     jobId,
     sharePublic: false,
     allowSearchIndexing: allowSearchIndexing ?? true,
-    authContext,
+    session,
   });
 });
 
@@ -496,11 +497,12 @@ interface ShareJobInOrganizationParameters extends AuthenticatedRequest {
   shareOrganization: boolean;
 }
 
-const shareJobInOrganization = withAuthContext<
+const shareJobInOrganization = withSession<
   ShareJobInOrganizationParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, shareOrganization, authContext }) => {
-  const { userId, organizationId } = authContext;
+>(async ({ jobId, shareOrganization, session }) => {
+  const userId = session.user.id;
+  const organizationId = session.session.activeOrganizationId ?? null;
   if (!organizationId) {
     return Err({
       message: "Unauthorized",
@@ -559,25 +561,25 @@ interface ShareJobWithOrganizationParameters extends AuthenticatedRequest {
   jobId: string;
 }
 
-export const shareJobWithOrganization = withAuthContext<
+export const shareJobWithOrganization = withSession<
   ShareJobWithOrganizationParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, authContext }) => {
+>(async ({ jobId, session }) => {
   return await shareJobInOrganization({
     jobId,
     shareOrganization: true,
-    authContext,
+    session,
   });
 });
 
-export const unshareJobWithOrganization = withAuthContext<
+export const unshareJobWithOrganization = withSession<
   ShareJobWithOrganizationParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, authContext }) => {
+>(async ({ jobId, session }) => {
   return await shareJobInOrganization({
     jobId,
     shareOrganization: false,
-    authContext,
+    session,
   });
 });
 
@@ -586,11 +588,11 @@ interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
   allowSearchIndexing: boolean;
 }
 
-export const updateAllowSearchIndexing = withAuthContext<
+export const updateAllowSearchIndexing = withSession<
   UpdateAllowSearchIndexingParameters,
   Result<JobShare, ActionError>
->(async ({ jobShareId, allowSearchIndexing, authContext }) => {
-  const { userId } = authContext;
+>(async ({ jobShareId, allowSearchIndexing, session }) => {
+  const userId = session.user.id;
   try {
     return await prisma.$transaction(async (tx) => {
       const share = await jobShareRepository.getShareById(jobShareId, tx);
@@ -631,18 +633,19 @@ export const updateAllowSearchIndexing = withAuthContext<
  *
  * @param jobId - The id of the job to remove shares for
  * @param recipientOrganizationId - The id of the organization to remove shares for, if null, remove public shares
- * @param authContext - The authentication context
+ * @param session - The authentication context
  * @returns A result indicating success or failure
  */
 interface DeleteJobShareParameters extends AuthenticatedRequest {
   jobId: string;
 }
 
-export const deleteJobShare = withAuthContext<
+export const deleteJobShare = withSession<
   DeleteJobShareParameters,
   Result<void, ActionError>
->(async ({ jobId, authContext }) => {
-  const { userId, organizationId } = authContext;
+>(async ({ jobId, session }) => {
+  const userId = session.user.id;
+  const organizationId = session.session.activeOrganizationId ?? null;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -684,7 +687,7 @@ export const deleteJobShare = withAuthContext<
   }
 });
 
-export const getActiveOrganization = withAuthContext<
+export const getActiveOrganization = withSession<
   AuthenticatedRequest,
   Result<{ id: string; name: string; slug: string } | null, ActionError>
 >(async () => {
@@ -707,7 +710,7 @@ export const getActiveOrganization = withAuthContext<
   }
 });
 
-export const getActiveOrganizationId = withAuthContext<
+export const getActiveOrganizationId = withSession<
   AuthenticatedRequest,
   Result<string | null, ActionError>
 >(async () => {

@@ -286,6 +286,7 @@ export const auth = betterAuth({
         maxRequests: 100, // 100 requests per minute
       },
       enableMetadata: true,
+      enableSessionForAPIKeys: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
     oauthProvider({

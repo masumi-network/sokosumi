@@ -12,16 +12,6 @@ interface RouteParams {
   }>;
 }
 
-/**
- * Get agent input schema
- * @description Fetches the validated input schema for a specific agent
- * @pathParams AgentParams
- * @response AgentInputSchemaSuccessResponse
- * @responseSet public
- * @auth apikey
- * @tag Agents
- * @openapi
- */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams,
@@ -32,10 +22,7 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    const agent = await agentRepository.getAgentWithRelationsById(
-      agentId,
-      prisma,
-    );
+    const agent = await agentRepository.getAgentWithRelationsById(agentId, prisma);
     if (!agent) {
       throw new Error("AGENT_NOT_FOUND");
     }

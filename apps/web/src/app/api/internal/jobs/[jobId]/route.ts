@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import superJson from "superjson";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
 interface RouteParams {
@@ -21,8 +21,8 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const authContext = await getAuthContext();
-    if (!authContext) {
+    const session = await getSession();
+    if (!session) {
       throw new Error("UNAUTHORIZED");
     }
     const { jobId } = await params;
@@ -34,8 +34,8 @@ export async function GET(
     // Get the job with authorization check
     const job = await jobRepository.getJobByIdWithAuthCheck(
       jobId,
-      authContext.userId,
-      authContext.organizationId,
+      session.user.id,
+      session.session.activeOrganizationId ?? null,
       prisma,
     );
 

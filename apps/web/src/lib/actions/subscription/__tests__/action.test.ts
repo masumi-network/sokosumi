@@ -26,6 +26,31 @@ jest.mock("@/lib/services", () => ({
   },
 }));
 
+jest.mock("@/middleware/auth-middleware", () => ({
+  withSession:
+    (handler: (params: unknown) => Promise<unknown>) =>
+    async (params: unknown) =>
+      await handler(params),
+}));
+
+const session = {
+  user: {
+    id: "user-1",
+  },
+  session: {
+    activeOrganizationId: null,
+  },
+} as never;
+
+const organizationSession = {
+  user: {
+    id: "user-1",
+  },
+  session: {
+    activeOrganizationId: "org-1",
+  },
+} as never;
+
 describe("subscription actions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,10 +61,7 @@ describe("subscription actions", () => {
     const { upgradePersonalSubscription } = await import("../action");
 
     const result = await upgradePersonalSubscription({
-      authContext: {
-        organizationId: null,
-        userId: "user-1",
-      },
+      session,
       plan: "enterprise" as never,
     });
 
@@ -60,10 +82,7 @@ describe("subscription actions", () => {
     const { upgradePersonalSubscription } = await import("../action");
 
     const result = await upgradePersonalSubscription({
-      authContext: {
-        organizationId: null,
-        userId: "user-1",
-      },
+      session,
       plan: "starter",
     });
 
@@ -92,10 +111,7 @@ describe("subscription actions", () => {
     const { upgradePersonalSubscription } = await import("../action");
 
     const result = await upgradePersonalSubscription({
-      authContext: {
-        organizationId: null,
-        userId: "user-1",
-      },
+      session,
       plan: "free",
     });
 
@@ -129,10 +145,7 @@ describe("subscription actions", () => {
     const { upgradePersonalSubscription } = await import("../action");
 
     const result = await upgradePersonalSubscription({
-      authContext: {
-        organizationId: null,
-        userId: "user-1",
-      },
+      session,
       plan: "pro",
     });
 
@@ -153,10 +166,7 @@ describe("subscription actions", () => {
     const { openPersonalBillingPortal } = await import("../action");
 
     const result = await openPersonalBillingPortal({
-      authContext: {
-        organizationId: null,
-        userId: "user-1",
-      },
+      session,
     });
 
     expect(result).toEqual({
@@ -181,10 +191,7 @@ describe("subscription actions", () => {
     const { upgradePersonalSubscription } = await import("../action");
 
     const result = await upgradePersonalSubscription({
-      authContext: {
-        organizationId: null,
-        userId: "user-1",
-      },
+      session,
       plan: "starter",
       returnPath: "/billing?tab=subscription",
     });
@@ -214,10 +221,7 @@ describe("subscription actions", () => {
     const { openPersonalBillingPortal } = await import("../action");
 
     const result = await openPersonalBillingPortal({
-      authContext: {
-        organizationId: null,
-        userId: "user-1",
-      },
+      session,
       returnPath: "/billing?tab=coupon",
     });
 
@@ -240,10 +244,7 @@ describe("subscription actions", () => {
     const { upgradeOrganizationSubscription } = await import("../action");
 
     const result = await upgradeOrganizationSubscription({
-      authContext: {
-        organizationId: "org-1",
-        userId: "user-1",
-      },
+      session: organizationSession,
       organizationId: "org-1",
       plan: "starter",
       returnPath: "/organizations/org-1",
@@ -267,10 +268,7 @@ describe("subscription actions", () => {
     const { upgradeOrganizationSubscription } = await import("../action");
 
     const result = await upgradeOrganizationSubscription({
-      authContext: {
-        organizationId: "org-1",
-        userId: "user-1",
-      },
+      session: organizationSession,
       organizationId: "org-1",
       plan: "pro",
       returnPath: "/organizations/acme",
@@ -305,10 +303,7 @@ describe("subscription actions", () => {
     const { openOrganizationBillingPortal } = await import("../action");
 
     const result = await openOrganizationBillingPortal({
-      authContext: {
-        organizationId: "org-1",
-        userId: "user-1",
-      },
+      session: organizationSession,
       organizationId: "org-1",
       returnPath: "/organizations/acme",
     });
@@ -333,10 +328,7 @@ describe("subscription actions", () => {
     const { updateOrganizationSubscriptionSeats } = await import("../action");
 
     const result = await updateOrganizationSubscriptionSeats({
-      authContext: {
-        organizationId: "org-1",
-        userId: "user-1",
-      },
+      session: organizationSession,
       organizationId: "org-1",
       seats: 0,
     });
@@ -358,10 +350,7 @@ describe("subscription actions", () => {
     const { updateOrganizationSubscriptionSeats } = await import("../action");
 
     const result = await updateOrganizationSubscriptionSeats({
-      authContext: {
-        organizationId: "org-1",
-        userId: "user-1",
-      },
+      session: organizationSession,
       organizationId: "org-1",
       seats: 9,
     });
@@ -392,10 +381,7 @@ describe("subscription actions", () => {
     const { updateOrganizationSubscriptionSeats } = await import("../action");
 
     const result = await updateOrganizationSubscriptionSeats({
-      authContext: {
-        organizationId: "org-1",
-        userId: "user-1",
-      },
+      session: organizationSession,
       organizationId: "org-1",
       seats: 5,
     });
@@ -423,10 +409,7 @@ describe("subscription actions", () => {
     const { updateOrganizationSubscriptionSeats } = await import("../action");
 
     const result = await updateOrganizationSubscriptionSeats({
-      authContext: {
-        organizationId: "org-1",
-        userId: "user-1",
-      },
+      session: organizationSession,
       organizationId: "org-1",
       seats: 5,
     });

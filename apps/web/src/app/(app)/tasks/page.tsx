@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -24,11 +24,11 @@ export const metadata = {
 };
 
 export default async function TasksPage() {
-  const [t, tColumns, cookieStore, authContext] = await Promise.all([
+  const [t, tColumns, cookieStore, session] = await Promise.all([
     getTranslations("App.Tasks"),
     getTranslations("App.Tasks.Columns"),
     cookies(),
-    getAuthContext(),
+    getSession(),
   ]);
   const defaultViewMode =
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
@@ -40,11 +40,11 @@ export default async function TasksPage() {
     agentService.getAvailableAgentsWithCreditsPrice(),
     userService.listMyJobsForActiveContextPaginated({
       limit: 20,
-      authContext,
+      session,
     }),
   ]);
 
-  const activeOrganizationId = authContext?.organizationId ?? null;
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -82,7 +82,7 @@ export default async function TasksPage() {
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         agentNameById={agentNameById}
-        userId={authContext?.userId ?? null}
+        userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}
         defaultViewMode={defaultViewMode}
         labels={{
