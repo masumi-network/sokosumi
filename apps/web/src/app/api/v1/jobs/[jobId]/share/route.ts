@@ -41,10 +41,7 @@ export async function PUT(
     const body = await request.json();
     const requestData = jobShareRequestSchema.parse(body);
 
-    if (
-      requestData.scope.includes("organization") &&
-      !activeOrganizationId
-    ) {
+    if (requestData.scope.includes("organization") && !activeOrganizationId) {
       throw new Error("UNAUTHORIZED");
     }
 

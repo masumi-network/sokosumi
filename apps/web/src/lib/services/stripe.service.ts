@@ -135,9 +135,7 @@ export const stripeService = (() => {
       // Create Stripe customer if doesn't exist
       if (!stripeCustomerId) {
         const customer = scope.organizationId
-          ? await this.createStripeCustomerForOrganization(
-              scope.organizationId,
-            )
+          ? await this.createStripeCustomerForOrganization(scope.organizationId)
           : await this.createStripeCustomerForUser(scope.userId);
 
         if (!customer) {

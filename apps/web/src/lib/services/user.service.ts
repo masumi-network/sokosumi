@@ -38,10 +38,6 @@ interface PaginatedJobsResult {
  * Service for user-related operations.
  */
 export const userService = (() => {
-  async function getCurrentSession(): Promise<Session | null> {
-    return await getSession();
-  }
-
   /**
    * Retrieves the currently authenticated user from the session.
    *
@@ -49,7 +45,7 @@ export const userService = (() => {
    *
    */
   async function getMe(): Promise<User | null> {
-    const session = await getCurrentSession();
+    const session = await getSession();
     if (!session) {
       return null;
     }
@@ -65,7 +61,7 @@ export const userService = (() => {
    * @returns {Promise<string | null>} The active organization ID, or null if not set.
    */
   async function getActiveOrganizationId(): Promise<string | null> {
-    const session = await getCurrentSession();
+    const session = await getSession();
     if (!session) {
       return null;
     }
@@ -96,7 +92,7 @@ export const userService = (() => {
    *
    */
   async function getMyJobs(agentId: string): Promise<JobWithSokosumiStatus[]> {
-    const session = await getCurrentSession();
+    const session = await getSession();
     if (!session) {
       return [];
     }
@@ -136,7 +132,7 @@ export const userService = (() => {
     params: ListMyJobsForActiveContextParams = {},
   ): Promise<PaginatedJobsResult> {
     const { cursor = null, limit = 20 } = params;
-    const session = params.session ?? (await getCurrentSession());
+    const session = params.session ?? (await getSession());
     if (!session) {
       return { jobs: [], nextCursor: null };
     }
@@ -210,7 +206,7 @@ export const userService = (() => {
    */
   const getMyMembersWithOrganizations = cache(
     async (): Promise<MemberWithOrganization[]> => {
-      const session = await getCurrentSession();
+      const session = await getSession();
       if (!session) {
         return [];
       }
@@ -233,7 +229,7 @@ export const userService = (() => {
   async function getMyMemberInOrganization(
     organizationId: string,
   ): Promise<Member | null> {
-    const session = await getCurrentSession();
+    const session = await getSession();
     if (!session) {
       return null;
     }
@@ -252,7 +248,7 @@ export const userService = (() => {
   async function getMyValidPendingInvitations(): Promise<
     InvitationWithRelations[]
   > {
-    const session = await getCurrentSession();
+    const session = await getSession();
     if (!session) {
       return [];
     }
@@ -344,7 +340,7 @@ export const userService = (() => {
    * @returns Promise that resolves when the update is complete.
    */
   async function markOnboardingCompleteForMe(): Promise<void> {
-    const session = await getCurrentSession();
+    const session = await getSession();
     if (!session) {
       return;
     }
