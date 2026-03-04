@@ -14,7 +14,6 @@ const EXCLUDED_PATHS = [
   "/accept-invitation",
   "/share/jobs",
   "/health",
-  "/api-docs",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.json",
@@ -40,30 +39,6 @@ export async function proxy(request: NextRequest) {
     if (pathname !== "/maintenance") {
       return NextResponse.redirect(new URL("/maintenance", request.url));
     }
-  }
-
-  const isApiV1Path = pathname.startsWith("/api/v1");
-
-  // Handle CORS for public API v1 endpoints
-  if (isApiV1Path) {
-    const corsHeaders = new Headers({
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, X-Requested-With, x-api-key",
-      "Access-Control-Max-Age": "86400",
-    });
-
-    if (request.method === "OPTIONS") {
-      return new NextResponse(null, { status: 204, headers: corsHeaders });
-    }
-
-    const response = NextResponse.next();
-    corsHeaders.forEach((value, key) => {
-      response.headers.set(key, value);
-    });
-
-    return response;
   }
 
   // Create response early so we can always set pathname headers
@@ -104,6 +79,5 @@ export const config = {
      * - js directory in /public (public static js files)
      */
     "/((?!api|_next/static|_next/image|images|public|legal|js).*)",
-    "/api/v1/:path*",
   ],
 };

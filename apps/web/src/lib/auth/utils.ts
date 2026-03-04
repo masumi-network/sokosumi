@@ -8,87 +8,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { auth, Session } from "@/lib/auth/auth";
 
 /**
- * Represents the authentication scope for a user, including their user ID
- * and optional active organization ID.
- */
-export interface AuthContext {
-  /** The unique identifier of the authenticated user */
-  userId: string;
-  /** The active organization ID the user belongs to, or null if none is active */
-  organizationId: string | null;
-}
-
-/**
- * Authenticates a user using an API key and returns their context.
- *
- * @param key - The API key to verify
- * @returns Promise resolving to the user's context if valid, null otherwise
- */
-async function getAuthContextFromApiKey(
-  key: string,
-): Promise<AuthContext | null> {
-  const apiKeyResult = await auth.api.verifyApiKey({
-    body: {
-      key,
-    },
-  });
-  if (!apiKeyResult.valid || !apiKeyResult.key) {
-    return null;
-  }
-  return {
-    userId: apiKeyResult.key.userId,
-    organizationId: apiKeyResult.key.metadata?.organizationId ?? null,
-  };
-}
-
-/**
- * Authenticates a user using their session and returns their context.
- *
- * @param headers - The request headers containing session information
- * @returns Promise resolving to the user's context if valid, null otherwise
- */
-async function getAuthContextFromSession(
-  headers: Headers,
-): Promise<AuthContext | null> {
-  const session = await auth.api.getSession({
-    headers,
-  });
-  if (!session) {
-    return null;
-  }
-  return {
-    userId: session.user.id,
-    organizationId: session.session.activeOrganizationId ?? null,
-  };
-}
-
-// ============================================================================
-// AUTH CONTEXT FUNCTIONS
-// ============================================================================
-
-/**
- * Gets the current user's authentication context by checking for either an API key
- * or session. This function automatically determines the authentication method
- * based on the presence of an 'x-api-key' header.
- *
- * @returns Promise resolving to the user's context if authenticated, null otherwise
- *
- */
-export async function getAuthContext(): Promise<AuthContext | null> {
-  const headersList = await headers();
-  const key = headersList.get("x-api-key");
-  if (key) {
-    return await getAuthContextFromApiKey(key);
-  } else {
-    return await getAuthContextFromSession(headersList);
-  }
-}
-
-// ============================================================================
-// SESSION FUNCTIONS
-// ============================================================================
-
-/**
  * Gets the current user's session information. This function only works with
  * session-based authentication, not API keys.
  *
@@ -133,14 +52,14 @@ export async function getSessionOrRedirect(): Promise<Session> {
  *
  */
 export async function verifyUserId(userId: string): Promise<boolean> {
-  const context = await getAuthContext();
-  if (!context) {
+  const session = await getSession();
+  if (!session) {
     console.error("Authentication not found");
     return false;
   }
-  if (context.userId !== userId) {
+  if (session.user.id !== userId) {
     console.error(
-      `UserId ${userId} does not match context user id ${context.userId}`,
+      `UserId ${userId} does not match session user id ${session.user.id}`,
     );
     return false;
   }

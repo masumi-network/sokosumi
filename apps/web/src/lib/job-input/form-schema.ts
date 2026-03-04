@@ -21,7 +21,8 @@ import * as z from "zod";
 
 import {
   applyColorValidations,
-  applyDateValidations,
+  applyDateStringValidations,
+  applyDatetimeLocalValidations,
   applyFileValidations,
   applyMonthValidations,
   applyNumericValidations,
@@ -160,8 +161,8 @@ function makeZodSchemaForDateType(
 ): z.ZodTypeAny {
   const { name, validations } = jobInputSchema;
 
-  return applyDateValidations(
-    validations as Parameters<typeof applyDateValidations>[0],
+  return applyDateStringValidations(
+    validations as Parameters<typeof applyDateStringValidations>[0],
     name,
     t,
   );
@@ -176,8 +177,8 @@ function makeZodSchemaForDatetimeType(
 ): z.ZodTypeAny {
   const { name, validations } = jobInputSchema;
 
-  return applyDateValidations(
-    validations as Parameters<typeof applyDateValidations>[0],
+  return applyDatetimeLocalValidations(
+    validations as Parameters<typeof applyDatetimeLocalValidations>[0],
     name,
     t,
   );

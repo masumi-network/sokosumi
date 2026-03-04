@@ -136,8 +136,8 @@
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
       "creditsSummary": "Credits Summary:",
       "creditsConsumedProgressAria": "Subscription credits consumed",
-      "creditsExpiresInDays": "Credits expire in {days, plural, =1 {1 day} other {# days}}",
-      "creditsExpiresToday": "Credits expire today",
+      "creditsExpiresInDays": "Credits reset in {days, plural, =1 {1 day} other {# days}}",
+      "creditsExpiresToday": "Credits reset today",
       "creditsExpired": "Credits expired"
     },
     "OrganizationSwitcher": {
@@ -231,7 +231,6 @@
       "billing": "Billing",
       "account": "Account",
       "organizations": "Organizations",
-      "api-docs": "API Documentation",
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Scheduled Agents",
       "chat": "Chat",
@@ -1745,13 +1744,7 @@
         "options": {
           "en": "English",
           "de": "Deutsch",
-          "es": "Español",
-          "it": "Italiano",
-          "fr": "Français",
-          "pt": "Português",
-          "pt-BR": "Português (Brasil)",
-          "ja": "日本語",
-          "zh-Hans": "简体中文"
+          "es": "Español"
         }
       },
       "SocialAccounts": {

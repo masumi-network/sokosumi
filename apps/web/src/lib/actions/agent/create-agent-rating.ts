@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -24,13 +24,14 @@ export async function createAgentRating(
 ): Promise<Result<void, AgentRatingError>> {
   try {
     // Validate session
-    const authContext = await getAuthContext();
-    if (!authContext?.userId) {
+    const session = await getSession();
+    if (!session) {
       return Err({
         code: "UNAUTHORIZED",
         message: "You must be logged in to rate an agent",
       });
     }
+    const userId = session.user.id;
 
     // Validate rating
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -58,10 +59,7 @@ export async function createAgentRating(
     }
 
     // Check eligibility
-    const canRate = await agentService.canUserRateAgent(
-      authContext.userId,
-      agentId,
-    );
+    const canRate = await agentService.canUserRateAgent(userId, agentId);
     if (!canRate) {
       return Err({
         code: "NOT_ELIGIBLE",

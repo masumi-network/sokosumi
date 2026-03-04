@@ -30,8 +30,13 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
+  const taskResult = await taskService.getTaskById(taskId, ["owned"]);
+
+  if (!taskResult) {
+    return notFound();
+  }
+
   const [
-    taskResult,
     coworkers,
     agents,
     members,
@@ -40,7 +45,6 @@ export default async function TaskDetailPage({
     t,
     tOrganizationSwitcher,
   ] = await Promise.all([
-    taskService.getTaskById(taskId, ["owned"]),
     coworkerService.listCoworkers(),
     agentService.getAvailableAgentsWithCreditsPrice(),
     userService.getMyMembersWithOrganizations(),
@@ -49,10 +53,6 @@ export default async function TaskDetailPage({
     getTranslations("App.Tasks.Detail"),
     getTranslations("Components.OrganizationSwitcher"),
   ]);
-
-  if (!taskResult) {
-    return notFound();
-  }
   let activeSubscriptions: ActiveSubscription[] = [];
   try {
     const requestHeaders = await headers();

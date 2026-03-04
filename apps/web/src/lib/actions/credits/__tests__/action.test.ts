@@ -9,7 +9,7 @@ const getCreditTopUpPriceByCreditsMock = jest.fn();
 const getBaseCreditTopUpPriceMock = jest.fn();
 
 jest.mock("@/middleware/auth-middleware", () => ({
-  withAuthContext:
+  withSession:
     (handler: (params: unknown) => Promise<unknown>) =>
     async (params: unknown) =>
       await handler(params),
@@ -41,6 +41,15 @@ jest.mock("@/lib/clients/stripe.client", () => ({
 }));
 
 describe("credits actions", () => {
+  const session = {
+    user: {
+      id: "user-1",
+    },
+    session: {
+      activeOrganizationId: null,
+    },
+  } as never;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -58,10 +67,7 @@ describe("credits actions", () => {
     const { purchaseCredits } = await import("../action");
 
     const result = await purchaseCredits({
-      authContext: {
-        userId: "user-1",
-        organizationId: null,
-      },
+      session,
       organizationId: null,
       credits: 10_100,
     });
@@ -110,10 +116,7 @@ describe("credits actions", () => {
     const { claimFreeCreditsWithCoupon } = await import("../action");
 
     const result = await claimFreeCreditsWithCoupon({
-      authContext: {
-        userId: "user-1",
-        organizationId: null,
-      },
+      session,
       organizationId: null,
       couponId: "coupon_1",
     });
@@ -144,10 +147,7 @@ describe("credits actions", () => {
     const { purchaseCredits } = await import("../action");
 
     const result = await purchaseCredits({
-      authContext: {
-        userId: "user-1",
-        organizationId: null,
-      },
+      session,
       organizationId: null,
       credits: 1.5,
     });
@@ -169,10 +169,7 @@ describe("credits actions", () => {
     getMyMemberInOrganizationMock.mockResolvedValue(null);
 
     const result = await purchaseCredits({
-      authContext: {
-        userId: "user-1",
-        organizationId: "org-1",
-      },
+      session,
       organizationId: "org-1",
       credits: 100,
     });

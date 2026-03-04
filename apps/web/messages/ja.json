@@ -136,8 +136,8 @@
       "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
       "creditsSummary": "クレジット概要:",
       "creditsConsumedProgressAria": "サブスクリプションクレジットの消費",
-      "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後に失効します",
-      "creditsExpiresToday": "クレジットは本日失効します",
+      "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後にリセットされます",
+      "creditsExpiresToday": "クレジットは本日リセットされます",
       "creditsExpired": "クレジットが失効しました"
     },
     "OrganizationSwitcher": {
@@ -231,7 +231,6 @@
       "billing": "請求",
       "account": "アカウント",
       "organizations": "組織",
-      "api-docs": "APIドキュメント",
       "mcp": "Model Context Protocol（MCP）",
       "schedules": "スケジュール済みエージェント",
       "chat": "チャット",
@@ -1744,13 +1743,7 @@
         "options": {
           "en": "English",
           "de": "Deutsch",
-          "es": "Español",
-          "it": "Italiano",
-          "fr": "Français",
-          "pt": "Português",
-          "pt-BR": "Português (Brasil)",
-          "ja": "日本語",
-          "zh-Hans": "简体中文"
+          "es": "Español"
         }
       },
       "SocialAccounts": {

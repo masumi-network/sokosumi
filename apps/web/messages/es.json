@@ -136,8 +136,8 @@
       "imprint": "Aviso legal",
       "acceptableUse": "Uso aceptable",
       "creditsSummary": "Resumen de créditos:",
-      "creditsExpiresInDays": "Los créditos vencen en {days, plural, =1 {1 día} other {# días}}",
-      "creditsExpiresToday": "Los créditos vencen hoy",
+      "creditsExpiresInDays": "Los créditos se reinician en {days, plural, =1 {1 día} other {# días}}",
+      "creditsExpiresToday": "Los créditos se reinician hoy",
       "creditsExpired": "Créditos vencidos"
     },
     "OrganizationSwitcher": {
@@ -231,7 +231,6 @@
       "billing": "Billing",
       "account": "Cuenta",
       "organizations": "Organizaciones",
-      "api-docs": "Documentación de API",
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Agents programados",
       "chat": "Chat",
@@ -1706,13 +1705,7 @@
         "options": {
           "en": "English",
           "de": "Deutsch",
-          "es": "Español",
-          "it": "Italiano",
-          "fr": "Français",
-          "pt": "Português",
-          "pt-BR": "Português (Brasil)",
-          "ja": "日本語",
-          "zh-Hans": "简体中文"
+          "es": "Español"
         }
       },
       "SocialAccounts": {

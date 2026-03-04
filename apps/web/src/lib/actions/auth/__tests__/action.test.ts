@@ -7,7 +7,9 @@ const signInEmailMock = jest.fn();
 const setPasswordMock = jest.fn();
 const handleUTMConversionMock = jest.fn();
 const headersMock = jest.fn();
-const betterAuthApiErrorSafeParseMock = jest.fn(() => ({ success: false }));
+const betterAuthApiErrorSafeParseMock: jest.Mock = jest.fn(() => ({
+  success: false,
+}));
 
 jest.mock("next/headers", () => ({
   headers: headersMock,
