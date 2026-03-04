@@ -281,6 +281,10 @@ export function TasksView({
   const itemsRef = useRef(items);
   const jobsItemsRef = useRef(jobsItems);
   const isRefetchingJobsRef = useRef(false);
+  const columnCursorByIdRef = useRef<Record<KanbanColumnId, string | null>>(
+    {} as Record<KanbanColumnId, string | null>,
+  );
+  const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
   const scopeKey = activeOrganizationId ?? "personal";
   const previousScopeKeyRef = useRef(scopeKey);
   const handleEventUpdate = (_data: TaskEventData) => {
@@ -294,6 +298,14 @@ export function TasksView({
   useEffect(() => {
     jobsItemsRef.current = jobsItems;
   }, [jobsItems]);
+
+  useEffect(() => {
+    columnCursorByIdRef.current = columnCursorById;
+  }, [columnCursorById]);
+
+  useEffect(() => {
+    loadingColumnIdsRef.current = loadingColumnIds;
+  }, [loadingColumnIds]);
 
   useEffect(() => {
     try {
@@ -485,14 +497,14 @@ export function TasksView({
 
   const handleLoadMoreColumn = useCallback(
     async (columnId: KanbanColumnId) => {
-      const cursor = columnCursorById[columnId] ?? null;
-      if (cursor === null || loadingColumnIds.has(columnId)) return;
+      const cursor = columnCursorByIdRef.current[columnId] ?? null;
+      if (cursor === null || loadingColumnIdsRef.current.has(columnId)) return;
 
-      setLoadingColumnIds((prev) => {
-        const next = new Set(prev);
-        next.add(columnId);
-        return next;
-      });
+      // Update ref synchronously to block rapid clicks before re-render
+      const nextLoading = new Set(loadingColumnIdsRef.current);
+      nextLoading.add(columnId);
+      loadingColumnIdsRef.current = nextLoading;
+      setLoadingColumnIds(nextLoading);
 
       try {
         const result = await loadMoreTasksColumn({ columnId, cursor });
@@ -508,14 +520,13 @@ export function TasksView({
         }));
         toast.error(labels.loadMoreError);
       } finally {
-        setLoadingColumnIds((prev) => {
-          const next = new Set(prev);
-          next.delete(columnId);
-          return next;
-        });
+        const afterLoading = new Set(loadingColumnIdsRef.current);
+        afterLoading.delete(columnId);
+        loadingColumnIdsRef.current = afterLoading;
+        setLoadingColumnIds(afterLoading);
       }
     },
-    [columnCursorById, labels.loadMoreError, loadingColumnIds],
+    [labels.loadMoreError],
   );
 
   const handleViewModeChange = (next: TasksViewMode) => {

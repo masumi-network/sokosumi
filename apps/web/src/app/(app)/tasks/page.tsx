@@ -64,9 +64,19 @@ export default async function TasksPage() {
   const columnNextCursorById = Object.fromEntries(
     columnPages.map(([columnId, page]) => [columnId, page.nextCursor]),
   ) as Record<KanbanColumnId, string | null>;
+  const seedTasksById = new Map(
+    tasks.map((task) => [
+      task.id,
+      {
+        id: task.id,
+        coworkerId: task.coworker?.id ?? null,
+      },
+    ]),
+  );
   const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
     jobs: jobsPage.jobs,
     coworkersById,
+    seedTasksById,
   });
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(coworkers);
