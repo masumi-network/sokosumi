@@ -231,7 +231,6 @@
       "billing": "請求",
       "account": "アカウント",
       "organizations": "組織",
-      "api-docs": "APIドキュメント",
       "mcp": "Model Context Protocol（MCP）",
       "schedules": "スケジュール済みエージェント",
       "chat": "チャット",
@@ -1745,13 +1744,7 @@
         "options": {
           "en": "English",
           "de": "Deutsch",
-          "es": "Español",
-          "it": "Italiano",
-          "fr": "Français",
-          "pt": "Português",
-          "pt-BR": "Português (Brasil)",
-          "ja": "日本語",
-          "zh-Hans": "简体中文"
+          "es": "Español"
         }
       },
       "SocialAccounts": {

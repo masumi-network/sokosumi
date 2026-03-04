@@ -1,13 +1,11 @@
 import { prepareInputValues, JobInputsFormSchemaType } from "@/lib/job-input";
 
 describe("prepareInputValues", () => {
-  it("serializes Date values and removes null/undefined entries", () => {
-    const firstDate = new Date("2026-01-19T00:00:00.000Z");
-    const secondDate = new Date("2026-02-01T10:00:00.000Z");
-
+  it("keeps date and datetime-local strings and removes null/undefined entries", () => {
     const values = {
-      startDate: firstDate,
-      dateRange: [firstDate, secondDate],
+      startDate: "2026-01-19",
+      startAt: "2026-02-01T10:00",
+      dateRange: ["2026-01-19", "2026-02-01"],
       count: 2,
       optional: null,
       unset: undefined,
@@ -15,8 +13,9 @@ describe("prepareInputValues", () => {
 
     const result = prepareInputValues(values);
     expect(result).toEqual({
-      startDate: firstDate.toISOString(),
-      dateRange: [firstDate.toISOString(), secondDate.toISOString()],
+      startDate: "2026-01-19",
+      startAt: "2026-02-01T10:00",
+      dateRange: ["2026-01-19", "2026-02-01"],
       count: 2,
     });
   });

@@ -16,7 +16,6 @@ import {
   HttpErrors,
 } from "@/lib/api/schemas/error";
 import { auth, type Session } from "@/lib/auth/auth";
-import { AuthContext } from "@/lib/auth/utils";
 
 export async function validateSession(headers: Headers): Promise<Session> {
   const session = await auth.api.getSession({
@@ -26,61 +25,6 @@ export async function validateSession(headers: Headers): Promise<Session> {
     throw new Error("UNAUTHORIZED");
   }
   return session;
-}
-
-export async function validateApiKey(headers: Headers) {
-  const key = headers.get("x-api-key");
-  if (!key) {
-    throw new Error("UNAUTHORIZED");
-  }
-  const data = await auth.api.verifyApiKey({
-    body: {
-      key,
-    },
-  });
-
-  if (data.error) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  if (!data.valid) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  const apiKey = data.key;
-
-  if (!apiKey) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  return apiKey;
-}
-
-/**
- * Validates the authentication of the request by checking for either an API key
- * or session. This function automatically determines the authentication method
- * based on the presence of an 'x-api-key' header.
- *
- * @param headers - The request headers containing authentication information
- * @returns Promise resolving to the authentication context if valid, null otherwise
- */
-export async function validateAuth(headers: Headers) {
-  const hasKey = headers.has("x-api-key");
-  if (hasKey) {
-    const apiKey = await validateApiKey(headers);
-    const authContext: AuthContext = {
-      userId: apiKey.userId,
-      organizationId: apiKey.metadata?.organizationId ?? null,
-    };
-    return { apiKey, authContext };
-  } else {
-    const session = await validateSession(headers);
-    const authContext: AuthContext = {
-      userId: session.user.id,
-      organizationId: session.session.activeOrganizationId ?? null,
-    };
-    return { session, authContext };
-  }
 }
 
 /**

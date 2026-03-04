@@ -19,7 +19,7 @@ import {
   jobRepository,
 } from "@sokosumi/database/repositories";
 
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
 import { pricingAmountsSchema } from "@/lib/schemas";
@@ -84,6 +84,77 @@ export const agentService = (() => {
   }
 
   /**
+   * Retrieves online agents and their credit costs, then applies shared availability filtering.
+   */
+  async function getAvailableOnlineAgentsAndCreditCosts(
+    tx: Prisma.TransactionClient,
+  ): Promise<{
+    availableAgents: AgentWithRelations[];
+    creditCosts: CreditCost[];
+  }> {
+    const creditCosts = await creditCostRepository.getCreditCosts(tx);
+    const onlineAgents =
+      await agentRepository.getShownAgentsWithRelationsByStatus(
+        AgentStatus.ONLINE,
+        tx,
+      );
+    const availableAgents = onlineAgents.filter((agent) =>
+      isAgentAvailable(agent, creditCosts),
+    );
+
+    return {
+      availableAgents,
+      creditCosts,
+    };
+  }
+
+  /**
+   * Builds a fast lookup map for credit costs by unit.
+   */
+  function buildCreditCostByUnitMap(
+    creditCosts: CreditCost[],
+  ): Map<string, bigint> {
+    return new Map(
+      creditCosts.map((creditCost) => [
+        creditCost.unit,
+        creditCost.centsPerUnit,
+      ]),
+    );
+  }
+
+  /**
+   * Computes the total credits price for an agent from preloaded credit costs.
+   */
+  function computeAgentCreditsPriceCents(
+    agent: AgentWithRelations,
+    creditCostByUnit: Map<string, bigint>,
+  ): bigint {
+    const amounts = getAgentPricingAmounts(agent);
+    if (!amounts) {
+      throw new Error("Agent has invalid or unknown pricing");
+    }
+
+    // if amounts is empty (in case of free agent)
+    if (amounts.length === 0) {
+      return BigInt(0);
+    }
+
+    const amountsParsed = pricingAmountsSchema.parse(amounts);
+
+    let totalCents = BigInt(0);
+    for (const amount of amountsParsed) {
+      const centsPerUnit = creditCostByUnit.get(amount.unit);
+      if (centsPerUnit === undefined) {
+        throw new Error(`Credit cost not found for unit ${amount.unit}`);
+      }
+      const cents = amount.amount * centsPerUnit;
+      totalCents += cents;
+    }
+
+    return totalCents;
+  }
+
+  /**
    * Retrieves agents by list type for the current user with access control applied.
    *
    * @param type - The type of agent list to retrieve (e.g., FAVORITE).
@@ -92,13 +163,13 @@ export const agentService = (() => {
   const getAgentsByListType = async (
     type: AgentListType,
   ): Promise<AgentWithRelations[]> => {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getSession();
+    if (!session) {
       return [];
     }
     return await prisma.$transaction(async (tx) => {
       const list = await agentListRepository.upsertAgentListForUserId(
-        context.userId,
+        session.user.id,
         type,
         tx,
       );
@@ -129,15 +200,9 @@ export const agentService = (() => {
      */
     getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
       return await prisma.$transaction(async (tx) => {
-        const creditCosts = await creditCostRepository.getCreditCosts(tx);
-        const onlineAgents =
-          await agentRepository.getShownAgentsWithRelationsByStatus(
-            AgentStatus.ONLINE,
-            tx,
-          );
-        return onlineAgents.filter((agent) =>
-          isAgentAvailable(agent, creditCosts),
-        );
+        const { availableAgents } =
+          await getAvailableOnlineAgentsAndCreditCosts(tx);
+        return availableAgents;
       });
     },
 
@@ -176,20 +241,31 @@ export const agentService = (() => {
     getAvailableAgentsWithCreditsPrice: async (): Promise<
       AgentWithCreditsPrice[]
     > => {
-      const agents = await agentService.getAvailableAgents();
-      const results = await Promise.allSettled(
-        agents.map(async (agent) => {
-          const agentWithCreditsPrice =
-            await agentService.getAgentCreditsPrice(agent);
-          return agentWithCreditsPrice;
-        }),
-      );
-      return results
-        .filter(
-          (result): result is PromiseFulfilledResult<AgentWithCreditsPrice> =>
-            result.status === "fulfilled",
-        )
-        .map((result) => result.value);
+      return await prisma.$transaction(async (tx) => {
+        const { availableAgents, creditCosts } =
+          await getAvailableOnlineAgentsAndCreditCosts(tx);
+        const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
+
+        const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
+        for (const agent of availableAgents) {
+          try {
+            const creditsPriceCents = computeAgentCreditsPriceCents(
+              agent,
+              creditCostByUnit,
+            );
+            agentsWithCreditsPrice.push({
+              ...agent,
+              creditsPrice: {
+                cents: creditsPriceCents,
+              },
+            });
+          } catch {
+            continue;
+          }
+        }
+
+        return agentsWithCreditsPrice;
+      });
     },
 
     /**
@@ -229,14 +305,14 @@ export const agentService = (() => {
      * @throws If no active session is found.
      */
     getHiredAgents: async (): Promise<AgentWithJobs[]> => {
-      const context = await getAuthContext();
-      if (!context) {
+      const session = await getSession();
+      if (!session) {
         return [];
       }
       const hiredAgentsWithJobs =
         await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
-          context.userId,
-          context.organizationId,
+          session.user.id,
+          session.session.activeOrganizationId ?? null,
           prisma,
         );
       return hiredAgentsWithJobs.sort((a, b) => {
@@ -263,33 +339,9 @@ export const agentService = (() => {
       agent: AgentWithRelations,
       tx: Prisma.TransactionClient = prisma,
     ): Promise<AgentWithCreditsPrice> => {
-      const amounts = getAgentPricingAmounts(agent);
-      if (!amounts) {
-        throw new Error("Agent has invalid or unknown pricing");
-      }
-
-      // if amounts is empty (in case of free agent)
-      if (amounts.length === 0) {
-        return {
-          ...agent,
-          creditsPrice: { cents: BigInt(0) },
-        };
-      }
-
-      const amountsParsed = pricingAmountsSchema.parse(amounts);
-
-      let totalCents = BigInt(0);
-      for (const amount of amountsParsed) {
-        const creditCost = await creditCostRepository.getCreditCostByUnit(
-          amount.unit,
-          tx,
-        );
-        if (!creditCost) {
-          throw new Error(`Credit cost not found for unit ${amount.unit}`);
-        }
-        const cents = amount.amount * creditCost.centsPerUnit;
-        totalCents += cents;
-      }
+      const creditCosts = await creditCostRepository.getCreditCosts(tx);
+      const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
+      const totalCents = computeAgentCreditsPriceCents(agent, creditCostByUnit);
 
       return {
         ...agent,
@@ -307,10 +359,11 @@ export const agentService = (() => {
       rating: number,
       comment: string | null = null,
     ): Promise<void> {
-      const authContext = await getAuthContext();
-      if (!authContext?.userId) {
+      const session = await getSession();
+      if (!session) {
         throw new Error("User not found");
       }
+      const userId = session.user.id;
 
       // Validate rating
       if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
@@ -321,7 +374,7 @@ export const agentService = (() => {
         // Check if user has finished any jobs with this agent
         const hasFinishedJob =
           await jobRepository.doesUserHaveFinishedJobWithAgent(
-            authContext.userId,
+            userId,
             agentId,
             tx,
           );
@@ -334,7 +387,7 @@ export const agentService = (() => {
 
         // Upsert the rating
         await agentRatingRepository.upsertRating(
-          authContext.userId,
+          userId,
           agentId,
           rating,
           comment,

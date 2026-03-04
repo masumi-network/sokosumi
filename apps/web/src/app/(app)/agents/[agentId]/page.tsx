@@ -11,7 +11,7 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { agentService } from "@/lib/services";
 
@@ -33,7 +33,8 @@ export default async function AgentDetailPage({
   }
 
   const favoriteAgents = await agentService.getFavoriteAgents();
-  const authContext = await getAuthContext();
+  const session = await getSession();
+  const userId = session?.user.id ?? null;
 
   const [
     executedJobsCount,
@@ -50,13 +51,13 @@ export default async function AgentDetailPage({
   ]);
 
   // Check if user can rate this agent and get existing rating
-  const canRate = authContext?.userId
-    ? await agentService.canUserRateAgent(authContext.userId, agentId)
+  const canRate = userId
+    ? await agentService.canUserRateAgent(userId, agentId)
     : false;
 
   const existingRating =
-    authContext?.userId && canRate
-      ? await agentService.getUserRatingForAgent(authContext.userId, agentId)
+    userId && canRate
+      ? await agentService.getUserRatingForAgent(userId, agentId)
       : null;
 
   return (

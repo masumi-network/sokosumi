@@ -231,7 +231,6 @@
       "billing": "Abrechnung",
       "account": "Konto",
       "organizations": "Organisationen",
-      "api-docs": "API-Dokumentation",
       "mcp": "Model Context Protocol (MCP)",
       "schedules": "Geplante Agents",
       "chat": "Chat",
@@ -1707,13 +1706,7 @@
         "options": {
           "en": "English",
           "de": "Deutsch",
-          "es": "Español",
-          "it": "Italiano",
-          "fr": "Français",
-          "pt": "Português",
-          "pt-BR": "Português (Brasil)",
-          "ja": "日本語",
-          "zh-Hans": "简体中文"
+          "es": "Español"
         }
       },
       "SocialAccounts": {

@@ -20,7 +20,7 @@ export default function useAgentInputSchema(agentId: string) {
           setLoading(true);
           setError(null);
           const response = await fetch(
-            `/api/v1/agents/${encodeURIComponent(agentId)}/input-schema`,
+            `/api/internal/agents/${encodeURIComponent(agentId)}/input-schema`,
           );
 
           if (!response.ok) {

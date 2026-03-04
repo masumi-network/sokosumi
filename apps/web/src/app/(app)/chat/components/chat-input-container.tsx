@@ -25,7 +25,6 @@ interface ChatInputContainerProps {
   onSelectModel: (model: { id: string; name: string } | null) => void;
   selectedChatCoworker?: Coworker;
   coworkers?: Coworker[];
-  /** Enable mobile keyboard UX: Enter does not submit, blur on send. Used on /chat_test. */
   mobileKeyboardOptimized?: boolean;
 }
 

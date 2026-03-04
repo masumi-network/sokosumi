@@ -14,7 +14,7 @@ import { JobScheduleEndsMode, JobScheduleType } from "@/lib/types/job";
 import { computeNextRun } from "@/lib/utils/cron";
 import {
   AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 interface StartJobScheduleParameters extends AuthenticatedRequest {
@@ -35,17 +35,17 @@ interface CreateScheduleInput extends AuthenticatedRequest {
   scheduleSelection: ScheduleSelectionPayload;
 }
 
-export const createSchedule = withAuthContext<
+export const createSchedule = withSession<
   CreateScheduleInput,
   Result<
     { jobId: string; scheduleId: string },
     { code: string; message: string }
   >
->(async ({ input, scheduleSelection, authContext }) => {
+>(async ({ input, scheduleSelection, session }) => {
   try {
     // Upload any Files in the input map to blob storage and replace with URLs
     if (input.inputData) {
-      await handleInputDataFileUploads(authContext.userId, input.inputData);
+      await handleInputDataFileUploads(session.user.id, input.inputData);
     }
 
     // Derive schedule fields from selection and validate
@@ -132,13 +132,13 @@ export const createSchedule = withAuthContext<
     const prismaInput: Prisma.JobScheduleCreateInput = {
       user: {
         connect: {
-          id: authContext.userId,
+          id: session.user.id,
         },
       },
-      organization: authContext.organizationId
+      organization: session.session.activeOrganizationId
         ? {
             connect: {
-              id: authContext.organizationId,
+              id: session.session.activeOrganizationId,
             },
           }
         : undefined,
@@ -179,10 +179,10 @@ interface ToggleScheduleInput extends AuthenticatedRequest {
   isActive: boolean;
 }
 
-export const toggleSchedule = withAuthContext<
+export const toggleSchedule = withSession<
   ToggleScheduleInput,
   Result<void, { code: string; message: string }>
->(async ({ scheduleId, isActive, authContext }) => {
+>(async ({ scheduleId, isActive, session }) => {
   try {
     const schedule = await jobScheduleRepository.getById(scheduleId, prisma);
     if (!schedule) {
@@ -191,7 +191,7 @@ export const toggleSchedule = withAuthContext<
         error: { code: CommonErrorCode.BAD_INPUT, message: "Not found" },
       };
     }
-    if (schedule.userId !== authContext.userId) {
+    if (schedule.userId !== session.user.id) {
       return {
         ok: false,
         error: { code: CommonErrorCode.UNAUTHORIZED, message: "Unauthorized" },
@@ -222,10 +222,10 @@ interface UpdateScheduleInput extends AuthenticatedRequest {
   };
 }
 
-export const updateSchedule = withAuthContext<
+export const updateSchedule = withSession<
   UpdateScheduleInput,
   Result<void, { code: string; message: string }>
->(async ({ scheduleId, data, authContext }) => {
+>(async ({ scheduleId, data, session }) => {
   try {
     const existing = await jobScheduleRepository.getById(scheduleId, prisma);
     if (!existing) {
@@ -234,7 +234,7 @@ export const updateSchedule = withAuthContext<
         error: { code: CommonErrorCode.BAD_INPUT, message: "Not found" },
       };
     }
-    if (existing.userId !== authContext.userId) {
+    if (existing.userId !== session.user.id) {
       return {
         ok: false,
         error: { code: CommonErrorCode.UNAUTHORIZED, message: "Unauthorized" },
@@ -292,10 +292,10 @@ interface DeleteScheduleInput extends AuthenticatedRequest {
   scheduleId: string;
 }
 
-export const deleteSchedule = withAuthContext<
+export const deleteSchedule = withSession<
   DeleteScheduleInput,
   Result<void, { code: string; message: string }>
->(async ({ scheduleId, authContext }) => {
+>(async ({ scheduleId, session }) => {
   try {
     const schedule = await jobScheduleRepository.getById(scheduleId, prisma);
     if (!schedule) {
@@ -304,7 +304,7 @@ export const deleteSchedule = withAuthContext<
         error: { code: CommonErrorCode.BAD_INPUT, message: "Not found" },
       };
     }
-    if (schedule.userId !== authContext.userId) {
+    if (schedule.userId !== session.user.id) {
       return {
         ok: false,
         error: { code: CommonErrorCode.UNAUTHORIZED, message: "Unauthorized" },

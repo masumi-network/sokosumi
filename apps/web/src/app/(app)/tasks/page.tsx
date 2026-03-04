@@ -24,9 +24,12 @@ export const metadata = {
 };
 
 export default async function TasksPage() {
-  const t = await getTranslations("App.Tasks");
-  const tColumns = await getTranslations("App.Tasks.Columns");
-  const cookieStore = await cookies();
+  const [t, tColumns, cookieStore, session] = await Promise.all([
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Columns"),
+    cookies(),
+    getSession(),
+  ]);
   const defaultViewMode =
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
@@ -34,10 +37,9 @@ export default async function TasksPage() {
   const [coworkers, agents, jobsPage] = await Promise.all([
     coworkerService.listCoworkers(),
     agentService.getAvailableAgentsWithCreditsPrice(),
-    userService.listMyJobsForActiveContextPaginated({ limit: 20 }),
+    userService.listMyJobsForActiveContextPaginated({ limit: 20, session }),
   ]);
 
-  const session = await getSession();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   const coworkersById = new Map(

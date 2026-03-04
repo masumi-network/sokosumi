@@ -15,7 +15,7 @@ import { headers } from "next/headers";
 import slugify from "slugify";
 
 import { auth } from "@/lib/auth/auth";
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -102,11 +102,11 @@ export const organizationService = (() => {
   async function getOrganizationMembersWithUser(
     organizationId: string,
   ): Promise<MemberWithUser[]> {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getSession();
+    if (!session) {
       return [];
     }
-    const userId = context.userId;
+    const userId = session.user.id;
 
     // Check if the user is a member of the organization
     const myMemberInOrganization =

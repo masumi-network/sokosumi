@@ -17,7 +17,7 @@ import { organizationService, stripeService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 export async function generateOrganizationSlug(
@@ -54,11 +54,11 @@ interface UpdateOrganizationInvoiceEmailParameters extends AuthenticatedRequest 
   invoiceEmail: string | null;
 }
 
-export const updateOrganizationInvoiceEmail = withAuthContext<
+export const updateOrganizationInvoiceEmail = withSession<
   UpdateOrganizationInvoiceEmailParameters,
   Result<{ invoiceEmail: string | null }, ActionError>
 >(async (parameters) => {
-  const { userId } = parameters.authContext;
+  const userId = parameters.session.user.id;
 
   // Validate input
   const parsedResult = updateInvoiceEmailSchema.safeParse({
