@@ -1,8 +1,6 @@
 const listCoworkersMock = jest.fn();
 const getAvailableAgentsWithCreditsPriceMock = jest.fn();
-const listMyJobsForActiveContextPaginatedMock = jest.fn();
 const getTasksColumnPageMock = jest.fn();
-const mapJobsToTasksViewDataMock = jest.fn();
 
 jest.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
@@ -19,23 +17,13 @@ jest.mock("@/lib/services/agent.service", () => ({
 
 jest.mock("@/lib/services/user.service", () => ({
   userService: {
-    listMyJobsForActiveContextPaginated: (...args: unknown[]) =>
-      listMyJobsForActiveContextPaginatedMock(...args),
+    listMyJobsForActiveContextPaginated: jest.fn(),
   },
 }));
 
 jest.mock("../utils/tasks-column-page", () => ({
   getTasksColumnPage: (...args: unknown[]) => getTasksColumnPageMock(...args),
 }));
-
-jest.mock(
-  "@/app/tasks/utils/jobs-view-data",
-  () => ({
-    mapJobsToTasksViewData: (...args: unknown[]) =>
-      mapJobsToTasksViewDataMock(...args),
-  }),
-  { virtual: true },
-);
 
 import { loadMoreTasksColumn } from "../actions";
 
