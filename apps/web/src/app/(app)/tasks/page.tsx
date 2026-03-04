@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
-import { getSession } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
@@ -24,22 +24,27 @@ export const metadata = {
 };
 
 export default async function TasksPage() {
-  const t = await getTranslations("App.Tasks");
-  const tColumns = await getTranslations("App.Tasks.Columns");
-  const cookieStore = await cookies();
+  const [t, tColumns, cookieStore, authContext] = await Promise.all([
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Columns"),
+    cookies(),
+    getAuthContext(),
+  ]);
   const defaultViewMode =
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
 
-  const [coworkers, agents, tasksResult, jobsPage] = await Promise.all([
+  const [coworkers, tasksResult, agents, jobsPage] = await Promise.all([
     coworkerService.listCoworkers(),
-    agentService.getAvailableAgentsWithCreditsPrice(),
     taskService.listTasks({ limit: 20 }),
-    userService.listMyJobsForActiveContextPaginated({ limit: 20 }),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    userService.listMyJobsForActiveContextPaginated({
+      limit: 20,
+      authContext,
+    }),
   ]);
 
-  const session = await getSession();
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const activeOrganizationId = authContext?.organizationId ?? null;
 
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -77,7 +82,7 @@ export default async function TasksPage() {
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         agentNameById={agentNameById}
-        userId={session?.user.id ?? null}
+        userId={authContext?.userId ?? null}
         activeOrganizationId={activeOrganizationId}
         defaultViewMode={defaultViewMode}
         labels={{

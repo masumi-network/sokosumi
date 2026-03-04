@@ -30,29 +30,22 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [
-    taskResult,
-    coworkers,
-    agents,
-    members,
-    session,
-    locale,
-    t,
-    tOrganizationSwitcher,
-  ] = await Promise.all([
-    taskService.getTaskById(taskId, ["owned"]),
-    coworkerService.listCoworkers(),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    userService.getMyMembersWithOrganizations(),
-    getSession(),
-    getLocale(),
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("Components.OrganizationSwitcher"),
-  ]);
+  const taskResult = await taskService.getTaskById(taskId, ["owned"]);
 
   if (!taskResult) {
     return notFound();
   }
+
+  const [coworkers, agents, members, session, locale, t, tOrganizationSwitcher] =
+    await Promise.all([
+      coworkerService.listCoworkers(),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      userService.getMyMembersWithOrganizations(),
+      getSession(),
+      getLocale(),
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("Components.OrganizationSwitcher"),
+    ]);
   let activeSubscriptions: ActiveSubscription[] = [];
   try {
     const requestHeaders = await headers();
