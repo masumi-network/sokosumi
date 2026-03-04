@@ -282,7 +282,7 @@ export function TasksView({
   const jobsItemsRef = useRef(jobsItems);
   const isRefetchingJobsRef = useRef(false);
   const columnCursorByIdRef = useRef<Record<KanbanColumnId, string | null>>(
-    {} as Record<KanbanColumnId, string | null>,
+    buildInitialColumnCursorById(columns, initialColumnNextCursorById),
   );
   const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
   const scopeKey = activeOrganizationId ?? "personal";
