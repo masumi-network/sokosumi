@@ -118,27 +118,27 @@ export const stripeService = (() => {
      * @param couponId - The ID of the coupon to claim
      * @param maxRedemptions - Maximum number of times this promotion code can be redeemed (default: 1)
      * @param metadata - Optional metadata to attach to the promotion code
-     * @param authContext - Auth context (userId, organizationId).
+     * @param scope - Caller identity scope (userId, organizationId).
      * @returns {Promise<Stripe.PromotionCode>} The promotion code if successfully claimed, otherwise null.
      */
     async claimCoupon(
       couponId: string,
       maxRedemptions: number = 1,
-      authContext: { userId: string; organizationId: string | null },
+      scope: { userId: string; organizationId: string | null },
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
       let stripeCustomerId = await getStripeCustomerId(
-        authContext.userId,
-        authContext.organizationId,
+        scope.userId,
+        scope.organizationId,
       );
 
       // Create Stripe customer if doesn't exist
       if (!stripeCustomerId) {
-        const customer = authContext.organizationId
+        const customer = scope.organizationId
           ? await this.createStripeCustomerForOrganization(
-              authContext.organizationId,
+              scope.organizationId,
             )
-          : await this.createStripeCustomerForUser(authContext.userId);
+          : await this.createStripeCustomerForUser(scope.userId);
 
         if (!customer) {
           return null;

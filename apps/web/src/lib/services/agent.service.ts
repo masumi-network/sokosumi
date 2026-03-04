@@ -19,7 +19,7 @@ import {
   jobRepository,
 } from "@sokosumi/database/repositories";
 
-import { getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
 import { pricingAmountsSchema } from "@/lib/schemas";
@@ -163,13 +163,13 @@ export const agentService = (() => {
   const getAgentsByListType = async (
     type: AgentListType,
   ): Promise<AgentWithRelations[]> => {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getSession();
+    if (!session) {
       return [];
     }
     return await prisma.$transaction(async (tx) => {
       const list = await agentListRepository.upsertAgentListForUserId(
-        context.userId,
+        session.user.id,
         type,
         tx,
       );
@@ -305,14 +305,14 @@ export const agentService = (() => {
      * @throws If no active session is found.
      */
     getHiredAgents: async (): Promise<AgentWithJobs[]> => {
-      const context = await getAuthContext();
-      if (!context) {
+      const session = await getSession();
+      if (!session) {
         return [];
       }
       const hiredAgentsWithJobs =
         await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
-          context.userId,
-          context.organizationId,
+          session.user.id,
+          session.session.activeOrganizationId ?? null,
           prisma,
         );
       return hiredAgentsWithJobs.sort((a, b) => {
@@ -359,10 +359,11 @@ export const agentService = (() => {
       rating: number,
       comment: string | null = null,
     ): Promise<void> {
-      const authContext = await getAuthContext();
-      if (!authContext?.userId) {
+      const session = await getSession();
+      if (!session) {
         throw new Error("User not found");
       }
+      const userId = session.user.id;
 
       // Validate rating
       if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
@@ -373,7 +374,7 @@ export const agentService = (() => {
         // Check if user has finished any jobs with this agent
         const hasFinishedJob =
           await jobRepository.doesUserHaveFinishedJobWithAgent(
-            authContext.userId,
+            userId,
             agentId,
             tx,
           );
@@ -386,7 +387,7 @@ export const agentService = (() => {
 
         // Upsert the rating
         await agentRatingRepository.upsertRating(
-          authContext.userId,
+          userId,
           agentId,
           rating,
           comment,

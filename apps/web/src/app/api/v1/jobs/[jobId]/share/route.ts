@@ -13,9 +13,9 @@ import {
   createApiSuccessResponse,
   handleApiError,
   jobShareRequestSchema,
+  validateSession,
 } from "@/lib/api";
 import { formatJobShareResponse } from "@/lib/api/formatters/job-share";
-import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
 interface RouteParams {
@@ -29,10 +29,8 @@ export async function PUT(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const authContext = await getAuthContext();
-    if (!authContext) {
-      throw new Error("UNAUTHORIZED");
-    }
+    const session = await validateSession(request.headers);
+    const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
     const { jobId } = await params;
     if (!jobId) {
@@ -43,10 +41,9 @@ export async function PUT(
     const body = await request.json();
     const requestData = jobShareRequestSchema.parse(body);
 
-    // Guard: personal API key cannot share to organization scope
     if (
       requestData.scope.includes("organization") &&
-      !authContext.organizationId
+      !activeOrganizationId
     ) {
       throw new Error("UNAUTHORIZED");
     }
@@ -58,7 +55,7 @@ export async function PUT(
       const result = await shareJobPublicly({
         jobId,
         allowSearchIndexing,
-        authContext,
+        session,
       });
       if (!result.ok) {
         throw new Error(result.error.message ?? "Unknown error");
@@ -68,7 +65,7 @@ export async function PUT(
     if (requestData.scope.includes("organization")) {
       const result = await shareJobWithOrganization({
         jobId,
-        authContext,
+        session,
       });
       if (!result.ok) {
         throw new Error(result.error.message ?? "Unknown error");
@@ -92,10 +89,8 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const authContext = await getAuthContext();
-    if (!authContext) {
-      throw new Error("UNAUTHORIZED");
-    }
+    const session = await validateSession(request.headers);
+    const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
     const { jobId } = await params;
     if (!jobId) {
@@ -107,13 +102,12 @@ export async function GET(
       throw new Error("JOB_SHARE_NOT_FOUND");
     }
 
-    if (share.job.userId !== authContext.userId) {
+    if (share.job.userId !== session.user.id) {
       throw new Error("UNAUTHORIZED");
     }
-
     if (
       share.job.organizationId &&
-      share.job.organizationId !== authContext.organizationId
+      share.job.organizationId !== activeOrganizationId
     ) {
       throw new Error("UNAUTHORIZED");
     }
@@ -131,17 +125,14 @@ export async function DELETE(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const authContext = await getAuthContext();
-    if (!authContext) {
-      throw new Error("UNAUTHORIZED");
-    }
+    const session = await validateSession(request.headers);
 
     const { jobId } = await params;
     if (!jobId) {
       throw new Error("INVALID_INPUT");
     }
 
-    const result = await deleteJobShare({ jobId, authContext });
+    const result = await deleteJobShare({ jobId, session });
     if (!result.ok) {
       switch (result.error.code) {
         case JobErrorCode.JOB_NOT_FOUND:

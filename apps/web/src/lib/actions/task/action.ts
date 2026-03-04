@@ -7,7 +7,7 @@ import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { taskService } from "@/lib/services/task.service";
 import {
   type AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 interface CreateTaskParameters extends AuthenticatedRequest {
@@ -45,7 +45,7 @@ function buildFallbackName(description: string): string {
   return (firstLine ?? "").trim().slice(0, 60);
 }
 
-export const createTask = withAuthContext<
+export const createTask = withSession<
   CreateTaskParameters,
   { taskId: string }
 >(async ({ description, coworkerId, status }) => {
@@ -74,7 +74,7 @@ export const createTask = withAuthContext<
   }
 });
 
-export const updateTask = withAuthContext<
+export const updateTask = withSession<
   UpdateTaskParameters,
   { taskId: string }
 >(
@@ -118,7 +118,7 @@ export const updateTask = withAuthContext<
   },
 );
 
-export const setTaskStatusFromDrag = withAuthContext<
+export const setTaskStatusFromDrag = withSession<
   SetTaskStatusFromDragParameters,
   { taskId: string }
 >(async ({ taskId, desiredStatus }) => {
@@ -136,7 +136,7 @@ export const setTaskStatusFromDrag = withAuthContext<
   }
 });
 
-export const deleteTask = withAuthContext<
+export const deleteTask = withSession<
   DeleteTaskParameters,
   { taskId: string }
 >(async ({ taskId }) => {
@@ -151,7 +151,7 @@ export const deleteTask = withAuthContext<
   }
 });
 
-export const createTaskComment = withAuthContext<
+export const createTaskComment = withSession<
   CreateTaskCommentParameters,
   void
 >(async ({ taskId, comment }) => {

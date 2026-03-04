@@ -31,17 +31,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const agentIdFilter = searchParams.get("agentId");
     const statusFilter = searchParams.get("status") as SokosumiJobStatus | null;
 
-    // Get organization context from API key
-    const activeOrganizationId = apiKey.metadata?.organizationId;
-
     const jobs = await jobRepository.getJobs(
       {
-        OR: [
-          ...(activeOrganizationId
-            ? [{ share: { organizationId: activeOrganizationId } }]
-            : []),
-          { userId: apiKey.userId },
-        ],
+        userId: apiKey.userId,
         ...(agentIdFilter ? { agentId: agentIdFilter } : {}),
       },
       prisma,

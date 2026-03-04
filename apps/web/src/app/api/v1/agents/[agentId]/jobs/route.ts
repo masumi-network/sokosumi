@@ -16,8 +16,8 @@ import {
   formatJobResponse,
   handleApiError,
   validateApiKey,
+  validateSession,
 } from "@/lib/api";
-import { getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { agentService } from "@/lib/services";
 
@@ -51,18 +51,10 @@ export async function GET(
       throw new Error("AGENT_NOT_FOUND");
     }
 
-    // Get organization context from session (works for both regular sessions and API keys)
-    const activeOrganizationId = apiKey.metadata?.organizationId;
-
     const jobs = await jobRepository.getJobs(
       {
         agentId,
-        OR: [
-          ...(activeOrganizationId
-            ? [{ share: { organizationId: activeOrganizationId } }]
-            : []),
-          { userId: apiKey.userId },
-        ],
+        userId: apiKey.userId,
       },
       prisma,
     );
@@ -91,10 +83,7 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const authContext = await getAuthContext();
-    if (!authContext) {
-      throw new Error("UNAUTHORIZED");
-    }
+    const session = await validateSession(request.headers);
     const { agentId } = await params;
 
     // Parse request body
@@ -128,7 +117,7 @@ export async function POST(
         inputSchema: validatedInputSchema,
         inputData: validatedData.inputData,
       },
-      authContext,
+      session,
     });
 
     if (!result.ok) {
@@ -175,7 +164,7 @@ export async function POST(
       const publicShareResult = await shareJobPublicly({
         jobId: createdJob.id,
         allowSearchIndexing: true,
-        authContext,
+        session,
       });
       if (!publicShareResult.ok) {
         console.error("Failed to share job", publicShareResult.error);
@@ -194,7 +183,7 @@ export async function POST(
     if (validatedData.shareOrganization) {
       const organizationShareResult = await shareJobWithOrganization({
         jobId: createdJob.id,
-        authContext,
+        session,
       });
       if (!organizationShareResult.ok) {
         console.error("Failed to share job", organizationShareResult.error);

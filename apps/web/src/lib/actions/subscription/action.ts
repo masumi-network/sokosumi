@@ -13,7 +13,7 @@ import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
-  withAuthContext,
+  withSession,
 } from "@/middleware/auth-middleware";
 
 const subscriptionPlanSchema = z.enum(["free", "starter", "standard", "pro"]);
@@ -109,7 +109,7 @@ interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
   returnPath?: string;
 }
 
-export const upgradePersonalSubscription = withAuthContext<
+export const upgradePersonalSubscription = withSession<
   UpgradePersonalSubscriptionParameters,
   Result<{ url: string }, ActionError>
 >(async ({ plan, returnPath }) => {
@@ -154,7 +154,7 @@ interface OpenPersonalBillingPortalParameters extends AuthenticatedRequest {
   returnPath?: string;
 }
 
-export const openPersonalBillingPortal = withAuthContext<
+export const openPersonalBillingPortal = withSession<
   OpenPersonalBillingPortalParameters,
   Result<{ url: string }, ActionError>
 >(async ({ returnPath }) => {
@@ -196,7 +196,7 @@ interface UpgradeOrganizationSubscriptionParameters extends AuthenticatedRequest
   seats: number;
 }
 
-export const upgradeOrganizationSubscription = withAuthContext<
+export const upgradeOrganizationSubscription = withSession<
   UpgradeOrganizationSubscriptionParameters,
   Result<{ url: string }, ActionError>
 >(async ({ organizationId, plan, returnPath, seats }) => {
@@ -244,7 +244,7 @@ interface OpenOrganizationBillingPortalParameters extends AuthenticatedRequest {
   returnPath: string;
 }
 
-export const openOrganizationBillingPortal = withAuthContext<
+export const openOrganizationBillingPortal = withSession<
   OpenOrganizationBillingPortalParameters,
   Result<{ url: string }, ActionError>
 >(async ({ organizationId, returnPath }) => {
@@ -286,10 +286,10 @@ interface UpdateOrganizationSubscriptionSeatsParameters extends AuthenticatedReq
   seats: number;
 }
 
-export const updateOrganizationSubscriptionSeats = withAuthContext<
+export const updateOrganizationSubscriptionSeats = withSession<
   UpdateOrganizationSubscriptionSeatsParameters,
   Result<{ seats: number }, ActionError>
->(async ({ authContext, organizationId, seats }) => {
+>(async ({ session, organizationId, seats }) => {
   const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
     organizationId,
     seats,
@@ -303,7 +303,7 @@ export const updateOrganizationSubscriptionSeats = withAuthContext<
   try {
     const result =
       await organizationSubscriptionService.updateOrganizationSeatsImmediately(
-        authContext.userId,
+        session.user.id,
         parsed.data.organizationId,
         parsed.data.seats,
       );

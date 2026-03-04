@@ -20,13 +20,13 @@ import { headers } from "next/headers";
 import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
-import { type AuthContext, getAuthContext } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
 interface ListMyJobsForActiveContextParams {
   cursor?: string | null;
   limit?: number;
-  authContext?: AuthContext | null;
+  session?: Session | null;
 }
 
 interface PaginatedJobsResult {
@@ -38,6 +38,10 @@ interface PaginatedJobsResult {
  * Service for user-related operations.
  */
 export const userService = (() => {
+  async function getCurrentSession(): Promise<Session | null> {
+    return await getSession();
+  }
+
   /**
    * Retrieves the currently authenticated user from the session.
    *
@@ -45,11 +49,11 @@ export const userService = (() => {
    *
    */
   async function getMe(): Promise<User | null> {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getCurrentSession();
+    if (!session) {
       return null;
     }
-    return userRepository.getUserById(context.userId, prisma);
+    return userRepository.getUserById(session.user.id, prisma);
   }
 
   /**
@@ -61,11 +65,11 @@ export const userService = (() => {
    * @returns {Promise<string | null>} The active organization ID, or null if not set.
    */
   async function getActiveOrganizationId(): Promise<string | null> {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getCurrentSession();
+    if (!session) {
       return null;
     }
-    return context.organizationId;
+    return session.session.activeOrganizationId ?? null;
   }
 
   async function getActiveOrganization(): Promise<OrganizationWithRelations | null> {
@@ -92,12 +96,12 @@ export const userService = (() => {
    *
    */
   async function getMyJobs(agentId: string): Promise<JobWithSokosumiStatus[]> {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getCurrentSession();
+    if (!session) {
       return [];
     }
-    const userId = context.userId;
-    const activeOrganizationId = context.organizationId;
+    const userId = session.user.id;
+    const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
     // Get owned jobs
     const ownedJobs = await jobRepository.getJobs(
@@ -131,20 +135,21 @@ export const userService = (() => {
   async function listMyJobsForActiveContextPaginated(
     params: ListMyJobsForActiveContextParams = {},
   ): Promise<PaginatedJobsResult> {
-    const { cursor = null, limit = 20, authContext } = params;
-    const context = authContext ?? (await getAuthContext());
-    if (!context) {
+    const { cursor = null, limit = 20 } = params;
+    const session = params.session ?? (await getCurrentSession());
+    if (!session) {
       return { jobs: [], nextCursor: null };
     }
+    const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
     const baseWhere: Prisma.JobWhereInput = {
       OR: [
         {
-          userId: context.userId,
-          organizationId: context.organizationId,
+          userId: session.user.id,
+          organizationId: activeOrganizationId,
         },
-        ...(context.organizationId
-          ? [{ share: { organizationId: context.organizationId } }]
+        ...(activeOrganizationId
+          ? [{ share: { organizationId: activeOrganizationId } }]
           : []),
       ],
     };
@@ -205,12 +210,12 @@ export const userService = (() => {
    */
   const getMyMembersWithOrganizations = cache(
     async (): Promise<MemberWithOrganization[]> => {
-      const context = await getAuthContext();
-      if (!context) {
+      const session = await getCurrentSession();
+      if (!session) {
         return [];
       }
       return await memberRepository.getMembersWithOrganizationByUserId(
-        context.userId,
+        session.user.id,
         prisma,
       );
     },
@@ -228,12 +233,12 @@ export const userService = (() => {
   async function getMyMemberInOrganization(
     organizationId: string,
   ): Promise<Member | null> {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getCurrentSession();
+    if (!session) {
       return null;
     }
     return await memberRepository.getMemberByUserIdAndOrganizationId(
-      context.userId,
+      session.user.id,
       organizationId,
       prisma,
     );
@@ -247,12 +252,12 @@ export const userService = (() => {
   async function getMyValidPendingInvitations(): Promise<
     InvitationWithRelations[]
   > {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getCurrentSession();
+    if (!session) {
       return [];
     }
     return await prisma.$transaction(async (tx) => {
-      const user = await userRepository.getUserById(context.userId, tx);
+      const user = await userRepository.getUserById(session.user.id, tx);
       if (!user?.email) {
         console.error("User email not found");
         return [];
@@ -339,8 +344,8 @@ export const userService = (() => {
    * @returns Promise that resolves when the update is complete.
    */
   async function markOnboardingCompleteForMe(): Promise<void> {
-    const context = await getAuthContext();
-    if (!context) {
+    const session = await getCurrentSession();
+    if (!session) {
       return;
     }
 
