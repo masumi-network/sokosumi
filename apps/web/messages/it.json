@@ -136,8 +136,8 @@
       "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
       "creditsSummary": "Riepilogo crediti:",
       "creditsConsumedProgressAria": "Crediti di abbonamento consumati",
-      "creditsExpiresInDays": "I crediti si azzerano tra {days, plural, =1 {1 giorno} other {# giorni}}",
-      "creditsExpiresToday": "I crediti si azzerano oggi",
+      "creditsExpiresInDays": "I crediti si ripristinano tra {days, plural, =1 {1 giorno} other {# giorni}}",
+      "creditsExpiresToday": "I crediti si ripristinano oggi",
       "creditsExpired": "Crediti scaduti"
     },
     "OrganizationSwitcher": {
