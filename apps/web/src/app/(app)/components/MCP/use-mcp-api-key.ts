@@ -148,13 +148,26 @@ export function useMcpApiKey(
       }
 
       const mcpKeys = getPersonalMcpKeys(listResult.data.apiKeys);
-      await Promise.all(
-        mcpKeys.map((key) =>
-          authClient.apiKey.delete({
+      const deleteResults = await Promise.all(
+        mcpKeys.map(async (key) => ({
+          keyId: key.id,
+          result: await authClient.apiKey.delete({
             keyId: key.id,
           }),
-        ),
+        })),
       );
+      const failedDelete = deleteResults.find(
+        ({ result }) => result.data == null,
+      );
+
+      if (failedDelete) {
+        const errorMessage =
+          failedDelete.result.error?.message ??
+          `Failed to delete existing MCP key (${failedDelete.keyId})`;
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return;
+      }
 
       const result = await authClient.apiKey.create({
         name: MCP_KEY_NAME,

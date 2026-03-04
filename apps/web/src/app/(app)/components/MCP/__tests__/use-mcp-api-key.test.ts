@@ -266,6 +266,42 @@ describe("useMcpApiKey", () => {
     expect(latestDeleteOrder).toBeLessThan(createOrder);
   });
 
+  it("does not create a key when any MCP key deletion returns null data", async () => {
+    listMock.mockResolvedValue({
+      data: {
+        apiKeys: [
+          makeApiKey({ id: "mcp-old-a", enabled: false }),
+          makeApiKey({ id: "mcp-old-b", enabled: true }),
+        ],
+        total: 2,
+        limit: undefined,
+        offset: undefined,
+      },
+      error: null,
+    });
+    deleteMock
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Failed to delete mcp-old-a" },
+      })
+      .mockResolvedValueOnce({ data: { success: true }, error: null });
+
+    const { result } = renderHook(() => useMcpApiKey(true, "org-1"));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.generateMcpUrl();
+    });
+
+    expect(deleteMock).toHaveBeenCalledTimes(2);
+    expect(createMock).not.toHaveBeenCalled();
+    expect(result.current.error).toBe("Failed to delete mcp-old-a");
+    expect(toastErrorMock).toHaveBeenCalledWith("Failed to delete mcp-old-a");
+  });
+
   it("does not create a key when list returns null data during regenerate", async () => {
     listMock
       .mockResolvedValueOnce({
