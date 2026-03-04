@@ -509,15 +509,24 @@ export function TasksView({
       try {
         const result = await loadMoreTasksColumn({ columnId, cursor });
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
+        const nextCursor = result.nextCursor;
         setColumnCursorById((prev) => ({
           ...prev,
-          [columnId]: result.nextCursor,
+          [columnId]: nextCursor,
         }));
+        columnCursorByIdRef.current = {
+          ...columnCursorByIdRef.current,
+          [columnId]: nextCursor,
+        };
       } catch {
         setColumnCursorById((prev) => ({
           ...prev,
           [columnId]: null,
         }));
+        columnCursorByIdRef.current = {
+          ...columnCursorByIdRef.current,
+          [columnId]: null,
+        };
         toast.error(labels.loadMoreError);
       } finally {
         const afterLoading = new Set(loadingColumnIdsRef.current);
