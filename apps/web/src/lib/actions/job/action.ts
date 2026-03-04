@@ -79,7 +79,7 @@ export const startJob = withSession<
   return await Sentry.withScope(async (scope) => {
     try {
       const userId = session.user.id;
-  const organizationId = session.session.activeOrganizationId ?? null;
+      const organizationId = session.session.activeOrganizationId ?? null;
       const inputDataForService: StartJobInputSchemaType = {
         ...input,
         userId,
