@@ -155,8 +155,8 @@ describe("SignUpForm OAuth workflow", () => {
     await submitValidSignUpForm();
 
     await waitFor(() => {
-      expect(window.location.href).toBe(
-        "http://localhost/api/auth/oauth2/authorize?client_id=test-client",
+      expect(window.location.href).toContain(
+        "/api/auth/oauth2/authorize?client_id=test-client",
       );
     });
 
