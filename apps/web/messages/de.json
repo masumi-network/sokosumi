@@ -136,8 +136,8 @@
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung",
       "creditsSummary": "Credits-Übersicht:",
-      "creditsExpiresInDays": "Credits verfallen in {days, plural, =1 {1 Tag} other {# Tagen}}",
-      "creditsExpiresToday": "Credits verfallen heute",
+      "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} zurückgesetzt",
+      "creditsExpiresToday": "Credits werden heute zurückgesetzt",
       "creditsExpired": "Credits verfallen"
     },
     "OrganizationSwitcher": {

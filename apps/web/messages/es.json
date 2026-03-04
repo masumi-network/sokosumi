@@ -136,8 +136,8 @@
       "imprint": "Aviso legal",
       "acceptableUse": "Uso aceptable",
       "creditsSummary": "Resumen de créditos:",
-      "creditsExpiresInDays": "Los créditos vencen en {days, plural, =1 {1 día} other {# días}}",
-      "creditsExpiresToday": "Los créditos vencen hoy",
+      "creditsExpiresInDays": "Los créditos se reinician en {days, plural, =1 {1 día} other {# días}}",
+      "creditsExpiresToday": "Los créditos se reinician hoy",
       "creditsExpired": "Créditos vencidos"
     },
     "OrganizationSwitcher": {

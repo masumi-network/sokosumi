@@ -136,8 +136,8 @@
       "creditsUsedOfTotal": "{used, number} / {total, number} 已使用积分",
       "creditsSummary": "积分摘要：",
       "creditsConsumedProgressAria": "已消耗订阅积分",
-      "creditsExpiresInDays": "积分将在 {days, plural, =1 {1 天} other {# 天}}后过期",
-      "creditsExpiresToday": "积分今日过期",
+      "creditsExpiresInDays": "积分将在 {days, plural, =1 {1 天} other {# 天}}后重置",
+      "creditsExpiresToday": "积分今日重置",
       "creditsExpired": "积分已过期"
     },
     "OrganizationSwitcher": {
