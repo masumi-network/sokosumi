@@ -20,12 +20,13 @@ import { headers } from "next/headers";
 import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
-import { getAuthContext } from "@/lib/auth/utils";
+import { type AuthContext, getAuthContext } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
 interface ListMyJobsForActiveContextParams {
   cursor?: string | null;
   limit?: number;
+  authContext?: AuthContext | null;
 }
 
 interface PaginatedJobsResult {
@@ -130,8 +131,8 @@ export const userService = (() => {
   async function listMyJobsForActiveContextPaginated(
     params: ListMyJobsForActiveContextParams = {},
   ): Promise<PaginatedJobsResult> {
-    const { cursor = null, limit = 20 } = params;
-    const context = await getAuthContext();
+    const { cursor = null, limit = 20, authContext } = params;
+    const context = authContext ?? (await getAuthContext());
     if (!context) {
       return { jobs: [], nextCursor: null };
     }
