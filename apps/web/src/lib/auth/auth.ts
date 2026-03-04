@@ -1,15 +1,16 @@
 import "server-only";
 
+import { apiKey } from "@better-auth/api-key";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, User } from "@sokosumi/database";
 import { memberRepository } from "@sokosumi/database/repositories";
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
+import { betterAuth } from "better-auth/minimal";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { admin, apiKey, jwt, organization } from "better-auth/plugins";
+import { admin, jwt, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
@@ -280,6 +281,8 @@ export const auth = betterAuth({
   plugins: [
     admin(),
     apiKey({
+      configId: "default",
+      references: "user",
       rateLimit: {
         enabled: true,
         timeWindow: 60, // 60 seconds

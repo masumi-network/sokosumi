@@ -22,20 +22,23 @@ const {
   prismaAdapterMock: vi.fn(),
 }));
 
-vi.mock("better-auth", () => ({
+vi.mock("better-auth/minimal", () => ({
   betterAuth: (...args: unknown[]) => betterAuthMock(...args),
 }));
 
-vi.mock("better-auth/adapters/prisma", () => ({
+vi.mock("@better-auth/prisma-adapter", () => ({
   prismaAdapter: (...args: unknown[]) => prismaAdapterMock(...args),
 }));
 
 vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
-  apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
+}));
+
+vi.mock("@better-auth/api-key", () => ({
+  apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
 }));
 
 vi.mock("@better-auth/oauth-provider", () => ({

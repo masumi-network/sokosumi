@@ -57,8 +57,6 @@ model User {
   // UTM Attribution
   utmAttribution UTMAttribution?
 
-  apikeys Apikey[]
-
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
@@ -798,12 +796,12 @@ model CreditCost {
 
 model Apikey {
   id                  String    @id
+  configId            String    @default("default")
   name                String?
   start               String?
   prefix              String?
   key                 String
-  userId              String
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId         String
   refillInterval      Int?
   refillAmount        Int?
   lastRefillAt        DateTime?
@@ -820,6 +818,9 @@ model Apikey {
   permissions         String?
   metadata            String?
 
+  @@index([configId])
+  @@index([referenceId])
+  @@index([key])
   @@map("apikey")
 }
 

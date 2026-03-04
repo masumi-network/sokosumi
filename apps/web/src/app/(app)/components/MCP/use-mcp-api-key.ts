@@ -28,7 +28,7 @@ function buildMcpUrl(apiKey: string, network: string): string {
 
 export function useMcpApiKey(
   open: boolean,
-  activeOrganizationId: string | null,
+  _activeOrganizationId: string | null,
 ): UseMcpApiKeyReturn {
   const [mcpUrl, setMcpUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,7 +40,7 @@ export function useMcpApiKey(
   const t = useTranslations("App.MCP");
 
   // Effect is necessary: Fetches data from external system (API) when dialog opens
-  // Resets state and fetches fresh data based on organization context
+  // Resets state and fetches fresh data.
   useEffect(() => {
     if (open) {
       // Reset states when dialog opens
@@ -56,16 +56,9 @@ export function useMcpApiKey(
         try {
           const result = await authClient.apiKey.list();
           if (result.data) {
-            // Look for MCP key matching current organization context (regardless of enabled status)
-            const mcpKey = (result.data as Apikey[]).find((key) => {
-              if (key.name !== MCP_KEY_NAME) return false;
-
-              // Check organization context match
-              const keyOrgId =
-                (key.metadata as { organizationId?: string })?.organizationId ??
-                null;
-              return keyOrgId === activeOrganizationId;
-            });
+            const mcpKey = (result.data as Apikey[]).find(
+              (key) => key.name === MCP_KEY_NAME,
+            );
             if (mcpKey) {
               setIsExistingKey(true);
               setExistingKeyId(mcpKey.id);
@@ -94,7 +87,7 @@ export function useMcpApiKey(
 
       checkExistingKey();
     }
-  }, [open, activeOrganizationId, t]);
+  }, [open, t]);
 
   const generateMcpUrl = useCallback(async () => {
     if (isLoading) return;
@@ -109,14 +102,8 @@ export function useMcpApiKey(
         });
       }
 
-      // Generate new API key with organization scope if active
-      const metadata = activeOrganizationId
-        ? { organizationId: activeOrganizationId }
-        : undefined;
-
       const result = await authClient.apiKey.create({
         name: MCP_KEY_NAME,
-        metadata,
       });
 
       if (result.data) {
@@ -141,7 +128,7 @@ export function useMcpApiKey(
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, activeOrganizationId, existingKeyId]);
+  }, [isLoading, existingKeyId]);
 
   const enableKey = useCallback(async () => {
     if (!existingKeyId || isLoading) return;
@@ -190,16 +177,9 @@ export function useMcpApiKey(
       try {
         const result = await authClient.apiKey.list();
         if (result.data) {
-          // Look for MCP key matching current organization context (regardless of enabled status)
-          const mcpKey = (result.data as Apikey[]).find((key) => {
-            if (key.name !== MCP_KEY_NAME) return false;
-
-            // Check organization context match
-            const keyOrgId =
-              (key.metadata as { organizationId?: string })?.organizationId ??
-              null;
-            return keyOrgId === activeOrganizationId;
-          });
+          const mcpKey = (result.data as Apikey[]).find(
+            (key) => key.name === MCP_KEY_NAME,
+          );
           if (mcpKey) {
             setIsExistingKey(true);
             setExistingKeyId(mcpKey.id);
@@ -227,7 +207,7 @@ export function useMcpApiKey(
     };
 
     checkExistingKey();
-  }, [activeOrganizationId, t]);
+  }, [t]);
 
   return {
     mcpUrl,
