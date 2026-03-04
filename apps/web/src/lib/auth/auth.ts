@@ -331,6 +331,16 @@ export const auth = betterAuth({
               });
             });
         },
+        beforeAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.ensureCanAcceptInvitation(
+            organization.id,
+          );
+        },
+        beforeCreateInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.ensureCanCreateInvitation(
+            organization.id,
+          );
+        },
       },
       schema: {
         organization: {
@@ -375,18 +385,6 @@ export const auth = betterAuth({
       organizationLimit: getEnvSecrets().BETTER_AUTH_ORG_LIMIT,
       invitationExpiresIn:
         getEnvSecrets().BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
-      organizationHooks: {
-        beforeAcceptInvitation: async ({ organization }) => {
-          await organizationSubscriptionService.ensureCanAcceptInvitation(
-            organization.id,
-          );
-        },
-        beforeCreateInvitation: async ({ organization }) => {
-          await organizationSubscriptionService.ensureCanCreateInvitation(
-            organization.id,
-          );
-        },
-      },
     }),
     localization({
       defaultLocale: "default",
