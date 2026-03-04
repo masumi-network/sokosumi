@@ -12,6 +12,7 @@ interface TaskListSectionProps {
   title: string;
   tasks: TaskWithCoworker[];
   emptyLabel: string;
+  footer?: React.ReactNode;
   renderTask?: (task: TaskWithCoworker) => React.ReactNode;
 }
 
@@ -20,6 +21,7 @@ export function TaskListSection({
   title,
   tasks,
   emptyLabel,
+  footer,
   renderTask,
 }: TaskListSectionProps) {
   return (
@@ -47,6 +49,7 @@ export function TaskListSection({
           </div>
         )}
       </div>
+      {footer ? <div className="px-2 py-3">{footer}</div> : null}
     </section>
   );
 }

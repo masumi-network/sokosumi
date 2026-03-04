@@ -1251,7 +1251,8 @@
         "loadMore": "加载更多"
       },
       "Errors": {
-        "updateStatus": "更新任务状态失败"
+        "updateStatus": "更新任务状态失败",
+        "loadMore": "无法加载更多任务"
       },
       "Card": {
         "comments": "评论",

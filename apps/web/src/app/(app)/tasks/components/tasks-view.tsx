@@ -14,6 +14,7 @@ import { ChannelProvider, useChannel } from "ably/react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -23,7 +24,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { loadMoreJobs, loadMoreTasks } from "@/app/tasks/actions";
+import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
@@ -174,7 +175,7 @@ interface TasksViewProps {
   jobs: TasksViewJob[];
   jobsNextCursor?: string | null;
   agentPreviewById: Record<string, { name: string; icon: string | null }>;
-  nextCursor?: string | null;
+  columnNextCursorById: Record<KanbanColumnId, string | null>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
@@ -210,6 +211,7 @@ interface TasksViewProps {
     loadMore: string;
     loading: string;
     dragError: string;
+    loadMoreError: string;
   };
 }
 
@@ -220,7 +222,7 @@ export function TasksView({
   jobs,
   jobsNextCursor: initialJobsNextCursor,
   agentPreviewById,
-  nextCursor: initialNextCursor,
+  columnNextCursorById: initialColumnNextCursorById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
   agentNameById,
@@ -256,8 +258,11 @@ export function TasksView({
     initialJobsNextCursor ?? null,
   );
   const [agentPreviews, setAgentPreviews] = useState(agentPreviewById);
-  const [nextCursor, setNextCursor] = useState<string | null>(
-    initialNextCursor ?? null,
+  const [columnCursorById, setColumnCursorById] = useState<
+    Record<KanbanColumnId, string | null>
+  >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
+  const [loadingColumnIds, setLoadingColumnIds] = useState<Set<KanbanColumnId>>(
+    () => new Set(),
   );
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const [activeDragRect, setActiveDragRect] = useState<{
@@ -269,7 +274,7 @@ export function TasksView({
     hydrationStore.getSnapshot,
     hydrationStore.getServerSnapshot,
   );
-  const [isPending, startTransition] = useTransition();
+  const [_isPending, startTransition] = useTransition();
   const [isJobsPending, startJobsTransition] = useTransition();
   const moveVersionRef = useRef(0);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
@@ -309,20 +314,23 @@ export function TasksView({
     pendingMoveVersionByTaskIdRef.current.clear();
     isRefetchingJobsRef.current = false;
 
-    const nextTaskCursor = initialNextCursor ?? null;
     const nextJobCursor = initialJobsNextCursor ?? null;
 
     itemsRef.current = tasks;
     jobsItemsRef.current = jobs;
     setItems(tasks);
     setJobsItems(jobs);
-    setNextCursor(nextTaskCursor);
+    setColumnCursorById(
+      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
+    );
+    setLoadingColumnIds(new Set());
     setJobsCursor(nextJobCursor);
     setAgentPreviews(agentPreviewById);
   }, [
     agentPreviewById,
+    columns,
+    initialColumnNextCursorById,
     initialJobsNextCursor,
-    initialNextCursor,
     jobs,
     scopeKey,
     tasks,
@@ -349,9 +357,12 @@ export function TasksView({
     setItems(next);
 
     if (next.length <= tasks.length) {
-      setNextCursor(initialNextCursor ?? null);
+      setColumnCursorById(
+        buildInitialColumnCursorById(columns, initialColumnNextCursorById),
+      );
+      setLoadingColumnIds(new Set());
     }
-  }, [initialNextCursor, tasks]);
+  }, [columns, initialColumnNextCursorById, tasks]);
 
   useEffect(() => {
     const prev = jobsItemsRef.current;
@@ -472,18 +483,40 @@ export function TasksView({
     });
   };
 
-  const handleLoadMore = () => {
-    if (!nextCursor) return;
-    startTransition(async () => {
+  const handleLoadMoreColumn = useCallback(
+    async (columnId: KanbanColumnId) => {
+      const cursor = columnCursorById[columnId] ?? null;
+      if (cursor === null || loadingColumnIds.has(columnId)) return;
+
+      setLoadingColumnIds((prev) => {
+        const next = new Set(prev);
+        next.add(columnId);
+        return next;
+      });
+
       try {
-        const result = await loadMoreTasks(nextCursor);
-        setItems((prev) => [...prev, ...result.tasks]);
-        setNextCursor(result.nextCursor);
+        const result = await loadMoreTasksColumn({ columnId, cursor });
+        setItems((prev) => appendUniqueTasks(prev, result.tasks));
+        setColumnCursorById((prev) => ({
+          ...prev,
+          [columnId]: result.nextCursor,
+        }));
       } catch {
-        setNextCursor(null);
+        setColumnCursorById((prev) => ({
+          ...prev,
+          [columnId]: null,
+        }));
+        toast.error(labels.loadMoreError);
+      } finally {
+        setLoadingColumnIds((prev) => {
+          const next = new Set(prev);
+          next.delete(columnId);
+          return next;
+        });
       }
-    });
-  };
+    },
+    [columnCursorById, labels.loadMoreError, loadingColumnIds],
+  );
 
   const handleViewModeChange = (next: TasksViewMode) => {
     setViewMode(next);
@@ -576,6 +609,38 @@ export function TasksView({
         : null,
     [activeDragTaskId, items],
   );
+  const columnFooterById = useMemo<
+    Partial<Record<KanbanColumnId, React.ReactNode>>
+  >(() => {
+    const footerById: Partial<Record<KanbanColumnId, React.ReactNode>> = {};
+
+    for (const column of columns) {
+      const cursor = columnCursorById[column.id] ?? null;
+      if (cursor === null) continue;
+      const isLoading = loadingColumnIds.has(column.id);
+      footerById[column.id] = (
+        <div className="flex justify-center pb-2">
+          <Button
+            className="text-muted-foreground hover:text-foreground w-full text-xs"
+            variant="outline"
+            onClick={() => void handleLoadMoreColumn(column.id)}
+            disabled={isLoading}
+          >
+            {isLoading ? labels.loading : labels.loadMore}
+          </Button>
+        </div>
+      );
+    }
+
+    return footerById;
+  }, [
+    columnCursorById,
+    columns,
+    handleLoadMoreColumn,
+    labels.loadMore,
+    labels.loading,
+    loadingColumnIds,
+  ]);
 
   const tabsContent = (
     <Tabs
@@ -653,6 +718,7 @@ export function TasksView({
                   <KanbanBoard
                     tasks={items}
                     columns={columns}
+                    columnFooterById={columnFooterById}
                     labels={{
                       columns: labels.columns,
                       addTask: labels.addTask,
@@ -663,6 +729,7 @@ export function TasksView({
                   <TaskListView
                     tasks={items}
                     columns={columns}
+                    sectionFooterById={columnFooterById}
                     labels={{
                       columns: labels.columns,
                       emptyList: labels.listPlaceholder,
@@ -692,6 +759,7 @@ export function TasksView({
               <KanbanBoard
                 tasks={items}
                 columns={columns}
+                columnFooterById={columnFooterById}
                 labels={{
                   columns: labels.columns,
                   addTask: labels.addTask,
@@ -703,6 +771,7 @@ export function TasksView({
               <TaskListView
                 tasks={items}
                 columns={columns}
+                sectionFooterById={columnFooterById}
                 labels={{
                   columns: labels.columns,
                   emptyList: labels.listPlaceholder,
@@ -712,17 +781,6 @@ export function TasksView({
               />
             )}
           </div>
-          {nextCursor ? (
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                onClick={handleLoadMore}
-                disabled={isPending}
-              >
-                {isPending ? labels.loading : labels.loadMore}
-              </Button>
-            </div>
-          ) : null}
         </div>
       </TabsContent>
       {/* ) : ( */}
@@ -789,6 +847,28 @@ function appendUniqueJobs(prevJobs: TasksViewJob[], newJobs: TasksViewJob[]) {
   const existingIds = new Set(prevJobs.map((job) => job.id));
   const uniqueNewJobs = newJobs.filter((job) => !existingIds.has(job.id));
   return [...prevJobs, ...uniqueNewJobs];
+}
+
+function appendUniqueTasks(
+  prevTasks: TaskWithCoworker[],
+  newTasks: TaskWithCoworker[],
+) {
+  const existingIds = new Set(prevTasks.map((task) => task.id));
+  const uniqueNewTasks = newTasks.filter((task) => !existingIds.has(task.id));
+  return [...prevTasks, ...uniqueNewTasks];
+}
+
+function buildInitialColumnCursorById(
+  columns: KanbanColumnDefinition[],
+  initialColumnNextCursorById: Record<KanbanColumnId, string | null>,
+): Record<KanbanColumnId, string | null> {
+  return columns.reduce(
+    (acc, column) => {
+      acc[column.id] = initialColumnNextCursorById[column.id] ?? null;
+      return acc;
+    },
+    {} as Record<KanbanColumnId, string | null>,
+  );
 }
 
 function mergeTopPageJobs(

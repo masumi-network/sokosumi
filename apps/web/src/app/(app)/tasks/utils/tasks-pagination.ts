@@ -1,0 +1,1 @@
+export const TASKS_COLUMN_PAGE_LIMIT = 20;

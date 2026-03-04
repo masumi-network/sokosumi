@@ -1220,7 +1220,8 @@
         "loadMore": "Mehr laden"
       },
       "Errors": {
-        "updateStatus": "Task-Status konnte nicht aktualisiert werden"
+        "updateStatus": "Task-Status konnte nicht aktualisiert werden",
+        "loadMore": "Weitere Aufgaben konnten nicht geladen werden"
       },
       "Card": {
         "comments": "Kommentare",
