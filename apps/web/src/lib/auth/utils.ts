@@ -23,13 +23,6 @@ export const getSession = cache(async (): Promise<Session | null> => {
 });
 
 /**
- * @deprecated Use `getSession()` directly.
- */
-export const getAuthContext = cache(async (): Promise<Session | null> => {
-  return await getSession();
-});
-
-/**
  * Gets the current user's session or redirects to the login page if no valid session is found.
  * This is useful for protecting routes that require session-based authentication.
  *
