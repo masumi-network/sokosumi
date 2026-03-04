@@ -308,8 +308,8 @@ export const auth = betterAuth({
       },
     }),
     organization({
-      organizationCreation: {
-        afterCreate: async ({ organization }) => {
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization }) => {
           stripeClient
             .createOrganizationCustomer(
               organization.id,
