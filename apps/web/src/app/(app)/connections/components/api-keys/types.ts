@@ -1,5 +1,10 @@
-import { Apikey } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
+
+import type { authClient } from "@/lib/auth/auth.client";
+
+export type ApiKeyRecord = NonNullable<
+  Awaited<ReturnType<typeof authClient.apiKey.list>>["data"]
+>["apiKeys"][number];
 
 export interface CreateApiKeyFormData {
   name: string;
@@ -18,7 +23,6 @@ export interface CreateApiKeyResult {
   success: boolean;
   data?: {
     key: string;
-    apiKey: Apikey;
   };
   error?: {
     message: string;
@@ -35,7 +39,7 @@ export interface DeleteApiKeyRequest {
 }
 
 export interface UseApiKeysReturn {
-  apiKeys: Apikey[];
+  apiKeys: ApiKeyRecord[];
   isInitialLoading: boolean;
   error: string | null;
   refresh: (isInitial?: boolean) => Promise<void>;
@@ -60,8 +64,8 @@ export interface DialogState {
   deleteDialog: {
     open: boolean;
     setOpen: (open: boolean) => void;
-    keyToDelete: Apikey | null;
-    setKeyToDelete: (key: Apikey | null) => void;
+    keyToDelete: ApiKeyRecord | null;
+    setKeyToDelete: (key: ApiKeyRecord | null) => void;
   };
 }
 
@@ -70,10 +74,10 @@ export interface ApiKeysHeaderProps {
 }
 
 export interface ApiKeysListProps {
-  apiKeys: Apikey[];
+  apiKeys: ApiKeyRecord[];
   isInitialLoading: boolean;
-  onToggleStatus: (apiKey: Apikey) => Promise<void>;
-  onDeleteClick: (apiKey: Apikey) => void;
+  onToggleStatus: (apiKey: ApiKeyRecord) => Promise<void>;
+  onDeleteClick: (apiKey: ApiKeyRecord) => void;
 }
 
 export interface CreateApiKeyDialogProps {
@@ -84,7 +88,7 @@ export interface CreateApiKeyDialogProps {
 }
 
 export interface DeleteApiKeyDialogProps {
-  apiKey: Apikey | null;
+  apiKey: ApiKeyRecord | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -99,6 +103,6 @@ export interface ApiKeySuccessDisplayProps {
 export type TranslationFunction = ReturnType<typeof useTranslations>;
 
 export interface ApiKeyActionCallbacks {
-  onToggleStatus: (apiKey: Apikey) => Promise<void>;
-  onDeleteClick: (apiKey: Apikey) => void;
+  onToggleStatus: (apiKey: ApiKeyRecord) => Promise<void>;
+  onDeleteClick: (apiKey: ApiKeyRecord) => void;
 }

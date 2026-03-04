@@ -1,10 +1,10 @@
 "use client";
 
-import { Apikey } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import type { ApiKeyRecord } from "@/app/connections/components/api-keys/types";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { authClient } from "@/lib/auth/auth.client";
 
@@ -56,8 +56,8 @@ export function useMcpApiKey(
         try {
           const result = await authClient.apiKey.list();
           if (result.data) {
-            const mcpKey = (result.data as Apikey[]).find(
-              (key) => key.name === MCP_KEY_NAME,
+            const mcpKey = result.data.apiKeys.find(
+              (key: ApiKeyRecord) => key.name === MCP_KEY_NAME,
             );
             if (mcpKey) {
               setIsExistingKey(true);
@@ -177,8 +177,8 @@ export function useMcpApiKey(
       try {
         const result = await authClient.apiKey.list();
         if (result.data) {
-          const mcpKey = (result.data as Apikey[]).find(
-            (key) => key.name === MCP_KEY_NAME,
+          const mcpKey = result.data.apiKeys.find(
+            (key: ApiKeyRecord) => key.name === MCP_KEY_NAME,
           );
           if (mcpKey) {
             setIsExistingKey(true);
