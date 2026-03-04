@@ -8,11 +8,11 @@ import {
   TaskStatus,
 } from "@sokosumi/database";
 
-import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/column-statuses";
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { taskService } from "@/lib/services/task.service";
 import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";
+import { COLUMN_TASK_STATUSES } from "@/lib/utils/task-column";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 type ColumnStreamState = {
