@@ -22,7 +22,10 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    const agent = await agentRepository.getAgentWithRelationsById(agentId, prisma);
+    const agent = await agentRepository.getAgentWithRelationsById(
+      agentId,
+      prisma,
+    );
     if (!agent) {
       throw new Error("AGENT_NOT_FOUND");
     }
