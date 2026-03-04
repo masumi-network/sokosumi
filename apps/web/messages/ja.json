@@ -136,8 +136,8 @@
       "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
       "creditsSummary": "クレジット概要:",
       "creditsConsumedProgressAria": "サブスクリプションクレジットの消費",
-      "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後に失効します",
-      "creditsExpiresToday": "クレジットは本日失効します",
+      "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後にリセットされます",
+      "creditsExpiresToday": "クレジットは本日リセットされます",
       "creditsExpired": "クレジットが失効しました"
     },
     "OrganizationSwitcher": {
