@@ -27,42 +27,6 @@ export async function validateSession(headers: Headers): Promise<Session> {
   return session;
 }
 
-export async function validateApiKey(headers: Headers) {
-  const key = headers.get("x-api-key");
-  if (!key) {
-    throw new Error("UNAUTHORIZED");
-  }
-  const data = await auth.api.verifyApiKey({
-    body: {
-      key,
-    },
-  });
-
-  if (data.error) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  if (!data.valid) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  const apiKey = data.key;
-
-  if (!apiKey) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  return apiKey;
-}
-
-/**
- * @deprecated Use `validateSession` directly.
- */
-export async function validateAuth(headers: Headers) {
-  const session = await validateSession(headers);
-  return { session };
-}
-
 /**
  * Enhanced standard error handler for API routes
  * @param error - The error to handle
