@@ -74,6 +74,11 @@ const envSchema = z.object({
 
   // Ably
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
+
+  // Optional outbound webhooks
+  WEBHOOK_USER_CREATED: z.url().optional(),
+  WEBHOOK_USER_UPDATED: z.url().optional(),
+  WEBHOOK_ACCOUNT_CREATED: z.url().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
