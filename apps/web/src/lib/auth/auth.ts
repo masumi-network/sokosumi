@@ -1,6 +1,7 @@
 import "server-only";
 
 import { apiKey } from "@better-auth/api-key";
+import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
@@ -11,7 +12,6 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { admin, jwt, organization } from "better-auth/plugins";
-import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
@@ -51,6 +51,44 @@ export type Account = Awaited<
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
+const authTranslations = {
+  en: {
+    USER_NOT_FOUND: "User not found",
+    INVALID_EMAIL: "Invalid email",
+    INVALID_PASSWORD: "Invalid password",
+    INVALID_EMAIL_OR_PASSWORD: "Invalid email or password",
+    EMAIL_NOT_VERIFIED: "Please verify your email address",
+    PASSWORD_TOO_SHORT: "Password is too short",
+    PASSWORD_TOO_LONG: "Password is too long",
+    USER_ALREADY_EXISTS: "User already exists",
+    SESSION_EXPIRED: "Session expired",
+    UNAUTHORIZED: "Unauthorized",
+  },
+  de: {
+    USER_NOT_FOUND: "Benutzer nicht gefunden",
+    INVALID_EMAIL: "Ungültige E-Mail-Adresse",
+    INVALID_PASSWORD: "Ungültiges Passwort",
+    INVALID_EMAIL_OR_PASSWORD: "Ungültige E-Mail oder ungültiges Passwort",
+    EMAIL_NOT_VERIFIED: "Bitte bestätige zuerst deine E-Mail-Adresse",
+    PASSWORD_TOO_SHORT: "Das Passwort ist zu kurz",
+    PASSWORD_TOO_LONG: "Das Passwort ist zu lang",
+    USER_ALREADY_EXISTS: "Benutzer existiert bereits",
+    SESSION_EXPIRED: "Sitzung abgelaufen",
+    UNAUTHORIZED: "Nicht autorisiert",
+  },
+  es: {
+    USER_NOT_FOUND: "Usuario no encontrado",
+    INVALID_EMAIL: "Correo electrónico no válido",
+    INVALID_PASSWORD: "Contraseña no válida",
+    INVALID_EMAIL_OR_PASSWORD: "Correo electrónico o contraseña no válidos",
+    EMAIL_NOT_VERIFIED: "Verifica tu correo electrónico",
+    PASSWORD_TOO_SHORT: "La contraseña es demasiado corta",
+    PASSWORD_TOO_LONG: "La contraseña es demasiado larga",
+    USER_ALREADY_EXISTS: "El usuario ya existe",
+    SESSION_EXPIRED: "La sesión ha expirado",
+    UNAUTHORIZED: "No autorizado",
+  },
+} as const;
 
 export const auth = betterAuth({
   silenceWarnings: {
@@ -386,8 +424,10 @@ export const auth = betterAuth({
       invitationExpiresIn:
         getEnvSecrets().BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
     }),
-    localization({
-      defaultLocale: "default",
+    i18n({
+      translations: authTranslations,
+      defaultLocale: "en",
+      detection: ["header", "cookie"],
     }),
     nextCookies(),
     stripe({
