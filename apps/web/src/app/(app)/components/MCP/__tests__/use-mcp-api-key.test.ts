@@ -6,6 +6,8 @@ const listMock = jest.fn();
 const createMock = jest.fn();
 const updateMock = jest.fn();
 const deleteMock = jest.fn();
+const toastSuccessMock = jest.fn();
+const toastErrorMock = jest.fn();
 const translateMock = (key: string) => key;
 
 jest.mock("next-intl", () => ({
@@ -14,8 +16,8 @@ jest.mock("next-intl", () => ({
 
 jest.mock("sonner", () => ({
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: (...args: unknown[]) => toastSuccessMock(...args),
+    error: (...args: unknown[]) => toastErrorMock(...args),
   },
 }));
 
@@ -121,6 +123,24 @@ describe("useMcpApiKey", () => {
     expect(result.current.isKeyExisting).toBe(true);
     expect(result.current.isKeyDisabled).toBe(true);
     expect(result.current.mcpUrl).toBeNull();
+  });
+
+  it("surfaces API list errors when opening the dialog", async () => {
+    listMock.mockResolvedValue({
+      data: null,
+      error: { message: "MCP key lookup failed" },
+    });
+
+    const { result } = renderHook(() => useMcpApiKey(true, "org-1"));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.error).toBe("MCP key lookup failed");
+    expect(result.current.isKeyExisting).toBe(false);
+    expect(result.current.mcpUrl).toBeNull();
+    expect(toastErrorMock).toHaveBeenCalledWith("MCP key lookup failed");
   });
 
   it("regenerates by deleting existing key before creating a new one", async () => {

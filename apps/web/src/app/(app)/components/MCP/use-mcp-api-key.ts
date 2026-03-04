@@ -86,9 +86,15 @@ export function useMcpApiKey(
 
     try {
       const result = await authClient.apiKey.list();
-      const mcpKey = result.data
-        ? selectCanonicalMcpKey(result.data.apiKeys)
-        : null;
+      if (!result.data) {
+        const errorMessage =
+          result.error?.message ?? "Failed to load existing MCP keys";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return;
+      }
+
+      const mcpKey = selectCanonicalMcpKey(result.data.apiKeys);
 
       if (!mcpKey) {
         return;
