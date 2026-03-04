@@ -133,16 +133,22 @@ export function useMcpApiKey(
     setError(null);
     try {
       const listResult = await authClient.apiKey.list();
-      if (listResult.data) {
-        const mcpKeys = getPersonalMcpKeys(listResult.data.apiKeys);
-        await Promise.all(
-          mcpKeys.map((key) =>
-            authClient.apiKey.delete({
-              keyId: key.id,
-            }),
-          ),
-        );
+      if (!listResult.data) {
+        const errorMessage =
+          listResult.error?.message ?? "Failed to load existing MCP keys";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return;
       }
+
+      const mcpKeys = getPersonalMcpKeys(listResult.data.apiKeys);
+      await Promise.all(
+        mcpKeys.map((key) =>
+          authClient.apiKey.delete({
+            keyId: key.id,
+          }),
+        ),
+      );
 
       const result = await authClient.apiKey.create({
         name: MCP_KEY_NAME,

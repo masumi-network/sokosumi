@@ -245,4 +245,35 @@ describe("useMcpApiKey", () => {
     const createOrder = createMock.mock.invocationCallOrder[0];
     expect(latestDeleteOrder).toBeLessThan(createOrder);
   });
+
+  it("does not create a key when list returns null data during regenerate", async () => {
+    listMock
+      .mockResolvedValueOnce({
+        data: {
+          apiKeys: [],
+          total: 0,
+          limit: undefined,
+          offset: undefined,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Temporary MCP API error" },
+      });
+
+    const { result } = renderHook(() => useMcpApiKey(true, "org-1"));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.generateMcpUrl();
+    });
+
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+    expect(result.current.error).toBe("Temporary MCP API error");
+  });
 });
