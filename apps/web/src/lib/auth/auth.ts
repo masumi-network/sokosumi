@@ -148,14 +148,17 @@ export const auth = betterAuth({
       },
     },
   },
-  baseURL: {
-    allowedHosts: [
-      "*.sokosumi.com", // Sokosumi
-      "*.vercel.app", // Vercel previews
-      "preview-*.sokosumi.com", // Sokosumi previews
-      "localhost:3000", // Local development
-    ],
-    protocol: getEnvSecrets().NODE_ENV === "development" ? "http" : "https",
+  trustedOrigins: () => {
+    const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
+    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
+    if (vercelBranchUrl) {
+      origins.push(vercelBranchUrl);
+    }
+    const vercelUrl = getEnvSecrets().VERCEL_URL;
+    if (vercelUrl) {
+      origins.push(vercelUrl);
+    }
+    return origins;
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
