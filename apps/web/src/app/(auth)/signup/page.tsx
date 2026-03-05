@@ -1,8 +1,11 @@
 import { Metadata } from "next";
+import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import Divider from "@/auth/components/divider";
-import SocialButtons from "@/auth/components/social-buttons";
+import SocialButtons, {
+  type SocialButtonProviderId,
+} from "@/auth/components/social-buttons";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -24,14 +27,31 @@ interface SignUpPageProps {
   }>;
 }
 
+function parseLastUsedSocialProvider(
+  value?: string,
+): SocialButtonProviderId | null {
+  if (value === "google" || value === "microsoft") {
+    return value;
+  }
+
+  return null;
+}
+
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const { email, invitationId, returnUrl } = await searchParams;
+  const cookieStore = await cookies();
+  const lastUsedSocialProvider = parseLastUsedSocialProvider(
+    cookieStore.get("better-auth.last_used_login_method")?.value,
+  );
 
   return (
     <div className="flex flex-1 flex-col">
       <SignUpHeader invitationId={invitationId} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <SocialButtons returnUrl={returnUrl} />
+        <SocialButtons
+          returnUrl={returnUrl}
+          lastUsedSocialProvider={lastUsedSocialProvider}
+        />
         <Divider />
         <SignUpForm prefilledEmail={email} returnUrl={returnUrl} />
       </div>

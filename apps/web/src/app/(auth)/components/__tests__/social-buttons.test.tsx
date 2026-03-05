@@ -7,7 +7,6 @@ import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-red
 import SocialButtons from "../social-buttons";
 
 const mockSocialSignIn = jest.fn();
-const mockGetLastUsedLoginMethod = jest.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -53,7 +52,6 @@ jest.mock("@/lib/auth/auth.client", () => ({
     signIn: {
       social: (...args: unknown[]) => mockSocialSignIn(...args),
     },
-    getLastUsedLoginMethod: () => mockGetLastUsedLoginMethod(),
   },
 }));
 
@@ -80,8 +78,6 @@ describe("SocialButtons", () => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
     mockSearchParams = new URLSearchParams();
-    mockGetLastUsedLoginMethod.mockReset();
-    mockGetLastUsedLoginMethod.mockReturnValue(null);
   });
 
   async function clickGoogleButton() {
@@ -128,9 +124,7 @@ describe("SocialButtons", () => {
   });
 
   it("shows last used badge for matching provider", () => {
-    mockGetLastUsedLoginMethod.mockReturnValue("google");
-
-    render(<SocialButtons />);
+    render(<SocialButtons lastUsedSocialProvider="google" />);
 
     expect(screen.getByText("last-used")).toBeInTheDocument();
   });

@@ -12,16 +12,18 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { authClient } from "@/lib/auth/auth.client";
-import { SocialProviderId } from "@/lib/schemas";
 import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
+export type SocialButtonProviderId = "google" | "microsoft";
+
 interface SocialButtonsProps {
   returnUrl?: string;
+  lastUsedSocialProvider?: SocialButtonProviderId | null;
 }
 
 const socialButtons: Array<{
-  key: SocialProviderId;
+  key: SocialButtonProviderId;
   name: string;
   Button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
 }> = [
@@ -37,14 +39,16 @@ const socialButtons: Array<{
   },
 ];
 
-export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
+export default function SocialButtons({
+  returnUrl,
+  lastUsedSocialProvider = null,
+}: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
   const effectiveReturnUrl =
     returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
-  const lastUsedLoginMethod = authClient.getLastUsedLoginMethod();
 
-  const handleClick = async (key: SocialProviderId) => {
+  const handleClick = async (key: SocialButtonProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });
 
     const result = await authClient.signIn.social({
@@ -76,7 +80,7 @@ export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
             align="center"
             text={t("continueWith", { provider: socialButton.name })}
           />
-          {lastUsedLoginMethod === socialButton.key && (
+          {lastUsedSocialProvider === socialButton.key && (
             <Badge
               variant="secondary"
               className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
