@@ -2,6 +2,7 @@ import "server-only";
 
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
+import { dash, sentinel } from "@better-auth/infra";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
@@ -394,6 +395,8 @@ export const auth = betterAuth({
       detection: ["header", "cookie"],
     }),
     nextCookies(),
+    dash(),
+    sentinel(),
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,

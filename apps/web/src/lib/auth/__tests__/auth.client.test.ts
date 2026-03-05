@@ -14,6 +14,8 @@ const lastLoginMethodClientMock = jest.fn(() => "last-login-method-plugin");
 const organizationClientMock = jest.fn(() => "organization-plugin");
 const oauthProviderClientMock = jest.fn(() => "oauth-plugin");
 const stripeClientMock = jest.fn(() => "stripe-plugin");
+const dashClientMock = jest.fn(() => "dash-plugin");
+const sentinelClientMock = jest.fn(() => "sentinel-plugin");
 
 jest.mock("better-auth/react", () => ({
   createAuthClient: createAuthClientMock,
@@ -39,6 +41,15 @@ jest.mock("@better-auth/oauth-provider/client", () => ({
 jest.mock("@better-auth/stripe/client", () => ({
   stripeClient: stripeClientMock,
 }));
+
+jest.mock(
+  "@better-auth/infra/client",
+  () => ({
+    dashClient: dashClientMock,
+    sentinelClient: sentinelClientMock,
+  }),
+  { virtual: true },
+);
 
 jest.mock("@/lib/auth/auth", () => ({
   auth: {},

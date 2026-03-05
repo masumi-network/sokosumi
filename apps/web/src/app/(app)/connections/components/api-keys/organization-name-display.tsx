@@ -8,6 +8,11 @@ interface OrganizationNameDisplayProps {
   organizationId: string;
 }
 
+type OrganizationsList = NonNullable<
+  ReturnType<typeof authClient.useListOrganizations>["data"]
+>;
+type OrganizationListItem = OrganizationsList[number];
+
 export function OrganizationNameDisplay({
   organizationId,
 }: OrganizationNameDisplayProps) {
@@ -20,7 +25,9 @@ export function OrganizationNameDisplay({
     );
   }
 
-  const organization = organizations?.find((org) => org.id === organizationId);
+  const organization = organizations?.find(
+    (org: OrganizationListItem) => org.id === organizationId,
+  );
 
   if (organization) {
     return (

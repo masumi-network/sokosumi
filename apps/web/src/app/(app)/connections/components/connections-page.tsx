@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { Suspense } from "react";
 
 import { auth } from "@/lib/auth/auth";
+import { type Account } from "@/lib/auth/auth";
 import { AccountProvider } from "@/lib/auth/types";
 import { getSession } from "@/lib/auth/utils";
 
@@ -13,12 +14,13 @@ import { SocialAccounts } from "./social-accounts";
 
 export async function ConnectionsPage() {
   const requestHeaders = await headers();
-  const [accounts, session] = await Promise.all([
+  const [accountsData, session] = await Promise.all([
     auth.api.listUserAccounts({
       headers: requestHeaders,
     }),
     getSession(),
   ]);
+  const accounts: Account[] = accountsData;
 
   if (!session?.user) {
     return null;
