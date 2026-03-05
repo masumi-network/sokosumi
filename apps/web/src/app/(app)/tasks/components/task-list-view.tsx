@@ -1,3 +1,4 @@
+import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import {
   type KanbanColumnDefinition,
   type KanbanColumnId,
@@ -16,6 +17,7 @@ interface TaskListViewProps {
     emptyList: string;
     emptySection: string;
   };
+  sectionFooterById?: Partial<Record<KanbanColumnId, React.ReactNode>>;
   isDragEnabled?: boolean;
 }
 
@@ -23,6 +25,7 @@ export function TaskListView({
   tasks,
   columns,
   labels,
+  sectionFooterById,
   isDragEnabled = true,
 }: TaskListViewProps) {
   const orderedColumns = [...columns].reverse();
@@ -33,9 +36,9 @@ export function TaskListView({
       {hasAnyTasks ? (
         <div className="divide-border/50 divide-y">
           {orderedColumns.map((column) => {
-            const columnTasks = tasks.filter(
-              (task) => task.columnId === column.id,
-            );
+            const columnTasks = tasks
+              .filter((task) => task.columnId === column.id)
+              .sort(compareTasksDesc);
             const isDraggableColumn = isDragEnabled && isDnDColumn(column.id);
 
             const sectionContent = (
@@ -45,6 +48,7 @@ export function TaskListView({
                 title={labels.columns[column.id]}
                 tasks={columnTasks}
                 emptyLabel={labels.emptySection}
+                footer={sectionFooterById?.[column.id]}
                 renderTask={(task) =>
                   isDraggableColumn ? (
                     <DraggableTask

@@ -1,3 +1,4 @@
+import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnDefinition,
@@ -18,6 +19,7 @@ interface KanbanBoardProps {
     addTask: string;
     emptyColumn: string;
   };
+  columnFooterById?: Partial<Record<KanbanColumnId, React.ReactNode>>;
   isDragEnabled?: boolean;
 }
 
@@ -25,14 +27,31 @@ export function KanbanBoard({
   tasks,
   columns,
   labels,
+  columnFooterById,
   isDragEnabled = true,
 }: KanbanBoardProps) {
   return (
-    <div className="-mx-2 flex h-full min-h-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4">
+    // Accounts for the page header height to avoid board collapse.
+    <div className="-mx-2 flex h-full min-h-[calc(100svh-8.5rem)] flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4">
       {columns.map((column, index) => {
-        const columnTasks = tasks.filter((task) => task.columnId === column.id);
+        const columnTasks = tasks
+          .filter((task) => task.columnId === column.id)
+          .sort(compareTasksDesc);
         const isFirstColumn = index === 0;
         const isDraggableColumn = isDragEnabled && isDnDColumn(column.id);
+        const columnFooter = columnFooterById?.[column.id];
+        const footer = isFirstColumn ? (
+          columnFooter ? (
+            <div className="flex flex-col gap-2">
+              {columnFooter}
+              <AddTaskButton label={labels.addTask} />
+            </div>
+          ) : (
+            <AddTaskButton label={labels.addTask} />
+          )
+        ) : (
+          columnFooter
+        );
 
         const columnContent = (
           <KanbanColumn
@@ -41,11 +60,7 @@ export function KanbanBoard({
             statusColor={COLUMN_STATUS_COLORS[column.id]}
             tasks={columnTasks}
             emptyLabel={labels.emptyColumn}
-            footer={
-              isFirstColumn ? (
-                <AddTaskButton label={labels.addTask} />
-              ) : undefined
-            }
+            footer={footer}
             renderTask={(task) =>
               isDraggableColumn ? (
                 <DraggableTask

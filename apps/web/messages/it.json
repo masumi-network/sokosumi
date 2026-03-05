@@ -1250,7 +1250,8 @@
         "loadMore": "Carica altro"
       },
       "Errors": {
-        "updateStatus": "Impossibile aggiornare lo stato del task"
+        "updateStatus": "Impossibile aggiornare lo stato del task",
+        "loadMore": "Impossibile caricare altre attività"
       },
       "Card": {
         "comments": "Commenti",

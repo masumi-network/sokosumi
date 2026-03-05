@@ -2,10 +2,11 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { mapJobsToTasksViewData } from "@/app/tasks/utils/jobs-view-data";
+import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
+import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
@@ -13,7 +14,6 @@ import {
   parseTasksViewMode,
   TASKS_VIEW_MODE_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-view-mode";
-import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 import { TasksView } from "./components/tasks-view";
 import { buildAgentNameById } from "./utils/agent-names";
@@ -34,14 +34,10 @@ export default async function TasksPage() {
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
 
-  const [coworkers, tasksResult, agents, jobsPage] = await Promise.all([
+  const [coworkers, agents, jobsPage] = await Promise.all([
     coworkerService.listCoworkers(),
-    taskService.listTasks({ limit: 20 }),
     agentService.getAvailableAgentsWithCreditsPrice(),
-    userService.listMyJobsForActiveContextPaginated({
-      limit: 20,
-      session,
-    }),
+    userService.listMyJobsForActiveContextPaginated({ limit: 20, session }),
   ]);
 
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -51,14 +47,36 @@ export default async function TasksPage() {
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = buildAgentNameById(agents);
-  const tasksById = new Map(tasksResult.tasks.map((task) => [task.id, task]));
-  const tasks = tasksResult.tasks.map((task) =>
-    mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
+  const columnPages = await Promise.all(
+    KANBAN_COLUMNS.map(async (column) => {
+      const page = await getTasksColumnPage({
+        columnId: column.id,
+        cursor: null,
+        limit: TASKS_COLUMN_PAGE_LIMIT,
+        coworkersById,
+        agentsById,
+      });
+
+      return [column.id, page] as const;
+    }),
+  );
+  const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
+  const columnNextCursorById = Object.fromEntries(
+    columnPages.map(([columnId, page]) => [columnId, page.nextCursor]),
+  ) as Record<KanbanColumnId, string | null>;
+  const seedTasksById = new Map(
+    tasks.map((task) => [
+      task.id,
+      {
+        id: task.id,
+        coworkerId: task.coworker?.id ?? null,
+      },
+    ]),
   );
   const { jobs, agentPreviewById } = await mapJobsToTasksViewData({
     jobs: jobsPage.jobs,
     coworkersById,
-    seedTasksById: tasksById,
+    seedTasksById,
   });
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(coworkers);
@@ -78,7 +96,7 @@ export default async function TasksPage() {
         jobs={jobs}
         jobsNextCursor={jobsPage.nextCursor}
         agentPreviewById={agentPreviewById}
-        nextCursor={tasksResult.pagination?.nextCursor ?? null}
+        columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
         agentNameById={agentNameById}
@@ -94,6 +112,7 @@ export default async function TasksPage() {
           add: t("Actions.add"),
           addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
+          loadMoreError: t("Errors.loadMore"),
           display: {
             button: t("Display.button"),
             list: t("Display.list"),

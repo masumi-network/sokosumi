@@ -7,12 +7,16 @@ import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { taskService } from "@/lib/services/task.service";
 
+/** Minimal task shape used to resolve job coworker; full Task from getTaskById also accepted. */
+type TaskSeedForJob = { id: string; coworkerId: string | null };
+
 interface MapJobsToTasksViewDataParams {
   jobs: JobWithSokosumiStatus[];
   coworkersById: Map<string, Parameters<typeof getCoworkerImage>[0]>;
   seedTasksById?: Map<
     string,
-    NonNullable<Awaited<ReturnType<typeof taskService.getTaskById>>>
+    | TaskSeedForJob
+    | NonNullable<Awaited<ReturnType<typeof taskService.getTaskById>>>
   >;
 }
 
