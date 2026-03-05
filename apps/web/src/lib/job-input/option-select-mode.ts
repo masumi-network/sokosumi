@@ -26,5 +26,7 @@ export function getOptionSelectMode(
     return "single";
   }
 
+  if (maxValidation && Number(maxValidation.value) <= 1) return "single";
+
   return "multi";
 }
