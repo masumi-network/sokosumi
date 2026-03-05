@@ -139,8 +139,7 @@ export default function SignInForm({
   );
 
   const { isSubmitting } = form.formState;
-  const lastUsedLoginMethod = authClient.getLastUsedLoginMethod?.();
-  const lastUsedLabel = t.has("lastUsed") ? t("lastUsed") : "Last used";
+  const lastUsedLoginMethod = authClient.getLastUsedLoginMethod();
 
   return (
     <AuthForm
@@ -161,7 +160,7 @@ export default function SignInForm({
               variant="secondary"
               className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
             >
-              {lastUsedLabel}
+              {t("lastUsed")}
             </Badge>
           )}
         </div>

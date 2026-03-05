@@ -42,8 +42,7 @@ export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   const searchParams = useSearchParams();
   const effectiveReturnUrl =
     returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
-  const lastUsedLoginMethod = authClient.getLastUsedLoginMethod?.();
-  const lastUsedLabel = t.has("lastUsed") ? t("lastUsed") : "Last used";
+  const lastUsedLoginMethod = authClient.getLastUsedLoginMethod();
 
   const handleClick = async (key: SocialProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });
@@ -82,7 +81,7 @@ export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
               variant="secondary"
               className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
             >
-              {lastUsedLabel}
+              {t("lastUsed")}
             </Badge>
           )}
         </div>
