@@ -58,6 +58,9 @@ export function EmailPreferences({
           if (result.error) {
             throw new Error(result.error.message ?? "update_failed");
           }
+        })
+        .finally(() => {
+          setLoading(false);
         });
 
       toast.promise(updatePromise, {
@@ -69,14 +72,6 @@ export function EmailPreferences({
           return t("error");
         },
       });
-
-      updatePromise
-        .catch((error) => {
-          console.error(error);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
     };
   };
 
