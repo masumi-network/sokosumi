@@ -229,7 +229,11 @@ describe("useMcpApiKey", () => {
         apiKeys: [
           makeApiKey({ id: "mcp-old-a", enabled: false }),
           makeApiKey({ id: "mcp-old-b", enabled: true }),
-          makeApiKey({ id: "mcp-legacy-config", enabled: true, configId: "legacy" }),
+          makeApiKey({
+            id: "mcp-legacy-config",
+            enabled: true,
+            configId: "legacy",
+          }),
           makeApiKey({ id: "not-mcp", enabled: true, name: "Other" }),
         ],
         total: 4,
