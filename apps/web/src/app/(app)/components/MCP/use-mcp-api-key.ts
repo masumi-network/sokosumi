@@ -28,7 +28,8 @@ function buildMcpUrl(apiKey: string, network: string): string {
 
 function getPersonalMcpKeys(apiKeys: ApiKeyRecord[]): ApiKeyRecord[] {
   return apiKeys.filter(
-    (key) => key.name === MCP_KEY_NAME && (key.configId ?? "default") === "default",
+    (key) =>
+      key.name === MCP_KEY_NAME && (key.configId ?? "default") === "default",
   );
 }
 

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
+import { Badge } from "@/components/ui/badge";
 import { AuthErrorCode } from "@/lib/actions";
 import { signInEmail } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
@@ -28,11 +29,13 @@ import {
 interface SignInFormProps {
   returnUrl?: string | undefined;
   prefilledEmail?: string | undefined;
+  isLastUsedEmailLogin?: boolean;
 }
 
 export default function SignInForm({
   returnUrl,
   prefilledEmail,
+  isLastUsedEmailLogin = false,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const loginAreaFormStart = useRef(false);
@@ -147,11 +150,21 @@ export default function SignInForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
-        <SubmitButton
-          isSubmitting={isSubmitting}
-          label={t("submit")}
-          className="w-full"
-        />
+        <div className="relative">
+          <SubmitButton
+            isSubmitting={isSubmitting}
+            label={t("submit")}
+            className="w-full"
+          />
+          {isLastUsedEmailLogin && (
+            <Badge
+              variant="secondary"
+              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
+            >
+              {t("lastUsed")}
+            </Badge>
+          )}
+        </div>
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <div className="flex flex-row items-center gap-2">
             <span className="text-muted-foreground text-sm">
