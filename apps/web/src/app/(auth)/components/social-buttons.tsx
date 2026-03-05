@@ -10,6 +10,7 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { authClient } from "@/lib/auth/auth.client";
 import { SocialProviderId } from "@/lib/schemas";
 import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
@@ -41,6 +42,8 @@ export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   const searchParams = useSearchParams();
   const effectiveReturnUrl =
     returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
+  const lastUsedLoginMethod = authClient.getLastUsedLoginMethod?.();
+  const lastUsedLabel = t.has("lastUsed") ? t("lastUsed") : "Last used";
 
   const handleClick = async (key: SocialProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });
@@ -67,13 +70,22 @@ export default function SocialButtons({ returnUrl }: SocialButtonsProps = {}) {
   return (
     <div className="flex flex-col gap-3">
       {socialButtons.map((socialButton) => (
-        <socialButton.Button
-          onClick={() => handleClick(socialButton.key)}
-          key={socialButton.key}
-          className="bg-senary! hover:bg-quinary! text-foreground! m-0! flex w-full! rounded-md! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!"
-          align="center"
-          text={t("continueWith", { provider: socialButton.name })}
-        />
+        <div className="relative" key={socialButton.key}>
+          <socialButton.Button
+            onClick={() => handleClick(socialButton.key)}
+            className="bg-senary! hover:bg-quinary! text-foreground! m-0! flex w-full! rounded-md! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!"
+            align="center"
+            text={t("continueWith", { provider: socialButton.name })}
+          />
+          {lastUsedLoginMethod === socialButton.key && (
+            <Badge
+              variant="secondary"
+              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
+            >
+              {lastUsedLabel}
+            </Badge>
+          )}
+        </div>
       ))}
     </div>
   );

@@ -7,6 +7,7 @@ import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-red
 import SocialButtons from "../social-buttons";
 
 const mockSocialSignIn = jest.fn();
+const mockGetLastUsedLoginMethod = jest.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -16,7 +17,7 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("next-intl", () => ({
   useTranslations: () => {
-    return (
+    const translator = (
       key: string,
       values?: {
         provider?: string;
@@ -25,8 +26,15 @@ jest.mock("next-intl", () => ({
       if (key === "continueWith") {
         return `continue-with-${values?.provider ?? "unknown"}`;
       }
+      if (key === "lastUsed") {
+        return "last-used";
+      }
       return key;
     };
+
+    translator.has = (key: string) => key === "lastUsed";
+
+    return translator;
   },
 }));
 
@@ -45,6 +53,7 @@ jest.mock("@/lib/auth/auth.client", () => ({
     signIn: {
       social: (...args: unknown[]) => mockSocialSignIn(...args),
     },
+    getLastUsedLoginMethod: () => mockGetLastUsedLoginMethod(),
   },
 }));
 
@@ -71,6 +80,8 @@ describe("SocialButtons", () => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
     mockSearchParams = new URLSearchParams();
+    mockGetLastUsedLoginMethod.mockReset();
+    mockGetLastUsedLoginMethod.mockReturnValue(null);
   });
 
   async function clickGoogleButton() {
@@ -114,6 +125,14 @@ describe("SocialButtons", () => {
       callbackReturnUrl: "/oauth/consent?client_id=prop-client",
       newUserCallbackReturnUrl: "/oauth/consent?client_id=prop-client",
     });
+  });
+
+  it("shows last used badge for matching provider", () => {
+    mockGetLastUsedLoginMethod.mockReturnValue("google");
+
+    render(<SocialButtons />);
+
+    expect(screen.getByText("last-used")).toBeInTheDocument();
   });
 
   it("builds oauth consent returnUrl from signed query when prop is missing", async () => {

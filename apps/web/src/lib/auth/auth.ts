@@ -12,7 +12,7 @@ import { authTranslations } from "@sokosumi/masumi/auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
-import { admin, jwt, organization } from "better-auth/plugins";
+import { admin, jwt, lastLoginMethod, organization } from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
@@ -293,6 +293,7 @@ export const auth = betterAuth({
       enableSessionForAPIKeys: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
+    lastLoginMethod(),
     oauthProvider({
       loginPage: "/signin",
       consentPage: "/oauth/consent",

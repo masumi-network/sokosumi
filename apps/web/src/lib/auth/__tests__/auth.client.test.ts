@@ -10,6 +10,7 @@ const inferOrgAdditionalFieldsMock = jest.fn(
   () => "infer-org-additional-fields-plugin",
 );
 const jwtClientMock = jest.fn(() => "jwt-plugin");
+const lastLoginMethodClientMock = jest.fn(() => "last-login-method-plugin");
 const organizationClientMock = jest.fn(() => "organization-plugin");
 const oauthProviderClientMock = jest.fn(() => "oauth-plugin");
 const stripeClientMock = jest.fn(() => "stripe-plugin");
@@ -23,6 +24,7 @@ jest.mock("better-auth/client/plugins", () => ({
   inferAdditionalFields: inferAdditionalFieldsMock,
   inferOrgAdditionalFields: inferOrgAdditionalFieldsMock,
   jwtClient: jwtClientMock,
+  lastLoginMethodClient: lastLoginMethodClientMock,
   organizationClient: organizationClientMock,
 }));
 
