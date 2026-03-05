@@ -862,7 +862,6 @@
         },
         "Form": {
           "submit": "Login",
-          "lastUsed": "Last used",
           "success": "Login successful",
           "error": "Invalid email or password",
           "Fields": {
