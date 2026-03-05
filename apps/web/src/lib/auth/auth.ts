@@ -55,6 +55,16 @@ const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 
 export const auth = betterAuth({
+  appName: "Sokosumi", // Define the name of your application
+  advanced: {
+    ipAddress: {
+      // For Vercel
+      ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
+    },
+  },
+  experimental: {
+    joins: true,
+  },
   silenceWarnings: {
     oauthAuthServerConfig: true,
   },
@@ -62,6 +72,7 @@ export const auth = betterAuth({
     cookieCache: {
       enabled: true,
       maxAge: getEnvSecrets().BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+      strategy: "jwe", // Use JWE strategy for best security
     },
     storeSessionInDatabase: true,
   },
