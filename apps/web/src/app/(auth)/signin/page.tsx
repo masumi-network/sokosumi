@@ -25,9 +25,7 @@ interface SignInPageProps {
 
 type LastUsedLoginMethod = SocialButtonProviderId | "email";
 
-function parseLastUsedLoginMethod(
-  value?: string,
-): LastUsedLoginMethod | null {
+function parseLastUsedLoginMethod(value?: string): LastUsedLoginMethod | null {
   if (value === "google" || value === "microsoft" || value === "email") {
     return value;
   }

@@ -27,6 +27,7 @@ import {
   applyMonthValidations,
   applyNumericValidations,
   applyOptionValidations,
+  applyRadioGroupValidations,
   applyRangeValidations,
   applyStringValidations,
   applyTelValidations,
@@ -36,6 +37,7 @@ import {
   isBooleanType,
   isStringBasedType,
 } from "./form-schema-helpers";
+import { getOptionSelectMode } from "./option-select-mode";
 import { JobInputFormIntlPath } from "./type";
 
 /**
@@ -265,13 +267,10 @@ function makeZodSchemaForFileType(
 }
 
 /**
- * Creates a Zod schema for option-based input types (OPTION, RADIO_GROUP, MULTISELECT)
+ * Creates a Zod schema for option input type
  */
 function makeZodSchemaForOptionType(
-  jobInputSchema:
-    | InputOptionSchemaType
-    | InputMultiselectSchemaType
-    | InputRadioGroupSchemaType,
+  jobInputSchema: InputOptionSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ): z.ZodTypeAny {
   const {
@@ -283,6 +282,50 @@ function makeZodSchemaForOptionType(
   return applyOptionValidations(
     values.length,
     validations as Parameters<typeof applyOptionValidations>[1],
+    getOptionSelectMode(validations),
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for multiselect input type
+ */
+function makeZodSchemaForMultiselectType(
+  jobInputSchema: InputMultiselectSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const {
+    name,
+    data: { values },
+    validations,
+  } = jobInputSchema;
+
+  return applyOptionValidations(
+    values.length,
+    validations as Parameters<typeof applyOptionValidations>[1],
+    "multi",
+    name,
+    t,
+  );
+}
+
+/**
+ * Creates a Zod schema for radio-group input type
+ */
+function makeZodSchemaForRadioGroupType(
+  jobInputSchema: InputRadioGroupSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+): z.ZodTypeAny {
+  const {
+    name,
+    data: { values },
+    validations,
+  } = jobInputSchema;
+
+  return applyRadioGroupValidations(
+    values.length,
+    validations as Parameters<typeof applyRadioGroupValidations>[1],
     name,
     t,
   );
@@ -375,13 +418,20 @@ export const makeZodSchemaFromJobInputSchema = (
       return makeZodSchemaForFileType(jobInputSchema as InputFileSchemaType, t);
 
     case InputType.OPTION:
-    case InputType.RADIO_GROUP:
-    case InputType.MULTISELECT:
       return makeZodSchemaForOptionType(
-        jobInputSchema as
-          | InputOptionSchemaType
-          | InputRadioGroupSchemaType
-          | InputMultiselectSchemaType,
+        jobInputSchema as InputOptionSchemaType,
+        t,
+      );
+
+    case InputType.MULTISELECT:
+      return makeZodSchemaForMultiselectType(
+        jobInputSchema as InputMultiselectSchemaType,
+        t,
+      );
+
+    case InputType.RADIO_GROUP:
+      return makeZodSchemaForRadioGroupType(
+        jobInputSchema as InputRadioGroupSchemaType,
         t,
       );
 
