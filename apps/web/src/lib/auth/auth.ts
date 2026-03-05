@@ -72,7 +72,6 @@ export const auth = betterAuth({
     cookieCache: {
       enabled: true,
       maxAge: getEnvSecrets().BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
-      strategy: "jwe", // Use JWE strategy for best security
     },
     storeSessionInDatabase: true,
   },
