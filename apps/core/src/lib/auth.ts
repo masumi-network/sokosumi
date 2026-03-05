@@ -38,12 +38,30 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: (() => {
+    const allowedHosts: string[] = [];
+
+    // Extract hostname from BETTER_AUTH_TRUSTED_ORIGIN
+    try {
+      const trustedOriginUrl = new URL(env.BETTER_AUTH_TRUSTED_ORIGIN);
+      allowedHosts.push(trustedOriginUrl.hostname);
+    } catch {
+      // If URL parsing fails, fall back to using the value as-is
+      allowedHosts.push(env.BETTER_AUTH_TRUSTED_ORIGIN);
+    }
+
+    // Add Vercel wildcard patterns for preview deployments
+    allowedHosts.push("*.vercel.app");
+    allowedHosts.push("localhost:*");
+
+    return {
+      allowedHosts,
+    };
+  })(),
   basePath: "/auth",
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins: [env.BETTER_AUTH_TRUSTED_ORIGIN],
   user: {
     emailAndPassword: {
       enabled: true,
@@ -116,8 +134,14 @@ export const auth = betterAuth({
       },
     }),
     oauthProvider({
-      loginPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/signin`,
-      consentPage: `${env.BETTER_AUTH_TRUSTED_ORIGIN}/oauth/consent`,
+      loginPage: (ctx) => {
+        const baseUrl = ctx.baseURL || env.BETTER_AUTH_URL;
+        return `${baseUrl}/signin`;
+      },
+      consentPage: (ctx) => {
+        const baseUrl = ctx.baseURL || env.BETTER_AUTH_URL;
+        return `${baseUrl}/oauth/consent`;
+      },
       scopes: ["openid", "offline_access"],
       clientRegistrationDefaultScopes: ["openid", "offline_access"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)

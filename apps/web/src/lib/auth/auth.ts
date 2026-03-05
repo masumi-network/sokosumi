@@ -159,18 +159,27 @@ export const auth = betterAuth({
       },
     },
   },
-  trustedOrigins: () => {
-    const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
-    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
-    if (vercelBranchUrl) {
-      origins.push(vercelBranchUrl);
+  baseURL: (() => {
+    const secrets = getEnvSecrets();
+    const allowedHosts: string[] = [];
+
+    // Extract hostname from BETTER_AUTH_TRUSTED_ORIGIN
+    try {
+      const trustedOriginUrl = new URL(secrets.BETTER_AUTH_TRUSTED_ORIGIN);
+      allowedHosts.push(trustedOriginUrl.hostname);
+    } catch {
+      // If URL parsing fails, fall back to using the value as-is
+      allowedHosts.push(secrets.BETTER_AUTH_TRUSTED_ORIGIN);
     }
-    const vercelUrl = getEnvSecrets().VERCEL_URL;
-    if (vercelUrl) {
-      origins.push(vercelUrl);
-    }
-    return origins;
-  },
+
+    // Add Vercel wildcard patterns for preview deployments
+    allowedHosts.push("*.vercel.app");
+    allowedHosts.push("localhost:*");
+
+    return {
+      allowedHosts,
+    };
+  })(),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
