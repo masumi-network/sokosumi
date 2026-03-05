@@ -2,6 +2,7 @@ import "server-only";
 
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
+import { dash, sentinel } from "@better-auth/infra";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
@@ -147,17 +148,14 @@ export const auth = betterAuth({
       },
     },
   },
-  trustedOrigins: () => {
-    const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
-    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
-    if (vercelBranchUrl) {
-      origins.push(vercelBranchUrl);
-    }
-    const vercelUrl = getEnvSecrets().VERCEL_URL;
-    if (vercelUrl) {
-      origins.push(vercelUrl);
-    }
-    return origins;
+  baseURL: {
+    allowedHosts: [
+      "*.sokosumi.com", // Sokosumi
+      "*.vercel.app", // Vercel previews
+      "preview-*.sokosumi.com", // Sokosumi previews
+      "localhost:3000", // Local development
+    ],
+    protocol: getEnvSecrets().NODE_ENV === "development" ? "http" : "https",
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
@@ -394,6 +392,8 @@ export const auth = betterAuth({
       detection: ["header", "cookie"],
     }),
     nextCookies(),
+    dash(),
+    sentinel(),
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,

@@ -1,4 +1,5 @@
 import { apiKeyClient } from "@better-auth/api-key/client";
+import { dashClient, sentinelClient } from "@better-auth/infra/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { stripeClient } from "@better-auth/stripe/client";
 import {
@@ -21,6 +22,10 @@ export const authClient = createAuthClient({
     organizationClient({
       schema: inferOrgAdditionalFields<typeof auth>(),
     }),
+    sentinelClient({
+      autoSolveChallenge: true,
+    }),
+    dashClient(),
     lastLoginMethodClient(),
     oauthProviderClient(),
     jwtClient(),

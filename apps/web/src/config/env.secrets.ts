@@ -107,7 +107,6 @@ const envSecretsSchema = z.object({
   // Better Auth Settings
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
-  BETTER_AUTH_TRUSTED_ORIGIN: z.url().default("http://localhost:3000"),
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
     .number()
     .min(0)
