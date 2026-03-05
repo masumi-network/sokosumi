@@ -73,6 +73,8 @@ interface ValidationEntry {
   value: string | number;
 }
 
+export type OptionSelectMode = "single" | "multi";
+
 /**
  * Parse validations to extract common options
  */
@@ -485,6 +487,7 @@ export function applyWeekValidations(
 export function applyOptionValidations(
   valuesCount: number,
   validations: ValidationEntry[] | null | undefined,
+  mode: OptionSelectMode,
   name: string,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ): z.ZodTypeAny {
@@ -505,11 +508,26 @@ export function applyOptionValidations(
   );
 
   let result = defaultSchema;
+  let hasMinValidation = false;
+
+  if (mode === "single") {
+    result = result.max(1, {
+      error: t?.("Option.max", { name, value: "1" }),
+    });
+    const finalSchema = parsed.canBeOptional
+      ? result
+      : result.min(1, {
+          error: t?.("Option.required", { name }),
+        });
+
+    return parsed.canBeOptional ? finalSchema.nullish() : finalSchema;
+  }
 
   if (validations) {
     for (const { validation, value } of validations) {
       switch (validation) {
         case InputValidation.MIN:
+          hasMinValidation = true;
           result = result.min(Number(value), {
             error: t?.("Option.min", { name, value: String(value) }),
           });
@@ -523,7 +541,14 @@ export function applyOptionValidations(
     }
   }
 
-  return parsed.canBeOptional ? result.nullish() : result;
+  const finalSchema =
+    !parsed.canBeOptional && !hasMinValidation
+      ? result.min(1, {
+          error: t?.("Option.required", { name }),
+        })
+      : result;
+
+  return parsed.canBeOptional ? finalSchema.nullish() : finalSchema;
 }
 
 /**

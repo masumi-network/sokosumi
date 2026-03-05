@@ -1,6 +1,8 @@
 import {
   InputDateSchemaType,
   InputDatetimeSchemaType,
+  InputOptionSchemaType,
+  InputRadioGroupSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
 
@@ -202,6 +204,129 @@ describe("jobInputsFormSchema date and datetime-local validation", () => {
 
       expect(optionalSchema.safeParse({ startAt: null }).success).toBe(true);
       expect(optionalSchema.safeParse({}).success).toBe(true);
+    });
+  });
+
+  describe("OPTION", () => {
+    it("treats option with no min/max as single-selection and required by default", () => {
+      const optionField: InputOptionSchemaType = {
+        id: "singleOption",
+        type: InputType.OPTION,
+        name: "Single Option",
+        data: {
+          values: ["One", "Two", "Three"],
+        },
+      };
+      const schema = jobInputsFormSchema([optionField]);
+
+      expect(schema.safeParse({ singleOption: [] }).success).toBe(false);
+      expect(schema.safeParse({ singleOption: [1] }).success).toBe(true);
+      expect(schema.safeParse({ singleOption: [0, 1] }).success).toBe(false);
+    });
+
+    it("treats option with min=1 max=1 as single-selection", () => {
+      const optionField: InputOptionSchemaType = {
+        id: "singleOption",
+        type: InputType.OPTION,
+        name: "Single Option",
+        data: {
+          values: ["One", "Two", "Three"],
+        },
+        validations: [
+          { validation: InputValidation.MIN, value: "1" },
+          { validation: InputValidation.MAX, value: "1" },
+        ],
+      };
+      const schema = jobInputsFormSchema([optionField]);
+
+      expect(schema.safeParse({ singleOption: [2] }).success).toBe(true);
+      expect(schema.safeParse({ singleOption: [1, 2] }).success).toBe(false);
+    });
+
+    it("treats option with min/max as multi-select and applies bounds", () => {
+      const optionField: InputOptionSchemaType = {
+        id: "multiOption",
+        type: InputType.OPTION,
+        name: "Multi Option",
+        data: {
+          values: ["One", "Two", "Three", "Four"],
+        },
+        validations: [
+          { validation: InputValidation.MIN, value: "2" },
+          { validation: InputValidation.MAX, value: "3" },
+        ],
+      };
+      const schema = jobInputsFormSchema([optionField]);
+
+      expect(schema.safeParse({ multiOption: [0] }).success).toBe(false);
+      expect(schema.safeParse({ multiOption: [0, 1] }).success).toBe(true);
+      expect(schema.safeParse({ multiOption: [0, 1, 2, 3] }).success).toBe(
+        false,
+      );
+    });
+
+    it("defaults option required min to 1 when no explicit min is provided", () => {
+      const optionField: InputOptionSchemaType = {
+        id: "requiredOption",
+        type: InputType.OPTION,
+        name: "Required Option",
+        data: {
+          values: ["One", "Two", "Three"],
+        },
+        validations: [{ validation: InputValidation.MAX, value: "3" }],
+      };
+      const schema = jobInputsFormSchema([optionField]);
+
+      expect(schema.safeParse({ requiredOption: [] }).success).toBe(false);
+      expect(schema.safeParse({ requiredOption: [0] }).success).toBe(true);
+    });
+  });
+
+  describe("RADIO_GROUP", () => {
+    it("ignores min/max validations and enforces a single selected value", () => {
+      const radioField: InputRadioGroupSchemaType = {
+        id: "radioChoice",
+        type: InputType.RADIO_GROUP,
+        name: "Radio Choice",
+        data: {
+          values: ["One", "Two", "Three"],
+        },
+        validations: [
+          { validation: InputValidation.MIN, value: "2" },
+          { validation: InputValidation.MAX, value: "2" },
+        ],
+      };
+      const schema = jobInputsFormSchema([radioField]);
+
+      expect(schema.safeParse({ radioChoice: [] }).success).toBe(false);
+      expect(schema.safeParse({ radioChoice: [1] }).success).toBe(true);
+      expect(schema.safeParse({ radioChoice: [0, 1] }).success).toBe(false);
+    });
+
+    it("respects optional validation for radio fields", () => {
+      const radioField: InputRadioGroupSchemaType = {
+        id: "optionalRadioChoice",
+        type: InputType.RADIO_GROUP,
+        name: "Optional Radio Choice",
+        data: {
+          values: ["One", "Two", "Three"],
+        },
+        validations: [
+          { validation: InputValidation.MIN, value: "2" },
+          { validation: InputValidation.MAX, value: "2" },
+          { validation: InputValidation.OPTIONAL, value: "true" },
+        ],
+      };
+      const schema = jobInputsFormSchema([radioField]);
+
+      expect(schema.safeParse({ optionalRadioChoice: null }).success).toBe(
+        true,
+      );
+      expect(schema.safeParse({ optionalRadioChoice: [] }).success).toBe(true);
+      expect(schema.safeParse({ optionalRadioChoice: [1] }).success).toBe(true);
+      expect(schema.safeParse({ optionalRadioChoice: [0, 1] }).success).toBe(
+        false,
+      );
     });
   });
 });
