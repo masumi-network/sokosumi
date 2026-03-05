@@ -552,44 +552,6 @@ export function applyOptionValidations(
 }
 
 /**
- * Apply radio-group validations while ignoring min/max validations.
- */
-export function applyRadioGroupValidations(
-  valuesCount: number,
-  validations: ValidationEntry[] | null | undefined,
-  name: string,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-): z.ZodTypeAny {
-  const parsed = parseValidations(validations);
-
-  const schema = z
-    .array(
-      z
-        .int({
-          error: t?.("Option.integer", { name }),
-        })
-        .nonnegative({
-          error: t?.("Option.nonnegative", { name }),
-        })
-        .max(valuesCount - 1, {
-          error: t?.("Option.invalid", { name, maxValue: valuesCount - 1 }),
-        }),
-      { error: t?.("Option.required", { name }) },
-    )
-    .max(1, {
-      error: t?.("Option.max", { name, value: "1" }),
-    });
-
-  const finalSchema = parsed.canBeOptional
-    ? schema
-    : schema.min(1, {
-        error: t?.("Option.required", { name }),
-      });
-
-  return parsed.canBeOptional ? finalSchema.nullish() : finalSchema;
-}
-
-/**
  * Apply file validations
  */
 export function applyFileValidations(

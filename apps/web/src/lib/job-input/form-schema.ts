@@ -27,7 +27,6 @@ import {
   applyMonthValidations,
   applyNumericValidations,
   applyOptionValidations,
-  applyRadioGroupValidations,
   applyRangeValidations,
   applyStringValidations,
   applyTelValidations,
@@ -323,9 +322,10 @@ function makeZodSchemaForRadioGroupType(
     validations,
   } = jobInputSchema;
 
-  return applyRadioGroupValidations(
+  return applyOptionValidations(
     values.length,
-    validations as Parameters<typeof applyRadioGroupValidations>[1],
+    validations as Parameters<typeof applyOptionValidations>[1],
+    "single",
     name,
     t,
   );
