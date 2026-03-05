@@ -1250,7 +1250,8 @@
         "loadMore": "Load More"
       },
       "Errors": {
-        "updateStatus": "Failed to update task status"
+        "updateStatus": "Failed to update task status",
+        "loadMore": "Failed to load more tasks"
       },
       "Card": {
         "comments": "Comments",

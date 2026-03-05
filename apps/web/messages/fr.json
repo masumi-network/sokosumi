@@ -1250,7 +1250,8 @@
         "loadMore": "Charger plus"
       },
       "Errors": {
-        "updateStatus": "Échec de la mise à jour du statut de la tâche"
+        "updateStatus": "Échec de la mise à jour du statut de la tâche",
+        "loadMore": "Impossible de charger plus de tâches"
       },
       "Card": {
         "comments": "Commentaires",
