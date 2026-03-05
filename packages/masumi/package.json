@@ -64,7 +64,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.93.1",
+    "@hey-api/openapi-ts": "0.94.0",
     "@types/jest": "30.0.0",
     "@types/node": "24.11.0",
     "jest": "30.2.0",
