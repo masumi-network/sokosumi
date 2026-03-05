@@ -23,6 +23,9 @@ export const auth = betterAuth({
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },
+  experimental: {
+    joins: true,
+  },
   session: {
     cookieCache: {
       enabled: true,
