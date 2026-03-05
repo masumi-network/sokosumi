@@ -27,10 +27,6 @@ export const auth = betterAuth({
     joins: true,
   },
   session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: TIME.SESSION_COOKIE_CACHE_MAX_AGE,
-    },
     storeSessionInDatabase: true,
   },
   database: prismaAdapter(prisma, {
