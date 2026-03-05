@@ -135,11 +135,21 @@ export const auth = betterAuth({
     }),
     oauthProvider({
       loginPage: (ctx) => {
-        const baseUrl = ctx.baseURL || env.BETTER_AUTH_URL;
+        // Use dynamic baseURL if available and valid, otherwise fall back to trusted origin
+        // Better Auth may call this during initialization when ctx.baseURL is not yet available
+        const baseUrl =
+          ctx?.baseURL && typeof ctx.baseURL === "string" && ctx.baseURL.trim() !== ""
+            ? ctx.baseURL
+            : env.BETTER_AUTH_TRUSTED_ORIGIN;
         return `${baseUrl}/signin`;
       },
       consentPage: (ctx) => {
-        const baseUrl = ctx.baseURL || env.BETTER_AUTH_URL;
+        // Use dynamic baseURL if available and valid, otherwise fall back to trusted origin
+        // Better Auth may call this during initialization when ctx.baseURL is not yet available
+        const baseUrl =
+          ctx?.baseURL && typeof ctx.baseURL === "string" && ctx.baseURL.trim() !== ""
+            ? ctx.baseURL
+            : env.BETTER_AUTH_TRUSTED_ORIGIN;
         return `${baseUrl}/oauth/consent`;
       },
       scopes: ["openid", "offline_access"],
