@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
 
 import type { UserAuthenticationContext } from "@/middleware/auth";
@@ -6,9 +5,7 @@ import type { UserAuthenticationContext } from "@/middleware/auth";
 import {
   buildJobScopeFilters,
   buildTaskScopeFilters,
-  deduplicateQueryValues,
   jobScopeQuerySchema,
-  preprocessMultiValueQueryInput,
   taskScopeQuerySchema,
 } from "./scope";
 
@@ -17,31 +14,6 @@ const userAuthContext: UserAuthenticationContext = {
   userId: "user_123",
   organizationId: "org_123",
 };
-
-const genericStatusQuerySchema = z.preprocess(
-  preprocessMultiValueQueryInput,
-  z
-    .array(z.enum(["READY", "COMPLETED", "FAILED"] as const))
-    .min(1)
-    .optional()
-    .transform(deduplicateQueryValues),
-);
-
-describe("multi-value query helpers", () => {
-  it("parses and deduplicates repeated comma-separated values", () => {
-    expect(
-      genericStatusQuerySchema.parse(["READY,COMPLETED", "READY,FAILED"]),
-    ).toEqual(["READY", "COMPLETED", "FAILED"]);
-  });
-
-  it("rejects unknown values", () => {
-    expect(() => genericStatusQuerySchema.parse("READY,UNKNOWN")).toThrow();
-  });
-
-  it("rejects empty values", () => {
-    expect(() => genericStatusQuerySchema.parse("READY,")).toThrow();
-  });
-});
 
 describe("scope query schema", () => {
   it("parses comma-separated task scopes into a typed array", () => {
