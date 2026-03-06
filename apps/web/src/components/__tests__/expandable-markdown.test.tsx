@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 
@@ -75,5 +76,42 @@ describe("ExpandableMarkdown", () => {
     const collapsedContainer = container.querySelector(".line-clamp-3");
 
     expect(collapsedContainer).toHaveStyle({ maxHeight: "3lh" });
+  });
+
+  it("toggles the expanded state when the controls are clicked", async () => {
+    const user = userEvent.setup();
+
+    const { container } = render(
+      <ExpandableMarkdown
+        content={"Some markdown content"}
+        expandLabel="Expand"
+        collapseLabel="Collapse"
+      />,
+    );
+
+    const expandButton = screen.getByRole("button", { name: "Expand" });
+    const collapsibleContent = container.querySelector(
+      "[data-slot='collapsible-content']",
+    );
+
+    expect(collapsibleContent).toHaveAttribute("id");
+    expect(expandButton).toHaveAttribute(
+      "aria-controls",
+      collapsibleContent?.getAttribute("id"),
+    );
+    expect(expandButton).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(expandButton);
+
+    const collapseButton = screen.getByRole("button", { name: "Collapse" });
+
+    expect(collapseButton).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(collapseButton);
+
+    expect(screen.getByRole("button", { name: "Expand" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 });
