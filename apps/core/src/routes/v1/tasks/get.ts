@@ -28,10 +28,6 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
-const taskStatusDescription = `Comma-separated status filters. Allowed values: ${Object.values(
-  TaskStatus,
-).join(", ")}. Example: READY,COMPLETED`;
-
 const taskStatusQuerySchema = z
   .preprocess(
     preprocessMultiValueQueryInput,
@@ -43,7 +39,7 @@ const taskStatusQuerySchema = z
   )
   .openapi({
     param: { name: "status", in: "query" },
-    description: taskStatusDescription,
+    description: "Comma-separated status filters",
     example: "READY,COMPLETED",
   });
 
