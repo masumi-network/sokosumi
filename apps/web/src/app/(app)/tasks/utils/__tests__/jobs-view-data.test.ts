@@ -2,6 +2,8 @@ jest.mock("server-only", () => ({}));
 
 import { SokosumiJobStatus } from "@sokosumi/database";
 
+import type { TaskWithCoworker } from "@/lib/types/task";
+
 import { mapJobsToTasksViewData } from "../jobs-view-data";
 
 const getTaskByIdMock = jest.fn();
@@ -20,7 +22,7 @@ function buildJob(taskId: string) {
     name: "Job 1",
     createdAt: new Date("2026-03-01T10:00:00.000Z"),
     completedAt: null,
-    status: SokosumiJobStatus.RUNNING,
+    status: SokosumiJobStatus.PROCESSING,
     jobType: "PAID",
     user: {
       name: "Fallback User",
@@ -42,15 +44,14 @@ describe("mapJobsToTasksViewData", () => {
 
   it("uses seedTasksById and skips getTaskById for seeded tasks", async () => {
     const jobs = [buildJob("task-seeded")];
-    const coworkersById = new Map([
+    const coworkersById = new Map<string, TaskWithCoworker["coworker"]>([
       [
         "coworker-1",
         {
           id: "coworker-1",
           name: "Seeded Coworker",
-          avatarUrl: "coworker.png",
           image: null,
-        },
+        } as TaskWithCoworker["coworker"],
       ],
     ]);
     const seedTasksById = new Map([

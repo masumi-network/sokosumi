@@ -5,7 +5,10 @@ import { headers } from "next/headers";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import type { PaginationMetadata } from "@/lib/clients/generated/core";
+import type {
+  GetTasksData,
+  PaginationMetadata,
+} from "@/lib/clients/generated/core";
 import {
   deleteTasksById as coreDeleteTasksById,
   getAgentsById as coreGetAgentsById,
@@ -292,24 +295,7 @@ export const coreClient = (() => {
     );
   }
 
-  async function getTasks(query?: {
-    status?:
-      | "DRAFT"
-      | "READY"
-      | "INPUT_REQUIRED"
-      | "AUTHENTICATION_REQUIRED"
-      | "OUT_OF_CREDITS"
-      | "CREDITS_TOPPED_UP"
-      | "RUNNING"
-      | "AWAITING_EXTERNAL"
-      | "COMPLETED"
-      | "FAILED"
-      | "CANCEL_REQUESTED"
-      | "CANCELED";
-    coworkerId?: string;
-    cursor?: string;
-    limit?: number;
-  }) {
+  async function getTasks(query?: GetTasksData["query"]) {
     return executeOperation(
       (client) =>
         coreGetTasks({
