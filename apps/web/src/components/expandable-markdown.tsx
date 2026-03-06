@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -43,10 +43,7 @@ export function ExpandableMarkdown({
   const [isExpandable, setIsExpandable] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const effectiveLineClamp = LINE_CLAMP_CLASSES[lineClamp] ? lineClamp : 5;
-
-  const lineClampClass = useMemo(() => {
-    return LINE_CLAMP_CLASSES[effectiveLineClamp];
-  }, [effectiveLineClamp]);
+  const lineClampClass = LINE_CLAMP_CLASSES[effectiveLineClamp];
 
   useEffect(() => {
     const element = contentRef.current;
