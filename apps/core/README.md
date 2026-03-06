@@ -57,11 +57,23 @@ BETTER_AUTH_URL=                    # Better Auth base URL
 # Sentry Configuration (Error Tracking & Performance Monitoring)
 SENTRY_DSN=                         # Sentry project DSN
 
+# Shared coworker chat Responses API configuration
+COWORKERS_API_SERVICE_KEY=          # Service key for the upstream Responses API
+COWORKERS_API_BASE_URL=             # Shared fallback Responses API base URL
+
 # Maintenance mode (blocks every route with HTTP 503 when true)
 MAINTENANCE_MODE=false
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.
+
+## Coworker `baseURL`
+
+Coworkers can store an optional `baseURL` in Core. This is the OpenAI Responses API base URL used to enable that coworker for the chat feature.
+
+The field is optional to configure and Core always returns it as `baseURL: string | null`. When it has not been set, API responses return `null`.
+
+This change does not switch runtime chat routing yet. Today, coworker chat still uses the shared `COWORKERS_API_BASE_URL` environment variable as the active Responses API base URL fallback.
 
 ## Sentry Integration
 

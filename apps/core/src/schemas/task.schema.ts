@@ -23,6 +23,11 @@ export const coworkerSchema = z
       .nullish()
       .openapi({ example: "https://example.com/company-logo" }),
     url: z.string().nullish().openapi({ example: "https://example.com" }),
+    baseURL: z.string().nullable().openapi({
+      example: "https://responses.example.com/v1",
+      description:
+        "OpenAI Responses API base URL used to enable this coworker for chat.",
+    }),
     email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
     image: z

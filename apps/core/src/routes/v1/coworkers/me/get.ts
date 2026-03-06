@@ -25,6 +25,7 @@ const route = createRoute({
         company: "Serviceplan",
         companyLogo: "https://example.com/company-logo",
         url: "https://example.com",
+        baseURL: "https://responses.example.com/v1",
         email: "ops@example.com",
         description: "Ops helper",
         image: "https://example.com/logo",

@@ -59,15 +59,33 @@ describe("coworkerSchema", () => {
       caption: "Senior Campaign Partner",
       company: "Serviceplan",
       companyLogo: "https://example.com/company-logo.png",
+      baseURL: "https://responses.example.com/v1",
     });
 
     expect(result.caption).toBe("Senior Campaign Partner");
     expect(result.company).toBe("Serviceplan");
     expect(result.companyLogo).toBe("https://example.com/company-logo.png");
+    expect(result.baseURL).toBe("https://responses.example.com/v1");
     expect(result.archivedAt).toBeNull();
     expect(result.isWhitelisted).toBe(true);
     expect(typeof result.createdAt).toBe("string");
     expect(typeof result.updatedAt).toBe("string");
+  });
+
+  it("accepts null baseURL", () => {
+    const result = coworkerSchema.parse({
+      id: "cow_123",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      slug: "ops-agent",
+      name: "Ops Agent",
+      email: "ops@example.com",
+      baseURL: null,
+    });
+
+    expect(result.baseURL).toBeNull();
   });
 
   it("fails when isWhitelisted is missing", () => {
@@ -78,6 +96,21 @@ describe("coworkerSchema", () => {
         updatedAt: new Date("2025-01-01T00:00:00.000Z"),
         slug: "ops-agent",
         name: "Ops Agent",
+      });
+    }).toThrow();
+  });
+
+  it("fails when baseURL is missing", () => {
+    expect(() => {
+      coworkerSchema.parse({
+        id: "cow_123",
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+        archivedAt: null,
+        isWhitelisted: true,
+        slug: "ops-agent",
+        name: "Ops Agent",
+        email: "ops@example.com",
       });
     }).toThrow();
   });

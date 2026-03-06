@@ -69,6 +69,7 @@ describe("GET /coworkers", () => {
         isWhitelisted: true,
         slug: "ops-agent",
         name: "Ops Agent",
+        baseURL: null,
       },
     ]);
 
@@ -78,6 +79,7 @@ describe("GET /coworkers", () => {
 
     expect(response.status).toBe(200);
     expect(body.data[0].isWhitelisted).toBe(true);
+    expect(body.data[0].baseURL).toBeNull();
   });
 
   it("can return all non-archived coworkers via scope=all", async () => {
