@@ -11,7 +11,12 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { buildTaskScopeFilters, taskScopeQuerySchema } from "@/helpers/scope";
+import {
+  buildTaskScopeFilters,
+  deduplicateQueryValues,
+  preprocessMultiValueQueryInput,
+  taskScopeQuerySchema,
+} from "@/helpers/scope";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import {
@@ -23,16 +28,28 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
 
+const taskStatusDescription = `Comma-separated status filters. Allowed values: ${Object.values(
+  TaskStatus,
+).join(", ")}. Example: READY,COMPLETED`;
+
+const taskStatusQuerySchema = z
+  .preprocess(
+    preprocessMultiValueQueryInput,
+    z
+      .array(z.enum(TaskStatus))
+      .min(1)
+      .optional()
+      .transform(deduplicateQueryValues),
+  )
+  .openapi({
+    param: { name: "status", in: "query" },
+    description: taskStatusDescription,
+    example: "READY,COMPLETED",
+  });
+
 const query = z
   .object({
-    status: z
-      .enum(TaskStatus)
-      .optional()
-      .openapi({
-        param: { name: "status", in: "query" },
-        description: "Filter tasks by status",
-        example: TaskStatus.READY,
-      }),
+    status: taskStatusQuerySchema,
     coworkerId: z
       .string()
       .optional()
@@ -69,12 +86,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { status, coworkerId, scope } = queryParams;
+    const { status: statuses, coworkerId, scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
-      if (status === TaskStatus.DRAFT) {
+      if (statuses?.includes(TaskStatus.DRAFT)) {
         throw badRequest(
           "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
         );
@@ -82,14 +99,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where = {
         coworkerId: authContext.coworkerId,
         archivedAt: null,
-        ...(status ? { status } : {}),
+        ...(statuses ? { status: { in: statuses } } : {}),
         NOT: { status: { in: [TaskStatus.DRAFT] } },
       };
     } else {
       where = {
         archivedAt: null,
         OR: buildTaskScopeFilters(authContext, scope),
-        ...(status ? { status } : {}),
+        ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),
       };
     }

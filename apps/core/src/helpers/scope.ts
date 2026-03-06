@@ -11,7 +11,7 @@ export const JOB_SCOPE_VALUES = ["context", "owned", "shared"] as const;
 export type TaskScope = (typeof TASK_SCOPE_VALUES)[number];
 export type JobScope = (typeof JOB_SCOPE_VALUES)[number];
 
-function preprocessScopeQueryInput(value: unknown): unknown {
+export function preprocessMultiValueQueryInput(value: unknown): unknown {
   if (value === undefined) {
     return undefined;
   }
@@ -26,6 +26,16 @@ function preprocessScopeQueryInput(value: unknown): unknown {
   );
 }
 
+export function deduplicateQueryValues<T extends string>(
+  values: readonly T[] | undefined,
+): T[] | undefined {
+  if (!values) {
+    return undefined;
+  }
+
+  return Array.from(new Set(values));
+}
+
 function deduplicateScopes<T extends string>(
   scopes: readonly T[] | undefined,
 ): T[] {
@@ -33,7 +43,7 @@ function deduplicateScopes<T extends string>(
     return [DEFAULT_SCOPE as T];
   }
 
-  return Array.from(new Set(scopes));
+  return deduplicateQueryValues(scopes) ?? [DEFAULT_SCOPE as T];
 }
 
 export function buildTaskScopeFilters(
@@ -97,7 +107,7 @@ const taskScopeArraySchema = z
 const jobScopeArraySchema = z.array(z.enum(JOB_SCOPE_VALUES)).min(1).optional();
 
 export const taskScopeQuerySchema = z
-  .preprocess(preprocessScopeQueryInput, taskScopeArraySchema)
+  .preprocess(preprocessMultiValueQueryInput, taskScopeArraySchema)
   .openapi({
     param: { name: "scope", in: "query" },
     description:
@@ -106,7 +116,7 @@ export const taskScopeQuerySchema = z
   });
 
 export const jobScopeQuerySchema = z
-  .preprocess(preprocessScopeQueryInput, jobScopeArraySchema)
+  .preprocess(preprocessMultiValueQueryInput, jobScopeArraySchema)
   .openapi({
     param: { name: "scope", in: "query" },
     description:

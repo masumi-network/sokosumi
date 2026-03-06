@@ -6,7 +6,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
 interface ListTasksParams {
-  status?: TaskStatus;
+  status?: TaskStatus | TaskStatus[];
   coworkerId?: string;
   cursor?: string | null;
   limit?: number;
@@ -33,7 +33,11 @@ interface CreateTaskEventInput {
 export const taskService = (() => {
   async function listTasks(params: ListTasksParams = {}) {
     const result = await coreClient.getTasks({
-      status: params.status,
+      status: Array.isArray(params.status)
+        ? params.status
+        : params.status
+          ? [params.status]
+          : undefined,
       coworkerId: params.coworkerId,
       cursor: params.cursor ?? undefined,
       limit: params.limit,
