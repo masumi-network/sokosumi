@@ -70,7 +70,7 @@ export const auth = betterAuth({
   },
   session: {
     cookieCache: {
-      enabled: false,
+      enabled: true,
       maxAge: getEnvSecrets().BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
     storeSessionInDatabase: true,
