@@ -155,9 +155,11 @@ describe("requireTaskAssignableCoworker", () => {
   it("only accepts active whitelisted coworkers with tasks capability", async () => {
     const tx = {
       coworker: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({ id: "cow_123", slug: "ops-agent", baseURL: null }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "ops-agent",
+          baseURL: null,
+        }),
       },
     } as unknown as Prisma.TransactionClient;
 

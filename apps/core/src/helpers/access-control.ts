@@ -240,9 +240,14 @@ export async function requireCoworkerChatCapability(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<{ id: string; slug: string; baseURL: string | null }> {
-  const coworker = await findUsableCoworkerByCapability(coworkerId, "chat", tx, {
-    requireBaseUrl: true,
-  });
+  const coworker = await findUsableCoworkerByCapability(
+    coworkerId,
+    "chat",
+    tx,
+    {
+      requireBaseUrl: true,
+    },
+  );
 
   if (!coworker) {
     throw forbidden("Coworker chat is not available");
@@ -255,7 +260,11 @@ export async function requireTaskAssignableCoworker(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const coworker = await findUsableCoworkerByCapability(coworkerId, "tasks", tx);
+  const coworker = await findUsableCoworkerByCapability(
+    coworkerId,
+    "tasks",
+    tx,
+  );
 
   if (!coworker) {
     throw notFound("Coworker not found");

@@ -1,18 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-import {
-  COWORKER_CAPABILITIES,
-  normalizeCoworkerCapabilities,
-} from "@/helpers/coworker-capability";
-
-const coworkerCapabilitiesSchema = z
-  .array(z.enum(COWORKER_CAPABILITIES))
-  .transform((capabilities) => normalizeCoworkerCapabilities(capabilities))
-  .openapi({
-    example: ["chat", "tasks"],
-    description:
-      "Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.",
-  });
+import { coworkerCapabilitiesSchema } from "@/schemas/coworker.schema";
 
 const coworkerEditableFieldsSchema = z.object({
   name: z.string().trim().min(3).openapi({ example: "Ops Agent" }),
@@ -35,14 +23,11 @@ const coworkerEditableFieldsSchema = z.object({
     .nullish()
     .openapi({ example: "https://example.com/company-logo.png" }),
   url: z.httpUrl().nullish().openapi({ example: "https://example.com" }),
-  baseURL: z
-    .httpUrl()
-    .nullish()
-    .openapi({
-      example: "https://responses.example.com/v1",
-      description:
-        "OpenAI Responses API base URL used to enable this coworker for chat.",
-    }),
+  baseURL: z.httpUrl().nullish().openapi({
+    example: "https://responses.example.com/v1",
+    description:
+      "OpenAI Responses API base URL used to enable this coworker for chat.",
+  }),
   email: z.email().openapi({ example: "ops@example.com" }),
   description: z
     .string()

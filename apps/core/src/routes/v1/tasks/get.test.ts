@@ -14,11 +14,11 @@ const {
   taskCountMock,
   taskFindManyMock,
 } = vi.hoisted(() => ({
-    prismaTransactionMock: vi.fn(),
-    requireCoworkerCapabilityMock: vi.fn(),
-    taskCountMock: vi.fn(),
-    taskFindManyMock: vi.fn(),
-  }));
+  prismaTransactionMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
+  taskCountMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,

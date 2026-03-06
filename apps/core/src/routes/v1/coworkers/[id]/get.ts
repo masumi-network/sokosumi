@@ -6,7 +6,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { coworkerSchema } from "@/schemas/task.schema";
+import { coworkerSchema } from "@/schemas/coworker.schema";
 
 import { paramsSchema } from "./schema";
 

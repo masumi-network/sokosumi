@@ -107,7 +107,10 @@ export function resolveBucketKeyFromDisplaySlug(
 ): string | null {
   if (!displaySlug) return null;
 
-  const fromConversations = bucketKeyFromDisplaySlug(conversations, displaySlug);
+  const fromConversations = bucketKeyFromDisplaySlug(
+    conversations,
+    displaySlug,
+  );
   if (fromConversations) return fromConversations;
 
   const slugLower = displaySlug.trim().toLowerCase();
