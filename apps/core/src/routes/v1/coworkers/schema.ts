@@ -21,6 +21,14 @@ const coworkerEditableFieldsSchema = z.object({
     .nullish()
     .openapi({ example: "https://example.com/company-logo.png" }),
   url: z.httpUrl().nullish().openapi({ example: "https://example.com" }),
+  baseURL: z
+    .httpUrl()
+    .nullish()
+    .openapi({
+      example: "https://responses.example.com/v1",
+      description:
+        "OpenAI Responses API base URL used to enable this coworker for chat.",
+    }),
   email: z.email().openapi({ example: "ops@example.com" }),
   description: z
     .string()
@@ -45,6 +53,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.company !== undefined ||
       data.companyLogo !== undefined ||
       data.url !== undefined ||
+      data.baseURL !== undefined ||
       data.email !== undefined ||
       data.description !== undefined ||
       data.image !== undefined,
@@ -56,6 +65,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "company",
         "companyLogo",
         "url",
+        "baseURL",
         "email",
         "description",
         "image",

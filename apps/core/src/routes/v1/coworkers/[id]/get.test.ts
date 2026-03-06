@@ -64,6 +64,7 @@ describe("GET /coworkers/{id}", () => {
       isWhitelisted: true,
       slug: "ops-agent",
       name: "Ops Agent",
+      baseURL: null,
     });
 
     const app = createApp();
@@ -72,6 +73,7 @@ describe("GET /coworkers/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.isWhitelisted).toBe(true);
+    expect(body.data.baseURL).toBeNull();
   });
 
   it("returns archived coworker when it exists", async () => {
@@ -83,6 +85,7 @@ describe("GET /coworkers/{id}", () => {
       isWhitelisted: true,
       slug: "ops-agent",
       name: "Ops Agent",
+      baseURL: "https://responses.example.com/v1",
     });
 
     const app = createApp();
@@ -91,5 +94,6 @@ describe("GET /coworkers/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.archivedAt).toBe("2026-02-25T11:00:00.000Z");
+    expect(body.data.baseURL).toBe("https://responses.example.com/v1");
   });
 });

@@ -13,6 +13,17 @@ describe("createCoworkerRequestSchema", () => {
       email: "ops@example.com",
       companyLogo: "https://example.com/company-logo.png",
       url: "http://example.com",
+      baseURL: "https://responses.example.com/v1",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts null baseURL", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      email: "ops@example.com",
+      baseURL: null,
     });
 
     expect(result.success).toBe(true);
@@ -71,6 +82,22 @@ describe("patchCoworkerRequestSchema", () => {
   it("accepts valid url updates", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       url: "https://example.com",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts baseURL-only updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      baseURL: "https://responses.example.com/v1",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts null baseURL updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      baseURL: null,
     });
 
     expect(result.success).toBe(true);
