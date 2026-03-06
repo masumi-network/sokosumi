@@ -7,15 +7,20 @@ import type {
 } from "@/middleware/auth";
 
 import {
-  requireAssignableCoworker,
+  requireCoworkerCapability,
+  requireCoworkerChatCapability,
   requireScopedJobReadAccess,
   requireScopedTaskReadAccess,
   requireTaskAccess,
+  requireTaskAssignableCoworker,
   requireUserTaskAccess,
 } from "./access-control";
 
 function createTransactionClient() {
   return {
+    coworker: {
+      findFirst: vi.fn(),
+    },
     task: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -106,6 +111,11 @@ describe("requireTaskAccess", () => {
       coworkerId: "cow_123",
     };
 
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
     vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
       id: "tsk_123",
       coworkerId: "cow_123",
@@ -123,26 +133,49 @@ describe("requireTaskAccess", () => {
       },
     });
   });
+
+  it("rejects coworker task access when tasks capability is unavailable", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskAccess(coworkerContext, "tsk_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
 });
 
-describe("requireAssignableCoworker", () => {
-  it("only accepts active whitelisted coworkers", async () => {
+describe("requireTaskAssignableCoworker", () => {
+  it("only accepts active whitelisted coworkers with tasks capability", async () => {
     const tx = {
       coworker: {
-        findFirst: vi.fn().mockResolvedValue({ id: "cow_123" }),
+        findFirst: vi
+          .fn()
+          .mockResolvedValue({ id: "cow_123", slug: "ops-agent", baseURL: null }),
       },
     } as unknown as Prisma.TransactionClient;
 
-    await requireAssignableCoworker("cow_123", tx);
+    await requireTaskAssignableCoworker("cow_123", tx);
 
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
         archivedAt: null,
         isWhitelisted: true,
+        capabilities: {
+          has: "tasks",
+        },
       },
       select: {
         id: true,
+        slug: true,
+        baseURL: true,
       },
     });
   });
@@ -154,9 +187,52 @@ describe("requireAssignableCoworker", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await expect(requireAssignableCoworker("cow_123", tx)).rejects.toThrow(
+    await expect(requireTaskAssignableCoworker("cow_123", tx)).rejects.toThrow(
       "Coworker not found",
     );
+  });
+});
+
+describe("requireCoworkerCapability", () => {
+  it("rejects unavailable coworker task capability with forbidden", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireCoworkerCapability("cow_123", "tasks", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+  });
+});
+
+describe("requireCoworkerChatCapability", () => {
+  it("requires whitelist, chat capability, and baseURL", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://responses.example.com/v1",
+    } as never);
+
+    await requireCoworkerChatCapability("cow_123", tx);
+
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: {
+          has: "chat",
+        },
+        baseURL: {
+          not: null,
+        },
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
   });
 });
 

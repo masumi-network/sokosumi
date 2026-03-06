@@ -1,4 +1,7 @@
-import { getBucketKeyFromMetadata } from "../bucket-slug";
+import {
+  getBucketKeyFromMetadata,
+  resolveBucketKeyFromDisplaySlug,
+} from "../bucket-slug";
 
 describe("getBucketKeyFromMetadata", () => {
   it("returns coworker bucket when only coworker_slug is present", () => {
@@ -20,14 +23,14 @@ describe("getBucketKeyFromMetadata", () => {
     ).toBe("coworker:elena");
   });
 
-  it("keeps coworker bucket when coworker metadata and model_id coexist", () => {
+  it("falls back to coworker id when slug is absent", () => {
     expect(
       getBucketKeyFromMetadata({
         type: "coworker",
-        coworker_id: "hannah",
+        coworker_id: "cow_123",
         model_id: "openai/gpt-5",
       }),
-    ).toBe("coworker:hannah");
+    ).toBe("coworker:cow_123");
   });
 
   it("returns model bucket for model chats", () => {
@@ -37,5 +40,29 @@ describe("getBucketKeyFromMetadata", () => {
         model_id: "anthropic/claude-sonnet-4",
       }),
     ).toBe("model:anthropic/claude-sonnet-4");
+  });
+});
+
+describe("resolveBucketKeyFromDisplaySlug", () => {
+  it("falls back to coworker slug when coworker matches by display slug", () => {
+    expect(
+      resolveBucketKeyFromDisplaySlug(
+        [],
+        [
+          {
+            id: "cow_123",
+            slug: "elena",
+            name: "Elena",
+          },
+        ],
+        "elena",
+      ),
+    ).toBe("coworker:elena");
+  });
+
+  it("does not resolve legacy encoded bucket slugs anymore", () => {
+    expect(resolveBucketKeyFromDisplaySlug([], [], "coworker__cow_123")).toBe(
+      null,
+    );
   });
 });

@@ -33,6 +33,7 @@ const route = createRoute({
         baseURL: "https://responses.example.com/v1",
         email: "ops@example.com",
         description: "Ops helper",
+        capabilities: ["chat", "tasks"],
         image: "https://example.com/logo",
         createdAt: "2025-01-01T00:00:00.000Z",
         updatedAt: "2025-01-01T00:00:00.000Z",

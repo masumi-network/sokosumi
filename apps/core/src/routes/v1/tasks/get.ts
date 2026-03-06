@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma, TaskStatus } from "@sokosumi/database";
 
+import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -86,6 +87,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
+      await requireCoworkerCapability(authContext.coworkerId, "tasks");
+
       if (statuses?.includes(TaskStatus.DRAFT)) {
         throw badRequest(
           "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",

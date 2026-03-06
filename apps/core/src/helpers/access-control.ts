@@ -14,6 +14,7 @@ import {
   type UserAuthenticationContext,
 } from "@/middleware/auth";
 
+import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import {
   buildJobScopeFilters,
@@ -175,6 +176,8 @@ export async function requireCoworkerTaskAccess(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+
   const task = await tx.task.findUnique({
     where: {
       id: taskId,
@@ -191,18 +194,68 @@ export async function requireCoworkerTaskAccess(
   return task;
 }
 
-export async function requireAssignableCoworker(
+async function findUsableCoworkerByCapability(
   coworkerId: string,
+  capability: CoworkerCapability,
   tx: Prisma.TransactionClient = prisma,
-): Promise<void> {
-  const coworker = await tx.coworker.findFirst({
+  options?: {
+    requireBaseUrl?: boolean;
+  },
+) {
+  return await tx.coworker.findFirst({
     where: {
       id: coworkerId,
       archivedAt: null,
       isWhitelisted: true,
+      capabilities: {
+        has: capability,
+      },
+      ...(options?.requireBaseUrl ? { baseURL: { not: null } } : {}),
     },
-    select: { id: true },
+    select: {
+      id: true,
+      slug: true,
+      baseURL: true,
+    },
   });
+}
+
+export async function requireCoworkerCapability(
+  coworkerId: string,
+  capability: CoworkerCapability,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const coworker = await findUsableCoworkerByCapability(
+    coworkerId,
+    capability,
+    tx,
+  );
+
+  if (!coworker) {
+    throw forbidden(`Coworker is not allowed to use ${capability}`);
+  }
+}
+
+export async function requireCoworkerChatCapability(
+  coworkerId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<{ id: string; slug: string; baseURL: string | null }> {
+  const coworker = await findUsableCoworkerByCapability(coworkerId, "chat", tx, {
+    requireBaseUrl: true,
+  });
+
+  if (!coworker) {
+    throw forbidden("Coworker chat is not available");
+  }
+
+  return coworker;
+}
+
+export async function requireTaskAssignableCoworker(
+  coworkerId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const coworker = await findUsableCoworkerByCapability(coworkerId, "tasks", tx);
 
   if (!coworker) {
     throw notFound("Coworker not found");

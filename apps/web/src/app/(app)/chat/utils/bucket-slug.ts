@@ -1,11 +1,4 @@
 /**
- * Encode bucket key (model:id or coworker:id) to a URL-safe slug for /chat/[bucketSlug]/...
- * Reversible so we can decode the slug back to the bucket key.
- */
-const BUCKET_SEP = "__";
-const SLASH_PLACEHOLDER = "___";
-
-/**
  * Human-readable URL slug from a display name (e.g. "Gemini 3.0" → "gemini-3-0", "Hannah" → "hannah").
  */
 export function slugify(name: string): string {
@@ -45,23 +38,6 @@ export function displaySlugFromMetadata(
   return "";
 }
 
-export function bucketKeyToSlug(bucketKey: string): string {
-  if (!bucketKey) return "";
-  return bucketKey.replace(/\//g, SLASH_PLACEHOLDER).replace(/:/g, BUCKET_SEP);
-}
-
-export function slugToBucketKey(slug: string): string {
-  if (!slug) return "";
-  const parts = slug.split(BUCKET_SEP);
-  if (parts.length < 2) return "";
-  const type = parts[0];
-  const id = parts
-    .slice(1)
-    .join(BUCKET_SEP)
-    .replace(new RegExp(SLASH_PLACEHOLDER, "g"), "/");
-  return `${type}:${id}`;
-}
-
 export function getBucketKeyFromMetadata(
   metadata: Record<string, unknown> | null,
 ): string {
@@ -96,7 +72,6 @@ export function getBucketKeyFromMetadata(
 
 /**
  * Resolve human-readable URL slug back to bucket key by matching conversation groups.
- * Falls back to slugToBucketKey for legacy encoded slugs (e.g. coworker__uuid).
  */
 export function bucketKeyFromDisplaySlug(
   conversations: { metadata: unknown }[],
@@ -116,7 +91,35 @@ export function bucketKeyFromDisplaySlug(
   for (const [key, { displaySlug }] of byKey) {
     if (displaySlug && displaySlug.toLowerCase() === slugLower) return key;
   }
-  const legacyKey = slugToBucketKey(displaySlug);
-  if (legacyKey) return legacyKey;
+  return null;
+}
+
+interface BucketCoworker {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export function resolveBucketKeyFromDisplaySlug(
+  conversations: { metadata: unknown }[],
+  coworkers: BucketCoworker[],
+  displaySlug: string | null | undefined,
+): string | null {
+  if (!displaySlug) return null;
+
+  const fromConversations = bucketKeyFromDisplaySlug(conversations, displaySlug);
+  if (fromConversations) return fromConversations;
+
+  const slugLower = displaySlug.trim().toLowerCase();
+  const coworker = coworkers.find(
+    (candidate) =>
+      slugify(candidate.slug) === slugLower ||
+      slugify(candidate.name) === slugLower,
+  );
+
+  if (coworker) {
+    return `coworker:${coworker.slug}`;
+  }
+
   return null;
 }

@@ -60,12 +60,14 @@ describe("coworkerSchema", () => {
       company: "Serviceplan",
       companyLogo: "https://example.com/company-logo.png",
       baseURL: "https://responses.example.com/v1",
+      capabilities: ["tasks", "chat", "tasks"],
     });
 
     expect(result.caption).toBe("Senior Campaign Partner");
     expect(result.company).toBe("Serviceplan");
     expect(result.companyLogo).toBe("https://example.com/company-logo.png");
     expect(result.baseURL).toBe("https://responses.example.com/v1");
+    expect(result.capabilities).toEqual(["chat", "tasks"]);
     expect(result.archivedAt).toBeNull();
     expect(result.isWhitelisted).toBe(true);
     expect(typeof result.createdAt).toBe("string");
@@ -86,6 +88,7 @@ describe("coworkerSchema", () => {
     });
 
     expect(result.baseURL).toBeNull();
+    expect(result.capabilities).toEqual([]);
   });
 
   it("fails when isWhitelisted is missing", () => {

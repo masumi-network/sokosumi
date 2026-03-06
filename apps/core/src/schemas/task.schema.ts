@@ -1,8 +1,22 @@
 import { z } from "@hono/zod-openapi";
 import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
 
+import {
+  COWORKER_CAPABILITIES,
+  normalizeCoworkerCapabilities,
+} from "@/helpers/coworker-capability";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { createJobRequestSchema, jobsSchema } from "@/schemas/job.schema";
+
+const coworkerCapabilitiesSchema = z
+  .array(z.enum(COWORKER_CAPABILITIES))
+  .default([])
+  .transform((capabilities) => normalizeCoworkerCapabilities(capabilities))
+  .openapi({
+    example: ["chat", "tasks"],
+    description:
+      "Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.",
+  });
 
 export const coworkerSchema = z
   .object({
@@ -30,6 +44,7 @@ export const coworkerSchema = z
     }),
     email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
+    capabilities: coworkerCapabilitiesSchema,
     image: z
       .string()
       .nullish()

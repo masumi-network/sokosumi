@@ -62,6 +62,7 @@ describe("GET /coworkers/{id}", () => {
       updatedAt: new Date("2026-02-25T10:00:00.000Z"),
       archivedAt: null,
       isWhitelisted: true,
+      capabilities: ["chat"],
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: null,
@@ -73,6 +74,7 @@ describe("GET /coworkers/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.isWhitelisted).toBe(true);
+    expect(body.data.capabilities).toEqual(["chat"]);
     expect(body.data.baseURL).toBeNull();
   });
 
@@ -83,6 +85,7 @@ describe("GET /coworkers/{id}", () => {
       updatedAt: new Date("2026-02-25T10:00:00.000Z"),
       archivedAt: new Date("2026-02-25T11:00:00.000Z"),
       isWhitelisted: true,
+      capabilities: ["chat", "tasks"],
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: "https://responses.example.com/v1",
@@ -94,6 +97,7 @@ describe("GET /coworkers/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(body.data.archivedAt).toBe("2026-02-25T11:00:00.000Z");
+    expect(body.data.capabilities).toEqual(["chat", "tasks"]);
     expect(body.data.baseURL).toBe("https://responses.example.com/v1");
   });
 });
