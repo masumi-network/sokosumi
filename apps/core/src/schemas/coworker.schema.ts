@@ -41,7 +41,7 @@ export const coworkerSchema = z
     }),
     email: z.string().nullish().openapi({ example: "ops@example.com" }),
     description: z.string().nullish().openapi({ example: "Ops helper" }),
-    capabilities: coworkerCapabilitiesSchema,
+    capabilities: coworkerCapabilitiesSchema.default([]),
     image: z
       .string()
       .nullish()
