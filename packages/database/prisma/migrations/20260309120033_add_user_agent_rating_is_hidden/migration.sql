@@ -1,0 +1,2 @@
+ALTER TABLE "UserAgentRating"
+ADD COLUMN "isHidden" BOOLEAN NOT NULL DEFAULT false;
