@@ -263,12 +263,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (useResponsesApi) {
-        const orgSlug = c.req.header("x-organization-slug") ?? null;
         const result = await streamResponsesApi(lastUserMessageText as string, {
           sokosumiUserId: authContext.userId,
-          agentId: coworker?.slug,
+          sokosumiOrganizationId: authContext.organizationId ?? null,
+          coworkerSlug: coworker?.slug ?? null,
           previousResponseId: lastResponsesApiResponseId ?? null,
-          orgSlug,
           onResponseCompleted: async (responseId: string) => {
             if (!internalConversationId) return;
             try {

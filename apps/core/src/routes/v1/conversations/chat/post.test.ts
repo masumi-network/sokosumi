@@ -12,6 +12,7 @@ const {
   conversationItemCreateMock,
   coworkerFindFirstMock,
   generateChatTitleMock,
+  isResponsesApiConfiguredMock,
   openrouterStreamChatResponseMock,
   requireCoworkerChatCapabilityMock,
   streamResponsesApiMock,
@@ -22,6 +23,7 @@ const {
   conversationItemCreateMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
+  isResponsesApiConfiguredMock: vi.fn(() => false),
   openrouterStreamChatResponseMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   streamResponsesApiMock: vi.fn(),
@@ -48,7 +50,7 @@ vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
     ...actual,
-    isResponsesApiConfigured: vi.fn(() => false),
+    isResponsesApiConfigured: isResponsesApiConfiguredMock,
   };
 });
 
@@ -71,7 +73,11 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp() {
+function createApp({
+  organizationId = null,
+}: {
+  organizationId?: string | null;
+} = {}) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
@@ -81,7 +87,7 @@ function createApp() {
     c.set("authContext", {
       actor: "user",
       userId: "user_123",
-      organizationId: null,
+      organizationId,
     });
     return await next();
   });
@@ -93,6 +99,7 @@ function createApp() {
 describe("POST /conversations/chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isResponsesApiConfiguredMock.mockReturnValue(false);
     conversationItemCreateMock.mockResolvedValue(undefined);
     generateChatTitleMock.mockResolvedValue(null);
     streamResponsesApiMock.mockResolvedValue(
@@ -215,5 +222,52 @@ describe("POST /conversations/chat", () => {
       null,
     );
     expect(streamResponsesApiMock).not.toHaveBeenCalled();
+  });
+
+  it("passes coworker slug and organization id to the Responses API", async () => {
+    isResponsesApiConfiguredMock.mockReturnValue(true);
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        metadata: {
+          coworker_slug: "ops-agent",
+          last_responses_api_response_id: "resp_prev",
+        },
+      })
+      .mockResolvedValueOnce({
+        _count: {
+          items: 1,
+        },
+      });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp({
+      organizationId: "org_123",
+    });
+    const response = await app.request("http://localhost/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "Hello" }],
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(streamResponsesApiMock).toHaveBeenCalledWith("Hello", {
+      sokosumiUserId: "user_123",
+      sokosumiOrganizationId: "org_123",
+      coworkerSlug: "ops-agent",
+      previousResponseId: "resp_prev",
+      onResponseCompleted: expect.any(Function),
+    });
+    expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
   });
 });
