@@ -2,16 +2,40 @@
 
 import * as Sentry from "@sentry/nextjs";
 import NextError from "next/error";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import {
+  DEPLOYMENT_REFRESH_KEY,
+  isChunkLoadError,
+  performDeploymentRefresh,
+} from "@/lib/utils/deployment-refresh";
 
 export default function GlobalError({
   error,
 }: {
   error: Error & { digest?: string };
 }) {
+  const [shouldReload, setShouldReload] = useState(false);
+
   useEffect(() => {
-    Sentry.captureException(error);
+    const message = error?.message ?? "";
+    if (
+      isChunkLoadError(message) &&
+      sessionStorage.getItem(DEPLOYMENT_REFRESH_KEY) !== "true"
+    ) {
+      performDeploymentRefresh();
+      return;
+    }
+    if (!isChunkLoadError(message)) {
+      Sentry.captureException(error);
+    }
+    const id = setTimeout(() => setShouldReload(true), 0);
+    return () => clearTimeout(id);
   }, [error]);
+
+  if (!shouldReload && isChunkLoadError(error?.message ?? "")) {
+    return null;
+  }
 
   return (
     <html>

@@ -29,6 +29,7 @@ const envPublicConfigSchema = z.object({
     .min(0)
     .default(500),
   NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG: z.coerce.boolean().default(false),
+  NEXT_PUBLIC_APP_VERSION: z.string().optional(),
 });
 
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
@@ -55,6 +56,7 @@ function validateEnv() {
       process.env.NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
     NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG:
       process.env.NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG,
+    NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
   };
 
   const parsedConfig = envPublicConfigSchema.safeParse(rawEnv);
