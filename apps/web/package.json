@@ -47,7 +47,7 @@
     "@m2d/mdast": "0.2.4",
     "@m2d/table": "0.1.1",
     "@next/third-parties": "16.1.6",
-    "@openrouter/ai-sdk-provider": "2.2.3",
+    "@openrouter/ai-sdk-provider": "2.2.5",
     "@radix-ui/react-slot": "1.2.4",
     "@react-email/components": "1.0.8",
     "@sentry/nextjs": "10.42.0",
