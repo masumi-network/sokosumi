@@ -1071,6 +1071,9 @@
     "delete": "削除",
     "cancel": "キャンセル",
     "save": "保存",
+    "ChatRail": {
+      "chat": "チャット"
+    },
     "Chat": {
       "Metadata": {
         "title": "チャット",

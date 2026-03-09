@@ -27,6 +27,7 @@ import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
+import type { Conversation } from "@/lib/actions/conversation";
 
 import ChatInputContainer from "./chat-input-container";
 import MessageList from "./message-list";
@@ -45,6 +46,9 @@ interface ChatInterfaceProps {
   organizationSlug: string | null;
   userImageUrl: string;
   userName?: string;
+  navigationMode?: "route" | "controlled";
+  controlledConversationId?: string | null;
+  onConversationCreated?: (conversationId: string) => void;
 }
 
 export default function ChatInterface({
@@ -52,12 +56,19 @@ export default function ChatInterface({
   organizationSlug,
   userImageUrl,
   userName,
+  navigationMode = "route",
+  controlledConversationId = null,
+  onConversationCreated,
 }: ChatInterfaceProps) {
   const t = useTranslations("App.Chat.Chat");
   const params = useParams<{ conversationId?: string }>();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlConversationId = params?.conversationId ?? null;
+  const isRouteDriven = navigationMode === "route";
+  const isChatPath = pathname.startsWith("/chat");
+  const urlConversationId = isRouteDriven
+    ? (params?.conversationId ?? null)
+    : controlledConversationId;
 
   const {
     conversations,
@@ -92,7 +103,8 @@ export default function ChatInterface({
 
   const loadingConversationIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!pathname.startsWith("/chat") || !selectedChatId) return;
+    if (!selectedChatId) return;
+    if (isRouteDriven && !isChatPath) return;
     if (selectedConversation?.id === selectedChatId) {
       loadingConversationIdRef.current = null;
       return;
@@ -100,7 +112,13 @@ export default function ChatInterface({
     if (loadingConversationIdRef.current === selectedChatId) return;
     loadingConversationIdRef.current = selectedChatId;
     void selectConversation(selectedChatId);
-  }, [pathname, selectedChatId, selectedConversation?.id, selectConversation]);
+  }, [
+    isChatPath,
+    isRouteDriven,
+    selectedChatId,
+    selectedConversation?.id,
+    selectConversation,
+  ]);
 
   const { coworkers, isLoading: isCoworkersLoading } = useCoworkersContext();
 
@@ -142,11 +160,11 @@ export default function ChatInterface({
   }, []);
 
   useEffect(() => {
-    if (!urlConversationId && pathname.startsWith("/chat")) {
+    if (isRouteDriven && !urlConversationId && isChatPath) {
       setWelcomeSelectedCoworker(null);
       setWelcomeSelectedModel(null);
     }
-  }, [urlConversationId, pathname]);
+  }, [isChatPath, isRouteDriven, urlConversationId]);
 
   const selectedModelRef = useRef<{ id: string; name: string } | null>(null);
   const chatMessagesRef = useRef<Map<string, unknown[]>>(new Map());
@@ -162,6 +180,31 @@ export default function ChatInterface({
   const PENDING_CONVERSATION_STORAGE_KEY = "chat-pending-conversation-id";
 
   useEffect(() => {
+    if (isRouteDriven) {
+      return;
+    }
+
+    setSelectedChatId(controlledConversationId);
+
+    if (controlledConversationId !== null) {
+      return;
+    }
+
+    loadingConversationIdRef.current = null;
+    currentChatIdRef.current = null;
+    pendingUrlConversationIdRef.current = null;
+    setSelectedModel(null);
+    selectedModelRef.current = null;
+    setInput("");
+    setWelcomeSelectedCoworker(null);
+    setWelcomeSelectedModel(null);
+  }, [controlledConversationId, isRouteDriven, setSelectedModel]);
+
+  useEffect(() => {
+    if (!isRouteDriven) {
+      return;
+    }
+
     const willSync =
       urlConversationId && selectedChatId !== urlConversationId && urlIdInList;
     const pending = pendingUrlConversationIdRef.current;
@@ -187,7 +230,7 @@ export default function ChatInterface({
     if (willSync && !skipSync) {
       setSelectedChatId(urlConversationId);
     }
-  }, [urlConversationId, selectedChatId, urlIdInList]);
+  }, [isRouteDriven, urlConversationId, selectedChatId, urlIdInList]);
 
   const [conversationToSlot, setConversationToSlot] = useState<
     Map<string, number>
@@ -588,6 +631,7 @@ export default function ChatInterface({
     pendingUrlConversationIdRef,
     stopStreaming: stopSelectedChat,
     isConversationsLoading,
+    enabled: isRouteDriven,
   });
 
   const { updateChatPreview } = useChatPreview({ setChats });
@@ -641,6 +685,11 @@ export default function ChatInterface({
     pendingUrlConversationIdRef,
     chats,
     conversations,
+    navigateToConversation: isRouteDriven
+      ? undefined
+      : async (conversation: Conversation) => {
+          onConversationCreated?.(conversation.id);
+        },
   });
 
   useChatSync({

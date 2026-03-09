@@ -1071,6 +1071,9 @@
     "delete": "Elimina",
     "cancel": "Annulla",
     "save": "Salva",
+    "ChatRail": {
+      "chat": "Chat"
+    },
     "Chat": {
       "Metadata": {
         "title": "Chat",

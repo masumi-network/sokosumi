@@ -109,8 +109,7 @@ export default async function TaskDetailPage({
   );
 
   return (
-    <div className="min-h-full w-full md:pr-60">
-      {/* Centered content */}
+    <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl px-4">
         <AutoContextSwitch
           activeOrganizationId={activeOrganizationId}
@@ -151,6 +150,17 @@ export default async function TaskDetailPage({
             collapseLabel={t("collapse")}
           />
 
+          <TaskMetadata
+            task={task}
+            labels={{
+              propertiesTitle: t("properties"),
+              status: t("status"),
+              coworker: t("coworker"),
+              created: t("created"),
+              updated: t("updated"),
+            }}
+          />
+
           <TaskJobs
             title={t("jobs")}
             agents={agents}
@@ -183,37 +193,7 @@ export default async function TaskDetailPage({
             isFreePlan={isFreePlan}
           />
         </div>
-
-        {/* Mobile properties */}
-        <div className="mt-6 md:hidden">
-          <TaskMetadata
-            task={task}
-            labels={{
-              propertiesTitle: t("properties"),
-              status: t("status"),
-              coworker: t("coworker"),
-              created: t("created"),
-              updated: t("updated"),
-            }}
-          />
-        </div>
       </div>
-
-      {/* Properties sidebar - fixed on right edge as a panel */}
-      <aside className="border-border bg-background fixed top-16 right-0 bottom-0 hidden w-60 overflow-y-auto border-l md:block">
-        <div className="px-6 py-5">
-          <TaskMetadata
-            task={task}
-            labels={{
-              propertiesTitle: t("properties"),
-              status: t("status"),
-              coworker: t("coworker"),
-              created: t("created"),
-              updated: t("updated"),
-            }}
-          />
-        </div>
-      </aside>
     </div>
   );
 }

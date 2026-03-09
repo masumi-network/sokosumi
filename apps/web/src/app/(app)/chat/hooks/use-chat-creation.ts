@@ -29,6 +29,10 @@ interface UseChatCreationProps {
   pendingUrlConversationIdRef: React.MutableRefObject<string | null>;
   chats: Chat[];
   conversations: Conversation[];
+  navigateToConversation?: (
+    conversation: Conversation,
+    slug: string,
+  ) => void | Promise<void>;
 }
 
 /**
@@ -50,6 +54,7 @@ export function useChatCreation({
   pendingUrlConversationIdRef,
   chats,
   conversations,
+  navigateToConversation,
 }: UseChatCreationProps) {
   const router = useRouter();
   const basePath = "/chat";
@@ -108,13 +113,18 @@ export function useChatCreation({
       } catch {
         // ignore
       }
-      setShowSecondarySidebar(false);
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
         `model-${model.id.replace(/\//g, "-")}`;
-      router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
-        scroll: false,
-      });
+
+      if (navigateToConversation) {
+        void navigateToConversation(conversation, slug);
+      } else {
+        setShowSecondarySidebar(false);
+        router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
+          scroll: false,
+        });
+      }
 
       return conversation;
     },
@@ -128,6 +138,7 @@ export function useChatCreation({
       setSelectedModel,
       setShowSecondarySidebar,
       router,
+      navigateToConversation,
       chatMessagesRef,
       previousChatIdRef,
       messagesChatIdRef,
@@ -191,15 +202,20 @@ export function useChatCreation({
       } catch {
         // ignore
       }
-      setShowSecondarySidebar(false);
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
         slugify(coworker.slug) ||
         slugify(coworker.name) ||
         `coworker-${coworker.id}`;
-      router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
-        scroll: false,
-      });
+
+      if (navigateToConversation) {
+        void navigateToConversation(conversation, slug);
+      } else {
+        setShowSecondarySidebar(false);
+        router.push(`${basePath}/${slug}/conversation/${conversation.id}`, {
+          scroll: false,
+        });
+      }
 
       return conversation;
     },
@@ -213,6 +229,7 @@ export function useChatCreation({
       setSelectedModel,
       setShowSecondarySidebar,
       router,
+      navigateToConversation,
       chatMessagesRef,
       previousChatIdRef,
       messagesChatIdRef,
