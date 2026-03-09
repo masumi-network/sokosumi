@@ -136,7 +136,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "3.3.4",
+    "@eslint/eslintrc": "3.3.5",
     "@happy-dom/jest-environment": "20.8.3",
     "@hey-api/openapi-ts": "0.94.0",
     "@noble/hashes": "2.0.1",
