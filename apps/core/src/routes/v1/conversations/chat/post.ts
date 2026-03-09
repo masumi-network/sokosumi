@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { isResponsesApiConfigured } from "@/config/env";
+import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import { streamWithAssistantPersistence } from "@/helpers/chat-stream-persist";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import {
@@ -171,18 +172,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         string,
         unknown
       > | null;
-      const agentSlug = (metadata?.coworker_slug ?? metadata?.coworker_id) as
-        | string
-        | undefined;
+      const coworkerSlug = metadata?.coworker_slug as string | undefined;
+      const coworkerId = metadata?.coworker_id as string | undefined;
       const lastResponsesApiResponseId =
         metadata?.last_responses_api_response_id as string | undefined;
 
-      const coworker = agentSlug
-        ? await prisma.coworker.findFirst({
-            where: { slug: agentSlug, archivedAt: null },
-            select: { slug: true },
-          })
-        : null;
+      let coworker: {
+        id: string;
+        slug: string;
+        baseURL: string | null;
+      } | null = null;
+
+      if (coworkerSlug || coworkerId) {
+        const coworkerIdentity = await prisma.coworker.findFirst({
+          where: {
+            archivedAt: null,
+            OR: [
+              ...(coworkerSlug ? [{ slug: coworkerSlug }] : []),
+              ...(coworkerId ? [{ id: coworkerId }] : []),
+            ],
+          },
+          select: { id: true },
+        });
+
+        if (!coworkerIdentity) {
+          throw notFound("Coworker not found");
+        }
+
+        coworker = await requireCoworkerChatCapability(coworkerIdentity.id);
+      }
+
       const useResponsesApi =
         Boolean(internalConversationId) &&
         Boolean(coworker) &&
@@ -244,12 +263,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (useResponsesApi) {
-        const orgSlug = c.req.header("x-organization-slug") ?? null;
         const result = await streamResponsesApi(lastUserMessageText as string, {
           sokosumiUserId: authContext.userId,
-          agentId: coworker?.slug,
+          sokosumiOrganizationId: authContext.organizationId ?? null,
+          coworkerSlug: coworker?.slug ?? null,
           previousResponseId: lastResponsesApiResponseId ?? null,
-          orgSlug,
           onResponseCompleted: async (responseId: string) => {
             if (!internalConversationId) return;
             try {

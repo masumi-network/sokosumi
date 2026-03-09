@@ -5,7 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { coworkerSchema } from "@/schemas/task.schema";
+import { coworkerSchema } from "@/schemas/coworker.schema";
 
 import { requireAdminAuthContext } from "../../admin-guard";
 import { patchCoworkerWhitelistRequestSchema } from "../../schema";

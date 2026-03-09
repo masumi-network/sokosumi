@@ -343,6 +343,7 @@ model UserAgentRating {
   updatedAt DateTime @updatedAt
   rating    Int
   comment   String?
+  isHidden  Boolean  @default(false)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentId   String
@@ -1062,7 +1063,8 @@ model Coworker {
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
-  isWhitelisted Boolean @default(false)
+  isWhitelisted Boolean  @default(false)
+  capabilities  String[] @default([])
 
   slug        String  @unique
   name        String

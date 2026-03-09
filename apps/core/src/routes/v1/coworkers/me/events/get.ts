@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
 
+import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -64,6 +65,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireCoworkerAuthContext(c.var.authContext);
+    await requireCoworkerCapability(authContext.coworkerId, "tasks");
     const queryParams = c.req.valid("query");
 
     const { cursor, take, skip } = parseCursorPagination(queryParams);

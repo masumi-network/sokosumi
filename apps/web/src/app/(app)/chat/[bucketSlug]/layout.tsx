@@ -5,10 +5,8 @@ import { useMemo } from "react";
 
 import { ChatConversationsSidebar } from "@/app/chat/components/chat-conversations-sidebar";
 import {
-  bucketKeyFromDisplaySlug,
   getBucketKeyFromMetadata,
-  slugify,
-  slugToBucketKey,
+  resolveBucketKeyFromDisplaySlug,
 } from "@/app/chat/utils/bucket-slug";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
@@ -46,20 +44,11 @@ export default function ChatBucketLayout({
   const { coworkers } = useCoworkersContext();
 
   const bucket = useMemo(() => {
-    if (!bucketSlug) return null;
-    const fromConversations = bucketKeyFromDisplaySlug(
+    return resolveBucketKeyFromDisplaySlug(
       conversations,
+      coworkers,
       bucketSlug,
     );
-    if (fromConversations) return fromConversations;
-    const slugLower = bucketSlug.trim().toLowerCase();
-    const coworker = coworkers?.find(
-      (c) =>
-        (c.slug && slugify(c.slug) === slugLower) ||
-        (c.name && slugify(c.name) === slugLower),
-    );
-    if (coworker) return `coworker:${coworker.id}`;
-    return slugToBucketKey(bucketSlug) || null;
   }, [bucketSlug, conversations, coworkers]);
 
   const bucketData = useMemo(() => {

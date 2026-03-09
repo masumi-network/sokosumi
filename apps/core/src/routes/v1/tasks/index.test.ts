@@ -38,14 +38,12 @@ describe("tasks routes OpenAPI query contract", () => {
     expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toContain(
       "Allowed values: context, owned",
     );
-    expect(getQueryDescriptionFromGetOperation(doc, "/{id}", "scope")).toContain(
-      "Allowed values: context, owned",
-    );
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/{id}", "scope"),
+    ).toContain("Allowed values: context, owned");
     expect(
       getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope"),
-    ).toContain(
-      "Allowed values: context, owned",
-    );
+    ).toContain("Allowed values: context, owned");
   });
 
   it("exposes multi-status query parameter for the task list endpoint", () => {

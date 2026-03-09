@@ -29,6 +29,29 @@ describe("createCoworkerRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts capabilities and normalizes them", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      email: "ops@example.com",
+      capabilities: ["tasks", "chat", "tasks"],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.capabilities).toEqual(["chat", "tasks"]);
+    }
+  });
+
+  it("rejects unsupported capabilities", () => {
+    const result = createCoworkerRequestSchema.safeParse({
+      name: "Ops Agent",
+      email: "ops@example.com",
+      capabilities: ["search"],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects companyLogo when it is not a valid URL", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
@@ -103,6 +126,17 @@ describe("patchCoworkerRequestSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts capabilities-only updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      capabilities: ["tasks", "chat", "tasks"],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.capabilities).toEqual(["chat", "tasks"]);
+    }
+  });
+
   it("rejects invalid url updates", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       url: "not-a-url",
@@ -114,6 +148,14 @@ describe("patchCoworkerRequestSchema", () => {
   it("rejects whitelist-only updates", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       isWhitelisted: true,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects invalid capabilities updates", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      capabilities: ["search"],
     });
 
     expect(result.success).toBe(false);

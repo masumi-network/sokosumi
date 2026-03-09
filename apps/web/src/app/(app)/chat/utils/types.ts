@@ -7,7 +7,7 @@ export interface Coworker {
   caption?: string;
   description: string;
   useCase: string;
-  slug?: string;
+  slug: string;
 }
 
 export interface Chat {
