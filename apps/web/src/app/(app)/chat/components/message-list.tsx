@@ -189,10 +189,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           </p>
           {canResend && (
             <Button
-              className="w-fit"
+              className="bg-foreground text-background hover:bg-foreground/90 w-fit"
               onClick={() => onResendLastMessage?.(lastUserMessageText)}
               size="sm"
-              variant="primary"
             >
               {t("resend")}
             </Button>
