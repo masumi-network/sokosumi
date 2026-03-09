@@ -125,7 +125,7 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   const sanitizedReturnUrl =
     normalized && normalized !== "/" ? normalized : undefined;
 
-  return getValidAuthRedirectUrl(sanitizedReturnUrl, "/");
+  return getValidAuthRedirectUrl(sanitizedReturnUrl, "/chat");
 }
 
 type OAuthConsentParamRecord = Partial<
