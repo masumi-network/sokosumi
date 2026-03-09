@@ -135,9 +135,12 @@
       "logout": "Sair",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
       "creditsSummary": "Resumo de créditos:",
+      "subscriptionUsage": "Uso da assinatura:",
+      "extraCredits": "Créditos extras:",
+      "extraCreditsDescription": "Nunca expiram",
       "creditsConsumedProgressAria": "Créditos de assinatura consumidos",
-      "creditsExpiresInDays": "Os créditos reiniciam em {days, plural, =1 {1 dia} other {# dias}}",
-      "creditsExpiresToday": "Os créditos reiniciam hoje",
+      "creditsExpiresInDays": "Os créditos se renovam em {days, plural, =1 {1 dia} other {# dias}}",
+      "creditsExpiresToday": "Os créditos se renovam hoje",
       "creditsExpired": "Créditos expirados"
     },
     "OrganizationSwitcher": {
@@ -1473,7 +1476,7 @@
     "Header": {
       "Credit": {
         "buy": "Adicionar créditos",
-        "extraCredits": "{credits, plural, =0 {0 créditos extras} =1 {1 crédito extra} other {# créditos extras}}",
+        "extraCredits": "{credits, plural, =0 {0 disponíveis} =1 {1 disponível} other {# disponíveis}}",
         "userBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}}",
         "organizationBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}} ({organization})",
         "unavailable": "Créditos indisponíveis"

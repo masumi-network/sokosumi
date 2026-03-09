@@ -136,8 +136,11 @@
       "imprint": "Aviso legal",
       "acceptableUse": "Uso aceptable",
       "creditsSummary": "Resumen de créditos:",
-      "creditsExpiresInDays": "Los créditos se reinician en {days, plural, =1 {1 día} other {# días}}",
-      "creditsExpiresToday": "Los créditos se reinician hoy",
+      "subscriptionUsage": "Uso de la suscripción:",
+      "extraCredits": "Créditos extra:",
+      "extraCreditsDescription": "Nunca expiran",
+      "creditsExpiresInDays": "Los créditos se renuevan en {days, plural, =1 {1 día} other {# días}}",
+      "creditsExpiresToday": "Los créditos se renuevan hoy",
       "creditsExpired": "Créditos vencidos"
     },
     "OrganizationSwitcher": {
@@ -1445,7 +1448,7 @@
         "userBalance": "{credits, plural, =0 {Sin Credits} =1 {1 Credit} other {# Credits}}",
         "organizationBalance": "{credits, plural, =0 {Sin Credits} =1 {1 Credit} other {# Credits}} ({organization})",
         "unavailable": "Credits no disponibles",
-        "extraCredits": "{credits, plural, =0 {0 créditos extra} =1 {1 crédito extra} other {# créditos extra}}"
+        "extraCredits": "{credits, plural, =0 {0 disponibles} =1 {1 disponible} other {# disponibles}}"
       },
       "Plan": {
         "upgradeCta": "Mejorar plan",
