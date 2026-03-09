@@ -67,8 +67,10 @@ describe("GET /coworkers", () => {
         updatedAt: new Date("2026-02-25T10:00:00.000Z"),
         archivedAt: null,
         isWhitelisted: true,
+        capabilities: ["chat", "tasks"],
         slug: "ops-agent",
         name: "Ops Agent",
+        baseURL: null,
       },
     ]);
 
@@ -78,6 +80,8 @@ describe("GET /coworkers", () => {
 
     expect(response.status).toBe(200);
     expect(body.data[0].isWhitelisted).toBe(true);
+    expect(body.data[0].capabilities).toEqual(["chat", "tasks"]);
+    expect(body.data[0].baseURL).toBeNull();
   });
 
   it("can return all non-archived coworkers via scope=all", async () => {

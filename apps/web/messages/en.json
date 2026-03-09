@@ -843,7 +843,8 @@
       "continueWith": "Continue with {provider}",
       "divider": "or continue with",
       "success": "Login successful",
-      "error": "Login failed"
+      "error": "Login failed",
+      "lastUsed": "Last used"
     },
     "Words": {
       "signIn": "Login",
@@ -861,6 +862,7 @@
         },
         "Form": {
           "submit": "Login",
+          "lastUsed": "Last used",
           "success": "Login successful",
           "error": "Invalid email or password",
           "Fields": {
@@ -1251,7 +1253,8 @@
         "loadMore": "Load More"
       },
       "Errors": {
-        "updateStatus": "Failed to update task status"
+        "updateStatus": "Failed to update task status",
+        "loadMore": "Failed to load more tasks"
       },
       "Card": {
         "comments": "Comments",

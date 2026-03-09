@@ -41,6 +41,29 @@ describe("GET /coworkers/me", () => {
     vi.clearAllMocks();
   });
 
+  it("returns baseURL for the current coworker", async () => {
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_123",
+      createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      capabilities: ["tasks"],
+      slug: "ops-agent",
+      name: "Ops Agent",
+      email: "ops@example.com",
+      baseURL: null,
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/me");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.capabilities).toEqual(["tasks"]);
+    expect(body.data.baseURL).toBeNull();
+  });
+
   it("returns 404 when current coworker is archived or missing", async () => {
     coworkerFindFirstMock.mockResolvedValue(null);
     const app = createApp();

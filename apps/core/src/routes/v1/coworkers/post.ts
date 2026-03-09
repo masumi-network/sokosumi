@@ -8,7 +8,7 @@ import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { coworkerSchema } from "@/schemas/task.schema";
+import { coworkerSchema } from "@/schemas/coworker.schema";
 
 import { createCoworkerRequestSchema } from "./schema";
 
@@ -38,8 +38,10 @@ const route = createRoute({
         company: "Serviceplan",
         companyLogo: "https://example.com/company-logo",
         url: "https://example.com",
+        baseURL: "https://responses.example.com/v1",
         email: "ops@example.com",
         description: "Ops helper",
+        capabilities: ["chat", "tasks"],
         image: "https://example.com/logo",
         createdAt: "2025-01-01T00:00:00.000Z",
         updatedAt: "2025-01-01T00:00:00.000Z",
@@ -97,8 +99,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             company: body.company ?? null,
             companyLogo: body.companyLogo ?? null,
             url: body.url ?? null,
+            baseURL: body.baseURL ?? null,
             email: body.email ?? null,
             description: body.description ?? null,
+            capabilities: body.capabilities,
             image: body.image ?? null,
             isWhitelisted: false,
           },

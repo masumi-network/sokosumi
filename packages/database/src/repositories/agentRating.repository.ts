@@ -4,6 +4,10 @@ import type {
   UserAgentRatingWithUser,
 } from "../types/agentRating.js";
 
+const PUBLIC_RATING_FILTER = {
+  isHidden: false,
+} as const;
+
 export const agentRatingRepository = {
   /**
    * Create or update a user's rating for an agent (atomic upsert)
@@ -63,7 +67,10 @@ export const agentRatingRepository = {
   ): Promise<Record<number, number>> {
     const ratings = await tx.userAgentRating.groupBy({
       by: ["rating"],
-      where: { agentId },
+      where: {
+        agentId,
+        ...PUBLIC_RATING_FILTER,
+      },
       _count: { rating: true },
     });
 
@@ -97,6 +104,7 @@ export const agentRatingRepository = {
     const ratings = await tx.userAgentRating.findMany({
       where: {
         agentId,
+        ...PUBLIC_RATING_FILTER,
         ...(commentsOnly ? { comment: { not: null } } : {}),
       },
       include: {
@@ -142,6 +150,7 @@ export const agentRatingRepository = {
       by: ["agentId"],
       where: {
         agentId: { in: agentIds },
+        ...PUBLIC_RATING_FILTER,
       },
       _count: { rating: true },
       _avg: { rating: true },
@@ -176,7 +185,10 @@ export const agentRatingRepository = {
     tx: Prisma.TransactionClient,
   ): Promise<AgentRatingStats> {
     const result = await tx.userAgentRating.aggregate({
-      where: { agentId },
+      where: {
+        agentId,
+        ...PUBLIC_RATING_FILTER,
+      },
       _count: { rating: true },
       _avg: { rating: true },
     });

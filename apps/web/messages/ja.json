@@ -1250,7 +1250,8 @@
         "loadMore": "さらに読み込む"
       },
       "Errors": {
-        "updateStatus": "タスクステータスの更新に失敗しました"
+        "updateStatus": "タスクステータスの更新に失敗しました",
+        "loadMore": "タスクをさらに読み込めませんでした"
       },
       "Card": {
         "comments": "コメント",

@@ -57,8 +57,6 @@ model User {
   // UTM Attribution
   utmAttribution UTMAttribution?
 
-  apikeys Apikey[]
-
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
@@ -345,6 +343,7 @@ model UserAgentRating {
   updatedAt DateTime @updatedAt
   rating    Int
   comment   String?
+  isHidden  Boolean  @default(false)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentId   String
@@ -798,12 +797,12 @@ model CreditCost {
 
 model Apikey {
   id                  String    @id
+  configId            String    @default("default")
   name                String?
   start               String?
   prefix              String?
   key                 String
-  userId              String
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId         String
   refillInterval      Int?
   refillAmount        Int?
   lastRefillAt        DateTime?
@@ -820,6 +819,9 @@ model Apikey {
   permissions         String?
   metadata            String?
 
+  @@index([configId])
+  @@index([referenceId])
+  @@index([key])
   @@map("apikey")
 }
 
@@ -966,6 +968,7 @@ model OauthClient {
   responseTypes           String[]
   public                  Boolean?
   type                    String?
+  requirePKCE             Boolean?
   referenceId             String?
   metadata                Json?
 
@@ -1020,6 +1023,7 @@ model OauthRefreshToken {
 
   expiresAt DateTime
   revoked   DateTime?
+  authTime  DateTime?
 
   accessTokens OauthAccessToken[]
 
@@ -1059,7 +1063,8 @@ model Coworker {
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
-  isWhitelisted Boolean @default(false)
+  isWhitelisted Boolean  @default(false)
+  capabilities  String[] @default([])
 
   slug        String  @unique
   name        String
@@ -1067,6 +1072,7 @@ model Coworker {
   company     String?
   companyLogo String?
   url         String?
+  baseURL     String?
   email       String?
   description String?
   image       String?

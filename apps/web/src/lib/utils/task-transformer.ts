@@ -1,33 +1,10 @@
 import type { AgentWithCreditsPrice, Coworker } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/database";
 
 import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import { type TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
-
-function getColumnId(status: TaskStatus): TaskWithCoworker["columnId"] {
-  switch (status) {
-    case TaskStatus.DRAFT:
-      return "backlog";
-    case TaskStatus.READY:
-      return "todo";
-    case TaskStatus.RUNNING:
-    case TaskStatus.AWAITING_EXTERNAL:
-    case TaskStatus.CANCEL_REQUESTED:
-    case TaskStatus.AUTHENTICATION_REQUIRED:
-      return "in-progress";
-    case TaskStatus.INPUT_REQUIRED:
-    case TaskStatus.OUT_OF_CREDITS:
-      return "input-required";
-    case TaskStatus.COMPLETED:
-    case TaskStatus.FAILED:
-    case TaskStatus.CANCELED:
-      return "done";
-    default:
-      return "todo";
-  }
-}
+import { getColumnId } from "@/lib/utils/task-column";
 
 function getCommentsCount(events: TaskEvent[]): number {
   return events.filter((event) => Boolean(event.comment)).length;

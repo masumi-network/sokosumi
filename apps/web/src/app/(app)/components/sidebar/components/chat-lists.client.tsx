@@ -75,8 +75,6 @@ function buildChatGroups(
       (meta?.modelName as string | undefined) ??
       null;
     const coworkerId =
-      (meta?.coworker_slug as string | undefined) ??
-      (meta?.coworkerSlug as string | undefined) ??
       (meta?.coworker_id as string | undefined) ??
       (meta?.coworkerId as string | undefined) ??
       null;
@@ -280,7 +278,7 @@ function GroupAvatar({ group, coworkers, t, isActive }: GroupAvatarProps) {
       ) : coworkerId ? (
         (() => {
           const coworkerFromList = coworkers.find(
-            (c: Coworker) => c.id === coworkerId || c.slug === coworkerId,
+            (c: Coworker) => c.id === coworkerId,
           );
           const avatarUrl = coworkerFromList?.avatar ?? null;
           return (

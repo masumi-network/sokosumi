@@ -1,0 +1,2 @@
+ALTER TABLE "coworker"
+ADD COLUMN "baseURL" TEXT;

@@ -34,7 +34,7 @@
     "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
   },
   "devDependencies": {
-    "@types/node": "24.11.0",
+    "@types/node": "24.12.0",
     "typescript": "5.9.3"
   }
 }

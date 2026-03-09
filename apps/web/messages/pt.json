@@ -1250,7 +1250,8 @@
         "loadMore": "Carregar mais"
       },
       "Errors": {
-        "updateStatus": "Falha ao atualizar o estado da tarefa"
+        "updateStatus": "Falha ao atualizar o estado da tarefa",
+        "loadMore": "Não foi possível carregar mais tarefas"
       },
       "Card": {
         "comments": "Comentários",

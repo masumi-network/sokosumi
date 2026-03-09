@@ -182,7 +182,7 @@ export const feedService = (() => {
         limit: params.limitPerSource,
       }),
       coreClient.getTasks({
-        status: "COMPLETED",
+        status: ["COMPLETED"],
         cursor: params.tasksCursor,
         limit: params.limitPerSource,
       }),
@@ -255,7 +255,7 @@ export const feedService = (() => {
           }),
       shouldFetchTasks
         ? coreClient.getTasks({
-            status: "COMPLETED",
+            status: ["COMPLETED"],
             cursor: params.tasksCursor ?? undefined,
             limit: limitPerSource,
           })

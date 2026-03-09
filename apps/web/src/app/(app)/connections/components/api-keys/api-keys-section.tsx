@@ -1,6 +1,5 @@
 "use client";
 
-import { Apikey } from "@sokosumi/database";
 import { useCallback } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +10,7 @@ import { CreateApiKeyDialog } from "./create-api-key-dialog";
 import { DeleteApiKeyDialog } from "./delete-api-key-dialog";
 import { useApiKeys } from "./hooks/use-api-keys";
 import { useDialogState } from "./hooks/use-dialog-state";
-import { CreateApiKeyResult } from "./types";
+import { ApiKeyRecord, CreateApiKeyResult } from "./types";
 
 export function ApiKeysSection() {
   const {
@@ -37,7 +36,7 @@ export function ApiKeysSection() {
   );
 
   const handleToggleStatus = useCallback(
-    async (apiKey: Apikey) => {
+    async (apiKey: ApiKeyRecord) => {
       await update({
         keyId: apiKey.id,
         enabled: !apiKey.enabled,
@@ -47,7 +46,7 @@ export function ApiKeysSection() {
   );
 
   const handleDeleteClick = useCallback(
-    (apiKey: Apikey) => {
+    (apiKey: ApiKeyRecord) => {
       dialogState.deleteDialog.setKeyToDelete(apiKey);
       dialogState.deleteDialog.setOpen(true);
     },

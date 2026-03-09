@@ -1,6 +1,5 @@
 "use client";
 
-import { Apikey } from "@sokosumi/database";
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { Eye, EyeOff, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -8,12 +7,14 @@ import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 
-const columnHelper = createColumnHelper<Apikey>();
+import type { ApiKeyRecord } from "./types";
+
+const columnHelper = createColumnHelper<ApiKeyRecord>();
 
 export function getApiKeyColumns(
   t: ReturnType<typeof useTranslations>,
-  onToggleStatus: (apiKey: Apikey) => Promise<void>,
-  onDeleteClick: (apiKey: Apikey) => void,
+  onToggleStatus: (apiKey: ApiKeyRecord) => Promise<void>,
+  onDeleteClick: (apiKey: ApiKeyRecord) => void,
 ) {
   return [
     columnHelper.accessor("name", {
@@ -26,7 +27,7 @@ export function getApiKeyColumns(
       cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<Apikey>,
+    }) as ColumnDef<ApiKeyRecord>,
 
     columnHelper.accessor("start", {
       id: "key",
@@ -42,7 +43,7 @@ export function getApiKeyColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<Apikey>,
+    }) as ColumnDef<ApiKeyRecord>,
 
     columnHelper.accessor("enabled", {
       id: "status",
@@ -64,7 +65,7 @@ export function getApiKeyColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<Apikey>,
+    }) as ColumnDef<ApiKeyRecord>,
 
     columnHelper.accessor("createdAt", {
       id: "createdAt",
@@ -80,7 +81,7 @@ export function getApiKeyColumns(
       ),
       enableSorting: true,
       enableHiding: true,
-    }) as ColumnDef<Apikey>,
+    }) as ColumnDef<ApiKeyRecord>,
 
     columnHelper.display({
       id: "actions",
@@ -126,6 +127,6 @@ export function getApiKeyColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<Apikey>,
+    }) as ColumnDef<ApiKeyRecord>,
   ];
 }

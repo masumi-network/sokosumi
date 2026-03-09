@@ -1,16 +1,19 @@
 import "server-only";
 
+import { apiKey } from "@better-auth/api-key";
+import { i18n } from "@better-auth/i18n";
+import { dash, sentinel } from "@better-auth/infra";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, User } from "@sokosumi/database";
 import { memberRepository } from "@sokosumi/database/repositories";
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
+import { authTranslations } from "@sokosumi/masumi/auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
-import { admin, apiKey, jwt, organization } from "better-auth/plugins";
-import { localization } from "better-auth-localization";
+import { admin, jwt, lastLoginMethod, organization } from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
@@ -52,6 +55,16 @@ const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 
 export const auth = betterAuth({
+  appName: "Sokosumi", // Define the name of your application
+  advanced: {
+    ipAddress: {
+      // For Vercel
+      ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
+    },
+  },
+  experimental: {
+    joins: true,
+  },
   silenceWarnings: {
     oauthAuthServerConfig: true,
   },
@@ -280,6 +293,8 @@ export const auth = betterAuth({
   plugins: [
     admin(),
     apiKey({
+      configId: "default",
+      references: "user",
       rateLimit: {
         enabled: true,
         timeWindow: 60, // 60 seconds
@@ -289,6 +304,7 @@ export const auth = betterAuth({
       enableSessionForAPIKeys: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
+    lastLoginMethod(),
     oauthProvider({
       loginPage: "/signin",
       consentPage: "/oauth/consent",
@@ -305,8 +321,8 @@ export const auth = betterAuth({
       },
     }),
     organization({
-      organizationCreation: {
-        afterCreate: async ({ organization }) => {
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization }) => {
           stripeClient
             .createOrganizationCustomer(
               organization.id,
@@ -327,6 +343,16 @@ export const auth = betterAuth({
                 },
               });
             });
+        },
+        beforeAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.ensureCanAcceptInvitation(
+            organization.id,
+          );
+        },
+        beforeCreateInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.ensureCanCreateInvitation(
+            organization.id,
+          );
         },
       },
       schema: {
@@ -372,23 +398,15 @@ export const auth = betterAuth({
       organizationLimit: getEnvSecrets().BETTER_AUTH_ORG_LIMIT,
       invitationExpiresIn:
         getEnvSecrets().BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
-      organizationHooks: {
-        beforeAcceptInvitation: async ({ organization }) => {
-          await organizationSubscriptionService.ensureCanAcceptInvitation(
-            organization.id,
-          );
-        },
-        beforeCreateInvitation: async ({ organization }) => {
-          await organizationSubscriptionService.ensureCanCreateInvitation(
-            organization.id,
-          );
-        },
-      },
     }),
-    localization({
-      defaultLocale: "default",
+    i18n({
+      translations: authTranslations,
+      defaultLocale: "en",
+      detection: ["header", "cookie"],
     }),
     nextCookies(),
+    dash(),
+    sentinel(),
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,

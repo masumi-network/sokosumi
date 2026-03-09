@@ -5,6 +5,8 @@ import {
 } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
 
+import { getOptionSelectMode } from "@/lib/job-input/option-select-mode";
+
 export const isOptional = (jobInputSchema: InputFieldSchemaType): boolean => {
   const { type } = jobInputSchema;
   if (type === InputType.NONE) return true;
@@ -21,13 +23,7 @@ export const isOptional = (jobInputSchema: InputFieldSchemaType): boolean => {
 export const isSingleOption = (
   jobInputOptionSchema: InputOptionSchemaType,
 ): boolean => {
-  const { validations } = jobInputOptionSchema;
-  if (!validations) return false;
-
-  return validations.some(
-    ({ validation, value }) =>
-      validation === InputValidation.MAX && Number(value) <= 1,
-  );
+  return getOptionSelectMode(jobInputOptionSchema.validations) === "single";
 };
 
 export const transformJobInputSchemaValidations = <

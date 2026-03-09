@@ -19,6 +19,8 @@ interface EmailPreferencesProps {
   marketingOptIn: boolean;
 }
 
+type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
+
 export function EmailPreferences({
   notificationsOptIn: initialNotificationsOptIn,
   marketingOptIn: initialMarketingOptIn,
@@ -52,10 +54,13 @@ export function EmailPreferences({
         .updateUser({
           [field]: nextValue,
         })
-        .then((result) => {
+        .then((result: UpdateUserResult) => {
           if (result.error) {
             throw new Error(result.error.message ?? "update_failed");
           }
+        })
+        .finally(() => {
+          setLoading(false);
         });
 
       toast.promise(updatePromise, {
@@ -67,14 +72,6 @@ export function EmailPreferences({
           return t("error");
         },
       });
-
-      updatePromise
-        .catch((error) => {
-          console.error(error);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
     };
   };
 

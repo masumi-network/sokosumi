@@ -1,11 +1,11 @@
 "use client";
 
-import { Apikey } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
+  ApiKeyRecord,
   CreateApiKeyRequest,
   CreateApiKeyResult,
   DeleteApiKeyRequest,
@@ -17,7 +17,7 @@ import { authClient } from "@/lib/auth/auth.client";
 
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
-  const [apiKeys, setApiKeys] = useState<Apikey[]>([]);
+  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +31,7 @@ export function useApiKeys(): UseApiKeysReturn {
       try {
         const result = await authClient.apiKey.list();
         if (result.data) {
-          setApiKeys(result.data as Apikey[]);
+          setApiKeys(result.data.apiKeys);
         } else {
           const errorMessage = t("Messages.loadError");
           setError(errorMessage);
@@ -64,7 +64,6 @@ export function useApiKeys(): UseApiKeysReturn {
             success: true,
             data: {
               key: result.data.key,
-              apiKey: result.data as Apikey,
             },
           };
         } else {

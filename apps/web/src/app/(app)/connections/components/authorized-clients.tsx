@@ -20,6 +20,8 @@ interface AuthorizedClientWithDetails extends OAuthConsent<Scope[]> {
   clientName?: string;
 }
 
+type OAuthConsentItem = OAuthConsent<Scope[]>;
+
 export function OAuthAuthorizedClients() {
   const t = useTranslations("App.Account.AuthorizedClients");
   const [consents, setConsents] = useState<AuthorizedClientWithDetails[]>([]);
@@ -35,10 +37,10 @@ export function OAuthAuthorizedClients() {
           throw new Error(result.error.message || t("fetchError"));
         }
 
-        const consentsData = result.data || [];
+        const consentsData: OAuthConsentItem[] = result.data || [];
         const consentsWithDetails: AuthorizedClientWithDetails[] =
           await Promise.all(
-            consentsData.map(async (consent) => {
+            consentsData.map(async (consent: OAuthConsentItem) => {
               try {
                 const clientResult = await authClient.oauth2.getClient({
                   query: {
