@@ -65,6 +65,7 @@ export function useChatSync({
         const mappedChats: Chat[] = conversations.map((conv: Conversation) => {
           const metadata = conv.metadata as Record<string, unknown> | null;
           const coworkerId = metadata?.coworker_id as string | undefined;
+          const coworkerSlug = metadata?.coworker_slug as string | undefined;
           const coworkerName = metadata?.coworker_name as string | undefined;
           const coworkerDescription = metadata?.coworker_description as
             | string
@@ -80,16 +81,15 @@ export function useChatSync({
 
           let coworker: Coworker | undefined;
           if (coworkerId && conversationType === "coworker") {
-            const fromList =
-              coworkers.find((c) => c.id === coworkerId) ??
-              coworkers.find((c) => c.slug === coworkerId);
+            const fromList = coworkers.find((c) => c.id === coworkerId);
             if (fromList) {
               coworker = fromList;
-            } else if (existingChat?.coworker) {
+            } else if (existingChat?.coworker?.id === coworkerId) {
               coworker = existingChat.coworker;
-            } else if (coworkerName) {
+            } else if (coworkerSlug && coworkerName) {
               coworker = {
                 id: coworkerId,
+                slug: coworkerSlug,
                 name: coworkerName,
                 description: coworkerDescription || "",
                 useCase: coworkerUseCase || "",

@@ -1063,7 +1063,8 @@ model Coworker {
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
-  isWhitelisted Boolean @default(false)
+  isWhitelisted Boolean  @default(false)
+  capabilities  String[] @default([])
 
   slug        String  @unique
   name        String

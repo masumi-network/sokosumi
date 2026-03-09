@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/database";
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -7,13 +8,21 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetTasks from "./get";
 
-const { prismaTransactionMock, taskCountMock, taskFindManyMock } = vi.hoisted(
-  () => ({
-    prismaTransactionMock: vi.fn(),
-    taskCountMock: vi.fn(),
-    taskFindManyMock: vi.fn(),
-  }),
-);
+const {
+  prismaTransactionMock,
+  requireCoworkerCapabilityMock,
+  taskCountMock,
+  taskFindManyMock,
+} = vi.hoisted(() => ({
+  prismaTransactionMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
+  taskCountMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -55,6 +64,7 @@ function createApp(actor: "user" | "coworker" = "user") {
 describe("GET /tasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
     prismaTransactionMock.mockImplementation(async (operations) => {
@@ -87,6 +97,21 @@ describe("GET /tasks", () => {
     const response = await app.request("http://localhost/?status=DRAFT,READY");
 
     expect(response.status).toBe(400);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+    expect(taskCountMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker requests when tasks capability is unavailable", async () => {
+    requireCoworkerCapabilityMock.mockRejectedValue(
+      new HTTPException(403, {
+        message: "Coworker is not allowed to use tasks",
+      }),
+    );
+
+    const app = createApp("coworker");
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(403);
     expect(taskFindManyMock).not.toHaveBeenCalled();
     expect(taskCountMock).not.toHaveBeenCalled();
   });

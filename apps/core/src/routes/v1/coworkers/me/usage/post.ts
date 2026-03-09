@@ -9,6 +9,7 @@ import {
   creditBucketRepository,
 } from "@sokosumi/database/repositories";
 
+import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
@@ -90,6 +91,7 @@ async function prepareConsumptions(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireCoworkerAuthContext(c.var.authContext);
+    await requireCoworkerCapability(authContext.coworkerId, "tasks");
     const { credits, idempotencyKey, referenceId, userId, organizationId } =
       c.req.valid("json");
     const coworkerId = authContext.coworkerId;

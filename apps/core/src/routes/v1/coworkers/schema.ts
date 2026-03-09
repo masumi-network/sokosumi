@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { coworkerCapabilitiesSchema } from "@/schemas/coworker.schema";
+
 const coworkerEditableFieldsSchema = z.object({
   name: z.string().trim().min(3).openapi({ example: "Ops Agent" }),
   caption: z
@@ -21,14 +23,11 @@ const coworkerEditableFieldsSchema = z.object({
     .nullish()
     .openapi({ example: "https://example.com/company-logo.png" }),
   url: z.httpUrl().nullish().openapi({ example: "https://example.com" }),
-  baseURL: z
-    .httpUrl()
-    .nullish()
-    .openapi({
-      example: "https://responses.example.com/v1",
-      description:
-        "OpenAI Responses API base URL used to enable this coworker for chat.",
-    }),
+  baseURL: z.httpUrl().nullish().openapi({
+    example: "https://responses.example.com/v1",
+    description:
+      "OpenAI Responses API base URL used to enable this coworker for chat.",
+  }),
   email: z.email().openapi({ example: "ops@example.com" }),
   description: z
     .string()
@@ -42,9 +41,14 @@ const coworkerEditableFieldsSchema = z.object({
     .openapi({ example: "https://example.com/logo.png" }),
 });
 
-export const createCoworkerRequestSchema = coworkerEditableFieldsSchema;
+export const createCoworkerRequestSchema = coworkerEditableFieldsSchema.extend({
+  capabilities: coworkerCapabilitiesSchema.optional().default([]),
+});
 
 export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
+  .extend({
+    capabilities: coworkerCapabilitiesSchema.optional(),
+  })
   .partial()
   .refine(
     (data) =>
@@ -56,6 +60,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       data.baseURL !== undefined ||
       data.email !== undefined ||
       data.description !== undefined ||
+      data.capabilities !== undefined ||
       data.image !== undefined,
     {
       message: "At least one coworker field is required",
@@ -68,6 +73,7 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
         "baseURL",
         "email",
         "description",
+        "capabilities",
         "image",
       ],
     },

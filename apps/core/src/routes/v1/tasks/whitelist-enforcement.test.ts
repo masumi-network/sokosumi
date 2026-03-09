@@ -11,13 +11,13 @@ import mountPostTask from "./post";
 
 const {
   prismaTransactionMock,
-  requireAssignableCoworkerMock,
+  requireTaskAssignableCoworkerMock,
   requireUserTaskAccessMock,
   mapTaskMock,
   validateTaskCoworkerAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireAssignableCoworkerMock: vi.fn(),
+  requireTaskAssignableCoworkerMock: vi.fn(),
   requireUserTaskAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => task),
   validateTaskCoworkerAssignmentMock: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireAssignableCoworker: requireAssignableCoworkerMock,
+  requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireUserTaskAccess: requireUserTaskAccessMock,
 }));
 
@@ -77,7 +77,7 @@ describe("task coworker whitelist enforcement", () => {
       return await callback(tx);
     });
 
-    requireAssignableCoworkerMock.mockRejectedValue(
+    requireTaskAssignableCoworkerMock.mockRejectedValue(
       new HTTPException(404, { message: "Coworker not found" }),
     );
 
@@ -114,7 +114,7 @@ describe("task coworker whitelist enforcement", () => {
       status: TaskStatus.READY,
       coworkerId: null,
     });
-    requireAssignableCoworkerMock.mockRejectedValue(
+    requireTaskAssignableCoworkerMock.mockRejectedValue(
       new HTTPException(404, { message: "Coworker not found" }),
     );
 
@@ -131,5 +131,37 @@ describe("task coworker whitelist enforcement", () => {
 
     expect(response.status).toBe(404);
     expect(tx.task.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects task creation when coworker lacks tasks capability", async () => {
+    const tx = {
+      task: {
+        create: vi.fn(),
+      },
+    };
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback(tx);
+    });
+
+    requireTaskAssignableCoworkerMock.mockRejectedValue(
+      new HTTPException(404, { message: "Coworker not found" }),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Capability check",
+        coworkerId: "cow_123",
+        status: TaskStatus.READY,
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(tx.task.create).not.toHaveBeenCalled();
   });
 });

@@ -45,10 +45,10 @@ export function mapDbCoworkerToChatCoworker(db: DbCoworker): Coworker {
     db.image != null && db.image !== "" ? ipfsUrlResolver(db.image) : null;
   return {
     id: db.id,
+    slug: db.slug,
     name: db.name,
     description: db.description ?? "",
     useCase: "", // DB has no useCase; avoid duplicating description in UI
-    ...(db.slug && { slug: db.slug }),
     ...(db.caption && { caption: db.caption }),
     ...(resolvedImage && { avatar: resolvedImage }),
   };
