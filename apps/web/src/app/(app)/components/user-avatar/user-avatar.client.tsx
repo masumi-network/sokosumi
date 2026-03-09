@@ -144,7 +144,7 @@ export default function UserAvatarClient({
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      {!isSidebarCollapsed && shouldShowCreditUsage && hasCreditUsage ? (
+      {shouldShowCreditUsage && hasCreditUsage ? (
         creditsLabel ? (
           <TooltipProvider>
             <Tooltip delayDuration={100}>
