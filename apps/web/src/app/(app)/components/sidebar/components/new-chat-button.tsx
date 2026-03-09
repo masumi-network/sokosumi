@@ -13,11 +13,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useAppChatRail } from "@/contexts/app-chat-rail-context";
 
 export default function NewChatButton() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
+  const { openNewChat } = useAppChatRail();
   const isActive = pathname === "/chat";
+  const isStandaloneChat = pathname.startsWith("/chat");
 
   return (
     <SidebarGroup className="w-full pb-0">
@@ -30,14 +33,25 @@ export default function NewChatButton() {
               className="px-4 py-5"
             >
               <SheetClose asChild>
-                <Link
-                  href="/chat"
-                  aria-current={isActive ? "page" : undefined}
-                  className="text-primary flex w-full items-center gap-2"
-                >
-                  <MessageSquarePlus className="size-4" aria-hidden />
-                  <span className="flex-1 truncate">{t("newChat")}</span>
-                </Link>
+                {isStandaloneChat ? (
+                  <Link
+                    href="/chat"
+                    aria-current={isActive ? "page" : undefined}
+                    className="text-primary flex w-full items-center gap-2"
+                  >
+                    <MessageSquarePlus className="size-4" aria-hidden />
+                    <span className="flex-1 truncate">{t("newChat")}</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-primary flex w-full items-center gap-2"
+                    onClick={openNewChat}
+                  >
+                    <MessageSquarePlus className="size-4" aria-hidden />
+                    <span className="flex-1 truncate">{t("newChat")}</span>
+                  </button>
+                )}
               </SheetClose>
             </SidebarMenuButton>
           </SidebarMenuItem>

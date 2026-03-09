@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { SessionUser } from "@/lib/auth/auth";
 import { CreditUsage } from "@/lib/types/credit";
+import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import UserAvatarContent from "./user-avatar-content";
@@ -51,6 +52,9 @@ interface UserAvatarClientProps {
   creditsLabel?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
+  showAvatar?: boolean;
+  showCreditUsage?: boolean;
+  showCreditUsageOnMobileOnly?: boolean;
   subscriptionPeriodEndMs?: number | null;
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
@@ -63,6 +67,9 @@ export default function UserAvatarClient({
   creditsLabel,
   primaryLabel,
   secondaryLabel,
+  showAvatar = true,
+  showCreditUsage = true,
+  showCreditUsageOnMobileOnly = false,
   subscriptionPeriodEndMs,
   sessionUser,
   members,
@@ -114,8 +121,11 @@ export default function UserAvatarClient({
   };
 
   const router = useRouter();
-  const { isMobile, toggleSidebar } = useSidebar();
+  const { isMobile, state: sidebarState, toggleSidebar } = useSidebar();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isSidebarCollapsed = !isMobile && sidebarState === "collapsed";
+  const shouldShowCreditUsage =
+    showCreditUsage && (!showCreditUsageOnMobileOnly || isMobile);
 
   const handleClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -133,13 +143,13 @@ export default function UserAvatarClient({
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 md:flex-row">
-      {hasCreditUsage ? (
+    <div className="flex w-full flex-col items-center gap-4">
+      {!isSidebarCollapsed && shouldShowCreditUsage && hasCreditUsage ? (
         creditsLabel ? (
           <TooltipProvider>
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
-                <div className="w-full min-w-28 space-y-1 border-r-0 pr-0 md:w-auto md:border-r md:pr-4">
+                <div className="w-full min-w-28 space-y-1 pr-0 md:w-auto md:pr-4">
                   {creditsExpiryLabel ? (
                     <div className="text-muted-foreground w-fit text-xs font-semibold">
                       {creditsExpiryLabel}
@@ -164,7 +174,7 @@ export default function UserAvatarClient({
             </Tooltip>
           </TooltipProvider>
         ) : (
-          <div className="min-w-28 space-y-1 border-r-0 pr-4 md:border-r md:pr-4">
+          <div className="min-w-28 space-y-1 md:pr-4">
             {creditsExpiryLabel ? (
               <div className="text-muted-foreground w-fit text-[11px]">
                 {creditsExpiryLabel}
@@ -183,182 +193,194 @@ export default function UserAvatarClient({
           </div>
         )
       ) : null}
-      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-        <TooltipProvider disableHoverableContent>
-          <Tooltip delayDuration={100}>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="min-h-11 w-full min-w-40 justify-between px-1 py-1 hover:bg-transparent focus-visible:bg-transparent md:w-auto"
-                  aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
-                >
-                  <div className="flex w-full items-center justify-between gap-2 md:justify-center">
-                    <div className="flex shrink-0">
-                      <UserAvatarContent
-                        imageUrl={
-                          sessionUser.image ??
-                          gravatarUrl(sessionUser.email, {
-                            size: 80,
-                            default: "404",
-                          })
-                        }
-                        imageAlt={sessionUser.name ?? "User avatar"}
-                      />
-                    </div>
-                    {primaryLabel || secondaryLabel ? (
-                      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-1">
-                        {primaryLabel ? (
-                          <span className="text-sm leading-none font-semibold">
-                            {primaryLabel}
-                          </span>
-                        ) : null}
-                        {secondaryLabel ? (
-                          <span className="text-muted-foreground text-xs leading-none">
-                            {secondaryLabel}
-                          </span>
-                        ) : null}
+      {showAvatar ? (
+        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <TooltipProvider disableHoverableContent>
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "min-h-11 px-1 py-1 hover:bg-transparent focus-visible:bg-transparent",
+                      isSidebarCollapsed
+                        ? "size-11 min-w-0 justify-center px-0"
+                        : "w-full min-w-40 justify-between",
+                    )}
+                    aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
+                  >
+                    <div className="flex w-full items-center justify-between gap-2 md:justify-center">
+                      <div className="flex shrink-0">
+                        <UserAvatarContent
+                          imageUrl={
+                            sessionUser.image ??
+                            gravatarUrl(sessionUser.email, {
+                              size: 80,
+                              default: "404",
+                            })
+                          }
+                          imageAlt={sessionUser.name ?? "User avatar"}
+                        />
                       </div>
-                    ) : null}
-                    <ChevronDown className="text-muted-foreground size-4" />
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{sessionUser.email}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                      {!isSidebarCollapsed &&
+                      (primaryLabel || secondaryLabel) ? (
+                        <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-1">
+                          {primaryLabel ? (
+                            <span className="text-sm leading-none font-semibold">
+                              {primaryLabel}
+                            </span>
+                          ) : null}
+                          {secondaryLabel ? (
+                            <span className="text-muted-foreground text-xs leading-none">
+                              {secondaryLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {!isSidebarCollapsed ? (
+                        <ChevronDown className="text-muted-foreground size-4" />
+                      ) : null}
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{sessionUser.email}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        <DropdownMenuContent className="w-64" align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="text-muted-foreground truncate rounded-t-sm py-2">
-              {sessionUser.email}
-            </DropdownMenuLabel>
-            {/* <DropdownMenuSeparator /> */}
-            <DropdownMenuItem
-              className="flex cursor-pointer items-center gap-2"
-              onClick={(e: React.MouseEvent) => handleClick(e, "/account")}
-            >
-              <UserIcon className="text-muted-foreground" />
-              {t("account")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="flex cursor-pointer items-center gap-2"
-              onClick={(e: React.MouseEvent) =>
-                handleClick(e, "/organizations")
-              }
-            >
-              <Building2 className="text-muted-foreground" />
-              {t("organizations")}
-            </DropdownMenuItem>
-            {canViewBilling ? (
+          <DropdownMenuContent className="w-64" align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-muted-foreground truncate rounded-t-sm py-2">
+                {sessionUser.email}
+              </DropdownMenuLabel>
+              {/* <DropdownMenuSeparator /> */}
               <DropdownMenuItem
                 className="flex cursor-pointer items-center gap-2"
-                onClick={(e: React.MouseEvent) => handleClick(e, "/billing")}
+                onClick={(e: React.MouseEvent) => handleClick(e, "/account")}
               >
-                <ReceiptText className="text-muted-foreground" />
-                {t("billing")}
+                <UserIcon className="text-muted-foreground" />
+                {t("account")}
               </DropdownMenuItem>
-            ) : null}
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-2"
+                onClick={(e: React.MouseEvent) =>
+                  handleClick(e, "/organizations")
+                }
+              >
+                <Building2 className="text-muted-foreground" />
+                {t("organizations")}
+              </DropdownMenuItem>
+              {canViewBilling ? (
+                <DropdownMenuItem
+                  className="flex cursor-pointer items-center gap-2"
+                  onClick={(e: React.MouseEvent) => handleClick(e, "/billing")}
+                >
+                  <ReceiptText className="text-muted-foreground" />
+                  {t("billing")}
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-2"
+                onClick={(e: React.MouseEvent) =>
+                  handleClick(e, "/connections")
+                }
+              >
+                <Cable className="text-muted-foreground" />
+                {t("connections")}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
+                <LifeBuoy className="text-muted-foreground size-4" />
+                {t("help")}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenExternalLink(
+                      "https://docs.sokosumi.com/documentation",
+                    );
+                  }}
+                >
+                  <BookOpen className="text-muted-foreground size-4" />
+                  {t("documentation")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenExternalLink("mailto:info@sokosumi.com");
+                  }}
+                >
+                  <CircleHelp className="text-muted-foreground size-4" />
+                  {t("support")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-muted-foreground text-xs">
+                  {t("legal")}
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenExternalLink(
+                      "https://www.sokosumi.com/terms-of-service",
+                    );
+                  }}
+                >
+                  {t("termsOfService")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenExternalLink(
+                      "https://www.sokosumi.com/privacy-policy",
+                    );
+                  }}
+                >
+                  {t("privacyPolicy")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenExternalLink("https://www.sokosumi.com/imprint");
+                  }}
+                >
+                  {t("imprint")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleOpenExternalLink(
+                      "https://www.sokosumi.com/acceptable-use",
+                    );
+                  }}
+                >
+                  {t("acceptableUse")}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
-              onClick={(e: React.MouseEvent) => handleClick(e, "/connections")}
+              onClick={() => {
+                setIsMenuOpen(false);
+                showLogoutModal(sessionUser.email);
+              }}
             >
-              <Cable className="text-muted-foreground" />
-              {t("connections")}
+              <LogOut className="text-muted-foreground" />
+              {t("logout")}
             </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="flex cursor-pointer items-center gap-2">
-              <LifeBuoy className="text-muted-foreground size-4" />
-              {t("help")}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink(
-                    "https://docs.sokosumi.com/documentation",
-                  );
-                }}
-              >
-                <BookOpen className="text-muted-foreground size-4" />
-                {t("documentation")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink("mailto:info@sokosumi.com");
-                }}
-              >
-                <CircleHelp className="text-muted-foreground size-4" />
-                {t("support")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-muted-foreground text-xs">
-                {t("legal")}
-              </DropdownMenuLabel>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink(
-                    "https://www.sokosumi.com/terms-of-service",
-                  );
-                }}
-              >
-                {t("termsOfService")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink(
-                    "https://www.sokosumi.com/privacy-policy",
-                  );
-                }}
-              >
-                {t("privacyPolicy")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink("https://www.sokosumi.com/imprint");
-                }}
-              >
-                {t("imprint")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleOpenExternalLink(
-                    "https://www.sokosumi.com/acceptable-use",
-                  );
-                }}
-              >
-                {t("acceptableUse")}
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="flex cursor-pointer items-center gap-2"
-            onClick={() => {
-              setIsMenuOpen(false);
-              showLogoutModal(sessionUser.email);
-            }}
-          >
-            <LogOut className="text-muted-foreground" />
-            {t("logout")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </div>
   );
 }

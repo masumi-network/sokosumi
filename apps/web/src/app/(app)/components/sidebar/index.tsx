@@ -63,8 +63,13 @@ export default function Sidebar({ session }: SidebarProps) {
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
         <AnnouncementCards />
-        <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden">
-          <UserCredits session={session} />
+        <div className="flex flex-1 gap-2 p-4 pt-0 md:p-2">
+          <UserCredits
+            session={session}
+            showCtaButtons={false}
+            showCreditUsage
+            showCreditUsageOnMobileOnly
+          />
         </div>
       </SidebarFooter>
     </ShadcnSidebar>
