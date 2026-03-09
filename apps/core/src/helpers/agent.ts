@@ -298,7 +298,10 @@ export const calculateAgentRating = async (
   tx: Prisma.TransactionClient,
 ): Promise<RatingMetrics> => {
   const ratingStats = await tx.userAgentRating.aggregate({
-    where: { agentId },
+    where: {
+      agentId,
+      isHidden: false,
+    },
     _count: { rating: true },
     _avg: { rating: true },
   });
@@ -318,6 +321,7 @@ export const calculateAgentRatings = async (
     by: ["agentId"],
     where: {
       agentId: { in: agentIds },
+      isHidden: false,
     },
     _count: { rating: true },
     _avg: { rating: true },
