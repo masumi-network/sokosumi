@@ -1166,6 +1166,8 @@
         "modelAlt": "模型",
         "coworkerAlt": "协作伙伴",
         "userAvatarAlt": "用户头像",
+        "expandPrompt": "Show full message",
+        "collapsePrompt": "Show less",
         "authorize": "授权",
         "reasoning": {
           "processing": "处理中...",

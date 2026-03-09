@@ -1166,6 +1166,8 @@
         "modelAlt": "モデル",
         "coworkerAlt": "同僚",
         "userAvatarAlt": "ユーザーのアバター",
+        "expandPrompt": "Show full message",
+        "collapsePrompt": "Show less",
         "authorize": "承認",
         "reasoning": {
           "processing": "処理中...",

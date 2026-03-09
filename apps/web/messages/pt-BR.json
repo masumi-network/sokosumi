@@ -1166,6 +1166,8 @@
         "modelAlt": "Modelo",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Avatar do usuário",
+        "expandPrompt": "Show full message",
+        "collapsePrompt": "Show less",
         "authorize": "Autorizar",
         "reasoning": {
           "processing": "Processando...",
