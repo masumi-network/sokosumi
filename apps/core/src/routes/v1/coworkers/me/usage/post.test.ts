@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -6,15 +7,24 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountPostCoworkerMeUsage from "./post";
 
-const { prepareConsumptionMock, prismaTransactionMock } = vi.hoisted(() => ({
+const {
+  prepareConsumptionMock,
+  prismaTransactionMock,
+  requireCoworkerCapabilityMock,
+} = vi.hoisted(() => ({
   prepareConsumptionMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     prepareConsumption: prepareConsumptionMock,
   },
+}));
+
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -98,6 +108,7 @@ function mockTransaction(tx: TransactionMock) {
 describe("POST /me/usage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -201,6 +212,32 @@ describe("POST /me/usage", () => {
 
     const body = await response.json();
     expect(body.data.userId).toBe(TARGET_USER_ID);
+  });
+
+  it("returns 403 when tasks capability is unavailable", async () => {
+    requireCoworkerCapabilityMock.mockRejectedValue(
+      new HTTPException(403, {
+        message: "Coworker is not allowed to use tasks",
+      }),
+    );
+
+    const app = createApp();
+
+    const response = await app.request("http://localhost/me/usage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "usage_missing_capability",
+        credits: 2.5,
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when idempotency key is reused with a different userId", async () => {

@@ -2,29 +2,30 @@ import { describe, expect, it } from "vitest";
 
 import tasksRouter from "./index";
 
-function getScopeDescriptionFromGetOperation(
+function getQueryDescriptionFromGetOperation(
   doc: ReturnType<typeof tasksRouter.getOpenAPI31Document>,
   path: string,
+  name: string,
 ): string {
   const operation = doc.paths?.[path]?.get;
   const parameters = operation?.parameters ?? [];
-  const scopeParameter = parameters.find((parameter) => {
+  const queryParameter = parameters.find((parameter) => {
     if (!parameter || typeof parameter !== "object") {
       return false;
     }
 
     return (
       "name" in parameter &&
-      parameter.name === "scope" &&
+      parameter.name === name &&
       "in" in parameter &&
       parameter.in === "query"
     );
   }) as { description?: string } | undefined;
 
-  return scopeParameter?.description ?? "";
+  return queryParameter?.description ?? "";
 }
 
-describe("tasks routes OpenAPI scope contract", () => {
+describe("tasks routes OpenAPI query contract", () => {
   it("exposes scope query parameter for task endpoints", () => {
     const doc = tasksRouter.getOpenAPI31Document({
       openapi: "3.1.0",
@@ -34,14 +35,28 @@ describe("tasks routes OpenAPI scope contract", () => {
       },
     });
 
-    expect(getScopeDescriptionFromGetOperation(doc, "/")).toContain(
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "scope")).toContain(
       "Allowed values: context, owned",
     );
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}")).toContain(
-      "Allowed values: context, owned",
-    );
-    expect(getScopeDescriptionFromGetOperation(doc, "/{id}/jobs")).toContain(
-      "Allowed values: context, owned",
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/{id}", "scope"),
+    ).toContain("Allowed values: context, owned");
+    expect(
+      getQueryDescriptionFromGetOperation(doc, "/{id}/jobs", "scope"),
+    ).toContain("Allowed values: context, owned");
+  });
+
+  it("exposes multi-status query parameter for the task list endpoint", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Tasks API",
+        version: "1.0.0",
+      },
+    });
+
+    expect(getQueryDescriptionFromGetOperation(doc, "/", "status")).toContain(
+      "Comma-separated status filters",
     );
   });
 

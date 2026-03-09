@@ -148,6 +148,8 @@ model Subscription {
   canceledAt           DateTime?
   endedAt              DateTime?
   seats                Int?
+  billingInterval      String?
+  stripeScheduleId     String?
 
   @@unique([stripeSubscriptionId])
   @@index([referenceId])
@@ -343,6 +345,7 @@ model UserAgentRating {
   updatedAt DateTime @updatedAt
   rating    Int
   comment   String?
+  isHidden  Boolean  @default(false)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentId   String
@@ -1062,7 +1065,8 @@ model Coworker {
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
 
-  isWhitelisted Boolean @default(false)
+  isWhitelisted Boolean  @default(false)
+  capabilities  String[] @default([])
 
   slug        String  @unique
   name        String
@@ -1070,6 +1074,7 @@ model Coworker {
   company     String?
   companyLogo String?
   url         String?
+  baseURL     String?
   email       String?
   description String?
   image       String?

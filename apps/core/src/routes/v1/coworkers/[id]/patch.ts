@@ -5,7 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { coworkerSchema } from "@/schemas/task.schema";
+import { coworkerSchema } from "@/schemas/coworker.schema";
 
 import { requireCoworkerManagementAccess } from "../admin-guard";
 import { patchCoworkerRequestSchema } from "../schema";
@@ -52,8 +52,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           company: body.company,
           companyLogo: body.companyLogo,
           url: body.url,
+          baseURL: body.baseURL,
           email: body.email,
           description: body.description,
+          capabilities: body.capabilities,
           image: body.image,
         },
       });

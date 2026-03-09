@@ -37,11 +37,11 @@ const CHUNK_STREAM_DELAY_MS = 16;
 
 export interface StreamResponsesApiOptions {
   sokosumiUserId: string;
-  agentId?: string;
+  sokosumiOrganizationId: string | null;
+  coworkerSlug: string | null;
   previousResponseId?: string | null;
   instructions?: string;
   onResponseCompleted?: (responseId: string) => void;
-  orgSlug?: string | null;
 }
 
 export async function streamResponsesApi(
@@ -61,7 +61,7 @@ export async function streamResponsesApi(
   if (!baseUrl || !serviceKey) {
     throw new Error("Responses API base URL or service key missing");
   }
-  if (!options.agentId?.trim()) {
+  if (!options.coworkerSlug?.trim()) {
     throw new Error("Responses API requires a coworker agent ID (slug)");
   }
 
@@ -87,10 +87,11 @@ export async function streamResponsesApi(
     Authorization: `Bearer ${serviceKey}`,
     "Content-Type": "application/json",
     "X-Sokosumi-User-Id": options.sokosumiUserId,
-    "X-Agent-Id": options.agentId,
+    "X-Coworker-Slug": options.coworkerSlug,
   };
-  if (options.orgSlug) {
-    requestHeaders["X-Organization-Slug"] = options.orgSlug;
+  if (options.sokosumiOrganizationId) {
+    requestHeaders["X-Sokosumi-Organization-Id"] =
+      options.sokosumiOrganizationId;
   }
 
   const response = await fetch(url, {

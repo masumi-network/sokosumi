@@ -36,7 +36,7 @@ describe("task.service", () => {
     jest.clearAllMocks();
   });
 
-  it("lists tasks and forwards query parameters", async () => {
+  it("lists tasks and normalizes status for the core client", async () => {
     coreClientMock.getTasks.mockResolvedValue({
       data: [buildTask()],
       meta: {
@@ -58,7 +58,7 @@ describe("task.service", () => {
     });
 
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
-      status: TaskStatus.READY,
+      status: [TaskStatus.READY],
       coworkerId: "cow-1",
       cursor: "task-1",
       limit: 20,
@@ -71,6 +71,33 @@ describe("task.service", () => {
         total: 50,
         nextCursor: "task-2",
       },
+    });
+  });
+
+  it("passes through multiple statuses for the core client", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: [buildTask()],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 20,
+          total: 50,
+          nextCursor: "task-2",
+        },
+      },
+    });
+
+    const { taskService } = await import("../task.service");
+    await taskService.listTasks({
+      status: [TaskStatus.READY, TaskStatus.COMPLETED],
+      limit: 20,
+    });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith({
+      status: [TaskStatus.READY, TaskStatus.COMPLETED],
+      coworkerId: undefined,
+      cursor: undefined,
+      limit: 20,
     });
   });
 

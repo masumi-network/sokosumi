@@ -179,7 +179,7 @@ function GroupAvatar({ group, coworkers, t, isActive }: GroupAvatarProps) {
       ) : coworkerId ? (
         (() => {
           const coworkerFromList = coworkers.find(
-            (c: Coworker) => c.id === coworkerId || c.slug === coworkerId,
+            (c: Coworker) => c.id === coworkerId,
           );
           const avatarUrl = coworkerFromList?.avatar ?? null;
           return (

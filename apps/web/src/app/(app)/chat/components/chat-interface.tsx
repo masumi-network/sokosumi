@@ -863,26 +863,27 @@ export default function ChatInterface({
       const meta = selectedConversation.metadata as Record<string, unknown>;
       const type = meta?.type as string | undefined;
       const coworkerId = meta?.coworker_id as string | undefined;
+      const coworkerSlug = meta?.coworker_slug as string | undefined;
       const coworkerName = meta?.coworker_name as string | undefined;
       if (type === "coworker" && coworkerId && coworkerName) {
-        const matches = (c: Coworker) =>
-          c.id === coworkerId || c.slug === coworkerId;
         if (
           selectedChat?.coworker &&
-          matches(selectedChat.coworker) &&
+          selectedChat.coworker.id === coworkerId &&
           selectedChat.coworker.avatar
         ) {
           return selectedChat.coworker;
         }
-        const fromList =
-          coworkers.find((c) => c.id === coworkerId) ??
-          coworkers.find((c) => c.slug === coworkerId);
+        const fromList = coworkers.find((c) => c.id === coworkerId);
         if (fromList) return fromList;
-        if (selectedChat?.coworker && matches(selectedChat.coworker)) {
+        if (selectedChat?.coworker?.id === coworkerId) {
           return selectedChat.coworker;
+        }
+        if (!coworkerSlug) {
+          return selectedChat?.coworker;
         }
         return {
           id: coworkerId,
+          slug: coworkerSlug,
           name: coworkerName,
           description: (meta?.coworker_description as string) ?? "",
           useCase: (meta?.coworker_useCase as string) ?? "",

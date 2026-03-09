@@ -157,7 +157,7 @@ export function useChatCreation({
       const conversation = await createNewConversation(
         {
           coworker_id: coworker.id,
-          coworker_slug: coworker.slug ?? coworker.id,
+          coworker_slug: coworker.slug,
           coworker_name: coworker.name,
           coworker_description: coworker.description,
           coworker_useCase: coworker.useCase,
@@ -204,7 +204,7 @@ export function useChatCreation({
       }
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
-        (coworker.slug ? slugify(coworker.slug) : null) ||
+        slugify(coworker.slug) ||
         slugify(coworker.name) ||
         `coworker-${coworker.id}`;
 
