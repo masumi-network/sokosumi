@@ -3,6 +3,7 @@ import type { Conversation } from "@/lib/actions/conversation";
 import {
   displaySlugFromMetadata,
   getBucketKeyFromMetadata,
+  slugify,
 } from "./bucket-slug";
 
 export interface ChatGroup {
@@ -33,27 +34,24 @@ export function buildChatGroups(
     }
   >();
 
-  for (const conversation of conversations) {
-    const metadata =
-      (conversation.metadata as Record<string, unknown> | null) ?? null;
-    const key = getBucketKeyFromMetadata(metadata);
+  for (const conv of conversations) {
+    const meta = (conv.metadata as Record<string, unknown> | null) ?? null;
+    const key = getBucketKeyFromMetadata(meta);
     const modelId =
-      (metadata?.model_id as string | undefined) ??
-      (metadata?.modelId as string | undefined) ??
+      (meta?.model_id as string | undefined) ??
+      (meta?.modelId as string | undefined) ??
       null;
     const modelName =
-      (metadata?.model_name as string | undefined) ??
-      (metadata?.modelName as string | undefined) ??
+      (meta?.model_name as string | undefined) ??
+      (meta?.modelName as string | undefined) ??
       null;
     const coworkerId =
-      (metadata?.coworker_slug as string | undefined) ??
-      (metadata?.coworkerSlug as string | undefined) ??
-      (metadata?.coworker_id as string | undefined) ??
-      (metadata?.coworkerId as string | undefined) ??
+      (meta?.coworker_id as string | undefined) ??
+      (meta?.coworkerId as string | undefined) ??
       null;
     const coworkerName =
-      (metadata?.coworker_name as string | undefined) ??
-      (metadata?.coworkerName as string | undefined) ??
+      (meta?.coworker_name as string | undefined) ??
+      (meta?.coworkerName as string | undefined) ??
       null;
     const isCoworkerConversation = key.startsWith("coworker:");
     const displayName = isCoworkerConversation
@@ -61,7 +59,6 @@ export function buildChatGroups(
       : (modelName ?? untitledLabel);
 
     let entry = byKey.get(key);
-
     if (!entry) {
       entry = {
         displayName,
@@ -73,28 +70,22 @@ export function buildChatGroups(
       };
       byKey.set(key, entry);
     }
-
-    entry.conversations.push(conversation);
+    entry.conversations.push(conv);
   }
 
   const groups: ChatGroup[] = [];
-
   for (const [key, entry] of byKey) {
-    const sortedConversations = [...entry.conversations].sort((a, b) => {
-      const firstUpdatedAt = new Date(a.updatedAt).getTime();
-      const secondUpdatedAt = new Date(b.updatedAt).getTime();
-
-      return secondUpdatedAt - firstUpdatedAt;
+    const sorted = [...entry.conversations].sort((a, b) => {
+      const ta = new Date(a.updatedAt).getTime();
+      const tb = new Date(b.updatedAt).getTime();
+      return tb - ta;
     });
-    const firstMetadata =
-      (sortedConversations[0]?.metadata as Record<string, unknown> | null) ??
-      null;
-    const displaySlug = displaySlugFromMetadata(firstMetadata) || key;
+    const firstMeta =
+      (sorted[0]?.metadata as Record<string, unknown> | null) ?? null;
+    const displaySlug =
+      displaySlugFromMetadata(firstMeta) || slugify(entry.displayName) || key;
     const latestUpdatedAt =
-      sortedConversations.length > 0
-        ? new Date(sortedConversations[0].updatedAt).getTime()
-        : 0;
-
+      sorted.length > 0 ? new Date(sorted[0].updatedAt).getTime() : 0;
     groups.push({
       key,
       displayName: entry.displayName,
@@ -103,14 +94,10 @@ export function buildChatGroups(
       modelName: entry.modelName,
       coworkerId: entry.coworkerId,
       coworkerName: entry.coworkerName,
-      conversations: sortedConversations,
+      conversations: sorted,
       latestUpdatedAt,
     });
   }
-
-  groups.sort((firstGroup, secondGroup) => {
-    return secondGroup.latestUpdatedAt - firstGroup.latestUpdatedAt;
-  });
-
+  groups.sort((a, b) => b.latestUpdatedAt - a.latestUpdatedAt);
   return groups;
 }
