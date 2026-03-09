@@ -77,6 +77,7 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     baseURL: null,
     email: "ops@example.com",
     description: null,
+    capabilities: [],
     image: null,
     userId: "user_123",
     ...overrides,
