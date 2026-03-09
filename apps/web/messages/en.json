@@ -135,9 +135,12 @@
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
       "creditsSummary": "Credits Summary:",
+      "subscriptionUsage": "Subscription Usage:",
+      "extraCredits": "Extra Credits:",
+      "extraCreditsDescription": "Never expire",
       "creditsConsumedProgressAria": "Subscription credits consumed",
-      "creditsExpiresInDays": "Credits reset in {days, plural, =1 {1 day} other {# days}}",
-      "creditsExpiresToday": "Credits reset today",
+      "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
+      "creditsExpiresToday": "Credits renew today",
       "creditsExpired": "Credits expired"
     },
     "OrganizationSwitcher": {
@@ -1475,7 +1478,7 @@
     "Header": {
       "Credit": {
         "buy": "Add credits",
-        "extraCredits": "{credits, plural, =0 {0 extra credits} =1 {1 extra credit} other {# extra credits}}",
+        "extraCredits": "{credits, plural, =0 {0 available} =1 {1 available} other {# available}}",
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"

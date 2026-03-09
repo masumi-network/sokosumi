@@ -164,11 +164,22 @@ export default function UserAvatarClient({
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <div className="gap-2">
-                  <p className="pb-1 font-semibold">{t("creditsSummary")}</p>
+                  <p className="pb-1 font-semibold">{t("subscriptionUsage")}</p>
                   <ul className="list-disc space-y-1 pl-4">
                     {creditUsageLabel ? <li>{creditUsageLabel}</li> : null}
-                    <li>{creditsLabel}</li>
+                    {creditUsageLabel ? <li>{creditsExpiryLabel}</li> : null}
                   </ul>
+                  {creditsLabel ? (
+                    <>
+                      <p className="pt-2 pb-1 font-semibold">
+                        {t("extraCredits")}
+                      </p>
+                      <ul className="list-disc space-y-1 pl-4">
+                        <li>{creditsLabel}</li>
+                        <li>{t("extraCreditsDescription")}</li>
+                      </ul>
+                    </>
+                  ) : null}
                 </div>
               </TooltipContent>
             </Tooltip>
