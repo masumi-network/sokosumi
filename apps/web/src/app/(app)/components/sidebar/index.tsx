@@ -26,9 +26,10 @@ import ProfileSwitch from "./components/profile-switch";
 
 interface SidebarProps {
   session: Session;
+  isTaskRailEnabled: boolean;
 }
 
-export default function Sidebar({ session }: SidebarProps) {
+export default function Sidebar({ session, isTaskRailEnabled }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-[64px] border-b">
@@ -53,7 +54,7 @@ export default function Sidebar({ session }: SidebarProps) {
         <ProfileSwitch session={session} />
         <SidebarSeparator className="mx-0" />
         {/* Top Section: Chats */}
-        <NewChatButton />
+        <NewChatButton isTaskRailEnabled={isTaskRailEnabled} />
         {/* Bottom Section: Agents */}
         <MenuItems />
         {/* Divider */}

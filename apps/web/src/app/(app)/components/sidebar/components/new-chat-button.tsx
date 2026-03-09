@@ -15,12 +15,19 @@ import {
 } from "@/components/ui/sidebar";
 import { useAppChatRail } from "@/contexts/app-chat-rail-context";
 
-export default function NewChatButton() {
+interface NewChatButtonProps {
+  isTaskRailEnabled: boolean;
+}
+
+export default function NewChatButton({
+  isTaskRailEnabled,
+}: NewChatButtonProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const { openNewChat } = useAppChatRail();
   const isActive = pathname === "/chat";
   const isStandaloneChat = pathname.startsWith("/chat");
+  const shouldOpenRail = isTaskRailEnabled && !isStandaloneChat;
 
   return (
     <SidebarGroup className="w-full pb-0">
@@ -33,7 +40,7 @@ export default function NewChatButton() {
               className="px-4 py-5"
             >
               <SheetClose asChild>
-                {isStandaloneChat ? (
+                {!shouldOpenRail ? (
                   <Link
                     href="/chat"
                     aria-current={isActive ? "page" : undefined}

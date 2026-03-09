@@ -13,6 +13,7 @@ import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
+import { taskRailEnabled } from "@/lib/flags/task-rail";
 import { userService } from "@/lib/services";
 
 import ChatRail from "./components/chat-rail";
@@ -47,12 +48,17 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultChatRailOpen =
     cookieStore.get("chat_sidebar_state")?.value === "true";
 
-  const [shouldShowOnboarding, pendingNoticesResult, activeOrganization] =
-    await Promise.all([
-      userService.showOnboarding(session),
-      getPendingNoticesAction(),
-      userService.getActiveOrganization(),
-    ]);
+  const [
+    shouldShowOnboarding,
+    pendingNoticesResult,
+    activeOrganization,
+    isTaskRailEnabled,
+  ] = await Promise.all([
+    userService.showOnboarding(session),
+    getPendingNoticesAction(),
+    userService.getActiveOrganization(),
+    taskRailEnabled(),
+  ]);
   const pendingNotices = pendingNoticesResult.ok
     ? pendingNoticesResult.data
     : [];
@@ -81,7 +87,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           className="flex max-w-svw overflow-clip"
         >
           <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
-            <Sidebar session={session} />
+            <Sidebar session={session} isTaskRailEnabled={isTaskRailEnabled} />
             <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
               <div className="flex min-w-0 flex-1 flex-col overflow-clip">
                 <Header session={session} className="h-16 p-4" />
