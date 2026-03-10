@@ -129,8 +129,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     );
     const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
     const canPurchaseCredits =
-      isOwnerOrAdmin &&
-      (currentPlan !== "free" || isZeroMarginTopUpEnabled);
+      isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
     const creditsCheckoutParams =
       canPurchaseCredits && activeTab === "credits"
         ? { cancel: query.cancel, session_id: query.session_id }
@@ -262,8 +261,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     };
   });
 
-  const canPurchaseCredits =
-    currentPlan !== "free" || isZeroMarginTopUpEnabled;
+  const canPurchaseCredits = currentPlan !== "free" || isZeroMarginTopUpEnabled;
   const creditsCheckoutParams =
     canPurchaseCredits && activeTab === "credits"
       ? { cancel: query.cancel, session_id: query.session_id }

@@ -2,16 +2,37 @@
 
 import * as Sentry from "@sentry/nextjs";
 import NextError from "next/error";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import {
+  hasDeploymentRefreshGuard,
+  isStaleDeploymentError,
+  performDeploymentRefresh,
+} from "@/lib/utils/deployment-refresh";
 
 export default function GlobalError({
   error,
 }: {
   error: Error & { digest?: string };
 }) {
+  const [shouldReload, setShouldReload] = useState(false);
+
   useEffect(() => {
-    Sentry.captureException(error);
+    const message = error?.message ?? "";
+    if (isStaleDeploymentError(message) && !hasDeploymentRefreshGuard()) {
+      performDeploymentRefresh();
+      return;
+    }
+    if (!isStaleDeploymentError(message)) {
+      Sentry.captureException(error);
+    }
+    const id = setTimeout(() => setShouldReload(true), 0);
+    return () => clearTimeout(id);
   }, [error]);
+
+  if (!shouldReload && isStaleDeploymentError(error?.message ?? "")) {
+    return null;
+  }
 
   return (
     <html>

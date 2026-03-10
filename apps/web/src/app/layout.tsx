@@ -10,6 +10,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { ClientAnalytics } from "@/components/analytics/client-analytics";
+import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handler";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { Toaster } from "@/components/ui/sonner";
@@ -97,6 +98,7 @@ export default async function RootLayout({
           </NuqsAdapter>
         </UsersnapProvider>
         <ClientAnalytics />
+        <DeploymentRefreshHandler />
       </body>
     </html>
   );
