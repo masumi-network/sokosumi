@@ -8,6 +8,7 @@ import {
   CREDIT_TOPUP_LOOKUP_KEYS,
   CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
+  type StandardCreditTopUpLookupKey,
 } from "@/lib/stripe/credit-topup-pricing";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 
@@ -17,7 +18,11 @@ export interface Price {
   currency: string;
 }
 
-export type CreditTopUpPriceCatalog = Record<CreditTopUpLookupKey, Price>;
+export type CreditTopUpPriceCatalog = Record<
+  StandardCreditTopUpLookupKey,
+  Price
+> &
+  Partial<Record<CreditTopUpLookupKey, Price>>;
 
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -100,7 +105,7 @@ export const stripeClient = (() => {
 
   function normalizeCheckoutReturnPath(returnPath: string): string {
     if (!returnPath) {
-      return "/credits";
+      return "/billing?tab=credits";
     }
 
     return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
@@ -329,8 +334,14 @@ export const stripeClient = (() => {
       }
     },
 
-    async getCreditTopUpPriceByCredits(credits: number): Promise<Price> {
-      const lookupKey = getCreditTopUpLookupKeyByCredits(credits);
+    async getCreditTopUpPriceByCredits(
+      credits: number,
+      lookupKeyOverride?: CreditTopUpLookupKey,
+    ): Promise<Price> {
+      const lookupKey = getCreditTopUpLookupKeyByCredits(
+        credits,
+        lookupKeyOverride,
+      );
       return await this.getPriceByLookupKey(lookupKey);
     },
 
@@ -416,7 +427,7 @@ export const stripeClient = (() => {
       price: Price,
       origin: string | null = null,
       promotionCode: string | null = null,
-      returnPath: string = "/credits",
+      returnPath: string = "/billing?tab=credits",
       ttlDays?: string,
     ): Promise<Stripe.Checkout.Session> {
       if (price.amountPerCredit === 0) {

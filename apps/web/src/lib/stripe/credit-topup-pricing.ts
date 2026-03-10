@@ -1,3 +1,4 @@
+export const ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY = "credit_0_margin";
 export const BASE_CREDIT_TOPUP_LOOKUP_KEY = "credit_20_margin";
 export const MID_CREDIT_TOPUP_LOOKUP_KEY = "credit_15_margin";
 export const HIGH_CREDIT_TOPUP_LOOKUP_KEY = "credit_10_margin";
@@ -11,7 +12,12 @@ export const CREDIT_TOPUP_LOOKUP_KEYS = [
 const BASE_TIER_MAX_CREDITS = 10_000;
 const MID_TIER_MAX_CREDITS = 100_000;
 
-export type CreditTopUpLookupKey = (typeof CREDIT_TOPUP_LOOKUP_KEYS)[number];
+export type StandardCreditTopUpLookupKey =
+  (typeof CREDIT_TOPUP_LOOKUP_KEYS)[number];
+
+export type CreditTopUpLookupKey =
+  | StandardCreditTopUpLookupKey
+  | typeof ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY;
 
 export function isPositiveIntegerCredits(credits: number): boolean {
   return Number.isFinite(credits) && Number.isInteger(credits) && credits > 0;
@@ -19,9 +25,14 @@ export function isPositiveIntegerCredits(credits: number): boolean {
 
 export function getCreditTopUpLookupKeyByCredits(
   credits: number,
+  lookupKeyOverride?: CreditTopUpLookupKey,
 ): CreditTopUpLookupKey {
   if (!isPositiveIntegerCredits(credits)) {
     throw new Error("Credits must be a positive integer");
+  }
+
+  if (lookupKeyOverride) {
+    return lookupKeyOverride;
   }
 
   if (credits < BASE_TIER_MAX_CREDITS) {

@@ -5,7 +5,6 @@ import {
   escapeStringForLike,
   FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
-  PAID_TOPUP_CREDITS_EXPIRY_DAYS,
 } from "@sokosumi/database/helpers";
 
 jest.mock("server-only", () => ({}));
@@ -986,12 +985,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
-        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("1230000000000"),
     );
@@ -1029,12 +1023,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
     );
-    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
-        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toBeNull();
     // quantity-based top-up credits: quantity 3 => 3 credits
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("30000000000"),
@@ -1211,12 +1200,7 @@ describe("handleInvoicePaidEvent", () => {
     expect(topupCall?.data.sourceCreditBucket.create.referenceType).toBe(
       "STRIPE_TOPUP",
     );
-    expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
-      getCreditExpiryDate(
-        new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000),
-        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-      ),
-    );
+    expect(topupCall?.data.sourceCreditBucket.create.expiresAt).toBeNull();
 
     const subscriptionCall = callsByReference.get(
       buildUserInvoiceCreditReferenceId("user-1", "in_mixed", "subscription"),

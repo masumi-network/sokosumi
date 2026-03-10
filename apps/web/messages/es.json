@@ -1621,7 +1621,9 @@
         "unauthorizedPersonal": "No tienes permiso para comprar Credits",
         "unknownError": "Algo salió mal"
       },
-      "expiryNotice": "Los créditos vencen después de {days, plural, one {# día} other {# días}}."
+      "paidSubscriptionRequiredDescription": "Se requiere una suscripción de pago para comprar créditos adicionales.",
+      "paidSubscriptionRequiredHint": "Elige un plan de pago en la pestaña Suscripción para desbloquear las recargas de créditos.",
+      "couponExpiryNotice": "Los créditos vencen después de {days, plural, one {# día} other {# días}}."
     },
     "Connections": {
       "tabs": {

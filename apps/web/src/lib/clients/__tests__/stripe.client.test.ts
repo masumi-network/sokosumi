@@ -170,6 +170,77 @@ describe("stripe.client lookup-key pricing", () => {
     ).toEqual(["credit_20_margin", "credit_15_margin", "credit_10_margin"]);
   });
 
+  it("uses a lookup key override regardless of credit amount", async () => {
+    pricesListMock.mockImplementation(
+      async (params: { lookup_keys: string[] }) => {
+        const lookupKey = params.lookup_keys[0];
+        return {
+          data: [
+            createMockStripePrice({
+              currency: "eur",
+              id: `price_${lookupKey}`,
+              unitAmount: null,
+              unitAmountDecimal: "1.0",
+            }),
+          ],
+        };
+      },
+    );
+
+    const { stripeClient } = await import("../stripe.client");
+
+    await stripeClient.getCreditTopUpPriceByCredits(1, "credit_0_margin");
+    await stripeClient.getCreditTopUpPriceByCredits(10_000, "credit_0_margin");
+    await stripeClient.getCreditTopUpPriceByCredits(250_000, "credit_0_margin");
+
+    expect(
+      pricesListMock.mock.calls.map((call) => call[0].lookup_keys[0]),
+    ).toEqual(["credit_0_margin", "credit_0_margin", "credit_0_margin"]);
+  });
+
+  it("only loads the standard top-up tiers for the default catalog", async () => {
+    pricesListMock.mockImplementation(
+      async (params: { lookup_keys: string[] }) => {
+        const lookupKey = params.lookup_keys[0];
+        return {
+          data: [
+            createMockStripePrice({
+              currency: "eur",
+              id: `price_${lookupKey}`,
+              unitAmount: null,
+              unitAmountDecimal: "1.2",
+            }),
+          ],
+        };
+      },
+    );
+
+    const { stripeClient } = await import("../stripe.client");
+
+    const priceCatalog = await stripeClient.getCreditTopUpPriceCatalog();
+
+    expect(priceCatalog).toEqual({
+      credit_20_margin: {
+        id: "price_credit_20_margin",
+        amountPerCredit: 1.2,
+        currency: "eur",
+      },
+      credit_15_margin: {
+        id: "price_credit_15_margin",
+        amountPerCredit: 1.2,
+        currency: "eur",
+      },
+      credit_10_margin: {
+        id: "price_credit_10_margin",
+        amountPerCredit: 1.2,
+        currency: "eur",
+      },
+    });
+    expect(
+      pricesListMock.mock.calls.map((call) => call[0].lookup_keys[0]),
+    ).toEqual(["credit_20_margin", "credit_15_margin", "credit_10_margin"]);
+  });
+
   it("accepts unit_amount_decimal when unit_amount is null", async () => {
     pricesListMock.mockResolvedValue({
       data: [
@@ -233,8 +304,8 @@ describe("stripe.client lookup-key pricing", () => {
           userId: "user-1",
         }),
         success_url:
-          "https://app.sokosumi.com/credits?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url: "https://app.sokosumi.com/credits?cancel=true",
+          "https://app.sokosumi.com/billing?tab=credits&session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://app.sokosumi.com/billing?tab=credits&cancel=true",
       }),
     );
   });

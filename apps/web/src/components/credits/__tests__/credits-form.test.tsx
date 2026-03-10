@@ -24,9 +24,6 @@ jest.mock("next-intl", () => ({
     if (key === "creditAmount") {
       return `${values?.count} credits`;
     }
-    if (key === "expiryNotice") {
-      return `Credits expire after ${values?.days} days.`;
-    }
     return key;
   },
   useFormatter: () => ({
@@ -73,6 +70,11 @@ jest.mock("@/lib/gtm-events", () => ({
 }));
 
 const priceCatalog: CreditTopUpPriceCatalog = {
+  credit_0_margin: {
+    id: "price_0",
+    amountPerCredit: 1.0,
+    currency: "usd",
+  },
   credit_20_margin: {
     id: "price_20",
     amountPerCredit: 1.2,
@@ -113,8 +115,33 @@ describe("CreditsForm", () => {
     await user.type(creditsInput, "100000");
     expect(screen.getByText("usd:0.0110 per credit")).toBeInTheDocument();
     expect(
-      screen.getByText("Credits expire after 180 days."),
-    ).toBeInTheDocument();
+      screen.queryByText("Credits expire after 180 days."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the displayed cost fixed when a lookup key override is provided", async () => {
+    const user = userEvent.setup();
+    render(
+      <CreditsForm
+        priceCatalog={priceCatalog}
+        organization={null}
+        priceLookupKeyOverride="credit_0_margin"
+      />,
+    );
+
+    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+
+    const creditsInput = screen.getByRole("spinbutton", {
+      name: "creditsLabel",
+    });
+
+    await user.clear(creditsInput);
+    await user.type(creditsInput, "10000");
+    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+
+    await user.clear(creditsInput);
+    await user.type(creditsInput, "250000");
+    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
   });
 
   it("allows single-credit granularity without a hard max", () => {
@@ -138,6 +165,53 @@ describe("CreditsForm", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows a paid subscription notice when top-ups are disabled", () => {
+    render(
+      <CreditsForm
+        isPurchaseEnabled={false}
+        priceCatalog={priceCatalog}
+        organization={null}
+      />,
+    );
+
+    expect(
+      screen.getByText("paidSubscriptionRequiredDescription"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("paidSubscriptionRequiredHint"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("spinbutton", {
+        name: "creditsLabel",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "topUpButton",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uses the same paid subscription notice for organizations when top-ups are disabled", () => {
+    render(
+      <CreditsForm
+        isPurchaseEnabled={false}
+        priceCatalog={priceCatalog}
+        organization={{ id: "org-1", name: "Org One" } as never}
+      />,
+    );
+
+    expect(
+      screen.getByText("paidSubscriptionRequiredDescription"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("paidSubscriptionRequiredHint"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("purchaseForOrganization"),
+    ).not.toBeInTheDocument();
+  });
+
   it("submits purchase credits with the entered amount", async () => {
     const user = userEvent.setup();
     purchaseCreditsMock.mockResolvedValue({
@@ -158,6 +232,37 @@ describe("CreditsForm", () => {
     expect(purchaseCreditsMock).toHaveBeenCalledWith({
       organizationId: null,
       credits: 150,
+    });
+  });
+
+  it("does not submit the lookup key override when provided for display", async () => {
+    const user = userEvent.setup();
+    purchaseCreditsMock.mockResolvedValue({
+      ok: false,
+      error: { code: "INVALID_CREDITS" },
+    });
+
+    render(
+      <CreditsForm
+        priceCatalog={priceCatalog}
+        organization={null}
+        priceLookupKeyOverride="credit_0_margin"
+        returnPath="/billing?tab=credits"
+      />,
+    );
+
+    const creditsInput = screen.getByRole("spinbutton", {
+      name: "creditsLabel",
+    });
+    const submitButton = screen.getByRole("button", { name: "topUpButton" });
+
+    await user.type(creditsInput, "150");
+    await user.click(submitButton);
+
+    expect(purchaseCreditsMock).toHaveBeenCalledWith({
+      organizationId: null,
+      credits: 150,
+      returnPath: "/billing?tab=credits",
     });
   });
 });

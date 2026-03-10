@@ -170,7 +170,7 @@ export default function CouponForm({
               {organization ? t("couponButtonOrganization") : t("couponButton")}
             </Button>
             <p className="text-muted-foreground text-right text-xs">
-              {t("expiryNotice", {
+              {t("couponExpiryNotice", {
                 days: FREE_CREDITS_EXPIRY_DAYS,
               })}
             </p>

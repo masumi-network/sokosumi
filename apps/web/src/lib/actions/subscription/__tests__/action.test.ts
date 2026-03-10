@@ -92,12 +92,12 @@ describe("subscription actions", () => {
     });
     expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
       body: {
-        cancelUrl: "/subscriptions?status=cancel",
+        cancelUrl: "/billing?tab=subscription&status=cancel",
         customerType: "user",
         disableRedirect: true,
         plan: "starter",
-        returnUrl: "/subscriptions",
-        successUrl: "/subscriptions?status=success",
+        returnUrl: "/billing?tab=subscription",
+        successUrl: "/billing?tab=subscription&status=success",
       },
       headers: new Headers(),
     });
@@ -121,12 +121,12 @@ describe("subscription actions", () => {
     });
     expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
       body: {
-        cancelUrl: "/subscriptions?status=cancel",
+        cancelUrl: "/billing?tab=subscription&status=cancel",
         customerType: "user",
         disableRedirect: true,
         plan: "free",
-        returnUrl: "/subscriptions",
-        successUrl: "/subscriptions?status=success",
+        returnUrl: "/billing?tab=subscription",
+        successUrl: "/billing?tab=subscription&status=success",
       },
       headers: new Headers(),
     });
@@ -177,7 +177,7 @@ describe("subscription actions", () => {
       body: {
         customerType: "user",
         disableRedirect: true,
-        returnUrl: "/subscriptions",
+        returnUrl: "/billing?tab=subscription",
       },
       headers: new Headers(),
     });
