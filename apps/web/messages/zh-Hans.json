@@ -135,9 +135,12 @@
       "logout": "退出登录",
       "creditsUsedOfTotal": "{used, number} / {total, number} 已使用积分",
       "creditsSummary": "积分摘要：",
+      "subscriptionUsage": "订阅使用情况：",
+      "extraCredits": "额外积分：",
+      "extraCreditsDescription": "永不过期",
       "creditsConsumedProgressAria": "已消耗订阅积分",
-      "creditsExpiresInDays": "积分将在 {days, plural, =1 {1 天} other {# 天}}后重置",
-      "creditsExpiresToday": "积分今日重置",
+      "creditsExpiresInDays": "积分将在 {days, plural, =1 {1 天} other {# 天}}后更新",
+      "creditsExpiresToday": "积分今日更新",
       "creditsExpired": "积分已过期"
     },
     "OrganizationSwitcher": {
@@ -1071,6 +1074,9 @@
     "delete": "删除",
     "cancel": "取消",
     "save": "保存",
+    "ChatRail": {
+      "chat": "聊天"
+    },
     "Chat": {
       "Metadata": {
         "title": "聊天",
@@ -1470,7 +1476,7 @@
     "Header": {
       "Credit": {
         "buy": "添加积分",
-        "extraCredits": "{credits, plural, =0 {0 额外积分} =1 {1 额外积分} other {# 额外积分}}",
+        "extraCredits": "{credits, plural, =0 {0 可用} =1 {1 可用} other {# 可用}}",
         "userBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}}",
         "organizationBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}} ({organization})",
         "unavailable": "积分不可用"

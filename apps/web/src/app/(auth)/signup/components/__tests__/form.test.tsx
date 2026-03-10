@@ -178,7 +178,7 @@ describe("SignUpForm OAuth workflow", () => {
 
     await waitFor(() => {
       expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
-      expect(mockReplace).toHaveBeenCalledWith("/chat");
+      expect(mockReplace).toHaveBeenCalledWith("/");
     });
 
     expect(window.location.href).toBe("http://localhost/");

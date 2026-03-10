@@ -135,9 +135,12 @@
       "logout": "ログアウト",
       "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
       "creditsSummary": "クレジット概要:",
+      "subscriptionUsage": "サブスクリプション利用状況:",
+      "extraCredits": "追加クレジット:",
+      "extraCreditsDescription": "有効期限なし",
       "creditsConsumedProgressAria": "サブスクリプションクレジットの消費",
-      "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後にリセットされます",
-      "creditsExpiresToday": "クレジットは本日リセットされます",
+      "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後に更新されます",
+      "creditsExpiresToday": "クレジットは本日更新されます",
       "creditsExpired": "クレジットが失効しました"
     },
     "OrganizationSwitcher": {
@@ -1071,6 +1074,9 @@
     "delete": "削除",
     "cancel": "キャンセル",
     "save": "保存",
+    "ChatRail": {
+      "chat": "チャット"
+    },
     "Chat": {
       "Metadata": {
         "title": "チャット",
@@ -1470,7 +1476,7 @@
     "Header": {
       "Credit": {
         "buy": "クレジットを追加",
-        "extraCredits": "{credits, plural, =0 {追加クレジット0} =1 {追加クレジット1} other {追加クレジット#}}",
+        "extraCredits": "{credits, plural, =0 {0 利用可能} =1 {1 利用可能} other {# 利用可能}}",
         "userBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}",
         "organizationBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}（{organization}）",
         "unavailable": "クレジットを利用できません"

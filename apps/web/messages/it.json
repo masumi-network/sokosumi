@@ -135,9 +135,12 @@
       "logout": "Esci",
       "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
       "creditsSummary": "Riepilogo crediti:",
+      "subscriptionUsage": "Utilizzo dell’abbonamento:",
+      "extraCredits": "Crediti extra:",
+      "extraCreditsDescription": "Non scadono mai",
       "creditsConsumedProgressAria": "Crediti di abbonamento consumati",
-      "creditsExpiresInDays": "I crediti si ripristinano tra {days, plural, =1 {1 giorno} other {# giorni}}",
-      "creditsExpiresToday": "I crediti si ripristinano oggi",
+      "creditsExpiresInDays": "I crediti si rinnovano tra {days, plural, =1 {1 giorno} other {# giorni}}",
+      "creditsExpiresToday": "I crediti si rinnovano oggi",
       "creditsExpired": "Crediti scaduti"
     },
     "OrganizationSwitcher": {
@@ -1071,6 +1074,9 @@
     "delete": "Elimina",
     "cancel": "Annulla",
     "save": "Salva",
+    "ChatRail": {
+      "chat": "Chat"
+    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1470,7 +1476,7 @@
     "Header": {
       "Credit": {
         "buy": "Aggiungi crediti",
-        "extraCredits": "{credits, plural, =0 {0 crediti extra} =1 {1 credito extra} other {# crediti extra}}",
+        "extraCredits": "{credits, plural, =0 {0 disponibili} =1 {1 disponibile} other {# disponibili}}",
         "userBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}}",
         "organizationBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}} ({organization})",
         "unavailable": "Crediti non disponibili"

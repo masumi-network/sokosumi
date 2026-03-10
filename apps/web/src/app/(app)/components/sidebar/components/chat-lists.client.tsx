@@ -2,15 +2,11 @@
 
 import { MessageSquare } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo } from "react";
 
-import {
-  displaySlugFromMetadata,
-  getBucketKeyFromMetadata,
-  slugify,
-} from "@/app/chat/utils/bucket-slug";
+import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,113 +28,18 @@ import {
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
-import type { Conversation } from "@/lib/actions/conversation";
 import { cn } from "@/lib/utils";
-
-interface ChatGroup {
-  key: string;
-  displayName: string;
-  displaySlug: string;
-  modelId: string | null;
-  modelName: string | null;
-  coworkerId: string | null;
-  coworkerName: string | null;
-  conversations: Conversation[];
-  latestUpdatedAt: number;
-}
-
-function buildChatGroups(
-  conversations: Conversation[],
-  untitledLabel: string,
-): ChatGroup[] {
-  const byKey = new Map<
-    string,
-    {
-      displayName: string;
-      modelId: string | null;
-      modelName: string | null;
-      coworkerId: string | null;
-      coworkerName: string | null;
-      conversations: Conversation[];
-    }
-  >();
-
-  for (const conv of conversations) {
-    const meta = (conv.metadata as Record<string, unknown> | null) ?? null;
-    const key = getBucketKeyFromMetadata(meta);
-    const modelId =
-      (meta?.model_id as string | undefined) ??
-      (meta?.modelId as string | undefined) ??
-      null;
-    const modelName =
-      (meta?.model_name as string | undefined) ??
-      (meta?.modelName as string | undefined) ??
-      null;
-    const coworkerId =
-      (meta?.coworker_id as string | undefined) ??
-      (meta?.coworkerId as string | undefined) ??
-      null;
-    const coworkerName =
-      (meta?.coworker_name as string | undefined) ??
-      (meta?.coworkerName as string | undefined) ??
-      null;
-    const isCoworkerConversation = key.startsWith("coworker:");
-    const displayName = isCoworkerConversation
-      ? (coworkerName ?? untitledLabel)
-      : (modelName ?? untitledLabel);
-
-    let entry = byKey.get(key);
-    if (!entry) {
-      entry = {
-        displayName,
-        modelId: isCoworkerConversation ? null : modelId,
-        modelName: isCoworkerConversation ? null : modelName,
-        coworkerId: isCoworkerConversation ? coworkerId : null,
-        coworkerName,
-        conversations: [],
-      };
-      byKey.set(key, entry);
-    }
-    entry.conversations.push(conv);
-  }
-
-  const groups: ChatGroup[] = [];
-  for (const [key, entry] of byKey) {
-    const sorted = [...entry.conversations].sort((a, b) => {
-      const ta = new Date(a.updatedAt).getTime();
-      const tb = new Date(b.updatedAt).getTime();
-      return tb - ta;
-    });
-    const firstMeta =
-      (sorted[0]?.metadata as Record<string, unknown> | null) ?? null;
-    const displaySlug =
-      displaySlugFromMetadata(firstMeta) || slugify(entry.displayName) || key;
-    const latestUpdatedAt =
-      sorted.length > 0 ? new Date(sorted[0].updatedAt).getTime() : 0;
-    groups.push({
-      key,
-      displayName: entry.displayName,
-      displaySlug,
-      modelId: entry.modelId,
-      modelName: entry.modelName,
-      coworkerId: entry.coworkerId,
-      coworkerName: entry.coworkerName,
-      conversations: sorted,
-      latestUpdatedAt,
-    });
-  }
-  groups.sort((a, b) => b.latestUpdatedAt - a.latestUpdatedAt);
-  return groups;
-}
 
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const { open, isMobile, toggleSidebar } = useSidebar();
+  const pathname = usePathname();
   const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const { conversations, refreshConversations } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
+  const isChatRoute = pathname.startsWith("/chat");
 
   useEffect(() => {
     void refreshConversations();
@@ -198,8 +99,8 @@ export default function ChatListsClient() {
               <SidebarMenu>
                 {chatGroups.map((group) => {
                   const slug = group.displaySlug;
-                  const isActive = bucketSlug === slug;
                   const mostRecentConversation = group.conversations[0];
+                  const isActive = isChatRoute && bucketSlug === slug;
                   const chatHref =
                     mostRecentConversation != null
                       ? `/chat/${slug}/conversation/${mostRecentConversation.id}`

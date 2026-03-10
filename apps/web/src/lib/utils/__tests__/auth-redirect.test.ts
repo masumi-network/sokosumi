@@ -32,12 +32,12 @@ describe("getValidAuthRedirectUrl", () => {
 });
 
 describe("normalizeAuthReturnUrl", () => {
-  it("returns /chat when returnUrl is missing", () => {
-    expect(normalizeAuthReturnUrl(undefined)).toBe("/chat");
+  it("returns / when returnUrl is missing", () => {
+    expect(normalizeAuthReturnUrl(undefined)).toBe("/");
   });
 
-  it("returns /chat when returnUrl is root", () => {
-    expect(normalizeAuthReturnUrl("/")).toBe("/chat");
+  it("returns / when returnUrl is root", () => {
+    expect(normalizeAuthReturnUrl("/")).toBe("/");
   });
 
   it("returns safe non-root relative returnUrl", () => {
@@ -46,8 +46,8 @@ describe("normalizeAuthReturnUrl", () => {
     );
   });
 
-  it("returns /chat for external returnUrl", () => {
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/chat");
+  it("returns / for external returnUrl", () => {
+    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
   });
 });
 
