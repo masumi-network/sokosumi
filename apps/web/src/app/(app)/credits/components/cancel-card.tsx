@@ -40,7 +40,7 @@ export default function CancelCard({ className }: CancelCardProps) {
       </CardHeader>
       <CardContent>
         <Button asChild>
-          <Link href="/credits">{t("backToCredits")}</Link>
+          <Link href="/billing?tab=credits">{t("backToCredits")}</Link>
         </Button>
       </CardContent>
     </Card>

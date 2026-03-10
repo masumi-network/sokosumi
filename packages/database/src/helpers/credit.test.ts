@@ -6,8 +6,6 @@ import {
   buildUserInvoiceCreditReferenceId,
   FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
-  PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-  REFUND_CREDITS_EXPIRY_DAYS,
   splitAmountEvenlyWithRemainderRotation,
 } from "./credit.js";
 
@@ -122,9 +120,7 @@ describe("invoice credit reference builders", () => {
 
 describe("credit expiration policy", () => {
   it("defines expected expiration day constants", () => {
-    assert.equal(PAID_TOPUP_CREDITS_EXPIRY_DAYS, 180);
     assert.equal(FREE_CREDITS_EXPIRY_DAYS, 30);
-    assert.equal(REFUND_CREDITS_EXPIRY_DAYS, 180);
   });
 
   it("calculates expiration date from a base date and day count", () => {

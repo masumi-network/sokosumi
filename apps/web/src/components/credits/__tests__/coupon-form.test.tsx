@@ -17,7 +17,7 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: { days?: number }) => {
-    if (key === "expiryNotice") {
+    if (key === "couponExpiryNotice") {
       return `Credits expire after ${values?.days} days.`;
     }
     return key;

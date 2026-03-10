@@ -17,7 +17,6 @@ import {
   FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-  PAID_TOPUP_CREDITS_EXPIRY_DAYS,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
@@ -192,18 +191,14 @@ function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
   expiresAt: Date | null;
   referenceType: CreditBucketReferenceType;
 } {
-  const invoiceCreatedAt = resolveInvoiceCreatedAt(invoice);
-
   if (invoice.amount_paid > 0) {
     return {
-      expiresAt: getCreditExpiryDate(
-        invoiceCreatedAt,
-        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-      ),
+      expiresAt: null,
       referenceType: CreditBucketReferenceType.STRIPE_TOPUP,
     };
   }
 
+  const invoiceCreatedAt = resolveInvoiceCreatedAt(invoice);
   const freeTopUpExpiryDays = getTopUpExpiryDaysFromInvoiceMetadata(invoice);
   return {
     expiresAt:
@@ -722,9 +717,8 @@ export async function handleInvoicePaidEvent(
   }
 
   const billingReason = invoice.billing_reason;
-  const metadataTopUpCredits = getTopUpCreditsFromInvoiceMetadata(invoice);
-  const oneTimeTopUpCreditsFromMetadata = metadataTopUpCredits;
-  let oneTimeTopUpCredits = oneTimeTopUpCreditsFromMetadata ?? 0;
+  const topUpCreditsFromMetadata = getTopUpCreditsFromInvoiceMetadata(invoice);
+  let oneTimeTopUpCredits = topUpCreditsFromMetadata ?? 0;
   const oneTimeTopUpGrantPolicy = resolveTopUpGrantPolicy(invoice);
   const subscriptionLines: SubscriptionLine[] = [];
 
@@ -736,7 +730,7 @@ export async function handleInvoicePaidEvent(
       }
 
       if (productId === creditProductId) {
-        if (oneTimeTopUpCreditsFromMetadata === null) {
+        if (topUpCreditsFromMetadata === null) {
           oneTimeTopUpCredits += lineItem.quantity ?? 0;
         }
         continue;

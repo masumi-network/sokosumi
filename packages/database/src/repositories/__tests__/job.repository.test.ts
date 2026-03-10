@@ -5,11 +5,10 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../../generated/prisma/client.js";
-import { REFUND_CREDITS_EXPIRY_DAYS } from "../../helpers/credit.js";
 import { jobRepository } from "../job.repository.js";
 
 describe("jobRepository.refundJob", () => {
-  it("creates a refund bucket with REFUND reference type and 180-day expiry", async () => {
+  it("creates a refund bucket with REFUND reference type and no expiry", async () => {
     const updateCalls: unknown[] = [];
     const tx = {
       job: {
@@ -40,7 +39,7 @@ describe("jobRepository.refundJob", () => {
             organization?: { connect: { id: string } };
             sourceCreditBucket: {
               create: {
-                expiresAt: Date;
+                expiresAt: Date | null;
                 referenceId: string;
                 referenceType: CreditBucketReferenceType;
               };
@@ -68,14 +67,11 @@ describe("jobRepository.refundJob", () => {
       "org-1",
     );
 
-    const expiryDate =
+    assert.equal(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
-        .expiresAt;
-    const expectedDeltaMs = REFUND_CREDITS_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    const deltaMs = expiryDate.getTime() - Date.now();
-
-    assert.ok(deltaMs >= expectedDeltaMs - 2_000);
-    assert.ok(deltaMs <= expectedDeltaMs + 2_000);
+        .expiresAt,
+      null,
+    );
   });
 
   it("does nothing when job is already refunded", async () => {
