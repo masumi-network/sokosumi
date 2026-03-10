@@ -29,6 +29,7 @@ export default function NewChatButton({
   const isStandaloneChat = pathname.startsWith("/chat");
   const shouldOpenRail = false;
   //Keep it for now to avoid breaking changes:
+  //eslint-disable-next-line @typescript-eslint/no-unused-vars
   const holdOnToRail = isTaskRailEnabled && !isStandaloneChat;
 
   return (
