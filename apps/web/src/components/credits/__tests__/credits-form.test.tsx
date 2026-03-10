@@ -165,6 +165,33 @@ describe("CreditsForm", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows a paid subscription notice when top-ups are disabled", () => {
+    render(
+      <CreditsForm
+        isPurchaseEnabled={false}
+        priceCatalog={priceCatalog}
+        organization={null}
+      />,
+    );
+
+    expect(
+      screen.getByText("paidSubscriptionRequiredDescription"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("paidSubscriptionRequiredHint"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("spinbutton", {
+        name: "creditsLabel",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "topUpButton",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("submits purchase credits with the entered amount", async () => {
     const user = userEvent.setup();
     purchaseCreditsMock.mockResolvedValue({

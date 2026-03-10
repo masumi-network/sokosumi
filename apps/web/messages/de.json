@@ -1621,6 +1621,8 @@
         "unauthorizedPersonal": "Du bist nicht berechtigt, Credits zu kaufen",
         "unknownError": "Etwas ist schiefgelaufen"
       },
+      "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
+      "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
       "couponExpiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
     },
     "Connections": {

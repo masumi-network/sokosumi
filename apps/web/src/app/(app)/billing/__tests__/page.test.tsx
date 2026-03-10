@@ -11,6 +11,7 @@ const getBalanceMock = jest.fn();
 const getSubscriptionCatalogMock = jest.fn();
 const zeroMarginTopUpEnabledMock = jest.fn();
 const creditsSectionMock = jest.fn();
+const billingTabsMock = jest.fn();
 
 jest.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -88,21 +89,21 @@ jest.mock("@/components/billing/billing-portal-card", () => ({
 }));
 
 jest.mock("@/components/billing/billing-tabs", () => ({
-  BillingTabs: ({
-    couponContent,
-    creditsContent,
-    subscriptionContent,
-  }: {
+  BillingTabs: (props: {
     couponContent: React.ReactNode;
     creditsContent?: React.ReactNode;
+    showCreditsTab: boolean;
     subscriptionContent: React.ReactNode;
-  }) => (
-    <div data-testid="billing-tabs">
-      {subscriptionContent}
-      {creditsContent}
-      {couponContent}
-    </div>
-  ),
+  }) => {
+    billingTabsMock(props);
+    return (
+      <div data-testid="billing-tabs">
+        {props.subscriptionContent}
+        {props.creditsContent}
+        {props.couponContent}
+      </div>
+    );
+  },
 }));
 
 jest.mock("@/components/billing/coupon-section", () => ({
@@ -163,6 +164,13 @@ describe("BillingPage", () => {
   it("passes the zero-margin override to personal billing credits when the flag is enabled", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
+    listActiveSubscriptionsMock.mockResolvedValue([
+      {
+        periodEnd: "2026-03-01T00:00:00.000Z",
+        plan: "free",
+        seats: 1,
+      },
+    ]);
 
     const { default: BillingPage } = await import("../page");
 
@@ -176,6 +184,7 @@ describe("BillingPage", () => {
 
     expect(creditsSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        isPurchaseEnabled: true,
         organization: null,
         priceLookupKeyOverride: "credit_0_margin",
         returnPath: "/billing?tab=credits",
@@ -193,6 +202,13 @@ describe("BillingPage", () => {
       role: MemberRole.OWNER,
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
+    listActiveSubscriptionsMock.mockResolvedValue([
+      {
+        periodEnd: "2026-03-01T00:00:00.000Z",
+        plan: "free",
+        seats: 2,
+      },
+    ]);
 
     const { default: BillingPage } = await import("../page");
 
@@ -206,6 +222,7 @@ describe("BillingPage", () => {
 
     expect(creditsSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        isPurchaseEnabled: true,
         organization: expect.objectContaining({
           id: "org-1",
         }),
@@ -233,6 +250,41 @@ describe("BillingPage", () => {
       expect.objectContaining({
         organization: null,
         priceLookupKeyOverride: undefined,
+        returnPath: "/billing?tab=credits",
+      }),
+    );
+  });
+
+  it("shows the personal credits tab even on the free plan", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    listActiveSubscriptionsMock.mockResolvedValue([
+      {
+        periodEnd: "2026-03-01T00:00:00.000Z",
+        plan: "free",
+        seats: 1,
+      },
+    ]);
+
+    const { default: BillingPage } = await import("../page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "credits",
+        }),
+      }),
+    );
+
+    expect(billingTabsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showCreditsTab: true,
+      }),
+    );
+    expect(creditsSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isPurchaseEnabled: false,
+        organization: null,
         returnPath: "/billing?tab=credits",
       }),
     );

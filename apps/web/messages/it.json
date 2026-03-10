@@ -1607,6 +1607,8 @@
       "billingPortalCta": "Gestisci gli acquisti",
       "topUpTitle": "Ricarica i tuoi crediti",
       "topUpDescription": "Scegli un importo o inserisci un valore personalizzato",
+      "paidSubscriptionRequiredDescription": "È necessario un abbonamento a pagamento per acquistare crediti aggiuntivi.",
+      "paidSubscriptionRequiredHint": "Scegli un piano a pagamento nella scheda Abbonamento per sbloccare le ricariche di crediti.",
       "couponExpiryNotice": "I crediti scadono dopo {days, plural, one {# giorno} other {# giorni}}.",
       "costPerCredit": "{cost} per credito",
       "creditAmount": "{count, plural, one {# credito} other {# crediti}}",

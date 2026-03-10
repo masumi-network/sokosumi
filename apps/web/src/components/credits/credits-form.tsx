@@ -200,7 +200,9 @@ export default function CreditsForm({
               })}
             </div>
           ) : (
-            t("topUpDescription")
+            isPurchaseEnabled
+              ? t("topUpDescription")
+              : t("paidSubscriptionRequiredDescription")
           )}
         </CardDescription>
       </CardHeader>
@@ -257,20 +259,22 @@ export default function CreditsForm({
               </>
             ) : (
               <p className="text-muted-foreground text-sm">
-                {t("topUpDescription")}
+                {t("paidSubscriptionRequiredHint")}
               </p>
             )}
           </CardContent>
-          <CardFooter className="flex items-center justify-between pt-6">
-            <Button
-              type="submit"
-              disabled={isSubmitting || !hasValidCreditsValue}
-            >
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {organization ? t("topUpButtonOrganization") : t("topUpButton")}
-            </Button>
-            <div className="text-right">
-              {isPurchaseEnabled ? (
+          {isPurchaseEnabled ? (
+            <CardFooter className="flex items-center justify-between pt-6">
+              <Button
+                type="submit"
+                disabled={isSubmitting || !hasValidCreditsValue}
+              >
+                {isSubmitting && (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                )}
+                {organization ? t("topUpButtonOrganization") : t("topUpButton")}
+              </Button>
+              <div className="text-right">
                 <p className="text-muted-foreground text-sm">
                   {t("costPerCredit", {
                     cost: formatter.number(
@@ -283,9 +287,9 @@ export default function CreditsForm({
                     ),
                   })}
                 </p>
-              ) : null}
-            </div>
-          </CardFooter>
+              </div>
+            </CardFooter>
+          ) : null}
         </form>
       </Form>
     </Card>

@@ -128,7 +128,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       activeSubscriptions as ActiveSubscription[],
     );
     const currentPlan = parsePlanName(latestSubscription?.plan) ?? "free";
-    const canPurchaseCredits = isOwnerOrAdmin && currentPlan !== "free";
+    const canPurchaseCredits =
+      isOwnerOrAdmin &&
+      (currentPlan !== "free" || isZeroMarginTopUpEnabled);
     const creditsCheckoutParams =
       canPurchaseCredits && activeTab === "credits"
         ? { cancel: query.cancel, session_id: query.session_id }
@@ -182,7 +184,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               credits: t("tabs.credits"),
               subscription: t("tabs.subscription"),
             }}
-            showCreditsTab={canPurchaseCredits}
+            showCreditsTab
             subscriptionContent={
               <OrganizationSubscriptionSection
                 currentPlan={currentPlan}
@@ -194,15 +196,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               />
             }
             creditsContent={
-              canPurchaseCredits ? (
-                <CreditsSection
-                  isPurchaseEnabled={canPurchaseCredits}
-                  organization={activeOrganization}
-                  priceLookupKeyOverride={creditsPriceLookupKeyOverride}
-                  returnPath="/billing?tab=credits"
-                  searchParams={creditsCheckoutParams}
-                />
-              ) : undefined
+              <CreditsSection
+                isPurchaseEnabled={canPurchaseCredits}
+                organization={activeOrganization}
+                priceLookupKeyOverride={creditsPriceLookupKeyOverride}
+                returnPath="/billing?tab=credits"
+                searchParams={creditsCheckoutParams}
+              />
             }
             couponContent={
               <CouponSection
@@ -262,7 +262,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     };
   });
 
-  const canPurchaseCredits = currentPlan !== "free";
+  const canPurchaseCredits =
+    currentPlan !== "free" || isZeroMarginTopUpEnabled;
   const creditsCheckoutParams =
     canPurchaseCredits && activeTab === "credits"
       ? { cancel: query.cancel, session_id: query.session_id }
@@ -289,7 +290,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             credits: t("tabs.credits"),
             subscription: t("tabs.subscription"),
           }}
-          showCreditsTab={canPurchaseCredits}
+          showCreditsTab
           subscriptionContent={
             <PersonalSubscriptionSection
               plans={personalPlans}
@@ -298,15 +299,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             />
           }
           creditsContent={
-            canPurchaseCredits ? (
-              <CreditsSection
-                isPurchaseEnabled={canPurchaseCredits}
-                organization={null}
-                priceLookupKeyOverride={creditsPriceLookupKeyOverride}
-                returnPath="/billing?tab=credits"
-                searchParams={creditsCheckoutParams}
-              />
-            ) : undefined
+            <CreditsSection
+              isPurchaseEnabled={canPurchaseCredits}
+              organization={null}
+              priceLookupKeyOverride={creditsPriceLookupKeyOverride}
+              returnPath="/billing?tab=credits"
+              searchParams={creditsCheckoutParams}
+            />
           }
           couponContent={
             <CouponSection

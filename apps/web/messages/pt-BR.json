@@ -1607,6 +1607,8 @@
       "billingPortalCta": "Gerenciar compras",
       "topUpTitle": "Recarregar seus créditos",
       "topUpDescription": "Escolha um valor ou digite um valor personalizado",
+      "paidSubscriptionRequiredDescription": "É necessária uma assinatura paga para comprar créditos adicionais.",
+      "paidSubscriptionRequiredHint": "Escolha um plano pago na aba Assinatura para desbloquear as recargas de créditos.",
       "couponExpiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
       "costPerCredit": "{cost} por crédito",
       "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
