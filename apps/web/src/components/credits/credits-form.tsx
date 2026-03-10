@@ -179,6 +179,10 @@ export default function CreditsForm({
     : (priceLookupKeyOverride ?? BASE_CREDIT_TOPUP_LOOKUP_KEY);
   const selectedPrice = priceCatalog[selectedLookupKey];
 
+  if (!selectedPrice) {
+    throw new Error(`Missing credit top-up price for ${selectedLookupKey}`);
+  }
+
   return (
     <Card>
       <CardHeader>

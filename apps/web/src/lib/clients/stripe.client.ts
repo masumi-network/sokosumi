@@ -8,6 +8,7 @@ import {
   CREDIT_TOPUP_LOOKUP_KEYS,
   CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
+  type StandardCreditTopUpLookupKey,
 } from "@/lib/stripe/credit-topup-pricing";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 
@@ -17,7 +18,11 @@ export interface Price {
   currency: string;
 }
 
-export type CreditTopUpPriceCatalog = Record<CreditTopUpLookupKey, Price>;
+export type CreditTopUpPriceCatalog = Record<
+  StandardCreditTopUpLookupKey,
+  Price
+> &
+  Partial<Record<CreditTopUpLookupKey, Price>>;
 
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);

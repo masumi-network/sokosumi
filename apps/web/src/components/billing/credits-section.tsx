@@ -29,7 +29,15 @@ export default async function CreditsSection({
   const sessionId = searchParams?.session_id;
   const cancel = searchParams?.cancel;
 
-  const priceCatalog = await stripeClient.getCreditTopUpPriceCatalog();
+  const basePriceCatalog = await stripeClient.getCreditTopUpPriceCatalog();
+  const priceCatalog = priceLookupKeyOverride
+    ? {
+        ...basePriceCatalog,
+        [priceLookupKeyOverride]: await stripeClient.getPriceByLookupKey(
+          priceLookupKeyOverride,
+        ),
+      }
+    : basePriceCatalog;
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
   const checkoutSession = sessionId
     ? await stripeClient.getCheckoutSession(sessionId).catch(() => null)
