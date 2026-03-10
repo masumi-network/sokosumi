@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import {
   DEPLOYMENT_REFRESH_KEY,
+  isStaleDeploymentError,
   performDeploymentRefresh,
 } from "@/lib/utils/deployment-refresh";
 
