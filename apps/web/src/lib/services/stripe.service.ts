@@ -79,12 +79,19 @@ export const stripeService = (() => {
         throw new UnAuthenticatedError("User not authorized");
       }
       try {
-        const stripeCustomerId = await getStripeCustomerId(
+        let stripeCustomerId = await getStripeCustomerId(
           userId,
           organizationId,
         );
         if (!stripeCustomerId) {
-          throw new Error("Stripe customer not found");
+          const customer = organizationId
+            ? await this.createStripeCustomerForOrganization(organizationId)
+            : await this.createStripeCustomerForUser(userId);
+          if (!customer) {
+            throw new Error("Stripe customer not found");
+          }
+
+          stripeCustomerId = customer.id;
         }
 
         const headerList = await headers();
