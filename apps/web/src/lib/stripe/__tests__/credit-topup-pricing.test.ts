@@ -2,6 +2,7 @@ import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
   getCreditTopUpLookupKeyByCredits,
   isPositiveIntegerCredits,
+  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "../credit-topup-pricing";
 
 describe("credit-topup-pricing", () => {
@@ -15,6 +16,24 @@ describe("credit-topup-pricing", () => {
 
   it("exports the base lookup key for coupon checkout", () => {
     expect(BASE_CREDIT_TOPUP_LOOKUP_KEY).toBe("credit_20_margin");
+  });
+
+  it("uses the provided lookup key override for every valid amount", () => {
+    expect(
+      getCreditTopUpLookupKeyByCredits(1, ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY),
+    ).toBe("credit_0_margin");
+    expect(
+      getCreditTopUpLookupKeyByCredits(
+        10_000,
+        ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
+      ),
+    ).toBe("credit_0_margin");
+    expect(
+      getCreditTopUpLookupKeyByCredits(
+        250_000,
+        ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
+      ),
+    ).toBe("credit_0_margin");
   });
 
   it("rejects invalid credit amounts", () => {

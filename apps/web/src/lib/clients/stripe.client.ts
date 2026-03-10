@@ -329,8 +329,14 @@ export const stripeClient = (() => {
       }
     },
 
-    async getCreditTopUpPriceByCredits(credits: number): Promise<Price> {
-      const lookupKey = getCreditTopUpLookupKeyByCredits(credits);
+    async getCreditTopUpPriceByCredits(
+      credits: number,
+      lookupKeyOverride?: CreditTopUpLookupKey,
+    ): Promise<Price> {
+      const lookupKey = getCreditTopUpLookupKeyByCredits(
+        credits,
+        lookupKeyOverride,
+      );
       return await this.getPriceByLookupKey(lookupKey);
     },
 

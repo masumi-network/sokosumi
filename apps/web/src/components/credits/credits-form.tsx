@@ -38,6 +38,7 @@ import { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  type CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
   isPositiveIntegerCredits,
 } from "@/lib/stripe/credit-topup-pricing";
@@ -68,6 +69,7 @@ interface CreditsFormProps {
   isPurchaseEnabled?: boolean;
   priceCatalog: CreditTopUpPriceCatalog;
   organization: Organization | null;
+  priceLookupKeyOverride?: CreditTopUpLookupKey;
   returnPath?: string;
 }
 
@@ -75,6 +77,7 @@ export default function CreditsForm({
   isPurchaseEnabled = true,
   priceCatalog,
   organization,
+  priceLookupKeyOverride,
   returnPath,
 }: CreditsFormProps) {
   const t = useTranslations("App.Credits");
@@ -123,6 +126,7 @@ export default function CreditsForm({
       const result = await purchaseCredits({
         organizationId: organization?.id ?? null,
         credits: creditsAmount,
+        priceLookupKeyOverride,
         returnPath,
       });
 
@@ -156,7 +160,14 @@ export default function CreditsForm({
         }
       }
     },
-    [isPurchaseEnabled, organization, returnPath, router, t],
+    [
+      isPurchaseEnabled,
+      organization,
+      priceLookupKeyOverride,
+      returnPath,
+      router,
+      t,
+    ],
   );
 
   const handleQuickAmount = useCallback(
@@ -170,8 +181,11 @@ export default function CreditsForm({
   const hasValidCreditsValue =
     hasValidCreditsInput(credits) && isPurchaseEnabled;
   const selectedLookupKey = isPositiveIntegerCredits(credits ?? Number.NaN)
-    ? getCreditTopUpLookupKeyByCredits(credits as number)
-    : BASE_CREDIT_TOPUP_LOOKUP_KEY;
+    ? getCreditTopUpLookupKeyByCredits(
+        credits as number,
+        priceLookupKeyOverride,
+      )
+    : (priceLookupKeyOverride ?? BASE_CREDIT_TOPUP_LOOKUP_KEY);
   const selectedPrice = priceCatalog[selectedLookupKey];
 
   return (
@@ -181,7 +195,7 @@ export default function CreditsForm({
         <CardDescription>
           {organization ? (
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
+              <Building2 className="size-4" />
               {t("purchaseForOrganization", {
                 organization: organization.name,
               })}

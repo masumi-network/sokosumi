@@ -91,6 +91,48 @@ describe("credits actions", () => {
     });
   });
 
+  it("uses the lookup key override in purchaseCredits", async () => {
+    getCreditTopUpPriceByCreditsMock.mockResolvedValue({
+      id: "price_zero_margin",
+      amountPerCredit: 10,
+      currency: "eur",
+    });
+    createStripeCheckoutSessionMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/session/zero-margin",
+    });
+
+    const { purchaseCredits } = await import("../action");
+
+    const result = await purchaseCredits({
+      session,
+      organizationId: null,
+      credits: 250_000,
+      priceLookupKeyOverride: "credit_0_margin",
+      returnPath: "/billing/top-up-secret",
+    });
+
+    expect(getCreditTopUpPriceByCreditsMock).toHaveBeenCalledWith(
+      250_000,
+      "credit_0_margin",
+    );
+    expect(createStripeCheckoutSessionMock).toHaveBeenCalledWith(
+      "user-1",
+      null,
+      250_000,
+      {
+        id: "price_zero_margin",
+        amountPerCredit: 10,
+        currency: "eur",
+      },
+      null,
+      "/billing/top-up-secret",
+    );
+    expect(result).toEqual({
+      ok: true,
+      data: { url: "https://checkout.stripe.com/session/zero-margin" },
+    });
+  });
+
   it("uses base tier price for coupon checkout regardless of coupon credits", async () => {
     getCouponMock.mockResolvedValue({
       id: "coupon_1",

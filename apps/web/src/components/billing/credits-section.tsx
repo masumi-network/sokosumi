@@ -6,10 +6,12 @@ import CreditsSuccessModal from "@/app/credits/components/success-modal";
 import CreditsForm from "@/components/credits/credits-form";
 import { stripeClient } from "@/lib/clients";
 import { agentService } from "@/lib/services";
+import { type CreditTopUpLookupKey } from "@/lib/stripe/credit-topup-pricing";
 
 interface CreditsSectionProps {
   isPurchaseEnabled?: boolean;
   organization: Organization | null;
+  priceLookupKeyOverride?: CreditTopUpLookupKey;
   returnPath?: string;
   searchParams?: {
     cancel?: string;
@@ -20,6 +22,7 @@ interface CreditsSectionProps {
 export default async function CreditsSection({
   isPurchaseEnabled = true,
   organization,
+  priceLookupKeyOverride,
   returnPath,
   searchParams,
 }: CreditsSectionProps) {
@@ -36,6 +39,7 @@ export default async function CreditsSection({
     <>
       <CreditsForm
         isPurchaseEnabled={isPurchaseEnabled}
+        priceLookupKeyOverride={priceLookupKeyOverride}
         priceCatalog={priceCatalog}
         organization={organization}
         returnPath={returnPath}

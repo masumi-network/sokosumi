@@ -73,6 +73,11 @@ jest.mock("@/lib/gtm-events", () => ({
 }));
 
 const priceCatalog: CreditTopUpPriceCatalog = {
+  credit_0_margin: {
+    id: "price_0",
+    amountPerCredit: 1.0,
+    currency: "usd",
+  },
   credit_20_margin: {
     id: "price_20",
     amountPerCredit: 1.2,
@@ -117,6 +122,31 @@ describe("CreditsForm", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the displayed cost fixed when a lookup key override is provided", async () => {
+    const user = userEvent.setup();
+    render(
+      <CreditsForm
+        priceCatalog={priceCatalog}
+        organization={null}
+        priceLookupKeyOverride="credit_0_margin"
+      />,
+    );
+
+    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+
+    const creditsInput = screen.getByRole("spinbutton", {
+      name: "creditsLabel",
+    });
+
+    await user.clear(creditsInput);
+    await user.type(creditsInput, "10000");
+    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+
+    await user.clear(creditsInput);
+    await user.type(creditsInput, "250000");
+    expect(screen.getByText("usd:0.0100 per credit")).toBeInTheDocument();
+  });
+
   it("allows single-credit granularity without a hard max", () => {
     render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
 
@@ -158,6 +188,38 @@ describe("CreditsForm", () => {
     expect(purchaseCreditsMock).toHaveBeenCalledWith({
       organizationId: null,
       credits: 150,
+    });
+  });
+
+  it("submits the lookup key override when provided", async () => {
+    const user = userEvent.setup();
+    purchaseCreditsMock.mockResolvedValue({
+      ok: false,
+      error: { code: "INVALID_CREDITS" },
+    });
+
+    render(
+      <CreditsForm
+        priceCatalog={priceCatalog}
+        organization={null}
+        priceLookupKeyOverride="credit_0_margin"
+        returnPath="/billing/top-up-secret"
+      />,
+    );
+
+    const creditsInput = screen.getByRole("spinbutton", {
+      name: "creditsLabel",
+    });
+    const submitButton = screen.getByRole("button", { name: "topUpButton" });
+
+    await user.type(creditsInput, "150");
+    await user.click(submitButton);
+
+    expect(purchaseCreditsMock).toHaveBeenCalledWith({
+      organizationId: null,
+      credits: 150,
+      priceLookupKeyOverride: "credit_0_margin",
+      returnPath: "/billing/top-up-secret",
     });
   });
 });
