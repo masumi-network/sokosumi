@@ -61,22 +61,19 @@ describe("organizationSubscriptionService", () => {
   });
 
   describe("ensureCanCreateInvitation", () => {
-    it("throws when no active organization subscription exists", async () => {
-      findSubscriptionMock.mockResolvedValue(null);
-
+    it("allows creating invitations without an active organization subscription", async () => {
       const { organizationSubscriptionService } =
         await import("../organization-subscription.service");
 
       await expect(
         organizationSubscriptionService.ensureCanCreateInvitation("org-1"),
-      ).rejects.toThrow(
-        "An active organization subscription is required before adding members.",
-      );
+      ).resolves.toBeUndefined();
     });
 
-    it("checks active subscription without updating seats", async () => {
+    it("does not load subscription data or update seats when creating invitations", async () => {
       findSubscriptionMock.mockResolvedValue({
         id: "sub-row-1",
+        plan: "starter",
         seats: 2,
         stripeSubscriptionId: "sub_stripe_1",
       });
@@ -86,6 +83,7 @@ describe("organizationSubscriptionService", () => {
 
       await organizationSubscriptionService.ensureCanCreateInvitation("org-1");
 
+      expect(findSubscriptionMock).not.toHaveBeenCalled();
       expect(memberCountMock).not.toHaveBeenCalled();
       expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
@@ -94,8 +92,7 @@ describe("organizationSubscriptionService", () => {
   });
 
   describe("ensureCanAcceptInvitation", () => {
-    it("throws when no active organization subscription exists", async () => {
-      memberCountMock.mockResolvedValue(2);
+    it("allows accepting invitations without an active organization subscription", async () => {
       findSubscriptionMock.mockResolvedValue(null);
 
       const { organizationSubscriptionService } =
@@ -103,15 +100,38 @@ describe("organizationSubscriptionService", () => {
 
       await expect(
         organizationSubscriptionService.ensureCanAcceptInvitation("org-1"),
-      ).rejects.toThrow(
-        "An active organization subscription is required before adding members.",
-      );
+      ).resolves.toBeUndefined();
+
+      expect(memberCountMock).not.toHaveBeenCalled();
+      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
 
-    it("updates Stripe and local subscription seats when capacity is insufficient", async () => {
+    it("does not increase seats for free subscriptions", async () => {
+      findSubscriptionMock.mockResolvedValue({
+        id: "sub-row-1",
+        plan: "free",
+        seats: 2,
+        stripeSubscriptionId: "sub_stripe_1",
+      });
+
+      const { organizationSubscriptionService } =
+        await import("../organization-subscription.service");
+
+      await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
+
+      expect(memberCountMock).not.toHaveBeenCalled();
+      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
+    });
+
+    it("updates Stripe and local subscription seats when a paid subscription lacks capacity", async () => {
       memberCountMock.mockResolvedValue(4);
       findSubscriptionMock.mockResolvedValue({
         id: "sub-row-1",
+        plan: "starter",
         seats: 2,
         stripeSubscriptionId: "sub_stripe_1",
       });
@@ -150,6 +170,7 @@ describe("organizationSubscriptionService", () => {
       memberCountMock.mockResolvedValue(3);
       findSubscriptionMock.mockResolvedValue({
         id: "sub-row-1",
+        plan: "starter",
         seats: 10,
         stripeSubscriptionId: "sub_stripe_1",
       });
@@ -211,6 +232,7 @@ describe("organizationSubscriptionService", () => {
       });
       findSubscriptionMock.mockResolvedValue({
         id: "sub-row-1",
+        plan: "starter",
         seats: 4,
         stripeSubscriptionId: "sub_stripe_1",
       });
@@ -239,6 +261,7 @@ describe("organizationSubscriptionService", () => {
       });
       findSubscriptionMock.mockResolvedValue({
         id: "sub-row-1",
+        plan: "starter",
         seats: 2,
         stripeSubscriptionId: "sub_stripe_1",
       });

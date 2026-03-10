@@ -13,6 +13,7 @@ const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 interface ActiveOrganizationSubscription {
   id: string;
+  plan: string;
   seats: number | null;
   stripeSubscriptionId: string | null;
 }
@@ -28,6 +29,7 @@ async function getLatestActiveOrganizationSubscription(
     organizationId,
     select: {
       id: true,
+      plan: true,
       seats: true,
       stripeSubscriptionId: true,
     },
@@ -144,6 +146,12 @@ function ensureStripeSubscriptionId(
   return activeSubscription.stripeSubscriptionId;
 }
 
+function isPaidOrganizationSubscription(
+  activeSubscription: ActiveOrganizationSubscription,
+): boolean {
+  return activeSubscription.plan !== "free";
+}
+
 async function syncOrganizationSeatCount(
   activeSubscription: ActiveOrganizationSubscription,
   seats: number,
@@ -186,21 +194,21 @@ export const organizationSubscriptionService = (() => {
       return { seats };
     },
 
-    async ensureCanCreateInvitation(organizationId: string): Promise<void> {
-      await ensureActiveOrganizationSubscription(
-        organizationId,
-        "An active organization subscription is required before adding members.",
-      );
+    async ensureCanCreateInvitation(_organizationId: string): Promise<void> {
+      return;
     },
 
     async ensureCanAcceptInvitation(organizationId: string): Promise<void> {
-      const [requiredSeats, activeSubscription] = await Promise.all([
-        getRequiredSeatsForNextMember(organizationId),
-        ensureActiveOrganizationSubscription(
-          organizationId,
-          "An active organization subscription is required before adding members.",
-        ),
-      ]);
+      const activeSubscription =
+        await getLatestActiveOrganizationSubscription(organizationId);
+      if (
+        !activeSubscription ||
+        !isPaidOrganizationSubscription(activeSubscription)
+      ) {
+        return;
+      }
+
+      const requiredSeats = await getRequiredSeatsForNextMember(organizationId);
 
       const currentSeats = resolveCurrentSeats(activeSubscription.seats);
       if (currentSeats >= requiredSeats) {
