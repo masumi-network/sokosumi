@@ -23,7 +23,9 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
+import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { userService } from "@/lib/services";
+import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
 import {
   getSubscriptionCatalog,
   type SubscriptionPlanName,
@@ -66,15 +68,22 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
   const t = await getTranslations("App.Billing");
-  const query = await searchParams;
+  const [query, session, activeOrganization, isZeroMarginTopUpEnabled] =
+    await Promise.all([
+      searchParams,
+      getSession(),
+      userService.getActiveOrganization(),
+      zeroMarginTopUpEnabled(),
+    ]);
   const activeTab = parseBillingTab(query.tab);
-  const session = await getSession();
-  const activeOrganization = await userService.getActiveOrganization();
 
   if (!session) {
     return null;
   }
   const userId = session.user.id;
+  const creditsPriceLookupKeyOverride = isZeroMarginTopUpEnabled
+    ? ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY
+    : undefined;
 
   if (activeOrganization) {
     const [member, requestHeaders, subscriptionCatalog] = await Promise.all([
@@ -189,6 +198,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 <CreditsSection
                   isPurchaseEnabled={canPurchaseCredits}
                   organization={activeOrganization}
+                  priceLookupKeyOverride={creditsPriceLookupKeyOverride}
                   returnPath="/billing?tab=credits"
                   searchParams={creditsCheckoutParams}
                 />
@@ -292,6 +302,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <CreditsSection
                 isPurchaseEnabled={canPurchaseCredits}
                 organization={null}
+                priceLookupKeyOverride={creditsPriceLookupKeyOverride}
                 returnPath="/billing?tab=credits"
                 searchParams={creditsCheckoutParams}
               />
