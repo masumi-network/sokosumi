@@ -132,6 +132,7 @@
       "privacyPolicy": "Política de privacidade",
       "imprint": "Informações legais",
       "acceptableUse": "Uso aceitável",
+      "settings": "Configurações",
       "logout": "Sair",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
       "creditsSummary": "Resumo de créditos:",

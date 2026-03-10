@@ -23,6 +23,7 @@ import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatButton from "./components/new-chat-button";
 import ProfileSwitch from "./components/profile-switch";
+import UserSettingsMenu from "./components/user-settings-menu";
 
 interface SidebarProps {
   session: Session;
@@ -70,8 +71,10 @@ export default function Sidebar({ session, isTaskRailEnabled }: SidebarProps) {
             showCtaButtons={false}
             showCreditUsage
             showCreditUsageOnMobileOnly
+            showAvatar={false}
           />
         </div>
+        <UserSettingsMenu session={session} />
       </SidebarFooter>
     </ShadcnSidebar>
   );

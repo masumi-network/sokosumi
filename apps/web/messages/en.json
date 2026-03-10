@@ -132,6 +132,7 @@
       "privacyPolicy": "Privacy Policy",
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use",
+      "settings": "Settings",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
       "creditsSummary": "Credits Summary:",

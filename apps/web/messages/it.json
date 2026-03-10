@@ -132,6 +132,7 @@
       "privacyPolicy": "Informativa sulla privacy",
       "imprint": "Note legali",
       "acceptableUse": "Uso accettabile",
+      "settings": "Impostazioni",
       "logout": "Esci",
       "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
       "creditsSummary": "Riepilogo crediti:",
