@@ -108,8 +108,21 @@ describe("organizationSubscriptionService", () => {
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
 
-    it("does not increase seats when no paid subscription exists", async () => {
-      findSubscriptionMock.mockResolvedValue(null);
+    it("updates Stripe and local seats when a free subscription lacks capacity", async () => {
+      memberCountMock.mockResolvedValue(4);
+      findSubscriptionMock.mockResolvedValue({
+        id: "sub-row-1",
+        plan: "free",
+        seats: 2,
+        stripeSubscriptionId: "sub_stripe_1",
+      });
+      retrieveStripeSubscriptionMock.mockResolvedValue({
+        items: {
+          data: [{ id: "si_1" }],
+        },
+      });
+      updateStripeSubscriptionMock.mockResolvedValue({});
+      updateSubscriptionRecordMock.mockResolvedValue({});
 
       const { organizationSubscriptionService } =
         await import("../organization-subscription.service");
@@ -119,9 +132,6 @@ describe("organizationSubscriptionService", () => {
       expect(findSubscriptionMock).toHaveBeenCalledWith({
         where: {
           referenceId: "org-1",
-          plan: {
-            not: "free",
-          },
           status: {
             in: ["active", "trialing", "past_due", "unpaid"],
           },
@@ -133,10 +143,22 @@ describe("organizationSubscriptionService", () => {
           stripeSubscriptionId: true,
         },
       });
-      expect(memberCountMock).not.toHaveBeenCalled();
-      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
+      expect(retrieveStripeSubscriptionMock).toHaveBeenCalledWith(
+        "sub_stripe_1",
+        { expand: ["items"] },
+      );
+      expect(updateStripeSubscriptionMock).toHaveBeenCalledWith(
+        "sub_stripe_1",
+        {
+          items: [{ id: "si_1", quantity: 5 }],
+          payment_behavior: "error_if_incomplete",
+          proration_behavior: "always_invoice",
+        },
+      );
+      expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
+        where: { id: "sub-row-1" },
+        data: { seats: 5 },
+      });
     });
 
     it("updates Stripe and local subscription seats when a paid subscription lacks capacity", async () => {

@@ -32,21 +32,3 @@ export async function getLatestActiveOrganizationSubscription(
     select: options.select,
   });
 }
-
-export async function getLatestActivePaidOrganizationSubscription(
-  options: GetLatestActiveOrganizationSubscriptionOptions,
-) {
-  return await prisma.subscription.findFirst({
-    where: {
-      referenceId: options.organizationId,
-      plan: {
-        not: "free",
-      },
-      status: {
-        in: [...ACTIVE_ORGANIZATION_SUBSCRIPTION_STATUSES],
-      },
-    },
-    orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
-    select: options.select,
-  });
-}
