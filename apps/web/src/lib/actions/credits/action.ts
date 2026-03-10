@@ -7,6 +7,7 @@ import {
 } from "@/lib/actions/errors";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
+import { resolveZeroMarginTopUpLookupKey } from "@/lib/flags/zero-margin-top-up";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
 import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
@@ -49,7 +50,15 @@ export const purchaseCredits = withSession<
   }
 
   try {
-    const price = await stripeClient.getCreditTopUpPriceByCredits(credits);
+    const priceLookupKeyOverride = resolveZeroMarginTopUpLookupKey(
+      session.user.email,
+    );
+    const price = priceLookupKeyOverride
+      ? await stripeClient.getCreditTopUpPriceByCredits(
+          credits,
+          priceLookupKeyOverride,
+        )
+      : await stripeClient.getCreditTopUpPriceByCredits(credits);
 
     // Create the checkout session
     const { url } = await stripeService.createStripeCheckoutSession(

@@ -3,8 +3,10 @@ import Link from "next/link";
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { Session } from "@/lib/auth/auth";
+import { taskRailEnabled } from "@/lib/flags/task-rail";
 import { cn } from "@/lib/utils";
 
+import ChatRailTrigger from "./chat-rail-trigger";
 import CustomTrigger from "./sidebar/components/custom-trigger";
 import UserCredits from "./user-credits";
 
@@ -13,7 +15,9 @@ interface HeaderProps {
   className?: string | undefined;
 }
 
-export default function Header({ session, className }: HeaderProps) {
+export default async function Header({ session, className }: HeaderProps) {
+  const isTaskRailEnabled = await taskRailEnabled();
+
   return (
     <header
       className={cn(
@@ -21,21 +25,27 @@ export default function Header({ session, className }: HeaderProps) {
         className,
       )}
     >
-      <div className="flex w-full items-center gap-2 p-2 pl-0 md:hidden md:w-auto">
-        <CustomTrigger when="invisible" />
-        <Link href="/">
-          <ThemedLogo
-            LogoComponent={SokosumiLogo}
-            priority
-            width={123}
-            height={16}
-          />
-        </Link>
+      <div className="flex w-full items-center justify-between gap-2 p-2 pl-0 md:hidden md:w-auto">
+        <div className="flex items-center gap-2">
+          <CustomTrigger when="invisible" />
+          <Link href="/">
+            <ThemedLogo
+              LogoComponent={SokosumiLogo}
+              priority
+              width={123}
+              height={16}
+            />
+          </Link>
+        </div>
+        {isTaskRailEnabled ? <ChatRailTrigger /> : null}
       </div>
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
-        <UserCredits session={session} />
+        <div className="flex items-center gap-2">
+          <UserCredits session={session} showAvatar={false} />
+        </div>
+        {isTaskRailEnabled ? <ChatRailTrigger /> : null}
       </div>
     </header>
   );

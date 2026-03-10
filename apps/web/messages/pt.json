@@ -135,9 +135,12 @@
       "logout": "Terminar sessão",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
       "creditsSummary": "Resumo de créditos:",
+      "subscriptionUsage": "Uso da subscrição:",
+      "extraCredits": "Créditos extra:",
+      "extraCreditsDescription": "Nunca expiram",
       "creditsConsumedProgressAria": "Créditos de subscrição consumidos",
-      "creditsExpiresInDays": "Os créditos reiniciam em {days, plural, =1 {1 dia} other {# dias}}",
-      "creditsExpiresToday": "Os créditos reiniciam hoje",
+      "creditsExpiresInDays": "Os créditos se renovam em {days, plural, =1 {1 dia} other {# dias}}",
+      "creditsExpiresToday": "Os créditos se renovam hoje",
       "creditsExpired": "Créditos expirados"
     },
     "OrganizationSwitcher": {
@@ -1071,6 +1074,9 @@
     "delete": "Eliminar",
     "cancel": "Cancelar",
     "save": "Guardar",
+    "ChatRail": {
+      "chat": "Chat"
+    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1472,7 +1478,7 @@
     "Header": {
       "Credit": {
         "buy": "Adicionar créditos",
-        "extraCredits": "{credits, plural, =0 {0 créditos extra} =1 {1 crédito extra} other {# créditos extra}}",
+        "extraCredits": "{credits, plural, =0 {0 disponíveis} =1 {1 disponível} other {# disponíveis}}",
         "userBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}}",
         "organizationBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}} ({organization})",
         "unavailable": "Créditos indisponíveis"
@@ -1603,7 +1609,9 @@
       "billingPortalCta": "Gerir compras",
       "topUpTitle": "Recarregar os seus créditos",
       "topUpDescription": "Escolha um montante ou introduza um valor personalizado",
-      "expiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
+      "paidSubscriptionRequiredDescription": "É necessária uma subscrição paga para comprar créditos adicionais.",
+      "paidSubscriptionRequiredHint": "Escolha um plano pago no separador Subscrição para desbloquear os carregamentos de créditos.",
+      "couponExpiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
       "costPerCredit": "{cost} por crédito",
       "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
       "creditsLabel": "Número de créditos",

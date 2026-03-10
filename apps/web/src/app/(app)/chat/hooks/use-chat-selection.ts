@@ -34,6 +34,7 @@ interface UseChatSelectionProps {
   isConversationsLoading?: boolean;
   isSelectedChatStreaming?: boolean;
   isConversationLoading?: boolean;
+  enabled?: boolean;
 }
 
 function getNextConversationAfterDelete(
@@ -110,6 +111,7 @@ export function useChatSelection({
   isConversationsLoading = false,
   isSelectedChatStreaming = false,
   isConversationLoading: isConversationLoadingProp = false,
+  enabled = true,
 }: UseChatSelectionProps) {
   const router = useRouter();
   const basePath = "/chat";
@@ -202,6 +204,10 @@ export function useChatSelection({
   // Sync URL parameter with selectedChatId on mount and when URL changes
   // Only sync when URL changes externally (not when we update it ourselves)
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     // Skip if we're updating the URL ourselves
     const wasUpdatingUrl = isUpdatingUrlRef.current;
     const pending = pendingUrlConversationIdRef.current;
@@ -367,6 +373,7 @@ export function useChatSelection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     basePath,
+    enabled,
     urlConversationId,
     pathname,
     bucketSlug,

@@ -148,6 +148,8 @@ model Subscription {
   canceledAt           DateTime?
   endedAt              DateTime?
   seats                Int?
+  billingInterval      String?
+  stripeScheduleId     String?
 
   @@unique([stripeSubscriptionId])
   @@index([referenceId])

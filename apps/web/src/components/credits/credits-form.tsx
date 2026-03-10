@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Organization } from "@sokosumi/database";
-import { PAID_TOPUP_CREDITS_EXPIRY_DAYS } from "@sokosumi/database/helpers";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -38,6 +37,7 @@ import { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  type CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
   isPositiveIntegerCredits,
 } from "@/lib/stripe/credit-topup-pricing";
@@ -68,6 +68,7 @@ interface CreditsFormProps {
   isPurchaseEnabled?: boolean;
   priceCatalog: CreditTopUpPriceCatalog;
   organization: Organization | null;
+  priceLookupKeyOverride?: CreditTopUpLookupKey;
   returnPath?: string;
 }
 
@@ -75,6 +76,7 @@ export default function CreditsForm({
   isPurchaseEnabled = true,
   priceCatalog,
   organization,
+  priceLookupKeyOverride,
   returnPath,
 }: CreditsFormProps) {
   const t = useTranslations("App.Credits");
@@ -170,24 +172,33 @@ export default function CreditsForm({
   const hasValidCreditsValue =
     hasValidCreditsInput(credits) && isPurchaseEnabled;
   const selectedLookupKey = isPositiveIntegerCredits(credits ?? Number.NaN)
-    ? getCreditTopUpLookupKeyByCredits(credits as number)
-    : BASE_CREDIT_TOPUP_LOOKUP_KEY;
+    ? getCreditTopUpLookupKeyByCredits(
+        credits as number,
+        priceLookupKeyOverride,
+      )
+    : (priceLookupKeyOverride ?? BASE_CREDIT_TOPUP_LOOKUP_KEY);
   const selectedPrice = priceCatalog[selectedLookupKey];
+
+  if (!selectedPrice) {
+    throw new Error(`Missing credit top-up price for ${selectedLookupKey}`);
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t("topUpTitle")}</CardTitle>
         <CardDescription>
-          {organization ? (
+          {isPurchaseEnabled && organization ? (
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
+              <Building2 className="size-4" />
               {t("purchaseForOrganization", {
                 organization: organization.name,
               })}
             </div>
-          ) : (
+          ) : isPurchaseEnabled ? (
             t("topUpDescription")
+          ) : (
+            t("paidSubscriptionRequiredDescription")
           )}
         </CardDescription>
       </CardHeader>
@@ -244,20 +255,22 @@ export default function CreditsForm({
               </>
             ) : (
               <p className="text-muted-foreground text-sm">
-                {t("topUpDescription")}
+                {t("paidSubscriptionRequiredHint")}
               </p>
             )}
           </CardContent>
-          <CardFooter className="flex items-center justify-between pt-6">
-            <Button
-              type="submit"
-              disabled={isSubmitting || !hasValidCreditsValue}
-            >
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {organization ? t("topUpButtonOrganization") : t("topUpButton")}
-            </Button>
-            <div className="text-right">
-              {isPurchaseEnabled ? (
+          {isPurchaseEnabled ? (
+            <CardFooter className="flex items-center justify-between pt-6">
+              <Button
+                type="submit"
+                disabled={isSubmitting || !hasValidCreditsValue}
+              >
+                {isSubmitting && (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                )}
+                {organization ? t("topUpButtonOrganization") : t("topUpButton")}
+              </Button>
+              <div className="text-right">
                 <p className="text-muted-foreground text-sm">
                   {t("costPerCredit", {
                     cost: formatter.number(
@@ -270,14 +283,9 @@ export default function CreditsForm({
                     ),
                   })}
                 </p>
-              ) : null}
-              <p className="text-muted-foreground text-xs">
-                {t("expiryNotice", {
-                  days: PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-                })}
-              </p>
-            </div>
-          </CardFooter>
+              </div>
+            </CardFooter>
+          ) : null}
         </form>
       </Form>
     </Card>

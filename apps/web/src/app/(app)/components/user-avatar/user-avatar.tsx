@@ -14,6 +14,9 @@ interface UserAvatarProps {
   primaryLabel?: string;
   secondaryLabel?: string;
   session: Session;
+  showAvatar?: boolean;
+  showCreditUsage?: boolean;
+  showCreditUsageOnMobileOnly?: boolean;
   subscriptionPeriodEndMs?: number | null;
 }
 
@@ -24,6 +27,9 @@ export default async function UserAvatar({
   primaryLabel,
   secondaryLabel,
   session,
+  showAvatar = true,
+  showCreditUsage = true,
+  showCreditUsageOnMobileOnly = false,
   subscriptionPeriodEndMs,
 }: UserAvatarProps) {
   return (
@@ -35,6 +41,9 @@ export default async function UserAvatar({
         creditsLabel={creditsLabel}
         primaryLabel={primaryLabel}
         secondaryLabel={secondaryLabel}
+        showAvatar={showAvatar}
+        showCreditUsage={showCreditUsage}
+        showCreditUsageOnMobileOnly={showCreditUsageOnMobileOnly}
         subscriptionPeriodEndMs={subscriptionPeriodEndMs}
       />
     </Suspense>
@@ -48,6 +57,9 @@ async function UserAvatarInner({
   creditsLabel,
   primaryLabel,
   secondaryLabel,
+  showAvatar,
+  showCreditUsage,
+  showCreditUsageOnMobileOnly,
   subscriptionPeriodEndMs,
 }: {
   creditUsage: CreditUsage | null | undefined;
@@ -56,6 +68,9 @@ async function UserAvatarInner({
   primaryLabel: string | undefined;
   secondaryLabel: string | undefined;
   session: Session;
+  showAvatar: boolean;
+  showCreditUsage: boolean;
+  showCreditUsageOnMobileOnly: boolean;
   subscriptionPeriodEndMs: number | null | undefined;
 }) {
   const members = await userService.getMyMembersWithOrganizations();
@@ -71,6 +86,9 @@ async function UserAvatarInner({
       creditsLabel={creditsLabel}
       primaryLabel={primaryLabel}
       secondaryLabel={secondaryLabel}
+      showAvatar={showAvatar}
+      showCreditUsage={showCreditUsage}
+      showCreditUsageOnMobileOnly={showCreditUsageOnMobileOnly}
       subscriptionPeriodEndMs={subscriptionPeriodEndMs}
     />
   );

@@ -12,9 +12,19 @@ import { resolveUserCreditsCta } from "./user-credits-cta";
 
 interface UserCreditsProps {
   session: Session;
+  showAvatar?: boolean;
+  showCtaButtons?: boolean;
+  showCreditUsage?: boolean;
+  showCreditUsageOnMobileOnly?: boolean;
 }
 
-export default async function UserCredits({ session }: UserCreditsProps) {
+export default async function UserCredits({
+  session,
+  showAvatar = true,
+  showCtaButtons = true,
+  showCreditUsage = true,
+  showCreditUsageOnMobileOnly = false,
+}: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const tSubscriptions = await getTranslations("App.Subscriptions");
@@ -112,26 +122,34 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     hasLowCredits,
   });
 
+  const shouldShowUpgradeCta = showCtaButtons && cta === "upgradePlan";
+  const shouldShowAddCreditsCta = showCtaButtons && cta === "addCredits";
+
   return (
-    <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {cta === "upgradePlan" ? (
+    <div className="flex w-full flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
+      {shouldShowUpgradeCta ? (
         <BuyCreditsButton
           label={tPlan("upgradeCta")}
           path="/billing?tab=subscription"
         />
       ) : null}
-      {cta === "addCredits" ? (
+      {shouldShowAddCreditsCta ? (
         <BuyCreditsButton label={t("buy")} path="/billing?tab=credits" />
       ) : null}
-      <UserAvatar
-        session={session}
-        primaryLabel={primaryLabel}
-        secondaryLabel={planLabel}
-        creditsLabel={creditsLabel}
-        creditUsage={creditUsage}
-        subscriptionPeriodEndMs={subscriptionPeriodEndMs}
-        currentTimestampMs={currentTimestampMs}
-      />
+      {showAvatar || showCreditUsage ? (
+        <UserAvatar
+          session={session}
+          showAvatar={showAvatar}
+          showCreditUsage={showCreditUsage}
+          showCreditUsageOnMobileOnly={showCreditUsageOnMobileOnly}
+          primaryLabel={primaryLabel}
+          secondaryLabel={planLabel}
+          creditsLabel={creditsLabel}
+          creditUsage={creditUsage}
+          subscriptionPeriodEndMs={subscriptionPeriodEndMs}
+          currentTimestampMs={currentTimestampMs}
+        />
+      ) : null}
     </div>
   );
 }

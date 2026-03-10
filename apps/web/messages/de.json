@@ -136,8 +136,11 @@
       "imprint": "Impressum",
       "acceptableUse": "Zulässige Nutzung",
       "creditsSummary": "Credits-Übersicht:",
-      "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} zurückgesetzt",
-      "creditsExpiresToday": "Credits werden heute zurückgesetzt",
+      "subscriptionUsage": "Abo-Nutzung:",
+      "extraCredits": "Zusätzliche Credits:",
+      "extraCreditsDescription": "Laufen nie ab",
+      "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} erneuert",
+      "creditsExpiresToday": "Credits werden heute erneuert",
       "creditsExpired": "Credits verfallen"
     },
     "OrganizationSwitcher": {
@@ -1071,6 +1074,9 @@
     "delete": "Löschen",
     "cancel": "Abbrechen",
     "save": "Speichern",
+    "ChatRail": {
+      "chat": "Chat"
+    },
     "Chat": {
       "Metadata": {
         "title": "Chat",
@@ -1444,7 +1450,7 @@
         "userBalance": "{credits, plural, =0 {Keine Credits} =1 {1 Credit} other {# Credits}}",
         "organizationBalance": "{credits, plural, =0 {Keine Credits} =1 {1 Credit} other {# Credits}} ({organization})",
         "unavailable": "Credits nicht verfügbar",
-        "extraCredits": "{credits, plural, =0 {0 zusätzliche Credits} =1 {1 zusätzlicher Credit} other {# zusätzliche Credits}}"
+        "extraCredits": "{credits, plural, =0 {0 verfügbar} =1 {1 verfügbar} other {# verfügbar}}"
       },
       "Plan": {
         "upgradeCta": "Plan upgraden",
@@ -1617,7 +1623,9 @@
         "unauthorizedPersonal": "Du bist nicht berechtigt, Credits zu kaufen",
         "unknownError": "Etwas ist schiefgelaufen"
       },
-      "expiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
+      "paidSubscriptionRequiredDescription": "Du benötigst ein kostenpflichtiges Abonnement, um zusätzliche Credits zu kaufen.",
+      "paidSubscriptionRequiredHint": "Wähle im Tab „Abonnement“ einen kostenpflichtigen Plan, um das Aufladen von Credits freizuschalten.",
+      "couponExpiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
     },
     "Connections": {
       "tabs": {

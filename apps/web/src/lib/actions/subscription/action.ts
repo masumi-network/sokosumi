@@ -124,7 +124,8 @@ export const upgradePersonalSubscription = withSession<
   }
 
   try {
-    const resolvedReturnPath = parsed.data.returnPath ?? "/subscriptions";
+    const resolvedReturnPath =
+      parsed.data.returnPath ?? "/billing?tab=subscription";
 
     const result = await auth.api.upgradeSubscription({
       headers: await headers(),
@@ -172,7 +173,7 @@ export const openPersonalBillingPortal = withSession<
       headers: await headers(),
       body: {
         customerType: "user",
-        returnUrl: parsedReturnPath.data ?? "/subscriptions",
+        returnUrl: parsedReturnPath.data ?? "/billing?tab=subscription",
         disableRedirect: true,
       },
     });
