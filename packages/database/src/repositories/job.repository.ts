@@ -7,10 +7,6 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
-import {
-  getCreditExpiryDate,
-  REFUND_CREDITS_EXPIRY_DAYS,
-} from "../helpers/credit.js";
 import { mapJobWithStatus } from "../helpers/job.js";
 import {
   finalizedAgentJobStatuses,
@@ -399,10 +395,6 @@ export const jobRepository = {
     }
 
     const amount = transaction.amount * BigInt(-1);
-    const refundExpiry = getCreditExpiryDate(
-      new Date(),
-      REFUND_CREDITS_EXPIRY_DAYS,
-    );
     const refundTransactionData: Prisma.TransactionCreateInput = {
       amount,
       user: {
@@ -427,7 +419,7 @@ export const jobRepository = {
               id: transaction.userId,
             },
           },
-          expiresAt: refundExpiry,
+          expiresAt: null,
           ...(transaction.organizationId && {
             organization: {
               connect: {

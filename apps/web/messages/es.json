@@ -1621,7 +1621,7 @@
         "unauthorizedPersonal": "No tienes permiso para comprar Credits",
         "unknownError": "Algo salió mal"
       },
-      "expiryNotice": "Los créditos vencen después de {days, plural, one {# día} other {# días}}."
+      "couponExpiryNotice": "Los créditos vencen después de {days, plural, one {# día} other {# días}}."
     },
     "Connections": {
       "tabs": {

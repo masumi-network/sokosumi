@@ -1607,7 +1607,7 @@
       "billingPortalCta": "管理购买记录",
       "topUpTitle": "充值积分",
       "topUpDescription": "选择金额或输入自定义数值",
-      "expiryNotice": "积分将在 {days, plural, one {# 天} other {# 天}}后过期。",
+      "couponExpiryNotice": "积分将在 {days, plural, one {# 天} other {# 天}}后过期。",
       "costPerCredit": "{cost} / 积分",
       "creditAmount": "{count, plural, one {# 积分} other {# 积分}}",
       "creditsLabel": "积分数量",

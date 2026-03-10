@@ -1621,7 +1621,7 @@
         "unauthorizedPersonal": "Du bist nicht berechtigt, Credits zu kaufen",
         "unknownError": "Etwas ist schiefgelaufen"
       },
-      "expiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
+      "couponExpiryNotice": "Credits verfallen nach {days, plural, one {# Tag} other {# Tagen}}."
     },
     "Connections": {
       "tabs": {

@@ -5,9 +5,7 @@ const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
-export const PAID_TOPUP_CREDITS_EXPIRY_DAYS = 180;
 export const FREE_CREDITS_EXPIRY_DAYS = 30;
-export const REFUND_CREDITS_EXPIRY_DAYS = 180;
 
 interface SplitAmountEvenlyWithRemainderRotationParams {
   memberIds: string[];

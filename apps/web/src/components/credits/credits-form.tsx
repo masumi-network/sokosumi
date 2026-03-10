@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Organization } from "@sokosumi/database";
-import { PAID_TOPUP_CREDITS_EXPIRY_DAYS } from "@sokosumi/database/helpers";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -285,11 +284,6 @@ export default function CreditsForm({
                   })}
                 </p>
               ) : null}
-              <p className="text-muted-foreground text-xs">
-                {t("expiryNotice", {
-                  days: PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-                })}
-              </p>
             </div>
           </CardFooter>
         </form>

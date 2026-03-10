@@ -1607,7 +1607,7 @@
       "billingPortalCta": "Gerenciar compras",
       "topUpTitle": "Recarregar seus créditos",
       "topUpDescription": "Escolha um valor ou digite um valor personalizado",
-      "expiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
+      "couponExpiryNotice": "Os créditos expiram após {days, plural, one {# dia} other {# dias}}.",
       "costPerCredit": "{cost} por crédito",
       "creditAmount": "{count, plural, one {# crédito} other {# créditos}}",
       "creditsLabel": "Quantidade de créditos",

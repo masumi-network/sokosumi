@@ -1607,7 +1607,7 @@
       "billingPortalCta": "Gestisci gli acquisti",
       "topUpTitle": "Ricarica i tuoi crediti",
       "topUpDescription": "Scegli un importo o inserisci un valore personalizzato",
-      "expiryNotice": "I crediti scadono dopo {days, plural, one {# giorno} other {# giorni}}.",
+      "couponExpiryNotice": "I crediti scadono dopo {days, plural, one {# giorno} other {# giorni}}.",
       "costPerCredit": "{cost} per credito",
       "creditAmount": "{count, plural, one {# credito} other {# crediti}}",
       "creditsLabel": "Numero di crediti",

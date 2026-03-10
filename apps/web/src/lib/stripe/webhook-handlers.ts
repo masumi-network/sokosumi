@@ -17,7 +17,6 @@ import {
   FREE_CREDITS_EXPIRY_DAYS,
   getCreditExpiryDate,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-  PAID_TOPUP_CREDITS_EXPIRY_DAYS,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
@@ -196,10 +195,7 @@ function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
 
   if (invoice.amount_paid > 0) {
     return {
-      expiresAt: getCreditExpiryDate(
-        invoiceCreatedAt,
-        PAID_TOPUP_CREDITS_EXPIRY_DAYS,
-      ),
+      expiresAt: null,
       referenceType: CreditBucketReferenceType.STRIPE_TOPUP,
     };
   }
