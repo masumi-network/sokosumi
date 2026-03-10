@@ -22,8 +22,7 @@ export function DeploymentRefreshHandler() {
       const message =
         event.reason?.message ??
         event.reason?.error?.message ??
-        String(event.reason) ??
-        "";
+        String(event.reason);
       if (!isStaleDeploymentError(message)) return;
       if (sessionStorage.getItem(DEPLOYMENT_REFRESH_KEY) === "true") return;
       event.preventDefault();
