@@ -203,7 +203,7 @@ describe("CreditsForm", () => {
         priceCatalog={priceCatalog}
         organization={null}
         priceLookupKeyOverride="credit_0_margin"
-        returnPath="/billing/top-up-secret"
+        returnPath="/billing/top-up"
       />,
     );
 
@@ -219,7 +219,7 @@ describe("CreditsForm", () => {
       organizationId: null,
       credits: 150,
       priceLookupKeyOverride: "credit_0_margin",
-      returnPath: "/billing/top-up-secret",
+      returnPath: "/billing/top-up",
     });
   });
 });

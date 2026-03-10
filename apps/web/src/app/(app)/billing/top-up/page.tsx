@@ -21,7 +21,7 @@ export default async function SecretTopUpPage({
         <CreditsSection
           organization={activeOrganization}
           priceLookupKeyOverride={ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY}
-          returnPath="/billing/top-up-secret"
+          returnPath="/billing/top-up"
           searchParams={{ cancel, session_id }}
         />
       </div>

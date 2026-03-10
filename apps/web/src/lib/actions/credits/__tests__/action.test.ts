@@ -108,7 +108,7 @@ describe("credits actions", () => {
       organizationId: null,
       credits: 250_000,
       priceLookupKeyOverride: "credit_0_margin",
-      returnPath: "/billing/top-up-secret",
+      returnPath: "/billing/top-up",
     });
 
     expect(getCreditTopUpPriceByCreditsMock).toHaveBeenCalledWith(
@@ -125,7 +125,7 @@ describe("credits actions", () => {
         currency: "eur",
       },
       null,
-      "/billing/top-up-secret",
+      "/billing/top-up",
     );
     expect(result).toEqual({
       ok: true,
