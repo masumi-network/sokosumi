@@ -207,7 +207,9 @@ describe("CreditsForm", () => {
     expect(
       screen.getByText("paidSubscriptionRequiredHint"),
     ).toBeInTheDocument();
-    expect(screen.queryByText("purchaseForOrganization")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("purchaseForOrganization"),
+    ).not.toBeInTheDocument();
   });
 
   it("submits purchase credits with the entered amount", async () => {
@@ -233,7 +235,7 @@ describe("CreditsForm", () => {
     });
   });
 
-  it("submits the lookup key override when provided", async () => {
+  it("does not submit the lookup key override when provided for display", async () => {
     const user = userEvent.setup();
     purchaseCreditsMock.mockResolvedValue({
       ok: false,
@@ -260,7 +262,6 @@ describe("CreditsForm", () => {
     expect(purchaseCreditsMock).toHaveBeenCalledWith({
       organizationId: null,
       credits: 150,
-      priceLookupKeyOverride: "credit_0_margin",
       returnPath: "/billing?tab=credits",
     });
   });

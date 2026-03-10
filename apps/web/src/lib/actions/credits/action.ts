@@ -5,14 +5,12 @@ import {
   CommonErrorCode,
   CreditsErrorCode,
 } from "@/lib/actions/errors";
+import { resolveZeroMarginTopUpLookupKey } from "@/lib/flags/zero-margin-top-up";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
-import {
-  type CreditTopUpLookupKey,
-  isPositiveIntegerCredits,
-} from "@/lib/stripe/credit-topup-pricing";
+import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getCreditsForCoupon } from "@/lib/utils/credits";
 import {
@@ -23,70 +21,63 @@ import {
 interface PurchaseCreditsParameters extends AuthenticatedRequest {
   organizationId: string | null;
   credits: number;
-  priceLookupKeyOverride?: CreditTopUpLookupKey;
   returnPath?: string;
 }
 
 export const purchaseCredits = withSession<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(
-  async ({
-    organizationId,
-    credits,
-    priceLookupKeyOverride,
-    session,
-    returnPath,
-  }) => {
-    const userId = session.user.id;
+>(async ({ organizationId, credits, session, returnPath }) => {
+  const userId = session.user.id;
 
-    // Validate input
-    if (!isPositiveIntegerCredits(credits)) {
+  // Validate input
+  if (!isPositiveIntegerCredits(credits)) {
+    return Err({
+      message: "Invalid credits",
+      code: CreditsErrorCode.INVALID_CREDITS,
+    });
+  }
+
+  // Verify user is member of the organization
+  if (organizationId) {
+    const member = await userService.getMyMemberInOrganization(organizationId);
+    if (!member) {
       return Err({
-        message: "Invalid credits",
-        code: CreditsErrorCode.INVALID_CREDITS,
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
       });
     }
+  }
 
-    // Verify user is member of the organization
-    if (organizationId) {
-      const member =
-        await userService.getMyMemberInOrganization(organizationId);
-      if (!member) {
-        return Err({
-          message: "Unauthorized",
-          code: CommonErrorCode.UNAUTHORIZED,
-        });
-      }
-    }
+  try {
+    const priceLookupKeyOverride = resolveZeroMarginTopUpLookupKey(
+      session.user.email,
+    );
+    const price = priceLookupKeyOverride
+      ? await stripeClient.getCreditTopUpPriceByCredits(
+          credits,
+          priceLookupKeyOverride,
+        )
+      : await stripeClient.getCreditTopUpPriceByCredits(credits);
 
-    try {
-      const price = priceLookupKeyOverride
-        ? await stripeClient.getCreditTopUpPriceByCredits(
-            credits,
-            priceLookupKeyOverride,
-          )
-        : await stripeClient.getCreditTopUpPriceByCredits(credits);
+    // Create the checkout session
+    const { url } = await stripeService.createStripeCheckoutSession(
+      userId,
+      organizationId,
+      credits,
+      price,
+      null,
+      returnPath,
+    );
 
-      // Create the checkout session
-      const { url } = await stripeService.createStripeCheckoutSession(
-        userId,
-        organizationId,
-        credits,
-        price,
-        null,
-        returnPath,
-      );
-
-      return Ok({ url });
-    } catch (error) {
-      console.error("Failed to purchase credits", error);
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
-    }
-  },
-);
+    return Ok({ url });
+  } catch (error) {
+    console.error("Failed to purchase credits", error);
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});
 
 interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   organizationId: string | null;

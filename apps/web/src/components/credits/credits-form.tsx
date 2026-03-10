@@ -125,7 +125,6 @@ export default function CreditsForm({
       const result = await purchaseCredits({
         organizationId: organization?.id ?? null,
         credits: creditsAmount,
-        priceLookupKeyOverride,
         returnPath,
       });
 
@@ -159,14 +158,7 @@ export default function CreditsForm({
         }
       }
     },
-    [
-      isPurchaseEnabled,
-      organization,
-      priceLookupKeyOverride,
-      returnPath,
-      router,
-      t,
-    ],
+    [isPurchaseEnabled, organization, returnPath, router, t],
   );
 
   const handleQuickAmount = useCallback(

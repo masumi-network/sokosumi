@@ -7,6 +7,7 @@ const getCouponMock = jest.fn();
 const claimCouponMock = jest.fn();
 const getCreditTopUpPriceByCreditsMock = jest.fn();
 const getBaseCreditTopUpPriceMock = jest.fn();
+const resolveZeroMarginTopUpLookupKeyMock = jest.fn();
 
 jest.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -40,9 +41,15 @@ jest.mock("@/lib/clients/stripe.client", () => ({
   },
 }));
 
+jest.mock("@/lib/flags/zero-margin-top-up", () => ({
+  resolveZeroMarginTopUpLookupKey: (...args: unknown[]) =>
+    resolveZeroMarginTopUpLookupKeyMock(...args),
+}));
+
 describe("credits actions", () => {
   const session = {
     user: {
+      email: "member@example.com",
       id: "user-1",
     },
     session: {
@@ -52,6 +59,7 @@ describe("credits actions", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resolveZeroMarginTopUpLookupKeyMock.mockReturnValue(undefined);
   });
 
   it("resolves tiered price in purchaseCredits and passes it to checkout", async () => {
@@ -91,7 +99,7 @@ describe("credits actions", () => {
     });
   });
 
-  it("uses the lookup key override in purchaseCredits", async () => {
+  it("uses the server-derived lookup key override in purchaseCredits", async () => {
     getCreditTopUpPriceByCreditsMock.mockResolvedValue({
       id: "price_zero_margin",
       amountPerCredit: 10,
@@ -100,6 +108,7 @@ describe("credits actions", () => {
     createStripeCheckoutSessionMock.mockResolvedValue({
       url: "https://checkout.stripe.com/session/zero-margin",
     });
+    resolveZeroMarginTopUpLookupKeyMock.mockReturnValue("credit_0_margin");
 
     const { purchaseCredits } = await import("../action");
 
@@ -107,7 +116,6 @@ describe("credits actions", () => {
       session,
       organizationId: null,
       credits: 250_000,
-      priceLookupKeyOverride: "credit_0_margin",
       returnPath: "/billing?tab=credits",
     });
 
@@ -131,6 +139,28 @@ describe("credits actions", () => {
       ok: true,
       data: { url: "https://checkout.stripe.com/session/zero-margin" },
     });
+  });
+
+  it("ignores forged lookup key overrides from the client payload", async () => {
+    getCreditTopUpPriceByCreditsMock.mockResolvedValue({
+      id: "price_tiered",
+      amountPerCredit: 15,
+      currency: "eur",
+    });
+    createStripeCheckoutSessionMock.mockResolvedValue({
+      url: "https://checkout.stripe.com/session/tiered",
+    });
+
+    const { purchaseCredits } = await import("../action");
+
+    await purchaseCredits({
+      session,
+      organizationId: null,
+      credits: 250_000,
+      priceLookupKeyOverride: "credit_0_margin",
+    } as never);
+
+    expect(getCreditTopUpPriceByCreditsMock).toHaveBeenCalledWith(250_000);
   });
 
   it("uses base tier price for coupon checkout regardless of coupon credits", async () => {

@@ -62,4 +62,17 @@ describe("zeroMarginTopUpEnabled", () => {
 
     await expect(zeroMarginTopUpEnabled()).resolves.toBe(false);
   });
+
+  it("resolves the override lookup key only for allowlisted emails", async () => {
+    const { resolveZeroMarginTopUpLookupKey } =
+      await import("../zero-margin-top-up");
+
+    expect(resolveZeroMarginTopUpLookupKey("member@nmkr.io")).toBe(
+      "credit_0_margin",
+    );
+    expect(
+      resolveZeroMarginTopUpLookupKey("member@example.com"),
+    ).toBeUndefined();
+    expect(resolveZeroMarginTopUpLookupKey(null)).toBeUndefined();
+  });
 });
