@@ -5,6 +5,7 @@ import NextError from "next/error";
 import { useEffect, useState } from "react";
 
 import {
+  hasDeploymentRefreshGuard,
   isStaleDeploymentError,
   performDeploymentRefresh,
 } from "@/lib/utils/deployment-refresh";

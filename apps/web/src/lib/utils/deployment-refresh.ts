@@ -36,8 +36,7 @@ export function performDeploymentRefresh(): void {
     sessionStorage.setItem(DEPLOYMENT_REFRESH_KEY, "true");
     window.location.reload();
     return;
-  } catch {
-  }
+  } catch {}
   try {
     const url = new URL(window.location.href);
     url.searchParams.set(DEPLOYMENT_REFRESH_PARAM, "1");
