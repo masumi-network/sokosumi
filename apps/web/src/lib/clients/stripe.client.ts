@@ -100,7 +100,7 @@ export const stripeClient = (() => {
 
   function normalizeCheckoutReturnPath(returnPath: string): string {
     if (!returnPath) {
-      return "/credits";
+      return "/billing?tab=credits";
     }
 
     return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
@@ -422,7 +422,7 @@ export const stripeClient = (() => {
       price: Price,
       origin: string | null = null,
       promotionCode: string | null = null,
-      returnPath: string = "/credits",
+      returnPath: string = "/billing?tab=credits",
       ttlDays?: string,
     ): Promise<Stripe.Checkout.Session> {
       if (price.amountPerCredit === 0) {

@@ -71,7 +71,7 @@ export const stripeService = (() => {
       credits: number,
       price: Price,
       promotionCode: string | null = null,
-      returnPath: string = "/credits",
+      returnPath: string = "/billing?tab=credits",
       ttlDays?: string,
     ): Promise<{ url: string }> {
       const isVerified = await verifyUserId(userId);

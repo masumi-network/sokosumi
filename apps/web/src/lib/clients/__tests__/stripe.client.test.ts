@@ -261,8 +261,8 @@ describe("stripe.client lookup-key pricing", () => {
           userId: "user-1",
         }),
         success_url:
-          "https://app.sokosumi.com/credits?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url: "https://app.sokosumi.com/credits?cancel=true",
+          "https://app.sokosumi.com/billing?tab=credits&session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://app.sokosumi.com/billing?tab=credits&cancel=true",
       }),
     );
   });
