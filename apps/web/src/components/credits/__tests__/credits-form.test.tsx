@@ -192,6 +192,24 @@ describe("CreditsForm", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("uses the same paid subscription notice for organizations when top-ups are disabled", () => {
+    render(
+      <CreditsForm
+        isPurchaseEnabled={false}
+        priceCatalog={priceCatalog}
+        organization={{ id: "org-1", name: "Org One" } as never}
+      />,
+    );
+
+    expect(
+      screen.getByText("paidSubscriptionRequiredDescription"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("paidSubscriptionRequiredHint"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("purchaseForOrganization")).not.toBeInTheDocument();
+  });
+
   it("submits purchase credits with the entered amount", async () => {
     const user = userEvent.setup();
     purchaseCreditsMock.mockResolvedValue({

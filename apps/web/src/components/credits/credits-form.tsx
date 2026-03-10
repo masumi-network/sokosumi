@@ -192,17 +192,17 @@ export default function CreditsForm({
       <CardHeader>
         <CardTitle>{t("topUpTitle")}</CardTitle>
         <CardDescription>
-          {organization ? (
+          {isPurchaseEnabled && organization ? (
             <div className="flex items-center gap-2">
               <Building2 className="size-4" />
               {t("purchaseForOrganization", {
                 organization: organization.name,
               })}
             </div>
+          ) : isPurchaseEnabled ? (
+            t("topUpDescription")
           ) : (
-            isPurchaseEnabled
-              ? t("topUpDescription")
-              : t("paidSubscriptionRequiredDescription")
+            t("paidSubscriptionRequiredDescription")
           )}
         </CardDescription>
       </CardHeader>
