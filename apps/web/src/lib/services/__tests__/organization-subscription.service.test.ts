@@ -108,19 +108,31 @@ describe("organizationSubscriptionService", () => {
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
 
-    it("does not increase seats for free subscriptions", async () => {
-      findSubscriptionMock.mockResolvedValue({
-        id: "sub-row-1",
-        plan: "free",
-        seats: 2,
-        stripeSubscriptionId: "sub_stripe_1",
-      });
+    it("does not increase seats when no paid subscription exists", async () => {
+      findSubscriptionMock.mockResolvedValue(null);
 
       const { organizationSubscriptionService } =
         await import("../organization-subscription.service");
 
       await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
+      expect(findSubscriptionMock).toHaveBeenCalledWith({
+        where: {
+          referenceId: "org-1",
+          plan: {
+            not: "free",
+          },
+          status: {
+            in: ["active", "trialing", "past_due", "unpaid"],
+          },
+        },
+        orderBy: [{ periodEnd: "desc" }, { updatedAt: "desc" }],
+        select: {
+          id: true,
+          seats: true,
+          stripeSubscriptionId: true,
+        },
+      });
       expect(memberCountMock).not.toHaveBeenCalled();
       expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();

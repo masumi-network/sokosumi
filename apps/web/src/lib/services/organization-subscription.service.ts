@@ -7,13 +7,15 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
-import { getLatestActiveOrganizationSubscription as getLatestActiveOrganizationSubscriptionQuery } from "@/lib/stripe/subscription-utils";
+import {
+  getLatestActiveOrganizationSubscription as getLatestActiveOrganizationSubscriptionQuery,
+  getLatestActivePaidOrganizationSubscription as getLatestActivePaidOrganizationSubscriptionQuery,
+} from "@/lib/stripe/subscription-utils";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 interface ActiveOrganizationSubscription {
   id: string;
-  plan: string;
   seats: number | null;
   stripeSubscriptionId: string | null;
 }
@@ -29,7 +31,19 @@ async function getLatestActiveOrganizationSubscription(
     organizationId,
     select: {
       id: true,
-      plan: true,
+      seats: true,
+      stripeSubscriptionId: true,
+    },
+  });
+}
+
+async function getLatestActivePaidOrganizationSubscription(
+  organizationId: string,
+): Promise<ActiveOrganizationSubscription | null> {
+  return await getLatestActivePaidOrganizationSubscriptionQuery({
+    organizationId,
+    select: {
+      id: true,
       seats: true,
       stripeSubscriptionId: true,
     },
@@ -146,12 +160,6 @@ function ensureStripeSubscriptionId(
   return activeSubscription.stripeSubscriptionId;
 }
 
-function isPaidOrganizationSubscription(
-  activeSubscription: ActiveOrganizationSubscription,
-): boolean {
-  return activeSubscription.plan !== "free";
-}
-
 async function syncOrganizationSeatCount(
   activeSubscription: ActiveOrganizationSubscription,
   seats: number,
@@ -200,11 +208,8 @@ export const organizationSubscriptionService = (() => {
 
     async ensureCanAcceptInvitation(organizationId: string): Promise<void> {
       const activeSubscription =
-        await getLatestActiveOrganizationSubscription(organizationId);
-      if (
-        !activeSubscription ||
-        !isPaidOrganizationSubscription(activeSubscription)
-      ) {
+        await getLatestActivePaidOrganizationSubscription(organizationId);
+      if (!activeSubscription) {
         return;
       }
 
