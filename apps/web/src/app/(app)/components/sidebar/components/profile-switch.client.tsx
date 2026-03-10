@@ -21,6 +21,14 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -111,32 +119,49 @@ export default function ProfileSwitchClient({
   );
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const { state } = useSidebar();
-  const isPopoverVisible = state !== "collapsed" && isPopoverOpen;
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { isMobile, state, toggleSidebar } = useSidebar();
+  const canOpenMenu = isMobile || state !== "collapsed";
+  const isPopoverVisible = canOpenMenu && isPopoverOpen;
+  const isDropdownVisible = canOpenMenu && isDropdownOpen;
 
   const handlePopoverOpenChange = (open: boolean) => {
     // Do not record open intent when sidebar is collapsed; otherwise when the
     // sidebar is later expanded, isPopoverVisible would flip to true and the
     // popover would open unexpectedly.
-    if (open && state === "collapsed") {
+    if (open && !isMobile && state === "collapsed") {
       return;
     }
     setIsPopoverOpen(open);
   };
+  const handleDropdownOpenChange = (open: boolean) => {
+    if (open && !isMobile && state === "collapsed") {
+      return;
+    }
+    setIsDropdownOpen(open);
+  };
 
   useEffect(() => {
+    if (isMobile) {
+      return;
+    }
+
     if (state === "collapsed") {
       const timer = setTimeout(() => {
         setIsPopoverOpen(false);
+        setIsDropdownOpen(false);
       }, 100);
       return () => clearTimeout(timer);
     }
     // When expanding from collapsed, clear any stale open intent. This prevents
     // the popover from opening unexpectedly if isPopoverOpen became true while
     // the sidebar was collapsed (e.g. trigger click).
-    const timer = setTimeout(() => setIsPopoverOpen(false), 0);
+    const timer = setTimeout(() => {
+      setIsPopoverOpen(false);
+      setIsDropdownOpen(false);
+    }, 0);
     return () => clearTimeout(timer);
-  }, [state]);
+  }, [isMobile, state]);
 
   const workspaces = useMemo(
     () =>
@@ -174,102 +199,190 @@ export default function ProfileSwitchClient({
     : tOrganizationSwitcher("personalAccountHeading");
 
   const router = useRouter();
+  const handleWorkspaceSelect = (workspaceId: string | null) => {
+    setIsPopoverOpen(false);
+    setIsDropdownOpen(false);
+    handleSelectWorkspace(workspaceId);
+    if (isMobile) {
+      toggleSidebar();
+    }
+  };
+
+  const handleAddOrganization = () => {
+    setIsPopoverOpen(false);
+    setIsDropdownOpen(false);
+    router.push("/organizations/");
+    if (isMobile) {
+      toggleSidebar();
+    }
+  };
 
   return (
     <SidebarGroup className="w-full pb-0">
       <SidebarGroupContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Popover
-              open={isPopoverVisible}
-              onOpenChange={handlePopoverOpenChange}
-            >
-              <PopoverTrigger asChild>
-                <SidebarMenuButton
-                  className="min-h-[56px] cursor-pointer items-center md:p-2"
-                  aria-label={tOrganizationSwitcher("switchWorkspace")}
-                  disabled={isPending}
-                >
-                  <div className="text-primary flex w-full items-center gap-2">
-                    <span className="group-data-[collapsible=icon]:-ml-2 group-data-[collapsible=icon]:size-8">
-                      <WorkspaceAvatar
-                        sessionUser={sessionUser}
-                        workspace={activeWorkspace}
-                      />
-                    </span>
-                    <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-                      <div className="truncate text-sm font-medium">
-                        {activeWorkspace?.name}
+            {isMobile ? (
+              <DropdownMenu
+                open={isDropdownVisible}
+                onOpenChange={handleDropdownOpenChange}
+              >
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    className="min-h-[56px] cursor-pointer items-center md:p-2"
+                    aria-label={tOrganizationSwitcher("switchWorkspace")}
+                    disabled={isPending}
+                  >
+                    <div className="text-primary flex w-full items-center gap-2">
+                      <span className="group-data-[collapsible=icon]:-ml-2 group-data-[collapsible=icon]:size-8">
+                        <WorkspaceAvatar
+                          sessionUser={sessionUser}
+                          workspace={activeWorkspace}
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                        <div className="truncate text-sm font-medium">
+                          {activeWorkspace?.name}
+                        </div>
+                        <div className="text-muted-foreground truncate text-xs">
+                          {activeWorkspaceSubtitle}
+                        </div>
                       </div>
-                      <div className="text-muted-foreground truncate text-xs">
-                        {activeWorkspaceSubtitle}
-                      </div>
+                      <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
                     </div>
-                    <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
-                  </div>
-                </SidebarMenuButton>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-72 p-0" side="right">
-                <Command>
-                  <CommandInput
-                    placeholder={tOrganizationSwitcher("searchProfiles")}
-                  />
-                  <CommandList>
-                    <CommandEmpty>
-                      {tOrganizationSwitcher("noProfilesFound")}
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {workspaces.map((workspace) => {
-                        const isSelected =
-                          workspace.id === activeOrganizationId;
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-72" align="start">
+                  <DropdownMenuGroup>
+                    {workspaces.map((workspace) => {
+                      const isSelected = workspace.id === activeOrganizationId;
 
-                        return (
-                          <CommandItem
-                            key={getWorkspaceKey(workspace)}
-                            value={workspace.name}
-                            className="flex cursor-pointer items-center gap-2 py-2"
-                            disabled={isPending}
-                            onSelect={() => {
-                              setIsPopoverOpen(false);
-                              handleSelectWorkspace(workspace.id);
-                            }}
-                          >
-                            <WorkspaceAvatar
-                              sessionUser={sessionUser}
-                              workspace={workspace}
-                            />
-                            <span className="min-w-0 flex-1 truncate">
-                              {workspace.name}
-                            </span>
-                            <Check
-                              className={cn(
-                                "size-4",
-                                isSelected ? "opacity-100" : "opacity-0",
-                              )}
-                            />
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
-                    <CommandSeparator />
-                    <CommandGroup>
-                      <CommandItem
-                        className="flex cursor-pointer items-center gap-2 py-2"
-                        onSelect={() => {
-                          setIsPopoverOpen(false);
-                          router.push("/organizations/");
-                        }}
-                      >
-                        <Avatar className="bg-primary/10 flex size-8 items-center justify-center gap-2">
-                          <Plus className="text-primary size-4" />
-                        </Avatar>
-                        <span>{tOrganizationSwitcher("addOrganization")}</span>
-                      </CommandItem>
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                      return (
+                        <DropdownMenuItem
+                          key={getWorkspaceKey(workspace)}
+                          className="flex cursor-pointer items-center gap-2 py-2"
+                          disabled={isPending}
+                          onClick={() => handleWorkspaceSelect(workspace.id)}
+                        >
+                          <WorkspaceAvatar
+                            sessionUser={sessionUser}
+                            workspace={workspace}
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            {workspace.name}
+                          </span>
+                          <Check
+                            className={cn(
+                              "size-4",
+                              isSelected ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-2 py-2"
+                    onClick={handleAddOrganization}
+                  >
+                    <Avatar className="bg-primary/10 flex size-8 items-center justify-center gap-2">
+                      <Plus className="text-primary size-4" />
+                    </Avatar>
+                    <span>{tOrganizationSwitcher("addOrganization")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Popover
+                open={isPopoverVisible}
+                onOpenChange={handlePopoverOpenChange}
+              >
+                <PopoverTrigger asChild>
+                  <SidebarMenuButton
+                    className="min-h-[56px] cursor-pointer items-center md:p-2"
+                    aria-label={tOrganizationSwitcher("switchWorkspace")}
+                    disabled={isPending}
+                  >
+                    <div className="text-primary flex w-full items-center gap-2">
+                      <span className="group-data-[collapsible=icon]:-ml-2 group-data-[collapsible=icon]:size-8">
+                        <WorkspaceAvatar
+                          sessionUser={sessionUser}
+                          workspace={activeWorkspace}
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                        <div className="truncate text-sm font-medium">
+                          {activeWorkspace?.name}
+                        </div>
+                        <div className="text-muted-foreground truncate text-xs">
+                          {activeWorkspaceSubtitle}
+                        </div>
+                      </div>
+                      <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
+                    </div>
+                  </SidebarMenuButton>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-0" side="right">
+                  <Command>
+                    <CommandInput
+                      placeholder={tOrganizationSwitcher("searchProfiles")}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {tOrganizationSwitcher("noProfilesFound")}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {workspaces.map((workspace) => {
+                          const isSelected =
+                            workspace.id === activeOrganizationId;
+
+                          return (
+                            <CommandItem
+                              key={getWorkspaceKey(workspace)}
+                              value={workspace.name}
+                              className="flex cursor-pointer items-center gap-2 py-2"
+                              disabled={isPending}
+                              onSelect={() =>
+                                handleWorkspaceSelect(workspace.id)
+                              }
+                            >
+                              <WorkspaceAvatar
+                                sessionUser={sessionUser}
+                                workspace={workspace}
+                              />
+                              <span className="min-w-0 flex-1 truncate">
+                                {workspace.name}
+                              </span>
+                              <Check
+                                className={cn(
+                                  "size-4",
+                                  isSelected ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                      <CommandSeparator />
+                      <CommandGroup>
+                        <CommandItem
+                          className="flex cursor-pointer items-center gap-2 py-2"
+                          onSelect={handleAddOrganization}
+                        >
+                          <Avatar className="bg-primary/10 flex size-8 items-center justify-center gap-2">
+                            <Plus className="text-primary size-4" />
+                          </Avatar>
+                          <span>
+                            {tOrganizationSwitcher("addOrganization")}
+                          </span>
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroupContent>

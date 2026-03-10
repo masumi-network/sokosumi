@@ -7,6 +7,7 @@ import { taskRailEnabled } from "@/lib/flags/task-rail";
 import { cn } from "@/lib/utils";
 
 import ChatRailTrigger from "./chat-rail-trigger";
+import HeaderUserSection from "./header-user-section";
 import CustomTrigger from "./sidebar/components/custom-trigger";
 import UserCredits from "./user-credits";
 
@@ -42,10 +43,12 @@ export default async function Header({ session, className }: HeaderProps) {
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
-        <div className="flex items-center gap-2">
-          <UserCredits session={session} showAvatar={false} />
-        </div>
-        {isTaskRailEnabled ? <ChatRailTrigger /> : null}
+        <HeaderUserSection>
+          <div className="flex items-center gap-2">
+            <UserCredits session={session} showAvatar={false} />
+            {isTaskRailEnabled ? <ChatRailTrigger /> : null}
+          </div>
+        </HeaderUserSection>
       </div>
     </header>
   );
