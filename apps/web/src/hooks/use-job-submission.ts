@@ -127,7 +127,7 @@ export function useJobSubmission({
               toast.error(t("Error.insufficientBalance"), {
                 action: {
                   label: t("Error.insufficientBalanceAction"),
-                  onClick: () => router.push(`/credits`),
+                  onClick: () => router.push(`/billing?tab=credits`),
                 },
               });
               break;
