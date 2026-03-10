@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 
 import {
   DEPLOYMENT_REFRESH_KEY,
-  isChunkLoadError,
   performDeploymentRefresh,
 } from "@/lib/utils/deployment-refresh";
 
@@ -20,20 +19,20 @@ export default function GlobalError({
   useEffect(() => {
     const message = error?.message ?? "";
     if (
-      isChunkLoadError(message) &&
+      isStaleDeploymentError(message) &&
       sessionStorage.getItem(DEPLOYMENT_REFRESH_KEY) !== "true"
     ) {
       performDeploymentRefresh();
       return;
     }
-    if (!isChunkLoadError(message)) {
+    if (!isStaleDeploymentError(message)) {
       Sentry.captureException(error);
     }
     const id = setTimeout(() => setShouldReload(true), 0);
     return () => clearTimeout(id);
   }, [error]);
 
-  if (!shouldReload && isChunkLoadError(error?.message ?? "")) {
+  if (!shouldReload && isStaleDeploymentError(error?.message ?? "")) {
     return null;
   }
 

@@ -5,12 +5,6 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 
-if (process.env.VERCEL_DEPLOYMENT_ID) {
-  process.env.NEXT_PUBLIC_APP_VERSION = process.env.VERCEL_DEPLOYMENT_ID;
-} else if (process.env.VERCEL_GIT_COMMIT_SHA) {
-  process.env.NEXT_PUBLIC_APP_VERSION = process.env.VERCEL_GIT_COMMIT_SHA;
-}
-
 const nextConfig: NextConfig = {
   reactCompiler: true,
   images: {

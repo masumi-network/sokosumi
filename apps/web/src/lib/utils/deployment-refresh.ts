@@ -1,15 +1,12 @@
 export const DEPLOYMENT_REFRESH_KEY = "deployment-refresh-retry";
 
-const CHUNK_PATTERNS = [
-  /loading chunk/i,
-  /chunkloaderror/i,
-  /loading css chunk/i,
-  /failed to fetch dynamically imported module/i,
-  /importing a module script failed/i,
+const STALE_DEPLOYMENT_PATTERNS = [
+  /failed to find server action/i,
+  /older or newer deployment/i,
 ];
 
-export function isChunkLoadError(message: string): boolean {
-  return CHUNK_PATTERNS.some((p) => p.test(message));
+export function isStaleDeploymentError(message: string): boolean {
+  return STALE_DEPLOYMENT_PATTERNS.some((p) => p.test(message));
 }
 
 export function performDeploymentRefresh(): void {
