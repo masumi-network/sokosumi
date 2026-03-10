@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import {
-  DEPLOYMENT_REFRESH_KEY,
+  hasDeploymentRefreshGuard,
   isStaleDeploymentError,
   performDeploymentRefresh,
 } from "@/lib/utils/deployment-refresh";
@@ -13,7 +13,7 @@ export function DeploymentRefreshHandler() {
     function handleError(event: ErrorEvent) {
       const message = event.message ?? String(event);
       if (!isStaleDeploymentError(message)) return;
-      if (sessionStorage.getItem(DEPLOYMENT_REFRESH_KEY) === "true") return;
+      if (hasDeploymentRefreshGuard()) return;
       event.preventDefault();
       performDeploymentRefresh();
     }
@@ -24,7 +24,7 @@ export function DeploymentRefreshHandler() {
         event.reason?.error?.message ??
         String(event.reason);
       if (!isStaleDeploymentError(message)) return;
-      if (sessionStorage.getItem(DEPLOYMENT_REFRESH_KEY) === "true") return;
+      if (hasDeploymentRefreshGuard()) return;
       event.preventDefault();
       performDeploymentRefresh();
     }

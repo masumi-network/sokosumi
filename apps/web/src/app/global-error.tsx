@@ -5,7 +5,6 @@ import NextError from "next/error";
 import { useEffect, useState } from "react";
 
 import {
-  DEPLOYMENT_REFRESH_KEY,
   isStaleDeploymentError,
   performDeploymentRefresh,
 } from "@/lib/utils/deployment-refresh";
@@ -19,10 +18,7 @@ export default function GlobalError({
 
   useEffect(() => {
     const message = error?.message ?? "";
-    if (
-      isStaleDeploymentError(message) &&
-      sessionStorage.getItem(DEPLOYMENT_REFRESH_KEY) !== "true"
-    ) {
+    if (isStaleDeploymentError(message) && !hasDeploymentRefreshGuard()) {
       performDeploymentRefresh();
       return;
     }
