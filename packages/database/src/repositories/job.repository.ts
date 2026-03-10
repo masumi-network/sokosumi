@@ -395,47 +395,45 @@ export const jobRepository = {
     }
 
     const amount = transaction.amount * BigInt(-1);
-    const refundTransactionData: Prisma.TransactionCreateInput = {
-      amount,
-      user: {
-        connect: {
-          id: transaction.userId,
-        },
-      },
-      ...(transaction.organizationId && {
-        organization: {
-          connect: {
-            id: transaction.organizationId,
-          },
-        },
-      }),
-      sourceCreditBucket: {
-        create: {
-          amount,
-          referenceId: jobId,
-          referenceType: CreditBucketReferenceType.REFUND,
-          user: {
-            connect: {
-              id: transaction.userId,
-            },
-          },
-          expiresAt: null,
-          ...(transaction.organizationId && {
-            organization: {
-              connect: {
-                id: transaction.organizationId,
-              },
-            },
-          }),
-        },
-      },
-    };
-
     await tx.job.update({
       where: { id: jobId },
       data: {
         refundedTransaction: {
-          create: refundTransactionData,
+          create: {
+            amount,
+            user: {
+              connect: {
+                id: transaction.userId,
+              },
+            },
+            ...(transaction.organizationId && {
+              organization: {
+                connect: {
+                  id: transaction.organizationId,
+                },
+              },
+            }),
+            sourceCreditBucket: {
+              create: {
+                amount,
+                referenceId: jobId,
+                referenceType: CreditBucketReferenceType.REFUND,
+                user: {
+                  connect: {
+                    id: transaction.userId,
+                  },
+                },
+                expiresAt: null,
+                ...(transaction.organizationId && {
+                  organization: {
+                    connect: {
+                      id: transaction.organizationId,
+                    },
+                  },
+                }),
+              },
+            },
+          } satisfies Prisma.TransactionCreateInput,
         },
       },
     });
