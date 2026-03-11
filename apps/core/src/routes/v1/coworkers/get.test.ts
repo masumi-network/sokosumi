@@ -137,4 +137,56 @@ describe("GET /coworkers", () => {
       },
     });
   });
+
+  it("filters coworkers by a single capability", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?capability=tasks");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: {
+          hasEvery: ["tasks"],
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("parses repeated and comma-separated capability filters", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?capability=tasks,chat&capability=tasks",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: {
+          hasEvery: ["tasks", "chat"],
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("rejects invalid capability filters", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?capability=search");
+
+    expect(response.status).toBe(400);
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
+  });
 });
