@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -21,7 +22,13 @@ vi.mock("@/lib/db/prisma", () => ({
 function createApp() {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
-  }>();
+  }>({
+    defaultHook: (result) => {
+      if (!result.success && result.error) {
+        throw unprocessableEntity(formatZodErrorMessage(result.error));
+      }
+    },
+  });
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -186,7 +193,7 @@ describe("GET /coworkers", () => {
     const app = createApp();
     const response = await app.request("http://localhost/?capability=search");
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
     expect(coworkerFindManyMock).not.toHaveBeenCalled();
   });
 });
