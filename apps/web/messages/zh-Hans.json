@@ -1337,7 +1337,7 @@
           "cancelRequested": "已请求取消"
         },
         "billingCta": {
-          "upgradePlan": "升级套餐",
+          "upgradePlan": "获取更多积分",
           "addCredits": "添加积分",
           "placeholder": "此任务需要积分才能继续。请打开计费页面以继续。"
         },
@@ -1476,14 +1476,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "添加积分",
         "extraCredits": "{credits, plural, =0 {0 可用} =1 {1 可用} other {# 可用}}",
         "userBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}}",
         "organizationBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}} ({organization})",
         "unavailable": "积分不可用"
       },
       "Plan": {
-        "upgradeCta": "升级套餐",
+        "getMoreCredits": "获取更多积分",
         "userPlan": "{plan}（个人）",
         "organizationPlan": "{plan}（{organization}）",
         "unavailable": "套餐不可用"
@@ -1495,6 +1494,30 @@
       "button": "重新发送验证邮件",
       "sendSuccess": "验证邮件已发送。请检查您的收件箱。",
       "sendError": "发送验证邮件失败。请重试。"
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "你的积分快用完了",
+          "description": "在积分用完前，打开账单页面选择订阅方案。"
+        },
+        "outOfCredits": {
+          "title": "订阅后即可继续",
+          "description": "打开账单页面选择订阅方案，继续使用。"
+        },
+        "button": "查看订阅方案"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "你的积分快用完了",
+          "description": "打开账单页面管理你的订阅并补充积分，避免工作中断。"
+        },
+        "outOfCredits": {
+          "title": "你的积分已用完",
+          "description": "打开账单页面管理你的订阅并补充积分，以继续使用。"
+        },
+        "button": "打开账单"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "订阅更新成功。",

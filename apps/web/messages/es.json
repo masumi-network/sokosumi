@@ -1306,7 +1306,7 @@
           "cancelRequested": "Cancelación solicitada"
         },
         "billingCta": {
-          "upgradePlan": "Mejorar plan",
+          "upgradePlan": "Obtener más créditos",
           "addCredits": "Añadir Credits",
           "placeholder": "Este Task necesita Credits para continuar. Ve a Billing para continuar."
         },
@@ -1445,14 +1445,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Añadir Credits",
         "userBalance": "{credits, plural, =0 {Sin Credits} =1 {1 Credit} other {# Credits}}",
         "organizationBalance": "{credits, plural, =0 {Sin Credits} =1 {1 Credit} other {# Credits}} ({organization})",
         "unavailable": "Credits no disponibles",
         "extraCredits": "{credits, plural, =0 {0 disponibles} =1 {1 disponible} other {# disponibles}}"
       },
       "Plan": {
-        "upgradeCta": "Mejorar plan",
+        "getMoreCredits": "Obtener más créditos",
         "userPlan": "{plan}",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan no disponible"
@@ -2184,6 +2183,30 @@
       "button": "Reenviar correo de verificación",
       "sendSuccess": "Correo de verificación enviado. Revisa tu bandeja de entrada.",
       "sendError": "No se pudo enviar el correo de verificación. Por favor, inténtalo de nuevo."
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "Te quedan pocos créditos",
+          "description": "Abre facturación para elegir una suscripción antes de quedarte sin créditos."
+        },
+        "outOfCredits": {
+          "title": "Inicia una suscripción para continuar",
+          "description": "Abre facturación para elegir una suscripción y seguir trabajando."
+        },
+        "button": "Ver suscripciones"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "Te quedan pocos créditos",
+          "description": "Abre facturación para gestionar tu suscripción y añadir créditos antes de que se interrumpa tu trabajo."
+        },
+        "outOfCredits": {
+          "title": "Tus créditos se han agotado",
+          "description": "Abre facturación para gestionar tu suscripción y añadir créditos para continuar."
+        },
+        "button": "Abrir facturación"
+      }
     }
   },
   "Share": {

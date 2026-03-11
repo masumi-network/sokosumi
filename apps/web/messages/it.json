@@ -1337,7 +1337,7 @@
           "cancelRequested": "Annullamento richiesto"
         },
         "billingCta": {
-          "upgradePlan": "Aggiorna il tuo piano",
+          "upgradePlan": "Ottieni più crediti",
           "addCredits": "Aggiungi crediti",
           "placeholder": "Questo task richiede crediti per continuare. Apri la fatturazione per procedere."
         },
@@ -1476,14 +1476,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Aggiungi crediti",
         "extraCredits": "{credits, plural, =0 {0 disponibili} =1 {1 disponibile} other {# disponibili}}",
         "userBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}}",
         "organizationBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}} ({organization})",
         "unavailable": "Crediti non disponibili"
       },
       "Plan": {
-        "upgradeCta": "Aggiorna piano",
+        "getMoreCredits": "Ottieni più crediti",
         "userPlan": "{plan} (Personale)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Piano non disponibile"
@@ -1495,6 +1494,30 @@
       "button": "Invia di nuovo l’email di verifica",
       "sendSuccess": "Email di verifica inviata. Controlla la tua casella di posta.",
       "sendError": "Impossibile inviare l’email di verifica. Riprova."
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "I tuoi crediti stanno finendo",
+          "description": "Apri la fatturazione per scegliere un abbonamento prima di rimanere senza crediti."
+        },
+        "outOfCredits": {
+          "title": "Attiva un abbonamento per continuare",
+          "description": "Apri la fatturazione per scegliere un abbonamento e continuare a lavorare."
+        },
+        "button": "Vedi abbonamenti"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "I tuoi crediti stanno finendo",
+          "description": "Apri la fatturazione per gestire il tuo abbonamento e aggiungere crediti prima che il lavoro si interrompa."
+        },
+        "outOfCredits": {
+          "title": "I tuoi crediti sono esauriti",
+          "description": "Apri la fatturazione per gestire il tuo abbonamento e aggiungere crediti per continuare."
+        },
+        "button": "Apri fatturazione"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Abbonamento aggiornato correttamente.",

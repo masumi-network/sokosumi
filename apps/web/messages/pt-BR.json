@@ -1337,7 +1337,7 @@
           "cancelRequested": "Cancelamento solicitado"
         },
         "billingCta": {
-          "upgradePlan": "Faça upgrade do seu plano",
+          "upgradePlan": "Obter mais créditos",
           "addCredits": "Adicionar créditos",
           "placeholder": "Esta task precisa de créditos para continuar. Abra a cobrança para prosseguir."
         },
@@ -1476,14 +1476,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Adicionar créditos",
         "extraCredits": "{credits, plural, =0 {0 disponíveis} =1 {1 disponível} other {# disponíveis}}",
         "userBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}}",
         "organizationBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}} ({organization})",
         "unavailable": "Créditos indisponíveis"
       },
       "Plan": {
-        "upgradeCta": "Fazer upgrade do plano",
+        "getMoreCredits": "Obter mais créditos",
         "userPlan": "{plan} (Pessoal)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plano indisponível"
@@ -1495,6 +1494,30 @@
       "button": "Reenviar e-mail de verificação",
       "sendSuccess": "E-mail de verificação enviado. Confira sua caixa de entrada.",
       "sendError": "Falha ao enviar e-mail de verificação. Tente de novo."
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "Seus créditos estão acabando",
+          "description": "Abra o faturamento para escolher uma assinatura antes que seus créditos acabem."
+        },
+        "outOfCredits": {
+          "title": "Assine para continuar",
+          "description": "Abra o faturamento para escolher uma assinatura e continuar trabalhando."
+        },
+        "button": "Ver assinaturas"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "Seus créditos estão acabando",
+          "description": "Abra o faturamento para gerenciar sua assinatura e adicionar créditos antes que seu trabalho seja interrompido."
+        },
+        "outOfCredits": {
+          "title": "Seus créditos acabaram",
+          "description": "Abra o faturamento para gerenciar sua assinatura e adicionar créditos para continuar."
+        },
+        "button": "Abrir faturamento"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Assinatura atualizada com sucesso.",
