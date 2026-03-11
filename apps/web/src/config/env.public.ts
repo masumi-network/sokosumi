@@ -27,7 +27,7 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD: z.coerce
     .number()
     .min(0)
-    .default(100),
+    .default(500),
   NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG: z.coerce.boolean().default(false),
 });
 

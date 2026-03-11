@@ -1,8 +1,6 @@
 import Link from "next/link";
 
-import UserCredits, {
-  type UserCreditsData,
-} from "@/app/components/user-credits";
+import UserCredits from "@/app/components/user-credits";
 import {
   SokosumiIcon,
   SokosumiLogo,
@@ -28,20 +26,11 @@ import ProfileSwitch from "./components/profile-switch";
 import UserSettingsMenu from "./components/user-settings-menu";
 
 interface SidebarProps {
-  creditsData: UserCreditsData | null;
-  currentTimestampMs: number;
-  organizationName: string | null;
   session: Session;
   isTaskRailEnabled: boolean;
 }
 
-export default function Sidebar({
-  creditsData,
-  currentTimestampMs,
-  organizationName,
-  session,
-  isTaskRailEnabled,
-}: SidebarProps) {
+export default function Sidebar({ session, isTaskRailEnabled }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-[64px] border-b">
@@ -78,9 +67,6 @@ export default function Sidebar({
         <AnnouncementCards />
         <div className="flex flex-1 gap-2 p-4 pt-0 md:p-2">
           <UserCredits
-            creditsData={creditsData}
-            currentTimestampMs={currentTimestampMs}
-            organizationName={organizationName}
             session={session}
             showCtaButtons={false}
             showCreditUsage

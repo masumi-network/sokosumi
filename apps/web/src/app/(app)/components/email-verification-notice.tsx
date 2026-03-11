@@ -1,6 +1,8 @@
+import { AlertTriangle } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
-import TopNotice, { TOP_NOTICE_ACTION_CLASS_NAME } from "./top-notice";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 import VerifyEmailButton from "./verify-email-button";
 
 interface EmailVerificationNoticeProps {
@@ -19,17 +21,22 @@ export default async function EmailVerificationNotice({
   const t = await getTranslations("App.EmailVerificationNotice");
 
   return (
-    <TopNotice
-      title={t("title")}
-      description={t("description")}
-      action={
-        <VerifyEmailButton
-          email={email}
-          label={t("button")}
-          variant="outline"
-          className={TOP_NOTICE_ACTION_CLASS_NAME}
-        />
-      }
-    />
+    <div className="sticky top-0 z-10 mb-4">
+      <Alert className="border-semantic-warning-tertiary bg-semantic-warning-quinary text-semantic-warning">
+        <AlertTriangle className="size-4" aria-hidden />
+        <AlertTitle className="text-semantic-warning">{t("title")}</AlertTitle>
+        <AlertDescription className="text-semantic-warning">
+          <div className="flex flex-col gap-2">
+            <p>{t("description")}</p>
+            <VerifyEmailButton
+              email={email}
+              label={t("button")}
+              variant="outline"
+              className="border-semantic-warning-tertiary text-semantic-warning hover:bg-semantic-warning-quinary hover:text-semantic-warning self-start bg-transparent"
+            />
+          </div>
+        </AlertDescription>
+      </Alert>
+    </div>
   );
 }

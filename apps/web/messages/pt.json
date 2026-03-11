@@ -1337,7 +1337,7 @@
           "cancelRequested": "Cancelamento solicitado"
         },
         "billingCta": {
-          "upgradePlan": "Obter mais créditos",
+          "upgradePlan": "Atualize o seu plano",
           "addCredits": "Adicionar créditos",
           "placeholder": "Esta tarefa precisa de créditos para continuar. Abra a faturação para prosseguir."
         },
@@ -1476,13 +1476,14 @@
     },
     "Header": {
       "Credit": {
+        "buy": "Adicionar créditos",
         "extraCredits": "{credits, plural, =0 {0 disponíveis} =1 {1 disponível} other {# disponíveis}}",
         "userBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}}",
         "organizationBalance": "{credits, plural, =0 {Sem créditos} =1 {1 crédito} other {# créditos}} ({organization})",
         "unavailable": "Créditos indisponíveis"
       },
       "Plan": {
-        "getMoreCredits": "Obter mais créditos",
+        "upgradeCta": "Atualizar plano",
         "userPlan": "{plan} (Pessoal)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plano indisponível"
@@ -1494,30 +1495,6 @@
       "button": "Reenviar e-mail de verificação",
       "sendSuccess": "E-mail de verificação enviado. Verifique a sua caixa de entrada.",
       "sendError": "Falha ao enviar e-mail de verificação. Tente novamente."
-    },
-    "LowCreditsNotice": {
-      "subscription": {
-        "almostOut": {
-          "title": "Os seus créditos estão a acabar",
-          "description": "Abra a faturação para escolher uma subscrição antes de ficar sem créditos."
-        },
-        "outOfCredits": {
-          "title": "Inicie uma subscrição para continuar",
-          "description": "Abra a faturação para escolher uma subscrição e continuar a trabalhar."
-        },
-        "button": "Ver subscrições"
-      },
-      "credits": {
-        "almostOut": {
-          "title": "Os seus créditos estão a acabar",
-          "description": "Abra a faturação para gerir a sua subscrição e adicionar créditos antes de o trabalho ser interrompido."
-        },
-        "outOfCredits": {
-          "title": "Ficou sem créditos",
-          "description": "Abra a faturação para gerir a sua subscrição e adicionar créditos para continuar."
-        },
-        "button": "Abrir faturação"
-      }
     },
     "Subscriptions": {
       "statusSuccess": "Subscrição atualizada com sucesso.",

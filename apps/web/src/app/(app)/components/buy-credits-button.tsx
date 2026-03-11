@@ -1,23 +1,21 @@
 "use client";
-
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 interface BuyCreditsButtonProps {
-  label: string;
-  path: string;
+  label?: string;
+  path?: string;
   className?: string;
   disabled?: boolean;
-  iconRight?: ReactNode;
+  iconRight?: React.ReactNode;
 }
 
 export default function BuyCreditsButton({
-  label,
-  path,
+  label = "Buy",
+  path = "/billing?tab=credits",
   className,
   disabled,
   iconRight,
@@ -25,16 +23,17 @@ export default function BuyCreditsButton({
   const router = useRouter();
   const { isMobile, toggleSidebar } = useSidebar();
 
-  function handleClick(): void {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!path) return;
     router.push(path);
     if (isMobile) {
       toggleSidebar();
     }
-  }
+  };
 
   return (
     <Button
-      type="button"
       variant="default"
       size="sm"
       onClick={handleClick}

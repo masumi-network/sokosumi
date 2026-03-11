@@ -1,7 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -22,13 +21,7 @@ vi.mock("@/lib/db/prisma", () => ({
 function createApp() {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
+  }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -145,33 +138,12 @@ describe("GET /coworkers", () => {
     });
   });
 
-  it("filters coworkers by a single capability", async () => {
-    coworkerFindManyMock.mockResolvedValue([]);
-
-    const app = createApp();
-    const response = await app.request("http://localhost/?capability=tasks");
-
-    expect(response.status).toBe(200);
-    expect(coworkerFindManyMock).toHaveBeenCalledWith({
-      where: {
-        archivedAt: null,
-        isWhitelisted: true,
-        capabilities: {
-          hasEvery: ["tasks"],
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-  });
-
-  it("parses repeated and comma-separated capability filters", async () => {
+  it("filters to coworkers with chat capability when capability=chat", async () => {
     coworkerFindManyMock.mockResolvedValue([]);
 
     const app = createApp();
     const response = await app.request(
-      "http://localhost/?capability=tasks,chat&capability=tasks",
+      "http://localhost/?scope=whitelisted&capability=chat",
     );
 
     expect(response.status).toBe(200);
@@ -179,9 +151,7 @@ describe("GET /coworkers", () => {
       where: {
         archivedAt: null,
         isWhitelisted: true,
-        capabilities: {
-          hasEvery: ["tasks", "chat"],
-        },
+        capabilities: { has: "chat" },
       },
       orderBy: {
         createdAt: "desc",
@@ -189,11 +159,24 @@ describe("GET /coworkers", () => {
     });
   });
 
-  it("rejects invalid capability filters", async () => {
-    const app = createApp();
-    const response = await app.request("http://localhost/?capability=search");
+  it("filters to coworkers with tasks capability when capability=tasks", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
 
-    expect(response.status).toBe(422);
-    expect(coworkerFindManyMock).not.toHaveBeenCalled();
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?scope=whitelisted&capability=tasks",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: { has: "tasks" },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
   });
 });

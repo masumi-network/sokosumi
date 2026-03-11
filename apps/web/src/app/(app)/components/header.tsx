@@ -9,23 +9,14 @@ import { cn } from "@/lib/utils";
 import ChatRailTrigger from "./chat-rail-trigger";
 import HeaderUserSection from "./header-user-section";
 import CustomTrigger from "./sidebar/components/custom-trigger";
-import UserCredits, { type UserCreditsData } from "./user-credits";
+import UserCredits from "./user-credits";
 
 interface HeaderProps {
-  creditsData: UserCreditsData | null;
-  currentTimestampMs: number;
-  organizationName: string | null;
   session: Session;
   className?: string | undefined;
 }
 
-export default async function Header({
-  creditsData,
-  currentTimestampMs,
-  organizationName,
-  session,
-  className,
-}: HeaderProps) {
+export default async function Header({ session, className }: HeaderProps) {
   const isTaskRailEnabled = await taskRailEnabled();
 
   return (
@@ -54,13 +45,7 @@ export default async function Header({
         <BreadcrumbNavigation className="flex flex-1" />
         <HeaderUserSection>
           <div className="flex items-center gap-2">
-            <UserCredits
-              creditsData={creditsData}
-              currentTimestampMs={currentTimestampMs}
-              organizationName={organizationName}
-              session={session}
-              showAvatar={false}
-            />
+            <UserCredits session={session} showAvatar={false} />
             {isTaskRailEnabled ? <ChatRailTrigger /> : null}
           </div>
         </HeaderUserSection>

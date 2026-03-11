@@ -1339,7 +1339,7 @@
           "cancelRequested": "Cancel requested"
         },
         "billingCta": {
-          "upgradePlan": "Get more credits",
+          "upgradePlan": "Upgrade your Plan",
           "addCredits": "Add credits",
           "placeholder": "This task needs credits to continue. Open billing to proceed."
         },
@@ -1478,13 +1478,14 @@
     },
     "Header": {
       "Credit": {
+        "buy": "Add credits",
         "extraCredits": "{credits, plural, =0 {0 available} =1 {1 available} other {# available}}",
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
       },
       "Plan": {
-        "getMoreCredits": "Get more credits",
+        "upgradeCta": "Upgrade plan",
         "userPlan": "{plan} (Personal)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan unavailable"
@@ -1496,30 +1497,6 @@
       "button": "Resend verification email",
       "sendSuccess": "Verification email sent. Please check your inbox.",
       "sendError": "Failed to send verification email. Please try again."
-    },
-    "LowCreditsNotice": {
-      "subscription": {
-        "almostOut": {
-          "title": "Your credits are running low",
-          "description": "Open billing to choose a subscription before you run out."
-        },
-        "outOfCredits": {
-          "title": "Start a subscription to continue",
-          "description": "Open billing to choose a subscription and keep working."
-        },
-        "button": "View subscription plans"
-      },
-      "credits": {
-        "almostOut": {
-          "title": "Your credits are running low",
-          "description": "Open billing to manage your subscription and add credits before work is interrupted."
-        },
-        "outOfCredits": {
-          "title": "Your credits are used up",
-          "description": "Open billing to manage your subscription and add credits to keep going."
-        },
-        "button": "Open billing"
-      }
     },
     "Subscriptions": {
       "statusSuccess": "Subscription updated successfully.",

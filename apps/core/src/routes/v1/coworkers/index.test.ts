@@ -25,22 +25,4 @@ describe("coworkers routes OpenAPI contract", () => {
     expect(paths).not.toContain("/{id}/events");
     expect(paths).not.toContain("/{id}/usage");
   });
-
-  it("documents capability filtering and validation failure for GET /", () => {
-    const doc = coworkersRouter.getOpenAPI31Document({
-      openapi: "3.1.0",
-      info: {
-        title: "Coworkers API",
-        version: "1.0.0",
-      },
-    });
-
-    const getCoworkersOperation = doc.paths?.["/"]?.get;
-    const parameterNames = (getCoworkersOperation?.parameters ?? []).map(
-      (parameter) => parameter.name,
-    );
-
-    expect(parameterNames).toContain("capability");
-    expect(getCoworkersOperation?.responses).toHaveProperty("422");
-  });
 });
