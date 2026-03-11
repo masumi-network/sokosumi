@@ -9,6 +9,7 @@ const {
   oauthProviderPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
+  magicLinkPluginMock,
   prismaAdapterMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
@@ -19,6 +20,7 @@ const {
   oauthProviderPluginMock: vi.fn(),
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
+  magicLinkPluginMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
 }));
 
@@ -33,6 +35,7 @@ vi.mock("@better-auth/prisma-adapter", () => ({
 vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
+  magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
@@ -52,6 +55,8 @@ vi.mock("@better-auth/i18n", () => ({
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     BETTER_AUTH_SECRET: "test-secret",
+    POSTMARK_FROM_EMAIL: "no-reply@example.com",
+    POSTMARK_SERVER_ID: "postmark-server-id",
     BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
     BETTER_AUTH_URL: "https://example.com/auth",
   }),
@@ -70,6 +75,7 @@ describe("core auth config", () => {
     apiKeyPluginMock.mockReturnValue("api-key-plugin");
     i18nPluginMock.mockReturnValue("i18n-plugin");
     jwtPluginMock.mockReturnValue("jwt-plugin");
+    magicLinkPluginMock.mockReturnValue("magic-link-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
@@ -88,5 +94,17 @@ describe("core auth config", () => {
     >;
 
     expect(config.plugins).toEqual(expect.arrayContaining(["admin-plugin"]));
+  });
+
+  it("configures the magic link plugin", async () => {
+    await import("./auth");
+
+    expect(magicLinkPluginMock).toHaveBeenCalledTimes(1);
+
+    const [[config]] = magicLinkPluginMock.mock.calls as Array<
+      [{ sendMagicLink: unknown }]
+    >;
+
+    expect(config.sendMagicLink).toEqual(expect.any(Function));
   });
 });

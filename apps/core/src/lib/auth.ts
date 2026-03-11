@@ -4,8 +4,15 @@ import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import { betterAuth } from "better-auth/minimal";
-import { admin, jwt, openAPI, organization } from "better-auth/plugins";
+import {
+  admin,
+  jwt,
+  magicLink,
+  openAPI,
+  organization,
+} from "better-auth/plugins";
 
+import { postmarkClient } from "@/clients/postmark.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -76,6 +83,19 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    magicLink({
+      sendMagicLink: async ({ email, url, token }, ctx) => {
+        console.info("context", ctx);
+        postmarkClient.sendEmail({
+          From: env.POSTMARK_FROM_EMAIL,
+          To: email,
+          Tag: "magic-link",
+          Subject: "Magic Link",
+          HtmlBody: `Click <a href="${url}">here</a> or use the token ${token} to login`,
+          MessageStream: "authentications",
+        });
+      },
+    }),
     i18n({
       translations: authTranslations,
       defaultLocale: "en",
