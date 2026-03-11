@@ -92,7 +92,7 @@ describe("organizationSubscriptionService", () => {
   });
 
   describe("ensureCanAcceptInvitation", () => {
-    it("allows accepting invitations without an active organization subscription", async () => {
+    it("throws when no active organization subscription exists", async () => {
       findSubscriptionMock.mockResolvedValue(null);
 
       const { organizationSubscriptionService } =
@@ -100,7 +100,9 @@ describe("organizationSubscriptionService", () => {
 
       await expect(
         organizationSubscriptionService.ensureCanAcceptInvitation("org-1"),
-      ).resolves.toBeUndefined();
+      ).rejects.toThrow(
+        "An active organization subscription is required before adding members.",
+      );
 
       expect(memberCountMock).not.toHaveBeenCalled();
       expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
