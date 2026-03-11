@@ -80,9 +80,13 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       size: 80,
       default: "404",
     });
+  const creditsData = creditsResult?.data.credits ?? null;
+  const currentTimestampMs = creditsResult?.meta?.timestamp
+    ? new Date(creditsResult.meta.timestamp).getTime()
+    : 0;
   const topNotice = resolveAppTopNotice({
-    credits: creditsResult?.data.credits.total ?? null,
-    currentPlan: creditsResult?.data.credits.subscription?.plan ?? "free",
+    credits: creditsData?.total ?? null,
+    currentPlan: creditsData?.subscription?.plan ?? "free",
     email: session.user.email,
     emailVerified: session.user.emailVerified,
     threshold: getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
@@ -100,13 +104,25 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           className="flex max-w-svw overflow-clip"
         >
           <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
-            <Sidebar session={session} isTaskRailEnabled={isTaskRailEnabled} />
+            <Sidebar
+              creditsData={creditsData}
+              currentTimestampMs={currentTimestampMs}
+              organizationName={activeOrganization?.name ?? null}
+              session={session}
+              isTaskRailEnabled={isTaskRailEnabled}
+            />
             <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
               <div
                 className="flex min-w-0 flex-1 flex-col overflow-clip"
                 data-app-content-inner
               >
-                <Header session={session} className="h-16 p-4" />
+                <Header
+                  creditsData={creditsData}
+                  currentTimestampMs={currentTimestampMs}
+                  organizationName={activeOrganization?.name ?? null}
+                  session={session}
+                  className="h-16 p-4"
+                />
                 <main
                   className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
                   data-app-main

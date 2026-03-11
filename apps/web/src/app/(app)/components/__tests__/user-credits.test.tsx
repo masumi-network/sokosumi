@@ -5,9 +5,6 @@ import { render, screen } from "@testing-library/react";
 import UserCredits from "@/app/components/user-credits";
 import type { Session } from "@/lib/auth/auth";
 
-const getMyCreditsMock = jest.fn();
-const getMyOrganizationsMock = jest.fn();
-
 jest.mock("next-intl/server", () => ({
   getTranslations: (namespace: string) =>
     Promise.resolve((key: string, values?: Record<string, string | number>) => {
@@ -37,13 +34,6 @@ jest.mock("next-intl/server", () => ({
     }),
 }));
 
-jest.mock("@/lib/clients/core.client", () => ({
-  coreClient: {
-    getMyCredits: () => getMyCreditsMock(),
-    getMyOrganizations: () => getMyOrganizationsMock(),
-  },
-}));
-
 jest.mock("../buy-credits-button", () => ({
   __esModule: true,
   default: ({ label, path }: { label?: string; path?: string }) => (
@@ -53,7 +43,19 @@ jest.mock("../buy-credits-button", () => ({
 
 jest.mock("../user-avatar", () => ({
   __esModule: true,
-  default: () => <div data-testid="user-avatar" />,
+  default: ({
+    creditsLabel,
+    secondaryLabel,
+  }: {
+    creditsLabel?: string;
+    secondaryLabel?: string;
+  }) => (
+    <div
+      data-testid="user-avatar"
+      data-credits-label={creditsLabel}
+      data-secondary-label={secondaryLabel}
+    />
+  ),
 }));
 
 const session = {
@@ -85,14 +87,11 @@ function createCreditsResponse(plan: string | null, buffer: number) {
 }
 
 describe("UserCredits", () => {
-  beforeEach(() => {
-    getMyOrganizationsMock.mockResolvedValue({ data: [] });
-  });
-
   it("routes free-plan header CTA to the subscription billing tab", async () => {
-    getMyCreditsMock.mockResolvedValue(createCreditsResponse("free", 500));
-
     const view = await UserCredits({
+      creditsData: createCreditsResponse("free", 500).data.credits,
+      currentTimestampMs: 0,
+      organizationName: null,
       session,
       showAvatar: false,
     });
@@ -110,9 +109,10 @@ describe("UserCredits", () => {
   });
 
   it("routes paid-plan header CTA to the credits billing tab", async () => {
-    getMyCreditsMock.mockResolvedValue(createCreditsResponse("starter", 500));
-
     const view = await UserCredits({
+      creditsData: createCreditsResponse("starter", 500).data.credits,
+      currentTimestampMs: 0,
+      organizationName: null,
       session,
       showAvatar: false,
     });
@@ -130,9 +130,10 @@ describe("UserCredits", () => {
   });
 
   it("shows the CTA for pro plans", async () => {
-    getMyCreditsMock.mockResolvedValue(createCreditsResponse("pro", 500));
-
     const view = await UserCredits({
+      creditsData: createCreditsResponse("pro", 500).data.credits,
+      currentTimestampMs: 0,
+      organizationName: null,
       session,
       showAvatar: false,
     });
@@ -146,9 +147,10 @@ describe("UserCredits", () => {
   });
 
   it("falls back to subscription billing when subscription data is missing", async () => {
-    getMyCreditsMock.mockResolvedValue(createCreditsResponse(null, 500));
-
     const view = await UserCredits({
+      creditsData: createCreditsResponse(null, 500).data.credits,
+      currentTimestampMs: 0,
+      organizationName: null,
       session,
       showAvatar: false,
     });
@@ -158,6 +160,33 @@ describe("UserCredits", () => {
     expect(screen.getByTestId("buy-credits-button")).toHaveAttribute(
       "data-path",
       "/billing?tab=subscription",
+    );
+  });
+
+  it("uses the provided active organization name in the plan label", async () => {
+    const organizationSession = {
+      ...session,
+      session: {
+        activeOrganizationId: "org_123",
+      },
+    } as Session;
+
+    const view = await UserCredits({
+      creditsData: createCreditsResponse("starter", 500).data.credits,
+      currentTimestampMs: 0,
+      organizationName: "Acme",
+      session: organizationSession,
+      showAvatar: true,
+      showCtaButtons: false,
+      showCreditUsage: false,
+    });
+
+    render(view);
+
+    expect(screen.queryByTestId("buy-credits-button")).not.toBeInTheDocument();
+    expect(screen.getByTestId("user-avatar")).toHaveAttribute(
+      "data-secondary-label",
+      "Starter (Acme)",
     );
   });
 });
