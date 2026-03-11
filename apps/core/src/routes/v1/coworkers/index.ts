@@ -11,6 +11,7 @@ import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch.js";
 import mountGetCoworkers from "./get.js";
 import mountGetCoworkerMeEvents from "./me/events/get.js";
 import mountGetCoworkerMe from "./me/get.js";
+import mountPostCoworkerMeOAuthToken from "./me/oauth/token/post.js";
 import mountPostCoworkerMeUsage from "./me/usage/post.js";
 import mountPostCoworker from "./post.js";
 
@@ -20,6 +21,7 @@ mountGetCoworkers(app);
 mountPostCoworker(app);
 mountGetCoworkerMe(app);
 mountGetCoworkerMeEvents(app);
+mountPostCoworkerMeOAuthToken(app);
 mountPostCoworkerMeUsage(app);
 mountGetCoworkerApiKeys(app);
 mountPostCoworkerApiKey(app);
