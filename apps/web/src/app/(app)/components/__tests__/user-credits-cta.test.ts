@@ -6,7 +6,6 @@ describe("resolveUserCreditsCta", () => {
       resolveUserCreditsCta({
         currentPlan: "starter",
         hasLowCredits: false,
-        suppressLowCreditsCta: false,
       }),
     ).toBe("upgradePlan");
   });
@@ -16,7 +15,6 @@ describe("resolveUserCreditsCta", () => {
       resolveUserCreditsCta({
         currentPlan: "starter",
         hasLowCredits: true,
-        suppressLowCreditsCta: false,
       }),
     ).toBe("addCredits");
   });
@@ -26,19 +24,17 @@ describe("resolveUserCreditsCta", () => {
       resolveUserCreditsCta({
         currentPlan: null,
         hasLowCredits: false,
-        suppressLowCreditsCta: false,
       }),
     ).toBe("none");
   });
 
-  it("suppresses the duplicate CTA when the top low-credits banner is active", () => {
+  it("keeps addCredits visible when credits are low", () => {
     expect(
       resolveUserCreditsCta({
         currentPlan: "starter",
         hasLowCredits: true,
-        suppressLowCreditsCta: true,
       }),
-    ).toBe("none");
+    ).toBe("addCredits");
   });
 
   it("keeps the free-plan upgrade CTA when credits are not low", () => {
@@ -46,7 +42,6 @@ describe("resolveUserCreditsCta", () => {
       resolveUserCreditsCta({
         currentPlan: "free",
         hasLowCredits: false,
-        suppressLowCreditsCta: true,
       }),
     ).toBe("upgradePlan");
   });

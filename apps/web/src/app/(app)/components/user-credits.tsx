@@ -17,7 +17,6 @@ interface UserCreditsProps {
   showCtaButtons?: boolean;
   showCreditUsage?: boolean;
   showCreditUsageOnMobileOnly?: boolean;
-  suppressLowCreditsCta?: boolean;
 }
 
 export default async function UserCredits({
@@ -26,7 +25,6 @@ export default async function UserCredits({
   showCtaButtons = true,
   showCreditUsage = true,
   showCreditUsageOnMobileOnly = false,
-  suppressLowCreditsCta = false,
 }: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
@@ -123,7 +121,6 @@ export default async function UserCredits({
   const cta = resolveUserCreditsCta({
     currentPlan,
     hasLowCredits,
-    suppressLowCreditsCta,
   });
 
   const shouldShowUpgradeCta = showCtaButtons && cta === "upgradePlan";

@@ -14,14 +14,9 @@ import UserCredits from "./user-credits";
 interface HeaderProps {
   session: Session;
   className?: string | undefined;
-  suppressLowCreditsCta?: boolean;
 }
 
-export default async function Header({
-  session,
-  className,
-  suppressLowCreditsCta = false,
-}: HeaderProps) {
+export default async function Header({ session, className }: HeaderProps) {
   const isTaskRailEnabled = await taskRailEnabled();
 
   return (
@@ -50,11 +45,7 @@ export default async function Header({
         <BreadcrumbNavigation className="flex flex-1" />
         <HeaderUserSection>
           <div className="flex items-center gap-2">
-            <UserCredits
-              session={session}
-              showAvatar={false}
-              suppressLowCreditsCta={suppressLowCreditsCta}
-            />
+            <UserCredits session={session} showAvatar={false} />
             {isTaskRailEnabled ? <ChatRailTrigger /> : null}
           </div>
         </HeaderUserSection>
