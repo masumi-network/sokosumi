@@ -4,7 +4,10 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 
-import TopNotice, { TOP_NOTICE_ACTION_CLASS_NAME } from "./top-notice";
+import TopNotice, {
+  getTopNoticeActionClassName,
+  type TopNoticeTone,
+} from "./top-notice";
 
 interface LowCreditsNoticeProps {
   kind: "lowCredits" | "outOfCredits";
@@ -16,9 +19,12 @@ export default async function LowCreditsNotice({
   path,
 }: LowCreditsNoticeProps) {
   const t = await getTranslations("App.LowCreditsNotice");
+  const tone: TopNoticeTone =
+    kind === "outOfCredits" ? "destructive" : "warning";
 
   return (
     <TopNotice
+      tone={tone}
       title={t(
         `${kind === "outOfCredits" ? "outOfCredits" : "almostOut"}.title`,
       )}
@@ -30,7 +36,7 @@ export default async function LowCreditsNotice({
           asChild
           variant="outline"
           size="sm"
-          className={TOP_NOTICE_ACTION_CLASS_NAME}
+          className={getTopNoticeActionClassName(tone)}
         >
           <Link href={path}>
             <span>{t("button")}</span>

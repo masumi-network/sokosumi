@@ -36,8 +36,18 @@ describe("LowCreditsNotice", () => {
     expect(
       screen.getByText(/Open billing to add credits/i),
     ).toBeInTheDocument();
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveClass(
+      "border-semantic-warning-tertiary",
+      "bg-semantic-warning-quinary",
+      "text-semantic-warning",
+    );
     const cta = screen.getByRole("link", { name: "Open billing" });
     expect(cta).toHaveAttribute("href", "/billing?tab=subscription");
+    expect(cta.closest("[data-slot='button']")).toHaveClass(
+      "border-semantic-warning-tertiary",
+      "text-semantic-warning",
+    );
     expect(cta.querySelector("svg")).not.toBeNull();
   });
 
@@ -66,9 +76,17 @@ describe("LowCreditsNotice", () => {
     expect(
       screen.getByText(/Open billing to add credits or manage your plan/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open billing" })).toHaveAttribute(
-      "href",
-      "/billing?tab=credits",
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveClass(
+      "border-semantic-destructive-tertiary",
+      "bg-semantic-destructive-quinary",
+      "text-semantic-destructive",
+    );
+    const cta = screen.getByRole("link", { name: "Open billing" });
+    expect(cta).toHaveAttribute("href", "/billing?tab=credits");
+    expect(cta.closest("[data-slot='button']")).toHaveClass(
+      "border-semantic-destructive-tertiary",
+      "text-semantic-destructive",
     );
   });
 });
