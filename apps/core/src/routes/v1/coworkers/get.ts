@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
-import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
   deduplicateQueryValues,
@@ -68,7 +67,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireUserAuthContext(c.var.authContext);
-    const { scope, capability } = c.req.valid("query");
     const { scope, capability } = c.req.valid("query");
 
     const baseScope =
