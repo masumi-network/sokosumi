@@ -145,7 +145,7 @@ describe("UserCredits", () => {
     );
   });
 
-  it("shows the CTA when the plan is unavailable", async () => {
+  it("falls back to subscription billing when subscription data is missing", async () => {
     getMyCreditsMock.mockResolvedValue(createCreditsResponse(null, 500));
 
     const view = await UserCredits({
