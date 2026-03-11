@@ -1445,14 +1445,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Añadir Credits",
         "userBalance": "{credits, plural, =0 {Sin Credits} =1 {1 Credit} other {# Credits}}",
         "organizationBalance": "{credits, plural, =0 {Sin Credits} =1 {1 Credit} other {# Credits}} ({organization})",
         "unavailable": "Credits no disponibles",
         "extraCredits": "{credits, plural, =0 {0 disponibles} =1 {1 disponible} other {# disponibles}}"
       },
       "Plan": {
-        "upgradeCta": "Obtener más créditos",
+        "getMoreCredits": "Obtener más créditos",
         "userPlan": "{plan}",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan no disponible"

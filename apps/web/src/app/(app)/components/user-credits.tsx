@@ -1,15 +1,14 @@
 import { ArrowUpRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
-import { getEnvPublicConfig } from "@/config/env.public";
 import { Session } from "@/lib/auth/auth";
 import { coreClient } from "@/lib/clients/core.client";
 import { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import BuyCreditsButton from "./buy-credits-button";
+import { resolveLowCreditsBillingPath } from "./top-notice-state";
 import UserAvatar from "./user-avatar";
-import { resolveUserCreditsCta } from "./user-credits-cta";
 
 interface UserCreditsProps {
   session: Session;
@@ -114,29 +113,16 @@ export default async function UserCredits({
     }
   }
 
-  const creditsButtonThreshold =
-    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  const hasLowCredits =
-    typeof credits === "number" && credits < creditsButtonThreshold;
-  const cta = resolveUserCreditsCta({
-    currentPlan,
-    hasLowCredits,
-  });
-
-  const shouldShowUpgradeCta = showCtaButtons && cta === "upgradePlan";
-  const shouldShowAddCreditsCta = showCtaButtons && cta === "addCredits";
+  const billingPath = resolveLowCreditsBillingPath(currentPlan);
 
   return (
     <div className="flex w-full flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {shouldShowUpgradeCta ? (
+      {showCtaButtons ? (
         <BuyCreditsButton
-          label={tPlan("upgradeCta")}
-          path="/billing?tab=subscription"
+          label={tPlan("getMoreCredits")}
+          path={billingPath}
           iconRight={<ArrowUpRight aria-hidden />}
         />
-      ) : null}
-      {shouldShowAddCreditsCta ? (
-        <BuyCreditsButton label={t("buy")} path="/billing?tab=credits" />
       ) : null}
       {showAvatar || showCreditUsage ? (
         <UserAvatar

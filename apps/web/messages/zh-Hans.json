@@ -1476,14 +1476,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "添加积分",
         "extraCredits": "{credits, plural, =0 {0 可用} =1 {1 可用} other {# 可用}}",
         "userBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}}",
         "organizationBalance": "{credits, plural, =0 {无积分} =1 {1 积分} other {# 积分}} ({organization})",
         "unavailable": "积分不可用"
       },
       "Plan": {
-        "upgradeCta": "获取更多积分",
+        "getMoreCredits": "获取更多积分",
         "userPlan": "{plan}（个人）",
         "organizationPlan": "{plan}（{organization}）",
         "unavailable": "套餐不可用"

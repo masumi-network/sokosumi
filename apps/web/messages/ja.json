@@ -1476,14 +1476,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "クレジットを追加",
         "extraCredits": "{credits, plural, =0 {0 利用可能} =1 {1 利用可能} other {# 利用可能}}",
         "userBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}",
         "organizationBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}（{organization}）",
         "unavailable": "クレジットを利用できません"
       },
       "Plan": {
-        "upgradeCta": "クレジットをもっと入手",
+        "getMoreCredits": "クレジットをもっと入手",
         "userPlan": "{plan}（個人）",
         "organizationPlan": "{plan}（{organization}）",
         "unavailable": "プランを利用できません"
