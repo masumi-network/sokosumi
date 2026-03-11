@@ -1337,7 +1337,7 @@
           "cancelRequested": "Annullamento richiesto"
         },
         "billingCta": {
-          "upgradePlan": "Aggiorna il tuo piano",
+          "upgradePlan": "Ottieni più crediti",
           "addCredits": "Aggiungi crediti",
           "placeholder": "Questo task richiede crediti per continuare. Apri la fatturazione per procedere."
         },
@@ -1483,7 +1483,7 @@
         "unavailable": "Crediti non disponibili"
       },
       "Plan": {
-        "upgradeCta": "Aggiorna piano",
+        "upgradeCta": "Ottieni più crediti",
         "userPlan": "{plan} (Personale)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Piano non disponibile"
@@ -1495,6 +1495,17 @@
       "button": "Invia di nuovo l’email di verifica",
       "sendSuccess": "Email di verifica inviata. Controlla la tua casella di posta.",
       "sendError": "Impossibile inviare l’email di verifica. Riprova."
+    },
+    "LowCreditsNotice": {
+      "almostOut": {
+        "title": "Stai per esaurire i crediti",
+        "description": "Apri la fatturazione per aggiungere crediti o gestire il tuo piano prima di rimanere senza."
+      },
+      "outOfCredits": {
+        "title": "Hai esaurito i crediti",
+        "description": "Apri la fatturazione per aggiungere crediti o gestire il tuo piano e continuare."
+      },
+      "button": "Apri fatturazione"
     },
     "Subscriptions": {
       "statusSuccess": "Abbonamento aggiornato correttamente.",

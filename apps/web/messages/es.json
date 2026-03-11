@@ -1306,7 +1306,7 @@
           "cancelRequested": "Cancelación solicitada"
         },
         "billingCta": {
-          "upgradePlan": "Mejorar plan",
+          "upgradePlan": "Obtener más créditos",
           "addCredits": "Añadir Credits",
           "placeholder": "Este Task necesita Credits para continuar. Ve a Billing para continuar."
         },
@@ -1452,7 +1452,7 @@
         "extraCredits": "{credits, plural, =0 {0 disponibles} =1 {1 disponible} other {# disponibles}}"
       },
       "Plan": {
-        "upgradeCta": "Mejorar plan",
+        "upgradeCta": "Obtener más créditos",
         "userPlan": "{plan}",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan no disponible"
@@ -2184,6 +2184,17 @@
       "button": "Reenviar correo de verificación",
       "sendSuccess": "Correo de verificación enviado. Revisa tu bandeja de entrada.",
       "sendError": "No se pudo enviar el correo de verificación. Por favor, inténtalo de nuevo."
+    },
+    "LowCreditsNotice": {
+      "almostOut": {
+        "title": "Te estás quedando sin créditos",
+        "description": "Abre facturación para añadir créditos o gestionar tu plan antes de quedarte sin ellos."
+      },
+      "outOfCredits": {
+        "title": "Te has quedado sin créditos",
+        "description": "Abre facturación para añadir créditos o gestionar tu plan y seguir adelante."
+      },
+      "button": "Abrir facturación"
     }
   },
   "Share": {

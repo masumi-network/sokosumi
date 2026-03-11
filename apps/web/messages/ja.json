@@ -1337,7 +1337,7 @@
           "cancelRequested": "キャンセル申請済み"
         },
         "billingCta": {
-          "upgradePlan": "プランをアップグレード",
+          "upgradePlan": "クレジットをもっと入手",
           "addCredits": "クレジットを追加",
           "placeholder": "このタスクを続行するにはクレジットが必要です。請求を開いて続行してください。"
         },
@@ -1483,7 +1483,7 @@
         "unavailable": "クレジットを利用できません"
       },
       "Plan": {
-        "upgradeCta": "プランをアップグレード",
+        "upgradeCta": "クレジットをもっと入手",
         "userPlan": "{plan}（個人）",
         "organizationPlan": "{plan}（{organization}）",
         "unavailable": "プランを利用できません"
@@ -1495,6 +1495,17 @@
       "button": "確認メールを再送信",
       "sendSuccess": "確認メールを送信しました。受信箱をご確認ください。",
       "sendError": "確認メールの送信に失敗しました。もう一度お試しください。"
+    },
+    "LowCreditsNotice": {
+      "almostOut": {
+        "title": "クレジットがまもなく不足します",
+        "description": "クレジットを使い切る前に、請求ページでクレジットの追加またはプラン管理を行ってください。"
+      },
+      "outOfCredits": {
+        "title": "クレジットを使い切りました",
+        "description": "続行するには、請求ページでクレジットの追加またはプラン管理を行ってください。"
+      },
+      "button": "請求を開く"
     },
     "Subscriptions": {
       "statusSuccess": "サブスクリプションが更新されました。",

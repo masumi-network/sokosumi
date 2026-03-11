@@ -1337,7 +1337,7 @@
           "cancelRequested": "Cancelamento solicitado"
         },
         "billingCta": {
-          "upgradePlan": "Atualize o seu plano",
+          "upgradePlan": "Obter mais créditos",
           "addCredits": "Adicionar créditos",
           "placeholder": "Esta tarefa precisa de créditos para continuar. Abra a faturação para prosseguir."
         },
@@ -1483,7 +1483,7 @@
         "unavailable": "Créditos indisponíveis"
       },
       "Plan": {
-        "upgradeCta": "Atualizar plano",
+        "upgradeCta": "Obter mais créditos",
         "userPlan": "{plan} (Pessoal)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plano indisponível"
@@ -1495,6 +1495,17 @@
       "button": "Reenviar e-mail de verificação",
       "sendSuccess": "E-mail de verificação enviado. Verifique a sua caixa de entrada.",
       "sendError": "Falha ao enviar e-mail de verificação. Tente novamente."
+    },
+    "LowCreditsNotice": {
+      "almostOut": {
+        "title": "Os seus créditos estão quase a acabar",
+        "description": "Abra a faturação para adicionar créditos ou gerir o seu plano antes de ficarem esgotados."
+      },
+      "outOfCredits": {
+        "title": "Ficou sem créditos",
+        "description": "Abra a faturação para adicionar créditos ou gerir o seu plano e continuar."
+      },
+      "button": "Abrir faturação"
     },
     "Subscriptions": {
       "statusSuccess": "Subscrição atualizada com sucesso.",

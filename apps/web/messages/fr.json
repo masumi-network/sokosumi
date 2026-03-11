@@ -1337,7 +1337,7 @@
           "cancelRequested": "Annulation demandée"
         },
         "billingCta": {
-          "upgradePlan": "Mettre à niveau votre forfait",
+          "upgradePlan": "Obtenir plus de crédits",
           "addCredits": "Ajouter des crédits",
           "placeholder": "Cette tâche nécessite des crédits pour continuer. Ouvrez la facturation pour poursuivre."
         },
@@ -1483,7 +1483,7 @@
         "unavailable": "Crédits indisponibles"
       },
       "Plan": {
-        "upgradeCta": "Mettre à niveau le forfait",
+        "upgradeCta": "Obtenir plus de crédits",
         "userPlan": "{plan} (Personnel)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Forfait indisponible"
@@ -1495,6 +1495,17 @@
       "button": "Renvoyer l’e-mail de vérification",
       "sendSuccess": "E-mail de vérification envoyé. Veuillez vérifier votre boîte de réception.",
       "sendError": "Échec de l’envoi de l’e-mail de vérification. Veuillez réessayer."
+    },
+    "LowCreditsNotice": {
+      "almostOut": {
+        "title": "Vous êtes presque à court de crédits",
+        "description": "Ouvrez la facturation pour ajouter des crédits ou gérer votre forfait avant de tout utiliser."
+      },
+      "outOfCredits": {
+        "title": "Vous n’avez plus de crédits",
+        "description": "Ouvrez la facturation pour ajouter des crédits ou gérer votre forfait afin de continuer."
+      },
+      "button": "Ouvrir la facturation"
     },
     "Subscriptions": {
       "statusSuccess": "Abonnement mis à jour avec succès.",
