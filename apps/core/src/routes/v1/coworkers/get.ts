@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
+import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
   deduplicateQueryValues,
@@ -68,14 +69,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireUserAuthContext(c.var.authContext);
     const { scope, capability } = c.req.valid("query");
+    const { scope, capability } = c.req.valid("query");
 
-    const where =
+    const baseScope =
       scope === "archived"
         ? { archivedAt: { not: null } }
         : {
             archivedAt: null,
             ...(scope === "whitelisted" ? { isWhitelisted: true } : {}),
           };
+    const where = {
+      ...baseScope,
+      ...(capability ? { capabilities: { has: capability } } : {}),
+    };
 
     const coworkers = await prisma.coworker.findMany({
       where: {

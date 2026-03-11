@@ -17,7 +17,8 @@ interface UseCoworkersReturn {
 
 /**
  * Fetches available coworkers from the API (DB-backed) and maps them to the chat Coworker type,
- * including resolved profile images.
+ * including resolved profile images. Requests only whitelisted coworkers with the chat capability
+ * so the chat selection shows only coworkers that can be used for chat.
  */
 export function useCoworkers(): UseCoworkersReturn {
   const [coworkers, setCoworkers] = useState<Coworker[]>([]);
@@ -28,7 +29,9 @@ export function useCoworkers(): UseCoworkersReturn {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/coworkers", { credentials: "include" });
+      const res = await fetch("/api/coworkers?capability=chat", {
+        credentials: "include",
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(
