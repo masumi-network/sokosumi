@@ -204,7 +204,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const useResponsesApi =
         Boolean(internalConversationId) && Boolean(coworker);
 
-      // Validate coworker message text BEFORE persisting to avoid inconsistent state
       if (useResponsesApi) {
         if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
           throw badRequest(

@@ -84,8 +84,7 @@ export const auth = betterAuth({
   },
   plugins: [
     magicLink({
-      sendMagicLink: async ({ email, url, token }, ctx) => {
-        console.info("context", ctx);
+      sendMagicLink: async ({ email, url, token }) => {
         postmarkClient.sendEmail({
           From: env.POSTMARK_FROM_EMAIL,
           To: email,
