@@ -1337,7 +1337,7 @@
           "cancelRequested": "Annulation demandée"
         },
         "billingCta": {
-          "upgradePlan": "Mettre à niveau votre forfait",
+          "upgradePlan": "Obtenir plus de crédits",
           "addCredits": "Ajouter des crédits",
           "placeholder": "Cette tâche nécessite des crédits pour continuer. Ouvrez la facturation pour poursuivre."
         },
@@ -1476,14 +1476,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Ajouter des crédits",
         "extraCredits": "{credits, plural, =0 {0 disponibles} =1 {1 disponible} other {# disponibles}}",
         "userBalance": "{credits, plural, =0 {Aucun crédit} =1 {1 crédit} other {# crédits}}",
         "organizationBalance": "{credits, plural, =0 {Aucun crédit} =1 {1 crédit} other {# crédits}} ({organization})",
         "unavailable": "Crédits indisponibles"
       },
       "Plan": {
-        "upgradeCta": "Mettre à niveau le forfait",
+        "getMoreCredits": "Obtenir plus de crédits",
         "userPlan": "{plan} (Personnel)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Forfait indisponible"
@@ -1495,6 +1494,30 @@
       "button": "Renvoyer l’e-mail de vérification",
       "sendSuccess": "E-mail de vérification envoyé. Veuillez vérifier votre boîte de réception.",
       "sendError": "Échec de l’envoi de l’e-mail de vérification. Veuillez réessayer."
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "Vos crédits diminuent",
+          "description": "Ouvrez la facturation pour choisir un abonnement avant d’être à court de crédits."
+        },
+        "outOfCredits": {
+          "title": "Prenez un abonnement pour continuer",
+          "description": "Ouvrez la facturation pour choisir un abonnement et continuer à travailler."
+        },
+        "button": "Voir les abonnements"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "Vos crédits diminuent",
+          "description": "Ouvrez la facturation pour gérer votre abonnement et ajouter des crédits avant que votre travail ne soit interrompu."
+        },
+        "outOfCredits": {
+          "title": "Vos crédits sont épuisés",
+          "description": "Ouvrez la facturation pour gérer votre abonnement et ajouter des crédits afin de continuer."
+        },
+        "button": "Ouvrir la facturation"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Abonnement mis à jour avec succès.",
