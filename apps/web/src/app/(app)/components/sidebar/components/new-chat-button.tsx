@@ -27,7 +27,10 @@ export default function NewChatButton({
   const { openNewChat } = useAppChatRail();
   const isActive = pathname === "/chat";
   const isStandaloneChat = pathname.startsWith("/chat");
-  const shouldOpenRail = isTaskRailEnabled && !isStandaloneChat;
+  const shouldOpenRail = false;
+  //Keep it for now to avoid breaking changes:
+  //eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const holdOnToRail = isTaskRailEnabled && !isStandaloneChat;
 
   return (
     <SidebarGroup className="w-full pb-0">

@@ -132,6 +132,7 @@
       "privacyPolicy": "Política de privacidade",
       "imprint": "Aviso legal",
       "acceptableUse": "Uso aceitável",
+      "settings": "Definições",
       "logout": "Terminar sessão",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
       "creditsSummary": "Resumo de créditos:",
