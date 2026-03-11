@@ -2,8 +2,8 @@
 
 import { client } from './client.gen.js';
 import type { Client, Options as Options2, TDataShape } from './client/index.js';
-import { deletePaymentSourceExtendedResponseTransformer, deleteRegistryResponseTransformer, deleteWebhooksResponseTransformer, getPaymentDiffNextActionResponseTransformer, getPaymentDiffOnchainStateOrResultResponseTransformer, getPaymentDiffResponseTransformer, getPaymentResponseTransformer, getPaymentSourceExtendedResponseTransformer, getPaymentSourceResponseTransformer, getPurchaseDiffNextActionResponseTransformer, getPurchaseDiffOnchainStateOrResultResponseTransformer, getPurchaseDiffResponseTransformer, getPurchaseResponseTransformer, getRegistryDiffResponseTransformer, getRegistryResponseTransformer, getRpcApiKeysResponseTransformer, getWalletResponseTransformer, getWebhooksResponseTransformer, patchPaymentSourceExtendedResponseTransformer, patchWalletResponseTransformer, postPaymentAuthorizeRefundResponseTransformer, postPaymentErrorStateRecoveryResponseTransformer, postPaymentIncomeResponseTransformer, postPaymentResolveBlockchainIdentifierResponseTransformer, postPaymentResponseTransformer, postPaymentSourceExtendedResponseTransformer, postPaymentSubmitResultResponseTransformer, postPurchaseCancelRefundRequestResponseTransformer, postPurchaseRequestRefundResponseTransformer, postPurchaseResolveBlockchainIdentifierResponseTransformer, postPurchaseResponseTransformer, postPurchaseSpendingResponseTransformer, postRegistryDeregisterResponseTransformer, postRegistryResponseTransformer, postWebhooksResponseTransformer } from './transformers.gen.js';
-import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeletePaymentSourceExtendedData, DeletePaymentSourceExtendedResponses, DeleteRegistryData, DeleteRegistryErrors, DeleteRegistryResponses, DeleteWebhooksData, DeleteWebhooksErrors, DeleteWebhooksResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetHealthData, GetHealthResponses, GetMonitoringData, GetMonitoringErrors, GetMonitoringResponses, GetPaymentData, GetPaymentDiffData, GetPaymentDiffErrors, GetPaymentDiffNextActionData, GetPaymentDiffNextActionErrors, GetPaymentDiffNextActionResponses, GetPaymentDiffOnchainStateOrResultData, GetPaymentDiffOnchainStateOrResultErrors, GetPaymentDiffOnchainStateOrResultResponses, GetPaymentDiffResponses, GetPaymentErrors, GetPaymentResponses, GetPaymentSourceData, GetPaymentSourceExtendedData, GetPaymentSourceExtendedResponses, GetPaymentSourceResponses, GetPurchaseData, GetPurchaseDiffData, GetPurchaseDiffErrors, GetPurchaseDiffNextActionData, GetPurchaseDiffNextActionErrors, GetPurchaseDiffNextActionResponses, GetPurchaseDiffOnchainStateOrResultData, GetPurchaseDiffOnchainStateOrResultErrors, GetPurchaseDiffOnchainStateOrResultResponses, GetPurchaseDiffResponses, GetPurchaseErrors, GetPurchaseResponses, GetRegistryAgentIdentifierData, GetRegistryAgentIdentifierErrors, GetRegistryAgentIdentifierResponses, GetRegistryData, GetRegistryDiffData, GetRegistryDiffErrors, GetRegistryDiffResponses, GetRegistryResponses, GetRegistryWalletData, GetRegistryWalletResponses, GetRpcApiKeysData, GetRpcApiKeysResponses, GetUtxosData, GetUtxosResponses, GetWalletData, GetWalletResponses, GetWebhooksData, GetWebhooksErrors, GetWebhooksResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchPaymentSourceExtendedData, PatchPaymentSourceExtendedResponses, PatchWalletData, PatchWalletResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostMonitoringStartData, PostMonitoringStartErrors, PostMonitoringStartResponses, PostMonitoringStopData, PostMonitoringStopErrors, PostMonitoringStopResponses, PostMonitoringTriggerCycleData, PostMonitoringTriggerCycleErrors, PostMonitoringTriggerCycleResponses, PostPaymentAuthorizeRefundData, PostPaymentAuthorizeRefundErrors, PostPaymentAuthorizeRefundResponses, PostPaymentData, PostPaymentErrors, PostPaymentErrorStateRecoveryData, PostPaymentErrorStateRecoveryErrors, PostPaymentErrorStateRecoveryResponses, PostPaymentIncomeData, PostPaymentIncomeErrors, PostPaymentIncomeResponses, PostPaymentResolveBlockchainIdentifierData, PostPaymentResolveBlockchainIdentifierErrors, PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResponses, PostPaymentSourceExtendedData, PostPaymentSourceExtendedResponses, PostPaymentSubmitResultData, PostPaymentSubmitResultErrors, PostPaymentSubmitResultResponses, PostPurchaseCancelRefundRequestData, PostPurchaseCancelRefundRequestErrors, PostPurchaseCancelRefundRequestResponses, PostPurchaseData, PostPurchaseErrors, PostPurchaseErrorStateRecoveryData, PostPurchaseErrorStateRecoveryErrors, PostPurchaseErrorStateRecoveryResponses, PostPurchaseRequestRefundData, PostPurchaseRequestRefundErrors, PostPurchaseRequestRefundResponses, PostPurchaseResolveBlockchainIdentifierData, PostPurchaseResolveBlockchainIdentifierErrors, PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResponses, PostPurchaseSpendingData, PostPurchaseSpendingErrors, PostPurchaseSpendingResponses, PostRegistryData, PostRegistryDeregisterData, PostRegistryDeregisterResponses, PostRegistryResponses, PostRevealDataData, PostRevealDataResponses, PostWalletData, PostWalletResponses, PostWebhooksData, PostWebhooksErrors, PostWebhooksResponses } from './types.gen.js';
+import { deletePaymentSourceExtendedResponseTransformer, deleteRegistryResponseTransformer, deleteWebhooksResponseTransformer, getInvoiceMonthlyMissingResponseTransformer, getInvoiceMonthlyResponseTransformer, getPaymentDiffNextActionResponseTransformer, getPaymentDiffOnchainStateOrResultResponseTransformer, getPaymentDiffResponseTransformer, getPaymentResponseTransformer, getPaymentSourceExtendedResponseTransformer, getPaymentSourceResponseTransformer, getPurchaseDiffNextActionResponseTransformer, getPurchaseDiffOnchainStateOrResultResponseTransformer, getPurchaseDiffResponseTransformer, getPurchaseResponseTransformer, getRegistryDiffResponseTransformer, getRegistryResponseTransformer, getRpcApiKeysResponseTransformer, getWalletResponseTransformer, getWebhooksResponseTransformer, patchPaymentSourceExtendedResponseTransformer, patchWalletResponseTransformer, postPaymentAuthorizeRefundResponseTransformer, postPaymentErrorStateRecoveryResponseTransformer, postPaymentIncomeResponseTransformer, postPaymentResolveBlockchainIdentifierResponseTransformer, postPaymentResponseTransformer, postPaymentSourceExtendedResponseTransformer, postPaymentSubmitResultResponseTransformer, postPurchaseCancelRefundRequestResponseTransformer, postPurchaseErrorStateRecoveryResponseTransformer, postPurchaseRequestRefundResponseTransformer, postPurchaseResolveBlockchainIdentifierResponseTransformer, postPurchaseResponseTransformer, postPurchaseSpendingResponseTransformer, postRegistryDeregisterResponseTransformer, postRegistryResponseTransformer, postWebhooksResponseTransformer } from './transformers.gen.js';
+import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeletePaymentSourceExtendedData, DeletePaymentSourceExtendedResponses, DeleteRegistryData, DeleteRegistryErrors, DeleteRegistryResponses, DeleteWebhooksData, DeleteWebhooksErrors, DeleteWebhooksResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetHealthData, GetHealthResponses, GetInvoiceMonthlyData, GetInvoiceMonthlyMissingData, GetInvoiceMonthlyMissingResponses, GetInvoiceMonthlyResponses, GetMonitoringData, GetMonitoringErrors, GetMonitoringResponses, GetPaymentCountData, GetPaymentCountResponses, GetPaymentData, GetPaymentDiffData, GetPaymentDiffErrors, GetPaymentDiffNextActionData, GetPaymentDiffNextActionErrors, GetPaymentDiffNextActionResponses, GetPaymentDiffOnchainStateOrResultData, GetPaymentDiffOnchainStateOrResultErrors, GetPaymentDiffOnchainStateOrResultResponses, GetPaymentDiffResponses, GetPaymentErrors, GetPaymentResponses, GetPaymentSourceData, GetPaymentSourceExtendedData, GetPaymentSourceExtendedResponses, GetPaymentSourceResponses, GetPurchaseCountData, GetPurchaseCountResponses, GetPurchaseData, GetPurchaseDiffData, GetPurchaseDiffErrors, GetPurchaseDiffNextActionData, GetPurchaseDiffNextActionErrors, GetPurchaseDiffNextActionResponses, GetPurchaseDiffOnchainStateOrResultData, GetPurchaseDiffOnchainStateOrResultErrors, GetPurchaseDiffOnchainStateOrResultResponses, GetPurchaseDiffResponses, GetPurchaseErrors, GetPurchaseResponses, GetRegistryAgentIdentifierData, GetRegistryAgentIdentifierErrors, GetRegistryAgentIdentifierResponses, GetRegistryCountData, GetRegistryCountResponses, GetRegistryData, GetRegistryDiffData, GetRegistryDiffErrors, GetRegistryDiffResponses, GetRegistryResponses, GetRegistryWalletData, GetRegistryWalletResponses, GetRpcApiKeysData, GetRpcApiKeysErrors, GetRpcApiKeysResponses, GetSwapConfirmData, GetSwapConfirmErrors, GetSwapConfirmResponses, GetSwapEstimateData, GetSwapEstimateErrors, GetSwapEstimateResponses, GetSwapTransactionsData, GetSwapTransactionsErrors, GetSwapTransactionsResponses, GetUtxosData, GetUtxosResponses, GetWalletData, GetWalletResponses, GetWebhooksData, GetWebhooksErrors, GetWebhooksResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchPaymentSourceExtendedData, PatchPaymentSourceExtendedResponses, PatchWalletData, PatchWalletErrors, PatchWalletResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostInvoiceMonthlyData, PostInvoiceMonthlyInternalData, PostInvoiceMonthlyInternalResponses, PostInvoiceMonthlyResponses, PostMonitoringStartData, PostMonitoringStartErrors, PostMonitoringStartResponses, PostMonitoringStopData, PostMonitoringStopErrors, PostMonitoringStopResponses, PostMonitoringTriggerCycleData, PostMonitoringTriggerCycleErrors, PostMonitoringTriggerCycleResponses, PostPaymentAuthorizeRefundData, PostPaymentAuthorizeRefundErrors, PostPaymentAuthorizeRefundResponses, PostPaymentData, PostPaymentErrors, PostPaymentErrorStateRecoveryData, PostPaymentErrorStateRecoveryErrors, PostPaymentErrorStateRecoveryResponses, PostPaymentIncomeData, PostPaymentIncomeErrors, PostPaymentIncomeResponses, PostPaymentResolveBlockchainIdentifierData, PostPaymentResolveBlockchainIdentifierErrors, PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResponses, PostPaymentSourceExtendedData, PostPaymentSourceExtendedResponses, PostPaymentSubmitResultData, PostPaymentSubmitResultErrors, PostPaymentSubmitResultResponses, PostPurchaseCancelRefundRequestData, PostPurchaseCancelRefundRequestErrors, PostPurchaseCancelRefundRequestResponses, PostPurchaseData, PostPurchaseErrors, PostPurchaseErrorStateRecoveryData, PostPurchaseErrorStateRecoveryErrors, PostPurchaseErrorStateRecoveryResponses, PostPurchaseRequestRefundData, PostPurchaseRequestRefundErrors, PostPurchaseRequestRefundResponses, PostPurchaseResolveBlockchainIdentifierData, PostPurchaseResolveBlockchainIdentifierErrors, PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResponses, PostPurchaseSpendingData, PostPurchaseSpendingErrors, PostPurchaseSpendingResponses, PostRegistryData, PostRegistryDeregisterData, PostRegistryDeregisterResponses, PostRegistryResponses, PostSignatureSignCreateInvoiceMonthlyData, PostSignatureSignCreateInvoiceMonthlyResponses, PostSignatureVerifyRevealDataData, PostSignatureVerifyRevealDataErrors, PostSignatureVerifyRevealDataResponses, PostSwapAcknowledgeTimeoutData, PostSwapAcknowledgeTimeoutErrors, PostSwapAcknowledgeTimeoutResponses, PostSwapCancelData, PostSwapCancelErrors, PostSwapCancelResponses, PostSwapData, PostSwapErrors, PostSwapResponses, PostWalletData, PostWalletResponses, PostWebhooksData, PostWebhooksErrors, PostWebhooksResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -20,9 +20,9 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Get the status of the API server
+ * Get the status of the API server. (No authentication required)
  */
-export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/health/', ...options });
+export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/health', ...options });
 
 /**
  * Get information about your current API key.
@@ -31,7 +31,7 @@ export const getHealth = <ThrowOnError extends boolean = false>(options?: Option
  */
 export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyStatusData, ThrowOnError>) => (options?.client ?? client).get<GetApiKeyStatusResponses, unknown, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/api-key-status/',
+    url: '/api-key-status',
     ...options
 });
 
@@ -43,7 +43,7 @@ export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: 
 export const getWallet = <ThrowOnError extends boolean = false>(options: Options<GetWalletData, ThrowOnError>) => (options.client ?? client).get<GetWalletResponses, unknown, ThrowOnError>({
     responseTransformer: getWalletResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/wallet/',
+    url: '/wallet',
     ...options
 });
 
@@ -52,10 +52,10 @@ export const getWallet = <ThrowOnError extends boolean = false>(options: Options
  *
  * Updates a wallet
  */
-export const patchWallet = <ThrowOnError extends boolean = false>(options?: Options<PatchWalletData, ThrowOnError>) => (options?.client ?? client).patch<PatchWalletResponses, unknown, ThrowOnError>({
+export const patchWallet = <ThrowOnError extends boolean = false>(options?: Options<PatchWalletData, ThrowOnError>) => (options?.client ?? client).patch<PatchWalletResponses, PatchWalletErrors, ThrowOnError>({
     responseTransformer: patchWalletResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/wallet/',
+    url: '/wallet',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ export const patchWallet = <ThrowOnError extends boolean = false>(options?: Opti
  */
 export const postWallet = <ThrowOnError extends boolean = false>(options?: Options<PostWalletData, ThrowOnError>) => (options?.client ?? client).post<PostWalletResponses, unknown, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/wallet/',
+    url: '/wallet',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -83,9 +83,9 @@ export const postWallet = <ThrowOnError extends boolean = false>(options?: Optio
  *
  * Verifies the reveal data signature is valid.
  */
-export const postRevealData = <ThrowOnError extends boolean = false>(options?: Options<PostRevealDataData, ThrowOnError>) => (options?.client ?? client).post<PostRevealDataResponses, unknown, ThrowOnError>({
+export const postSignatureVerifyRevealData = <ThrowOnError extends boolean = false>(options?: Options<PostSignatureVerifyRevealDataData, ThrowOnError>) => (options?.client ?? client).post<PostSignatureVerifyRevealDataResponses, PostSignatureVerifyRevealDataErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/reveal-data/',
+    url: '/signature/verify/reveal-data',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ export const postRevealData = <ThrowOnError extends boolean = false>(options?: O
  */
 export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiKeyData, ThrowOnError>) => (options?.client ?? client).delete<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/api-key/',
+    url: '/api-key',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Opt
  */
 export const getApiKey = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyData, ThrowOnError>) => (options?.client ?? client).get<GetApiKeyResponses, GetApiKeyErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/api-key/',
+    url: '/api-key',
     ...options
 });
 
@@ -126,7 +126,7 @@ export const getApiKey = <ThrowOnError extends boolean = false>(options?: Option
  */
 export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Options<PatchApiKeyData, ThrowOnError>) => (options?.client ?? client).patch<PatchApiKeyResponses, PatchApiKeyErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/api-key/',
+    url: '/api-key',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Opti
  */
 export const postApiKey = <ThrowOnError extends boolean = false>(options?: Options<PostApiKeyData, ThrowOnError>) => (options?.client ?? client).post<PostApiKeyResponses, PostApiKeyErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/api-key/',
+    url: '/api-key',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -150,26 +150,104 @@ export const postApiKey = <ThrowOnError extends boolean = false>(options?: Optio
 });
 
 /**
- * Get information about a payment request. (admin access required)
+ * Execute a token swap on SundaeSwap. (admin access required, mainnet only)
+ *
+ * Swap ADA for CNTs (Cardano Native Tokens) or CNTs for ADA using SundaeSwap DEX. This endpoint is mainnet-only.
+ */
+export const postSwap = <ThrowOnError extends boolean = false>(options?: Options<PostSwapData, ThrowOnError>) => (options?.client ?? client).post<PostSwapResponses, PostSwapErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/swap',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Get swap transaction confirmation status. (admin access required, mainnet only)
+ *
+ * Check on-chain confirmation status of a swap transaction by transaction hash. Use after POST /swap/ to poll until status is confirmed. Mainnet only.
+ */
+export const getSwapConfirm = <ThrowOnError extends boolean = false>(options: Options<GetSwapConfirmData, ThrowOnError>) => (options.client ?? client).get<GetSwapConfirmResponses, GetSwapConfirmErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/swap/confirm',
+    ...options
+});
+
+/**
+ * List swap transactions. (admin access required, mainnet only)
+ *
+ * List swap transactions for a wallet, ordered by most recent first. Supports cursor-based pagination.
+ */
+export const getSwapTransactions = <ThrowOnError extends boolean = false>(options: Options<GetSwapTransactionsData, ThrowOnError>) => (options.client ?? client).get<GetSwapTransactionsResponses, GetSwapTransactionsErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/swap/transactions',
+    ...options
+});
+
+/**
+ * Get swap price estimate. (admin access required, mainnet only)
+ *
+ * Get a swap price estimate from the SundaeSwap pool. Returns the conversion rate based on current pool reserves.
+ */
+export const getSwapEstimate = <ThrowOnError extends boolean = false>(options: Options<GetSwapEstimateData, ThrowOnError>) => (options.client ?? client).get<GetSwapEstimateResponses, GetSwapEstimateErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/swap/estimate',
+    ...options
+});
+
+/**
+ * Cancel a pending swap order. (admin access required, mainnet only)
+ *
+ * Cancel a pending SundaeSwap order that is sitting at the script address. Only orders in OrderConfirmed state can be cancelled.
+ */
+export const postSwapCancel = <ThrowOnError extends boolean = false>(options?: Options<PostSwapCancelData, ThrowOnError>) => (options?.client ?? client).post<PostSwapCancelResponses, PostSwapCancelErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/swap/cancel',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Acknowledge a swap timeout and recover state. (admin access required, mainnet only)
+ *
+ * Acknowledge a timed-out swap transaction. Checks on-chain state and recovers to the correct status: OrderConfirmed if the order UTXO still exists (allowing retry), Completed if the DEX executed the swap, or keeps the timeout state if the order tx never confirmed.
+ */
+export const postSwapAcknowledgeTimeout = <ThrowOnError extends boolean = false>(options?: Options<PostSwapAcknowledgeTimeoutData, ThrowOnError>) => (options?.client ?? client).post<PostSwapAcknowledgeTimeoutResponses, PostSwapAcknowledgeTimeoutErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/swap/acknowledge-timeout',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Get information about a payment request. (READ access required)
  *
  * Gets the payment status. It needs to be created first with a POST request.
  */
 export const getPayment = <ThrowOnError extends boolean = false>(options: Options<GetPaymentData, ThrowOnError>) => (options.client ?? client).get<GetPaymentResponses, GetPaymentErrors, ThrowOnError>({
     responseTransformer: getPaymentResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment/',
+    url: '/payment',
     ...options
 });
 
 /**
- * Create a new payment request. (admin access required +PAY)
+ * Create a new payment request. (+PAY access required)
  *
  * Creates a payment request and identifier. This will check incoming payments in the background.
  */
 export const postPayment = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentResponses, PostPaymentErrors, ThrowOnError>({
     responseTransformer: postPaymentResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment/',
+    url: '/payment',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -202,6 +280,28 @@ export const getPaymentDiffNextAction = <ThrowOnError extends boolean = false>(o
 });
 
 /**
+ * Get the total number of payments. (READ access required)
+ *
+ * Gets the total count of payments.
+ */
+export const getPaymentCount = <ThrowOnError extends boolean = false>(options: Options<GetPaymentCountData, ThrowOnError>) => (options.client ?? client).get<GetPaymentCountResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/count',
+    ...options
+});
+
+/**
+ * Get the total number of purchases. (READ access required)
+ *
+ * Gets the total count of purchases.
+ */
+export const getPurchaseCount = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseCountData, ThrowOnError>) => (options.client ?? client).get<GetPurchaseCountResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/count',
+    ...options
+});
+
+/**
  * Diff payments by on-chain-state/result timestamp (READ access required)
  *
  * Returns payments whose on-chain state or result hash changed since lastUpdate.
@@ -214,9 +314,9 @@ export const getPaymentDiffOnchainStateOrResult = <ThrowOnError extends boolean 
 });
 
 /**
- * Completes a payment request. This will collect the funds after the unlock time. (admin access required +PAY)
+ * Completes a payment request. This will collect the funds after the unlock time. (+PAY access required; only the creator or an admin may submit)
  *
- * Submit the hash of their completed job for a payment request, which triggers the fund unlock process so the seller can collect payment after the unlock time expires. (admin access required +PAY)
+ * Submit the hash of their completed job for a payment request, which triggers the fund unlock process so the seller can collect payment after the unlock time expires. (+PAY access required; only the creator or an admin may submit)
  */
 export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSubmitResultData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentSubmitResultResponses, PostPaymentSubmitResultErrors, ThrowOnError>({
     responseTransformer: postPaymentSubmitResultResponseTransformer,
@@ -230,9 +330,9 @@ export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party. (admin access required +PAY)
+ * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party. (+PAY access required; only the creator or an admin may authorize)
  *
- * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party.
+ * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party. (+PAY access required; only the creator or an admin may authorize)
  */
 export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentAuthorizeRefundData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentAuthorizeRefundResponses, PostPaymentAuthorizeRefundErrors, ThrowOnError>({
     responseTransformer: postPaymentAuthorizeRefundResponseTransformer,
@@ -253,7 +353,7 @@ export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>
 export const postPaymentErrorStateRecovery = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentErrorStateRecoveryData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentErrorStateRecoveryResponses, PostPaymentErrorStateRecoveryErrors, ThrowOnError>({
     responseTransformer: postPaymentErrorStateRecoveryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment/error-state-recovery/',
+    url: '/payment/error-state-recovery',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -267,13 +367,102 @@ export const postPaymentErrorStateRecovery = <ThrowOnError extends boolean = fal
  * Clears error states for purchase requests in WaitingForManualAction state and resets them up for retry or other actions. This endpoint provides manual intervention capability to recover from error states by clearing error fields.
  */
 export const postPurchaseErrorStateRecovery = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseErrorStateRecoveryData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseErrorStateRecoveryResponses, PostPurchaseErrorStateRecoveryErrors, ThrowOnError>({
+    responseTransformer: postPurchaseErrorStateRecoveryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/purchase/error-state-recovery/',
+    url: '/purchase/error-state-recovery',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options?.headers
     }
+});
+
+/**
+ * Get a signed message to request a monthly invoice. (+PAY access required)
+ *
+ * Provides a signed message from the smart contract wallet to authorize monthly invoice retrieval for a buyer wallet. (+PAY access required)
+ */
+export const postSignatureSignCreateInvoiceMonthly = <ThrowOnError extends boolean = false>(options?: Options<PostSignatureSignCreateInvoiceMonthlyData, ThrowOnError>) => (options?.client ?? client).post<PostSignatureSignCreateInvoiceMonthlyResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/signature/sign/create-invoice/monthly',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * List invoices for a month. (+Read access required)
+ *
+ * Lists invoice summaries for a given month with pagination. Returns only the latest revision per invoice base. Pass invoiceBaseId to get all revisions for a specific invoice. (+PAY access required)
+ *
+ * **BETA:** This invoice feature is in beta. Generated invoices should be reviewed manually or verified with a tax advisor before use. Use at your own risk.
+ */
+export const getInvoiceMonthly = <ThrowOnError extends boolean = false>(options: Options<GetInvoiceMonthlyData, ThrowOnError>) => (options.client ?? client).get<GetInvoiceMonthlyResponses, unknown, ThrowOnError>({
+    responseTransformer: getInvoiceMonthlyResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/invoice/monthly',
+    ...options
+});
+
+/**
+ * Generate a monthly invoice PDF by buyer wallet vkey and month. (+PAY access required)
+ *
+ * Generates an invoice PDF aggregating all payment requests for a buyer wallet within a month, using the end-of-month conversion rate. (+PAY access required)
+ *
+ * **BETA:** This invoice feature is in beta. Generated invoices should be reviewed manually or verified with a tax advisor before use. Use at your own discretion.
+ */
+export const postInvoiceMonthly = <ThrowOnError extends boolean = false>(options?: Options<PostInvoiceMonthlyData, ThrowOnError>) => (options?.client ?? client).post<PostInvoiceMonthlyResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/invoice/monthly',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Get the total number of AI agents. (READ access required)
+ *
+ * Gets the total count of AI agents.
+ */
+export const getRegistryCount = <ThrowOnError extends boolean = false>(options: Options<GetRegistryCountData, ThrowOnError>) => (options.client ?? client).get<GetRegistryCountResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/count',
+    ...options
+});
+
+/**
+ * Generate a monthly invoice PDF without signature verification. (+PAY access required)
+ *
+ * Generates an invoice PDF aggregating all payment requests for a buyer wallet within a month, without requiring buyer wallet signature verification. (+PAY access required)
+ *
+ * **BETA:** This invoice feature is in beta. Generated invoices should be reviewed manually or verified with a tax advisor before use. Use at your own discretion.
+ */
+export const postInvoiceMonthlyInternal = <ThrowOnError extends boolean = false>(options?: Options<PostInvoiceMonthlyInternalData, ThrowOnError>) => (options?.client ?? client).post<PostInvoiceMonthlyInternalResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/invoice/monthly/internal',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * List uninvoiced payments for a month. (+Read access required)
+ *
+ * Finds billable payment requests that do not yet have an invoice for a given month. Only finalized payments are included: Withdrawn (seller completed work), ResultSubmitted past unlock time, or DisputedWithdrawn with seller funds. Payments still locked, pending refund, or in dispute are excluded. (+PAY access required)
+ *
+ * **BETA:** This invoice feature is in beta. Generated invoices should be reviewed manually or verified with a tax advisor before use. Use at your own discretion.
+ */
+export const getInvoiceMonthlyMissing = <ThrowOnError extends boolean = false>(options: Options<GetInvoiceMonthlyMissingData, ThrowOnError>) => (options.client ?? client).get<GetInvoiceMonthlyMissingResponses, unknown, ThrowOnError>({
+    responseTransformer: getInvoiceMonthlyMissingResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/invoice/monthly/missing',
+    ...options
 });
 
 /**
@@ -284,7 +473,7 @@ export const postPurchaseErrorStateRecovery = <ThrowOnError extends boolean = fa
 export const getPurchase = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseData, ThrowOnError>) => (options.client ?? client).get<GetPurchaseResponses, GetPurchaseErrors, ThrowOnError>({
     responseTransformer: getPurchaseResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/purchase/',
+    url: '/purchase',
     ...options
 });
 
@@ -296,7 +485,7 @@ export const getPurchase = <ThrowOnError extends boolean = false>(options: Optio
 export const postPurchase = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseResponses, PostPurchaseErrors, ThrowOnError>({
     responseTransformer: postPurchaseResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/purchase/',
+    url: '/purchase',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -359,7 +548,7 @@ export const postPurchaseRequestRefund = <ThrowOnError extends boolean = false>(
 /**
  * Cancel a previously requested refund for a purchase, reverting the transaction back to its normal processing state. (+PAY access required)
  *
- * Requests a refund for a completed purchase. This will collect the refund after the refund time.
+ * Cancels a previously requested refund for a completed purchase.
  */
 export const postPurchaseCancelRefundRequest = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseCancelRefundRequestData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseCancelRefundRequestResponses, PostPurchaseCancelRefundRequestErrors, ThrowOnError>({
     responseTransformer: postPurchaseCancelRefundRequestResponseTransformer,
@@ -434,7 +623,7 @@ export const getRegistryAgentIdentifier = <ThrowOnError extends boolean = false>
 export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistryData, ThrowOnError>) => (options?.client ?? client).delete<DeleteRegistryResponses, DeleteRegistryErrors, ThrowOnError>({
     responseTransformer: deleteRegistryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/registry/',
+    url: '/registry',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -450,7 +639,7 @@ export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: O
 export const getRegistry = <ThrowOnError extends boolean = false>(options: Options<GetRegistryData, ThrowOnError>) => (options.client ?? client).get<GetRegistryResponses, unknown, ThrowOnError>({
     responseTransformer: getRegistryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/registry/',
+    url: '/registry',
     ...options
 });
 
@@ -462,7 +651,7 @@ export const getRegistry = <ThrowOnError extends boolean = false>(options: Optio
 export const postRegistry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryResponses, unknown, ThrowOnError>({
     responseTransformer: postRegistryResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/registry/',
+    url: '/registry',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -483,7 +672,7 @@ export const getRegistryDiff = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Deregisters an agent from the specified registry. (admin access required +PAY)
+ * Deregisters an agent from the specified registry. (PAY access required)
  *
  * Deregisters a agent from the specified registry (Please note that while the command is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
  */
@@ -506,7 +695,7 @@ export const postRegistryDeregister = <ThrowOnError extends boolean = false>(opt
 export const getPaymentSource = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceData, ThrowOnError>) => (options?.client ?? client).get<GetPaymentSourceResponses, unknown, ThrowOnError>({
     responseTransformer: getPaymentSourceResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment-source/',
+    url: '/payment-source',
     ...options
 });
 
@@ -518,7 +707,7 @@ export const getPaymentSource = <ThrowOnError extends boolean = false>(options?:
 export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<DeletePaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).delete<DeletePaymentSourceExtendedResponses, unknown, ThrowOnError>({
     responseTransformer: deletePaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment-source-extended/',
+    url: '/payment-source-extended',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -534,7 +723,7 @@ export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false
 export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).get<GetPaymentSourceExtendedResponses, unknown, ThrowOnError>({
     responseTransformer: getPaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment-source-extended/',
+    url: '/payment-source-extended',
     ...options
 });
 
@@ -546,7 +735,7 @@ export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(o
 export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PatchPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).patch<PatchPaymentSourceExtendedResponses, unknown, ThrowOnError>({
     responseTransformer: patchPaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment-source-extended/',
+    url: '/payment-source-extended',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -562,7 +751,7 @@ export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>
 export const postPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentSourceExtendedResponses, unknown, ThrowOnError>({
     responseTransformer: postPaymentSourceExtendedResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/payment-source-extended/',
+    url: '/payment-source-extended',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -577,7 +766,7 @@ export const postPaymentSourceExtended = <ThrowOnError extends boolean = false>(
  */
 export const getUtxos = <ThrowOnError extends boolean = false>(options: Options<GetUtxosData, ThrowOnError>) => (options.client ?? client).get<GetUtxosResponses, unknown, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/utxos/',
+    url: '/utxos',
     ...options
 });
 
@@ -586,10 +775,10 @@ export const getUtxos = <ThrowOnError extends boolean = false>(options: Options<
  *
  * Gets rpc api keys, currently only blockfrost is supported (internal)
  */
-export const getRpcApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetRpcApiKeysData, ThrowOnError>) => (options?.client ?? client).get<GetRpcApiKeysResponses, unknown, ThrowOnError>({
+export const getRpcApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetRpcApiKeysData, ThrowOnError>) => (options?.client ?? client).get<GetRpcApiKeysResponses, GetRpcApiKeysErrors, ThrowOnError>({
     responseTransformer: getRpcApiKeysResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/rpc-api-keys/',
+    url: '/rpc-api-keys',
     ...options
 });
 
@@ -633,7 +822,7 @@ export const postPaymentIncome = <ThrowOnError extends boolean = false>(options?
 export const deleteWebhooks = <ThrowOnError extends boolean = false>(options?: Options<DeleteWebhooksData, ThrowOnError>) => (options?.client ?? client).delete<DeleteWebhooksResponses, DeleteWebhooksErrors, ThrowOnError>({
     responseTransformer: deleteWebhooksResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/webhooks/',
+    url: '/webhooks',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -649,7 +838,7 @@ export const deleteWebhooks = <ThrowOnError extends boolean = false>(options?: O
 export const getWebhooks = <ThrowOnError extends boolean = false>(options?: Options<GetWebhooksData, ThrowOnError>) => (options?.client ?? client).get<GetWebhooksResponses, GetWebhooksErrors, ThrowOnError>({
     responseTransformer: getWebhooksResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/webhooks/',
+    url: '/webhooks',
     ...options
 });
 
@@ -661,7 +850,7 @@ export const getWebhooks = <ThrowOnError extends boolean = false>(options?: Opti
 export const postWebhooks = <ThrowOnError extends boolean = false>(options?: Options<PostWebhooksData, ThrowOnError>) => (options?.client ?? client).post<PostWebhooksResponses, PostWebhooksErrors, ThrowOnError>({
     responseTransformer: postWebhooksResponseTransformer,
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/webhooks/',
+    url: '/webhooks',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -676,7 +865,7 @@ export const postWebhooks = <ThrowOnError extends boolean = false>(options?: Opt
  */
 export const getMonitoring = <ThrowOnError extends boolean = false>(options?: Options<GetMonitoringData, ThrowOnError>) => (options?.client ?? client).get<GetMonitoringResponses, GetMonitoringErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/monitoring/',
+    url: '/monitoring',
     ...options
 });
 
@@ -687,7 +876,7 @@ export const getMonitoring = <ThrowOnError extends boolean = false>(options?: Op
  */
 export const postMonitoringTriggerCycle = <ThrowOnError extends boolean = false>(options?: Options<PostMonitoringTriggerCycleData, ThrowOnError>) => (options?.client ?? client).post<PostMonitoringTriggerCycleResponses, PostMonitoringTriggerCycleErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/monitoring/trigger-cycle/',
+    url: '/monitoring/trigger-cycle',
     ...options
 });
 
@@ -698,7 +887,7 @@ export const postMonitoringTriggerCycle = <ThrowOnError extends boolean = false>
  */
 export const postMonitoringStart = <ThrowOnError extends boolean = false>(options?: Options<PostMonitoringStartData, ThrowOnError>) => (options?.client ?? client).post<PostMonitoringStartResponses, PostMonitoringStartErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/monitoring/start/',
+    url: '/monitoring/start',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -713,6 +902,6 @@ export const postMonitoringStart = <ThrowOnError extends boolean = false>(option
  */
 export const postMonitoringStop = <ThrowOnError extends boolean = false>(options?: Options<PostMonitoringStopData, ThrowOnError>) => (options?.client ?? client).post<PostMonitoringStopResponses, PostMonitoringStopErrors, ThrowOnError>({
     security: [{ name: 'token', type: 'apiKey' }],
-    url: '/monitoring/stop/',
+    url: '/monitoring/stop',
     ...options
 });
