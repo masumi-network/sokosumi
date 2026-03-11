@@ -21,10 +21,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const capabilityParam = url.searchParams.get("capability");
-  const capability =
-    capabilityParam && VALID_CAPABILITIES.includes(capabilityParam)
-      ? (capabilityParam as (typeof VALID_CAPABILITIES)[number])
-      : undefined;
+  const capability = VALID_CAPABILITIES.find((c) => c === capabilityParam);
 
   try {
     const coworkers = await coworkerService.listCoworkers({

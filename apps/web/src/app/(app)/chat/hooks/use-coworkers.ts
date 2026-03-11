@@ -17,8 +17,7 @@ interface UseCoworkersReturn {
 
 /**
  * Fetches available coworkers from the API (DB-backed) and maps them to the chat Coworker type,
- * including resolved profile images. Requests only whitelisted coworkers with the chat capability
- * so the chat selection shows only coworkers that can be used for chat.
+ * including resolved profile images.
  */
 export function useCoworkers(): UseCoworkersReturn {
   const [coworkers, setCoworkers] = useState<Coworker[]>([]);
