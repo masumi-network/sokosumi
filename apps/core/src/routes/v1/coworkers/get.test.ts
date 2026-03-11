@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -21,7 +22,13 @@ vi.mock("@/lib/db/prisma", () => ({
 function createApp() {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
-  }>();
+  }>({
+    defaultHook: (result) => {
+      if (!result.success && result.error) {
+        throw unprocessableEntity(formatZodErrorMessage(result.error));
+      }
+    },
+  });
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -136,5 +143,57 @@ describe("GET /coworkers", () => {
         createdAt: "desc",
       },
     });
+  });
+
+  it("filters coworkers by a single capability", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?capability=tasks");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: {
+          hasEvery: ["tasks"],
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("parses repeated and comma-separated capability filters", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?capability=tasks,chat&capability=tasks",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: {
+          hasEvery: ["tasks", "chat"],
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("rejects invalid capability filters", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?capability=search");
+
+    expect(response.status).toBe(422);
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
   });
 });
