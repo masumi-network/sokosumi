@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -134,6 +135,7 @@ export default async function UserCredits({
         <BuyCreditsButton
           label={tPlan("upgradeCta")}
           path="/billing?tab=subscription"
+          iconRight={<ArrowUpRight aria-hidden />}
         />
       ) : null}
       {shouldShowAddCreditsCta ? (

@@ -1339,7 +1339,7 @@
           "cancelRequested": "Cancel requested"
         },
         "billingCta": {
-          "upgradePlan": "Get more Credits",
+          "upgradePlan": "Get more credits",
           "addCredits": "Add credits",
           "placeholder": "This task needs credits to continue. Open billing to proceed."
         },
@@ -1485,7 +1485,7 @@
         "unavailable": "Credits unavailable"
       },
       "Plan": {
-        "upgradeCta": "Get more Credits",
+        "upgradeCta": "Get more credits",
         "userPlan": "{plan} (Personal)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan unavailable"

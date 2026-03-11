@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -31,7 +32,10 @@ export default async function LowCreditsNotice({
           size="sm"
           className={TOP_NOTICE_ACTION_CLASS_NAME}
         >
-          <Link href={path}>{t("button")}</Link>
+          <Link href={path}>
+            <span>{t("button")}</span>
+            <ArrowUpRight aria-hidden />
+          </Link>
         </Button>
       }
     />

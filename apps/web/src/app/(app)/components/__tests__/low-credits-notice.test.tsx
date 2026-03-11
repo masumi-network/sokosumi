@@ -36,10 +36,22 @@ describe("LowCreditsNotice", () => {
     expect(
       screen.getByText(/Open billing to add credits/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open billing" })).toHaveAttribute(
-      "href",
-      "/billing?tab=subscription",
-    );
+    const cta = screen.getByRole("link", { name: "Open billing" });
+    expect(cta).toHaveAttribute("href", "/billing?tab=subscription");
+    expect(cta.querySelector("svg")).not.toBeNull();
+  });
+
+  it("renders the arrow icon inside the CTA", async () => {
+    const view = await LowCreditsNotice({
+      kind: "lowCredits",
+      path: "/billing?tab=subscription",
+    });
+
+    render(view);
+
+    expect(
+      screen.getByRole("link", { name: "Open billing" }).querySelector("svg"),
+    ).not.toBeNull();
   });
 
   it("renders the out-of-credits variant with the resolved destination", async () => {
