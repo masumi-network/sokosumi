@@ -2,11 +2,31 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  deduplicateQueryValues,
+  preprocessMultiValueQueryInput,
+} from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
+
+const capabilityQuerySchema = z
+  .preprocess(
+    preprocessMultiValueQueryInput,
+    z
+      .array(z.enum(COWORKER_CAPABILITIES))
+      .min(1)
+      .optional()
+      .transform(deduplicateQueryValues),
+  )
+  .openapi({
+    param: { name: "capability", in: "query" },
+    description:
+      "Filter coworkers by capability. Supports repeated values and comma-separated lists. When multiple capabilities are provided, coworkers must support all of them.",
+    example: "tasks,chat",
+  });
 
 const querySchema = z.object({
   scope: z
@@ -19,15 +39,7 @@ const querySchema = z.object({
         "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers or 'archived' to include archived coworkers.",
       example: "whitelisted",
     }),
-  capability: z
-    .enum(COWORKER_CAPABILITIES as unknown as [string, ...string[]])
-    .optional()
-    .openapi({
-      param: { name: "capability", in: "query" },
-      description:
-        "When set, return only coworkers that have this capability (e.g. 'chat' for chat-eligible coworkers).",
-      example: "chat",
-    }),
+  capability: capabilityQuerySchema,
 });
 
 const route = createRoute({
@@ -48,6 +60,7 @@ const route = createRoute({
     }),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
@@ -69,7 +82,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     };
 
     const coworkers = await prisma.coworker.findMany({
-      where,
+      where: {
+        ...where,
+        ...(capability ? { capabilities: { hasEvery: capability } } : {}),
+      },
       orderBy: { createdAt: "desc" },
     });
 
