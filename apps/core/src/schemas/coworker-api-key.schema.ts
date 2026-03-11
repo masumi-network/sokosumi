@@ -10,7 +10,7 @@ export const coworkerApiKeySchema = z
   .object({
     id: z.string().openapi({ example: "cokey_123" }),
     coworkerId: z.string().openapi({ example: "cow_123" }),
-    name: z.string().nullish().openapi({ example: "Production key" }),
+    name: z.string().nullable().openapi({ example: "Production key" }),
     keyStart: z.string().openapi({ example: "coworker_abcdefgh" }),
     expiresAt: dateTimeSchema.nullable().openapi({
       example: "2026-12-31T23:59:59.000Z",
@@ -21,11 +21,16 @@ export const coworkerApiKeySchema = z
   })
   .openapi("CoworkerApiKey");
 
-export const coworkerApiKeyWithTokenSchema = coworkerApiKeySchema
-  .extend({
+export const createCoworkerApiKeyResponseSchema = z
+  .object({
+    id: z.string().openapi({ example: "cokey_123" }),
     token: z.string().openapi({ example: "coworker_very_secret_value" }),
+    name: z.string().nullable().openapi({ example: "Production key" }),
+    expiresAt: dateTimeSchema.nullable().openapi({
+      example: "2026-12-31T23:59:59.000Z",
+    }),
   })
-  .openapi("CoworkerApiKeyWithToken");
+  .openapi("CreateCoworkerApiKeyResponse");
 
 export const createCoworkerApiKeyRequestSchema = z
   .object({
