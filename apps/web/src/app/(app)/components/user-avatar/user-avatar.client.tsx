@@ -1,7 +1,6 @@
 "use client";
 
 import { MemberRole, MemberWithOrganization } from "@sokosumi/database";
-import gravatarUrl from "gravatar-url";
 import {
   BookOpen,
   Building2,
@@ -11,14 +10,14 @@ import {
   LifeBuoy,
   LogOut,
   ReceiptText,
+  Settings as SettingsIcon,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-import { useSidebar } from "@/components/ui/sidebar";
+import { SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
   TooltipContent,
@@ -43,8 +42,6 @@ import type { SessionUser } from "@/lib/auth/auth";
 import { CreditUsage } from "@/lib/types/credit";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
-
-import UserAvatarContent from "./user-avatar-content";
 
 interface UserAvatarClientProps {
   creditUsage?: CreditUsage | null;
@@ -65,7 +62,6 @@ export default function UserAvatarClient({
   creditUsage,
   currentTimestampMs,
   creditsLabel,
-  primaryLabel,
   secondaryLabel,
   showAvatar = true,
   showCreditUsage = true,
@@ -124,8 +120,32 @@ export default function UserAvatarClient({
   const { isMobile, state: sidebarState, toggleSidebar } = useSidebar();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isSidebarCollapsed = !isMobile && sidebarState === "collapsed";
+  const isMenuVisible = sidebarState !== "collapsed" && isMenuOpen;
   const shouldShowCreditUsage =
     showCreditUsage && (!showCreditUsageOnMobileOnly || isMobile);
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
+  const handleMenuOpenChange = (open: boolean) => {
+    if (open && sidebarState === "collapsed") {
+      return;
+    }
+    setIsMenuOpen(open);
+  };
+
+  useEffect(() => {
+    if (sidebarState === "collapsed") {
+      const timer = setTimeout(() => {
+        setIsMenuOpen(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+
+    const timer = setTimeout(() => setIsMenuOpen(false), 0);
+    return () => clearTimeout(timer);
+  }, [sidebarState]);
 
   const handleClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -134,7 +154,7 @@ export default function UserAvatarClient({
       return;
     }
 
-    setIsMenuOpen(false);
+    closeMenu();
     router.push(path);
     // Close sidebar if on mobile
     if (isMobile) {
@@ -205,59 +225,38 @@ export default function UserAvatarClient({
         )
       ) : null}
       {showAvatar ? (
-        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <TooltipProvider disableHoverableContent>
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "min-h-11 px-1 py-1 hover:bg-transparent focus-visible:bg-transparent",
-                      isSidebarCollapsed
-                        ? "size-11 min-w-0 justify-center px-0"
-                        : "w-full min-w-40 justify-between",
-                    )}
-                    aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
-                  >
-                    <div className="flex w-full items-center justify-between gap-2 md:justify-center">
-                      <div className="flex shrink-0">
-                        <UserAvatarContent
-                          imageUrl={
-                            sessionUser.image ??
-                            gravatarUrl(sessionUser.email, {
-                              size: 80,
-                              default: "404",
-                            })
-                          }
-                          imageAlt={sessionUser.name ?? "User avatar"}
-                        />
-                      </div>
-                      {!isSidebarCollapsed &&
-                      (primaryLabel || secondaryLabel) ? (
-                        <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-1">
-                          {primaryLabel ? (
-                            <span className="text-sm leading-none font-semibold">
-                              {primaryLabel}
-                            </span>
-                          ) : null}
-                          {secondaryLabel ? (
-                            <span className="text-muted-foreground text-xs leading-none">
-                              {secondaryLabel}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {!isSidebarCollapsed ? (
-                        <ChevronDown className="text-muted-foreground size-4" />
-                      ) : null}
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{sessionUser.email}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <DropdownMenu open={isMenuVisible} onOpenChange={handleMenuOpenChange}>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              className={cn(
+                "min-h-[56px] cursor-pointer items-center md:p-2",
+                isSidebarCollapsed ? "justify-center" : "",
+              )}
+              aria-label={t("settings")}
+              tooltip={sessionUser.email}
+            >
+              <div className="text-primary flex w-full items-center gap-2">
+                <span className="flex shrink-0 group-data-[collapsible=icon]:-ml-0.5 group-data-[collapsible=icon]:size-8">
+                  <SettingsIcon className="text-muted-foreground size-5" />
+                </span>
+                {!isSidebarCollapsed ? (
+                  <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-1">
+                    <span className="text-sm leading-none font-semibold">
+                      {t("settings")}
+                    </span>
+                    {secondaryLabel ? (
+                      <span className="text-muted-foreground truncate text-xs leading-none">
+                        {secondaryLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {!isSidebarCollapsed ? (
+                  <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                ) : null}
+              </div>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
 
           <DropdownMenuContent className="w-64" align="end">
             <DropdownMenuGroup>
@@ -310,7 +309,7 @@ export default function UserAvatarClient({
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setIsMenuOpen(false);
+                    closeMenu();
                     handleOpenExternalLink(
                       "https://docs.sokosumi.com/documentation",
                     );
@@ -323,7 +322,7 @@ export default function UserAvatarClient({
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setIsMenuOpen(false);
+                    closeMenu();
                     handleOpenExternalLink("mailto:info@sokosumi.com");
                   }}
                 >
@@ -337,7 +336,7 @@ export default function UserAvatarClient({
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setIsMenuOpen(false);
+                    closeMenu();
                     handleOpenExternalLink(
                       "https://www.sokosumi.com/terms-of-service",
                     );
@@ -348,7 +347,7 @@ export default function UserAvatarClient({
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setIsMenuOpen(false);
+                    closeMenu();
                     handleOpenExternalLink(
                       "https://www.sokosumi.com/privacy-policy",
                     );
@@ -359,7 +358,7 @@ export default function UserAvatarClient({
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setIsMenuOpen(false);
+                    closeMenu();
                     handleOpenExternalLink("https://www.sokosumi.com/imprint");
                   }}
                 >
@@ -368,7 +367,7 @@ export default function UserAvatarClient({
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setIsMenuOpen(false);
+                    closeMenu();
                     handleOpenExternalLink(
                       "https://www.sokosumi.com/acceptable-use",
                     );
@@ -382,7 +381,7 @@ export default function UserAvatarClient({
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
               onClick={() => {
-                setIsMenuOpen(false);
+                closeMenu();
                 showLogoutModal(sessionUser.email);
               }}
             >

@@ -13,6 +13,7 @@ const PROMPT_KEYS = ["1", "2", "3"] as const;
 
 interface WelcomeScreenProps {
   mobileKeyboardOptimized?: boolean;
+  showGreetingAndSuggestions?: boolean;
   userName?: string;
   onSendMessage: (message: string, coworker?: Coworker) => void;
   isTransitioning: boolean;
@@ -33,6 +34,7 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({
   mobileKeyboardOptimized = false,
+  showGreetingAndSuggestions = true,
   userName,
   onSendMessage,
   input,
@@ -70,56 +72,58 @@ export default function WelcomeScreen({
 
   return (
     <div className="relative flex h-full w-full flex-col">
-      <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center text-center">
-        <div className="welcome-message-block transition-all duration-300 ease-out">
-          <h1 className="mb-2 text-3xl font-medium">
-            {userName
-              ? t("welcomeScreen.greetingWithName", { name: userName })
-              : t("welcomeScreen.greeting")}
-          </h1>
-          <p className="text-muted-foreground text-2xl">
-            {t("welcomeScreen.question")}
-          </p>
-        </div>
-        {promptsList.length > 0 && (
-          <div
-            key={`suggestions-${promptKey}`}
-            className={cn(
-              "w-full max-w-[33.6rem] overflow-hidden transition-[max-height,opacity] duration-300 ease-out",
-              showSuggestions
-                ? "max-h-[500px] opacity-100"
-                : "max-h-0 opacity-0",
-            )}
-          >
-            <p className="text-muted-foreground mt-8 mb-2 text-xs font-medium">
-              {t("welcomeScreen.suggestionsLabel")}
+      {showGreetingAndSuggestions ? (
+        <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center text-center">
+          <div className="welcome-message-block transition-all duration-300 ease-out">
+            <h1 className="mb-2 text-3xl font-medium">
+              {userName
+                ? t("welcomeScreen.greetingWithName", { name: userName })
+                : t("welcomeScreen.greeting")}
+            </h1>
+            <p className="text-muted-foreground text-2xl">
+              {t("welcomeScreen.question")}
             </p>
-            <ul className="flex flex-col gap-2">
-              {promptsList.map((text, index) => (
-                <li
-                  key={`${promptKey}-${index}`}
-                  className="welcome-suggestion-item"
-                  style={{ animationDelay: `${index * 80}ms` }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleSuggestionClick(text)}
-                    className={cn(
-                      "border-border/60 bg-muted/30 w-full rounded-xl border px-4 py-3 text-left text-sm",
-                      "hover:border-border hover:bg-muted/50 transition-colors",
-                      "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-                    )}
-                  >
-                    <span className="text-muted-foreground leading-snug">
-                      {text}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
           </div>
-        )}
-      </div>
+          {promptsList.length > 0 && (
+            <div
+              key={`suggestions-${promptKey}`}
+              className={cn(
+                "w-full max-w-[33.6rem] overflow-hidden transition-[max-height,opacity] duration-300 ease-out",
+                showSuggestions
+                  ? "max-h-[500px] opacity-100"
+                  : "max-h-0 opacity-0",
+              )}
+            >
+              <p className="text-muted-foreground mt-8 mb-2 text-xs font-medium">
+                {t("welcomeScreen.suggestionsLabel")}
+              </p>
+              <ul className="flex flex-col gap-2">
+                {promptsList.map((text, index) => (
+                  <li
+                    key={`${promptKey}-${index}`}
+                    className="welcome-suggestion-item"
+                    style={{ animationDelay: `${index * 80}ms` }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSuggestionClick(text)}
+                      className={cn(
+                        "border-border/60 bg-muted/30 w-full rounded-xl border px-4 py-3 text-left text-sm",
+                        "hover:border-border hover:bg-muted/50 transition-colors",
+                        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                      )}
+                    >
+                      <span className="text-muted-foreground leading-snug">
+                        {text}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : null}
       <div
         aria-hidden
         className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"

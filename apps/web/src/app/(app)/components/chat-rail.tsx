@@ -3,7 +3,7 @@
 import { MessageSquarePlus, PanelRightIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import ChatInterface from "@/app/chat/components/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -82,48 +82,14 @@ export default function ChatRail({
     setSelectedConversationId,
   ]);
 
-  const selectedConversation = useMemo(() => {
-    if (!selectedConversationId) {
-      return null;
-    }
-
-    return (
-      conversations.find(
-        (conversation) => conversation.id === selectedConversationId,
-      ) ?? null
-    );
-  }, [conversations, selectedConversationId]);
-
-  const bucketDisplayName = useMemo(() => {
-    if (!selectedConversation) {
-      return tChatRail("chat");
-    }
-
-    const metadata =
-      (selectedConversation.metadata as Record<string, unknown> | null) ?? null;
-
-    return (
-      (metadata?.model_name as string | undefined) ??
-      (metadata?.coworker_name as string | undefined) ??
-      selectedConversation.title ??
-      tChatRail("chat")
-    );
-  }, [selectedConversation, tChatRail]);
-
   if (isStandaloneChat) {
     return null;
   }
 
   const railBody = (
     <div className="bg-background flex h-full min-h-0 w-full flex-col">
-      <div className="border-border flex h-16 items-center justify-between gap-3 border-b px-4 py-3">
-        <div className="min-w-0">
-          <div className="text-sm font-medium">{tChatRail("chat")}</div>
-          <div className="text-muted-foreground truncate text-xs">
-            {selectedConversation ? bucketDisplayName : tChat("newChat")}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="border-border flex h-16 items-center justify-end border-b px-4 py-3">
+        <div className="flex w-full items-center justify-between gap-2">
           <Button
             type="button"
             variant="outline"
@@ -155,6 +121,7 @@ export default function ChatRail({
           organizationSlug={organizationSlug}
           userImageUrl={userImageUrl}
           userName={userName}
+          showGreetingAndSuggestions={false}
         />
       </div>
     </div>
@@ -166,14 +133,14 @@ export default function ChatRail({
         aria-hidden
         className="hidden transition-[width] duration-200 ease-linear md:block"
         style={{
-          width: isVisible ? "clamp(24rem, 46vw, 40rem)" : "0px",
+          width: isVisible ? "clamp(24rem, 46vw, 30rem)" : "0px",
         }}
       />
 
       <div
         className="border-border bg-background fixed top-0 right-0 bottom-0 z-40 hidden border-l shadow-sm transition-transform duration-200 ease-linear md:flex"
         style={{
-          width: "clamp(24rem, 46vw, 40rem)",
+          width: "clamp(24rem, 46vw, 30rem)",
           transform: isVisible ? "translateX(0)" : "translateX(100%)",
         }}
       >
