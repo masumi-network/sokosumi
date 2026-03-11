@@ -84,14 +84,15 @@ export const auth = betterAuth({
   },
   plugins: [
     magicLink({
-      sendMagicLink: async ({ email, url, token }, ctx) => {
-        console.info("context", ctx);
+      expiresIn: 60 * 60 * 48, // 48 hours in seconds
+      allowedAttempts: 1,
+      sendMagicLink: async ({ email, url, token }) => {
         postmarkClient.sendEmail({
           From: env.POSTMARK_FROM_EMAIL,
           To: email,
           Tag: "magic-link",
-          Subject: "Magic Link",
-          HtmlBody: `Click <a href="${url}">here</a> or use the token ${token} to login`,
+          Subject: "Sokosumi - Magic Link",
+          HtmlBody: `Click <a href="${url}">here</a> or use the token ${token} to login. This link will expire in 48 hours.`,
           MessageStream: "authentications",
         });
       },
