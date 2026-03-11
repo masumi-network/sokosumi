@@ -11,8 +11,8 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
-  coworkerApiKeyWithTokenSchema,
   createCoworkerApiKeyRequestSchema,
+  createCoworkerApiKeyResponseSchema,
 } from "@/schemas/coworker-api-key.schema";
 
 import { requireCoworkerManagementAccess } from "../../admin-guard";
@@ -35,19 +35,14 @@ const route = createRoute({
   },
   responses: {
     201: jsonSuccessResponse(
-      coworkerApiKeyWithTokenSchema,
+      createCoworkerApiKeyResponseSchema,
       "Create coworker API key",
       {
         data: {
           id: "cokey_123",
-          coworkerId: "cow_123",
-          name: "Production key",
-          keyStart: "coworker_abcdefgh",
           token: "coworker_super_secret_token",
+          name: "Production key",
           expiresAt: "2026-12-31T23:59:59.000Z",
-          revokedAt: null,
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
         },
         meta: {
           timestamp: "2026-01-01T00:00:00.000Z",
@@ -101,22 +96,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         select: {
           id: true,
-          coworkerId: true,
           name: true,
-          keyStart: true,
           expiresAt: true,
-          revokedAt: true,
-          createdAt: true,
-          updatedAt: true,
         },
       });
     });
 
     return created(
       c,
-      coworkerApiKeyWithTokenSchema.parse({
-        ...apiKey,
+      createCoworkerApiKeyResponseSchema.parse({
+        id: apiKey.id,
         token,
+        name: apiKey.name,
+        expiresAt: apiKey.expiresAt,
       }),
     );
   });

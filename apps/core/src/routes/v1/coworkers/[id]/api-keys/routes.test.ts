@@ -104,7 +104,7 @@ describe("coworker API key protected endpoints", () => {
     });
   });
 
-  it("creates a key and returns token once without keyHash", async () => {
+  it("creates a key and only returns creation fields", async () => {
     const tx: TransactionMock = {
       coworker: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -131,9 +131,16 @@ describe("coworker API key protected endpoints", () => {
     expect(response.status).toBe(201);
 
     const body = await response.json();
+    expect(body.data.id).toBe("cokey_123");
     expect(body.data.token).toEqual(expect.stringMatching(/^coworker_/));
-    expect(body.data.keyStart).toEqual(expect.stringMatching(/^coworker_/));
+    expect(body.data.name).toBe("Primary key");
+    expect(body.data.expiresAt).toBeNull();
+    expect(body.data.coworkerId).toBeUndefined();
+    expect(body.data.keyStart).toBeUndefined();
     expect(body.data.keyHash).toBeUndefined();
+    expect(body.data.revokedAt).toBeUndefined();
+    expect(body.data.createdAt).toBeUndefined();
+    expect(body.data.updatedAt).toBeUndefined();
     expect(tx.coworker.updateMany).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
