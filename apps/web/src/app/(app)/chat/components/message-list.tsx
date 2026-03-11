@@ -4,6 +4,7 @@ import type { UIMessage } from "ai";
 import { useTranslations } from "next-intl";
 import {
   forwardRef,
+  Fragment,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -27,6 +28,7 @@ import ChatMessage from "./chat-message";
 import DaySeparator from "./day-separator";
 import LoadingIndicator from "./loading-indicator";
 import ReasoningLoaders from "./reasoning-loaders";
+import ThoughtSummaryBar from "./thought-summary-bar";
 
 export type MessageListHandle = Record<string, never>;
 
@@ -61,6 +63,8 @@ interface MessageListProps {
   isPollingForPendingResponse?: boolean;
   pendingResponseFailed?: boolean;
   reasoningMessages?: Array<{ id: string; message: string }>;
+  reasoningStartedAt?: number;
+  reasoningEndedAt?: number;
   isCoworker?: boolean;
   onResendLastMessage?: (lastUserMessageText: string) => void;
 }
@@ -78,6 +82,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       isPollingForPendingResponse = false,
       pendingResponseFailed = false,
       reasoningMessages = [],
+      reasoningStartedAt,
+      reasoningEndedAt,
       isCoworker = false,
       onResendLastMessage,
     },
@@ -135,6 +141,11 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         lastAssistantHasNoContent);
     const showReasoningLoaders =
       showLoadingArea && isCoworker && reasoningMessages.length > 0;
+    const hasStreamingWithReasoning =
+      isCoworker &&
+      reasoningMessages.length > 0 &&
+      lastMessage?.role === "assistant" &&
+      lastMessageContent.trim().length > 0;
     const showLoadingIndicator =
       showLoadingArea && !showReasoningLoaders && !pendingResponseFailed;
 
@@ -344,9 +355,27 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                     style={sectionStyle}
                     className="flex flex-col justify-start pt-4"
                   >
-                    {section.map((message, i) =>
-                      renderMessage(message, globalStart + i),
-                    )}
+                    {section.map((message, i) => {
+                      const isLastInSection = i === section.length - 1;
+                      const role = message.role as string;
+                      const showThoughtBar =
+                        sectionIndex === sections.length - 1 &&
+                        isLastInSection &&
+                        role === "assistant" &&
+                        hasStreamingWithReasoning;
+                      return (
+                        <Fragment key={`section-${sectionIndex}-msg-${i}`}>
+                          {showThoughtBar && (
+                            <ThoughtSummaryBar
+                              reasoningEndedAt={reasoningEndedAt ?? null}
+                              reasoningMessages={reasoningMessages}
+                              reasoningStartedAt={reasoningStartedAt ?? null}
+                            />
+                          )}
+                          {renderMessage(message, globalStart + i)}
+                        </Fragment>
+                      );
+                    })}
                     {sectionIndex === sections.length - 1 && (
                       <>
                         {showReasoningLoaders && (

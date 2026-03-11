@@ -1179,7 +1179,10 @@
           "processing": "A processar...",
           "thinking": "A pensar...",
           "searchingFiles": "A pesquisar ficheiros...",
-          "callingTools": "A chamar ferramentas..."
+          "callingTools": "A chamar ferramentas...",
+          "thoughtForSeconds": "Pensado durante {seconds}s",
+          "expandSteps": "Mostrar passos de raciocínio",
+          "collapseSteps": "Ocultar passos de raciocínio"
         },
         "chatErrorTitle": "Erro no chat",
         "errorFallbackDescription": "Algo correu mal com a interface de chat. Tente atualizar ou contacte o suporte se o problema persistir.",

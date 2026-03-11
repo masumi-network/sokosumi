@@ -1179,7 +1179,10 @@
           "processing": "处理中...",
           "thinking": "思考中...",
           "searchingFiles": "正在搜索文件...",
-          "callingTools": "正在调用工具..."
+          "callingTools": "正在调用工具...",
+          "thoughtForSeconds": "思考了 {seconds} 秒",
+          "expandSteps": "显示推理步骤",
+          "collapseSteps": "隐藏推理步骤"
         },
         "chatErrorTitle": "聊天错误",
         "errorFallbackDescription": "聊天界面出现问题。请尝试刷新页面，若问题仍然存在请联系支持。",

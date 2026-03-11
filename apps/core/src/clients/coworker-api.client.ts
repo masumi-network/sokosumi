@@ -7,7 +7,7 @@ import {
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 
-function extractTextFromCompletedOutput(output: unknown): string {
+export function extractTextFromCompletedOutput(output: unknown): string {
   if (!Array.isArray(output) || output.length === 0) return "";
   const parts: string[] = [];
   for (const item of output) {
@@ -42,6 +42,7 @@ export interface StreamResponsesApiOptions {
   previousResponseId?: string | null;
   instructions?: string;
   onResponseCompleted?: (responseId: string) => void;
+  onResponseStarted?: (responseId: string) => void;
 }
 
 export async function streamResponsesApi(
@@ -109,10 +110,10 @@ export async function streamResponsesApi(
     throw new Error("Responses API returned no body");
   }
 
-  const stream = createResponsesApiUiStream(
-    response.body,
-    options.onResponseCompleted,
-  );
+  const stream = createResponsesApiUiStream(response.body, {
+    onResponseCompleted: options.onResponseCompleted,
+    onResponseStarted: options.onResponseStarted,
+  });
 
   return new Response(stream, {
     headers: {
@@ -124,10 +125,91 @@ export async function streamResponsesApi(
   });
 }
 
+export type GetResponseResult =
+  | { status: "completed"; id: string; output: unknown }
+  | { status: "in_progress" | "not_found" };
+
+export interface GetResponseByIdOptions {
+  sokosumiUserId: string;
+  sokosumiOrganizationId: string | null;
+  coworkerSlug: string;
+}
+
+export async function getResponseById(
+  responseId: string,
+  options: GetResponseByIdOptions,
+): Promise<GetResponseResult> {
+  if (!isResponsesApiConfigured()) {
+    throw new Error(
+      "Responses API is not configured (missing key or base URL)",
+    );
+  }
+
+  const baseUrl = getResponsesApiBaseUrl();
+  const env = getEnv();
+  const serviceKey = env.COWORKERS_API_SERVICE_KEY;
+
+  if (!baseUrl || !serviceKey) {
+    throw new Error("Responses API base URL or service key missing");
+  }
+  if (!options.coworkerSlug?.trim()) {
+    throw new Error("Responses API requires a coworker slug");
+  }
+
+  const url = `${baseUrl.replace(/\/$/, "")}/v1/responses/${encodeURIComponent(responseId)}`;
+  const requestHeaders: Record<string, string> = {
+    Authorization: `Bearer ${serviceKey}`,
+    "X-Sokosumi-User-Id": options.sokosumiUserId,
+    "X-Coworker-Slug": options.coworkerSlug,
+  };
+  if (options.sokosumiOrganizationId) {
+    requestHeaders["X-Sokosumi-Organization-Id"] =
+      options.sokosumiOrganizationId;
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: requestHeaders,
+  });
+
+  if (response.status === 404 || response.status === 202) {
+    return {
+      status: response.status === 404 ? "not_found" : "in_progress",
+    };
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Responses API GET error: ${response.status} ${errorText}`);
+  }
+
+  const body = (await response.json()) as {
+    id?: string;
+    status?: string;
+    output?: unknown;
+  };
+
+  if (body.status === "completed" && body.output !== undefined) {
+    return {
+      status: "completed",
+      id: typeof body.id === "string" ? body.id : responseId,
+      output: body.output,
+    };
+  }
+
+  return { status: "in_progress" };
+}
+
+interface CreateResponsesApiUiStreamOptions {
+  onResponseCompleted?: (responseId: string) => void;
+  onResponseStarted?: (responseId: string) => void;
+}
+
 function createResponsesApiUiStream(
   body: ReadableStream<Uint8Array>,
-  onResponseCompleted?: (responseId: string) => void,
+  options: CreateResponsesApiUiStreamOptions = {},
 ): ReadableStream<Uint8Array> {
+  const { onResponseCompleted, onResponseStarted } = options;
   const reader = body.getReader();
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
@@ -138,7 +220,10 @@ function createResponsesApiUiStream(
   let streamClosed = false;
   let cancelled = false;
   let lastEventLine: string | null = null;
+  const responseStartedState = { called: false };
   const pendingDeltaChunks: string[] = [];
+  const reasoningAccumulator: Record<string, string> = {};
+  const needNewlineBeforeNextDelta = false;
 
   function closeStream(
     controller: ReadableStreamDefaultController<Uint8Array>,
@@ -216,23 +301,58 @@ function createResponsesApiUiStream(
         delta?: string;
         text?: string;
         id?: string;
+        item_id?: string;
         status?: string;
         item?: { type?: string; id?: string };
         response?: { id?: string };
       };
       const responseId = (chunk.response?.id ?? chunk.id) as string | undefined;
 
+      if (
+        typeof responseId === "string" &&
+        !responseStartedState.called &&
+        lastEventLine === "response.created"
+      ) {
+        responseStartedState.called = true;
+        onResponseStarted?.(responseId);
+      }
+
       if (!textStarted) {
         if (lastEventLine === "response.created") {
           emitDataReasoning(controller, "Processing...", "reasoning-init");
-        } else if (lastEventLine === "response.output_item.added") {
+        } else if (chunk.type === "response.output_item.added") {
           const itemType = chunk.item?.type;
           if (itemType === "reasoning") {
             const id =
               typeof chunk.item?.id === "string" ? chunk.item.id : "reasoning";
+            reasoningAccumulator[id] = "";
             emitDataReasoning(controller, "Thinking...", id);
           }
+        } else if (chunk.type === "response.reasoning_summary_text.delta") {
+          const itemId =
+            typeof chunk.item_id === "string" ? chunk.item_id : undefined;
+          const delta =
+            typeof chunk.delta === "string" ? chunk.delta : undefined;
+          if (itemId && delta) {
+            reasoningAccumulator[itemId] =
+              (reasoningAccumulator[itemId] ?? "") + delta;
+            emitDataReasoning(controller, reasoningAccumulator[itemId], itemId);
+          }
+        } else if (chunk.type === "response.output_item.done") {
+          const itemId =
+            typeof chunk.item?.id === "string" ? chunk.item.id : undefined;
+          if (itemId && chunk.item?.type === "reasoning") {
+            delete reasoningAccumulator[itemId];
+          }
         }
+      }
+
+      if (
+        chunk.type === "response.output_item.done" &&
+        chunk.item?.type === "message" &&
+        textStarted
+      ) {
+        needNewlineBeforeNextDelta = true;
       }
 
       const deltaValue =
@@ -248,13 +368,16 @@ function createResponsesApiUiStream(
         lastEventLine === "response.output_text.delta";
 
       if (isDeltaEvent && deltaValue) {
-        if (deltaValue.length <= MAX_DELTA_CHUNK_SIZE) {
-          handleTextDelta(deltaValue, controller);
+        let toSend = deltaValue;
+        if (needNewlineBeforeNextDelta) {
+          needNewlineBeforeNextDelta = false;
+          toSend = "\n\n" + toSend;
+        }
+        if (toSend.length <= MAX_DELTA_CHUNK_SIZE) {
+          handleTextDelta(toSend, controller);
         } else {
-          for (let i = 0; i < deltaValue.length; i += MAX_DELTA_CHUNK_SIZE) {
-            pendingDeltaChunks.push(
-              deltaValue.slice(i, i + MAX_DELTA_CHUNK_SIZE),
-            );
+          for (let i = 0; i < toSend.length; i += MAX_DELTA_CHUNK_SIZE) {
+            pendingDeltaChunks.push(toSend.slice(i, i + MAX_DELTA_CHUNK_SIZE));
           }
         }
         return false;

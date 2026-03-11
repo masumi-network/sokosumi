@@ -1179,7 +1179,10 @@
           "processing": "Elaborazione...",
           "thinking": "Sto pensando...",
           "searchingFiles": "Ricerca nei file...",
-          "callingTools": "Esecuzione degli strumenti..."
+          "callingTools": "Esecuzione degli strumenti...",
+          "thoughtForSeconds": "Riflessione per {seconds}s",
+          "expandSteps": "Mostra passaggi di ragionamento",
+          "collapseSteps": "Nascondi passaggi di ragionamento"
         },
         "chatErrorTitle": "Errore chat",
         "errorFallbackDescription": "Si è verificato un problema con l’interfaccia della chat. Prova ad aggiornare la pagina o contatta il supporto se il problema persiste.",

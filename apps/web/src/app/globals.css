@@ -197,6 +197,31 @@
     }
   }
 
+  @keyframes reasoning-step-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.25rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes reasoning-cursor-blink {
+    0%,
+    50% {
+      opacity: 1;
+    }
+    51%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  --animate-reasoning-step-in: reasoning-step-in 0.25s ease-out both;
+  --animate-reasoning-cursor-blink: reasoning-cursor-blink 1s step-end infinite;
+
   --animate-rotate-once: rotate-once 0.6s ease-in-out;
   --animate-roll-up: roll-up 0.2s ease-out forwards;
   --animate-roll-down: roll-down 0.2s ease-out forwards;
@@ -577,6 +602,34 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   background-clip: text;
   color: transparent;
   animation: var(--animate-reasoning-text-shine);
+}
+
+@utility reasoning-step-in {
+  animation: var(--animate-reasoning-step-in);
+}
+
+.reasoning-step-typing {
+  position: relative;
+}
+.reasoning-step-typing::after {
+  content: "";
+  position: relative;
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background-color: currentColor;
+  opacity: 0.7;
+  animation: var(--animate-reasoning-cursor-blink);
+}
+
+.reasoning-steps-viewport {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.reasoning-steps-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .hljs {

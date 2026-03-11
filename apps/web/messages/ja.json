@@ -1179,7 +1179,10 @@
           "processing": "処理中...",
           "thinking": "考え中...",
           "searchingFiles": "ファイルを検索中...",
-          "callingTools": "ツールを呼び出し中..."
+          "callingTools": "ツールを呼び出し中...",
+          "thoughtForSeconds": "{seconds}秒考えました",
+          "expandSteps": "推論ステップを表示",
+          "collapseSteps": "推論ステップを非表示"
         },
         "chatErrorTitle": "チャットエラー",
         "errorFallbackDescription": "チャット画面で問題が発生しました。ページを更新するか、問題が続く場合はサポートにお問い合わせください。",
