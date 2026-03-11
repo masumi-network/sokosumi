@@ -21,16 +21,16 @@ export default async function LowCreditsNotice({
   const t = await getTranslations("App.LowCreditsNotice");
   const tone: TopNoticeTone =
     kind === "outOfCredits" ? "destructive" : "warning";
+  const routeKey = path.includes("tab=subscription")
+    ? "subscription"
+    : "credits";
+  const stateKey = kind === "outOfCredits" ? "outOfCredits" : "almostOut";
 
   return (
     <TopNotice
       tone={tone}
-      title={t(
-        `${kind === "outOfCredits" ? "outOfCredits" : "almostOut"}.title`,
-      )}
-      description={t(
-        `${kind === "outOfCredits" ? "outOfCredits" : "almostOut"}.description`,
-      )}
+      title={t(`${routeKey}.${stateKey}.title`)}
+      description={t(`${routeKey}.${stateKey}.description`)}
       action={
         <Button
           asChild
@@ -39,7 +39,7 @@ export default async function LowCreditsNotice({
           className={getTopNoticeActionClassName(tone)}
         >
           <Link href={path}>
-            <span>{t("button")}</span>
+            <span>{t(`${routeKey}.button`)}</span>
             <ArrowUpRight aria-hidden />
           </Link>
         </Button>

@@ -1496,15 +1496,28 @@
       "sendError": "发送验证邮件失败。请重试。"
     },
     "LowCreditsNotice": {
-      "almostOut": {
-        "title": "你的积分快用完了",
-        "description": "在积分用完之前，打开账单页面添加积分或管理你的套餐。"
+      "subscription": {
+        "almostOut": {
+          "title": "你的积分快用完了",
+          "description": "在积分用完前，打开账单页面选择订阅方案。"
+        },
+        "outOfCredits": {
+          "title": "订阅后即可继续",
+          "description": "打开账单页面选择订阅方案，继续使用。"
+        },
+        "button": "查看订阅方案"
       },
-      "outOfCredits": {
-        "title": "你的积分已用完",
-        "description": "打开账单页面添加积分或管理你的套餐，以继续使用。"
-      },
-      "button": "打开账单"
+      "credits": {
+        "almostOut": {
+          "title": "你的积分快用完了",
+          "description": "打开账单页面管理你的订阅并补充积分，避免工作中断。"
+        },
+        "outOfCredits": {
+          "title": "你的积分已用完",
+          "description": "打开账单页面管理你的订阅并补充积分，以继续使用。"
+        },
+        "button": "打开账单"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "订阅更新成功。",

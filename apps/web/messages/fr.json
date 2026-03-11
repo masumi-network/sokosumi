@@ -1496,15 +1496,28 @@
       "sendError": "Échec de l’envoi de l’e-mail de vérification. Veuillez réessayer."
     },
     "LowCreditsNotice": {
-      "almostOut": {
-        "title": "Vous êtes presque à court de crédits",
-        "description": "Ouvrez la facturation pour ajouter des crédits ou gérer votre forfait avant de tout utiliser."
+      "subscription": {
+        "almostOut": {
+          "title": "Vos crédits diminuent",
+          "description": "Ouvrez la facturation pour choisir un abonnement avant d’être à court de crédits."
+        },
+        "outOfCredits": {
+          "title": "Prenez un abonnement pour continuer",
+          "description": "Ouvrez la facturation pour choisir un abonnement et continuer à travailler."
+        },
+        "button": "Voir les abonnements"
       },
-      "outOfCredits": {
-        "title": "Vous n’avez plus de crédits",
-        "description": "Ouvrez la facturation pour ajouter des crédits ou gérer votre forfait afin de continuer."
-      },
-      "button": "Ouvrir la facturation"
+      "credits": {
+        "almostOut": {
+          "title": "Vos crédits diminuent",
+          "description": "Ouvrez la facturation pour gérer votre abonnement et ajouter des crédits avant que votre travail ne soit interrompu."
+        },
+        "outOfCredits": {
+          "title": "Vos crédits sont épuisés",
+          "description": "Ouvrez la facturation pour gérer votre abonnement et ajouter des crédits afin de continuer."
+        },
+        "button": "Ouvrir la facturation"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Abonnement mis à jour avec succès.",

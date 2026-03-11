@@ -8,13 +8,20 @@ jest.mock("next-intl/server", () => ({
   getTranslations: () =>
     Promise.resolve((key: string) => {
       const labels: Record<string, string> = {
-        "almostOut.title": "You're almost out of credits",
-        "almostOut.description":
-          "Open billing to add credits or manage your plan before you run out.",
-        "outOfCredits.title": "You're out of credits",
-        "outOfCredits.description":
-          "Open billing to add credits or manage your plan to keep going.",
-        button: "Open billing",
+        "subscription.almostOut.title": "Your credits are running low",
+        "subscription.almostOut.description":
+          "Open billing to choose a subscription before you run out.",
+        "subscription.outOfCredits.title": "Start a subscription to continue",
+        "subscription.outOfCredits.description":
+          "Open billing to choose a subscription and keep working.",
+        "subscription.button": "View subscription plans",
+        "credits.almostOut.title": "Your credits are running low",
+        "credits.almostOut.description":
+          "Open billing to manage your subscription and add credits before work is interrupted.",
+        "credits.outOfCredits.title": "Your credits are used up",
+        "credits.outOfCredits.description":
+          "Open billing to manage your subscription and add credits to keep going.",
+        "credits.button": "Open billing",
       };
 
       return labels[key] ?? key;
@@ -31,10 +38,10 @@ describe("LowCreditsNotice", () => {
     render(view);
 
     expect(
-      screen.getByText("You're almost out of credits"),
+      screen.getByText("Your credits are running low"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Open billing to add credits/i),
+      screen.getByText(/Open billing to choose a subscription/i),
     ).toBeInTheDocument();
     const alert = screen.getByRole("alert");
     expect(alert).toHaveClass(
@@ -42,7 +49,7 @@ describe("LowCreditsNotice", () => {
       "bg-semantic-warning-quinary",
       "text-semantic-warning",
     );
-    const cta = screen.getByRole("link", { name: "Open billing" });
+    const cta = screen.getByRole("link", { name: "View subscription plans" });
     expect(cta).toHaveAttribute("href", "/billing?tab=subscription");
     expect(cta.closest("[data-slot='button']")).toHaveClass(
       "border-semantic-warning-tertiary",
@@ -60,11 +67,35 @@ describe("LowCreditsNotice", () => {
     render(view);
 
     expect(
-      screen.getByRole("link", { name: "Open billing" }).querySelector("svg"),
+      screen
+        .getByRole("link", { name: "View subscription plans" })
+        .querySelector("svg"),
     ).not.toBeNull();
   });
 
-  it("renders the out-of-credits variant with the resolved destination", async () => {
+  it("renders the paid-plan low-credits variant without subscription in the title", async () => {
+    const view = await LowCreditsNotice({
+      kind: "lowCredits",
+      path: "/billing?tab=credits",
+    });
+
+    render(view);
+
+    expect(
+      screen.getByText("Your credits are running low"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Open billing to manage your subscription and add credits/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open billing" })).toHaveAttribute(
+      "href",
+      "/billing?tab=credits",
+    );
+  });
+
+  it("renders the paid-plan out-of-credits variant without subscription in the title", async () => {
     const view = await LowCreditsNotice({
       kind: "outOfCredits",
       path: "/billing?tab=credits",
@@ -72,9 +103,11 @@ describe("LowCreditsNotice", () => {
 
     render(view);
 
-    expect(screen.getByText("You're out of credits")).toBeInTheDocument();
+    expect(screen.getByText("Your credits are used up")).toBeInTheDocument();
     expect(
-      screen.getByText(/Open billing to add credits or manage your plan/i),
+      screen.getByText(
+        /Open billing to manage your subscription and add credits/i,
+      ),
     ).toBeInTheDocument();
     const alert = screen.getByRole("alert");
     expect(alert).toHaveClass(

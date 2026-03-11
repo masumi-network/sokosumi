@@ -1498,15 +1498,28 @@
       "sendError": "Failed to send verification email. Please try again."
     },
     "LowCreditsNotice": {
-      "almostOut": {
-        "title": "You're almost out of credits",
-        "description": "Open billing to add credits or manage your plan before you run out."
+      "subscription": {
+        "almostOut": {
+          "title": "Your credits are running low",
+          "description": "Open billing to choose a subscription before you run out."
+        },
+        "outOfCredits": {
+          "title": "Start a subscription to continue",
+          "description": "Open billing to choose a subscription and keep working."
+        },
+        "button": "View subscription plans"
       },
-      "outOfCredits": {
-        "title": "You're out of credits",
-        "description": "Open billing to add credits or manage your plan to keep going."
-      },
-      "button": "Open billing"
+      "credits": {
+        "almostOut": {
+          "title": "Your credits are running low",
+          "description": "Open billing to manage your subscription and add credits before work is interrupted."
+        },
+        "outOfCredits": {
+          "title": "Your credits are used up",
+          "description": "Open billing to manage your subscription and add credits to keep going."
+        },
+        "button": "Open billing"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Subscription updated successfully.",

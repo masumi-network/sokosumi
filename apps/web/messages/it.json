@@ -1496,15 +1496,28 @@
       "sendError": "Impossibile inviare l’email di verifica. Riprova."
     },
     "LowCreditsNotice": {
-      "almostOut": {
-        "title": "Stai per esaurire i crediti",
-        "description": "Apri la fatturazione per aggiungere crediti o gestire il tuo piano prima di rimanere senza."
+      "subscription": {
+        "almostOut": {
+          "title": "I tuoi crediti stanno finendo",
+          "description": "Apri la fatturazione per scegliere un abbonamento prima di rimanere senza crediti."
+        },
+        "outOfCredits": {
+          "title": "Attiva un abbonamento per continuare",
+          "description": "Apri la fatturazione per scegliere un abbonamento e continuare a lavorare."
+        },
+        "button": "Vedi abbonamenti"
       },
-      "outOfCredits": {
-        "title": "Hai esaurito i crediti",
-        "description": "Apri la fatturazione per aggiungere crediti o gestire il tuo piano e continuare."
-      },
-      "button": "Apri fatturazione"
+      "credits": {
+        "almostOut": {
+          "title": "I tuoi crediti stanno finendo",
+          "description": "Apri la fatturazione per gestire il tuo abbonamento e aggiungere crediti prima che il lavoro si interrompa."
+        },
+        "outOfCredits": {
+          "title": "I tuoi crediti sono esauriti",
+          "description": "Apri la fatturazione per gestire il tuo abbonamento e aggiungere crediti per continuare."
+        },
+        "button": "Apri fatturazione"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Abbonamento aggiornato correttamente.",

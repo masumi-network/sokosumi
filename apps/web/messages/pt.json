@@ -1496,15 +1496,28 @@
       "sendError": "Falha ao enviar e-mail de verificação. Tente novamente."
     },
     "LowCreditsNotice": {
-      "almostOut": {
-        "title": "Os seus créditos estão quase a acabar",
-        "description": "Abra a faturação para adicionar créditos ou gerir o seu plano antes de ficarem esgotados."
+      "subscription": {
+        "almostOut": {
+          "title": "Os seus créditos estão a acabar",
+          "description": "Abra a faturação para escolher uma subscrição antes de ficar sem créditos."
+        },
+        "outOfCredits": {
+          "title": "Inicie uma subscrição para continuar",
+          "description": "Abra a faturação para escolher uma subscrição e continuar a trabalhar."
+        },
+        "button": "Ver subscrições"
       },
-      "outOfCredits": {
-        "title": "Ficou sem créditos",
-        "description": "Abra a faturação para adicionar créditos ou gerir o seu plano e continuar."
-      },
-      "button": "Abrir faturação"
+      "credits": {
+        "almostOut": {
+          "title": "Os seus créditos estão a acabar",
+          "description": "Abra a faturação para gerir a sua subscrição e adicionar créditos antes de o trabalho ser interrompido."
+        },
+        "outOfCredits": {
+          "title": "Ficou sem créditos",
+          "description": "Abra a faturação para gerir a sua subscrição e adicionar créditos para continuar."
+        },
+        "button": "Abrir faturação"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Subscrição atualizada com sucesso.",

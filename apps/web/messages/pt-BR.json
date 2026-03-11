@@ -1496,15 +1496,28 @@
       "sendError": "Falha ao enviar e-mail de verificação. Tente de novo."
     },
     "LowCreditsNotice": {
-      "almostOut": {
-        "title": "Seus créditos estão quase acabando",
-        "description": "Abra o faturamento para adicionar créditos ou gerenciar seu plano antes que eles acabem."
+      "subscription": {
+        "almostOut": {
+          "title": "Seus créditos estão acabando",
+          "description": "Abra o faturamento para escolher uma assinatura antes que seus créditos acabem."
+        },
+        "outOfCredits": {
+          "title": "Assine para continuar",
+          "description": "Abra o faturamento para escolher uma assinatura e continuar trabalhando."
+        },
+        "button": "Ver assinaturas"
       },
-      "outOfCredits": {
-        "title": "Seus créditos acabaram",
-        "description": "Abra o faturamento para adicionar créditos ou gerenciar seu plano e continuar."
-      },
-      "button": "Abrir faturamento"
+      "credits": {
+        "almostOut": {
+          "title": "Seus créditos estão acabando",
+          "description": "Abra o faturamento para gerenciar sua assinatura e adicionar créditos antes que seu trabalho seja interrompido."
+        },
+        "outOfCredits": {
+          "title": "Seus créditos acabaram",
+          "description": "Abra o faturamento para gerenciar sua assinatura e adicionar créditos para continuar."
+        },
+        "button": "Abrir faturamento"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Assinatura atualizada com sucesso.",

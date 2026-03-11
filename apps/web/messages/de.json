@@ -2185,15 +2185,28 @@
       "sendError": "Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte versuche es erneut."
     },
     "LowCreditsNotice": {
-      "almostOut": {
-        "title": "Deine Credits gehen bald aus",
-        "description": "Öffne die Abrechnung, um Credits hinzuzufügen oder deinen Plan zu verwalten, bevor sie aufgebraucht sind."
+      "subscription": {
+        "almostOut": {
+          "title": "Deine Credits werden knapp",
+          "description": "Öffne die Abrechnung, um ein Abonnement auszuwählen, bevor deine Credits aufgebraucht sind."
+        },
+        "outOfCredits": {
+          "title": "Starte ein Abonnement, um fortzufahren",
+          "description": "Öffne die Abrechnung, um ein Abonnement auszuwählen und weiterzuarbeiten."
+        },
+        "button": "Abonnements ansehen"
       },
-      "outOfCredits": {
-        "title": "Du hast keine Credits mehr",
-        "description": "Öffne die Abrechnung, um Credits hinzuzufügen oder deinen Plan zu verwalten und weiterzumachen."
-      },
-      "button": "Abrechnung öffnen"
+      "credits": {
+        "almostOut": {
+          "title": "Deine Credits werden knapp",
+          "description": "Öffne die Abrechnung, um dein Abonnement zu verwalten und Credits hinzuzufügen, bevor deine Arbeit unterbrochen wird."
+        },
+        "outOfCredits": {
+          "title": "Deine Credits sind aufgebraucht",
+          "description": "Öffne die Abrechnung, um dein Abonnement zu verwalten und Credits hinzuzufügen, damit du weitermachen kannst."
+        },
+        "button": "Abrechnung öffnen"
+      }
     }
   },
   "Share": {
