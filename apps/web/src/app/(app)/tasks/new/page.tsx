@@ -5,6 +5,7 @@ import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { filterCoworkersByCapability } from "@/lib/utils/coworker-capability";
 
 export const metadata = {
   title: "New Task",
@@ -16,7 +17,8 @@ export default async function NewTaskPage() {
     coworkerService.listCoworkers(),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
-  const coworkerOptions = getCoworkerOptions(coworkers);
+  const taskCoworkers = filterCoworkersByCapability(coworkers, "tasks");
+  const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
 
   return (

@@ -14,6 +14,7 @@ import {
   parseTasksViewMode,
   TASKS_VIEW_MODE_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-view-mode";
+import { filterCoworkersByCapability } from "@/lib/utils/coworker-capability";
 
 import { TasksView } from "./components/tasks-view";
 import { buildAgentNameById } from "./utils/agent-names";
@@ -79,7 +80,8 @@ export default async function TasksPage() {
     seedTasksById,
   });
 
-  const coworkerOptions: CoworkerOption[] = getCoworkerOptions(coworkers);
+  const taskCoworkers = filterCoworkersByCapability(coworkers, "tasks");
+  const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),

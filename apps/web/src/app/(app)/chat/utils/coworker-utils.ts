@@ -14,6 +14,7 @@ export interface DbCoworker {
   email?: string | null;
   description?: string | null;
   image?: string | null;
+  capabilities?: string[] | null;
   createdAt: string;
   updatedAt: string;
 }

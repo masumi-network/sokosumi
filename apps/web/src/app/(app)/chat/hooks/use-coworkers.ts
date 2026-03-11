@@ -7,6 +7,7 @@ import {
   mapDbCoworkerToChatCoworker,
 } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
+import { filterCoworkersByCapability } from "@/lib/utils/coworker-capability";
 
 interface UseCoworkersReturn {
   coworkers: Coworker[];
@@ -37,7 +38,8 @@ export function useCoworkers(): UseCoworkersReturn {
       }
       const json = (await res.json()) as { data?: DbCoworker[] };
       const list = Array.isArray(json.data) ? json.data : [];
-      setCoworkers(list.map(mapDbCoworkerToChatCoworker));
+      const chatCoworkers = filterCoworkersByCapability(list, "chat");
+      setCoworkers(chatCoworkers.map(mapDbCoworkerToChatCoworker));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load coworkers");
       setCoworkers([]);

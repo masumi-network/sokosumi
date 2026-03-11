@@ -8,6 +8,7 @@ import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
+import { filterCoworkersByCapability } from "@/lib/utils/coworker-capability";
 
 export const metadata = {
   title: "Edit Task",
@@ -36,7 +37,8 @@ export default async function EditTaskPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const coworkerOptions = getCoworkerOptions(coworkers);
+  const taskCoworkers = filterCoworkersByCapability(coworkers, "tasks");
+  const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
 
   const [tEdit, tActions] = await Promise.all([
