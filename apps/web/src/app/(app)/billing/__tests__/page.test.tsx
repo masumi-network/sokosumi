@@ -18,14 +18,12 @@ jest.mock("next/headers", () => ({
 }));
 
 jest.mock("next-intl/server", () => ({
-  getTranslations: async () =>
-    (key: string, values?: Record<string, unknown>) =>
+  getTranslations:
+    async () => (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-jest.mock("stripe", () =>
-  jest.fn().mockImplementation(() => ({})),
-);
+jest.mock("stripe", () => jest.fn().mockImplementation(() => ({})));
 
 jest.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({

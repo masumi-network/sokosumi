@@ -186,21 +186,16 @@ export const organizationSubscriptionService = (() => {
       return { seats };
     },
 
-    async ensureCanCreateInvitation(organizationId: string): Promise<void> {
-      await ensureActiveOrganizationSubscription(
-        organizationId,
-        "An active organization subscription is required before adding members.",
-      );
+    async ensureCanCreateInvitation(_organizationId: string): Promise<void> {
+      return;
     },
 
     async ensureCanAcceptInvitation(organizationId: string): Promise<void> {
-      const [requiredSeats, activeSubscription] = await Promise.all([
-        getRequiredSeatsForNextMember(organizationId),
-        ensureActiveOrganizationSubscription(
-          organizationId,
-          "An active organization subscription is required before adding members.",
-        ),
-      ]);
+      const activeSubscription = await ensureActiveOrganizationSubscription(
+        organizationId,
+        "An active organization subscription is required before adding members.",
+      );
+      const requiredSeats = await getRequiredSeatsForNextMember(organizationId);
 
       const currentSeats = resolveCurrentSeats(activeSubscription.seats);
       if (currentSeats >= requiredSeats) {
