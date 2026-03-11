@@ -2,10 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type {
-  AuthenticationContext,
-  AuthVariables,
-} from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 const { signInMagicLinkMock, userFindUniqueMock } = vi.hoisted(() => ({
   signInMagicLinkMock: vi.fn(),

@@ -137,4 +137,46 @@ describe("GET /coworkers", () => {
       },
     });
   });
+
+  it("filters to coworkers with chat capability when capability=chat", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?scope=whitelisted&capability=chat",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: { has: "chat" },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
+
+  it("filters to coworkers with tasks capability when capability=tasks", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?scope=whitelisted&capability=tasks",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        isWhitelisted: true,
+        capabilities: { has: "tasks" },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  });
 });

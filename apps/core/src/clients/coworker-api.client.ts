@@ -1,9 +1,3 @@
-import {
-  getEnv,
-  getResponsesApiBaseUrl,
-  isResponsesApiConfigured,
-} from "@/config/env";
-
 const SSE_DATA_PREFIX = "data: ";
 const SSE_DONE_MARKER = "[DONE]";
 
@@ -36,6 +30,7 @@ const MAX_DELTA_CHUNK_SIZE = 80;
 const CHUNK_STREAM_DELAY_MS = 16;
 
 export interface StreamResponsesApiOptions {
+  responsesApiBaseUrl: string;
   sokosumiUserId: string;
   sokosumiOrganizationId: string | null;
   coworkerSlug: string | null;
@@ -48,18 +43,9 @@ export async function streamResponsesApi(
   input: string | Array<{ role: string; content: string }>,
   options: StreamResponsesApiOptions,
 ): Promise<Response> {
-  if (!isResponsesApiConfigured()) {
-    throw new Error(
-      "Responses API is not configured (missing key or base URL)",
-    );
-  }
-
-  const baseUrl = getResponsesApiBaseUrl();
-  const env = getEnv();
-  const serviceKey = env.COWORKERS_API_SERVICE_KEY;
-
-  if (!baseUrl || !serviceKey) {
-    throw new Error("Responses API base URL or service key missing");
+  const baseUrl = options.responsesApiBaseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error("Responses API base URL is required");
   }
   if (!options.coworkerSlug?.trim()) {
     throw new Error("Responses API requires a coworker agent ID (slug)");
@@ -84,7 +70,6 @@ export async function streamResponsesApi(
 
   const url = `${baseUrl.replace(/\/$/, "")}/responses`;
   const requestHeaders: Record<string, string> = {
-    Authorization: `Bearer ${serviceKey}`,
     "Content-Type": "application/json",
     "X-Sokosumi-User-Id": options.sokosumiUserId,
     "X-Coworker-Slug": options.coworkerSlug,

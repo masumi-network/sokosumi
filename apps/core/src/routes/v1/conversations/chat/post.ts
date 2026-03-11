@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
-import { isResponsesApiConfigured } from "@/config/env";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import { streamWithAssistantPersistence } from "@/helpers/chat-stream-persist";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
@@ -203,9 +202,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const useResponsesApi =
-        Boolean(internalConversationId) &&
-        Boolean(coworker) &&
-        isResponsesApiConfigured();
+        Boolean(internalConversationId) && Boolean(coworker);
 
       // Validate coworker message text BEFORE persisting to avoid inconsistent state
       if (useResponsesApi) {
@@ -262,11 +259,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (useResponsesApi) {
+      if (useResponsesApi && coworker?.baseURL) {
         const result = await streamResponsesApi(lastUserMessageText as string, {
+          responsesApiBaseUrl: coworker.baseURL,
           sokosumiUserId: authContext.userId,
           sokosumiOrganizationId: authContext.organizationId ?? null,
-          coworkerSlug: coworker?.slug ?? null,
+          coworkerSlug: coworker.slug,
           previousResponseId: lastResponsesApiResponseId ?? null,
           onResponseCompleted: async (responseId: string) => {
             if (!internalConversationId) return;
@@ -297,7 +295,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
           },
         });
-        if (internalConversationId) {
+        if (internalConversationId && result.body) {
           const wrapped = streamWithAssistantPersistence(
             result.body,
             internalConversationId,
@@ -316,7 +314,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         selectedModel,
       );
 
-      if (internalConversationId) {
+      if (internalConversationId && result.body) {
         const wrapped = streamWithAssistantPersistence(
           result.body,
           internalConversationId,

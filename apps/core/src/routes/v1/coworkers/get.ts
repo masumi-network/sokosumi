@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -17,6 +18,15 @@ const querySchema = z.object({
       description:
         "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers or 'archived' to include archived coworkers.",
       example: "whitelisted",
+    }),
+  capability: z
+    .enum(COWORKER_CAPABILITIES as unknown as [string, ...string[]])
+    .optional()
+    .openapi({
+      param: { name: "capability", in: "query" },
+      description:
+        "When set, return only coworkers that have this capability (e.g. 'chat' for chat-eligible coworkers).",
+      example: "chat",
     }),
 });
 
@@ -44,15 +54,19 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireUserAuthContext(c.var.authContext);
-    const { scope } = c.req.valid("query");
+    const { scope, capability } = c.req.valid("query");
 
-    const where =
+    const baseScope =
       scope === "archived"
         ? { archivedAt: { not: null } }
         : {
             archivedAt: null,
             ...(scope === "whitelisted" ? { isWhitelisted: true } : {}),
           };
+    const where = {
+      ...baseScope,
+      ...(capability ? { capabilities: { has: capability } } : {}),
+    };
 
     const coworkers = await prisma.coworker.findMany({
       where,

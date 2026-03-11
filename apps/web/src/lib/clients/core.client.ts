@@ -451,12 +451,21 @@ export const coreClient = (() => {
     );
   }
 
-  async function getCoworkers() {
+  async function getCoworkers(options?: {
+    capability?: "chat" | "tasks";
+    scope?: "all" | "whitelisted" | "archived";
+  }) {
     return executeOperation(
       (client) =>
         coreGetCoworkers({
           client,
           cache: "no-store",
+          ...(options && {
+            query: {
+              ...(options.scope && { scope: options.scope }),
+              ...(options.capability && { capability: options.capability }),
+            },
+          }),
         }),
       "Failed to fetch coworkers",
     );

@@ -42,19 +42,15 @@ const route = createRoute({
     },
   },
   responses: {
-    200: jsonSuccessResponse(
-      responseSchema,
-      "Magic link invite sent",
-      {
-        data: {
-          status: true,
-        },
-        meta: {
-          timestamp: "2025-01-01T00:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
+    200: jsonSuccessResponse(responseSchema, "Magic link invite sent", {
+      data: {
+        status: true,
       },
-    ),
+      meta: {
+        timestamp: "2025-01-01T00:00:00.000Z",
+        requestId: "550e8400-e29b-41d4-a716-446655440000",
+      },
+    }),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     409: jsonErrorResponse("Conflict"),
