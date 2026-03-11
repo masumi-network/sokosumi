@@ -351,22 +351,9 @@ export function useChatSelection({
       if (isSelectedChatStreaming || isConversationLoadingProp) {
         return;
       }
-      // Don't clear if we're waiting for our own router.push to complete (e.g. new chat creation).
-      // Once the new conversation is in the list, URL may not have updated yet—skip clearing whenever pending === selectedChatId.
       if (pending === selectedChatId) {
         return;
       }
-      // When conversations is empty we're not creating (e.g. deleted last chat)—clear to welcome.
-      if (conversations.length === 0) {
-        setSelectedChatId(null);
-        currentChatIdRef.current = null;
-        setSelectedModel(null);
-        selectedModelRef.current = null;
-        setMessages([]);
-        setInput("");
-        return;
-      }
-      // Clear selection to show welcome view (URL has no conversation and we're not pending nav)
       setSelectedChatId(null);
       currentChatIdRef.current = null;
       setSelectedModel(null);
