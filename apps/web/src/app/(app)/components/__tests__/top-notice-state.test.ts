@@ -85,6 +85,35 @@ describe("top-notice-state", () => {
     });
   });
 
+  it("still shows the out-of-credits banner when the threshold is zero", () => {
+    expect(
+      resolveAppTopNotice({
+        credits: 0,
+        currentPlan: "starter",
+        email: "user@example.com",
+        emailVerified: true,
+        threshold: 0,
+      }),
+    ).toEqual({
+      kind: "outOfCredits",
+      path: "/billing?tab=credits",
+    });
+  });
+
+  it("does not show the low-credits banner above zero when the threshold is zero", () => {
+    expect(
+      resolveAppTopNotice({
+        credits: 1,
+        currentPlan: "starter",
+        email: "user@example.com",
+        emailVerified: true,
+        threshold: 0,
+      }),
+    ).toEqual({
+      kind: "none",
+    });
+  });
+
   it("does not show the low-credits banner when the balance equals the threshold", () => {
     expect(
       resolveAppTopNotice({

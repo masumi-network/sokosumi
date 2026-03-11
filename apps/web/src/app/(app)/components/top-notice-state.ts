@@ -36,7 +36,7 @@ export function resolveAppTopNotice({
     };
   }
 
-  if (typeof credits !== "number" || credits >= threshold) {
+  if (typeof credits !== "number") {
     return { kind: "none" };
   }
 
@@ -45,6 +45,10 @@ export function resolveAppTopNotice({
       kind: "outOfCredits",
       path: resolveLowCreditsBillingPath(currentPlan),
     };
+  }
+
+  if (credits >= threshold) {
+    return { kind: "none" };
   }
 
   return {
