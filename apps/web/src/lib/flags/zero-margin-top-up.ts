@@ -13,6 +13,7 @@ const ZERO_MARGIN_TOP_UP_DOMAINS = new Set([
   "house-of-communication.com",
   "masumi.network",
   "nmkr.io",
+  "fmmc.com",
 ]);
 
 function isZeroMarginTopUpDomain(email: string): boolean {
