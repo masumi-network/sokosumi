@@ -346,7 +346,7 @@ export const auth = betterAuth({
       expiresIn: 60 * 10, // 10 minutes
       sendMagicLink: async ({ email, url }, ctx) => {
         const t = await getTranslations("Library.Auth.Email.MagicLink");
-        console.info("ctx", ctx);
+
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
 
