@@ -36,6 +36,7 @@ model User {
   jobSchedules     JobSchedule[]
 
   stripeCustomerId String?
+  preferredOrganizationId String?
 
   members     Member[]
   invitations Invitation[]
