@@ -1101,7 +1101,8 @@
           "question": "Wie können wir dir heute helfen?",
           "title": "Willkommen! Wie können wir dir heute helfen?",
           "titleWithName": "Willkommen {name}! Wie können wir dir heute helfen?",
-          "placeholder": "Was möchtest du erledigen?",
+          "placeholder": "Aufgabe eingeben und an {coworkerSlug} senden.",
+          "coworkerSlugFallback": "den Coworker",
           "suggestionsLabel": "Probiere zum Beispiel",
           "prompts": {
             "alex": {
