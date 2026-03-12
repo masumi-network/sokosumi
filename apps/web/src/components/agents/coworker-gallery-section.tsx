@@ -179,7 +179,7 @@ function groupCoworkersByCompany(
 
   const groups = Array.from(grouped.values());
   const servicePlanIndex = groups.findIndex(
-    (group) => group.id === "company:service-plan",
+    (group) => group.id === "company:serviceplan",
   );
 
   if (servicePlanIndex > 0) {
