@@ -1112,7 +1112,8 @@
           "question": "Come possiamo aiutarti oggi?",
           "title": "Benvenuto! Come possiamo aiutarti oggi?",
           "titleWithName": "Benvenuto {name}! Come possiamo aiutarti oggi?",
-          "placeholder": "A cosa stai pensando?",
+          "placeholder": "Inserisci il tuo compito e invialo a {coworkerSlug}.",
+          "coworkerSlugFallback": "il coworker",
           "suggestionsLabel": "Prova a chiedere",
           "prompts": {
             "alex": {
@@ -2115,7 +2116,7 @@
           "title": "Competenza marketing",
           "description": "Addestrati su campagne reali: strategia, contenuti, media planning e comunicazione del brand."
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "Altri",
         "moreComingSoon": "+ Altri in arrivo"
       },
       "FilterSection": {

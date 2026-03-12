@@ -1113,7 +1113,8 @@
           "question": "How can we help you today?",
           "title": "Welcome! How can we help you today?",
           "titleWithName": "Welcome {name}! How can we help you today?",
-          "placeholder": "What's on your mind?",
+          "placeholder": "Enter your task and submit it to {coworkerSlug}.",
+          "coworkerSlugFallback": "the coworker",
           "suggestionsLabel": "Try asking",
           "prompts": {
             "alex": {
@@ -2117,7 +2118,7 @@
           "title": "Marketing Expertise",
           "description": "Trained on real campaign work - strategy, content, media planning, and brand communications."
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "Others",
         "moreComingSoon": "+ More coming soon"
       },
       "FilterSection": {

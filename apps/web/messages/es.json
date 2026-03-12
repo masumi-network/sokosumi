@@ -1112,7 +1112,8 @@
           "question": "¿En qué podemos ayudarte hoy?",
           "title": "¡Bienvenido! ¿En qué podemos ayudarte hoy?",
           "titleWithName": "¡Bienvenido {name}! ¿En qué podemos ayudarte hoy?",
-          "placeholder": "¿Qué necesitas hacer?",
+          "placeholder": "Introduce tu tarea y envíala a {coworkerSlug}.",
+          "coworkerSlugFallback": "el coworker",
           "suggestionsLabel": "Por ejemplo",
           "prompts": {
             "alex": {
@@ -2053,7 +2054,7 @@
           "title": "Expertise en marketing",
           "description": "Entrenados en trabajo de campaña real: estrategia, contenido, planificación de medios y comunicación de marca."
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "Otros",
         "moreComingSoon": "+ Más próximamente"
       },
       "FilterSection": {

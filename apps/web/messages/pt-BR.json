@@ -1112,7 +1112,8 @@
           "question": "Como podemos ajudar você hoje?",
           "title": "Bem-vindo! Como podemos ajudar você hoje?",
           "titleWithName": "Bem-vindo, {name}! Como podemos ajudar você hoje?",
-          "placeholder": "No que você está pensando?",
+          "placeholder": "Digite sua tarefa e envie para {coworkerSlug}.",
+          "coworkerSlugFallback": "o coworker",
           "suggestionsLabel": "Tente perguntar",
           "prompts": {
             "alex": {
@@ -2115,7 +2116,7 @@
           "title": "Experiência em marketing",
           "description": "Treinados com trabalho real de campanhas — estratégia, conteúdo, planejamento de mídia e comunicação de marca."
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "Outros",
         "moreComingSoon": "+ Mais em breve"
       },
       "FilterSection": {
