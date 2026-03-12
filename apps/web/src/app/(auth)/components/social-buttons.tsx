@@ -56,8 +56,7 @@ export default function SocialButtons({
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
-    () =>
-      returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
   const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
@@ -80,16 +79,23 @@ export default function SocialButtons({
     track("Sign In", { provider: "magic-link", direct_signup_link: false });
     setIsRequestingMagicLink(true);
 
-    const result = await requestMagicLinkSignIn(trimmedEmail, effectiveReturnUrl);
+    try {
+      const result = await requestMagicLinkSignIn(
+        trimmedEmail,
+        effectiveReturnUrl,
+      );
 
-    setIsRequestingMagicLink(false);
+      if (!result.ok) {
+        toast.error(result.error?.message ?? t("magicLinkError"));
+        return;
+      }
 
-    if (!result.ok) {
-      toast.error(result.error?.message ?? t("magicLinkError"));
-      return;
+      setMagicLinkSentTo(trimmedEmail);
+    } catch (_error) {
+      toast.error(t("magicLinkError"));
+    } finally {
+      setIsRequestingMagicLink(false);
     }
-
-    setMagicLinkSentTo(trimmedEmail);
   };
 
   const handleMagicLinkClick = () => {
@@ -179,7 +185,11 @@ export default function SocialButtons({
             placeholder={t("magicLinkPlaceholder")}
             aria-label={t("magicLinkInputLabel")}
           />
-          <Button type="submit" variant="outline" disabled={isRequestingMagicLink}>
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={isRequestingMagicLink}
+          >
             {isRequestingMagicLink
               ? t("magicLinkSubmitting")
               : hasMagicLinkSuccess
