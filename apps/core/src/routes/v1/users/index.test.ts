@@ -16,6 +16,7 @@ describe("users routes OpenAPI contract", () => {
 
     expect(magicLinkResponses).toBeDefined();
     expect(magicLinkResponses).toHaveProperty("200");
+    expect(magicLinkResponses).toHaveProperty("400");
     expect(magicLinkResponses).toHaveProperty("401");
     expect(magicLinkResponses).toHaveProperty("403");
     expect(magicLinkResponses).toHaveProperty("409");

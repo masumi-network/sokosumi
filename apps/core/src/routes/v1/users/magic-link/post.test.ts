@@ -14,6 +14,7 @@ const { signInMagicLinkMock, userFindUniqueMock } = vi.hoisted(() => ({
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
+    BETTER_AUTH_URL: "https://auth.example.com",
     BETTER_AUTH_TRUSTED_ORIGIN: "https://app.example.com",
   }),
 }));
@@ -139,6 +140,163 @@ describe("POST /users/magic-link", () => {
       },
       headers: expect.any(Headers),
     });
+  });
+
+  it("builds a fresh OAuth authorize URL when oauth params are provided", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "new.user@example.com",
+        name: "New User",
+        oauth: {
+          response_type: "code",
+          client_id: "client_123",
+          redirect_uri: "https://consumer.example.com/callback",
+          scope: "openid offline_access",
+          state: "opaque-state",
+          code_challenge: "pkce-challenge",
+          code_challenge_method: "S256",
+          nonce: "nonce_123",
+          prompt: "consent",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(signInMagicLinkMock).toHaveBeenCalledWith({
+      body: {
+        email: "new.user@example.com",
+        name: "New User",
+        callbackURL:
+          "https://auth.example.com/auth/oauth2/authorize?response_type=code&client_id=client_123&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&scope=openid+offline_access&state=opaque-state&code_challenge=pkce-challenge&code_challenge_method=S256&nonce=nonce_123&prompt=consent",
+        newUserCallbackURL:
+          "https://auth.example.com/auth/oauth2/authorize?response_type=code&client_id=client_123&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&scope=openid+offline_access&state=opaque-state&code_challenge=pkce-challenge&code_challenge_method=S256&nonce=nonce_123&prompt=consent",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("serializes only defined oauth params into the authorize URL", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "new.user@example.com",
+        oauth: {
+          response_type: "code",
+          client_id: "client_123",
+          code_challenge: "pkce-challenge",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(signInMagicLinkMock).toHaveBeenCalledWith({
+      body: {
+        email: "new.user@example.com",
+        callbackURL:
+          "https://auth.example.com/auth/oauth2/authorize?response_type=code&client_id=client_123&code_challenge=pkce-challenge",
+        newUserCallbackURL:
+          "https://auth.example.com/auth/oauth2/authorize?response_type=code&client_id=client_123&code_challenge=pkce-challenge",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("rejects invalid oauth response types", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "new.user@example.com",
+        oauth: {
+          response_type: "token",
+          client_id: "client_123",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(signInMagicLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid oauth code challenge methods", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "new.user@example.com",
+        oauth: {
+          response_type: "code",
+          client_id: "client_123",
+          code_challenge_method: "plain",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(signInMagicLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid oauth prompts", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "new.user@example.com",
+        oauth: {
+          response_type: "code",
+          client_id: "client_123",
+          prompt: "approve-now",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(signInMagicLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed oauth redirect URIs", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "new.user@example.com",
+        oauth: {
+          response_type: "code",
+          client_id: "client_123",
+          redirect_uri: "not-a-url",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(signInMagicLinkMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when the email is already registered", async () => {
