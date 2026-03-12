@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth/utils";
+import { CoworkerSchema } from "@/lib/clients/generated/core/schemas.gen";
 import {
   type CoworkerCapability,
   coworkerService,
@@ -10,19 +11,19 @@ import {
  * GET /api/coworkers
  * Returns the list of coworkers for the authenticated user (from Core API / DB).
  */
-const COWORKER_CAPABILITIES = ["chat", "tasks"] as const;
+const COWORKER_CAPABILITIES = CoworkerSchema.properties.capabilities.items.enum;
+
+function isCoworkerCapability(value: string): value is CoworkerCapability {
+  return COWORKER_CAPABILITIES.some((capability) => capability === value);
+}
 
 function parseCapability(value: string | null): CoworkerCapability | undefined {
   if (!value) {
     return undefined;
   }
 
-  if (
-    COWORKER_CAPABILITIES.includes(
-      value as (typeof COWORKER_CAPABILITIES)[number],
-    )
-  ) {
-    return value as CoworkerCapability;
+  if (isCoworkerCapability(value)) {
+    return value;
   }
 
   throw new Error(`Unsupported capability: ${value}`);
