@@ -1,14 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Coworker } from "@/app/chat/utils/types";
 
 interface UseCoworkersReturn {
   coworkers: Coworker[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
 }
 
 /**
@@ -21,7 +18,5 @@ export function useCoworkers(initialCoworkers: Coworker[]): UseCoworkersReturn {
     setCoworkers(initialCoworkers);
   }, [initialCoworkers]);
 
-  const refetch = useCallback(async () => {}, []);
-
-  return { coworkers, isLoading: false, error: null, refetch };
+  return { coworkers };
 }

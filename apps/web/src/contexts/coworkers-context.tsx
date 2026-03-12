@@ -7,9 +7,6 @@ import type { Coworker } from "@/app/chat/utils/types";
 
 export interface CoworkersContextValue {
   coworkers: Coworker[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
 }
 
 const CoworkersContext = createContext<CoworkersContextValue | null>(null);
