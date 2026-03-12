@@ -69,7 +69,7 @@ function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
           className="flex min-h-0 min-w-0 flex-col gap-5 md:py-8 md:pr-8 md:pb-8 md:pl-8"
         >
           <div className="overflow-x-auto">
-            <TabsList className="flex h-auto w-max min-w-full items-center justify-start gap-1 rounded-lg bg-neutral-800 p-1 dark:bg-neutral-800">
+            <TabsList className="flex h-auto w-max min-w-full items-center justify-start gap-1 rounded-lg bg-neutral-800 p-1 md:min-w-auto dark:bg-neutral-800">
               {coworkerGroups.map((group) => (
                 <TabsTrigger
                   key={group.id}
