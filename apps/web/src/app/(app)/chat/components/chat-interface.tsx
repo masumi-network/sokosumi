@@ -152,9 +152,11 @@ export default function ChatInterface({
     name: string;
   } | null>(null);
   const effectiveWelcomeCoworker =
-    welcomeCoworkerSlug != null
-      ? initialWelcomeCoworker
-      : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
+    welcomeSelectedModel != null
+      ? null
+      : welcomeCoworkerSlug != null
+        ? initialWelcomeCoworker
+        : (welcomeSelectedCoworker ?? initialWelcomeCoworker);
 
   const handleWelcomeCoworkerChange = useCallback((coworker: Coworker) => {
     setWelcomeSelectedCoworker(coworker);
@@ -983,7 +985,7 @@ export default function ChatInterface({
             status="ready"
             stop={handleStop}
             coworkers={coworkers}
-            initialCoworker={effectiveWelcomeCoworker}
+            initialCoworker={effectiveWelcomeCoworker ?? undefined}
             onCoworkerChange={handleWelcomeCoworkerChange}
             selectedModel={welcomeSelectedModel}
             onSelectModel={handleWelcomeModelChange}

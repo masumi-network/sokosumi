@@ -329,7 +329,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           result = await streamResponsesApi(responsesApiInput, {
             ...responsesApiOptions,
             previousResponseId: null,
-            onResponseCompleted: undefined,
           });
         }
 

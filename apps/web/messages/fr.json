@@ -1101,7 +1101,7 @@
           "question": "Comment pouvons-nous vous aider aujourd’hui ?",
           "title": "Bienvenue ! Comment pouvons-nous vous aider aujourd’hui ?",
           "titleWithName": "Bienvenue {name} ! Comment pouvons-nous vous aider aujourd’hui ?",
-          "placeholder": "Enter your task and submit it to {coworkerSlug}.",
+          "placeholder": "Saisissez votre tâche et envoyez-la à {coworkerSlug}.",
           "suggestionsLabel": "Essayez de demander",
           "prompts": {
             "alex": {
