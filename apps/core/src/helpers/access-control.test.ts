@@ -207,7 +207,7 @@ describe("requireCoworkerCapability", () => {
 });
 
 describe("requireCoworkerChatCapability", () => {
-  it("requires whitelist and chat capability (baseURL checked by route)", async () => {
+  it("requires whitelist, chat capability, and baseURL", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
@@ -224,6 +224,9 @@ describe("requireCoworkerChatCapability", () => {
         isWhitelisted: true,
         capabilities: {
           has: "chat",
+        },
+        baseURL: {
+          not: null,
         },
       },
       select: {
