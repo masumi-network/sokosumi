@@ -17,7 +17,7 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
   },
   {
     protocol: "https",
-    hostname: "**.utxoag.com",
+    hostname: "utxoag.com",
   },
 ] as const;
 
