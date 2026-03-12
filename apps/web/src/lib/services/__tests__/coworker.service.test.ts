@@ -30,7 +30,9 @@ describe("coworker.service", () => {
     const result = await coworkerService.listCoworkers();
 
     expect(coreClientMock.getCoworkers).toHaveBeenCalledTimes(1);
-    expect(coreClientMock.getCoworkers).toHaveBeenCalledWith(undefined);
+    expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
+      scope: "whitelisted",
+    });
     expect(result).toEqual([
       {
         id: "cow-1",
@@ -58,6 +60,7 @@ describe("coworker.service", () => {
     await coworkerService.listCoworkers("tasks");
 
     expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
+      scope: "whitelisted",
       capability: ["tasks"],
     });
   });
