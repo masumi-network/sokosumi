@@ -198,9 +198,6 @@ async function findUsableCoworkerByCapability(
   coworkerId: string,
   capability: CoworkerCapability,
   tx: Prisma.TransactionClient = prisma,
-  options?: {
-    requireBaseUrl?: boolean;
-  },
 ) {
   return await tx.coworker.findFirst({
     where: {
@@ -210,7 +207,6 @@ async function findUsableCoworkerByCapability(
       capabilities: {
         has: capability,
       },
-      ...(options?.requireBaseUrl ? { baseURL: { not: null } } : {}),
     },
     select: {
       id: true,
