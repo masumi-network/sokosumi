@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
+import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 
 export function getAgentJobsBasePath(pathname: string): string | null {
@@ -33,6 +34,21 @@ export function useWorkspaceSwitcher() {
         await authClient.organization.setActive({
           organizationId,
         });
+
+        try {
+          const result = await updatePreferredOrganization({
+            organizationId,
+          });
+
+          if (!result.ok) {
+            console.error(
+              "Failed to persist preferred organization:",
+              result.error,
+            );
+          }
+        } catch (error) {
+          console.error("Failed to persist preferred organization:", error);
+        }
 
         if (options?.successMessage) {
           toast.success(options.successMessage);

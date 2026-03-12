@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { generateOrganizationSlug } from "@/lib/actions";
+import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   organizationInformationFormSchema,
@@ -90,6 +91,24 @@ export default function OrganizationInformationForm({
       }
     } else {
       toast.success(isCreating ? t("Success.create") : t("Success.edit"));
+
+      if (isCreating) {
+        try {
+          const persistenceResult = await updatePreferredOrganization({
+            organizationId: result.data.id,
+          });
+
+          if (!persistenceResult.ok) {
+            console.error(
+              "Failed to persist preferred organization:",
+              persistenceResult.error,
+            );
+          }
+        } catch (error) {
+          console.error("Failed to persist preferred organization:", error);
+        }
+      }
+
       router.refresh();
       onOpenChange(false);
     }
