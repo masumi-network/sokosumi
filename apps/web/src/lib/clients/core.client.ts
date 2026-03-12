@@ -452,7 +452,6 @@ export const coreClient = (() => {
   }
 
   async function getCoworkers(options?: {
-    capability?: "chat" | "tasks";
     scope?: "all" | "whitelisted" | "archived";
   }) {
     return executeOperation(
@@ -460,11 +459,8 @@ export const coreClient = (() => {
         coreGetCoworkers({
           client,
           cache: "no-store",
-          ...(options && {
-            query: {
-              ...(options.scope && { scope: options.scope }),
-              ...(options.capability && { capability: options.capability }),
-            },
+          ...(options?.scope && {
+            query: { scope: options.scope },
           }),
         }),
       "Failed to fetch coworkers",

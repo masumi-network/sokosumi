@@ -28,7 +28,7 @@ export function useCoworkers(): UseCoworkersReturn {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/coworkers?capability=chat", {
+      const res = await fetch("/api/coworkers", {
         credentials: "include",
       });
       if (!res.ok) {

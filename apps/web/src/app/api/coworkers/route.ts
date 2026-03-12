@@ -3,14 +3,11 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/utils";
 import { coworkerService } from "@/lib/services/coworker.service";
 
-const VALID_CAPABILITIES = ["chat", "tasks"] as const;
-
 /**
  * GET /api/coworkers
  * Returns the list of coworkers for the authenticated user (from Core API / DB).
- * Optional query: capability=chat|tasks to return only coworkers with that capability.
  */
-export async function GET(request: Request) {
+export async function GET() {
   const session = await getSession();
   if (!session) {
     return NextResponse.json(
@@ -19,14 +16,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const url = new URL(request.url);
-  const capabilityParam = url.searchParams.get("capability");
-  const capability = VALID_CAPABILITIES.find((c) => c === capabilityParam);
-
   try {
-    const coworkers = await coworkerService.listCoworkers({
-      ...(capability && { capability }),
-    });
+    const coworkers = await coworkerService.listCoworkers();
     return NextResponse.json({ data: coworkers });
   } catch (error) {
     console.error("Failed to fetch coworkers:", error);
