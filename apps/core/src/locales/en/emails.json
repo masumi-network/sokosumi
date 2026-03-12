@@ -8,6 +8,17 @@
     "linkInstructions": "Or copy and paste this URL into your browser:",
     "footer": "If you didn't create an account, you can safely ignore this email."
   },
+  "magicLink": {
+    "subject": "Sokosumi - Magic Link",
+    "title": "Sign in to Sokosumi",
+    "greeting": "Hello",
+    "greetingWithName": "Hello {{name}}",
+    "message": "Use the button below to sign in to Sokosumi. This magic link expires in 48 hours.",
+    "button": "Sign in",
+    "linkInstructions": "Or copy and paste this URL into your browser:",
+    "tokenInstructions": "If you need it, you can also use this one-time token:",
+    "footer": "If you didn't request this email, you can safely ignore it."
+  },
   "resetPassword": {
     "subject": "Sokosumi - Reset your password",
     "title": "Reset your password",

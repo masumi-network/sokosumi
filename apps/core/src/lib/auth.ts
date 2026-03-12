@@ -16,6 +16,7 @@ import { postmarkClient } from "@/clients/postmark.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { renderMagicLinkTemplate } from "@/lib/email";
 
 const env = getEnv();
 
@@ -86,13 +87,20 @@ export const auth = betterAuth({
     magicLink({
       expiresIn: 60 * 60 * 48, // 48 hours in seconds
       allowedAttempts: 1,
-      sendMagicLink: async ({ email, url, token }) => {
-        postmarkClient.sendEmail({
+      sendMagicLink: async ({ email, url, token }, ctx) => {
+        const name =
+          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+
+        await postmarkClient.sendEmail({
           From: env.POSTMARK_FROM_EMAIL,
           To: email,
           Tag: "magic-link",
           Subject: "Sokosumi - Magic Link",
-          HtmlBody: `Click <a href="${url}">here</a> or use the token ${token} to login. This link will expire in 48 hours.`,
+          HtmlBody: renderMagicLinkTemplate({
+            magicLink: url,
+            token,
+            name,
+          }),
           MessageStream: "authentications",
         });
       },

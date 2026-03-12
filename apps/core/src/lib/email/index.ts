@@ -8,6 +8,10 @@ export {
   renderEmailVerificationTemplate,
 } from "./emailVerification.template.js";
 export {
+  type MagicLinkTemplateProps,
+  renderMagicLinkTemplate,
+} from "./magicLink.template.js";
+export {
   type OrganizationInvitationTemplateProps,
   renderOrganizationInvitationTemplate,
 } from "./organizationInvitation.template.js";

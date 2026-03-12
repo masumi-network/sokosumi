@@ -10,7 +10,9 @@ const {
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
+  postmarkSendEmailMock,
   prismaAdapterMock,
+  renderMagicLinkTemplateMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -21,7 +23,9 @@ const {
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
+  postmarkSendEmailMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
+  renderMagicLinkTemplateMock: vi.fn(),
 }));
 
 vi.mock("better-auth/minimal", () => ({
@@ -52,6 +56,12 @@ vi.mock("@better-auth/i18n", () => ({
   i18n: (...args: unknown[]) => i18nPluginMock(...args),
 }));
 
+vi.mock("@/clients/postmark.client", () => ({
+  postmarkClient: {
+    sendEmail: (...args: unknown[]) => postmarkSendEmailMock(...args),
+  },
+}));
+
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     BETTER_AUTH_SECRET: "test-secret",
@@ -64,6 +74,11 @@ vi.mock("@/config/env", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: { __prisma: true },
+}));
+
+vi.mock("@/lib/email", () => ({
+  renderMagicLinkTemplate: (...args: unknown[]) =>
+    renderMagicLinkTemplateMock(...args),
 }));
 
 describe("core auth config", () => {
@@ -79,7 +94,9 @@ describe("core auth config", () => {
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
+    postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
+    renderMagicLinkTemplateMock.mockReturnValue("<html>magic link</html>");
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
   });
 
@@ -106,5 +123,51 @@ describe("core auth config", () => {
     >;
 
     expect(config.sendMagicLink).toEqual(expect.any(Function));
+  });
+
+  it("sends magic-link emails with the core auth template", async () => {
+    await import("./auth");
+
+    const [[config]] = magicLinkPluginMock.mock.calls as Array<
+      [
+        {
+          sendMagicLink: (
+            data: {
+              email: string;
+              token: string;
+              url: string;
+            },
+            ctx?: { body?: { name?: string } },
+          ) => Promise<void>;
+        },
+      ]
+    >;
+
+    await config.sendMagicLink(
+      {
+        email: "andreas@example.com",
+        url: "https://example.com/auth/magic-link/verify?token=secret",
+        token: "secret-token",
+      },
+      {
+        body: {
+          name: "Andreas",
+        },
+      },
+    );
+
+    expect(renderMagicLinkTemplateMock).toHaveBeenCalledWith({
+      magicLink: "https://example.com/auth/magic-link/verify?token=secret",
+      token: "secret-token",
+      name: "Andreas",
+    });
+    expect(postmarkSendEmailMock).toHaveBeenCalledWith({
+      From: "no-reply@example.com",
+      To: "andreas@example.com",
+      Tag: "magic-link",
+      Subject: "Sokosumi - Magic Link",
+      HtmlBody: "<html>magic link</html>",
+      MessageStream: "authentications",
+    });
   });
 });
