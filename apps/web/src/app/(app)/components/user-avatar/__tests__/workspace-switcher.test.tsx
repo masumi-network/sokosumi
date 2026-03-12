@@ -6,6 +6,7 @@ import {
   getAgentJobsBasePath,
   useWorkspaceSwitcher,
 } from "@/app/components/user-avatar/workspace-switcher";
+import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import { toast } from "sonner";
 
@@ -27,6 +28,10 @@ jest.mock("@/lib/auth/auth.client", () => ({
       setActive: jest.fn(),
     },
   },
+}));
+
+jest.mock("@/lib/actions/organization", () => ({
+  updatePreferredOrganization: jest.fn(),
 }));
 
 jest.mock("sonner", () => ({
@@ -51,6 +56,7 @@ describe("workspace switcher", () => {
     replaceMock.mockClear();
     refreshMock.mockClear();
     jest.mocked(authClient.organization.setActive).mockReset();
+    jest.mocked(updatePreferredOrganization).mockReset();
     jest.mocked(toast.success).mockReset();
   });
 
@@ -72,6 +78,12 @@ describe("workspace switcher", () => {
       data: null,
       error: null,
     });
+    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        organizationId: "org-1",
+      },
+    });
 
     const user = userEvent.setup();
     render(<WorkspaceSwitcherTestComponent />);
@@ -80,6 +92,9 @@ describe("workspace switcher", () => {
 
     await waitFor(() => {
       expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
         organizationId: "org-1",
       });
       expect(replaceMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
@@ -93,6 +108,12 @@ describe("workspace switcher", () => {
       data: null,
       error: null,
     });
+    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        organizationId: "org-1",
+      },
+    });
 
     const user = userEvent.setup();
     render(<WorkspaceSwitcherTestComponent />);
@@ -101,6 +122,9 @@ describe("workspace switcher", () => {
 
     await waitFor(() => {
       expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
         organizationId: "org-1",
       });
       expect(refreshMock).toHaveBeenCalled();
@@ -113,6 +137,12 @@ describe("workspace switcher", () => {
     jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
+    });
+    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        organizationId: "org-1",
+      },
     });
 
     function WorkspaceSwitcherWithOptionsTestComponent() {
@@ -144,9 +174,55 @@ describe("workspace switcher", () => {
       expect(authClient.organization.setActive).toHaveBeenCalledWith({
         organizationId: "org-1",
       });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
       expect(replaceMock).not.toHaveBeenCalled();
       expect(refreshMock).toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("Switched to Org One account");
     });
+  });
+
+  it("keeps the current switch when persisting the preferred organization fails", async () => {
+    pathnameMock = "/tasks";
+    jest.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    jest.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+      },
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    await waitFor(() => {
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(refreshMock).toHaveBeenCalled();
+      expect(replaceMock).not.toHaveBeenCalled();
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to persist preferred organization:",
+      {
+        code: "UNAUTHORIZED",
+      },
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 });

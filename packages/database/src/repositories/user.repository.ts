@@ -146,4 +146,23 @@ export const userRepository = {
       data: { onboardingCompleted },
     });
   },
+
+  /**
+   * Updates the preferred organization for a user.
+   *
+   * @param userId - The unique identifier of the user.
+   * @param preferredOrganizationId - The preferred organization ID, or null for the personal workspace.
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to the updated User object.
+   */
+  updatePreferredOrganizationId: async (
+    userId: string,
+    preferredOrganizationId: string | null,
+    tx: Prisma.TransactionClient,
+  ): Promise<User> => {
+    return tx.user.update({
+      where: { id: userId },
+      data: { preferredOrganizationId },
+    });
+  },
 };
