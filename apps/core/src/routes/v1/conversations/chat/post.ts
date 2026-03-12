@@ -2,10 +2,14 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
-import { isResponsesApiConfigured } from "@/config/env";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
 import { streamWithAssistantPersistence } from "@/helpers/chat-stream-persist";
-import { badRequest, internalServerError, notFound } from "@/helpers/error";
+import {
+  badRequest,
+  internalServerError,
+  notFound,
+  serviceUnavailable,
+} from "@/helpers/error";
 import {
   extractMessageText,
   formatMessageContentForConversation,
@@ -72,6 +76,7 @@ const _route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Conversation not found"),
+    503: jsonErrorResponse("Service Unavailable"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -203,15 +208,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const useResponsesApi =
-        Boolean(internalConversationId) &&
-        Boolean(coworker) &&
-        isResponsesApiConfigured();
+        Boolean(internalConversationId) && Boolean(coworker);
 
-      // Validate coworker message text BEFORE persisting to avoid inconsistent state
       if (useResponsesApi) {
         if (lastUserMessageText === null || lastUserMessageText.trim() === "") {
           throw badRequest(
             "Coworker chat requires a user or system message to respond to; send at least one message with text.",
+          );
+        }
+        if (!coworker?.baseURL?.trim()) {
+          throw serviceUnavailable(
+            "Coworker chat is not available: no Responses API URL configured for this coworker.",
           );
         }
       }
@@ -264,9 +271,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (useResponsesApi) {
         const result = await streamResponsesApi(lastUserMessageText as string, {
+          responsesApiBaseUrl: coworker!.baseURL!.trim(),
           sokosumiUserId: authContext.userId,
           sokosumiOrganizationId: authContext.organizationId ?? null,
-          coworkerSlug: coworker?.slug ?? null,
+          coworkerSlug: coworker!.slug,
           previousResponseId: lastResponsesApiResponseId ?? null,
           onResponseCompleted: async (responseId: string) => {
             if (!internalConversationId) return;
@@ -297,7 +305,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
           },
         });
-        if (internalConversationId) {
+        if (internalConversationId && result.body) {
           const wrapped = streamWithAssistantPersistence(
             result.body,
             internalConversationId,
@@ -316,7 +324,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         selectedModel,
       );
 
-      if (internalConversationId) {
+      if (internalConversationId && result.body) {
         const wrapped = streamWithAssistantPersistence(
           result.body,
           internalConversationId,

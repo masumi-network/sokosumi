@@ -17,7 +17,7 @@ jest.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
-      "billingCta.upgradePlan": "Upgrade your Plan",
+      "billingCta.upgradePlan": "Get more credits",
       "billingCta.addCredits": "Add credits",
       "billingCta.placeholder":
         "This task needs credits to continue. Open billing to proceed.",
@@ -267,7 +267,7 @@ describe("TaskActivitySection", () => {
       <TaskActivitySection {...baseProps} events={events} isFreePlan={true} />,
     );
 
-    const cta = screen.getByRole("link", { name: "Upgrade your Plan" });
+    const cta = screen.getByRole("link", { name: "Get more credits" });
     expect(cta).toHaveAttribute("href", "/billing?tab=subscription");
     expect(
       screen.getByText(
@@ -289,7 +289,7 @@ describe("TaskActivitySection", () => {
     );
 
     expect(
-      screen.queryByRole("link", { name: "Upgrade your Plan" }),
+      screen.queryByRole("link", { name: "Get more credits" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Add credits" }),
@@ -316,7 +316,7 @@ describe("TaskActivitySection", () => {
     render(<TaskActivitySection {...baseProps} events={events} />);
 
     expect(
-      screen.queryByRole("link", { name: "Upgrade your Plan" }),
+      screen.queryByRole("link", { name: "Get more credits" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Add credits" }),
