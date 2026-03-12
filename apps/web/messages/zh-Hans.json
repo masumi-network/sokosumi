@@ -1101,7 +1101,8 @@
           "question": "今天我们能如何帮助您？",
           "title": "欢迎！今天我们能如何帮助您？",
           "titleWithName": "欢迎 {name}！今天我们能如何帮助您？",
-          "placeholder": "您在想什么？",
+          "placeholder": "输入您的任务并提交给 {coworkerSlug}。",
+          "coworkerSlugFallback": "协作者",
           "suggestionsLabel": "试试问",
           "prompts": {
             "alex": {

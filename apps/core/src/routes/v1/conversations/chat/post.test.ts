@@ -218,7 +218,7 @@ describe("POST /conversations/chat", () => {
         id: "550e8400-e29b-41d4-a716-446655440000",
         metadata: {
           coworker_slug: "ops-agent",
-          last_responses_api_response_id: "resp_prev",
+          previous_response_id: "resp_prev",
         },
       })
       .mockResolvedValueOnce({

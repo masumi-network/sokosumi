@@ -19,9 +19,9 @@ export default async function EditTaskPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, coworkers, agents] = await Promise.all([
+  const [taskResult, taskCoworkers, agents] = await Promise.all([
     taskService.getTaskById(taskId),
-    coworkerService.listCoworkers(),
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
 
@@ -36,7 +36,7 @@ export default async function EditTaskPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const coworkerOptions = getCoworkerOptions(coworkers);
+  const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
 
   const [tEdit, tActions] = await Promise.all([

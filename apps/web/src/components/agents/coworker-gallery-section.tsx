@@ -1,6 +1,5 @@
 "use client";
 
-import type { Coworker } from "@sokosumi/database";
 import { Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -8,6 +7,7 @@ import { useMemo, useState } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { canUseNextImageSrc } from "@/config/next-image";
+import type { Coworker } from "@/lib/clients/generated/core";
 
 import { CoworkerGalleryCard } from "./coworker-gallery-card";
 
@@ -164,7 +164,7 @@ function groupCoworkersByCompany(
       grouped.set(groupId, {
         id: groupId,
         name: companyName ?? othersLabel,
-        logo: companyLogo,
+        logo: companyLogo ?? null,
         coworkers: [],
       });
     }
