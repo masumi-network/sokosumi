@@ -78,14 +78,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           };
     const where = {
       ...baseScope,
-      ...(capability ? { capabilities: { has: capability } } : {}),
+      ...(capability ? { capabilities: { hasEvery: capability } } : {}),
     };
 
     const coworkers = await prisma.coworker.findMany({
-      where: {
-        ...where,
-        ...(capability ? { capabilities: { hasEvery: capability } } : {}),
-      },
+      where,
       orderBy: { createdAt: "desc" },
     });
 
