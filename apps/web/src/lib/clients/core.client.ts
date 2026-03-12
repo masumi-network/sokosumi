@@ -451,12 +451,17 @@ export const coreClient = (() => {
     );
   }
 
-  async function getCoworkers() {
+  async function getCoworkers(options?: {
+    scope?: "all" | "whitelisted" | "archived";
+  }) {
     return executeOperation(
       (client) =>
         coreGetCoworkers({
           client,
           cache: "no-store",
+          ...(options?.scope && {
+            query: { scope: options.scope },
+          }),
         }),
       "Failed to fetch coworkers",
     );

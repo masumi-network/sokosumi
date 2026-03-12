@@ -13,7 +13,11 @@ import {
   organizationInformationFormSchema,
   OrganizationInformationFormSchemaType,
 } from "@/lib/schemas";
-import { organizationService, stripeService } from "@/lib/services";
+import {
+  organizationService,
+  preferredOrganizationService,
+  stripeService,
+} from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -111,4 +115,45 @@ export const updateOrganizationInvoiceEmail = withSession<
   );
 
   return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
+});
+
+const updatePreferredOrganizationSchema = z.object({
+  organizationId: z.string().min(1).nullable(),
+});
+
+interface UpdatePreferredOrganizationParameters extends AuthenticatedRequest {
+  organizationId: string | null;
+}
+
+export const updatePreferredOrganization = withSession<
+  UpdatePreferredOrganizationParameters,
+  Result<{ organizationId: string | null }, ActionError>
+>(async ({ organizationId, session }) => {
+  const parsedResult = updatePreferredOrganizationSchema.safeParse({
+    organizationId,
+  });
+
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: parsedResult.error.issues[0]?.message,
+    });
+  }
+
+  const result =
+    await preferredOrganizationService.persistPreferredOrganizationId(
+      session.user.id,
+      parsedResult.data.organizationId,
+    );
+
+  if (!result.ok) {
+    return Err({
+      code: CommonErrorCode.UNAUTHORIZED,
+      message: "You are not a member of this organization",
+    });
+  }
+
+  return Ok({
+    organizationId: result.organizationId,
+  });
 });

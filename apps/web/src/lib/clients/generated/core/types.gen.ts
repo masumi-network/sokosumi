@@ -5086,6 +5086,10 @@ export type GetCoworkersData = {
     path?: never;
     query?: {
         /**
+         * When set, return only coworkers that have this capability (e.g. 'chat' for chat-eligible coworkers).
+         */
+        capability?: 'chat' | 'tasks';
+        /**
          * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers or 'archived' to include archived coworkers.
          */
         scope?: 'all' | 'whitelisted' | 'archived';
