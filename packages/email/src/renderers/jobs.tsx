@@ -1,6 +1,6 @@
 import { render } from "@react-email/render";
 
-import { ActionEmailTemplate } from "../templates/action-email.js";
+import { renderActionEmail } from "../templates/action-email.js";
 import {
   type JobFailureField,
   JobFailureNotificationEmailTemplate,
@@ -11,47 +11,6 @@ import type {
   JobInputRequiredEmailProps,
   RenderedEmail,
 } from "../types.js";
-
-const JOB_FINAL_STATUS_EMAIL = {
-  button: "View job",
-  fallbackJobName: "Your job",
-  footer:
-    "You're receiving this email because job notifications are enabled for your account.",
-  linkInstructions: "Or copy and paste this URL into your browser:",
-  status: {
-    completed: "completed",
-    dispute_resolved: "dispute resolved",
-    failed: "failed",
-    payment_failed: "payment failed",
-    refund_resolved: "refunded",
-  },
-} as const;
-
-const JOB_INPUT_REQUIRED_EMAIL = {
-  button: "Provide input",
-  fallbackJobName: "Your job",
-  footer:
-    "You're receiving this email because job notifications are enabled for your account.",
-  linkInstructions: "Or copy and paste this URL into your browser:",
-  subjectSuffix: "needs your input",
-  title: "Action Required",
-} as const;
-
-const JOB_FAILURE_NOTIFICATION_EMAIL = {
-  agentBlockchainIdentifier: "Agent Blockchain Identifier:",
-  agentId: "Agent ID:",
-  agentName: "Agent Name:",
-  agentStatus: "Agent Status:",
-  description: "A job has failed. Here are the technical details:",
-  footer: "This is an automated notification from Sōkosumi.",
-  jobBlockchainIdentifier: "Job Blockchain Identifier:",
-  jobId: "Job ID:",
-  network: "Network:",
-  onChainStatus: "On-Chain Status:",
-  output: "Output:",
-  resultHash: "Result Hash:",
-  title: "Job Failure Notification",
-} as const;
 
 function formatHiGreeting(name: string): string {
   const trimmedName = name.trim();
@@ -71,12 +30,53 @@ function formatJsonValue(value: null | string): string {
   }
 }
 
-function resolveJobFinalStatusLabel(
-  jobStatus: string,
-): string {
-  return JOB_FINAL_STATUS_EMAIL.status[
-    jobStatus as keyof typeof JOB_FINAL_STATUS_EMAIL.status
-  ] ?? jobStatus;
+function resolveJobFinalStatusLabel(jobStatus: string): string {
+  switch (jobStatus) {
+    case "completed":
+      return "completed";
+    case "dispute_resolved":
+      return "dispute resolved";
+    case "failed":
+      return "failed";
+    case "payment_failed":
+      return "payment failed";
+    case "refund_resolved":
+      return "refunded";
+    default:
+      return jobStatus;
+  }
+}
+
+interface RenderJobActionEmailOptions {
+  actionLabel: string;
+  actionUrl: string;
+  body: string;
+  preview: string;
+  recipientName: string;
+  subject: string;
+  title: string;
+}
+
+function renderJobActionEmail({
+  actionLabel,
+  actionUrl,
+  body,
+  preview,
+  recipientName,
+  subject,
+  title,
+}: RenderJobActionEmailOptions): Promise<RenderedEmail> {
+  return renderActionEmail({
+    actionLabel,
+    actionUrl,
+    body,
+    footer:
+      "You're receiving this email because job notifications are enabled for your account.",
+    greeting: formatHiGreeting(recipientName),
+    preview,
+    subject,
+    title,
+  });
 }
 
 export async function renderJobFinalStatusEmail({
@@ -87,27 +87,17 @@ export async function renderJobFinalStatusEmail({
   recipientName,
 }: JobFinalStatusEmailProps): Promise<RenderedEmail> {
   const resolvedStatus = resolveJobFinalStatusLabel(jobStatus);
-  const resolvedJobName = jobName?.trim()
-    ? jobName
-    : JOB_FINAL_STATUS_EMAIL.fallbackJobName;
+  const resolvedJobName = jobName?.trim() ? jobName : "Your job";
   const subject = `Sokosumi - ${agentName} job ${resolvedStatus}`;
-  const html = await render(
-    <ActionEmailTemplate
-      actionLabel={JOB_FINAL_STATUS_EMAIL.button}
-      actionUrl={jobLink}
-      body={`${resolvedJobName} for ${agentName} is now ${resolvedStatus}.`}
-      footer={JOB_FINAL_STATUS_EMAIL.footer}
-      greeting={formatHiGreeting(recipientName)}
-      linkInstructions={JOB_FINAL_STATUS_EMAIL.linkInstructions}
-      preview={`Your job for ${agentName} is now ${resolvedStatus}.`}
-      title={`Job ${resolvedStatus}`}
-    />,
-  );
-
-  return {
-    html,
+  return renderJobActionEmail({
+    actionLabel: "View job",
+    actionUrl: jobLink,
+    body: `${resolvedJobName} for ${agentName} is now ${resolvedStatus}.`,
+    preview: `Your job for ${agentName} is now ${resolvedStatus}.`,
+    recipientName,
     subject,
-  };
+    title: `Job ${resolvedStatus}`,
+  });
 }
 
 export async function renderJobInputRequiredEmail({
@@ -117,27 +107,19 @@ export async function renderJobInputRequiredEmail({
   recipientName,
 }: JobInputRequiredEmailProps): Promise<RenderedEmail> {
   const resolvedJobName = jobName?.trim();
-  const subject = `Sokosumi - ${agentName} ${JOB_INPUT_REQUIRED_EMAIL.subjectSuffix}`;
+  const subject = `Sokosumi - ${agentName} needs your input`;
   const body = resolvedJobName
     ? `Your job ${resolvedJobName} for ${agentName} is waiting for your input to continue.`
-    : `${JOB_INPUT_REQUIRED_EMAIL.fallbackJobName} for ${agentName} is waiting for your input to continue.`;
-  const html = await render(
-    <ActionEmailTemplate
-      actionLabel={JOB_INPUT_REQUIRED_EMAIL.button}
-      actionUrl={jobLink}
-      body={body}
-      footer={JOB_INPUT_REQUIRED_EMAIL.footer}
-      greeting={formatHiGreeting(recipientName)}
-      linkInstructions={JOB_INPUT_REQUIRED_EMAIL.linkInstructions}
-      preview={`Your job for ${agentName} requires input to continue.`}
-      title={JOB_INPUT_REQUIRED_EMAIL.title}
-    />,
-  );
-
-  return {
-    html,
+    : `Your job for ${agentName} is waiting for your input to continue.`;
+  return renderJobActionEmail({
+    actionLabel: "Provide input",
+    actionUrl: jobLink,
+    body,
+    preview: `Your job for ${agentName} requires input to continue.`,
+    recipientName,
     subject,
-  };
+    title: "Action Required",
+  });
 }
 
 export async function renderJobFailureNotificationEmail({
@@ -153,47 +135,47 @@ export async function renderJobFailureNotificationEmail({
   resultHash,
 }: JobFailureNotificationEmailProps): Promise<RenderedEmail> {
   const fields: JobFailureField[] = [
-    { label: JOB_FAILURE_NOTIFICATION_EMAIL.network, value: network },
-    { label: JOB_FAILURE_NOTIFICATION_EMAIL.agentName, value: agentName },
-    { label: JOB_FAILURE_NOTIFICATION_EMAIL.agentId, value: agentId },
+    { label: "Network:", value: network },
+    { label: "Agent Name:", value: agentName },
+    { label: "Agent ID:", value: agentId },
     {
-      label: JOB_FAILURE_NOTIFICATION_EMAIL.agentBlockchainIdentifier,
+      label: "Agent Blockchain Identifier:",
       value: agentBlockchainIdentifier,
       wordBreak: "break-all",
     },
-    { label: JOB_FAILURE_NOTIFICATION_EMAIL.jobId, value: jobId },
+    { label: "Job ID:", value: jobId },
     {
-      label: JOB_FAILURE_NOTIFICATION_EMAIL.jobBlockchainIdentifier,
+      label: "Job Blockchain Identifier:",
       value: jobBlockchainIdentifier ?? "null",
       wordBreak: "break-all",
     },
     {
-      label: JOB_FAILURE_NOTIFICATION_EMAIL.onChainStatus,
+      label: "On-Chain Status:",
       value: onChainStatus ?? "null",
     },
     {
-      label: JOB_FAILURE_NOTIFICATION_EMAIL.agentStatus,
+      label: "Agent Status:",
       value: agentStatus ?? "null",
     },
     {
-      label: JOB_FAILURE_NOTIFICATION_EMAIL.resultHash,
+      label: "Result Hash:",
       value: resultHash ?? "null",
       wordBreak: "break-all",
     },
     {
       codeBlock: true,
-      label: JOB_FAILURE_NOTIFICATION_EMAIL.output,
+      label: "Output:",
       value: formatJsonValue(result),
     },
   ];
   const subject = `Job Failure Notification - ${jobId}`;
   const html = await render(
     <JobFailureNotificationEmailTemplate
-      description={JOB_FAILURE_NOTIFICATION_EMAIL.description}
+      description="A job has failed. Here are the technical details:"
       fields={fields}
-      footer={JOB_FAILURE_NOTIFICATION_EMAIL.footer}
+      footer="This is an automated notification from Sōkosumi."
       preview={`Job ${jobId} has failed`}
-      title={JOB_FAILURE_NOTIFICATION_EMAIL.title}
+      title="Job Failure Notification"
     />,
   );
 
