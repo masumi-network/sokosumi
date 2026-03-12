@@ -163,7 +163,7 @@ function groupCoworkersByCompany(
     if (!grouped.has(groupId)) {
       grouped.set(groupId, {
         id: groupId,
-        name: companyName ?? othersLabel,
+        name: groupId === "others" ? othersLabel : (companyName ?? othersLabel),
         logo: companyLogo ?? null,
         coworkers: [],
       });
