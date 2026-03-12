@@ -5,9 +5,6 @@
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
     "overrides": {
-      "@better-auth/core": "1.5.4",
-      "@better-auth/sso": "1.5.4",
-      "@better-fetch/fetch": "1.1.21",
       "lodash": "4.17.23",
       "zod": "4.3.6"
     }
