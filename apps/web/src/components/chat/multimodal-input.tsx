@@ -362,7 +362,7 @@ function PureMultimodalInput({
                 selectedCoworker?.name ??
                 selectedCoworker?.slug ??
                 selectedCoworker?.id ??
-                "the coworker",
+                t("welcomeScreen.coworkerSlugFallback"),
             })}
             ref={textareaRef}
             rows={1}

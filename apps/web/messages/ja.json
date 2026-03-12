@@ -1102,6 +1102,7 @@
           "title": "ようこそ！本日はどのようにお手伝いできますか？",
           "titleWithName": "ようこそ {name} さん！本日はどのようにお手伝いできますか？",
           "placeholder": "タスクを入力して {coworkerSlug} に送信してください。",
+          "coworkerSlugFallback": "コワーカー",
           "suggestionsLabel": "試してみる",
           "prompts": {
             "alex": {

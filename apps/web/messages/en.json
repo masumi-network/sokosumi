@@ -1104,6 +1104,7 @@
           "title": "Welcome! How can we help you today?",
           "titleWithName": "Welcome {name}! How can we help you today?",
           "placeholder": "Enter your task and submit it to {coworkerSlug}.",
+          "coworkerSlugFallback": "the coworker",
           "suggestionsLabel": "Try asking",
           "prompts": {
             "alex": {

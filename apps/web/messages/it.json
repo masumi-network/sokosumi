@@ -1102,6 +1102,7 @@
           "title": "Benvenuto! Come possiamo aiutarti oggi?",
           "titleWithName": "Benvenuto {name}! Come possiamo aiutarti oggi?",
           "placeholder": "Inserisci il tuo compito e invialo a {coworkerSlug}.",
+          "coworkerSlugFallback": "il coworker",
           "suggestionsLabel": "Prova a chiedere",
           "prompts": {
             "alex": {

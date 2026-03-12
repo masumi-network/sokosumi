@@ -323,11 +323,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             message.includes("previous_response_id not found");
           if (!isInvalidPreviousResponseId) throw firstError;
 
+          if (internalConversationId) {
+            try {
+              const conv = await prisma.conversation.findFirst({
+                where: {
+                  id: internalConversationId,
+                  userId: authContext.userId,
+                },
+                select: { metadata: true },
+              });
+              const currentMeta =
+                (conv?.metadata as Record<string, unknown>) ?? {};
+              const { previous_response_id: _removed, ...metaWithoutPrevious } =
+                currentMeta as Record<string, unknown>;
+              await prisma.conversation.update({
+                where: { id: internalConversationId },
+                data: { metadata: metaWithoutPrevious },
+              });
+            } catch (error) {
+              console.error(
+                "Failed to clear previous_response_id from conversation after fallback:",
+                error,
+              );
+            }
+          }
+
           const responsesApiInput = modelMessages.filter(
             (m) => m.content && String(m.content).trim().length > 0,
           ) as Array<{ role: string; content: string }>;
+          const { onResponseCompleted: _omitCallback, ...retryOptions } =
+            responsesApiOptions;
           result = await streamResponsesApi(responsesApiInput, {
-            ...responsesApiOptions,
+            ...retryOptions,
             previousResponseId: null,
           });
         }

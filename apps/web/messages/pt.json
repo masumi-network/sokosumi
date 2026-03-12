@@ -1102,6 +1102,7 @@
           "title": "Bem-vindo! Em que podemos ajudar hoje?",
           "titleWithName": "Bem-vindo, {name}! Em que podemos ajudar hoje?",
           "placeholder": "Introduza a sua tarefa e envie-a para {coworkerSlug}.",
+          "coworkerSlugFallback": "o coworker",
           "suggestionsLabel": "Experimente perguntar",
           "prompts": {
             "alex": {
