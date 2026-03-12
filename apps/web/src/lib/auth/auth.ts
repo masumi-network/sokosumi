@@ -344,12 +344,13 @@ export const auth = betterAuth({
     magicLink({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes
-      sendMagicLink: async ({ email, url }, ctx) => {
+      sendMagicLink: async ({ email, url, token }, ctx) => {
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
         const renderedEmail = await renderMagicLinkEmail({
           magicLink: url,
           name,
+          token,
         });
 
         await postmarkClient.sendEmail({
