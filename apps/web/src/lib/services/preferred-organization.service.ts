@@ -44,29 +44,31 @@ export const preferredOrganizationService = (() => {
       };
     }
 
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      userId,
-      organizationId,
-      prisma,
-    );
+    return await prisma.$transaction(async (tx) => {
+      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+        userId,
+        organizationId,
+        tx,
+      );
 
-    if (!member) {
+      if (!member) {
+        return {
+          ok: false,
+          organizationId: null,
+        };
+      }
+
+      await userRepository.updatePreferredOrganizationId(
+        userId,
+        organizationId,
+        tx,
+      );
+
       return {
-        ok: false,
-        organizationId: null,
+        ok: true,
+        organizationId,
       };
-    }
-
-    await userRepository.updatePreferredOrganizationId(
-      userId,
-      organizationId,
-      prisma,
-    );
-
-    return {
-      ok: true,
-      organizationId,
-    };
+    });
   }
 
   return {

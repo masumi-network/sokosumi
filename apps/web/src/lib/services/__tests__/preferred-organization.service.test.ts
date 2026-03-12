@@ -18,9 +18,13 @@ jest.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
+const mockPrisma = {} as {
+  $transaction: (callback: (tx: unknown) => unknown) => Promise<unknown>;
+};
+mockPrisma.$transaction = (callback) => Promise.resolve(callback(mockPrisma));
 jest.mock("@/lib/db/prisma", () => ({
   __esModule: true,
-  default: {},
+  default: mockPrisma,
 }));
 
 describe("preferredOrganizationService", () => {
@@ -49,7 +53,7 @@ describe("preferredOrganizationService", () => {
     expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
       "user-1",
       "org-1",
-      {},
+      mockPrisma,
     );
   });
 
@@ -88,7 +92,7 @@ describe("preferredOrganizationService", () => {
     expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
       "user-1",
       "org-1",
-      {},
+      mockPrisma,
     );
   });
 
@@ -114,7 +118,7 @@ describe("preferredOrganizationService", () => {
     expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
       "user-1",
       null,
-      {},
+      mockPrisma,
     );
   });
 
@@ -142,12 +146,12 @@ describe("preferredOrganizationService", () => {
     expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
       "user-1",
       "org-1",
-      {},
+      mockPrisma,
     );
     expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
       "user-1",
       "org-1",
-      {},
+      mockPrisma,
     );
   });
 
