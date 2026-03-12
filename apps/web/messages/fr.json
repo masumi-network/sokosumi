@@ -845,9 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "Continuer avec {provider}",
-      "divider": "ou continuer avec",
+      "passwordDivider": "ou se connecter avec un mot de passe",
+      "emailDivider": "ou s’inscrire avec une adresse e-mail",
       "success": "Connexion réussie",
-      "error": "Échec de la connexion"
+      "error": "Échec de la connexion",
+      "lastUsed": "Dernier utilisé",
+      "magicLinkButton": "Continuer avec Magic Link",
+      "magicLinkInputLabel": "Adresse e-mail pour le lien de connexion",
+      "magicLinkPlaceholder": "Saisissez votre adresse e-mail",
+      "magicLinkSubmit": "Envoyez-moi un lien de connexion",
+      "magicLinkSubmitting": "Envoi du lien de connexion...",
+      "magicLinkResend": "Renvoyer le lien de connexion",
+      "magicLinkSuccess": "Vérifiez votre boîte de réception pour trouver votre lien de connexion.",
+      "magicLinkError": "Nous n’avons pas pu envoyer de lien de connexion. Veuillez réessayer.",
+      "magicLinkInvalidEmail": "Veuillez saisir une adresse e-mail valide."
     },
     "Words": {
       "signIn": "Se connecter",

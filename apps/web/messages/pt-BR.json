@@ -845,9 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "Continuar com {provider}",
-      "divider": "ou continuar com",
+      "passwordDivider": "ou entrar com senha",
+      "emailDivider": "ou cadastrar-se com e-mail",
       "success": "Login realizado com sucesso",
-      "error": "Falha no login"
+      "error": "Falha no login",
+      "lastUsed": "Último usado",
+      "magicLinkButton": "Continuar com Magic Link",
+      "magicLinkInputLabel": "E-mail para o link de login",
+      "magicLinkPlaceholder": "Digite seu e-mail",
+      "magicLinkSubmit": "Envie-me um link de login",
+      "magicLinkSubmitting": "Enviando link de login...",
+      "magicLinkResend": "Reenviar link de login",
+      "magicLinkSuccess": "Verifique sua caixa de entrada para encontrar seu link de login.",
+      "magicLinkError": "Não foi possível enviar um link de login. Tente novamente.",
+      "magicLinkInvalidEmail": "Digite um endereço de e-mail válido."
     },
     "Words": {
       "signIn": "Entrar",

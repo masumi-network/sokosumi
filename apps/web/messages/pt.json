@@ -845,9 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "Continuar com {provider}",
-      "divider": "ou continuar com",
+      "passwordDivider": "ou iniciar sessão com palavra-passe",
+      "emailDivider": "ou registar-se com e-mail",
       "success": "Início de sessão efetuado com sucesso",
-      "error": "Falha no início de sessão"
+      "error": "Falha no início de sessão",
+      "lastUsed": "Último usado",
+      "magicLinkButton": "Continuar com Magic Link",
+      "magicLinkInputLabel": "E-mail para o link de início de sessão",
+      "magicLinkPlaceholder": "Introduza o seu e-mail",
+      "magicLinkSubmit": "Envie-me um link de início de sessão",
+      "magicLinkSubmitting": "A enviar link de início de sessão...",
+      "magicLinkResend": "Reenviar link de início de sessão",
+      "magicLinkSuccess": "Verifique a sua caixa de entrada para encontrar o seu link de início de sessão.",
+      "magicLinkError": "Não foi possível enviar um link de início de sessão. Tente novamente.",
+      "magicLinkInvalidEmail": "Introduza um endereço de e-mail válido."
     },
     "Words": {
       "signIn": "Iniciar sessão",

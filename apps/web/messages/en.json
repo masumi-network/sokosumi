@@ -845,10 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "Continue with {provider}",
-      "divider": "or continue with",
+      "passwordDivider": "or sign in with password",
+      "emailDivider": "or register with email",
       "success": "Login successful",
       "error": "Login failed",
-      "lastUsed": "Last used"
+      "lastUsed": "Last used",
+      "magicLinkButton": "Continue with Magic Link",
+      "magicLinkInputLabel": "Email for sign-in link",
+      "magicLinkPlaceholder": "Enter your email",
+      "magicLinkSubmit": "Send me a sign-in link",
+      "magicLinkSubmitting": "Sending sign-in link...",
+      "magicLinkResend": "Resend sign-in link",
+      "magicLinkSuccess": "Check your inbox for your sign-in link.",
+      "magicLinkError": "We could not send a sign-in link. Please try again.",
+      "magicLinkInvalidEmail": "Please enter a valid email address."
     },
     "Words": {
       "signIn": "Login",
@@ -2287,6 +2297,16 @@
         }
       },
       "Email": {
+        "MagicLink": {
+          "subject": "Sokosumi - Sign in to your account",
+          "title": "Sign in to Sokosumi",
+          "greeting": "Hello {name}",
+          "greetingAnonymous": "Hello",
+          "message": "Use the button below to sign in to your Sokosumi account.",
+          "button": "Sign in",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't request this email, you can safely ignore this email."
+        },
         "ResetPassword": {
           "subject": "Sokosumi - Reset your password",
           "title": "Reset your password",

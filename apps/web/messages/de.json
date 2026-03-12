@@ -845,9 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "Weiter mit {provider}",
-      "divider": "oder weiter mit",
+      "passwordDivider": "oder mit Passwort anmelden",
+      "emailDivider": "oder mit E-Mail registrieren",
       "success": "Anmeldung erfolgreich",
-      "error": "Anmeldung fehlgeschlagen"
+      "error": "Anmeldung fehlgeschlagen",
+      "lastUsed": "Zuletzt verwendet",
+      "magicLinkButton": "Mit Magic Link fortfahren",
+      "magicLinkInputLabel": "E-Mail für den Anmeldelink",
+      "magicLinkPlaceholder": "E-Mail eingeben",
+      "magicLinkSubmit": "Sende mir einen Anmeldelink",
+      "magicLinkSubmitting": "Anmeldelink wird gesendet...",
+      "magicLinkResend": "Anmeldelink erneut senden",
+      "magicLinkSuccess": "Prüfe deinen Posteingang auf deinen Anmeldelink.",
+      "magicLinkError": "Wir konnten keinen Anmeldelink senden. Bitte versuche es erneut.",
+      "magicLinkInvalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein."
     },
     "Words": {
       "signIn": "Anmelden",

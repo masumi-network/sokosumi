@@ -845,9 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "{provider}で続行",
-      "divider": "または次で続行",
+      "passwordDivider": "またはパスワードでログイン",
+      "emailDivider": "またはメールアドレスで登録",
       "success": "ログインしました",
-      "error": "ログインに失敗しました"
+      "error": "ログインに失敗しました",
+      "lastUsed": "前回使用",
+      "magicLinkButton": "Magic Link で続行",
+      "magicLinkInputLabel": "サインインリンク送信用メールアドレス",
+      "magicLinkPlaceholder": "メールアドレスを入力",
+      "magicLinkSubmit": "サインインリンクを送信",
+      "magicLinkSubmitting": "サインインリンクを送信中...",
+      "magicLinkResend": "サインインリンクを再送信",
+      "magicLinkSuccess": "受信トレイでサインインリンクを確認してください。",
+      "magicLinkError": "サインインリンクを送信できませんでした。もう一度お試しください。",
+      "magicLinkInvalidEmail": "有効なメールアドレスを入力してください。"
     },
     "Words": {
       "signIn": "ログイン",

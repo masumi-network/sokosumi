@@ -177,12 +177,14 @@ export default function SignInForm({
               {t("Register.link")}
             </Link>
           </div>
-          <Link
-            href={forgotPasswordUrl}
-            className="text-muted-foreground text-sm hover:underline"
-          >
-            {t("forgotPassword")}
-          </Link>
+          <div className="flex flex-col items-center gap-2 sm:items-end">
+            <Link
+              href={forgotPasswordUrl}
+              className="text-muted-foreground text-sm hover:underline"
+            >
+              {t("forgotPassword")}
+            </Link>
+          </div>
         </div>
       </div>
     </AuthForm>

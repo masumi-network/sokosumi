@@ -13,7 +13,13 @@ import { authTranslations } from "@sokosumi/masumi/auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
-import { admin, jwt, lastLoginMethod, organization } from "better-auth/plugins";
+import {
+  admin,
+  jwt,
+  lastLoginMethod,
+  magicLink,
+  organization,
+} from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
@@ -25,6 +31,7 @@ import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
+import { reactMagicLinkEmail } from "@/lib/email/magic-link";
 import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
@@ -334,6 +341,28 @@ export const auth = betterAuth({
       enableSessionForAPIKeys: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
+    magicLink({
+      disableSignUp: false,
+      expiresIn: 60 * 10, // 10 minutes
+      sendMagicLink: async ({ email, url }, ctx) => {
+        const t = await getTranslations("Library.Auth.Email.MagicLink");
+        console.info("ctx", ctx);
+        const name =
+          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+
+        await postmarkClient.sendEmail({
+          From: fromEmail,
+          To: email,
+          Tag: "magic-link",
+          Subject: t("subject"),
+          HtmlBody: await reactMagicLinkEmail({
+            name,
+            magicLink: url,
+          }),
+          MessageStream: "authentications",
+        });
+      },
+    }),
     lastLoginMethod(),
     oauthProvider({
       loginPage: "/signin",
