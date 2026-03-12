@@ -2,6 +2,7 @@ import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import { betterAuth } from "better-auth/minimal";
 import {
@@ -16,7 +17,6 @@ import { postmarkClient } from "@/clients/postmark.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
-import { renderMagicLinkTemplate } from "@/lib/email";
 
 const env = getEnv();
 
@@ -90,17 +90,18 @@ export const auth = betterAuth({
       sendMagicLink: async ({ email, url, token }, ctx) => {
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+        const renderedEmail = await renderMagicLinkEmail({
+          magicLink: url,
+          name,
+          token,
+        });
 
         await postmarkClient.sendEmail({
           From: env.POSTMARK_FROM_EMAIL,
           To: email,
           Tag: "magic-link",
-          Subject: "Sokosumi - Magic Link",
-          HtmlBody: renderMagicLinkTemplate({
-            magicLink: url,
-            token,
-            name,
-          }),
+          Subject: renderedEmail.subject,
+          HtmlBody: renderedEmail.html,
           MessageStream: "authentications",
         });
       },

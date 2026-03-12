@@ -12,7 +12,6 @@ import { requestId } from "hono/request-id";
 import { getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
-import { initI18next } from "@/lib/i18next";
 import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
@@ -23,7 +22,6 @@ import apiV1 from "@/routes/v1/index";
 
 validateEnv();
 initSentry();
-await initI18next();
 
 // Build favicon URL - use Vercel URL in production, relative path locally
 const faviconUrl = process.env.VERCEL_URL

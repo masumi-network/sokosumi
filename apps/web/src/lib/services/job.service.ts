@@ -27,10 +27,15 @@ import {
   jobRepository,
   jobShareRepository,
 } from "@sokosumi/database/repositories";
+import {
+  type JobFailureNotificationEmailProps,
+  renderJobFailureNotificationEmail,
+  renderJobFinalStatusEmail,
+  renderJobInputRequiredEmail,
+} from "@sokosumi/email";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
 import { err } from "neverthrow";
-import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -41,12 +46,6 @@ import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
 import prisma from "@/lib/db/prisma";
-import {
-  JobFailureNotificationEmailProps,
-  reactJobFailureNotificationEmail,
-} from "@/lib/email/job-failure-notification";
-import { reactJobFinalStatusEmail } from "@/lib/email/job-final-status";
-import { reactJobInputRequiredEmail } from "@/lib/email/job-input-required";
 import { postmarkClient } from "@/lib/email/postmark";
 import { getAgentName } from "@/lib/helpers/agent";
 import { getJobStatusData } from "@/lib/helpers/job";
@@ -146,16 +145,9 @@ export const jobService = (() => {
     }
 
     try {
-      const t = await getTranslations({
-        locale: "en",
-        namespace: "Library.Email.JobFinalStatus",
-      });
-
       const agentName = getAgentName(job.agent);
       const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
-      const statusLabel = t(`status.${jobStatus}`);
-
-      const htmlBody = await reactJobFinalStatusEmail({
+      const email = await renderJobFinalStatusEmail({
         recipientName: job.user.name,
         agentName,
         jobName: job.name,
@@ -167,8 +159,8 @@ export const jobService = (() => {
         From: POSTMARK_FROM_EMAIL,
         To: job.user.email,
         Tag: "job-final-status",
-        Subject: t("subject", { agentName, status: statusLabel }),
-        HtmlBody: htmlBody,
+        Subject: email.subject,
+        HtmlBody: email.html,
         MessageStream: "outbound",
       });
     } catch (error) {
@@ -195,15 +187,9 @@ export const jobService = (() => {
     }
 
     try {
-      const t = await getTranslations({
-        locale: "en",
-        namespace: "Library.Email.JobInputRequired",
-      });
-
       const agentName = getAgentName(job.agent);
       const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
-
-      const htmlBody = await reactJobInputRequiredEmail({
+      const email = await renderJobInputRequiredEmail({
         recipientName: job.user.name,
         agentName,
         jobName: job.name,
@@ -214,8 +200,8 @@ export const jobService = (() => {
         From: POSTMARK_FROM_EMAIL,
         To: job.user.email,
         Tag: "job-input-required",
-        Subject: t("subject", { agentName }),
-        HtmlBody: htmlBody,
+        Subject: email.subject,
+        HtmlBody: email.html,
         MessageStream: "outbound",
       });
     } catch (error) {
@@ -322,8 +308,9 @@ export const jobService = (() => {
       if (toRecipients.length === 0) return;
 
       // Generate email content (subject and body)
-      const { subject, htmlBody } =
-        await reactJobFailureNotificationEmail(notificationData);
+      const email = await renderJobFailureNotificationEmail({
+        ...notificationData,
+      });
 
       // Send email with appropriate To and Bcc recipients
       postmarkClient
@@ -332,8 +319,8 @@ export const jobService = (() => {
           To: toRecipients.join(","),
           ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
           Tag: "job-failure-notification",
-          Subject: subject,
-          HtmlBody: htmlBody,
+          Subject: email.subject,
+          HtmlBody: email.html,
           MessageStream: "outbound",
         })
         .catch((emailError) => {

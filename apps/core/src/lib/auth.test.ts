@@ -12,7 +12,7 @@ const {
   magicLinkPluginMock,
   postmarkSendEmailMock,
   prismaAdapterMock,
-  renderMagicLinkTemplateMock,
+  renderMagicLinkEmailMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -25,7 +25,7 @@ const {
   magicLinkPluginMock: vi.fn(),
   postmarkSendEmailMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
-  renderMagicLinkTemplateMock: vi.fn(),
+  renderMagicLinkEmailMock: vi.fn(),
 }));
 
 vi.mock("better-auth/minimal", () => ({
@@ -76,9 +76,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { __prisma: true },
 }));
 
-vi.mock("@/lib/email", () => ({
-  renderMagicLinkTemplate: (...args: unknown[]) =>
-    renderMagicLinkTemplateMock(...args),
+vi.mock("@sokosumi/email", () => ({
+  renderMagicLinkEmail: (...args: unknown[]) => renderMagicLinkEmailMock(...args),
 }));
 
 describe("core auth config", () => {
@@ -96,7 +95,10 @@ describe("core auth config", () => {
     organizationPluginMock.mockReturnValue("organization-plugin");
     postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
-    renderMagicLinkTemplateMock.mockReturnValue("<html>magic link</html>");
+    renderMagicLinkEmailMock.mockResolvedValue({
+      html: "<html>magic link</html>",
+      subject: "Sokosumi - Sign in to your account",
+    });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
   });
 
@@ -125,7 +127,7 @@ describe("core auth config", () => {
     expect(config.sendMagicLink).toEqual(expect.any(Function));
   });
 
-  it("sends magic-link emails with the core auth template", async () => {
+  it("sends magic-link emails with the shared email renderer", async () => {
     await import("./auth");
 
     const [[config]] = magicLinkPluginMock.mock.calls as Array<
@@ -156,7 +158,7 @@ describe("core auth config", () => {
       },
     );
 
-    expect(renderMagicLinkTemplateMock).toHaveBeenCalledWith({
+    expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
       token: "secret-token",
       name: "Andreas",
@@ -165,7 +167,7 @@ describe("core auth config", () => {
       From: "no-reply@example.com",
       To: "andreas@example.com",
       Tag: "magic-link",
-      Subject: "Sokosumi - Magic Link",
+      Subject: "Sokosumi - Sign in to your account",
       HtmlBody: "<html>magic link</html>",
       MessageStream: "authentications",
     });

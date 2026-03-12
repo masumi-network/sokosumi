@@ -8,6 +8,12 @@ import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, User } from "@sokosumi/database";
 import { memberRepository } from "@sokosumi/database/repositories";
+import {
+  renderMagicLinkEmail,
+  renderOrganizationInvitationEmail,
+  renderResetPasswordEmail,
+  renderVerificationEmail,
+} from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
@@ -19,7 +25,6 @@ import {
   magicLink,
   organization,
 } from "better-auth/plugins";
-import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
 import * as z from "zod";
@@ -30,11 +35,7 @@ import { getInfraAuthPlugins } from "@/lib/auth/infra-plugins";
 import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
-import { reactInviteUserEmail } from "@/lib/email/invitation";
-import { reactMagicLinkEmail } from "@/lib/email/magic-link";
 import { postmarkClient } from "@/lib/email/postmark";
-import { reactResetPasswordEmail } from "@/lib/email/reset-password";
-import { reactVerificationEmail } from "@/lib/email/verification";
 import { marketingOptInUserSchema } from "@/lib/schemas";
 import {
   callAccountCreatedWebHook,
@@ -252,34 +253,34 @@ export const auth = betterAuth({
     requireEmailVerification: false,
     autoSignIn: true,
     sendResetPassword: async ({ user, url }) => {
-      const t = await getTranslations("Library.Auth.Email.ResetPassword");
+      const email = await renderResetPasswordEmail({
+        name: user.name,
+        resetLink: url,
+      });
 
       postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
         Tag: "reset-password",
-        Subject: t("subject"),
-        HtmlBody: await reactResetPasswordEmail({
-          name: user.name,
-          resetLink: url,
-        }),
+        Subject: email.subject,
+        HtmlBody: email.html,
         MessageStream: "authentications",
       });
     },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      const t = await getTranslations("Library.Auth.Email.Verification");
+      const email = await renderVerificationEmail({
+        name: user.name,
+        verificationLink: url,
+      });
 
       postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
         Tag: "verification-email",
-        Subject: t("subject"),
-        HtmlBody: await reactVerificationEmail({
-          name: user.name,
-          verificationLink: url,
-        }),
+        Subject: email.subject,
+        HtmlBody: email.html,
         MessageStream: "authentications",
       });
     },
@@ -344,20 +345,19 @@ export const auth = betterAuth({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes
       sendMagicLink: async ({ email, url }, ctx) => {
-        const t = await getTranslations("Library.Auth.Email.MagicLink");
-
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+        const renderedEmail = await renderMagicLinkEmail({
+          magicLink: url,
+          name,
+        });
 
         await postmarkClient.sendEmail({
           From: fromEmail,
           To: email,
           Tag: "magic-link",
-          Subject: t("subject"),
-          HtmlBody: await reactMagicLinkEmail({
-            name,
-            magicLink: url,
-          }),
+          Subject: renderedEmail.subject,
+          HtmlBody: renderedEmail.html,
           MessageStream: "authentications",
         });
       },
@@ -436,18 +436,18 @@ export const auth = betterAuth({
       },
       async sendInvitationEmail(data) {
         const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
-        const t = await getTranslations("Library.Auth.Email.InviteUserEmail");
+        const email = await renderOrganizationInvitationEmail({
+          invitationLink: inviteLink,
+          invitorUsername: data.inviter.user.name,
+          organizationName: data.organization.name,
+        });
 
         postmarkClient.sendEmail({
           From: fromEmail,
           To: data.email,
           Tag: "invitation-email",
-          Subject: t("subject"),
-          HtmlBody: await reactInviteUserEmail({
-            organizationName: data.organization.name,
-            invitorUsername: data.inviter.user.name,
-            inviteLink,
-          }),
+          Subject: email.subject,
+          HtmlBody: email.html,
           MessageStream: "organizations",
         });
       },
