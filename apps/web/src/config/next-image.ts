@@ -15,6 +15,10 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
     protocol: "https",
     hostname: "**.azurecontainerapps.io",
   },
+  {
+    protocol: "https",
+    hostname: "**.utxoag.com",
+  },
 ] as const;
 
 export function canUseNextImageSrc(url: string): boolean {
