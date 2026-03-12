@@ -240,14 +240,7 @@ export async function requireCoworkerChatCapability(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<{ id: string; slug: string; baseURL: string | null }> {
-  const coworker = await findUsableCoworkerByCapability(
-    coworkerId,
-    "chat",
-    tx,
-    {
-      requireBaseUrl: true,
-    },
-  );
+  const coworker = await findUsableCoworkerByCapability(coworkerId, "chat", tx);
 
   if (!coworker) {
     throw forbidden("Coworker chat is not available");
