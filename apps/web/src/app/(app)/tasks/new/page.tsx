@@ -5,7 +5,6 @@ import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { filterCoworkersByCapability } from "@/lib/utils/coworker-capability";
 
 export const metadata = {
   title: "New Task",
@@ -13,11 +12,10 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [coworkers, agents] = await Promise.all([
-    coworkerService.listCoworkers(),
+  const [taskCoworkers, agents] = await Promise.all([
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
-  const taskCoworkers = filterCoworkersByCapability(coworkers, "tasks");
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
 

@@ -14,7 +14,6 @@ import {
   parseTasksViewMode,
   TASKS_VIEW_MODE_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-view-mode";
-import { filterCoworkersByCapability } from "@/lib/utils/coworker-capability";
 
 import { TasksView } from "./components/tasks-view";
 import { buildAgentNameById } from "./utils/agent-names";
@@ -35,8 +34,8 @@ export default async function TasksPage() {
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
 
-  const [coworkers, agents, jobsPage] = await Promise.all([
-    coworkerService.listCoworkers(),
+  const [taskCoworkers, agents, jobsPage] = await Promise.all([
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
     userService.listMyJobsForActiveContextPaginated({ limit: 20, session }),
   ]);
@@ -44,7 +43,7 @@ export default async function TasksPage() {
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   const coworkersById = new Map(
-    coworkers.map((coworker) => [coworker.id, coworker]),
+    taskCoworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = buildAgentNameById(agents);
@@ -80,7 +79,6 @@ export default async function TasksPage() {
     seedTasksById,
   });
 
-  const taskCoworkers = filterCoworkersByCapability(coworkers, "tasks");
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
 
   const columnLabels: Record<KanbanColumnId, string> = {

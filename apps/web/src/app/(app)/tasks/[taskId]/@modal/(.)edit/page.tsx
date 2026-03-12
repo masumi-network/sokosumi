@@ -8,7 +8,6 @@ import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
-import { filterCoworkersByCapability } from "@/lib/utils/coworker-capability";
 
 export default async function TaskEditModalPage({
   params,
@@ -16,9 +15,9 @@ export default async function TaskEditModalPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const [taskResult, coworkers, agents] = await Promise.all([
+  const [taskResult, taskCoworkers, agents] = await Promise.all([
     taskService.getTaskById(taskId),
-    coworkerService.listCoworkers(),
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
 
@@ -33,7 +32,6 @@ export default async function TaskEditModalPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const taskCoworkers = filterCoworkersByCapability(coworkers, "tasks");
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
 

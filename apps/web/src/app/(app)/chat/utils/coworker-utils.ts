@@ -2,22 +2,9 @@
  * Get suggestions based on coworker ID
  */
 import type { Coworker } from "@/app/chat/utils/types";
-import { ipfsUrlResolver } from "@/lib/ipfs";
-
 /** DB coworker shape as returned by GET /api/coworkers (and Core GET /v1/coworkers) */
-export interface DbCoworker {
-  id: string;
-  slug: string;
-  name: string;
-  caption?: string | null;
-  url?: string | null;
-  email?: string | null;
-  description?: string | null;
-  image?: string | null;
-  capabilities?: string[] | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
+import { ipfsUrlResolver } from "@/lib/ipfs";
 
 const DEFAULT_COWORKER_AVATARS: Record<string, string> = {
   alex: "/images/coworkers/alex.webp",
@@ -41,7 +28,7 @@ export function getCoworkerImageUrl(
  * Map a DB coworker to the chat UI Coworker type, resolving profile image (e.g. IPFS) when present.
  * Profile pictures come only from the coworker service (DB image field).
  */
-export function mapDbCoworkerToChatCoworker(db: DbCoworker): Coworker {
+export function mapDbCoworkerToChatCoworker(db: CoreCoworker): Coworker {
   const resolvedImage =
     db.image != null && db.image !== "" ? ipfsUrlResolver(db.image) : null;
   return {

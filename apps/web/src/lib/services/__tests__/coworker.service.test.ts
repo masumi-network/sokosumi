@@ -30,6 +30,7 @@ describe("coworker.service", () => {
     const result = await coworkerService.listCoworkers();
 
     expect(coreClientMock.getCoworkers).toHaveBeenCalledTimes(1);
+    expect(coreClientMock.getCoworkers).toHaveBeenCalledWith(undefined);
     expect(result).toEqual([
       {
         id: "cow-1",
@@ -46,5 +47,18 @@ describe("coworker.service", () => {
     const result = await coworkerService.listCoworkers();
 
     expect(result).toEqual([]);
+  });
+
+  it("forwards the capability filter when provided", async () => {
+    coreClientMock.getCoworkers.mockResolvedValue({
+      data: [],
+    });
+
+    const { coworkerService } = await import("../coworker.service");
+    await coworkerService.listCoworkers("tasks");
+
+    expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
+      capability: ["tasks"],
+    });
   });
 });

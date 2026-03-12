@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -17,6 +18,7 @@ import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import { taskRailEnabled } from "@/lib/flags/task-rail";
 import { userService } from "@/lib/services";
+import { coworkerService } from "@/lib/services/coworker.service";
 
 import ChatRail from "./components/chat-rail";
 import EmailVerificationNotice from "./components/email-verification-notice";
@@ -58,13 +60,16 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     activeOrganization,
     isTaskRailEnabled,
     creditsResult,
+    coworkersResult,
   ] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
     userService.getActiveOrganization(),
     taskRailEnabled(),
     coreClient.getMyCredits().catch(() => null),
+    coworkerService.listCoworkers("chat").catch(() => []),
   ]);
+  const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
   const pendingNotices = pendingNoticesResult.ok
     ? pendingNoticesResult.data
     : [];
@@ -164,7 +169,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   return (
     <QueryProvider>
       <ConversationsProvider>
-        <CoworkersProvider>
+        <CoworkersProvider initialCoworkers={coworkers}>
           {content}
           {shouldShowOnboarding && <OnboardingDialog />}
         </CoworkersProvider>
