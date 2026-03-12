@@ -12,7 +12,6 @@ const {
   conversationItemCreateMock,
   coworkerFindFirstMock,
   generateChatTitleMock,
-  isResponsesApiConfiguredMock,
   openrouterStreamChatResponseMock,
   requireCoworkerChatCapabilityMock,
   streamResponsesApiMock,
@@ -23,7 +22,6 @@ const {
   conversationItemCreateMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
-  isResponsesApiConfiguredMock: vi.fn(() => false),
   openrouterStreamChatResponseMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   streamResponsesApiMock: vi.fn(),
@@ -45,14 +43,6 @@ vi.mock("@/clients/openrouter.client", () => ({
     streamChatResponse: openrouterStreamChatResponseMock,
   },
 }));
-
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    isResponsesApiConfigured: isResponsesApiConfiguredMock,
-  };
-});
 
 vi.mock("@/helpers/chat-stream-persist", () => ({
   streamWithAssistantPersistence: streamWithAssistantPersistenceMock,
@@ -99,7 +89,6 @@ function createApp({
 describe("POST /conversations/chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isResponsesApiConfiguredMock.mockReturnValue(false);
     conversationItemCreateMock.mockResolvedValue(undefined);
     generateChatTitleMock.mockResolvedValue(null);
     streamResponsesApiMock.mockResolvedValue(
@@ -185,18 +174,17 @@ describe("POST /conversations/chat", () => {
     expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to OpenRouter when coworker chat is allowed but Responses API is disabled", async () => {
+  it("falls back to OpenRouter when conversation has no coworker", async () => {
     conversationFindFirstMock
       .mockResolvedValueOnce({
         id: "550e8400-e29b-41d4-a716-446655440000",
-        metadata: { coworker_slug: "ops-agent" },
+        metadata: {},
       })
       .mockResolvedValueOnce({
         _count: {
           items: 0,
         },
       });
-    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
 
     const app = createApp();
     const response = await app.request("http://localhost/chat", {
@@ -216,7 +204,7 @@ describe("POST /conversations/chat", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(requireCoworkerChatCapabilityMock).toHaveBeenCalledWith("cow_123");
+    expect(requireCoworkerChatCapabilityMock).not.toHaveBeenCalled();
     expect(openrouterStreamChatResponseMock).toHaveBeenCalledWith(
       [{ role: "user", content: "Hello" }],
       null,
@@ -224,8 +212,7 @@ describe("POST /conversations/chat", () => {
     expect(streamResponsesApiMock).not.toHaveBeenCalled();
   });
 
-  it("passes coworker slug and organization id to the Responses API", async () => {
-    isResponsesApiConfiguredMock.mockReturnValue(true);
+  it("passes coworker baseURL, slug and organization id to the Responses API", async () => {
     conversationFindFirstMock
       .mockResolvedValueOnce({
         id: "550e8400-e29b-41d4-a716-446655440000",
@@ -240,6 +227,11 @@ describe("POST /conversations/chat", () => {
         },
       });
     coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+    requireCoworkerChatCapabilityMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://responses.example.com/v1",
+    });
 
     const app = createApp({
       organizationId: "org_123",
@@ -261,13 +253,57 @@ describe("POST /conversations/chat", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(requireCoworkerChatCapabilityMock).toHaveBeenCalledWith("cow_123");
     expect(streamResponsesApiMock).toHaveBeenCalledWith("Hello", {
+      responsesApiBaseUrl: "https://responses.example.com/v1",
       sokosumiUserId: "user_123",
       sokosumiOrganizationId: "org_123",
       coworkerSlug: "ops-agent",
       previousResponseId: "resp_prev",
       onResponseCompleted: expect.any(Function),
     });
+    expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when conversation has coworker but coworker has no Responses API URL", async () => {
+    conversationFindFirstMock
+      .mockResolvedValueOnce({
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        metadata: { coworker_slug: "ops-agent" },
+      })
+      .mockResolvedValueOnce({
+        _count: {
+          items: 1,
+        },
+      });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+    requireCoworkerChatCapabilityMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    });
+
+    const app = createApp({ organizationId: "org_123" });
+    const response = await app.request("http://localhost/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        conversationId: "550e8400-e29b-41d4-a716-446655440000",
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "Hello" }],
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(503);
+    const bodyText = await response.text();
+    expect(bodyText).toContain("no Responses API URL configured");
+    expect(streamResponsesApiMock).not.toHaveBeenCalled();
     expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();
   });
 });
