@@ -936,29 +936,27 @@ export default function ChatInterface({
             )}
             {!isConversationLoading && (
               <>
-                <div className="absolute right-0 bottom-0 left-0 z-[5] h-[11rem] md:h-[8rem]">
-                  <div
-                    aria-hidden
-                    className="from-background via-background/60 pointer-events-none absolute top-0 right-0 bottom-auto left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
-                  />
-                  <ChatInputContainer
-                    key={selectedChatId}
-                    mobileKeyboardOptimized={mobileKeyboardOptimized}
-                    selectedChatId={selectedChatId}
-                    input={input}
-                    setInput={setInput}
-                    status={selectedChatStatus}
-                    stop={handleStop}
-                    messages={displayedMessages}
-                    setMessages={setMessagesForInput}
-                    sendMessage={sendMessageForInput}
-                    onSendMessage={handleSendMessage}
-                    selectedModel={selectedModel}
-                    onSelectModel={handleModelSelected}
-                    selectedChatCoworker={selectedChatCoworker}
-                    coworkers={coworkers}
-                  />
-                </div>
+                <div
+                  aria-hidden
+                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
+                />
+                <ChatInputContainer
+                  key={selectedChatId}
+                  mobileKeyboardOptimized={mobileKeyboardOptimized}
+                  selectedChatId={selectedChatId}
+                  input={input}
+                  setInput={setInput}
+                  status={selectedChatStatus}
+                  stop={handleStop}
+                  messages={displayedMessages}
+                  setMessages={setMessagesForInput}
+                  sendMessage={sendMessageForInput}
+                  onSendMessage={handleSendMessage}
+                  selectedModel={selectedModel}
+                  onSelectModel={handleModelSelected}
+                  selectedChatCoworker={selectedChatCoworker}
+                  coworkers={coworkers}
+                />
               </>
             )}
           </>
