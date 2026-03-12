@@ -110,17 +110,29 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session, _ctx) => {
-          const activeOrganizationId =
-            await preferredOrganizationService.resolveActiveOrganizationIdForSession(
-              session.userId,
-            );
+          try {
+            const activeOrganizationId =
+              await preferredOrganizationService.resolveActiveOrganizationIdForSession(
+                session.userId,
+              );
 
-          return {
-            data: {
-              ...session,
-              activeOrganizationId,
-            },
-          };
+            return {
+              data: {
+                ...session,
+                activeOrganizationId,
+              },
+            };
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                context: "session_create_preferred_organization",
+              },
+              extra: {
+                userId: session.userId,
+              },
+            });
+            return { data: session };
+          }
         },
       },
     },
