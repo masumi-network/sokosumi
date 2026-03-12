@@ -34,6 +34,7 @@ import {
   callUserCreatedWebHook,
   callUserUpdatedWebHook,
   organizationSubscriptionService,
+  preferredOrganizationService,
   stripeService,
 } from "@/lib/services";
 import { getBetterAuthSubscriptionPlans } from "@/lib/stripe/subscription-catalog";
@@ -103,6 +104,35 @@ export const auth = betterAuth({
       create: {
         after: async (account, _ctx) => {
           callAccountCreatedWebHook(account.userId, account.providerId);
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session, _ctx) => {
+          try {
+            const activeOrganizationId =
+              await preferredOrganizationService.resolveActiveOrganizationIdForSession(
+                session.userId,
+              );
+
+            return {
+              data: {
+                ...session,
+                activeOrganizationId,
+              },
+            };
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                context: "session_create_preferred_organization",
+              },
+              extra: {
+                userId: session.userId,
+              },
+            });
+            return { data: session };
+          }
         },
       },
     },

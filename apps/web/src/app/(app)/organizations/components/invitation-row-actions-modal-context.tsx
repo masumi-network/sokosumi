@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
 import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
+import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 
 export enum InvitationRowAction {
@@ -34,9 +35,28 @@ export function InvitationRowActionsModalContextProvider({
   ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
       case InvitationRowAction.ACCEPT: {
-        return await authClient.organization.acceptInvitation({
+        const result = await authClient.organization.acceptInvitation({
           invitationId: invitation.id,
         });
+
+        if (!result.error) {
+          try {
+            const persistenceResult = await updatePreferredOrganization({
+              organizationId: invitation.organizationId,
+            });
+
+            if (!persistenceResult.ok) {
+              console.error(
+                "Failed to persist preferred organization:",
+                persistenceResult.error,
+              );
+            }
+          } catch (error) {
+            console.error("Failed to persist preferred organization:", error);
+          }
+        }
+
+        return result;
       }
       case InvitationRowAction.REJECT: {
         return await authClient.organization.rejectInvitation({
