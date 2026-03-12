@@ -7,15 +7,20 @@ import type { Coworker } from "@/app/chat/utils/types";
 
 export interface CoworkersContextValue {
   coworkers: Coworker[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
 }
 
 const CoworkersContext = createContext<CoworkersContextValue | null>(null);
 
-export function CoworkersProvider({ children }: { children: React.ReactNode }) {
-  const value = useCoworkers();
+interface CoworkersProviderProps {
+  children: React.ReactNode;
+  initialCoworkers: Coworker[];
+}
+
+export function CoworkersProvider({
+  children,
+  initialCoworkers,
+}: CoworkersProviderProps) {
+  const value = useCoworkers(initialCoworkers);
   return (
     <CoworkersContext.Provider value={value}>
       {children}

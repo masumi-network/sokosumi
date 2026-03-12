@@ -335,13 +335,15 @@ export const getCoworkersByIdApiKeysResponseTransformer = async (data: any): Pro
     return data;
 };
 
-const coworkerApiKeyWithTokenSchemaResponseTransformer = (data: any) => {
-    data = coworkerApiKeySchemaResponseTransformer(data);
+const createCoworkerApiKeyResponseSchemaResponseTransformer = (data: any) => {
+    if (data.expiresAt) {
+        data.expiresAt = new Date(data.expiresAt);
+    }
     return data;
 };
 
 export const postCoworkersByIdApiKeysResponseTransformer = async (data: any): Promise<PostCoworkersByIdApiKeysResponse> => {
-    data.data = coworkerApiKeyWithTokenSchemaResponseTransformer(data.data);
+    data.data = createCoworkerApiKeyResponseSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
