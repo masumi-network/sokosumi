@@ -2,14 +2,11 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import {
-  type AgentWithCreditsPrice,
-  type Coworker,
-  TaskStatus,
-} from "@sokosumi/database";
+import { type AgentWithCreditsPrice, TaskStatus } from "@sokosumi/database";
 
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import { getEnvSecrets } from "@/config/env.secrets";
+import type { Coworker } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";
 import { COLUMN_TASK_STATUSES } from "@/lib/utils/task-column";

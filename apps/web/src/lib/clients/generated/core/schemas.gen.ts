@@ -1076,6 +1076,14 @@ export const CoworkerSchema = {
             ],
             example: 'https://example.com'
         },
+        baseURL: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://responses.example.com/v1',
+            description: 'OpenAI Responses API base URL used to enable this coworker for chat.'
+        },
         email: {
             type: [
                 'string',
@@ -1089,6 +1097,21 @@ export const CoworkerSchema = {
                 'null'
             ],
             example: 'Ops helper'
+        },
+        capabilities: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'chat',
+                    'tasks'
+                ]
+            },
+            example: [
+                'chat',
+                'tasks'
+            ],
+            description: 'Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.'
         },
         image: {
             type: [
@@ -1105,7 +1128,9 @@ export const CoworkerSchema = {
         'archivedAt',
         'isWhitelisted',
         'slug',
-        'name'
+        'name',
+        'baseURL',
+        'capabilities'
     ]
 } as const;
 
@@ -1339,6 +1364,7 @@ export const CoworkerApiKeySchema = {
     required: [
         'id',
         'coworkerId',
+        'name',
         'keyStart',
         'expiresAt',
         'revokedAt',
@@ -1347,23 +1373,38 @@ export const CoworkerApiKeySchema = {
     ]
 } as const;
 
-export const CoworkerApiKeyWithTokenSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/CoworkerApiKey'
+export const CreateCoworkerApiKeyResponseSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cokey_123'
         },
-        {
-            type: 'object',
-            properties: {
-                token: {
-                    type: 'string',
-                    example: 'coworker_very_secret_value'
-                }
-            },
-            required: [
-                'token'
-            ]
+        token: {
+            type: 'string',
+            example: 'coworker_very_secret_value'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Production key'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z'
         }
+    },
+    required: [
+        'id',
+        'token',
+        'name',
+        'expiresAt'
     ]
 } as const;
 

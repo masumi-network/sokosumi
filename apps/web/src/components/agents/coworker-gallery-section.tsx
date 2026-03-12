@@ -1,8 +1,9 @@
 "use client";
 
-import type { Coworker } from "@sokosumi/database";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+
+import type { Coworker } from "@/lib/clients/generated/core";
 
 import { CoworkerGalleryCard } from "./coworker-gallery-card";
 

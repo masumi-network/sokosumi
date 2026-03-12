@@ -1,5 +1,4 @@
-import type { Coworker } from "@sokosumi/database";
-
+import type { Coworker } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
