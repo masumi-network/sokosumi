@@ -122,7 +122,7 @@ export default function ChatInterface({
     selectConversation,
   ]);
 
-  const { coworkers, isLoading: isCoworkersLoading } = useCoworkersContext();
+  const { coworkers } = useCoworkersContext();
 
   const welcomeCoworkerSlug = searchParams?.get("coworker") ?? null;
   const defaultWelcomeSlug = "elena";
@@ -983,10 +983,7 @@ export default function ChatInterface({
             status="ready"
             stop={handleStop}
             coworkers={coworkers}
-            coworkersLoading={isCoworkersLoading}
-            initialCoworker={
-              welcomeSelectedModel ? undefined : effectiveWelcomeCoworker
-            }
+            initialCoworker={effectiveWelcomeCoworker}
             onCoworkerChange={handleWelcomeCoworkerChange}
             selectedModel={welcomeSelectedModel}
             onSelectModel={handleWelcomeModelChange}

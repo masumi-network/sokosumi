@@ -12,11 +12,11 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [coworkers, agents] = await Promise.all([
-    coworkerService.listCoworkers(),
+  const [taskCoworkers, agents] = await Promise.all([
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
-  const coworkerOptions = getCoworkerOptions(coworkers);
+  const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
 
   return (
