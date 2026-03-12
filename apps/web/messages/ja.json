@@ -1101,7 +1101,7 @@
           "question": "本日はどのようにお手伝いできますか？",
           "title": "ようこそ！本日はどのようにお手伝いできますか？",
           "titleWithName": "ようこそ {name} さん！本日はどのようにお手伝いできますか？",
-          "placeholder": "何をお考えですか？",
+          "placeholder": "Enter your task and submit it to {coworkerSlug}.",
           "suggestionsLabel": "試してみる",
           "prompts": {
             "alex": {

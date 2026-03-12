@@ -1101,7 +1101,7 @@
           "question": "Em que podemos ajudar hoje?",
           "title": "Bem-vindo! Em que podemos ajudar hoje?",
           "titleWithName": "Bem-vindo, {name}! Em que podemos ajudar hoje?",
-          "placeholder": "Em que está a pensar?",
+          "placeholder": "Enter your task and submit it to {coworkerSlug}.",
           "suggestionsLabel": "Experimente perguntar",
           "prompts": {
             "alex": {

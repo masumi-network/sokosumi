@@ -355,7 +355,15 @@ function PureMultimodalInput({
             maxHeight={200}
             minHeight={44}
             onChange={handleInput}
-            placeholder={t("welcomeScreen.placeholder")}
+            placeholder={t("welcomeScreen.placeholder", {
+              coworkerSlug:
+                selectedModel?.name ??
+                selectedModel?.id ??
+                selectedCoworker?.name ??
+                selectedCoworker?.slug ??
+                selectedCoworker?.id ??
+                "the coworker",
+            })}
             ref={textareaRef}
             rows={1}
             value={input}
@@ -411,6 +419,12 @@ export const MultimodalInput = memo(
       return false;
     }
     if (prevProps.blurOnSendOnMobile !== nextProps.blurOnSendOnMobile) {
+      return false;
+    }
+    if (prevProps.coworker?.id !== nextProps.coworker?.id) {
+      return false;
+    }
+    if (prevProps.selectedModel?.id !== nextProps.selectedModel?.id) {
       return false;
     }
 

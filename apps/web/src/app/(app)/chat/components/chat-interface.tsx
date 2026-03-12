@@ -161,6 +161,14 @@ export default function ChatInterface({
     setWelcomeSelectedModel(null);
   }, []);
 
+  const handleWelcomeModelChange = useCallback(
+    (model: { id: string; name: string } | null) => {
+      setWelcomeSelectedModel(model);
+      if (model) setWelcomeSelectedCoworker(null);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (isRouteDriven && !urlConversationId && isChatPath) {
       setWelcomeSelectedCoworker(null);
@@ -976,10 +984,12 @@ export default function ChatInterface({
             stop={handleStop}
             coworkers={coworkers}
             coworkersLoading={isCoworkersLoading}
-            initialCoworker={effectiveWelcomeCoworker}
+            initialCoworker={
+              welcomeSelectedModel ? undefined : effectiveWelcomeCoworker
+            }
             onCoworkerChange={handleWelcomeCoworkerChange}
             selectedModel={welcomeSelectedModel}
-            onSelectModel={setWelcomeSelectedModel}
+            onSelectModel={handleWelcomeModelChange}
           />
         )}
       </div>
