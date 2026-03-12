@@ -2,7 +2,6 @@ import "server-only";
 
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
-import { dash, sentinel } from "@better-auth/infra";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
@@ -27,6 +26,7 @@ import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { getInfraAuthPlugins } from "@/lib/auth/infra-plugins";
 import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
@@ -61,6 +61,7 @@ export type Account = Awaited<
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
+const betterAuthApiKey = getEnvSecrets().BETTER_AUTH_API_KEY;
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
@@ -73,9 +74,7 @@ export const auth = betterAuth({
   experimental: {
     joins: true,
   },
-  silenceWarnings: {
-    oauthAuthServerConfig: true,
-  },
+
   session: {
     cookieCache: {
       enabled: true,
@@ -378,6 +377,9 @@ export const auth = betterAuth({
         refreshToken: "soko_refresh_token_",
         clientSecret: "soko_client_secret_",
       },
+      silenceWarnings: {
+        oauthAuthServerConfig: true,
+      },
     }),
     organization({
       organizationHooks: {
@@ -464,8 +466,7 @@ export const auth = betterAuth({
       detection: ["header", "cookie"],
     }),
     nextCookies(),
-    dash(),
-    sentinel(),
+    ...getInfraAuthPlugins(betterAuthApiKey),
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
