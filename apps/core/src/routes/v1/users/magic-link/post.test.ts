@@ -2,10 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type {
-  AuthenticationContext,
-  AuthVariables,
-} from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 const { signInMagicLinkMock, userFindUniqueMock } = vi.hoisted(() => ({
   signInMagicLinkMock: vi.fn(),
@@ -297,6 +294,34 @@ describe("POST /users/magic-link", () => {
 
     expect(response.status).toBe(400);
     expect(signInMagicLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes emails before user lookup and magic-link send", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "New.User@Example.COM",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { email: "new.user@example.com" },
+      select: { id: true },
+    });
+    expect(signInMagicLinkMock).toHaveBeenCalledWith({
+      body: {
+        email: "new.user@example.com",
+        callbackURL: "https://app.example.com/",
+        newUserCallbackURL: "https://app.example.com/",
+      },
+      headers: expect.any(Headers),
+    });
   });
 
   it("returns 409 when the email is already registered", async () => {

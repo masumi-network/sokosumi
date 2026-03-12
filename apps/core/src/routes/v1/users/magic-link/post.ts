@@ -66,10 +66,13 @@ const oauthAuthorizeSchema = z
   });
 
 const requestSchema = z.object({
-  email: z.email().openapi({
-    description: "Email address to send the magic link to",
-    example: "new.user@example.com",
-  }),
+  email: z
+    .email()
+    .transform((val) => val.toLowerCase())
+    .openapi({
+      description: "Email address to send the magic link to",
+      example: "new.user@example.com",
+    }),
   name: z.string().trim().min(1).optional().openapi({
     description: "Optional display name for first-time signup",
     example: "New User",

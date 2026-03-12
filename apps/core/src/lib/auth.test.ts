@@ -77,7 +77,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@sokosumi/email", () => ({
-  renderMagicLinkEmail: (...args: unknown[]) => renderMagicLinkEmailMock(...args),
+  renderMagicLinkEmail: (...args: unknown[]) =>
+    renderMagicLinkEmailMock(...args),
 }));
 
 describe("core auth config", () => {

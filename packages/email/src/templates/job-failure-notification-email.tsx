@@ -27,12 +27,7 @@ export function JobFailureNotificationEmailTemplate({
   title,
 }: JobFailureNotificationEmailTemplateProps) {
   return (
-    <EmailShell
-      footer={footer}
-      maxWidth={600}
-      preview={preview}
-      title={title}
-    >
+    <EmailShell footer={footer} maxWidth={600} preview={preview} title={title}>
       <Text className="m-0 mb-[16px] text-[14px] leading-[24px] text-black">
         {description}
       </Text>

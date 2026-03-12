@@ -158,6 +158,9 @@ export const auth = betterAuth({
         refreshToken: "soko_refresh_token_",
         clientSecret: "soko_client_secret_",
       },
+      silenceWarnings: {
+        oauthAuthServerConfig: true,
+      },
     }),
   ],
 });
