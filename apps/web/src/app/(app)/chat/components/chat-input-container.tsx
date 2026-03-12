@@ -45,7 +45,7 @@ export default function ChatInputContainer({
   mobileKeyboardOptimized = false,
 }: ChatInputContainerProps) {
   return (
-    <div className="bg-background/80 absolute right-0 bottom-0 left-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:px-0">
+    <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-0">
       <div className="w-full max-w-4xl">
         <MultimodalInput
           blurOnSendOnMobile={mobileKeyboardOptimized}

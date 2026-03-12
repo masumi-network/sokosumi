@@ -1306,7 +1306,7 @@
           "cancelRequested": "Stornierung beantragt"
         },
         "billingCta": {
-          "upgradePlan": "Plan upgraden",
+          "upgradePlan": "Mehr Credits erhalten",
           "addCredits": "Credits hinzufügen",
           "placeholder": "Dieser Task benötigt Credits. Geh zu Billing, um fortzufahren."
         },
@@ -1445,14 +1445,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Credits hinzufügen",
         "userBalance": "{credits, plural, =0 {Keine Credits} =1 {1 Credit} other {# Credits}}",
         "organizationBalance": "{credits, plural, =0 {Keine Credits} =1 {1 Credit} other {# Credits}} ({organization})",
         "unavailable": "Credits nicht verfügbar",
         "extraCredits": "{credits, plural, =0 {0 verfügbar} =1 {1 verfügbar} other {# verfügbar}}"
       },
       "Plan": {
-        "upgradeCta": "Plan upgraden",
+        "getMoreCredits": "Mehr Credits erhalten",
         "userPlan": "{plan}",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Plan nicht verfügbar"
@@ -2184,6 +2183,30 @@
       "button": "Bestätigungs-E-Mail erneut senden",
       "sendSuccess": "Bestätigungs-E-Mail wurde gesendet. Bitte prüfe deinen Posteingang.",
       "sendError": "Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte versuche es erneut."
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "Deine Credits werden knapp",
+          "description": "Öffne die Abrechnung, um ein Abonnement auszuwählen, bevor deine Credits aufgebraucht sind."
+        },
+        "outOfCredits": {
+          "title": "Starte ein Abonnement, um fortzufahren",
+          "description": "Öffne die Abrechnung, um ein Abonnement auszuwählen und weiterzuarbeiten."
+        },
+        "button": "Abonnements ansehen"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "Deine Credits werden knapp",
+          "description": "Öffne die Abrechnung, um dein Abonnement zu verwalten und Credits hinzuzufügen, bevor deine Arbeit unterbrochen wird."
+        },
+        "outOfCredits": {
+          "title": "Deine Credits sind aufgebraucht",
+          "description": "Öffne die Abrechnung, um dein Abonnement zu verwalten und Credits hinzuzufügen, damit du weitermachen kannst."
+        },
+        "button": "Abrechnung öffnen"
+      }
     }
   },
   "Share": {

@@ -158,11 +158,11 @@ export function ChatLayoutClient({
       <div
         className={
           mobileChatOnly
-            ? "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col lg:static lg:z-auto lg:mx-auto lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:pt-0 lg:pb-4"
+            ? "bg-background fixed inset-0 z-10 flex h-dvh w-full flex-col px-0 md:px-2 lg:static lg:z-auto lg:mx-auto lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:pt-0"
             : mobileListOnly
-              ? "hidden lg:mx-auto lg:flex lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:flex-col lg:pt-0 lg:pb-4 lg:pl-4"
+              ? "hidden lg:mx-auto lg:flex lg:h-full lg:max-w-4xl lg:min-w-0 lg:flex-1 lg:flex-col lg:pt-0 lg:pl-4"
               : showTwoColumn
-                ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col pt-20 pb-4 md:pt-4 md:pl-4 lg:min-w-0 lg:pt-0"
+                ? "mx-auto flex h-full w-full max-w-4xl min-w-0 flex-1 flex-col pt-20 md:pt-4 md:pl-4 lg:min-w-0 lg:pt-0"
                 : "mx-auto flex h-full w-full max-w-4xl flex-1 flex-col px-0 md:px-2"
         }
       >
