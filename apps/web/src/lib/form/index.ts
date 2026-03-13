@@ -19,6 +19,7 @@ type FormData<
 > = Array<{
   name: keyof T;
   type?: React.HTMLInputTypeAttribute;
+  autoComplete?: React.HTMLInputAutoCompleteAttribute;
   labelKey?: MessageKeysIn<Path>;
   placeholderKey?: MessageKeysIn<Path>;
   descriptionKey?: MessageKeysIn<Path>;

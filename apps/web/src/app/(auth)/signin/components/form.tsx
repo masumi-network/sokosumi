@@ -22,6 +22,7 @@ import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
+  createAuthSessionGetter,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
@@ -105,7 +106,7 @@ export default function SignInForm({
 
     await waitForAuthSession({
       context: "login",
-      getSession: () => authClient.getSession(),
+      getSession: createAuthSessionGetter(() => authClient.getSession()),
       logWarning: (message) => {
         Sentry.captureMessage(message, { level: "warning" });
       },

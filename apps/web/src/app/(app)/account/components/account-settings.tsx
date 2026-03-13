@@ -6,6 +6,7 @@ import { EmailForm } from "./email-form";
 import { EmailPreferences } from "./email-preferences";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
+import { PasskeySettings } from "./passkey-settings";
 import { PasswordForm } from "./password-form";
 import { PreferencesSection } from "./preferences-section";
 
@@ -31,6 +32,9 @@ export function AccountSettings({
         <EmailForm />
         <div className="md:col-span-2">
           {hasCredentialAccount ? <PasswordForm /> : <NewPasswordForm />}
+        </div>
+        <div className="md:col-span-2">
+          <PasskeySettings />
         </div>
       </div>
 

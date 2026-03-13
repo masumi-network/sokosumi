@@ -45,6 +45,12 @@ jest.mock("@better-auth/oauth-provider", () => ({
   oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
 }));
 
+const passkeyPluginMock = jest.fn();
+
+jest.mock("@better-auth/passkey", () => ({
+  passkey: (...args: unknown[]) => passkeyPluginMock(...args),
+}));
+
 jest.mock("@better-auth/prisma-adapter", () => ({
   prismaAdapter: (...args: unknown[]) => prismaAdapterMock(...args),
 }));
@@ -58,8 +64,7 @@ jest.mock("better-auth/api", () => {
 
   return {
     APIError: MockApiError,
-    createAuthMiddleware: (...args: unknown[]) =>
-      createAuthMiddlewareMock(...args),
+    createAuthMiddleware: createAuthMiddlewareMock,
   };
 });
 
@@ -149,23 +154,20 @@ jest.mock("@/lib/db/prisma", () => ({
 
 jest.mock("@/lib/email/postmark", () => ({
   postmarkClient: {
-    sendEmail: (...args: unknown[]) => postmarkSendEmailMock(...args),
+    sendEmail: postmarkSendEmailMock,
   },
 }));
 
 jest.mock("@/lib/schemas", () => ({
   marketingOptInUserSchema: {
-    safeParse: (...args: unknown[]) =>
-      marketingOptInUserSchemaSafeParseMock(...args),
+    safeParse: marketingOptInUserSchemaSafeParseMock,
   },
 }));
 
 jest.mock("@/lib/services", () => ({
   callAccountCreatedWebHook: jest.fn(),
-  callUserCreatedWebHook: (...args: unknown[]) =>
-    callUserCreatedWebHookMock(...args),
-  callUserUpdatedWebHook: (...args: unknown[]) =>
-    callUserUpdatedWebHookMock(...args),
+  callUserCreatedWebHook: callUserCreatedWebHookMock,
+  callUserUpdatedWebHook: callUserUpdatedWebHookMock,
   organizationSubscriptionService: {
     ensureCanAcceptInvitation: jest.fn(),
     ensureCanCreateInvitation: jest.fn(),
@@ -226,6 +228,7 @@ describe("web auth config", () => {
     nextCookiesPluginMock.mockReturnValue("next-cookies-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
+    passkeyPluginMock.mockReturnValue("passkey-plugin");
     marketingOptInUserSchemaSafeParseMock.mockImplementation((input) => ({
       success: true,
       data: input,
@@ -310,6 +313,14 @@ describe("web auth config", () => {
       Subject: "Sokosumi - Sign in to your account",
       HtmlBody: "<html>magic link</html>",
       MessageStream: "authentications",
+    });
+  });
+
+  it("registers the passkey plugin with the Sokosumi relying party name", async () => {
+    await import("../auth");
+
+    expect(passkeyPluginMock).toHaveBeenCalledWith({
+      rpName: "Sokosumi",
     });
   });
 
@@ -571,6 +582,9 @@ describe("web auth config", () => {
 
     const normalizedCreate =
       await config.databaseHooks.user.create.before(user);
+    const normalizedUser = normalizedCreate.data as typeof user & {
+      id: string;
+    };
 
     expect(normalizedCreate).toEqual({
       data: {
@@ -579,8 +593,8 @@ describe("web auth config", () => {
       },
     });
 
-    await config.databaseHooks.user.create.after(normalizedCreate.data);
-    await config.databaseHooks.user.update.after(normalizedCreate.data);
+    await config.databaseHooks.user.create.after(normalizedUser);
+    await config.databaseHooks.user.update.after(normalizedUser);
 
     expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(1, {
       ...user,

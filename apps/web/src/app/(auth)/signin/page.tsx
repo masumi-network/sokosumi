@@ -43,6 +43,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
           lastUsedMethod={lastUsedMethod}
           prefilledEmail={email}
           showMagicLink
+          showPasskey
         />
         <Divider labelKey="passwordDivider" />
         <SignInForm

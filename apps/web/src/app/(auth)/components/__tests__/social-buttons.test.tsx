@@ -2,17 +2,37 @@ import "@testing-library/jest-dom";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
-
 import SocialButtons from "../social-buttons";
 
+const {
+  buildOAuthConsentReturnUrlFromSearchParams:
+    actualBuildOAuthConsentReturnUrlFromSearchParams,
+} = jest.requireActual(
+  "@/lib/utils/auth-redirect",
+) as typeof import("@/lib/utils/auth-redirect");
+
 const mockSocialSignIn = jest.fn();
+const mockPasskeySignIn = jest.fn();
 const mockRequestMagicLinkSignIn = jest.fn();
 const mockToastError = jest.fn();
+const mockRouterReplace = jest.fn();
+const mockGetSession = jest.fn();
+const mockIsConditionalMediationAvailable = jest.fn();
+
+interface MockWaitForAuthSessionOptions {
+  getSession: () => Promise<null | { id: string }>;
+}
+
+const mockWaitForAuthSession = jest.fn(
+  async (_options: MockWaitForAuthSessionOptions) => undefined,
+);
 
 let mockSearchParams = new URLSearchParams();
 
 jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: mockRouterReplace,
+  }),
   useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
@@ -29,6 +49,9 @@ jest.mock("next-intl", () => ({
       }
       if (key === "magicLinkProvider") {
         return "Magic Link";
+      }
+      if (key === "passkeyProvider") {
+        return "Passkey";
       }
       if (key === "lastUsed") {
         return "last-used";
@@ -57,7 +80,9 @@ jest.mock("sonner", () => ({
 
 jest.mock("@/lib/auth/auth.client", () => ({
   authClient: {
+    getSession: (...args: unknown[]) => mockGetSession(...args),
     signIn: {
+      passkey: (...args: unknown[]) => mockPasskeySignIn(...args),
       social: (...args: unknown[]) => mockSocialSignIn(...args),
     },
   },
@@ -67,6 +92,19 @@ jest.mock("@/lib/actions/auth", () => ({
   requestMagicLinkSignIn: (...args: unknown[]) =>
     mockRequestMagicLinkSignIn(...args),
 }));
+
+jest.mock("@/lib/utils/auth-redirect", () => {
+  const actual = jest.requireActual(
+    "@/lib/utils/auth-redirect",
+  ) as typeof import("@/lib/utils/auth-redirect");
+
+  return {
+    ...actual,
+    normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
+    waitForAuthSession: (options: MockWaitForAuthSessionOptions) =>
+      mockWaitForAuthSession(options),
+  };
+});
 
 interface MockSocialButtonProps {
   onClick?: () => void;
@@ -81,6 +119,21 @@ function MockSocialButton({ onClick, text }: MockSocialButtonProps) {
   );
 }
 
+function createDeferred<T>() {
+  let resolve: ((value: T) => void) | undefined;
+  let reject: ((error?: unknown) => void) | undefined;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return {
+    promise,
+    resolve: (value: T) => resolve?.(value),
+    reject: (error?: unknown) => reject?.(error),
+  };
+}
+
 jest.mock("react-social-login-buttons", () => ({
   GoogleLoginButton: MockSocialButton,
   MicrosoftLoginButton: MockSocialButton,
@@ -90,10 +143,39 @@ describe("SocialButtons", () => {
   beforeEach(() => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
+    mockPasskeySignIn.mockReset();
+    mockPasskeySignIn.mockResolvedValue({
+      data: {
+        session: {
+          id: "session-id",
+        },
+      },
+      error: null,
+    });
     mockRequestMagicLinkSignIn.mockReset();
     mockRequestMagicLinkSignIn.mockResolvedValue({ ok: true });
     mockToastError.mockReset();
+    mockRouterReplace.mockReset();
+    mockGetSession.mockReset();
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          id: "session-id",
+        },
+      },
+      error: null,
+    });
+    mockWaitForAuthSession.mockReset();
+    mockWaitForAuthSession.mockResolvedValue(undefined);
+    mockIsConditionalMediationAvailable.mockReset();
+    mockIsConditionalMediationAvailable.mockResolvedValue(false);
     mockSearchParams = new URLSearchParams();
+    Object.defineProperty(window, "PublicKeyCredential", {
+      configurable: true,
+      value: {
+        isConditionalMediationAvailable: mockIsConditionalMediationAvailable,
+      },
+    });
   });
 
   async function clickGoogleButton() {
@@ -151,6 +233,12 @@ describe("SocialButtons", () => {
     expect(screen.getByText("last-used")).toBeInTheDocument();
   });
 
+  it("shows last used badge for passkey button", () => {
+    render(<SocialButtons showPasskey lastUsedMethod="passkey" />);
+
+    expect(screen.getByText("last-used")).toBeInTheDocument();
+  });
+
   it("builds oauth consent returnUrl from signed query when prop is missing", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
@@ -164,7 +252,7 @@ describe("SocialButtons", () => {
       sig: "signed-value",
     });
 
-    const expectedReturnUrl = buildOAuthConsentReturnUrlFromSearchParams(
+    const expectedReturnUrl = actualBuildOAuthConsentReturnUrlFromSearchParams(
       new URLSearchParams(mockSearchParams.toString()),
     );
 
@@ -179,6 +267,161 @@ describe("SocialButtons", () => {
     expect(getSubmittedReturnUrls()).toEqual({
       callbackReturnUrl: expectedReturnUrl,
       newUserCallbackReturnUrl: expectedReturnUrl,
+    });
+  });
+
+  it("renders the passkey button between Microsoft and Magic Link", () => {
+    render(<SocialButtons showMagicLink showPasskey />);
+
+    const buttons = screen.getAllByRole("button");
+
+    expect(buttons[0]).toHaveTextContent("continue-with-Google");
+    expect(buttons[1]).toHaveTextContent("continue-with-Microsoft");
+    expect(buttons[2]).toHaveTextContent("continue-with-Passkey");
+    expect(buttons[3]).toHaveTextContent("continue-with-Magic Link");
+  });
+
+  it("signs in with a passkey and redirects to the return url", async () => {
+    const user = userEvent.setup();
+
+    render(<SocialButtons returnUrl="/jobs" showMagicLink showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledWith({
+        autoFill: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
+    });
+  });
+
+  it("passes unwrapped session data to waitForAuthSession", async () => {
+    const user = userEvent.setup();
+
+    mockGetSession.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
+    });
+
+    const firstWaitForAuthSessionCall = mockWaitForAuthSession.mock.calls[0];
+
+    expect(firstWaitForAuthSessionCall).toBeDefined();
+
+    if (!firstWaitForAuthSessionCall) {
+      throw new Error("waitForAuthSession was not called");
+    }
+
+    const [waitForAuthSessionOptions] = firstWaitForAuthSessionCall;
+
+    await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
+  });
+
+  it("starts conditional passkey UI only when supported", async () => {
+    mockIsConditionalMediationAvailable.mockResolvedValueOnce(true);
+
+    render(<SocialButtons showPasskey />);
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledWith({
+        autoFill: true,
+      });
+    });
+  });
+
+  it("ignores stale conditional passkey results after return url changes", async () => {
+    const firstPasskeyRequest = createDeferred<{
+      data: {
+        session: {
+          id: string;
+        };
+      };
+      error: null;
+    }>();
+    const secondPasskeyRequest = createDeferred<{
+      data: {
+        session: {
+          id: string;
+        };
+      };
+      error: null;
+    }>();
+
+    mockIsConditionalMediationAvailable.mockResolvedValue(true);
+    mockPasskeySignIn
+      .mockReturnValueOnce(firstPasskeyRequest.promise)
+      .mockReturnValueOnce(secondPasskeyRequest.promise);
+
+    const { rerender } = render(
+      <SocialButtons returnUrl="/jobs" showPasskey />,
+    );
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(<SocialButtons returnUrl="/profile" showPasskey />);
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      firstPasskeyRequest.resolve({
+        data: {
+          session: {
+            id: "session-old",
+          },
+        },
+        error: null,
+      });
+      await Promise.resolve();
+    });
+
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+
+    await act(async () => {
+      secondPasskeyRequest.resolve({
+        data: {
+          session: {
+            id: "session-new",
+          },
+        },
+        error: null,
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith("/profile");
+    });
+  });
+
+  it("fails softly when conditional passkey UI is unavailable", async () => {
+    Object.defineProperty(window, "PublicKeyCredential", {
+      configurable: true,
+      value: undefined,
+    });
+
+    render(<SocialButtons showPasskey />);
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).not.toHaveBeenCalled();
     });
   });
 
