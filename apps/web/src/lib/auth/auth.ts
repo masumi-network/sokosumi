@@ -441,6 +441,7 @@ export const auth = betterAuth({
       },
     }),
     passkey({
+      rpID: getEnvSecrets().BETTER_AUTH_RP_ID,
       rpName: "Sokosumi",
     }),
     lastLoginMethod(),

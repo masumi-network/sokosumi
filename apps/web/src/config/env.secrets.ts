@@ -106,6 +106,7 @@ const envSecretsSchema = z.object({
 
   // Better Auth Settings
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
+  BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_API_KEY: z
     .string()

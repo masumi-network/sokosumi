@@ -206,6 +206,7 @@ describe("web auth config", () => {
       BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: 86_400,
       BETTER_AUTH_ORG_INVITATION_LIMIT: 10,
       BETTER_AUTH_ORG_LIMIT: 5,
+      BETTER_AUTH_RP_ID: "example.com",
       BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
       BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
       BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
@@ -316,10 +317,11 @@ describe("web auth config", () => {
     });
   });
 
-  it("registers the passkey plugin with the Sokosumi relying party name", async () => {
+  it("registers the passkey plugin with the Sokosumi relying party configuration", async () => {
     await import("../auth");
 
     expect(passkeyPluginMock).toHaveBeenCalledWith({
+      rpID: "example.com",
       rpName: "Sokosumi",
     });
   });
