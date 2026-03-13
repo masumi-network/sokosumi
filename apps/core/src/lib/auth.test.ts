@@ -207,6 +207,103 @@ describe("core auth config", () => {
     });
   });
 
+  it("stores the email prefix when a new user is created without a name", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                before: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<{
+                  data: {
+                    email: string;
+                    id: string;
+                    name: string;
+                  };
+                }>;
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const normalizedCreate = await config.databaseHooks.user.create.before({
+      email: " magic@example.com ",
+      id: "user_123",
+      name: "   ",
+    });
+
+    expect(normalizedCreate).toEqual({
+      data: {
+        email: " magic@example.com ",
+        id: "user_123",
+        name: "magic",
+      },
+    });
+
+    await config.databaseHooks.user.create.after(normalizedCreate.data);
+
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
+      email: " magic@example.com ",
+      name: "magic",
+      userId: "user_123",
+    });
+  });
+
+  it("falls back to the full email when the local part is empty", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                before: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<{
+                  data: {
+                    email: string;
+                    id: string;
+                    name: string;
+                  };
+                }>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const normalizedCreate = await config.databaseHooks.user.create.before({
+      email: "@example.com",
+      id: "user_123",
+      name: "",
+    });
+
+    expect(normalizedCreate).toEqual({
+      data: {
+        email: "@example.com",
+        id: "user_123",
+        name: "@example.com",
+      },
+    });
+  });
+
   it("creates a Stripe customer when a new user is created", async () => {
     await import("./auth");
 

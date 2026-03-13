@@ -5,6 +5,7 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import * as Sentry from "@sentry/node";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
+import { getStoredUserName } from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -21,23 +22,6 @@ import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const env = getEnv();
-
-function getFallbackUserName(email: string): string {
-  const normalizedEmail = email.trim();
-  const [prefix] = normalizedEmail.split("@");
-  const normalizedPrefix = prefix?.trim();
-
-  return normalizedPrefix || normalizedEmail || "User";
-}
-
-function getStoredUserName(
-  name: null | string | undefined,
-  email: string,
-): string {
-  const normalizedName = name?.trim();
-
-  return normalizedName || getFallbackUserName(email);
-}
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application

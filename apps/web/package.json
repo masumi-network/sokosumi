@@ -55,6 +55,7 @@
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
+    "@sokosumi/utils": "workspace:*",
     "@sparticuz/chromium-min": "143.0.4",
     "@tanstack/react-query": "5.90.21",
     "@tanstack/react-table": "8.21.3",
