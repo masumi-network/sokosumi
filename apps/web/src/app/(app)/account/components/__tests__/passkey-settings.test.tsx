@@ -284,6 +284,33 @@ describe("PasskeySettings", () => {
     expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
   });
 
+  it("shows a refresh error instead of success when reloading after add fails", async () => {
+    const user = userEvent.setup();
+    mockListUserPasskeys.mockResolvedValueOnce({
+      data: currentPasskeys,
+      error: null,
+    });
+    mockListUserPasskeys.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "FAILED",
+        message: "list failed",
+      },
+    });
+
+    render(<PasskeySettings />);
+
+    await screen.findByText("MacBook Touch ID");
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("refreshError");
+    });
+
+    expect(mockToastSuccess).not.toHaveBeenCalledWith("addSuccess");
+    expect(screen.getByText("loadError")).toBeInTheDocument();
+  });
+
   it("shows an error when passkey deletion fails", async () => {
     const user = userEvent.setup();
     mockDeletePasskey.mockResolvedValueOnce({
@@ -441,15 +468,17 @@ describe("PasskeySettings", () => {
     });
   });
 
-  it("leaves the loading state when loading passkeys throws", async () => {
+  it("shows an inline retry state when loading passkeys throws", async () => {
     mockListUserPasskeys.mockRejectedValueOnce(new Error("network down"));
 
     render(<PasskeySettings />);
 
     await waitFor(() => {
-      expect(screen.getByText("empty")).toBeInTheDocument();
+      expect(screen.getByText("loadError")).toBeInTheDocument();
     });
 
+    expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();
+    expect(screen.queryByText("empty")).not.toBeInTheDocument();
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
@@ -471,7 +500,7 @@ describe("PasskeySettings", () => {
     });
   });
 
-  it("does not show a toast when loading passkeys fails", async () => {
+  it("retries loading passkeys after an inline load error", async () => {
     mockListUserPasskeys.mockResolvedValueOnce({
       data: null,
       error: {
@@ -485,7 +514,13 @@ describe("PasskeySettings", () => {
     render(<PasskeySettings />);
 
     await waitFor(() => {
-      expect(mockToastError).not.toHaveBeenCalled();
+      expect(screen.getByText("loadError")).toBeInTheDocument();
     });
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "retry" }));
+
+    expect(await screen.findByText("MacBook Touch ID")).toBeInTheDocument();
+    expect(screen.queryByText("loadError")).not.toBeInTheDocument();
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 });

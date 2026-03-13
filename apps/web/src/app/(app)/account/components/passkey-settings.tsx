@@ -48,6 +48,7 @@ export function PasskeySettings() {
   const locale = useLocale();
   const router = useRouter();
   const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([]);
+  const [hasPasskeyLoadError, setHasPasskeyLoadError] = useState(false);
   const [isLoadingPasskeys, setIsLoadingPasskeys] = useState(true);
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
   const [editingPasskeyId, setEditingPasskeyId] = useState<string | null>(null);
@@ -73,21 +74,27 @@ export function PasskeySettings() {
     }
   }, []);
 
+  const applyPasskeysResult = useCallback((nextPasskeys: null | PasskeyRecord[]) => {
+    if (nextPasskeys === null) {
+      setHasPasskeyLoadError(true);
+      return false;
+    }
+
+    setPasskeys(nextPasskeys);
+    setHasPasskeyLoadError(false);
+    return true;
+  }, []);
+
   const reloadPasskeys = useCallback(async () => {
     setIsLoadingPasskeys(true);
 
     try {
       const nextPasskeys = await fetchPasskeys();
-
-      if (nextPasskeys !== null) {
-        setPasskeys(nextPasskeys);
-      }
-
-      return nextPasskeys !== null;
+      return applyPasskeysResult(nextPasskeys);
     } finally {
       setIsLoadingPasskeys(false);
     }
-  }, [fetchPasskeys]);
+  }, [applyPasskeysResult, fetchPasskeys]);
 
   useEffect(() => {
     let isActive = true;
@@ -98,7 +105,7 @@ export function PasskeySettings() {
           return;
         }
 
-        setPasskeys(nextPasskeys ?? []);
+        applyPasskeysResult(nextPasskeys);
       })
       .finally(() => {
         if (!isActive) {
@@ -111,7 +118,7 @@ export function PasskeySettings() {
     return () => {
       isActive = false;
     };
-  }, [fetchPasskeys]);
+  }, [applyPasskeysResult, fetchPasskeys]);
 
   const sortedPasskeys = useMemo(() => {
     return [...passkeys].sort(
@@ -132,7 +139,11 @@ export function PasskeySettings() {
         return;
       }
 
-      await reloadPasskeys();
+      if (!(await reloadPasskeys())) {
+        toast.error(t("refreshError"));
+        return;
+      }
+
       router.refresh();
       toast.success(t("addSuccess"));
     } catch {
@@ -155,7 +166,11 @@ export function PasskeySettings() {
         return;
       }
 
-      await reloadPasskeys();
+      if (!(await reloadPasskeys())) {
+        toast.error(t("refreshError"));
+        return;
+      }
+
       router.refresh();
       toast.success(t("deleteSuccess"));
     } catch {
@@ -190,7 +205,11 @@ export function PasskeySettings() {
       }
 
       handleCancelEditPasskey();
-      await reloadPasskeys();
+      if (!(await reloadPasskeys())) {
+        toast.error(t("refreshError"));
+        return;
+      }
+
       router.refresh();
       toast.success(t("renameSuccess"));
     } catch {
@@ -199,6 +218,23 @@ export function PasskeySettings() {
       setSavingPasskeyId(null);
     }
   };
+
+  const loadErrorNotice = (
+    <div className="rounded-lg border border-dashed px-4 py-3">
+      <p className="text-sm">{t("loadError")}</p>
+      <Button
+        type="button"
+        variant="outline"
+        className="mt-3"
+        disabled={isLoadingPasskeys || isMutatingPasskeys}
+        onClick={() => {
+          void reloadPasskeys();
+        }}
+      >
+        {t("retry")}
+      </Button>
+    </div>
+  );
 
   return (
     <Card className="flex h-full flex-col">
@@ -212,103 +248,108 @@ export function PasskeySettings() {
             <Loader2 className="size-4 animate-spin" />
             {t("loading")}
           </div>
+        ) : hasPasskeyLoadError && sortedPasskeys.length === 0 ? (
+          loadErrorNotice
         ) : sortedPasskeys.length > 0 ? (
-          <div className="flex flex-col divide-y rounded-lg border">
-            {sortedPasskeys.map((passkey) => (
-              <div key={passkey.id} className="px-4 py-3">
-                {editingPasskeyId === passkey.id ? (
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <Input
-                        value={passkeyNameDraft}
-                        aria-label={t("editInputLabel")}
-                        disabled={isMutatingPasskeys}
-                        className="h-9"
-                        onChange={(event) => {
-                          setPasskeyNameDraft(event.target.value);
-                        }}
-                      />
+          <>
+            {hasPasskeyLoadError && loadErrorNotice}
+            <div className="flex flex-col divide-y rounded-lg border">
+              {sortedPasskeys.map((passkey) => (
+                <div key={passkey.id} className="px-4 py-3">
+                  {editingPasskeyId === passkey.id ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <Input
+                          value={passkeyNameDraft}
+                          aria-label={t("editInputLabel")}
+                          disabled={isMutatingPasskeys}
+                          className="h-9"
+                          onChange={(event) => {
+                            setPasskeyNameDraft(event.target.value);
+                          }}
+                        />
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isMutatingPasskeys}
+                          aria-label={t("cancel")}
+                          onClick={handleCancelEditPasskey}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          disabled={isMutatingPasskeys}
+                          aria-label={t("save")}
+                          onClick={() => {
+                            void handleSavePasskey(passkey.id);
+                          }}
+                        >
+                          {savingPasskeyId === passkey.id && (
+                            <Loader2 className="size-4 animate-spin" />
+                          )}
+                          {savingPasskeyId !== passkey.id && (
+                            <Check className="size-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={isMutatingPasskeys}
-                        aria-label={t("cancel")}
-                        onClick={handleCancelEditPasskey}
-                      >
-                        <X className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        disabled={isMutatingPasskeys}
-                        aria-label={t("save")}
-                        onClick={() => {
-                          void handleSavePasskey(passkey.id);
-                        }}
-                      >
-                        {savingPasskeyId === passkey.id && (
-                          <Loader2 className="size-4 animate-spin" />
-                        )}
-                        {savingPasskeyId !== passkey.id && (
-                          <Check className="size-4" />
-                        )}
-                      </Button>
+                  ) : (
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {passkey.name || t("defaultName")}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {t("createdAt", {
+                            date: formatPasskeyDate(passkey.createdAt, locale),
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isMutatingPasskeys}
+                          aria-label={t("editAriaLabel", {
+                            name: passkey.name || t("defaultName"),
+                          })}
+                          onClick={() => {
+                            handleEditPasskey(passkey.id, passkey.name);
+                          }}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isMutatingPasskeys}
+                          aria-label={t("deleteAriaLabel", {
+                            name: passkey.name || t("defaultName"),
+                          })}
+                          onClick={() => {
+                            void handleDeletePasskey(passkey.id);
+                          }}
+                        >
+                          {removingPasskeyId === passkey.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {passkey.name || t("defaultName")}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        {t("createdAt", {
-                          date: formatPasskeyDate(passkey.createdAt, locale),
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={isMutatingPasskeys}
-                        aria-label={t("editAriaLabel", {
-                          name: passkey.name || t("defaultName"),
-                        })}
-                        onClick={() => {
-                          handleEditPasskey(passkey.id, passkey.name);
-                        }}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={isMutatingPasskeys}
-                        aria-label={t("deleteAriaLabel", {
-                          name: passkey.name || t("defaultName"),
-                        })}
-                        onClick={() => {
-                          void handleDeletePasskey(passkey.id);
-                        }}
-                      >
-                        {removingPasskeyId === passkey.id ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="size-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         )}
