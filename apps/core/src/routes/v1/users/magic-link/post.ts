@@ -9,16 +9,6 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
 
-const OAUTH_AUTHORIZE_PROMPTS = [
-  "none",
-  "consent",
-  "login",
-  "create",
-  "select_account",
-  "login consent",
-  "select_account consent",
-] as const;
-
 const BETTER_AUTH_BASE_PATH = "/auth";
 
 const oauthAuthorizeSchema = z
@@ -55,9 +45,9 @@ const oauthAuthorizeSchema = z
       description: "OpenID Connect nonce",
       example: "nonce_123",
     }),
-    prompt: z.enum(OAUTH_AUTHORIZE_PROMPTS).optional().openapi({
+    prompt: z.string().trim().min(1).optional().openapi({
       description: "OAuth2 prompt parameter",
-      example: "consent",
+      example: "consent login",
     }),
   })
   .openapi({

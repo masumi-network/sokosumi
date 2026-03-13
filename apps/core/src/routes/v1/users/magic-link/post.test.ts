@@ -252,7 +252,7 @@ describe("POST /users/magic-link", () => {
     expect(signInMagicLinkMock).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid oauth prompts", async () => {
+  it("passes oauth prompts through without local semantic validation", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/", {
@@ -270,8 +270,17 @@ describe("POST /users/magic-link", () => {
       }),
     });
 
-    expect(response.status).toBe(400);
-    expect(signInMagicLinkMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(signInMagicLinkMock).toHaveBeenCalledWith({
+      body: {
+        email: "new.user@example.com",
+        callbackURL:
+          "https://auth.example.com/auth/oauth2/authorize?response_type=code&client_id=client_123&prompt=approve-now",
+        newUserCallbackURL:
+          "https://auth.example.com/auth/oauth2/authorize?response_type=code&client_id=client_123&prompt=approve-now",
+      },
+      headers: expect.any(Headers),
+    });
   });
 
   it("rejects malformed oauth redirect URIs", async () => {
