@@ -875,6 +875,7 @@
         },
         "Form": {
           "submit": "Anmelden",
+          "lastUsed": "Zuletzt verwendet",
           "success": "Anmeldung erfolgreich",
           "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
           "Fields": {

@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import SocialButtons from "../social-buttons";
@@ -221,22 +221,49 @@ describe("SocialButtons", () => {
     });
   });
 
-  it("shows last used badge for matching provider", () => {
+  it("shows an inline marker on the matching provider button", () => {
     render(<SocialButtons lastUsedMethod="google" />);
 
-    expect(screen.getByText("last-used")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "continue-with-Google" });
+    const lastUsedLabel = screen.getByText("last-used");
+    const badgeContainer = button.parentElement;
+
+    expect(lastUsedLabel).toBeInTheDocument();
+    expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
+    expect(badgeContainer).toHaveClass("relative");
+    expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
-  it("shows last used badge for magic-link button", () => {
+  it("shows an inline marker on the magic-link button", () => {
     render(<SocialButtons showMagicLink lastUsedMethod="magic-link" />);
 
-    expect(screen.getByText("last-used")).toBeInTheDocument();
+    const button = screen.getByRole("button", {
+      name: "continue-with-Magic Link",
+    });
+    const lastUsedLabel = screen.getByText("last-used");
+    const badgeContainer = button.parentElement;
+
+    expect(lastUsedLabel).toBeInTheDocument();
+    expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
+    expect(button).toHaveClass("border-primary/60", "bg-primary/10");
+    expect(badgeContainer).toHaveClass("relative");
+    expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
-  it("shows last used badge for passkey button", () => {
+  it("shows an inline marker on the passkey button", () => {
     render(<SocialButtons showPasskey lastUsedMethod="passkey" />);
 
-    expect(screen.getByText("last-used")).toBeInTheDocument();
+    const button = screen.getByRole("button", {
+      name: "continue-with-Passkey",
+    });
+    const lastUsedLabel = screen.getByText("last-used");
+    const badgeContainer = button.parentElement;
+
+    expect(lastUsedLabel).toBeInTheDocument();
+    expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
+    expect(button).toHaveClass("border-primary/60", "bg-primary/10");
+    expect(badgeContainer).toHaveClass("relative");
+    expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
   it("builds oauth consent returnUrl from signed query when prop is missing", async () => {
@@ -489,10 +516,9 @@ describe("SocialButtons", () => {
     await user.click(
       screen.getByRole("button", { name: "continue-with-Magic Link" }),
     );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "oauth-login-user@example.com",
-    );
+    fireEvent.change(screen.getByRole("textbox", { name: "magic-link-email" }), {
+      target: { value: "oauth-login-user@example.com" },
+    });
     await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
 
     await waitFor(() => {
@@ -529,10 +555,9 @@ describe("SocialButtons", () => {
     await user.click(
       screen.getByRole("button", { name: "continue-with-Magic Link" }),
     );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "login-user@example.com",
-    );
+    fireEvent.change(screen.getByRole("textbox", { name: "magic-link-email" }), {
+      target: { value: "login-user@example.com" },
+    });
     await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
 
     await waitFor(() => {

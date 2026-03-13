@@ -875,6 +875,7 @@
         },
         "Form": {
           "submit": "Se connecter",
+          "lastUsed": "Dernier utilisé",
           "success": "Connexion réussie",
           "error": "Adresse e-mail ou mot de passe invalide",
           "Fields": {

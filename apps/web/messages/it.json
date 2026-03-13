@@ -875,6 +875,7 @@
         },
         "Form": {
           "submit": "Accedi",
+          "lastUsed": "Ultimo usato",
           "success": "Accesso riuscito",
           "error": "Email o password non validi",
           "Fields": {

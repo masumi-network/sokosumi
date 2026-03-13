@@ -19,12 +19,12 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requestMagicLinkSignIn } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { emailSchema } from "@/lib/auth/data";
+import { cn } from "@/lib/utils";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
@@ -236,30 +236,52 @@ export default function SocialButtons({
 
   return (
     <div className="flex flex-col gap-3">
-      {socialButtons.map((socialButton) => (
-        <div className="relative" key={socialButton.key}>
-          <socialButton.Button
-            onClick={() => handleClick(socialButton.key)}
-            className="bg-senary! hover:bg-quinary! text-foreground! m-0! flex w-full! rounded-md! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!"
-            align="center"
-            text={t("continueWith", { provider: socialButton.name })}
-          />
-          {lastUsedMethod === socialButton.key && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-            >
-              {t("lastUsed")}
-            </Badge>
-          )}
-        </div>
-      ))}
+      {socialButtons.map((socialButton) => {
+        const isLastUsed = lastUsedMethod === socialButton.key;
+
+        return (
+          <div className="relative" key={socialButton.key}>
+            {isLastUsed && (
+              <span
+                aria-hidden="true"
+                className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[10px] font-medium"
+              >
+                {t("lastUsed")}
+              </span>
+            )}
+            <socialButton.Button
+              onClick={() => handleClick(socialButton.key)}
+              className={cn(
+                "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                isLastUsed
+                  ? "border-primary/60! bg-primary/10! hover:bg-primary/15! dark:bg-primary/15! dark:hover:bg-primary/20!"
+                  : "bg-senary! hover:bg-quinary! border-transparent!",
+              )}
+              align="center"
+              text={t("continueWith", { provider: socialButton.name })}
+            />
+          </div>
+        );
+      })}
       {showPasskey && (
         <div className="relative">
+          {lastUsedMethod === "passkey" && (
+            <span
+              aria-hidden="true"
+              className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[10px] font-medium"
+            >
+              {t("lastUsed")}
+            </span>
+          )}
           <Button
             type="button"
             variant="secondary"
-            className="bg-senary hover:bg-quinary text-foreground h-[50px] w-full justify-center gap-2 rounded-md border-0 px-4 py-2 text-sm font-normal shadow-none"
+            className={cn(
+              "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
+              lastUsedMethod === "passkey"
+                ? "border-primary/60 bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                : "bg-senary hover:bg-quinary border-transparent",
+            )}
             disabled={isSigningInWithPasskey}
             onClick={() => {
               void handlePasskeySignIn();
@@ -272,35 +294,32 @@ export default function SocialButtons({
             )}
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
-          {lastUsedMethod === "passkey" && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-            >
-              {t("lastUsed")}
-            </Badge>
-          )}
         </div>
       )}
       {showMagicLink && (
         <div className="relative">
+          {lastUsedMethod === "magic-link" && (
+            <span
+              aria-hidden="true"
+              className="text-primary/70 pointer-events-none absolute top-1.5 right-2 z-10 text-[10px] font-medium"
+            >
+              {t("lastUsed")}
+            </span>
+          )}
           <Button
             type="button"
             variant="secondary"
-            className="bg-senary hover:bg-quinary text-foreground h-[50px] w-full justify-center gap-2 rounded-md border-0 px-4 py-2 text-sm font-normal shadow-none"
+            className={cn(
+              "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
+              lastUsedMethod === "magic-link"
+                ? "border-primary/60 bg-primary/10 hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                : "bg-senary hover:bg-quinary border-transparent",
+            )}
             onClick={handleMagicLinkClick}
           >
             <Mail className="size-4" />
             {t("continueWith", { provider: t("magicLinkProvider") })}
           </Button>
-          {lastUsedMethod === "magic-link" && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-            >
-              {t("lastUsed")}
-            </Badge>
-          )}
         </div>
       )}
       {showMagicLink && isMagicLinkVisible && (
