@@ -379,6 +379,31 @@ describe("PasskeySettings", () => {
     expect(mockToastSuccess).toHaveBeenCalledWith("renameSuccess");
   });
 
+  it("saves a renamed passkey when the user presses Enter", async () => {
+    const user = userEvent.setup();
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    );
+
+    const input = screen.getByRole("textbox", { name: "editInputLabel" });
+
+    await user.clear(input);
+    await user.type(input, "Laptop passkey{enter}");
+
+    await waitFor(() => {
+      expect(mockUpdatePasskey).toHaveBeenCalledWith({
+        id: "passkey-1",
+        name: "Laptop passkey",
+      });
+    });
+
+    expect(mockToastSuccess).toHaveBeenCalledWith("renameSuccess");
+  });
+
   it("saves an empty edited name and falls back to the default label", async () => {
     const user = userEvent.setup();
     mockUpdatePasskey.mockImplementationOnce(
@@ -438,6 +463,24 @@ describe("PasskeySettings", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "cancel" }));
+
+    expect(mockUpdatePasskey).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "editInputLabel" })).toBeNull();
+  });
+
+  it("cancels passkey rename when the user presses Escape", async () => {
+    const user = userEvent.setup();
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    );
+
+    const input = screen.getByRole("textbox", { name: "editInputLabel" });
+
+    await user.type(input, "{Escape}");
 
     expect(mockUpdatePasskey).not.toHaveBeenCalled();
     expect(screen.queryByRole("textbox", { name: "editInputLabel" })).toBeNull();

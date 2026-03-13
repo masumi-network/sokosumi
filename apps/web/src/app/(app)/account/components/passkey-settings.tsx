@@ -3,7 +3,7 @@
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -219,6 +219,16 @@ export function PasskeySettings() {
     }
   };
 
+  function handlePasskeyEditSubmit(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+
+    if (isMutatingPasskeys) {
+      return;
+    }
+
+    void handleSavePasskey(id);
+  }
+
   const loadErrorNotice = (
     <div className="rounded-lg border border-dashed px-4 py-3">
       <p className="text-sm">{t("loadError")}</p>
@@ -257,7 +267,12 @@ export function PasskeySettings() {
               {sortedPasskeys.map((passkey) => (
                 <div key={passkey.id} className="px-4 py-3">
                   {editingPasskeyId === passkey.id ? (
-                    <div className="flex items-center justify-between gap-4">
+                    <form
+                      className="flex items-center justify-between gap-4"
+                      onSubmit={(event) => {
+                        handlePasskeyEditSubmit(event, passkey.id);
+                      }}
+                    >
                       <div className="min-w-0 flex-1">
                         <Input
                           value={passkeyNameDraft}
@@ -266,6 +281,14 @@ export function PasskeySettings() {
                           className="h-9"
                           onChange={(event) => {
                             setPasskeyNameDraft(event.target.value);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Escape" || isMutatingPasskeys) {
+                              return;
+                            }
+
+                            event.preventDefault();
+                            handleCancelEditPasskey();
                           }}
                         />
                       </div>
@@ -281,13 +304,10 @@ export function PasskeySettings() {
                           <X className="size-4" />
                         </Button>
                         <Button
-                          type="button"
+                          type="submit"
                           size="icon"
                           disabled={isMutatingPasskeys}
                           aria-label={t("save")}
-                          onClick={() => {
-                            void handleSavePasskey(passkey.id);
-                          }}
                         >
                           {savingPasskeyId === passkey.id && (
                             <Loader2 className="size-4 animate-spin" />
@@ -297,7 +317,7 @@ export function PasskeySettings() {
                           )}
                         </Button>
                       </div>
-                    </div>
+                    </form>
                   ) : (
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
