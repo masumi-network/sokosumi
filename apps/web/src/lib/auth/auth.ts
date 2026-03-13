@@ -66,7 +66,6 @@ const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 const betterAuthApiKey = getEnvSecrets().BETTER_AUTH_API_KEY;
-const EMAIL_LOCALE_COOKIE_NAMES = new Set([LOCALE_COOKIE_NAME, "locale"]);
 
 function getEmailLocaleCookieValue(
   cookieHeader?: null | string,
@@ -74,6 +73,8 @@ function getEmailLocaleCookieValue(
   if (!cookieHeader) {
     return null;
   }
+
+  let legacyLocale: null | string = null;
 
   for (const rawCookie of cookieHeader.split(";")) {
     const separatorIndex = rawCookie.indexOf("=");
@@ -83,25 +84,30 @@ function getEmailLocaleCookieValue(
     }
 
     const cookieName = rawCookie.slice(0, separatorIndex).trim();
-
-    if (!EMAIL_LOCALE_COOKIE_NAMES.has(cookieName)) {
-      continue;
-    }
-
     const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
 
     if (!cookieValue) {
       continue;
     }
 
-    try {
-      return decodeURIComponent(cookieValue);
-    } catch {
-      return cookieValue;
+    const decoded = (() => {
+      try {
+        return decodeURIComponent(cookieValue);
+      } catch {
+        return cookieValue;
+      }
+    })();
+
+    if (cookieName === LOCALE_COOKIE_NAME) {
+      return decoded;
+    }
+
+    if (cookieName === "locale" && legacyLocale === null) {
+      legacyLocale = decoded;
     }
   }
 
-  return null;
+  return legacyLocale;
 }
 
 function getEmailLocale(
