@@ -589,8 +589,8 @@ export default function ProfileSwitchClient({
             {isCollapsedDesktop ? (
               <button
                 type="button"
-                aria-label={tUserAvatar("settings")}
-                title={tUserAvatar("settings")}
+                aria-label={tUserAvatar("expandSidebar")}
+                title={tUserAvatar("expandSidebar")}
                 onClick={handleExpandSidebar}
                 className="text-muted-foreground hover:text-sidebar-accent-foreground group-hover/menu-item:bg-sidebar-accent group-focus-within/menu-item:bg-sidebar-accent pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md bg-transparent opacity-0 transition-all duration-150 group-focus-within/menu-item:pointer-events-auto group-focus-within/menu-item:opacity-100 group-hover/menu-item:pointer-events-auto group-hover/menu-item:opacity-100"
               >

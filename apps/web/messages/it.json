@@ -133,6 +133,7 @@
       "imprint": "Note legali",
       "acceptableUse": "Uso accettabile",
       "settings": "Impostazioni",
+      "expandSidebar": "Espandi barra laterale",
       "logout": "Esci",
       "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
       "creditsSummary": "Riepilogo crediti:",

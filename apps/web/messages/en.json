@@ -133,6 +133,7 @@
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use",
       "settings": "Settings",
+      "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
       "creditsSummary": "Credits Summary:",

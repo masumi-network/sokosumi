@@ -133,6 +133,7 @@
       "imprint": "法律声明",
       "acceptableUse": "可接受使用政策",
       "settings": "设置",
+      "expandSidebar": "展开侧边栏",
       "logout": "退出登录",
       "creditsUsedOfTotal": "{used, number} / {total, number} 已使用积分",
       "creditsSummary": "积分摘要：",

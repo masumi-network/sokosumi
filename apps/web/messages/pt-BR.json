@@ -133,6 +133,7 @@
       "imprint": "Informações legais",
       "acceptableUse": "Uso aceitável",
       "settings": "Configurações",
+      "expandSidebar": "Expandir barra lateral",
       "logout": "Sair",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
       "creditsSummary": "Resumo de créditos:",

@@ -133,6 +133,7 @@
       "imprint": "会社情報",
       "acceptableUse": "利用規定",
       "settings": "設定",
+      "expandSidebar": "サイドバーを展開",
       "logout": "ログアウト",
       "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
       "creditsSummary": "クレジット概要:",
