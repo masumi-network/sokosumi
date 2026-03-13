@@ -27,6 +27,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import { emailSchema } from "@/lib/auth/data";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
+  createAuthSessionGetter,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
@@ -86,10 +87,7 @@ export default function SocialButtons({
   const finishPasskeySignIn = useCallback(async () => {
     await waitForAuthSession({
       context: "login",
-      getSession: async () => {
-        const sessionResponse = await authClient.getSession();
-        return sessionResponse.data?.session ?? null;
-      },
+      getSession: createAuthSessionGetter(() => authClient.getSession()),
       logWarning: (message) => {
         Sentry.captureMessage(message, { level: "warning" });
       },
