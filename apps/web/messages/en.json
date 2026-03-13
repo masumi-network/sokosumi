@@ -845,10 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "Continue with {provider}",
-      "divider": "or continue with",
+      "passwordDivider": "or sign in with password",
+      "emailDivider": "or register with email",
       "success": "Login successful",
       "error": "Login failed",
-      "lastUsed": "Last used"
+      "lastUsed": "Last used",
+      "magicLinkProvider": "Magic Link",
+      "magicLinkInputLabel": "Email for Magic Link",
+      "magicLinkPlaceholder": "Enter your email",
+      "magicLinkSubmit": "Send me a Magic Link",
+      "magicLinkSubmitting": "Sending Magic Link...",
+      "magicLinkResend": "Resend Magic Link",
+      "magicLinkSuccess": "Check your inbox for your Magic Link.",
+      "magicLinkError": "We could not send a Magic Link. Please try again.",
+      "magicLinkInvalidEmail": "Please enter a valid email address."
     },
     "Words": {
       "signIn": "Login",
@@ -2286,86 +2296,6 @@
           "match": "Password doesn't match",
           "required": "Confirm password is required"
         }
-      },
-      "Email": {
-        "ResetPassword": {
-          "subject": "Sokosumi - Reset your password",
-          "title": "Reset your password",
-          "greeting": "Hello {name}",
-          "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
-          "button": "Reset password",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
-        },
-        "Verification": {
-          "subject": "Sokosumi - Verify your email address",
-          "title": "Verify your email address",
-          "greeting": "Hello {name}",
-          "message": "Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
-          "button": "Verify email",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "If you didn't create an account, you can safely ignore this email."
-        },
-        "InviteUserEmail": {
-          "subject": "Sokosumi - Organization Invitation",
-          "title": "Join {invitorUsername} on {organizationName}",
-          "greeting": "Hello there",
-          "message": "You've been invited to join {organizationName} on Sokosumi. Click the button below to accept the invitation.",
-          "button": "Accept Invitation",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "If you didn't request this invitation, you can safely ignore this email."
-        }
-      }
-    },
-    "Email": {
-      "JobFinalStatus": {
-        "subject": "Sokosumi - {agentName} job {status}",
-        "preview": "Your job for {agentName} is now {status}.",
-        "title": "Job {status}",
-        "greeting": "Hi {name}",
-        "body": "{jobName} for {agentName} is now {status}.",
-        "button": "View job",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "You're receiving this email because job notifications are enabled for your account.",
-        "fallbackJobName": "Your job",
-        "status": {
-          "completed": "completed",
-          "failed": "failed",
-          "payment_failed": "payment failed",
-          "refund_resolved": "refunded",
-          "dispute_resolved": "dispute resolved"
-        }
-      },
-      "JobFailureNotification": {
-        "subject": "Job Failure Notification - {jobId}",
-        "preview": "Job {jobId} has failed",
-        "title": "Job Failure Notification",
-        "description": "A job has failed. Here are the technical details:",
-        "network": "Network:",
-        "agentName": "Agent Name:",
-        "agentId": "Agent ID:",
-        "agentBlockchainIdentifier": "Agent Blockchain Identifier:",
-        "jobId": "Job ID:",
-        "jobBlockchainIdentifier": "Job Blockchain Identifier:",
-        "onChainStatus": "On-Chain Status:",
-        "agentStatus": "Agent Status:",
-        "inputHash": "Input Hash:",
-        "resultHash": "Result Hash:",
-        "inputSchema": "Input Schema:",
-        "input": "Input:",
-        "output": "Output:",
-        "footer": "This is an automated notification from Sōkosumi."
-      },
-      "JobInputRequired": {
-        "subject": "Sokosumi - {agentName} needs your input",
-        "preview": "Your job for {agentName} requires input to continue.",
-        "title": "Action Required",
-        "greeting": "Hi {name}",
-        "body": "Your job {jobName} for {agentName} is waiting for your input to continue.",
-        "button": "Provide input",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "You're receiving this email because job notifications are enabled for your account.",
-        "fallbackJobName": "Your job"
       }
     },
     "JobInput": {

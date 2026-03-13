@@ -1,7 +1,6 @@
 import pLimit from "p-limit";
-import Stripe from "stripe";
 
-import { getEnv } from "@/config/env";
+import { stripeClient } from "@/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 
 const STRIPE_CUSTOMER_SYNC_CONCURRENCY = 5;
@@ -11,14 +10,6 @@ interface SyncExecutionOptions {
   deadlineMs: number;
   msRemaining: () => number;
   shouldContinue: () => boolean;
-}
-
-function createStripeClient(): Stripe {
-  const env = getEnv();
-
-  return new Stripe(env.STRIPE_SECRET_KEY, {
-    maxNetworkRetries: 0,
-  });
 }
 
 function hasTimeRemaining(deadlineMs: number): boolean {
@@ -52,7 +43,6 @@ function getStripeRequestTimeoutMs(options: SyncExecutionOptions): number {
 }
 
 async function createStripeCustomerForUser(
-  stripe: Stripe,
   userId: string,
   options: SyncExecutionOptions,
 ): Promise<void> {
@@ -70,18 +60,13 @@ async function createStripeCustomerForUser(
   }
 
   const requestTimeoutMs = getStripeRequestTimeoutMs(options);
-  await stripe.customers.create(
+  await stripeClient.createUserCustomer(
     {
       email: user.email,
-      metadata: {
-        customerType: "user",
-        userId: user.id,
-      },
       name: user.name,
+      userId: user.id,
     },
     {
-      idempotencyKey: `user-${user.id}`,
-      maxNetworkRetries: 0,
       timeout: requestTimeoutMs,
     },
   );
@@ -90,7 +75,6 @@ async function createStripeCustomerForUser(
 }
 
 async function createStripeCustomerForOrganization(
-  stripe: Stripe,
   organizationId: string,
   options: SyncExecutionOptions,
 ): Promise<void> {
@@ -109,21 +93,14 @@ async function createStripeCustomerForOrganization(
   }
 
   const requestTimeoutMs = getStripeRequestTimeoutMs(options);
-  await stripe.customers.create(
+  await stripeClient.createOrganizationCustomer(
     {
-      ...(organization.invoiceEmail
-        ? { email: organization.invoiceEmail }
-        : {}),
-      metadata: {
-        customerType: "organization",
-        organizationId: organization.id,
-        organizationSlug: organization.slug,
-      },
+      invoiceEmail: organization.invoiceEmail,
       name: organization.name,
+      organizationId: organization.id,
+      slug: organization.slug,
     },
     {
-      idempotencyKey: `organization-${organization.id}`,
-      maxNetworkRetries: 0,
       timeout: requestTimeoutMs,
     },
   );
@@ -133,8 +110,6 @@ async function createStripeCustomerForOrganization(
 
 export const stripeCustomerSyncService = {
   async syncAllStripeCustomers(options: SyncExecutionOptions): Promise<void> {
-    const stripe = createStripeClient();
-
     const [usersWithoutStripeCustomer, organizationsWithoutStripeCustomer] =
       await Promise.all([
         prisma.user.findMany({
@@ -187,7 +162,7 @@ export const stripeCustomerSyncService = {
           }
 
           try {
-            await createStripeCustomerForUser(stripe, user.id, options);
+            await createStripeCustomerForUser(user.id, options);
           } catch (error) {
             console.error(
               `Failed to create Stripe customer for user ${user.id}:`,
@@ -220,11 +195,7 @@ export const stripeCustomerSyncService = {
           }
 
           try {
-            await createStripeCustomerForOrganization(
-              stripe,
-              organization.id,
-              options,
-            );
+            await createStripeCustomerForOrganization(organization.id, options);
           } catch (error) {
             console.error(
               `Failed to create Stripe customer for organization ${organization.id}:`,

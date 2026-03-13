@@ -146,6 +146,10 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - All user-facing text must use `next-intl`
 - Translation keys in `messages/en.json`
 - Use `useTranslations` hook in components
+- `messages/en.json` is the source-of-truth catalog for the web app
+- Every supported locale file in `messages/*.json` must keep the exact same key paths as `messages/en.json`
+- When a key is added, removed, renamed, or moved in `messages/en.json`, apply the same path change to every supported locale file in the same change
+- If a translated value is not available yet, temporarily copy the English string so the key exists in every locale file
 
 ### Database Access
 

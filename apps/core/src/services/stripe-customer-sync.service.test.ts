@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  createOrganizationCustomerMock,
+  createUserCustomerMock,
   organizationFindManyMock,
   organizationFindUniqueMock,
   pLimitMock,
-  stripeConstructorMock,
-  stripeCustomersCreateMock,
   userFindManyMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
+  createOrganizationCustomerMock: vi.fn(),
+  createUserCustomerMock: vi.fn(),
   organizationFindManyMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   pLimitMock: vi.fn(),
-  stripeConstructorMock: vi.fn(),
-  stripeCustomersCreateMock: vi.fn(),
   userFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
 }));
@@ -22,22 +22,12 @@ vi.mock("p-limit", () => ({
   default: pLimitMock,
 }));
 
-vi.mock("stripe", () => ({
-  default: class StripeMock {
-    customers = {
-      create: stripeCustomersCreateMock,
-    };
-
-    constructor(secretKey: string, options?: unknown) {
-      stripeConstructorMock(secretKey, options);
-    }
+vi.mock("@/clients/stripe.client", () => ({
+  stripeClient: {
+    createOrganizationCustomer: (...args: unknown[]) =>
+      createOrganizationCustomerMock(...args),
+    createUserCustomer: (...args: unknown[]) => createUserCustomerMock(...args),
   },
-}));
-
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    STRIPE_SECRET_KEY: "sk_test_sync",
-  }),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -104,7 +94,9 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
           slug: `${where.id}-slug`,
         }),
     );
-    stripeCustomersCreateMock.mockResolvedValue({});
+
+    createUserCustomerMock.mockResolvedValue({ id: "cus_user" });
+    createOrganizationCustomerMock.mockResolvedValue({ id: "cus_org" });
   });
 
   it("uses p-limit with configured concurrency for users and organizations", async () => {
@@ -114,40 +106,31 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(stripeConstructorMock).toHaveBeenCalledTimes(1);
-    expect(stripeConstructorMock).toHaveBeenCalledWith("sk_test_sync", {
-      maxNetworkRetries: 0,
-    });
     expect(pLimitMock).toHaveBeenCalledTimes(1);
     expect(pLimitMock).toHaveBeenCalledWith(5);
 
-    expect(stripeCustomersCreateMock).toHaveBeenCalledTimes(3);
-    expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(createUserCustomerMock).toHaveBeenCalledTimes(2);
+    expect(createOrganizationCustomerMock).toHaveBeenCalledTimes(1);
+    expect(createUserCustomerMock).toHaveBeenCalledWith(
+      {
         email: "user-1@example.com",
-        metadata: expect.objectContaining({
-          customerType: "user",
-          userId: "user-1",
-        }),
-      }),
-      expect.objectContaining({
-        idempotencyKey: "user-user-1",
-        maxNetworkRetries: 0,
-      }),
+        name: "User user-1",
+        userId: "user-1",
+      },
+      {
+        timeout: expect.any(Number),
+      },
     );
-    expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          customerType: "organization",
-          organizationId: "organization-1",
-          organizationSlug: "organization-1-slug",
-        }),
+    expect(createOrganizationCustomerMock).toHaveBeenCalledWith(
+      {
+        invoiceEmail: "organization-1@billing.example.com",
         name: "Organization organization-1",
-      }),
-      expect.objectContaining({
-        idempotencyKey: "organization-organization-1",
-        maxNetworkRetries: 0,
-      }),
+        organizationId: "organization-1",
+        slug: "organization-1-slug",
+      },
+      {
+        timeout: expect.any(Number),
+      },
     );
   });
 
@@ -175,17 +158,17 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
       }),
     );
 
-    expect(stripeCustomersCreateMock).toHaveBeenCalledTimes(1);
-    expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          customerType: "user",
-          userId: "user-1",
-        }),
-      }),
-      expect.objectContaining({
-        idempotencyKey: "user-user-1",
-      }),
+    expect(createUserCustomerMock).toHaveBeenCalledTimes(1);
+    expect(createOrganizationCustomerMock).not.toHaveBeenCalled();
+    expect(createUserCustomerMock).toHaveBeenCalledWith(
+      {
+        email: "user-1@example.com",
+        name: "User user-1",
+        userId: "user-1",
+      },
+      {
+        timeout: expect.any(Number),
+      },
     );
   });
 
@@ -203,11 +186,10 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
 
       await syncPromise;
 
-      expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
+      expect(createUserCustomerMock).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({
           timeout: 2500,
-          maxNetworkRetries: 0,
         }),
       );
     } finally {
@@ -221,14 +203,14 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     organizationFindManyMock.mockResolvedValue([{ id: "organization-1" }]);
 
     let resolveFirstCreate: (() => void) | null = null;
-    stripeCustomersCreateMock
+    createUserCustomerMock
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
             resolveFirstCreate = resolve;
           }),
       )
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce({ id: "cus_user_2" });
 
     let settled = false;
     const runPromise = stripeCustomerSyncService
@@ -247,30 +229,30 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     await runPromise;
 
     expect(settled).toBe(true);
-    expect(stripeCustomersCreateMock).toHaveBeenCalledTimes(2);
-    expect(stripeCustomersCreateMock).toHaveBeenNthCalledWith(
+    expect(createUserCustomerMock).toHaveBeenCalledTimes(1);
+    expect(createOrganizationCustomerMock).toHaveBeenCalledTimes(1);
+    expect(createUserCustomerMock).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          customerType: "user",
-          userId: "user-1",
-        }),
-      }),
-      expect.objectContaining({
-        idempotencyKey: "user-user-1",
-      }),
+      {
+        email: "user-1@example.com",
+        name: "User user-1",
+        userId: "user-1",
+      },
+      {
+        timeout: expect.any(Number),
+      },
     );
-    expect(stripeCustomersCreateMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          customerType: "organization",
-          organizationId: "organization-1",
-        }),
-      }),
-      expect.objectContaining({
-        idempotencyKey: "organization-organization-1",
-      }),
+    expect(createOrganizationCustomerMock).toHaveBeenNthCalledWith(
+      1,
+      {
+        invoiceEmail: "organization-1@billing.example.com",
+        name: "Organization organization-1",
+        organizationId: "organization-1",
+        slug: "organization-1-slug",
+      },
+      {
+        timeout: expect.any(Number),
+      },
     );
   });
 });

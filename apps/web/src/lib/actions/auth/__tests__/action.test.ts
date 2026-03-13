@@ -4,6 +4,7 @@ jest.mock("server-only", () => ({}));
 
 const signUpEmailMock = jest.fn();
 const signInEmailMock = jest.fn();
+const signInMagicLinkMock = jest.fn();
 const setPasswordMock = jest.fn();
 const handleUTMConversionMock = jest.fn();
 const headersMock = jest.fn();
@@ -34,6 +35,7 @@ jest.mock("@/lib/auth/auth", () => ({
     api: {
       signUpEmail: signUpEmailMock,
       signInEmail: signInEmailMock,
+      signInMagicLink: signInMagicLinkMock,
       setPassword: setPasswordMock,
     },
   },
@@ -411,6 +413,86 @@ describe("auth actions", () => {
     expect(result.error).toEqual({
       code: "TERMS_NOT_ACCEPTED",
       message: "Terms must be accepted before signing in",
+    });
+  });
+
+  it("returns bad input when magic-link sign-in email is invalid", async () => {
+    const { requestMagicLinkSignIn } = await import("../action");
+
+    const result = await requestMagicLinkSignIn("not-an-email");
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+
+    expect(result.error).toEqual({
+      code: "BAD_INPUT",
+    });
+    expect(signInMagicLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("sends magic-link sign-in requests with a safe callback url", async () => {
+    signInMagicLinkMock.mockResolvedValue({
+      status: true,
+    });
+
+    const { requestMagicLinkSignIn } = await import("../action");
+
+    const result = await requestMagicLinkSignIn(
+      "login-user@example.com",
+      "/oauth/consent?client_id=test-client&state=test-state",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInMagicLinkMock).toHaveBeenCalledWith({
+      body: {
+        email: "login-user@example.com",
+        callbackURL: "/oauth/consent?client_id=test-client&state=test-state",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("falls back to root callback for unsafe magic-link callback urls", async () => {
+    signInMagicLinkMock.mockResolvedValue({
+      status: true,
+    });
+
+    const { requestMagicLinkSignIn } = await import("../action");
+
+    const result = await requestMagicLinkSignIn(
+      "login-user@example.com",
+      "https://evil.example.com/steal",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInMagicLinkMock).toHaveBeenCalledWith({
+      body: {
+        email: "login-user@example.com",
+        callbackURL: "/",
+      },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it("sends a magic-link email even when the email is not registered yet", async () => {
+    signInMagicLinkMock.mockResolvedValue({
+      status: true,
+    });
+
+    const { requestMagicLinkSignIn } = await import("../action");
+
+    const result = await requestMagicLinkSignIn(
+      "missing-user@example.com",
+      "/agents",
+    );
+
+    expect(result.ok).toBe(true);
+    expect(signInMagicLinkMock).toHaveBeenCalledWith({
+      body: {
+        email: "missing-user@example.com",
+        callbackURL: "/agents",
+      },
+      headers: expect.any(Headers),
     });
   });
 });

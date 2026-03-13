@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
@@ -7,6 +7,8 @@ import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-red
 import SocialButtons from "../social-buttons";
 
 const mockSocialSignIn = jest.fn();
+const mockRequestMagicLinkSignIn = jest.fn();
+const mockToastError = jest.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -25,8 +27,14 @@ jest.mock("next-intl", () => ({
       if (key === "continueWith") {
         return `continue-with-${values?.provider ?? "unknown"}`;
       }
+      if (key === "magicLinkProvider") {
+        return "Magic Link";
+      }
       if (key === "lastUsed") {
         return "last-used";
+      }
+      if (key === "magicLinkInputLabel") {
+        return "magic-link-email";
       }
       return key;
     };
@@ -43,7 +51,7 @@ jest.mock("@vercel/analytics", () => ({
 
 jest.mock("sonner", () => ({
   toast: {
-    error: jest.fn(),
+    error: (...args: unknown[]) => mockToastError(...args),
   },
 }));
 
@@ -53,6 +61,11 @@ jest.mock("@/lib/auth/auth.client", () => ({
       social: (...args: unknown[]) => mockSocialSignIn(...args),
     },
   },
+}));
+
+jest.mock("@/lib/actions/auth", () => ({
+  requestMagicLinkSignIn: (...args: unknown[]) =>
+    mockRequestMagicLinkSignIn(...args),
 }));
 
 interface MockSocialButtonProps {
@@ -77,6 +90,9 @@ describe("SocialButtons", () => {
   beforeEach(() => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
+    mockRequestMagicLinkSignIn.mockReset();
+    mockRequestMagicLinkSignIn.mockResolvedValue({ ok: true });
+    mockToastError.mockReset();
     mockSearchParams = new URLSearchParams();
   });
 
@@ -124,7 +140,13 @@ describe("SocialButtons", () => {
   });
 
   it("shows last used badge for matching provider", () => {
-    render(<SocialButtons lastUsedSocialProvider="google" />);
+    render(<SocialButtons lastUsedMethod="google" />);
+
+    expect(screen.getByText("last-used")).toBeInTheDocument();
+  });
+
+  it("shows last used badge for magic-link button", () => {
+    render(<SocialButtons showMagicLink lastUsedMethod="magic-link" />);
 
     expect(screen.getByText("last-used")).toBeInTheDocument();
   });
@@ -158,5 +180,134 @@ describe("SocialButtons", () => {
       callbackReturnUrl: expectedReturnUrl,
       newUserCallbackReturnUrl: expectedReturnUrl,
     });
+  });
+
+  it("reveals the magic-link panel and requests a Magic Link", async () => {
+    const user = userEvent.setup();
+
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      "login-user@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+
+    await waitFor(() => {
+      expect(mockRequestMagicLinkSignIn).toHaveBeenCalledWith(
+        "login-user@example.com",
+        undefined,
+      );
+    });
+
+    expect(screen.getByText("magicLinkSuccess")).toHaveClass("text-center");
+  });
+
+  it("hides the magic-link panel when the trigger is clicked again", async () => {
+    const user = userEvent.setup();
+
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    expect(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+
+    expect(
+      screen.queryByRole("textbox", { name: "magic-link-email" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("passes signed OAuth returnUrl when requesting a magic link", async () => {
+    const user = userEvent.setup();
+    mockSearchParams = new URLSearchParams({
+      client_id: "test-client",
+      redirect_uri: "https://consumer.example.com/callback",
+      code_challenge: "test-challenge",
+      code_challenge_method: "S256",
+      scope: "openid offline_access",
+      state: "test-state",
+      response_type: "code",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      "oauth-login-user@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+
+    await waitFor(() => {
+      expect(mockRequestMagicLinkSignIn).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[0]).toBe(
+      "oauth-login-user@example.com",
+    );
+    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[1]).toContain(
+      "/oauth/consent?",
+    );
+    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[1]).toContain(
+      "client_id=test-client",
+    );
+    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[1]).toContain(
+      "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
+    );
+  });
+
+  it("re-enables magic-link submit when the request rejects", async () => {
+    const user = userEvent.setup();
+    let rejectRequest: ((reason?: unknown) => void) | undefined;
+
+    mockRequestMagicLinkSignIn.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectRequest = reject;
+        }),
+    );
+
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      "login-user@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "magicLinkSubmitting" }),
+      ).toBeDisabled();
+    });
+
+    await act(async () => {
+      rejectRequest?.(new Error("Network failure"));
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "magicLinkSubmit" }),
+      ).toBeEnabled();
+    });
+
+    expect(mockToastError).toHaveBeenCalledWith("magicLinkError");
   });
 });

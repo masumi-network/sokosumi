@@ -23,6 +23,8 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_TRUSTED_ORIGIN: z.url(),
+  POSTMARK_SERVER_ID: z.string().min(1),
+  POSTMARK_FROM_EMAIL: z.email(),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),

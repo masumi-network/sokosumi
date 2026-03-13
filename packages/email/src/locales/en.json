@@ -1,0 +1,93 @@
+{
+  "auth": {
+    "resetPassword": {
+      "subject": "Sokosumi - Reset your password",
+      "title": "Reset your password",
+      "greeting": "Hello {name}",
+      "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
+      "button": "Reset password",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
+    },
+    "verification": {
+      "subject": "Sokosumi - Verify your email address",
+      "title": "Verify your email address",
+      "greeting": "Hello {name}",
+      "message": "Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+      "button": "Verify email",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "If you didn't create an account, you can safely ignore this email."
+    },
+    "invitation": {
+      "subject": "Sokosumi - Organization Invitation",
+      "title": "Join {invitorUsername} on {organizationName}",
+      "greeting": "Hello there",
+      "message": "You've been invited to join {organizationName} on Sokosumi. Click the button below to accept the invitation.",
+      "button": "Accept Invitation",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "If you didn't request this invitation, you can safely ignore this email."
+    },
+    "magicLink": {
+      "subject": "Sokosumi - Sign in to your account",
+      "title": "Sign in to Sokosumi",
+      "greeting": "Hello {name}",
+      "greetingAnonymous": "Hello",
+      "message": "Use the button below to sign in to your Sokosumi account.",
+      "button": "Sign in",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "If you didn't request this email, you can safely ignore this email."
+    }
+  },
+  "jobs": {
+    "finalStatus": {
+      "subject": "Sokosumi - {agentName} job {status}",
+      "preview": "Your job for {agentName} is now {status}.",
+      "title": "Job {status}",
+      "greeting": "Hi {name}",
+      "body": "{jobName} for {agentName} is now {status}.",
+      "button": "View job",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "You're receiving this email because job notifications are enabled for your account.",
+      "fallbackJobName": "Your job",
+      "status": {
+        "completed": "completed",
+        "failed": "failed",
+        "payment_failed": "payment failed",
+        "refund_resolved": "refunded",
+        "dispute_resolved": "dispute resolved"
+      }
+    },
+    "inputRequired": {
+      "subject": "Sokosumi - {agentName} needs your input",
+      "preview": "Your job for {agentName} requires input to continue.",
+      "title": "Action Required",
+      "greeting": "Hi {name}",
+      "body": "Your job {jobName} for {agentName} is waiting for your input to continue.",
+      "bodyWithoutJobName": "Your job for {agentName} is waiting for your input to continue.",
+      "button": "Provide input",
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "You're receiving this email because job notifications are enabled for your account.",
+      "fallbackJobName": "Your job"
+    },
+    "failureNotification": {
+      "subject": "Job Failure Notification - {jobId}",
+      "preview": "Job {jobId} has failed",
+      "title": "Job Failure Notification",
+      "description": "A job has failed. Here are the technical details:",
+      "network": "Network:",
+      "agentName": "Agent Name:",
+      "agentId": "Agent ID:",
+      "agentBlockchainIdentifier": "Agent Blockchain Identifier:",
+      "jobId": "Job ID:",
+      "jobBlockchainIdentifier": "Job Blockchain Identifier:",
+      "onChainStatus": "On-Chain Status:",
+      "agentStatus": "Agent Status:",
+      "inputHash": "Input Hash:",
+      "resultHash": "Result Hash:",
+      "inputSchema": "Input Schema:",
+      "input": "Input:",
+      "output": "Output:",
+      "footer": "This is an automated notification from Sōkosumi."
+    }
+  }
+}
