@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type MouseEvent, useMemo, useState } from "react";
+import { type MouseEvent, useEffect, useMemo, useState } from "react";
 
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -152,6 +152,18 @@ export default function ProfileSwitchClient({
       setIsHelpSectionOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (isMobile) return;
+    if (state === "collapsed") {
+      const timer = setTimeout(() => {
+        setIsDropdownOpen(false);
+        setIsWorkspaceSectionOpen(false);
+        setIsHelpSectionOpen(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isMobile, state]);
 
   const workspaces = useMemo(
     () =>
