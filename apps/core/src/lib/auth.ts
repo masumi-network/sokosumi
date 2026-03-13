@@ -235,7 +235,6 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       expiresIn: 60 * 60 * 48, // 48 hours in seconds
-      allowedAttempts: 1,
       sendMagicLink: async ({ email, url, token }, ctx) => {
         const locale = getEmailLocale(ctx?.request, ctx?.headers);
         const name =
