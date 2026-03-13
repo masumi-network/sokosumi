@@ -520,7 +520,7 @@ export const auth = betterAuth({
     magicLink({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes
-      sendMagicLink: async ({ email, url, token }, ctx) => {
+      sendMagicLink: async ({ email, url }, ctx) => {
         const locale = getEmailLocale(ctx?.request, ctx?.headers);
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
@@ -528,7 +528,6 @@ export const auth = betterAuth({
           locale,
           magicLink: url,
           name,
-          token,
         });
 
         await postmarkClient.sendEmail({

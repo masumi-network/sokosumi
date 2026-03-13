@@ -169,6 +169,23 @@ function getEmailLocale(
   );
 }
 
+function getFallbackUserName(email: string): string {
+  const normalizedEmail = email.trim();
+  const [prefix] = normalizedEmail.split("@");
+  const normalizedPrefix = prefix?.trim();
+
+  return normalizedPrefix || normalizedEmail || "User";
+}
+
+function getStoredUserName(
+  name: null | string | undefined,
+  email: string,
+): string {
+  const normalizedName = name?.trim();
+
+  return normalizedName || getFallbackUserName(email);
+}
+
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
@@ -193,6 +210,20 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user, _ctx) => {
+          return {
+            data: {
+              ...user,
+              name: getStoredUserName(user.name, user.email),
+            },
+          };
+        },
+      },
+    },
+  },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   basePath: "/auth",
