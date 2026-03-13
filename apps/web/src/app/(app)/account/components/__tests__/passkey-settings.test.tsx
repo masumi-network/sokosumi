@@ -142,7 +142,9 @@ describe("PasskeySettings", () => {
       error: null;
     }>();
 
-    mockListUserPasskeys.mockImplementationOnce(() => pendingListPasskeys.promise);
+    mockListUserPasskeys.mockImplementationOnce(
+      () => pendingListPasskeys.promise,
+    );
 
     render(<PasskeySettings />);
 

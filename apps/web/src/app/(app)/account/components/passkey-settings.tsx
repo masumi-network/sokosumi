@@ -101,7 +101,9 @@ export function PasskeySettings() {
         const nextPasskeys = await fetchPasskeys();
         return applyPasskeysResult(nextPasskeys);
       } finally {
-        setIsLoadingPasskeys(false);
+        if (showLoadingState) {
+          setIsLoadingPasskeys(false);
+        }
       }
     },
     [applyPasskeysResult, fetchPasskeys],

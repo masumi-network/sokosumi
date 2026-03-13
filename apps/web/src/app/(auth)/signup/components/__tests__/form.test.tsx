@@ -204,7 +204,8 @@ describe("SignUpForm OAuth workflow", () => {
       expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
     });
 
-    const waitForAuthSessionOptions = mockWaitForAuthSession.mock.calls[0]?.[0] as {
+    const waitForAuthSessionOptions = mockWaitForAuthSession.mock
+      .calls[0]?.[0] as {
       getSession: () => Promise<null | { id: string }>;
     };
 
