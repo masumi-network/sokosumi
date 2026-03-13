@@ -3,7 +3,7 @@
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -37,17 +37,17 @@ function getPasskeyErrorMessage(
   return `${fallbackMessage}: ${error.message}`;
 }
 
+interface PasskeyRecord {
+  createdAt: Date | string;
+  id: string;
+  name?: string | null;
+}
+
 export function PasskeySettings() {
   const t = useTranslations("App.Account.Passkeys");
   const locale = useLocale();
   const router = useRouter();
-  const [passkeys, setPasskeys] = useState<
-    Array<{
-      createdAt: Date | string;
-      id: string;
-      name?: string | null;
-    }>
-  >([]);
+  const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([]);
   const [isLoadingPasskeys, setIsLoadingPasskeys] = useState(true);
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
   const [editingPasskeyId, setEditingPasskeyId] = useState<string | null>(null);
@@ -56,42 +56,62 @@ export function PasskeySettings() {
     null,
   );
   const [savingPasskeyId, setSavingPasskeyId] = useState<string | null>(null);
+  const isMutatingPasskeys =
+    isAddingPasskey || removingPasskeyId !== null || savingPasskeyId !== null;
 
-  const reloadPasskeys = async () => {
+  const fetchPasskeys = useCallback(async (): Promise<null | PasskeyRecord[]> => {
+    try {
+      const result = await authClient.passkey.listUserPasskeys();
+
+      if (result.error) {
+        return null;
+      }
+
+      return result.data ?? [];
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const reloadPasskeys = useCallback(async () => {
     setIsLoadingPasskeys(true);
 
-    const result = await authClient.passkey.listUserPasskeys();
+    try {
+      const nextPasskeys = await fetchPasskeys();
 
-    if (result.error) {
+      if (nextPasskeys !== null) {
+        setPasskeys(nextPasskeys);
+      }
+
+      return nextPasskeys !== null;
+    } finally {
       setIsLoadingPasskeys(false);
-      return;
     }
-
-    setPasskeys(result.data ?? []);
-    setIsLoadingPasskeys(false);
-  };
+  }, [fetchPasskeys]);
 
   useEffect(() => {
     let isActive = true;
 
-    void authClient.passkey.listUserPasskeys().then((result) => {
-      if (!isActive) {
-        return;
-      }
+    void fetchPasskeys()
+      .then((nextPasskeys) => {
+        if (!isActive) {
+          return;
+        }
 
-      if (result.error) {
+        setPasskeys(nextPasskeys ?? []);
+      })
+      .finally(() => {
+        if (!isActive) {
+          return;
+        }
+
         setIsLoadingPasskeys(false);
-        return;
-      }
-
-      setPasskeys(result.data ?? []);
-      setIsLoadingPasskeys(false);
-    });
+      });
 
     return () => {
       isActive = false;
     };
-  }, [t]);
+  }, [fetchPasskeys]);
 
   const sortedPasskeys = useMemo(() => {
     return [...passkeys].sort(
@@ -104,37 +124,45 @@ export function PasskeySettings() {
   const handleAddPasskey = async () => {
     setIsAddingPasskey(true);
 
-    const result = await authClient.passkey.addPasskey();
+    try {
+      const result = await authClient.passkey.addPasskey();
 
-    setIsAddingPasskey(false);
+      if (result.error) {
+        toast.error(getPasskeyErrorMessage(t("addError"), result.error));
+        return;
+      }
 
-    if (result.error) {
-      toast.error(getPasskeyErrorMessage(t("addError"), result.error));
-      return;
+      await reloadPasskeys();
+      router.refresh();
+      toast.success(t("addSuccess"));
+    } catch {
+      toast.error(t("addError"));
+    } finally {
+      setIsAddingPasskey(false);
     }
-
-    await reloadPasskeys();
-    router.refresh();
-    toast.success(t("addSuccess"));
   };
 
   const handleDeletePasskey = async (id: string) => {
     setRemovingPasskeyId(id);
 
-    const result = await authClient.passkey.deletePasskey({
-      id,
-    });
+    try {
+      const result = await authClient.passkey.deletePasskey({
+        id,
+      });
 
-    setRemovingPasskeyId(null);
+      if (result.error) {
+        toast.error(getPasskeyErrorMessage(t("deleteError"), result.error));
+        return;
+      }
 
-    if (result.error) {
-      toast.error(getPasskeyErrorMessage(t("deleteError"), result.error));
-      return;
+      await reloadPasskeys();
+      router.refresh();
+      toast.success(t("deleteSuccess"));
+    } catch {
+      toast.error(t("deleteError"));
+    } finally {
+      setRemovingPasskeyId(null);
     }
-
-    await reloadPasskeys();
-    router.refresh();
-    toast.success(t("deleteSuccess"));
   };
 
   const handleEditPasskey = (id: string, name?: null | string) => {
@@ -150,22 +178,26 @@ export function PasskeySettings() {
   const handleSavePasskey = async (id: string) => {
     setSavingPasskeyId(id);
 
-    const result = await authClient.passkey.updatePasskey({
-      id,
-      name: passkeyNameDraft.trim(),
-    });
+    try {
+      const result = await authClient.passkey.updatePasskey({
+        id,
+        name: passkeyNameDraft.trim(),
+      });
 
-    setSavingPasskeyId(null);
+      if (result.error) {
+        toast.error(getPasskeyErrorMessage(t("renameError"), result.error));
+        return;
+      }
 
-    if (result.error) {
-      toast.error(getPasskeyErrorMessage(t("renameError"), result.error));
-      return;
+      handleCancelEditPasskey();
+      await reloadPasskeys();
+      router.refresh();
+      toast.success(t("renameSuccess"));
+    } catch {
+      toast.error(t("renameError"));
+    } finally {
+      setSavingPasskeyId(null);
     }
-
-    handleCancelEditPasskey();
-    await reloadPasskeys();
-    router.refresh();
-    toast.success(t("renameSuccess"));
   };
 
   return (
@@ -190,7 +222,7 @@ export function PasskeySettings() {
                       <Input
                         value={passkeyNameDraft}
                         aria-label={t("editInputLabel")}
-                        disabled={savingPasskeyId === passkey.id}
+                        disabled={isMutatingPasskeys}
                         className="h-9"
                         onChange={(event) => {
                           setPasskeyNameDraft(event.target.value);
@@ -202,7 +234,7 @@ export function PasskeySettings() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        disabled={savingPasskeyId === passkey.id}
+                        disabled={isMutatingPasskeys}
                         aria-label={t("cancel")}
                         onClick={handleCancelEditPasskey}
                       >
@@ -211,7 +243,7 @@ export function PasskeySettings() {
                       <Button
                         type="button"
                         size="icon"
-                        disabled={savingPasskeyId === passkey.id}
+                        disabled={isMutatingPasskeys}
                         aria-label={t("save")}
                         onClick={() => {
                           void handleSavePasskey(passkey.id);
@@ -243,10 +275,7 @@ export function PasskeySettings() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        disabled={
-                          removingPasskeyId === passkey.id ||
-                          savingPasskeyId === passkey.id
-                        }
+                        disabled={isMutatingPasskeys}
                         aria-label={t("editAriaLabel", {
                           name: passkey.name || t("defaultName"),
                         })}
@@ -260,10 +289,7 @@ export function PasskeySettings() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        disabled={
-                          removingPasskeyId === passkey.id ||
-                          savingPasskeyId === passkey.id
-                        }
+                        disabled={isMutatingPasskeys}
                         aria-label={t("deleteAriaLabel", {
                           name: passkey.name || t("defaultName"),
                         })}
@@ -291,7 +317,7 @@ export function PasskeySettings() {
         <Button
           type="button"
           className="w-full"
-          disabled={isAddingPasskey}
+          disabled={isMutatingPasskeys}
           onClick={() => {
             void handleAddPasskey();
           }}

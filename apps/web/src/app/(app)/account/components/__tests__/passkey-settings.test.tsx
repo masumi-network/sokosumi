@@ -17,6 +17,22 @@ let currentPasskeys: Array<{
   name: string;
 }> = [];
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return {
+    promise,
+    reject,
+    resolve,
+  };
+}
+
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     refresh: mockRefresh,
@@ -139,6 +155,42 @@ describe("PasskeySettings", () => {
     expect(mockToastSuccess).toHaveBeenCalledWith("addSuccess");
   });
 
+  it("disables row actions while adding a passkey", async () => {
+    const user = userEvent.setup();
+    const pendingAdd = createDeferred<{
+      data: {
+        id: string;
+      };
+      error: null;
+    }>();
+
+    mockAddPasskey.mockImplementationOnce(() => pendingAdd.promise);
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "delete-MacBook Touch ID" }),
+    ).toBeDisabled();
+
+    pendingAdd.resolve({
+      data: {
+        id: "passkey-2",
+      },
+      error: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
+  });
+
   it("deletes a passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
@@ -164,6 +216,38 @@ describe("PasskeySettings", () => {
     expect(mockToastSuccess).toHaveBeenCalledWith("deleteSuccess");
   });
 
+  it("disables the add button while deleting a passkey", async () => {
+    const user = userEvent.setup();
+    const pendingDelete = createDeferred<{
+      data: {
+        status: boolean;
+      };
+      error: null;
+    }>();
+
+    mockDeletePasskey.mockImplementationOnce(() => pendingDelete.promise);
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "delete-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "delete-MacBook Touch ID" }),
+    );
+
+    expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+
+    pendingDelete.resolve({
+      data: {
+        status: true,
+      },
+      error: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
+  });
+
   it("shows an error when passkey registration fails", async () => {
     const user = userEvent.setup();
     mockAddPasskey.mockResolvedValueOnce({
@@ -183,6 +267,21 @@ describe("PasskeySettings", () => {
         "addError: passkey provider not available",
       );
     });
+  });
+
+  it("resets the add button when passkey registration throws", async () => {
+    const user = userEvent.setup();
+    mockAddPasskey.mockRejectedValueOnce(new Error("network down"));
+
+    render(<PasskeySettings />);
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("addError");
+    });
+
+    expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
   });
 
   it("shows an error when passkey deletion fails", async () => {
@@ -340,6 +439,18 @@ describe("PasskeySettings", () => {
         "renameError: rename failed",
       );
     });
+  });
+
+  it("leaves the loading state when loading passkeys throws", async () => {
+    mockListUserPasskeys.mockRejectedValueOnce(new Error("network down"));
+
+    render(<PasskeySettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText("empty")).toBeInTheDocument();
+    });
+
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 
   it("falls back to the generic add passkey error when no message is returned", async () => {
