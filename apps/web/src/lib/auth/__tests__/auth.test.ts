@@ -11,12 +11,16 @@ const i18nPluginMock = jest.fn();
 const jwtPluginMock = jest.fn();
 const lastLoginMethodPluginMock = jest.fn();
 const magicLinkPluginMock = jest.fn();
+const marketingOptInUserSchemaSafeParseMock = jest.fn();
 const nextCookiesPluginMock = jest.fn();
 const oauthProviderPluginMock = jest.fn();
 const organizationPluginMock = jest.fn();
+const callUserCreatedWebHookMock = jest.fn();
+const callUserUpdatedWebHookMock = jest.fn();
 const postmarkSendEmailMock = jest.fn();
 const prismaAdapterMock = jest.fn();
 const renderMagicLinkEmailMock = jest.fn();
+const stripeCreateUserCustomerMock = jest.fn();
 const stripePluginMock = jest.fn();
 const stripeSdkMock = jest.fn(() => ({ __stripe: true }));
 
@@ -127,6 +131,8 @@ jest.mock("@/lib/blob/utils", () => ({
 jest.mock("@/lib/clients/stripe.client", () => ({
   stripeClient: {
     createOrganizationCustomer: jest.fn(() => Promise.resolve()),
+    createUserCustomer: (...args: unknown[]) =>
+      stripeCreateUserCustomerMock(...args),
   },
 }));
 
@@ -143,14 +149,17 @@ jest.mock("@/lib/email/postmark", () => ({
 
 jest.mock("@/lib/schemas", () => ({
   marketingOptInUserSchema: {
-    safeParse: jest.fn(),
+    safeParse: (...args: unknown[]) =>
+      marketingOptInUserSchemaSafeParseMock(...args),
   },
 }));
 
 jest.mock("@/lib/services", () => ({
   callAccountCreatedWebHook: jest.fn(),
-  callUserCreatedWebHook: jest.fn(),
-  callUserUpdatedWebHook: jest.fn(),
+  callUserCreatedWebHook: (...args: unknown[]) =>
+    callUserCreatedWebHookMock(...args),
+  callUserUpdatedWebHook: (...args: unknown[]) =>
+    callUserUpdatedWebHookMock(...args),
   organizationSubscriptionService: {
     ensureCanAcceptInvitation: jest.fn(),
     ensureCanCreateInvitation: jest.fn(),
@@ -211,6 +220,11 @@ describe("web auth config", () => {
     nextCookiesPluginMock.mockReturnValue("next-cookies-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
+    marketingOptInUserSchemaSafeParseMock.mockImplementation((input) => ({
+      success: true,
+      data: input,
+    }));
+    stripeCreateUserCustomerMock.mockResolvedValue(undefined);
     postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
     renderMagicLinkEmailMock.mockResolvedValue({
@@ -263,6 +277,130 @@ describe("web auth config", () => {
       Subject: "Sokosumi - Sign in to your account",
       HtmlBody: "<html>magic link</html>",
       MessageStream: "authentications",
+    });
+  });
+
+  it("stores the email prefix when a new user is created without a name", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                before: (user: {
+                  email: string;
+                  marketingOptIn: boolean;
+                  name: string;
+                }) => Promise<{
+                  data: {
+                    email: string;
+                    marketingOptIn: boolean;
+                    name: string;
+                  };
+                }>;
+                after: (user: {
+                  id: string;
+                  email: string;
+                  marketingOptIn: boolean;
+                  name: string;
+                }) => Promise<void>;
+              };
+              update: {
+                after: (user: {
+                  id: string;
+                  email: string;
+                  marketingOptIn: boolean;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const user = {
+      id: "user_123",
+      email: "magic@example.com",
+      marketingOptIn: true,
+      name: "   ",
+    };
+
+    const normalizedCreate = await config.databaseHooks.user.create.before(user);
+
+    expect(normalizedCreate).toEqual({
+      data: {
+        ...user,
+        name: "magic",
+      },
+    });
+
+    await config.databaseHooks.user.create.after(normalizedCreate.data);
+    await config.databaseHooks.user.update.after(normalizedCreate.data);
+
+    expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(1, {
+      ...user,
+      name: "magic",
+    });
+    expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(2, {
+      ...user,
+      name: "magic",
+    });
+    expect(callUserCreatedWebHookMock).toHaveBeenCalledWith(
+      "user_123",
+      "magic@example.com",
+      "magic",
+      true,
+    );
+    expect(callUserUpdatedWebHookMock).toHaveBeenCalledWith(
+      "user_123",
+      "magic@example.com",
+      "magic",
+      true,
+    );
+  });
+
+  it("falls back to the full email when the local part is empty", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                before: (user: {
+                  email: string;
+                  marketingOptIn: boolean;
+                  name: string;
+                }) => Promise<{
+                  data: {
+                    email: string;
+                    marketingOptIn: boolean;
+                    name: string;
+                  };
+                }>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const normalizedCreate = await config.databaseHooks.user.create.before({
+      email: "@example.com",
+      marketingOptIn: true,
+      name: "",
+    });
+
+    expect(normalizedCreate).toEqual({
+      data: {
+        email: "@example.com",
+        marketingOptIn: true,
+        name: "@example.com",
+      },
     });
   });
 });
