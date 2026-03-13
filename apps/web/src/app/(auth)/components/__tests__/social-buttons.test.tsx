@@ -27,11 +27,11 @@ jest.mock("next-intl", () => ({
       if (key === "continueWith") {
         return `continue-with-${values?.provider ?? "unknown"}`;
       }
+      if (key === "magicLinkProvider") {
+        return "Magic Link";
+      }
       if (key === "lastUsed") {
         return "last-used";
-      }
-      if (key === "magicLinkButton") {
-        return "magic-link-button";
       }
       if (key === "magicLinkInputLabel") {
         return "magic-link-email";
@@ -182,12 +182,14 @@ describe("SocialButtons", () => {
     });
   });
 
-  it("reveals the magic-link panel and requests a sign-in link", async () => {
+  it("reveals the magic-link panel and requests a Magic Link", async () => {
     const user = userEvent.setup();
 
     render(<SocialButtons showMagicLink />);
 
-    await user.click(screen.getByRole("button", { name: "magic-link-button" }));
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
     await user.type(
       screen.getByRole("textbox", { name: "magic-link-email" }),
       "login-user@example.com",
@@ -209,12 +211,16 @@ describe("SocialButtons", () => {
 
     render(<SocialButtons showMagicLink />);
 
-    await user.click(screen.getByRole("button", { name: "magic-link-button" }));
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
     expect(
       screen.getByRole("textbox", { name: "magic-link-email" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "magic-link-button" }));
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
 
     expect(
       screen.queryByRole("textbox", { name: "magic-link-email" }),
@@ -237,7 +243,9 @@ describe("SocialButtons", () => {
 
     render(<SocialButtons showMagicLink />);
 
-    await user.click(screen.getByRole("button", { name: "magic-link-button" }));
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
     await user.type(
       screen.getByRole("textbox", { name: "magic-link-email" }),
       "oauth-login-user@example.com",
@@ -275,7 +283,9 @@ describe("SocialButtons", () => {
 
     render(<SocialButtons showMagicLink />);
 
-    await user.click(screen.getByRole("button", { name: "magic-link-button" }));
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
     await user.type(
       screen.getByRole("textbox", { name: "magic-link-email" }),
       "login-user@example.com",

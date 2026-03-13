@@ -153,7 +153,7 @@ export default function SocialButtons({
             onClick={handleMagicLinkClick}
           >
             <Mail className="size-4" />
-            {t("magicLinkButton")}
+            {t("continueWith", { provider: t("magicLinkProvider") })}
           </Button>
           {lastUsedMethod === "magic-link" && (
             <Badge
