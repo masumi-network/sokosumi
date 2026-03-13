@@ -133,6 +133,7 @@
       "imprint": "Note legali",
       "acceptableUse": "Uso accettabile",
       "settings": "Impostazioni",
+      "expandSidebar": "Espandi barra laterale",
       "logout": "Esci",
       "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
       "creditsSummary": "Riepilogo crediti:",
@@ -146,11 +147,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambia workspace",
-      "searchProfiles": "Cerca profili...",
       "personalAccount": "Account personale",
-      "noProfilesFound": "Nessun profilo trovato",
-      "personalAccountHeading": "Personale",
-      "organization": "Organizzazione",
       "addOrganization": "Aggiungi organizzazione",
       "organizationsHeading": "Organizzazioni",
       "createOrJoinOrganization": "Crea o unisciti a un’organizzazione"

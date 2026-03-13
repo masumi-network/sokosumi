@@ -133,6 +133,7 @@
       "imprint": "Imprint",
       "acceptableUse": "Acceptable Use",
       "settings": "Settings",
+      "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
       "creditsSummary": "Credits Summary:",
@@ -146,11 +147,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
-      "searchProfiles": "Search profiles...",
       "personalAccount": "Personal Account",
-      "noProfilesFound": "No profiles found",
-      "personalAccountHeading": "Personal",
-      "organization": "Organization",
       "addOrganization": "Add Organization",
       "organizationsHeading": "Organizations",
       "createOrJoinOrganization": "Create or Join Organization"
