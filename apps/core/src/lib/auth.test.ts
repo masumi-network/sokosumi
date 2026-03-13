@@ -128,7 +128,7 @@ describe("core auth config", () => {
     expect(config.sendMagicLink).toEqual(expect.any(Function));
   });
 
-  it("prefers the locale cookie over accept-language for magic-link emails", async () => {
+  it("uses English for magic-link emails", async () => {
     await import("./auth");
 
     const [[config]] = magicLinkPluginMock.mock.calls as Array<
@@ -175,7 +175,7 @@ describe("core auth config", () => {
     );
 
     expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
-      locale: "pt-BR",
+      locale: "en",
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
       name: "Andreas",
     });
