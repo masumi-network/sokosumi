@@ -875,6 +875,7 @@
         },
         "Form": {
           "submit": "Iniciar sesión",
+          "lastUsed": "Usado por última vez",
           "success": "Sesión iniciada correctamente",
           "error": "Email o contraseña incorrectos",
           "Fields": {

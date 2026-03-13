@@ -875,6 +875,7 @@
         },
         "Form": {
           "submit": "Entrar",
+          "lastUsed": "Último usado",
           "success": "Login realizado com sucesso",
           "error": "E-mail ou senha inválidos",
           "Fields": {

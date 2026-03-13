@@ -24,7 +24,6 @@ jest.mock("next-intl", () => ({
       if (key === "lastUsed") {
         return "last-used";
       }
-
       return key;
     };
 
@@ -105,7 +104,7 @@ describe("SignInForm", () => {
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
 
-  it("renders the email last-used badge on the submit button corner", () => {
+  it("renders the email last-used inline marker inside the submit button", () => {
     render(<SignInForm isLastUsedEmailLogin />);
 
     const submitButton = screen.getByRole("button", { name: "submit" });
@@ -113,9 +112,18 @@ describe("SignInForm", () => {
     const badgeContainer = submitButton.parentElement;
 
     expect(lastUsedLabel).toBeInTheDocument();
-    expect(lastUsedLabel).toHaveClass("absolute", "top-0", "right-0");
+    expect(lastUsedLabel).toHaveClass(
+      "absolute",
+      "top-1/2",
+      "right-2",
+      "-translate-y-1/2",
+      "rounded-full",
+      "border",
+      "bg-background",
+      "text-foreground",
+      "border-border",
+    );
     expect(badgeContainer).toHaveClass("relative");
-    expect(badgeContainer).not.toHaveClass("pt-3");
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 

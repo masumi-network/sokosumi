@@ -875,6 +875,7 @@
         },
         "Form": {
           "submit": "登录",
+          "lastUsed": "上次使用",
           "success": "登录成功",
           "error": "邮箱或密码无效",
           "Fields": {
