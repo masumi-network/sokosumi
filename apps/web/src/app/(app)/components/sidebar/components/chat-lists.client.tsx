@@ -55,10 +55,14 @@ export default function ChatListsClient() {
   const hasAnyChats = conversations.length > 0;
 
   return (
-    <Collapsible defaultOpen={hasAnyChats} className="group/collapsible">
-      <SidebarGroup className="w-72 md:w-64">
+    <Collapsible
+      key="chat-lists-collapsible"
+      defaultOpen={hasAnyChats}
+      className="group/collapsible"
+    >
+      <SidebarGroup className="w-full pb-0 whitespace-nowrap">
         <SidebarGroupLabel
-          className="text-primary text-sm group-data-[collapsible=icon]:hidden"
+          className="text-primary px-3 text-sm group-data-[collapsible=icon]:hidden"
           asChild
         >
           <CollapsibleTrigger>
@@ -86,9 +90,9 @@ export default function ChatListsClient() {
           <MessageSquare className="mr-2 size-4" aria-hidden />
         </span>
         <CollapsibleContent>
-          <SidebarGroupContent className="mt-2">
+          <SidebarGroupContent>
             {hasAnyChats ? (
-              <SidebarMenu>
+              <SidebarMenu className="pt-2">
                 {chatGroups.map((group) => {
                   const slug = group.displaySlug;
                   const mostRecentConversation = group.conversations[0];
@@ -102,7 +106,7 @@ export default function ChatListsClient() {
                       <SidebarMenuButton
                         asChild
                         className={cn(
-                          "group/chat-item px-4 py-5 group-data-[collapsible=icon]:px-2",
+                          "group/chat-item gap-0 pl-5 group-data-[collapsible=icon]:px-2",
                           {
                             "text-primary-foreground hover:text-primary-foreground active:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
                               isActive,
@@ -113,6 +117,7 @@ export default function ChatListsClient() {
                       >
                         <SheetClose asChild>
                           <Link
+                            className="flex min-h-auto w-full items-center justify-start gap-2"
                             href={chatHref}
                             onClick={() => {
                               setShowSecondarySidebar(true);

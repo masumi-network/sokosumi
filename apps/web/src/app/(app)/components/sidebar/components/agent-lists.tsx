@@ -32,7 +32,7 @@ function AgentListsSkeleton() {
   return (
     <>
       {[1, 2].map((groupIndex) => (
-        <SidebarGroup key={groupIndex} className="w-full">
+        <SidebarGroup key={groupIndex} className="w-full pt-0">
           <SidebarGroupLabel className="text-base">
             <Skeleton className="h-5 w-24" />
           </SidebarGroupLabel>

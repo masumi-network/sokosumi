@@ -146,11 +146,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "ワークスペースを切り替える",
-      "searchProfiles": "プロフィールを検索...",
       "personalAccount": "個人アカウント",
-      "noProfilesFound": "プロフィールが見つかりません",
-      "personalAccountHeading": "個人",
-      "organization": "組織",
       "addOrganization": "組織を追加",
       "organizationsHeading": "組織",
       "createOrJoinOrganization": "組織を作成または参加"

@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useAppChatRail } from "@/contexts/app-chat-rail-context";
+import { cn } from "@/lib/utils";
 
 interface NewChatButtonProps {
   isTaskRailEnabled: boolean;
@@ -36,18 +37,19 @@ export default function NewChatButton({
     <SidebarGroup className="w-full pb-0">
       <SidebarGroupContent>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive}
-              className="px-4 py-5"
-            >
+          <SidebarMenuItem className="gap-0">
+            <SidebarMenuButton asChild isActive={isActive} className="">
               <SheetClose asChild>
                 {!shouldOpenRail ? (
                   <Link
                     href="/chat"
                     aria-current={isActive ? "page" : undefined}
-                    className="text-primary flex w-full items-center gap-2"
+                    className={cn(
+                      "flex min-h-auto w-full items-center gap-2 px-3",
+                      isActive
+                        ? "text-primary-foreground"
+                        : "text-tertiary-foreground dark:text-muted-foreground",
+                    )}
                   >
                     <MessageSquarePlus className="size-4" aria-hidden />
                     <span className="flex-1 truncate">{t("newChat")}</span>
@@ -55,10 +57,13 @@ export default function NewChatButton({
                 ) : (
                   <button
                     type="button"
-                    className="text-primary flex w-full items-center gap-2"
+                    className="flex min-h-auto w-full items-center gap-2"
                     onClick={openNewChat}
                   >
-                    <MessageSquarePlus className="size-4" aria-hidden />
+                    <MessageSquarePlus
+                      className="text-primary size-4"
+                      aria-hidden
+                    />
                     <span className="flex-1 truncate">{t("newChat")}</span>
                   </button>
                 )}

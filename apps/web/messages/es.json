@@ -147,12 +147,8 @@
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar Workspace",
       "personalAccount": "Cuenta personal",
-      "personalAccountHeading": "Personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
-      "searchProfiles": "Buscar perfiles...",
-      "noProfilesFound": "No se encontraron perfiles",
-      "organization": "Organización",
       "addOrganization": "Añadir organización"
     },
     "DataTable": {

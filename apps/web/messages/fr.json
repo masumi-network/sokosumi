@@ -146,11 +146,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Changer d’espace de travail",
-      "searchProfiles": "Rechercher des profils...",
       "personalAccount": "Compte personnel",
-      "noProfilesFound": "Aucun profil trouvé",
-      "personalAccountHeading": "Personnel",
-      "organization": "Organisation",
       "addOrganization": "Ajouter une organisation",
       "organizationsHeading": "Organisations",
       "createOrJoinOrganization": "Créer ou rejoindre une organisation"
