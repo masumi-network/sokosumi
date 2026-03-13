@@ -86,7 +86,10 @@ export default function SocialButtons({
   const finishPasskeySignIn = useCallback(async () => {
     await waitForAuthSession({
       context: "login",
-      getSession: () => authClient.getSession(),
+      getSession: async () => {
+        const sessionResponse = await authClient.getSession();
+        return sessionResponse.data?.session ?? null;
+      },
       logWarning: (message) => {
         Sentry.captureMessage(message, { level: "warning" });
       },

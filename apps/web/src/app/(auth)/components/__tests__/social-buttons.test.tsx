@@ -18,6 +18,7 @@ const mockToastError = jest.fn();
 const mockRouterReplace = jest.fn();
 const mockGetSession = jest.fn();
 const mockIsConditionalMediationAvailable = jest.fn();
+const mockWaitForAuthSession = jest.fn(() => Promise.resolve());
 
 let mockSearchParams = new URLSearchParams();
 
@@ -93,7 +94,7 @@ jest.mock("@/lib/utils/auth-redirect", () => {
   return {
     ...actual,
     normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
-    waitForAuthSession: jest.fn(() => Promise.resolve()),
+    waitForAuthSession: (...args: unknown[]) => mockWaitForAuthSession(...args),
   };
 });
 
@@ -141,6 +142,8 @@ describe("SocialButtons", () => {
       },
       error: null,
     });
+    mockWaitForAuthSession.mockReset();
+    mockWaitForAuthSession.mockResolvedValue(undefined);
     mockIsConditionalMediationAvailable.mockReset();
     mockIsConditionalMediationAvailable.mockResolvedValue(false);
     mockSearchParams = new URLSearchParams();
@@ -273,6 +276,31 @@ describe("SocialButtons", () => {
     await waitFor(() => {
       expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
     });
+  });
+
+  it("passes unwrapped session data to waitForAuthSession", async () => {
+    const user = userEvent.setup();
+
+    mockGetSession.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
+    });
+
+    const waitForAuthSessionOptions = mockWaitForAuthSession.mock.calls[0]?.[0] as {
+      getSession: () => Promise<null | { id: string }>;
+    };
+
+    await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
 
   it("starts conditional passkey UI only when supported", async () => {
