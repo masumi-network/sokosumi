@@ -149,25 +149,28 @@ export default function SocialButtons({
 
     let isMounted = true;
 
-    void PublicKeyCredential.isConditionalMediationAvailable()
-      .then((isAvailable) => {
+    const startConditionalPasskeySignIn = async () => {
+      try {
+        const isAvailable =
+          await PublicKeyCredential.isConditionalMediationAvailable();
         if (!isMounted || !isAvailable) {
           return;
         }
 
-        return authClient.signIn
-          .passkey({
-            autoFill: true,
-          })
-          .then((result) => {
-            if (result.error) {
-              return;
-            }
+        const result = await authClient.signIn.passkey({
+          autoFill: true,
+        });
+        if (!isMounted || result.error) {
+          return;
+        }
 
-            return finishPasskeySignIn();
-          });
-      })
-      .catch(() => undefined);
+        await finishPasskeySignIn();
+      } catch {
+        return undefined;
+      }
+    };
+
+    void startConditionalPasskeySignIn();
 
     return () => {
       isMounted = false;

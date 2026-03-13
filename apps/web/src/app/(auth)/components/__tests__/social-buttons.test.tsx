@@ -111,6 +111,21 @@ function MockSocialButton({ onClick, text }: MockSocialButtonProps) {
   );
 }
 
+function createDeferred<T>() {
+  let resolve: ((value: T) => void) | undefined;
+  let reject: ((error?: unknown) => void) | undefined;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return {
+    promise,
+    resolve: (value: T) => resolve?.(value),
+    reject: (error?: unknown) => reject?.(error),
+  };
+}
+
 jest.mock("react-social-login-buttons", () => ({
   GoogleLoginButton: MockSocialButton,
   MicrosoftLoginButton: MockSocialButton,
@@ -312,6 +327,74 @@ describe("SocialButtons", () => {
       expect(mockPasskeySignIn).toHaveBeenCalledWith({
         autoFill: true,
       });
+    });
+  });
+
+  it("ignores stale conditional passkey results after return url changes", async () => {
+    const firstPasskeyRequest = createDeferred<{
+      data: {
+        session: {
+          id: string;
+        };
+      };
+      error: null;
+    }>();
+    const secondPasskeyRequest = createDeferred<{
+      data: {
+        session: {
+          id: string;
+        };
+      };
+      error: null;
+    }>();
+
+    mockIsConditionalMediationAvailable.mockResolvedValue(true);
+    mockPasskeySignIn
+      .mockReturnValueOnce(firstPasskeyRequest.promise)
+      .mockReturnValueOnce(secondPasskeyRequest.promise);
+
+    const { rerender } = render(
+      <SocialButtons returnUrl="/jobs" showPasskey />,
+    );
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(<SocialButtons returnUrl="/profile" showPasskey />);
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      firstPasskeyRequest.resolve({
+        data: {
+          session: {
+            id: "session-old",
+          },
+        },
+        error: null,
+      });
+      await Promise.resolve();
+    });
+
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+
+    await act(async () => {
+      secondPasskeyRequest.resolve({
+        data: {
+          session: {
+            id: "session-new",
+          },
+        },
+        error: null,
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith("/profile");
     });
   });
 
