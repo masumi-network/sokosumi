@@ -18,7 +18,14 @@ const mockToastError = jest.fn();
 const mockRouterReplace = jest.fn();
 const mockGetSession = jest.fn();
 const mockIsConditionalMediationAvailable = jest.fn();
-const mockWaitForAuthSession = jest.fn(() => Promise.resolve());
+
+interface MockWaitForAuthSessionOptions {
+  getSession: () => Promise<null | { id: string }>;
+}
+
+const mockWaitForAuthSession = jest.fn(
+  async (_options: MockWaitForAuthSessionOptions) => undefined,
+);
 
 let mockSearchParams = new URLSearchParams();
 
@@ -94,7 +101,8 @@ jest.mock("@/lib/utils/auth-redirect", () => {
   return {
     ...actual,
     normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
-    waitForAuthSession: (...args: unknown[]) => mockWaitForAuthSession(...args),
+    waitForAuthSession: (options: MockWaitForAuthSessionOptions) =>
+      mockWaitForAuthSession(options),
   };
 });
 
@@ -311,10 +319,15 @@ describe("SocialButtons", () => {
       expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
     });
 
-    const waitForAuthSessionOptions = mockWaitForAuthSession.mock
-      .calls[0]?.[0] as {
-      getSession: () => Promise<null | { id: string }>;
-    };
+    const firstWaitForAuthSessionCall = mockWaitForAuthSession.mock.calls[0];
+
+    expect(firstWaitForAuthSessionCall).toBeDefined();
+
+    if (!firstWaitForAuthSessionCall) {
+      throw new Error("waitForAuthSession was not called");
+    }
+
+    const [waitForAuthSessionOptions] = firstWaitForAuthSessionCall;
 
     await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
