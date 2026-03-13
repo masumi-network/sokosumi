@@ -419,6 +419,7 @@ export const auth = betterAuth({
     magicLink({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes
+      storeToken: "hashed",
       sendMagicLink: async ({ email, url }, ctx) => {
         const locale = getEmailLocale(ctx?.request, ctx?.headers);
         const name =

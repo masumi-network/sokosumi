@@ -123,6 +123,7 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       expiresIn: 60 * 60 * 48, // 48 hours in seconds
+      storeToken: "hashed",
       sendMagicLink: async ({ email, url }, ctx) => {
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
