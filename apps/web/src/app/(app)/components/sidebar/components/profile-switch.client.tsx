@@ -19,7 +19,13 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type MouseEvent, useEffect, useMemo, useState } from "react";
+import {
+  type ComponentType,
+  type MouseEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -64,6 +70,95 @@ interface WorkspaceItem {
 
 function getWorkspaceKey(workspace: WorkspaceItem): string {
   return workspace.id ?? "personal-account";
+}
+
+interface HelpLinkItem {
+  url: string;
+  translationKey:
+    | "documentation"
+    | "support"
+    | "termsOfService"
+    | "privacyPolicy"
+    | "imprint"
+    | "acceptableUse";
+  icon?: ComponentType<{ "aria-hidden"?: boolean; className?: string }>;
+}
+
+const HELP_LINKS: HelpLinkItem[] = [
+  {
+    url: "https://docs.sokosumi.com/documentation",
+    translationKey: "documentation",
+    icon: BookOpen,
+  },
+  {
+    url: "mailto:info@sokosumi.com",
+    translationKey: "support",
+    icon: CircleHelp,
+  },
+];
+
+const LEGAL_LINKS: HelpLinkItem[] = [
+  {
+    url: "https://www.sokosumi.com/terms-of-service",
+    translationKey: "termsOfService",
+  },
+  {
+    url: "https://www.sokosumi.com/privacy-policy",
+    translationKey: "privacyPolicy",
+  },
+  {
+    url: "https://www.sokosumi.com/imprint",
+    translationKey: "imprint",
+  },
+  {
+    url: "https://www.sokosumi.com/acceptable-use",
+    translationKey: "acceptableUse",
+  },
+];
+
+function HelpAndLegalLinks({
+  handleOpenExternalLink,
+  itemClassName,
+  labelClassName,
+  tUserAvatar,
+}: {
+  handleOpenExternalLink: (url: string) => void;
+  itemClassName: string;
+  labelClassName: string;
+  tUserAvatar: (key: HelpLinkItem["translationKey"] | "legal") => string;
+}) {
+  return (
+    <>
+      {HELP_LINKS.map((item) => {
+        const Icon = item.icon;
+        return (
+          <DropdownMenuItem
+            key={item.translationKey}
+            className={itemClassName}
+            onClick={() => handleOpenExternalLink(item.url)}
+          >
+            {Icon ? (
+              <Icon className="text-muted-foreground size-4" aria-hidden />
+            ) : null}
+            <span>{tUserAvatar(item.translationKey)}</span>
+          </DropdownMenuItem>
+        );
+      })}
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel className={labelClassName}>
+        {tUserAvatar("legal")}
+      </DropdownMenuLabel>
+      {LEGAL_LINKS.map((item) => (
+        <DropdownMenuItem
+          key={item.translationKey}
+          className={itemClassName}
+          onClick={() => handleOpenExternalLink(item.url)}
+        >
+          <span>{tUserAvatar(item.translationKey)}</span>
+        </DropdownMenuItem>
+      ))}
+    </>
+  );
 }
 
 function getOrderedWorkspaces(
@@ -453,72 +548,12 @@ export default function ProfileSwitchClient({
                         />
                       </DropdownMenuItem>
                       {isHelpSectionOpen ? (
-                        <>
-                          <DropdownMenuItem
-                            className="cursor-pointer pl-8"
-                            onClick={() =>
-                              handleOpenExternalLink(
-                                "https://docs.sokosumi.com/documentation",
-                              )
-                            }
-                          >
-                            <BookOpen className="text-muted-foreground size-4" />
-                            <span>{tUserAvatar("documentation")}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="cursor-pointer pl-8"
-                            onClick={() =>
-                              handleOpenExternalLink("mailto:info@sokosumi.com")
-                            }
-                          >
-                            <CircleHelp className="text-muted-foreground size-4" />
-                            <span>{tUserAvatar("support")}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel className="text-muted-foreground pl-8 text-xs">
-                            {tUserAvatar("legal")}
-                          </DropdownMenuLabel>
-                          <DropdownMenuItem
-                            className="cursor-pointer pl-8"
-                            onClick={() =>
-                              handleOpenExternalLink(
-                                "https://www.sokosumi.com/terms-of-service",
-                              )
-                            }
-                          >
-                            <span>{tUserAvatar("termsOfService")}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="cursor-pointer pl-8"
-                            onClick={() =>
-                              handleOpenExternalLink(
-                                "https://www.sokosumi.com/privacy-policy",
-                              )
-                            }
-                          >
-                            <span>{tUserAvatar("privacyPolicy")}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="cursor-pointer pl-8"
-                            onClick={() =>
-                              handleOpenExternalLink(
-                                "https://www.sokosumi.com/imprint",
-                              )
-                            }
-                          >
-                            <span>{tUserAvatar("imprint")}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="cursor-pointer pl-8"
-                            onClick={() =>
-                              handleOpenExternalLink(
-                                "https://www.sokosumi.com/acceptable-use",
-                              )
-                            }
-                          >
-                            <span>{tUserAvatar("acceptableUse")}</span>
-                          </DropdownMenuItem>
-                        </>
+                        <HelpAndLegalLinks
+                          handleOpenExternalLink={handleOpenExternalLink}
+                          itemClassName="cursor-pointer pl-8"
+                          labelClassName="text-muted-foreground pl-8 text-xs"
+                          tUserAvatar={tUserAvatar}
+                        />
                       ) : null}
                     </>
                   ) : (
@@ -528,70 +563,12 @@ export default function ProfileSwitchClient({
                         <span>{tUserAvatar("help")}</span>
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-64">
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() =>
-                            handleOpenExternalLink(
-                              "https://docs.sokosumi.com/documentation",
-                            )
-                          }
-                        >
-                          <BookOpen className="text-muted-foreground size-4" />
-                          <span>{tUserAvatar("documentation")}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() =>
-                            handleOpenExternalLink("mailto:info@sokosumi.com")
-                          }
-                        >
-                          <CircleHelp className="text-muted-foreground size-4" />
-                          <span>{tUserAvatar("support")}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="text-muted-foreground text-xs">
-                          {tUserAvatar("legal")}
-                        </DropdownMenuLabel>
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() =>
-                            handleOpenExternalLink(
-                              "https://www.sokosumi.com/terms-of-service",
-                            )
-                          }
-                        >
-                          <span>{tUserAvatar("termsOfService")}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() =>
-                            handleOpenExternalLink(
-                              "https://www.sokosumi.com/privacy-policy",
-                            )
-                          }
-                        >
-                          <span>{tUserAvatar("privacyPolicy")}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() =>
-                            handleOpenExternalLink(
-                              "https://www.sokosumi.com/imprint",
-                            )
-                          }
-                        >
-                          <span>{tUserAvatar("imprint")}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="cursor-pointer"
-                          onClick={() =>
-                            handleOpenExternalLink(
-                              "https://www.sokosumi.com/acceptable-use",
-                            )
-                          }
-                        >
-                          <span>{tUserAvatar("acceptableUse")}</span>
-                        </DropdownMenuItem>
+                        <HelpAndLegalLinks
+                          handleOpenExternalLink={handleOpenExternalLink}
+                          itemClassName="cursor-pointer"
+                          labelClassName="text-muted-foreground text-xs"
+                          tUserAvatar={tUserAvatar}
+                        />
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   )}
