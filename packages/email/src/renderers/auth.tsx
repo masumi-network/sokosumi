@@ -1,6 +1,7 @@
 import { Text } from "@react-email/text";
 import type { ReactNode } from "react";
 
+import { createEmailTranslator } from "../i18n/translate.js";
 import { renderActionEmail } from "../templates/action-email.js";
 import type {
   MagicLinkEmailProps,
@@ -10,9 +11,16 @@ import type {
   VerificationEmailProps,
 } from "../types.js";
 
-function formatHelloGreeting(name?: string): string {
+type TranslateFn = ReturnType<typeof createEmailTranslator>["t"];
+
+function formatGreeting(t: TranslateFn, key: string, name?: string): string {
   const trimmedName = name?.trim();
-  return trimmedName ? `Hello ${trimmedName}` : "Hello";
+
+  if (trimmedName) {
+    return t(key, { name: trimmedName });
+  }
+
+  return t(key, { name: "" }).trimEnd();
 }
 
 interface RenderAuthActionEmailOptions {
@@ -22,7 +30,7 @@ interface RenderAuthActionEmailOptions {
   extraContent?: ReactNode;
   footer: string;
   greeting?: string;
-  name?: string;
+  linkInstructions?: string;
   subject: string;
   title: string;
 }
@@ -34,7 +42,7 @@ function renderAuthActionEmail({
   extraContent,
   footer,
   greeting,
-  name,
+  linkInstructions,
   subject,
   title,
 }: RenderAuthActionEmailOptions): Promise<RenderedEmail> {
@@ -44,7 +52,8 @@ function renderAuthActionEmail({
     body,
     extraContent,
     footer,
-    greeting: greeting ?? formatHelloGreeting(name),
+    greeting: greeting ?? "",
+    linkInstructions,
     preview: subject,
     subject,
     title,
@@ -52,77 +61,91 @@ function renderAuthActionEmail({
 }
 
 export async function renderVerificationEmail({
+  locale,
   name,
   verificationLink,
 }: VerificationEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+
   return renderAuthActionEmail({
     actionUrl: verificationLink,
-    actionLabel: "Verify email",
-    body: "Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
-    footer:
-      "If you didn't create an account, you can safely ignore this email.",
-    name,
-    subject: "Sokosumi - Verify your email address",
-    title: "Verify your email address",
+    actionLabel: t("auth.verification.button"),
+    body: t("auth.verification.message"),
+    footer: t("auth.verification.footer"),
+    greeting: formatGreeting(t, "auth.verification.greeting", name),
+    linkInstructions: t("auth.verification.linkInstructions"),
+    subject: t("auth.verification.subject"),
+    title: t("auth.verification.title"),
   });
 }
 
 export async function renderResetPasswordEmail({
+  locale,
   name,
   resetLink,
 }: ResetPasswordEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+
   return renderAuthActionEmail({
     actionUrl: resetLink,
-    actionLabel: "Reset password",
-    body: "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
-    footer:
-      "If you didn't request a password reset, please ignore this email or contact support if you have concerns.",
-    name,
-    subject: "Sokosumi - Reset your password",
-    title: "Reset your password",
+    actionLabel: t("auth.resetPassword.button"),
+    body: t("auth.resetPassword.message"),
+    footer: t("auth.resetPassword.footer"),
+    greeting: formatGreeting(t, "auth.resetPassword.greeting", name),
+    linkInstructions: t("auth.resetPassword.linkInstructions"),
+    subject: t("auth.resetPassword.subject"),
+    title: t("auth.resetPassword.title"),
   });
 }
 
 export async function renderMagicLinkEmail({
+  locale,
   magicLink,
   name,
   token,
 }: MagicLinkEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+
   return renderAuthActionEmail({
     actionUrl: magicLink,
-    actionLabel: "Sign in",
-    body: "Use the button below to sign in to your Sokosumi account.",
+    actionLabel: t("auth.magicLink.button"),
+    body: t("auth.magicLink.message"),
     extraContent: token ? (
       <>
         <Text className="m-0 mb-[12px] text-[14px] leading-[24px] text-black">
-          If you need it, you can also use this one-time token:
+          {t("auth.magicLink.tokenInstructions")}
         </Text>
         <Text className="m-0 mb-[26px] inline-block break-all rounded border border-solid border-[#eaeaea] bg-[#f8f8f8] px-[14px] py-[12px] font-mono text-[14px] leading-[20px] text-black">
           {token}
         </Text>
       </>
     ) : undefined,
-    footer:
-      "If you didn't request this email, you can safely ignore this email.",
-    name,
-    subject: "Sokosumi - Sign in to your account",
-    title: "Sign in to Sokosumi",
+    footer: t("auth.magicLink.footer"),
+    greeting: name?.trim()
+      ? t("auth.magicLink.greeting", { name: name.trim() })
+      : t("auth.magicLink.greetingAnonymous"),
+    linkInstructions: t("auth.magicLink.linkInstructions"),
+    subject: t("auth.magicLink.subject"),
+    title: t("auth.magicLink.title"),
   });
 }
 
 export async function renderOrganizationInvitationEmail({
   invitationLink,
   invitorUsername,
+  locale,
   organizationName,
 }: OrganizationInvitationEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+
   return renderAuthActionEmail({
     actionUrl: invitationLink,
-    actionLabel: "Accept Invitation",
-    body: `You've been invited to join ${organizationName} on Sokosumi. Click the button below to accept the invitation.`,
-    footer:
-      "If you didn't request this invitation, you can safely ignore this email.",
-    greeting: "Hello there",
-    subject: "Sokosumi - Organization Invitation",
-    title: `Join ${invitorUsername} on ${organizationName}`,
+    actionLabel: t("auth.invitation.button"),
+    body: t("auth.invitation.message", { organizationName }),
+    footer: t("auth.invitation.footer"),
+    greeting: t("auth.invitation.greeting"),
+    linkInstructions: t("auth.invitation.linkInstructions"),
+    subject: t("auth.invitation.subject"),
+    title: t("auth.invitation.title", { invitorUsername, organizationName }),
   });
 }

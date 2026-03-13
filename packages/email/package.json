@@ -19,7 +19,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/locales && cp src/locales/*.json dist/locales/",
     "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
     "prepare": "pnpm build",
     "lint": "eslint --max-warnings 0 .",
@@ -45,7 +45,8 @@
     "@react-email/tailwind": "2.0.5",
     "@react-email/text": "0.1.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "use-intl": "4.8.3"
   },
   "devDependencies": {
     "@types/jest": "30.0.0",

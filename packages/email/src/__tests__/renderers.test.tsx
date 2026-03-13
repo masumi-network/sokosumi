@@ -11,6 +11,7 @@ import {
 describe("email renderers", () => {
   it("renders verification emails with a subject and html body", async () => {
     const rendered = await renderVerificationEmail({
+      locale: "en",
       name: "Andreas",
       verificationLink: "https://example.com/verify",
     });
@@ -21,19 +22,21 @@ describe("email renderers", () => {
     expect(rendered.html).toContain("https://example.com/verify");
   });
 
-  it("renders reset password emails in English", async () => {
+  it("renders reset password emails with localized copy", async () => {
     const rendered = await renderResetPasswordEmail({
+      locale: "de",
       name: "Andreas",
       resetLink: "https://example.com/reset",
     });
 
-    expect(rendered.subject).toBe("Sokosumi - Reset your password");
-    expect(rendered.html).toContain("Hello Andreas");
-    expect(rendered.html).toContain("Reset your password");
+    expect(rendered.subject).toBe("Sokosumi - Passwort zurücksetzen");
+    expect(rendered.html).toContain("Hallo Andreas");
+    expect(rendered.html).toContain("Dein Passwort zur\u00fccksetzen");
   });
 
   it("falls back to a generic auth greeting for blank names", async () => {
     const rendered = await renderVerificationEmail({
+      locale: "en",
       name: "   ",
       verificationLink: "https://example.com/verify",
     });
@@ -44,11 +47,13 @@ describe("email renderers", () => {
 
   it("renders magic-link emails with the optional token fallback", async () => {
     const withToken = await renderMagicLinkEmail({
+      locale: "en",
       magicLink: "https://example.com/magic",
       name: "Andreas",
       token: "secret-token",
     });
     const withoutToken = await renderMagicLinkEmail({
+      locale: "en",
       magicLink: "https://example.com/magic",
     });
 
@@ -65,6 +70,7 @@ describe("email renderers", () => {
     const rendered = await renderOrganizationInvitationEmail({
       invitationLink: "https://example.com/invite",
       invitorUsername: "Chris",
+      locale: "en",
       organizationName: "Sokosumi Org",
     });
 
@@ -73,16 +79,17 @@ describe("email renderers", () => {
     expect(rendered.html).toContain("https://example.com/invite");
   });
 
-  it("renders job final status emails with fallback job names", async () => {
+  it("renders job final status emails with fallback job names in a localized locale", async () => {
     const rendered = await renderJobFinalStatusEmail({
       agentName: "Planner",
       jobLink: "https://example.com/job",
       jobStatus: "completed",
+      locale: "fr",
       recipientName: "Andreas",
     });
 
-    expect(rendered.subject).toBe("Sokosumi - Planner job completed");
-    expect(rendered.html).toContain("Your job");
+    expect(rendered.subject).toBe("Sokosumi - job termin\u00e9 de Planner");
+    expect(rendered.html).toContain("Votre job");
     expect(rendered.html).toContain("Planner");
   });
 
@@ -91,6 +98,7 @@ describe("email renderers", () => {
       agentName: "Planner",
       jobLink: "https://example.com/job",
       jobStatus: "completed",
+      locale: "en",
       recipientName: "   ",
     });
 
@@ -103,6 +111,7 @@ describe("email renderers", () => {
       agentName: "Planner",
       jobLink: "https://example.com/job",
       jobName: "Quarterly review",
+      locale: "en",
       recipientName: "Andreas",
     });
 
@@ -115,6 +124,7 @@ describe("email renderers", () => {
     const rendered = await renderJobInputRequiredEmail({
       agentName: "Planner",
       jobLink: "https://example.com/job",
+      locale: "en",
       recipientName: "Andreas",
     });
 
@@ -132,6 +142,7 @@ describe("email renderers", () => {
       agentStatus: "failed",
       jobBlockchainIdentifier: "job-blockchain-id",
       jobId: "job-id",
+      locale: "en",
       network: "mainnet",
       onChainStatus: "withdrawn",
       result: JSON.stringify({ error: "failure" }),

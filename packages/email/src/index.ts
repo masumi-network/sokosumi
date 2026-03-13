@@ -3,6 +3,7 @@ export type {
   JobFailureNotificationEmailProps,
   JobFinalStatusEmailProps,
   JobInputRequiredEmailProps,
+  LocalizedEmailProps,
   MagicLinkEmailProps,
   OrganizationInvitationEmailProps,
   RenderedEmail,

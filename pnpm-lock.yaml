@@ -675,6 +675,9 @@ importers:
       react-dom:
         specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
+      use-intl:
+        specifier: 4.8.3
+        version: 4.8.3(react@19.2.4)
     devDependencies:
       '@types/jest':
         specifier: 30.0.0

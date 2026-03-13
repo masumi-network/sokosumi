@@ -63,6 +63,155 @@ const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 const betterAuthApiKey = getEnvSecrets().BETTER_AUTH_API_KEY;
+const EMAIL_LOCALE_COOKIE_NAMES = new Set(["sokosumi.locale", "locale"]);
+
+interface ParsedLanguagePreference {
+  index: number;
+  quality: number;
+  tag: string;
+}
+
+function normalizeLocaleTag(
+  rawLocale: null | string | undefined,
+): null | string {
+  if (!rawLocale) {
+    return null;
+  }
+
+  const trimmedLocale = rawLocale.trim();
+
+  if (!trimmedLocale || trimmedLocale === "*") {
+    return null;
+  }
+
+  try {
+    return (
+      Intl.getCanonicalLocales(trimmedLocale.replaceAll("_", "-")).at(0) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function parseLocaleCookie(cookieHeader?: null | string): null | string {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  for (const rawCookie of cookieHeader.split(";")) {
+    const separatorIndex = rawCookie.indexOf("=");
+
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const cookieName = rawCookie.slice(0, separatorIndex).trim();
+
+    if (!EMAIL_LOCALE_COOKIE_NAMES.has(cookieName)) {
+      continue;
+    }
+
+    const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
+
+    if (!cookieValue) {
+      return null;
+    }
+
+    try {
+      return normalizeLocaleTag(decodeURIComponent(cookieValue));
+    } catch {
+      return normalizeLocaleTag(cookieValue);
+    }
+  }
+
+  return null;
+}
+
+function parseAcceptLanguage(
+  acceptLanguageHeader?: null | string,
+): null | string {
+  if (!acceptLanguageHeader) {
+    return null;
+  }
+
+  const preferences = acceptLanguageHeader
+    .split(",")
+    .map((part, index): null | ParsedLanguagePreference => {
+      const [rawTag, ...rawParams] = part.split(";");
+      const normalizedTag = normalizeLocaleTag(rawTag);
+
+      if (!normalizedTag) {
+        return null;
+      }
+
+      let quality = 1;
+
+      for (const rawParam of rawParams) {
+        const [rawKey, rawValue] = rawParam.split("=");
+
+        if (rawKey?.trim().toLowerCase() !== "q") {
+          continue;
+        }
+
+        if (!rawValue) {
+          return null;
+        }
+
+        const parsedQuality = Number.parseFloat(rawValue.trim());
+
+        if (
+          Number.isNaN(parsedQuality) ||
+          parsedQuality < 0 ||
+          parsedQuality > 1
+        ) {
+          return null;
+        }
+
+        quality = parsedQuality;
+        break;
+      }
+
+      if (quality === 0) {
+        return null;
+      }
+
+      return {
+        index,
+        quality,
+        tag: normalizedTag,
+      };
+    })
+    .filter((preference): preference is ParsedLanguagePreference =>
+      Boolean(preference),
+    )
+    .sort((left, right) => {
+      if (left.quality !== right.quality) {
+        return right.quality - left.quality;
+      }
+
+      return left.index - right.index;
+    });
+
+  return preferences.at(0)?.tag ?? null;
+}
+
+function getEmailLocale(
+  request?: Request,
+  fallbackHeaders?: Headers,
+): string | undefined {
+  const cookieHeader =
+    request?.headers.get("cookie") ?? fallbackHeaders?.get("cookie") ?? null;
+  const acceptLanguageHeader =
+    request?.headers.get("accept-language") ??
+    fallbackHeaders?.get("accept-language") ??
+    null;
+
+  return (
+    parseLocaleCookie(cookieHeader) ??
+    parseAcceptLanguage(acceptLanguageHeader) ??
+    undefined
+  );
+}
 
 function getFallbackUserName(email: string): string {
   const normalizedEmail = email.trim();
@@ -72,7 +221,10 @@ function getFallbackUserName(email: string): string {
   return normalizedPrefix || normalizedEmail || "User";
 }
 
-function getStoredUserName(name: null | string | undefined, email: string): string {
+function getStoredUserName(
+  name: null | string | undefined,
+  email: string,
+): string {
   const normalizedName = name?.trim();
 
   return normalizedName || getFallbackUserName(email);
@@ -274,8 +426,9 @@ export const auth = betterAuth({
     minPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
     requireEmailVerification: false,
     autoSignIn: true,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, url }, request) => {
       const email = await renderResetPasswordEmail({
+        locale: getEmailLocale(request),
         name: user.name,
         resetLink: url,
       });
@@ -291,8 +444,9 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-    sendVerificationEmail: async ({ user, url }) => {
+    sendVerificationEmail: async ({ user, url }, request) => {
       const email = await renderVerificationEmail({
+        locale: getEmailLocale(request),
         name: user.name,
         verificationLink: url,
       });
@@ -367,9 +521,11 @@ export const auth = betterAuth({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes
       sendMagicLink: async ({ email, url, token }, ctx) => {
+        const locale = getEmailLocale(ctx?.request, ctx?.headers);
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
         const renderedEmail = await renderMagicLinkEmail({
+          locale,
           magicLink: url,
           name,
           token,
@@ -457,11 +613,12 @@ export const auth = betterAuth({
           },
         },
       },
-      async sendInvitationEmail(data) {
+      async sendInvitationEmail(data, request) {
         const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
         const email = await renderOrganizationInvitationEmail({
           invitationLink: inviteLink,
           invitorUsername: data.inviter.user.name,
+          locale: getEmailLocale(request),
           organizationName: data.organization.name,
         });
 

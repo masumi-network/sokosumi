@@ -128,7 +128,7 @@ describe("core auth config", () => {
     expect(config.sendMagicLink).toEqual(expect.any(Function));
   });
 
-  it("sends magic-link emails with the shared email renderer", async () => {
+  it("prefers the locale cookie over accept-language for magic-link emails", async () => {
     await import("./auth");
 
     const [[config]] = magicLinkPluginMock.mock.calls as Array<
@@ -140,11 +140,22 @@ describe("core auth config", () => {
               token: string;
               url: string;
             },
-            ctx?: { body?: { name?: string } },
+            ctx?: {
+              body?: { name?: string };
+              headers?: Headers;
+              request?: Request;
+            },
           ) => Promise<void>;
         },
       ]
     >;
+
+    const request = new Request("https://example.com/auth/sign-in/magic-link", {
+      headers: {
+        "accept-language": "de-DE,de;q=0.9",
+        cookie: "sokosumi.locale=pt-BR",
+      },
+    });
 
     await config.sendMagicLink(
       {
@@ -156,10 +167,15 @@ describe("core auth config", () => {
         body: {
           name: "Andreas",
         },
+        headers: new Headers({
+          cookie: "sokosumi.locale=pt-BR",
+        }),
+        request,
       },
     );
 
     expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
+      locale: "pt-BR",
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
       token: "secret-token",
       name: "Andreas",

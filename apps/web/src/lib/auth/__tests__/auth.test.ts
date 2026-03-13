@@ -15,6 +15,9 @@ const marketingOptInUserSchemaSafeParseMock = jest.fn();
 const nextCookiesPluginMock = jest.fn();
 const oauthProviderPluginMock = jest.fn();
 const organizationPluginMock = jest.fn();
+const renderOrganizationInvitationEmailMock = jest.fn();
+const renderResetPasswordEmailMock = jest.fn();
+const renderVerificationEmailMock = jest.fn();
 const callUserCreatedWebHookMock = jest.fn();
 const callUserUpdatedWebHookMock = jest.fn();
 const postmarkSendEmailMock = jest.fn();
@@ -98,9 +101,12 @@ jest.mock("@sokosumi/database/repositories", () => ({
 jest.mock("@sokosumi/email", () => ({
   renderMagicLinkEmail: (...args: unknown[]) =>
     renderMagicLinkEmailMock(...args),
-  renderOrganizationInvitationEmail: jest.fn(),
-  renderResetPasswordEmail: jest.fn(),
-  renderVerificationEmail: jest.fn(),
+  renderOrganizationInvitationEmail: (...args: unknown[]) =>
+    renderOrganizationInvitationEmailMock(...args),
+  renderResetPasswordEmail: (...args: unknown[]) =>
+    renderResetPasswordEmailMock(...args),
+  renderVerificationEmail: (...args: unknown[]) =>
+    renderVerificationEmailMock(...args),
 }));
 
 jest.mock("@sokosumi/masumi/auth", () => ({
@@ -231,10 +237,22 @@ describe("web auth config", () => {
       html: "<html>magic link</html>",
       subject: "Sokosumi - Sign in to your account",
     });
+    renderOrganizationInvitationEmailMock.mockResolvedValue({
+      html: "<html>organization invitation</html>",
+      subject: "Sokosumi - Organization Invitation",
+    });
+    renderResetPasswordEmailMock.mockResolvedValue({
+      html: "<html>reset password</html>",
+      subject: "Sokosumi - Passwort zurücksetzen",
+    });
+    renderVerificationEmailMock.mockResolvedValue({
+      html: "<html>verification email</html>",
+      subject: "Sokosumi - E-Mail-Adresse bestätigen",
+    });
     stripePluginMock.mockReturnValue("stripe-plugin");
   });
 
-  it("passes the magic-link token to the shared email renderer", async () => {
+  it("prefers the locale cookie over accept-language for magic-link emails", async () => {
     await import("../auth");
 
     const [[config]] = magicLinkPluginMock.mock.calls as Array<
@@ -246,11 +264,22 @@ describe("web auth config", () => {
               token: string;
               url: string;
             },
-            ctx?: { body?: { name?: string } },
+            ctx?: {
+              body?: { name?: string };
+              headers?: Headers;
+              request?: Request;
+            },
           ) => Promise<void>;
         },
       ]
     >;
+
+    const request = new Request("https://example.com/auth/sign-in/magic-link", {
+      headers: {
+        "accept-language": "de-DE,de;q=0.9",
+        cookie: "sokosumi.locale=fr",
+      },
+    });
 
     await config.sendMagicLink(
       {
@@ -262,10 +291,15 @@ describe("web auth config", () => {
         body: {
           name: "Andreas",
         },
+        headers: new Headers({
+          cookie: "sokosumi.locale=fr",
+        }),
+        request,
       },
     );
 
     expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
+      locale: "fr",
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
       name: "Andreas",
       token: "secret-token",
@@ -277,6 +311,162 @@ describe("web auth config", () => {
       Subject: "Sokosumi - Sign in to your account",
       HtmlBody: "<html>magic link</html>",
       MessageStream: "authentications",
+    });
+  });
+
+  it("passes the resolved locale to the reset-password email renderer", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          emailAndPassword: {
+            sendResetPassword: (
+              data: {
+                url: string;
+                user: {
+                  email: string;
+                  name: string;
+                };
+              },
+              request?: Request,
+            ) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    const request = new Request(
+      "https://example.com/auth/request-password-reset",
+      {
+        headers: {
+          "accept-language": "de-DE,de;q=0.9",
+          cookie: "sokosumi.locale=de",
+        },
+      },
+    );
+
+    await config.emailAndPassword.sendResetPassword(
+      {
+        url: "https://example.com/reset-password",
+        user: {
+          email: "andreas@example.com",
+          name: "Andreas",
+        },
+      },
+      request,
+    );
+
+    expect(renderResetPasswordEmailMock).toHaveBeenCalledWith({
+      locale: "de-DE",
+      name: "Andreas",
+      resetLink: "https://example.com/reset-password",
+    });
+  });
+
+  it("passes the resolved locale to the verification email renderer", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          emailVerification: {
+            sendVerificationEmail: (
+              data: {
+                url: string;
+                user: {
+                  email: string;
+                  name: string;
+                };
+              },
+              request?: Request,
+            ) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    const request = new Request(
+      "https://example.com/auth/send-verification-email",
+      {
+        headers: {
+          "accept-language": "de-DE,de;q=0.9",
+          cookie: "sokosumi.locale=de",
+        },
+      },
+    );
+
+    await config.emailVerification.sendVerificationEmail(
+      {
+        url: "https://example.com/verify-email",
+        user: {
+          email: "andreas@example.com",
+          name: "Andreas",
+        },
+      },
+      request,
+    );
+
+    expect(renderVerificationEmailMock).toHaveBeenCalledWith({
+      locale: "de-DE",
+      name: "Andreas",
+      verificationLink: "https://example.com/verify-email",
+    });
+  });
+
+  it("passes the resolved locale to the invitation email renderer", async () => {
+    await import("../auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          sendInvitationEmail: (
+            data: {
+              email: string;
+              id: string;
+              inviter: {
+                user: {
+                  name: string;
+                };
+              };
+              organization: {
+                name: string;
+              };
+            },
+            request?: Request,
+          ) => Promise<void>;
+        },
+      ]
+    >;
+
+    const request = new Request("https://example.com/auth/send-invitation", {
+      headers: {
+        "accept-language": "de-DE,de;q=0.9",
+        cookie: "sokosumi.locale=de",
+      },
+    });
+
+    await config.sendInvitationEmail(
+      {
+        email: "invitee@example.com",
+        id: "invite_123",
+        inviter: {
+          user: {
+            name: "Andreas",
+          },
+        },
+        organization: {
+          name: "Sokosumi Org",
+        },
+      },
+      request,
+    );
+
+    expect(renderOrganizationInvitationEmailMock).toHaveBeenCalledWith({
+      invitationLink: "https://example.com/auth/accept-invitation/invite_123",
+      invitorUsername: "Andreas",
+      locale: "de-DE",
+      organizationName: "Sokosumi Org",
     });
   });
 
@@ -328,7 +518,8 @@ describe("web auth config", () => {
       name: "   ",
     };
 
-    const normalizedCreate = await config.databaseHooks.user.create.before(user);
+    const normalizedCreate =
+      await config.databaseHooks.user.create.before(user);
 
     expect(normalizedCreate).toEqual({
       data: {

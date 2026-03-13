@@ -153,6 +153,7 @@ export const jobService = (() => {
         jobName: job.name,
         jobStatus,
         jobLink,
+        locale: "en",
       });
 
       postmarkClient.sendEmail({
@@ -194,6 +195,7 @@ export const jobService = (() => {
         agentName,
         jobName: job.name,
         jobLink,
+        locale: "en",
       });
 
       postmarkClient.sendEmail({
@@ -310,6 +312,7 @@ export const jobService = (() => {
       // Generate email content (subject and body)
       const email = await renderJobFailureNotificationEmail({
         ...notificationData,
+        locale: "en",
       });
 
       // Send email with appropriate To and Bcc recipients

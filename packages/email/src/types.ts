@@ -3,29 +3,33 @@ export interface RenderedEmail {
   subject: string;
 }
 
-export interface VerificationEmailProps {
+export interface LocalizedEmailProps {
+  locale?: string;
+}
+
+export interface VerificationEmailProps extends LocalizedEmailProps {
   name: string;
   verificationLink: string;
 }
 
-export interface ResetPasswordEmailProps {
+export interface ResetPasswordEmailProps extends LocalizedEmailProps {
   name: string;
   resetLink: string;
 }
 
-export interface MagicLinkEmailProps {
+export interface MagicLinkEmailProps extends LocalizedEmailProps {
   magicLink: string;
   name?: string;
   token?: string;
 }
 
-export interface OrganizationInvitationEmailProps {
+export interface OrganizationInvitationEmailProps extends LocalizedEmailProps {
   invitationLink: string;
   invitorUsername: string;
   organizationName: string;
 }
 
-export interface JobFinalStatusEmailProps {
+export interface JobFinalStatusEmailProps extends LocalizedEmailProps {
   agentName: string;
   jobLink: string;
   jobName?: null | string;
@@ -33,14 +37,14 @@ export interface JobFinalStatusEmailProps {
   recipientName: string;
 }
 
-export interface JobInputRequiredEmailProps {
+export interface JobInputRequiredEmailProps extends LocalizedEmailProps {
   agentName: string;
   jobLink: string;
   jobName?: null | string;
   recipientName: string;
 }
 
-export interface JobFailureNotificationEmailProps {
+export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   agentBlockchainIdentifier: string;
   agentId: string;
   agentName: string;
