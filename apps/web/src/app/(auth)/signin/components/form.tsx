@@ -152,19 +152,19 @@ export default function SignInForm({
     >
       <div className="flex flex-col gap-4">
         <div className="relative">
+          {isLastUsedEmailLogin && (
+            <Badge
+              variant="secondary"
+              className="pointer-events-none absolute top-0 right-0 z-10 translate-x-1/4 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] leading-none shadow-sm"
+            >
+              {t("lastUsed")}
+            </Badge>
+          )}
           <SubmitButton
             isSubmitting={isSubmitting}
             label={t("submit")}
             className="w-full"
           />
-          {isLastUsedEmailLogin && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-            >
-              {t("lastUsed")}
-            </Badge>
-          )}
         </div>
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <div className="flex flex-row items-center gap-2">

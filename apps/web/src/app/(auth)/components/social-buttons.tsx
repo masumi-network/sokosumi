@@ -238,24 +238,32 @@ export default function SocialButtons({
     <div className="flex flex-col gap-3">
       {socialButtons.map((socialButton) => (
         <div className="relative" key={socialButton.key}>
+          {lastUsedMethod === socialButton.key && (
+            <Badge
+              variant="secondary"
+              className="pointer-events-none absolute top-0 right-0 z-10 translate-x-1/4 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] leading-none shadow-sm"
+            >
+              {t("lastUsed")}
+            </Badge>
+          )}
           <socialButton.Button
             onClick={() => handleClick(socialButton.key)}
             className="bg-senary! hover:bg-quinary! text-foreground! m-0! flex w-full! rounded-md! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!"
             align="center"
             text={t("continueWith", { provider: socialButton.name })}
           />
-          {lastUsedMethod === socialButton.key && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-            >
-              {t("lastUsed")}
-            </Badge>
-          )}
         </div>
       ))}
       {showPasskey && (
         <div className="relative">
+          {lastUsedMethod === "passkey" && (
+            <Badge
+              variant="secondary"
+              className="pointer-events-none absolute top-0 right-0 z-10 translate-x-1/4 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] leading-none shadow-sm"
+            >
+              {t("lastUsed")}
+            </Badge>
+          )}
           <Button
             type="button"
             variant="secondary"
@@ -272,18 +280,18 @@ export default function SocialButtons({
             )}
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
-          {lastUsedMethod === "passkey" && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-            >
-              {t("lastUsed")}
-            </Badge>
-          )}
         </div>
       )}
       {showMagicLink && (
         <div className="relative">
+          {lastUsedMethod === "magic-link" && (
+            <Badge
+              variant="secondary"
+              className="pointer-events-none absolute top-0 right-0 z-10 translate-x-1/4 -translate-y-1/2 rounded-full px-2 py-0.5 text-[10px] leading-none shadow-sm"
+            >
+              {t("lastUsed")}
+            </Badge>
+          )}
           <Button
             type="button"
             variant="secondary"
@@ -293,14 +301,6 @@ export default function SocialButtons({
             <Mail className="size-4" />
             {t("continueWith", { provider: t("magicLinkProvider") })}
           </Button>
-          {lastUsedMethod === "magic-link" && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-            >
-              {t("lastUsed")}
-            </Badge>
-          )}
         </div>
       )}
       {showMagicLink && isMagicLinkVisible && (

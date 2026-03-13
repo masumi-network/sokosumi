@@ -221,22 +221,50 @@ describe("SocialButtons", () => {
     });
   });
 
-  it("shows last used badge for matching provider", () => {
+  it("shows a corner badge on the matching provider button", () => {
     render(<SocialButtons lastUsedMethod="google" />);
 
-    expect(screen.getByText("last-used")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "continue-with-Google" });
+    const lastUsedLabel = screen.getByText("last-used");
+    const badgeContainer = button.parentElement;
+
+    expect(lastUsedLabel).toBeInTheDocument();
+    expect(lastUsedLabel).toHaveClass("absolute", "top-0", "right-0");
+    expect(badgeContainer).toHaveClass("relative");
+    expect(badgeContainer).not.toHaveClass("pt-3");
+    expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
-  it("shows last used badge for magic-link button", () => {
+  it("shows a corner badge on the magic-link button", () => {
     render(<SocialButtons showMagicLink lastUsedMethod="magic-link" />);
 
-    expect(screen.getByText("last-used")).toBeInTheDocument();
+    const button = screen.getByRole("button", {
+      name: "continue-with-Magic Link",
+    });
+    const lastUsedLabel = screen.getByText("last-used");
+    const badgeContainer = button.parentElement;
+
+    expect(lastUsedLabel).toBeInTheDocument();
+    expect(lastUsedLabel).toHaveClass("absolute", "top-0", "right-0");
+    expect(badgeContainer).toHaveClass("relative");
+    expect(badgeContainer).not.toHaveClass("pt-3");
+    expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
-  it("shows last used badge for passkey button", () => {
+  it("shows a corner badge on the passkey button", () => {
     render(<SocialButtons showPasskey lastUsedMethod="passkey" />);
 
-    expect(screen.getByText("last-used")).toBeInTheDocument();
+    const button = screen.getByRole("button", {
+      name: "continue-with-Passkey",
+    });
+    const lastUsedLabel = screen.getByText("last-used");
+    const badgeContainer = button.parentElement;
+
+    expect(lastUsedLabel).toBeInTheDocument();
+    expect(lastUsedLabel).toHaveClass("absolute", "top-0", "right-0");
+    expect(badgeContainer).toHaveClass("relative");
+    expect(badgeContainer).not.toHaveClass("pt-3");
+    expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
   it("builds oauth consent returnUrl from signed query when prop is missing", async () => {

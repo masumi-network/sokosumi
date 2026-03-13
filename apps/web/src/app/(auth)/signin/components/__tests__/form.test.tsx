@@ -105,17 +105,18 @@ describe("SignInForm", () => {
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
 
-  it("renders the email last-used badge over the submit button", () => {
+  it("renders the email last-used badge on the submit button corner", () => {
     render(<SignInForm isLastUsedEmailLogin />);
 
     const submitButton = screen.getByRole("button", { name: "submit" });
-    const lastUsedBadge = screen.getByText("last-used");
+    const lastUsedLabel = screen.getByText("last-used");
     const badgeContainer = submitButton.parentElement;
 
-    expect(lastUsedBadge).toBeInTheDocument();
-    expect(lastUsedBadge).toHaveClass("absolute");
+    expect(lastUsedLabel).toBeInTheDocument();
+    expect(lastUsedLabel).toHaveClass("absolute", "top-0", "right-0");
     expect(badgeContainer).toHaveClass("relative");
-    expect(badgeContainer).toContainElement(lastUsedBadge);
+    expect(badgeContainer).not.toHaveClass("pt-3");
+    expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
   it("passes unwrapped session data to waitForAuthSession after credential login", async () => {
