@@ -60,7 +60,9 @@ export function PasskeySettings() {
   const isMutatingPasskeys =
     isAddingPasskey || removingPasskeyId !== null || savingPasskeyId !== null;
 
-  const fetchPasskeys = useCallback(async (): Promise<null | PasskeyRecord[]> => {
+  const fetchPasskeys = useCallback(async (): Promise<
+    null | PasskeyRecord[]
+  > => {
     try {
       const result = await authClient.passkey.listUserPasskeys();
 
@@ -74,16 +76,19 @@ export function PasskeySettings() {
     }
   }, []);
 
-  const applyPasskeysResult = useCallback((nextPasskeys: null | PasskeyRecord[]) => {
-    if (nextPasskeys === null) {
-      setHasPasskeyLoadError(true);
-      return false;
-    }
+  const applyPasskeysResult = useCallback(
+    (nextPasskeys: null | PasskeyRecord[]) => {
+      if (nextPasskeys === null) {
+        setHasPasskeyLoadError(true);
+        return false;
+      }
 
-    setPasskeys(nextPasskeys);
-    setHasPasskeyLoadError(false);
-    return true;
-  }, []);
+      setPasskeys(nextPasskeys);
+      setHasPasskeyLoadError(false);
+      return true;
+    },
+    [],
+  );
 
   const reloadPasskeys = useCallback(async () => {
     setIsLoadingPasskeys(true);
@@ -219,7 +224,10 @@ export function PasskeySettings() {
     }
   };
 
-  function handlePasskeyEditSubmit(event: FormEvent<HTMLFormElement>, id: string) {
+  function handlePasskeyEditSubmit(
+    event: FormEvent<HTMLFormElement>,
+    id: string,
+  ) {
     event.preventDefault();
 
     if (isMutatingPasskeys) {

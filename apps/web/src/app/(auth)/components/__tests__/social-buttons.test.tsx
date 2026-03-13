@@ -86,7 +86,9 @@ jest.mock("@/lib/actions/auth", () => ({
 }));
 
 jest.mock("@/lib/utils/auth-redirect", () => {
-  const actual = jest.requireActual("@/lib/utils/auth-redirect") as typeof import("@/lib/utils/auth-redirect");
+  const actual = jest.requireActual(
+    "@/lib/utils/auth-redirect",
+  ) as typeof import("@/lib/utils/auth-redirect");
 
   return {
     ...actual,

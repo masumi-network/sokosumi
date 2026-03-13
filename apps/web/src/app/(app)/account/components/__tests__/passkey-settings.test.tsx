@@ -413,17 +413,17 @@ describe("PasskeySettings", () => {
             ? {
                 ...passkey,
                 name,
-            }
-          : passkey,
-      );
+              }
+            : passkey,
+        );
 
         return {
           data: {
             passkey: {
               id,
               name,
+            },
           },
-        },
           error: null,
         };
       },
@@ -465,7 +465,9 @@ describe("PasskeySettings", () => {
     await user.click(screen.getByRole("button", { name: "cancel" }));
 
     expect(mockUpdatePasskey).not.toHaveBeenCalled();
-    expect(screen.queryByRole("textbox", { name: "editInputLabel" })).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "editInputLabel" }),
+    ).toBeNull();
   });
 
   it("cancels passkey rename when the user presses Escape", async () => {
@@ -483,7 +485,9 @@ describe("PasskeySettings", () => {
     await user.type(input, "{Escape}");
 
     expect(mockUpdatePasskey).not.toHaveBeenCalled();
-    expect(screen.queryByRole("textbox", { name: "editInputLabel" })).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "editInputLabel" }),
+    ).toBeNull();
   });
 
   it("shows an error when passkey rename fails", async () => {
@@ -505,9 +509,7 @@ describe("PasskeySettings", () => {
     await user.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith(
-        "renameError: rename failed",
-      );
+      expect(mockToastError).toHaveBeenCalledWith("renameError: rename failed");
     });
   });
 
@@ -560,7 +562,9 @@ describe("PasskeySettings", () => {
       expect(screen.getByText("loadError")).toBeInTheDocument();
     });
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "retry" }));
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "retry" }));
 
     expect(await screen.findByText("MacBook Touch ID")).toBeInTheDocument();
     expect(screen.queryByText("loadError")).not.toBeInTheDocument();
