@@ -286,8 +286,10 @@ describe("SocialButtons", () => {
   });
 
   it("fails softly when conditional passkey UI is unavailable", async () => {
-    delete (window as typeof window & { PublicKeyCredential?: unknown })
-      .PublicKeyCredential;
+    Object.defineProperty(window, "PublicKeyCredential", {
+      configurable: true,
+      value: undefined,
+    });
 
     render(<SocialButtons showPasskey />);
 

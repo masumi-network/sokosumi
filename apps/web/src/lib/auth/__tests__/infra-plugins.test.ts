@@ -2,8 +2,8 @@ const dashMock = jest.fn(() => "dash-plugin");
 const sentinelMock = jest.fn(() => "sentinel-plugin");
 
 jest.mock("@better-auth/infra", () => ({
-  dash: (...args: unknown[]) => dashMock(...args),
-  sentinel: (...args: unknown[]) => sentinelMock(...args),
+  dash: dashMock,
+  sentinel: sentinelMock,
 }));
 
 describe("getInfraAuthPlugins", () => {

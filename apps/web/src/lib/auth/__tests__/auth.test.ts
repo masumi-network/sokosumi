@@ -64,8 +64,7 @@ jest.mock("better-auth/api", () => {
 
   return {
     APIError: MockApiError,
-    createAuthMiddleware: (...args: unknown[]) =>
-      createAuthMiddlewareMock(...args),
+    createAuthMiddleware: createAuthMiddlewareMock,
   };
 });
 
@@ -155,23 +154,20 @@ jest.mock("@/lib/db/prisma", () => ({
 
 jest.mock("@/lib/email/postmark", () => ({
   postmarkClient: {
-    sendEmail: (...args: unknown[]) => postmarkSendEmailMock(...args),
+    sendEmail: postmarkSendEmailMock,
   },
 }));
 
 jest.mock("@/lib/schemas", () => ({
   marketingOptInUserSchema: {
-    safeParse: (...args: unknown[]) =>
-      marketingOptInUserSchemaSafeParseMock(...args),
+    safeParse: marketingOptInUserSchemaSafeParseMock,
   },
 }));
 
 jest.mock("@/lib/services", () => ({
   callAccountCreatedWebHook: jest.fn(),
-  callUserCreatedWebHook: (...args: unknown[]) =>
-    callUserCreatedWebHookMock(...args),
-  callUserUpdatedWebHook: (...args: unknown[]) =>
-    callUserUpdatedWebHookMock(...args),
+  callUserCreatedWebHook: callUserCreatedWebHookMock,
+  callUserUpdatedWebHook: callUserUpdatedWebHookMock,
   organizationSubscriptionService: {
     ensureCanAcceptInvitation: jest.fn(),
     ensureCanCreateInvitation: jest.fn(),
@@ -586,6 +582,9 @@ describe("web auth config", () => {
 
     const normalizedCreate =
       await config.databaseHooks.user.create.before(user);
+    const normalizedUser = normalizedCreate.data as typeof user & {
+      id: string;
+    };
 
     expect(normalizedCreate).toEqual({
       data: {
@@ -594,8 +593,8 @@ describe("web auth config", () => {
       },
     });
 
-    await config.databaseHooks.user.create.after(normalizedCreate.data);
-    await config.databaseHooks.user.update.after(normalizedCreate.data);
+    await config.databaseHooks.user.create.after(normalizedUser);
+    await config.databaseHooks.user.update.after(normalizedUser);
 
     expect(marketingOptInUserSchemaSafeParseMock).toHaveBeenNthCalledWith(1, {
       ...user,
