@@ -392,7 +392,7 @@ export function PasskeySettings() {
         <Button
           type="button"
           className="w-full"
-          disabled={isMutatingPasskeys}
+          disabled={isLoadingPasskeys || isMutatingPasskeys}
           onClick={() => {
             void handleAddPasskey();
           }}

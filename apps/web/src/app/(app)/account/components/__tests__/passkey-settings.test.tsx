@@ -136,6 +136,30 @@ describe("PasskeySettings", () => {
     expect(screen.getByText(/created-/)).toBeInTheDocument();
   });
 
+  it("disables the add button while the initial passkey load is in progress", async () => {
+    const pendingListPasskeys = createDeferred<{
+      data: typeof currentPasskeys;
+      error: null;
+    }>();
+
+    mockListUserPasskeys.mockImplementationOnce(() => pendingListPasskeys.promise);
+
+    render(<PasskeySettings />);
+
+    expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+    expect(screen.getByText("loading")).toBeInTheDocument();
+    expect(mockAddPasskey).not.toHaveBeenCalled();
+
+    pendingListPasskeys.resolve({
+      data: currentPasskeys,
+      error: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
+  });
+
   it("adds a passkey and refreshes the list", async () => {
     const user = userEvent.setup();
 
@@ -569,5 +593,46 @@ describe("PasskeySettings", () => {
     expect(await screen.findByText("MacBook Touch ID")).toBeInTheDocument();
     expect(screen.queryByText("loadError")).not.toBeInTheDocument();
     expect(mockToastError).not.toHaveBeenCalled();
+  });
+
+  it("disables the add button while retrying a failed passkey load", async () => {
+    const pendingRetry = createDeferred<{
+      data: typeof currentPasskeys;
+      error: null;
+    }>();
+
+    mockListUserPasskeys.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "FAILED",
+        message: "list failed",
+        status: 500,
+        statusText: "INTERNAL_SERVER_ERROR",
+      },
+    });
+    mockListUserPasskeys.mockImplementationOnce(() => pendingRetry.promise);
+
+    render(<PasskeySettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText("loadError")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "retry" }));
+
+    expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+
+    pendingRetry.resolve({
+      data: currentPasskeys,
+      error: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+    });
   });
 });
