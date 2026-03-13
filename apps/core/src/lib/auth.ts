@@ -2,6 +2,7 @@ import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import * as Sentry from "@sentry/node";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import { betterAuth } from "better-auth/minimal";
@@ -14,6 +15,7 @@ import {
 } from "better-auth/plugins";
 
 import { postmarkClient } from "@/clients/postmark.client";
+import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -71,6 +73,26 @@ export const auth = betterAuth({
               name: getStoredUserName(user.name, user.email),
             },
           };
+        },
+        after: async (user, _ctx) => {
+          stripeClient
+            .createUserCustomer({
+              email: user.email,
+              name: user.name,
+              userId: user.id,
+            })
+            .catch((error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_user_customer_creation",
+                },
+                extra: {
+                  userId: user.id,
+                  email: user.email,
+                  name: user.name,
+                },
+              });
+            });
         },
       },
     },

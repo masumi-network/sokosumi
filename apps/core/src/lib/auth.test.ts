@@ -13,6 +13,8 @@ const {
   postmarkSendEmailMock,
   prismaAdapterMock,
   renderMagicLinkEmailMock,
+  sentryCaptureExceptionMock,
+  stripeCreateUserCustomerMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -26,6 +28,8 @@ const {
   postmarkSendEmailMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
   renderMagicLinkEmailMock: vi.fn(),
+  sentryCaptureExceptionMock: vi.fn(),
+  stripeCreateUserCustomerMock: vi.fn(),
 }));
 
 vi.mock("better-auth/minimal", () => ({
@@ -56,9 +60,20 @@ vi.mock("@better-auth/i18n", () => ({
   i18n: (...args: unknown[]) => i18nPluginMock(...args),
 }));
 
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
+}));
+
 vi.mock("@/clients/postmark.client", () => ({
   postmarkClient: {
     sendEmail: (...args: unknown[]) => postmarkSendEmailMock(...args),
+  },
+}));
+
+vi.mock("@/clients/stripe.client", () => ({
+  stripeClient: {
+    createUserCustomer: (...args: unknown[]) =>
+      stripeCreateUserCustomerMock(...args),
   },
 }));
 
@@ -69,6 +84,7 @@ vi.mock("@/config/env", () => ({
     POSTMARK_SERVER_ID: "postmark-server-id",
     BETTER_AUTH_TRUSTED_ORIGIN: "https://example.com",
     BETTER_AUTH_URL: "https://example.com/auth",
+    STRIPE_SECRET_KEY: "sk_test_123",
   }),
 }));
 
@@ -100,6 +116,8 @@ describe("core auth config", () => {
       html: "<html>magic link</html>",
       subject: "Sokosumi - Sign in to your account",
     });
+    sentryCaptureExceptionMock.mockReset();
+    stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
   });
 
@@ -187,5 +205,89 @@ describe("core auth config", () => {
       HtmlBody: "<html>magic link</html>",
       MessageStream: "authentications",
     });
+  });
+
+  it("creates a Stripe customer when a new user is created", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith(
+      {
+        email: "andreas@example.com",
+        name: "Andreas",
+        userId: "user_123",
+      },
+    );
+  });
+
+  it("reports Stripe customer creation failures to Sentry", async () => {
+    stripeCreateUserCustomerMock.mockRejectedValueOnce(
+      new Error("stripe failed"),
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+    await Promise.resolve();
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      {
+        extra: {
+          email: "andreas@example.com",
+          name: "Andreas",
+          userId: "user_123",
+        },
+        tags: {
+          context: "stripe_user_customer_creation",
+        },
+      },
+    );
   });
 });
