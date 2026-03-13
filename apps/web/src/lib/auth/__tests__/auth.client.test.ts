@@ -13,6 +13,7 @@ const jwtClientMock = jest.fn(() => "jwt-plugin");
 const lastLoginMethodClientMock = jest.fn(() => "last-login-method-plugin");
 const organizationClientMock = jest.fn(() => "organization-plugin");
 const oauthProviderClientMock = jest.fn(() => "oauth-plugin");
+const passkeyClientMock = jest.fn(() => "passkey-plugin");
 const stripeClientMock = jest.fn(() => "stripe-plugin");
 const dashClientMock = jest.fn(() => "dash-plugin");
 const sentinelClientMock = jest.fn(() => "sentinel-plugin");
@@ -36,6 +37,10 @@ jest.mock("@better-auth/api-key/client", () => ({
 
 jest.mock("@better-auth/oauth-provider/client", () => ({
   oauthProviderClient: oauthProviderClientMock,
+}));
+
+jest.mock("@better-auth/passkey/client", () => ({
+  passkeyClient: passkeyClientMock,
 }));
 
 jest.mock("@better-auth/stripe/client", () => ({
@@ -73,5 +78,17 @@ describe("auth client", () => {
     >;
 
     expect(plugins).toEqual(expect.arrayContaining(["admin-plugin"]));
+  });
+
+  it("registers passkeyClient in createAuthClient plugins", async () => {
+    await import("../auth.client");
+
+    expect(passkeyClientMock).toHaveBeenCalledWith();
+
+    const [[{ plugins }]] = createAuthClientMock.mock.calls as Array<
+      [{ plugins: unknown[] }]
+    >;
+
+    expect(plugins).toEqual(expect.arrayContaining(["passkey-plugin"]));
   });
 });

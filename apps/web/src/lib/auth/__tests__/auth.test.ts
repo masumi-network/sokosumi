@@ -45,6 +45,12 @@ jest.mock("@better-auth/oauth-provider", () => ({
   oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
 }));
 
+const passkeyPluginMock = jest.fn();
+
+jest.mock("@better-auth/passkey", () => ({
+  passkey: (...args: unknown[]) => passkeyPluginMock(...args),
+}));
+
 jest.mock("@better-auth/prisma-adapter", () => ({
   prismaAdapter: (...args: unknown[]) => prismaAdapterMock(...args),
 }));
@@ -226,6 +232,7 @@ describe("web auth config", () => {
     nextCookiesPluginMock.mockReturnValue("next-cookies-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
+    passkeyPluginMock.mockReturnValue("passkey-plugin");
     marketingOptInUserSchemaSafeParseMock.mockImplementation((input) => ({
       success: true,
       data: input,
@@ -310,6 +317,16 @@ describe("web auth config", () => {
       Subject: "Sokosumi - Sign in to your account",
       HtmlBody: "<html>magic link</html>",
       MessageStream: "authentications",
+    });
+  });
+
+  it("registers the passkey plugin with the configured relying party settings", async () => {
+    await import("../auth");
+
+    expect(passkeyPluginMock).toHaveBeenCalledWith({
+      origin: "https://example.com/auth",
+      rpID: "example.com",
+      rpName: "Sokosumi",
     });
   });
 

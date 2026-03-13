@@ -850,6 +850,8 @@
       "success": "Connexion réussie",
       "error": "Échec de la connexion",
       "lastUsed": "Dernier utilisé",
+      "passkeyProvider": "Passkey",
+      "passkeyError": "We could not sign you in with a passkey. Please try again.",
       "magicLinkProvider": "Magic Link",
       "magicLinkInputLabel": "Adresse e-mail pour le Magic Link",
       "magicLinkPlaceholder": "Saisissez votre adresse e-mail",
@@ -1772,6 +1774,20 @@
         "submit": "Définir un mot de passe",
         "success": "Mot de passe défini avec succès",
         "error": "Échec de la définition du mot de passe"
+      },
+      "Passkeys": {
+        "title": "Passkeys",
+        "description": "Add and remove passkeys for faster sign-in.",
+        "loading": "Loading passkeys...",
+        "empty": "You have not added any passkeys yet.",
+        "add": "Add passkey",
+        "addSuccess": "Passkey added successfully",
+        "addError": "Failed to add passkey",
+        "deleteSuccess": "Passkey deleted successfully",
+        "deleteError": "Failed to delete passkey",
+        "defaultName": "Passkey",
+        "createdAt": "Created {date}",
+        "deleteAriaLabel": "Delete {name}"
       },
       "Theme": {
         "title": "Thème",

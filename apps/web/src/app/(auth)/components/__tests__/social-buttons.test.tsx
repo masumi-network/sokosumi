@@ -7,12 +7,19 @@ import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-red
 import SocialButtons from "../social-buttons";
 
 const mockSocialSignIn = jest.fn();
+const mockPasskeySignIn = jest.fn();
 const mockRequestMagicLinkSignIn = jest.fn();
 const mockToastError = jest.fn();
+const mockRouterReplace = jest.fn();
+const mockGetSession = jest.fn();
+const mockIsConditionalMediationAvailable = jest.fn();
 
 let mockSearchParams = new URLSearchParams();
 
 jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: mockRouterReplace,
+  }),
   useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
@@ -29,6 +36,9 @@ jest.mock("next-intl", () => ({
       }
       if (key === "magicLinkProvider") {
         return "Magic Link";
+      }
+      if (key === "passkeyProvider") {
+        return "Passkey";
       }
       if (key === "lastUsed") {
         return "last-used";
@@ -57,7 +67,9 @@ jest.mock("sonner", () => ({
 
 jest.mock("@/lib/auth/auth.client", () => ({
   authClient: {
+    getSession: (...args: unknown[]) => mockGetSession(...args),
     signIn: {
+      passkey: (...args: unknown[]) => mockPasskeySignIn(...args),
       social: (...args: unknown[]) => mockSocialSignIn(...args),
     },
   },
@@ -66,6 +78,13 @@ jest.mock("@/lib/auth/auth.client", () => ({
 jest.mock("@/lib/actions/auth", () => ({
   requestMagicLinkSignIn: (...args: unknown[]) =>
     mockRequestMagicLinkSignIn(...args),
+}));
+
+jest.mock("@/lib/utils/auth-redirect", () => ({
+  buildOAuthConsentReturnUrlFromSearchParams: (...args: unknown[]) =>
+    buildOAuthConsentReturnUrlFromSearchParams(...args),
+  normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
+  waitForAuthSession: jest.fn(() => Promise.resolve()),
 }));
 
 interface MockSocialButtonProps {
@@ -90,10 +109,37 @@ describe("SocialButtons", () => {
   beforeEach(() => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
+    mockPasskeySignIn.mockReset();
+    mockPasskeySignIn.mockResolvedValue({
+      data: {
+        session: {
+          id: "session-id",
+        },
+      },
+      error: null,
+    });
     mockRequestMagicLinkSignIn.mockReset();
     mockRequestMagicLinkSignIn.mockResolvedValue({ ok: true });
     mockToastError.mockReset();
+    mockRouterReplace.mockReset();
+    mockGetSession.mockReset();
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          id: "session-id",
+        },
+      },
+      error: null,
+    });
+    mockIsConditionalMediationAvailable.mockReset();
+    mockIsConditionalMediationAvailable.mockResolvedValue(false);
     mockSearchParams = new URLSearchParams();
+    Object.defineProperty(window, "PublicKeyCredential", {
+      configurable: true,
+      value: {
+        isConditionalMediationAvailable: mockIsConditionalMediationAvailable,
+      },
+    });
   });
 
   async function clickGoogleButton() {
@@ -151,6 +197,12 @@ describe("SocialButtons", () => {
     expect(screen.getByText("last-used")).toBeInTheDocument();
   });
 
+  it("shows last used badge for passkey button", () => {
+    render(<SocialButtons showPasskey lastUsedMethod="passkey" />);
+
+    expect(screen.getByText("last-used")).toBeInTheDocument();
+  });
+
   it("builds oauth consent returnUrl from signed query when prop is missing", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
@@ -179,6 +231,60 @@ describe("SocialButtons", () => {
     expect(getSubmittedReturnUrls()).toEqual({
       callbackReturnUrl: expectedReturnUrl,
       newUserCallbackReturnUrl: expectedReturnUrl,
+    });
+  });
+
+  it("renders the passkey button between Microsoft and Magic Link", () => {
+    render(<SocialButtons showMagicLink showPasskey />);
+
+    const buttons = screen.getAllByRole("button");
+
+    expect(buttons[0]).toHaveTextContent("continue-with-Google");
+    expect(buttons[1]).toHaveTextContent("continue-with-Microsoft");
+    expect(buttons[2]).toHaveTextContent("continue-with-Passkey");
+    expect(buttons[3]).toHaveTextContent("continue-with-Magic Link");
+  });
+
+  it("signs in with a passkey and redirects to the return url", async () => {
+    const user = userEvent.setup();
+
+    render(<SocialButtons returnUrl="/jobs" showMagicLink showPasskey />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledWith({
+        autoFill: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
+    });
+  });
+
+  it("starts conditional passkey UI only when supported", async () => {
+    mockIsConditionalMediationAvailable.mockResolvedValueOnce(true);
+
+    render(<SocialButtons showPasskey />);
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).toHaveBeenCalledWith({
+        autoFill: true,
+      });
+    });
+  });
+
+  it("fails softly when conditional passkey UI is unavailable", async () => {
+    delete (window as typeof window & { PublicKeyCredential?: unknown })
+      .PublicKeyCredential;
+
+    render(<SocialButtons showPasskey />);
+
+    await waitFor(() => {
+      expect(mockPasskeySignIn).not.toHaveBeenCalled();
     });
   });
 

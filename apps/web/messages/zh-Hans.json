@@ -850,6 +850,8 @@
       "success": "登录成功",
       "error": "登录失败",
       "lastUsed": "上次使用",
+      "passkeyProvider": "Passkey",
+      "passkeyError": "We could not sign you in with a passkey. Please try again.",
       "magicLinkProvider": "Magic Link",
       "magicLinkInputLabel": "用于接收 Magic Link 的电子邮件",
       "magicLinkPlaceholder": "输入你的电子邮件",
@@ -1766,12 +1768,26 @@
       },
       "NewPassword": {
         "title": "设置密码",
-        "description": "为您的账户设置密码",
+        "description": "为你的账户设置密码",
         "newPassword": "新密码",
         "confirmPassword": "确认新密码",
         "submit": "设置密码",
         "success": "密码设置成功",
         "error": "设置密码失败"
+      },
+      "Passkeys": {
+        "title": "Passkeys",
+        "description": "Add and remove passkeys for faster sign-in.",
+        "loading": "Loading passkeys...",
+        "empty": "You have not added any passkeys yet.",
+        "add": "Add passkey",
+        "addSuccess": "Passkey added successfully",
+        "addError": "Failed to add passkey",
+        "deleteSuccess": "Passkey deleted successfully",
+        "deleteError": "Failed to delete passkey",
+        "defaultName": "Passkey",
+        "createdAt": "Created {date}",
+        "deleteAriaLabel": "Delete {name}"
       },
       "Theme": {
         "title": "主题",

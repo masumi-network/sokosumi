@@ -3,6 +3,7 @@ import "server-only";
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
@@ -437,6 +438,11 @@ export const auth = betterAuth({
           MessageStream: "authentications",
         });
       },
+    }),
+    passkey({
+      // origin: getEnvSecrets().BETTER_AUTH_URL,
+      // rpID: new URL(getEnvSecrets().BETTER_AUTH_URL).hostname,
+      rpName: "Sokosumi",
     }),
     lastLoginMethod(),
     oauthProvider({

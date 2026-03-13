@@ -67,7 +67,8 @@ function FormInput<T extends FieldValues>({
   formDataItem,
   t,
 }: FormInputProps<T>) {
-  const { type, labelKey, name, placeholderKey, disabled } = formDataItem;
+  const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
+    formDataItem;
 
   if (type === "checkbox") {
     const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
@@ -124,6 +125,7 @@ function FormInput<T extends FieldValues>({
 
   return (
     <Input
+      autoComplete={autoComplete}
       placeholder={placeholderKey && t(placeholderKey)}
       type={type ?? "text"}
       {...field}

@@ -1,10 +1,18 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
-import { Mail } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { KeyRound, Loader2, Mail } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ComponentProps, FormEvent, useMemo, useState } from "react";
+import {
+  ComponentProps,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   GoogleLoginButton,
   MicrosoftLoginButton,
@@ -17,17 +25,22 @@ import { Input } from "@/components/ui/input";
 import { requestMagicLinkSignIn } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
 import { emailSchema } from "@/lib/auth/data";
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
+import {
+  buildOAuthConsentReturnUrlFromSearchParams,
+  normalizeAuthReturnUrl,
+  waitForAuthSession,
+} from "@/lib/utils/auth-redirect";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 export type SocialButtonProviderId = "google" | "microsoft";
-export type SignInMethodId = SocialButtonProviderId | "magic-link";
+export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
 
 interface SocialButtonsProps {
   returnUrl?: string;
   lastUsedMethod?: SignInMethodId | null;
   prefilledEmail?: string;
   showMagicLink?: boolean;
+  showPasskey?: boolean;
 }
 
 const socialButtons: Array<{
@@ -52,8 +65,10 @@ export default function SocialButtons({
   lastUsedMethod = null,
   prefilledEmail,
   showMagicLink = false,
+  showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
+  const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
@@ -62,10 +77,101 @@ export default function SocialButtons({
   const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
   const [isMagicLinkVisible, setIsMagicLinkVisible] = useState(false);
   const [isRequestingMagicLink, setIsRequestingMagicLink] = useState(false);
+  const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
   const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
   const hasMagicLinkSuccess =
     magicLinkEmail.trim().length > 0 &&
     magicLinkEmail.trim() === magicLinkSentTo;
+
+  const finishPasskeySignIn = useCallback(async () => {
+    await waitForAuthSession({
+      context: "login",
+      getSession: () => authClient.getSession(),
+      logWarning: (message) => {
+        Sentry.captureMessage(message, { level: "warning" });
+      },
+    });
+
+    router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
+  }, [effectiveReturnUrl, router]);
+
+  const handlePasskeySignIn = async (options?: {
+    autoFill?: boolean;
+    showErrors?: boolean;
+  }) => {
+    const { autoFill = false, showErrors = true } = options ?? {};
+
+    if (!autoFill) {
+      track("Sign In", { provider: "passkey", direct_signup_link: false });
+      setIsSigningInWithPasskey(true);
+    }
+
+    try {
+      const result = await authClient.signIn.passkey({
+        autoFill,
+      });
+
+      if (result.error) {
+        const errorCode =
+          "code" in result.error ? result.error.code : undefined;
+
+        if (showErrors && errorCode !== "AUTH_CANCELLED") {
+          toast.error(t("passkeyError"));
+        }
+        return;
+      }
+
+      await finishPasskeySignIn();
+    } catch (_error) {
+      if (showErrors) {
+        toast.error(t("passkeyError"));
+      }
+    } finally {
+      if (!autoFill) {
+        setIsSigningInWithPasskey(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!showPasskey) {
+      return;
+    }
+
+    if (
+      typeof window === "undefined" ||
+      typeof window.PublicKeyCredential === "undefined" ||
+      typeof PublicKeyCredential.isConditionalMediationAvailable !== "function"
+    ) {
+      return;
+    }
+
+    let isMounted = true;
+
+    void PublicKeyCredential.isConditionalMediationAvailable()
+      .then((isAvailable) => {
+        if (!isMounted || !isAvailable) {
+          return;
+        }
+
+        return authClient.signIn
+          .passkey({
+            autoFill: true,
+          })
+          .then((result) => {
+            if (result.error) {
+              return;
+            }
+
+            return finishPasskeySignIn();
+          });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [finishPasskeySignIn, showPasskey]);
 
   const handleMagicLinkSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -144,6 +250,34 @@ export default function SocialButtons({
           )}
         </div>
       ))}
+      {showPasskey && (
+        <div className="relative">
+          <Button
+            type="button"
+            variant="secondary"
+            className="bg-senary hover:bg-quinary text-foreground h-[50px] w-full justify-center gap-2 rounded-md border-0 px-4 py-2 text-sm font-normal shadow-none"
+            disabled={isSigningInWithPasskey}
+            onClick={() => {
+              void handlePasskeySignIn();
+            }}
+          >
+            {isSigningInWithPasskey ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <KeyRound className="size-4" />
+            )}
+            {t("continueWith", { provider: t("passkeyProvider") })}
+          </Button>
+          {lastUsedMethod === "passkey" && (
+            <Badge
+              variant="secondary"
+              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
+            >
+              {t("lastUsed")}
+            </Badge>
+          )}
+        </div>
+      )}
       {showMagicLink && (
         <div className="relative">
           <Button
