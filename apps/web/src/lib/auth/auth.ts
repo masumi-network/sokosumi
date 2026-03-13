@@ -440,8 +440,6 @@ export const auth = betterAuth({
       },
     }),
     passkey({
-      // origin: getEnvSecrets().BETTER_AUTH_URL,
-      // rpID: new URL(getEnvSecrets().BETTER_AUTH_URL).hostname,
       rpName: "Sokosumi",
     }),
     lastLoginMethod(),
