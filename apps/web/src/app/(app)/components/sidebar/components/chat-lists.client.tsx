@@ -4,7 +4,7 @@ import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 
 import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
@@ -53,14 +53,34 @@ export default function ChatListsClient() {
   );
 
   const hasAnyChats = conversations.length > 0;
+  const [isOpen, setIsOpen] = useState(false);
+  const prevHasAnyChats = useRef(false);
+
+  useEffect(() => {
+    if (hasAnyChats && !prevHasAnyChats.current) {
+      startTransition(() => setIsOpen(true));
+    }
+    if (!hasAnyChats) {
+      startTransition(() => setIsOpen(false));
+    }
+    prevHasAnyChats.current = hasAnyChats;
+  }, [hasAnyChats]);
+
+  const effectiveOpen = hasAnyChats ? isOpen : false;
 
   return (
     <Collapsible
-      key="chat-lists-collapsible"
-      defaultOpen={hasAnyChats}
+      key="chat-lists-collapsible-1"
+      open={effectiveOpen}
+      onOpenChange={(open) => {
+        if (hasAnyChats) setIsOpen(open);
+      }}
       className="group/collapsible"
     >
-      <SidebarGroup className="w-full pb-0 whitespace-nowrap">
+      <SidebarGroup
+        key="chat-lists-group-1"
+        className="w-full pb-0 whitespace-nowrap"
+      >
         <SidebarGroupLabel
           className="text-primary px-3 text-sm group-data-[collapsible=icon]:hidden"
           asChild
