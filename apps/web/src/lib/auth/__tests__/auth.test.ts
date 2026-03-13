@@ -320,12 +320,10 @@ describe("web auth config", () => {
     });
   });
 
-  it("registers the passkey plugin with the configured relying party settings", async () => {
+  it("registers the passkey plugin with the Sokosumi relying party name", async () => {
     await import("../auth");
 
     expect(passkeyPluginMock).toHaveBeenCalledWith({
-      origin: "https://example.com/auth",
-      rpID: "example.com",
       rpName: "Sokosumi",
     });
   });

@@ -2,9 +2,14 @@ import "@testing-library/jest-dom";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
-
 import SocialButtons from "../social-buttons";
+
+const {
+  buildOAuthConsentReturnUrlFromSearchParams:
+    actualBuildOAuthConsentReturnUrlFromSearchParams,
+} = jest.requireActual(
+  "@/lib/utils/auth-redirect",
+) as typeof import("@/lib/utils/auth-redirect");
 
 const mockSocialSignIn = jest.fn();
 const mockPasskeySignIn = jest.fn();
@@ -80,12 +85,15 @@ jest.mock("@/lib/actions/auth", () => ({
     mockRequestMagicLinkSignIn(...args),
 }));
 
-jest.mock("@/lib/utils/auth-redirect", () => ({
-  buildOAuthConsentReturnUrlFromSearchParams: (...args: unknown[]) =>
-    buildOAuthConsentReturnUrlFromSearchParams(...args),
-  normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
-  waitForAuthSession: jest.fn(() => Promise.resolve()),
-}));
+jest.mock("@/lib/utils/auth-redirect", () => {
+  const actual = jest.requireActual("@/lib/utils/auth-redirect") as typeof import("@/lib/utils/auth-redirect");
+
+  return {
+    ...actual,
+    normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
+    waitForAuthSession: jest.fn(() => Promise.resolve()),
+  };
+});
 
 interface MockSocialButtonProps {
   onClick?: () => void;
@@ -216,7 +224,7 @@ describe("SocialButtons", () => {
       sig: "signed-value",
     });
 
-    const expectedReturnUrl = buildOAuthConsentReturnUrlFromSearchParams(
+    const expectedReturnUrl = actualBuildOAuthConsentReturnUrlFromSearchParams(
       new URLSearchParams(mockSearchParams.toString()),
     );
 
