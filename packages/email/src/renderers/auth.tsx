@@ -1,6 +1,3 @@
-import { Text } from "@react-email/text";
-import type { ReactNode } from "react";
-
 import { createEmailTranslator } from "../i18n/translate.js";
 import { renderActionEmail } from "../templates/action-email.js";
 import type {
@@ -27,7 +24,6 @@ interface RenderAuthActionEmailOptions {
   actionUrl: string;
   actionLabel: string;
   body: string;
-  extraContent?: ReactNode;
   footer: string;
   greeting?: string;
   linkInstructions?: string;
@@ -39,7 +35,6 @@ function renderAuthActionEmail({
   actionUrl,
   actionLabel,
   body,
-  extraContent,
   footer,
   greeting,
   linkInstructions,
@@ -50,7 +45,6 @@ function renderAuthActionEmail({
     actionLabel,
     actionUrl,
     body,
-    extraContent,
     footer,
     greeting: greeting ?? "",
     linkInstructions,
@@ -102,7 +96,6 @@ export async function renderMagicLinkEmail({
   locale,
   magicLink,
   name,
-  token,
 }: MagicLinkEmailProps): Promise<RenderedEmail> {
   const { t } = createEmailTranslator(locale);
 
@@ -110,16 +103,6 @@ export async function renderMagicLinkEmail({
     actionUrl: magicLink,
     actionLabel: t("auth.magicLink.button"),
     body: t("auth.magicLink.message"),
-    extraContent: token ? (
-      <>
-        <Text className="m-0 mb-[12px] text-[14px] leading-[24px] text-black">
-          {t("auth.magicLink.tokenInstructions")}
-        </Text>
-        <Text className="m-0 mb-[26px] inline-block break-all rounded border border-solid border-[#eaeaea] bg-[#f8f8f8] px-[14px] py-[12px] font-mono text-[14px] leading-[20px] text-black">
-          {token}
-        </Text>
-      </>
-    ) : undefined,
     footer: t("auth.magicLink.footer"),
     greeting: name?.trim()
       ? t("auth.magicLink.greeting", { name: name.trim() })

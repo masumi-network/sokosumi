@@ -35,7 +35,6 @@
       "message": "Usa el botón de abajo para iniciar sesión en tu cuenta de Sokosumi.",
       "button": "Iniciar sesión",
       "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-      "tokenInstructions": "Si lo necesitas, también puedes usar este token de un solo uso:",
       "footer": "Si no solicitaste este email, puedes ignorarlo con seguridad."
     }
   },

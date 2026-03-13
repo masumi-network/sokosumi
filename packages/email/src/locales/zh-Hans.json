@@ -35,7 +35,6 @@
       "message": "请使用下方按钮登录您的 Sokosumi 账户。",
       "button": "登录",
       "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
-      "tokenInstructions": "如果您需要，也可以使用此一次性令牌：",
       "footer": "如果您未请求此邮件，您可以放心忽略。"
     }
   },

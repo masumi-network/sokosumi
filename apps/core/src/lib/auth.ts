@@ -235,7 +235,7 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       expiresIn: 60 * 60 * 48, // 48 hours in seconds
-      sendMagicLink: async ({ email, url, token }, ctx) => {
+      sendMagicLink: async ({ email, url }, ctx) => {
         const locale = getEmailLocale(ctx?.request, ctx?.headers);
         const name =
           typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
@@ -243,7 +243,6 @@ export const auth = betterAuth({
           locale,
           magicLink: url,
           name,
-          token,
         });
 
         await postmarkClient.sendEmail({

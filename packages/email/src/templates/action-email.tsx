@@ -1,9 +1,9 @@
 import { Button } from "@react-email/button";
+import { Container } from "@react-email/container";
 import { Link } from "@react-email/link";
 import { render } from "@react-email/render";
 import { Section } from "@react-email/section";
 import { Text } from "@react-email/text";
-import type { ReactNode } from "react";
 
 import { EmailShell } from "../components/email-shell.js";
 import type { RenderedEmail } from "../types.js";
@@ -15,7 +15,6 @@ export interface ActionEmailTemplateProps {
   actionLabel: string;
   actionUrl: string;
   body: string;
-  extraContent?: ReactNode;
   footer: string;
   greeting: string;
   linkInstructions?: string;
@@ -27,7 +26,6 @@ export function ActionEmailTemplate({
   actionLabel,
   actionUrl,
   body,
-  extraContent,
   footer,
   greeting,
   linkInstructions = DEFAULT_LINK_INSTRUCTIONS,
@@ -36,30 +34,31 @@ export function ActionEmailTemplate({
 }: ActionEmailTemplateProps) {
   return (
     <EmailShell footer={footer} preview={preview} title={title}>
-      <Text className="m-0 mb-[16px] text-[14px] leading-[24px] text-black">
+      <Text className="m-0 mb-[14px] text-[16px] leading-[28px] text-[#17111f]">
         {greeting}
       </Text>
-      <Text className="m-0 mb-[32px] text-[14px] leading-[24px] text-black">
+      <Text className="m-0 mb-[28px] text-[16px] leading-[28px] text-[#30263f]">
         {body}
       </Text>
-      <Section className="my-[32px] text-center">
+      <Section className="mb-[28px] mt-0 text-left">
         <Button
-          className="rounded bg-[#000000] px-[20px] py-[12px] text-[12px] font-semibold text-white no-underline"
+          className="rounded-[12px] bg-[#6a36ff] px-[20px] py-[14px] text-[14px] font-semibold text-white no-underline"
           href={actionUrl}
         >
           {actionLabel}
         </Button>
       </Section>
-      <Text className="m-0 mb-[26px] text-[14px] leading-[24px] text-black">
-        {linkInstructions}{" "}
+      <Container className="mb-[24px] rounded-[16px] border border-solid border-[#ece6f7] bg-[#f8f5ff] px-[18px] py-[16px]">
+        <Text className="m-0 mb-[8px] text-[13px] leading-[20px] font-medium text-[#4d4260]">
+          {linkInstructions}
+        </Text>
         <Link
           href={actionUrl}
-          className="break-all text-[#2563eb] no-underline"
+          className="break-all text-[14px] leading-[24px] text-[#5f35d8] no-underline"
         >
           {actionUrl}
         </Link>
-      </Text>
-      {extraContent}
+      </Container>
     </EmailShell>
   );
 }

@@ -177,7 +177,6 @@ describe("core auth config", () => {
     expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
       locale: "pt-BR",
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
-      token: "secret-token",
       name: "Andreas",
     });
     expect(postmarkSendEmailMock).toHaveBeenCalledWith({

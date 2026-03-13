@@ -20,7 +20,6 @@ export interface ResetPasswordEmailProps extends LocalizedEmailProps {
 export interface MagicLinkEmailProps extends LocalizedEmailProps {
   magicLink: string;
   name?: string;
-  token?: string;
 }
 
 export interface OrganizationInvitationEmailProps extends LocalizedEmailProps {

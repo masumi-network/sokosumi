@@ -17,6 +17,8 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Verify your email address");
+    expect(rendered.html).toContain('aria-label="Sokosumi mark"');
+    expect(rendered.html).toContain("background-color:rgb(245,243,250)");
     expect(rendered.html).toContain("Verify your email address");
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).toContain("https://example.com/verify");
@@ -45,25 +47,19 @@ describe("email renderers", () => {
     expect(rendered.html).not.toContain("Hello   ");
   });
 
-  it("renders magic-link emails with the optional token fallback", async () => {
-    const withToken = await renderMagicLinkEmail({
+  it("renders magic-link emails without exposing a token fallback", async () => {
+    const rendered = await renderMagicLinkEmail({
       locale: "en",
       magicLink: "https://example.com/magic",
       name: "Andreas",
-      token: "secret-token",
-    });
-    const withoutToken = await renderMagicLinkEmail({
-      locale: "en",
-      magicLink: "https://example.com/magic",
     });
 
-    expect(withToken.subject).toBe("Sokosumi - Sign in to your account");
-    expect(withToken.html).toContain("secret-token");
-    expect(withToken.html).toContain(
-      "If you need it, you can also use this one-time token:",
-    );
-    expect(withToken.html).toContain("Hello Andreas");
-    expect(withoutToken.html).not.toContain("secret-token");
+    expect(rendered.subject).toBe("Sokosumi - Sign in to your account");
+    expect(rendered.html).toContain("background-color:rgb(106,54,255)");
+    expect(rendered.html).toContain("background-color:rgb(248,245,255)");
+    expect(rendered.html).toContain("Hello Andreas");
+    expect(rendered.html).not.toContain("one-time token");
+    expect(rendered.html).not.toContain("secret-token");
   });
 
   it("renders organization invitation emails with interpolation", async () => {

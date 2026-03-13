@@ -35,7 +35,6 @@
       "message": "Utilisez le bouton ci-dessous pour vous connecter à votre compte Sokosumi.",
       "button": "Se connecter",
       "linkInstructions": "Ou copiez et collez cette URL dans votre navigateur :",
-      "tokenInstructions": "Si vous en avez besoin, vous pouvez aussi utiliser ce jeton à usage unique :",
       "footer": "Si vous n’avez pas demandé cet e-mail, vous pouvez l’ignorer en toute sécurité."
     }
   },

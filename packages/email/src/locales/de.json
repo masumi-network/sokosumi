@@ -35,7 +35,6 @@
       "message": "Nutze den Button unten, um dich in dein Sokosumi-Konto einzuloggen.",
       "button": "Anmelden",
       "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
-      "tokenInstructions": "Falls du ihn brauchst, kannst du auch diesen Einmal-Token verwenden:",
       "footer": "Wenn du diese E-Mail nicht angefordert hast, kannst du sie sicher ignorieren."
     }
   },

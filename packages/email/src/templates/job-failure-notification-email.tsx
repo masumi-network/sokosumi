@@ -28,17 +28,20 @@ export function JobFailureNotificationEmailTemplate({
 }: JobFailureNotificationEmailTemplateProps) {
   return (
     <EmailShell footer={footer} maxWidth={600} preview={preview} title={title}>
-      <Text className="m-0 mb-[16px] text-[14px] leading-[24px] text-black">
+      <Text className="m-0 mb-[24px] text-[16px] leading-[28px] text-[#30263f]">
         {description}
       </Text>
       {fields.map((field) => (
-        <Section key={field.label} className="my-[8px]">
-          <Text className="my-[4px] text-[16px] font-semibold text-black">
+        <Section
+          key={field.label}
+          className="mb-[14px] rounded-[16px] border border-solid border-[#ece6f7] bg-[#fbfaff] px-[16px] py-[14px]"
+        >
+          <Text className="m-0 mb-[8px] text-[13px] leading-[18px] font-semibold tracking-[0.04em] text-[#6a36ff] uppercase">
             {field.label}
           </Text>
           {field.codeBlock ? (
-            <Container className="rounded bg-[#f4f4f4] p-[8px]">
-              <Text className="m-0 whitespace-pre-wrap break-all font-mono text-[14px] leading-[20px] text-[#333333]">
+            <Container className="rounded-[12px] border border-solid border-[#dfd7f2] bg-white p-[12px]">
+              <Text className="m-0 whitespace-pre-wrap break-all font-mono text-[13px] leading-[20px] text-[#30263f]">
                 {field.value}
               </Text>
             </Container>
@@ -46,8 +49,8 @@ export function JobFailureNotificationEmailTemplate({
             <Text
               className={
                 field.wordBreak === "break-all"
-                  ? "m-0 break-all font-mono text-[16px] text-[#666666]"
-                  : "m-0 font-mono text-[16px] text-[#666666]"
+                  ? "m-0 break-all font-mono text-[14px] leading-[22px] text-[#30263f]"
+                  : "m-0 font-mono text-[14px] leading-[22px] text-[#30263f]"
               }
             >
               {field.value}
