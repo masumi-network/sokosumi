@@ -90,16 +90,22 @@ export function PasskeySettings() {
     [],
   );
 
-  const reloadPasskeys = useCallback(async () => {
-    setIsLoadingPasskeys(true);
+  const reloadPasskeys = useCallback(
+    async (options?: { showLoadingState?: boolean }) => {
+      const showLoadingState = options?.showLoadingState !== false;
+      if (showLoadingState) {
+        setIsLoadingPasskeys(true);
+      }
 
-    try {
-      const nextPasskeys = await fetchPasskeys();
-      return applyPasskeysResult(nextPasskeys);
-    } finally {
-      setIsLoadingPasskeys(false);
-    }
-  }, [applyPasskeysResult, fetchPasskeys]);
+      try {
+        const nextPasskeys = await fetchPasskeys();
+        return applyPasskeysResult(nextPasskeys);
+      } finally {
+        setIsLoadingPasskeys(false);
+      }
+    },
+    [applyPasskeysResult, fetchPasskeys],
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -144,7 +150,7 @@ export function PasskeySettings() {
         return;
       }
 
-      if (!(await reloadPasskeys())) {
+      if (!(await reloadPasskeys({ showLoadingState: false }))) {
         toast.error(t("refreshError"));
         return;
       }
@@ -171,7 +177,7 @@ export function PasskeySettings() {
         return;
       }
 
-      if (!(await reloadPasskeys())) {
+      if (!(await reloadPasskeys({ showLoadingState: false }))) {
         toast.error(t("refreshError"));
         return;
       }
@@ -210,7 +216,7 @@ export function PasskeySettings() {
       }
 
       handleCancelEditPasskey();
-      if (!(await reloadPasskeys())) {
+      if (!(await reloadPasskeys({ showLoadingState: false }))) {
         toast.error(t("refreshError"));
         return;
       }
