@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import type { BetterAuthClientError } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 
@@ -49,9 +50,12 @@ export function PasskeySettings() {
   >([]);
   const [isLoadingPasskeys, setIsLoadingPasskeys] = useState(true);
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
+  const [editingPasskeyId, setEditingPasskeyId] = useState<string | null>(null);
+  const [passkeyNameDraft, setPasskeyNameDraft] = useState("");
   const [removingPasskeyId, setRemovingPasskeyId] = useState<string | null>(
     null,
   );
+  const [savingPasskeyId, setSavingPasskeyId] = useState<string | null>(null);
 
   const reloadPasskeys = async () => {
     setIsLoadingPasskeys(true);
@@ -133,6 +137,37 @@ export function PasskeySettings() {
     toast.success(t("deleteSuccess"));
   };
 
+  const handleEditPasskey = (id: string, name?: null | string) => {
+    setEditingPasskeyId(id);
+    setPasskeyNameDraft(name ?? "");
+  };
+
+  const handleCancelEditPasskey = () => {
+    setEditingPasskeyId(null);
+    setPasskeyNameDraft("");
+  };
+
+  const handleSavePasskey = async (id: string) => {
+    setSavingPasskeyId(id);
+
+    const result = await authClient.passkey.updatePasskey({
+      id,
+      name: passkeyNameDraft.trim(),
+    });
+
+    setSavingPasskeyId(null);
+
+    if (result.error) {
+      toast.error(getPasskeyErrorMessage(t("renameError"), result.error));
+      return;
+    }
+
+    handleCancelEditPasskey();
+    await reloadPasskeys();
+    router.refresh();
+    toast.success(t("renameSuccess"));
+  };
+
   return (
     <Card className="flex h-full flex-col">
       <CardHeader>
@@ -148,38 +183,103 @@ export function PasskeySettings() {
         ) : sortedPasskeys.length > 0 ? (
           <div className="flex flex-col divide-y rounded-lg border">
             {sortedPasskeys.map((passkey) => (
-              <div
-                key={passkey.id}
-                className="flex items-center justify-between gap-4 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {passkey.name || t("defaultName")}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {t("createdAt", {
-                      date: formatPasskeyDate(passkey.createdAt, locale),
-                    })}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={removingPasskeyId === passkey.id}
-                  aria-label={t("deleteAriaLabel", {
-                    name: passkey.name || t("defaultName"),
-                  })}
-                  onClick={() => {
-                    void handleDeletePasskey(passkey.id);
-                  }}
-                >
-                  {removingPasskeyId === passkey.id ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="size-4" />
-                  )}
-                </Button>
+              <div key={passkey.id} className="px-4 py-3">
+                {editingPasskeyId === passkey.id ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        value={passkeyNameDraft}
+                        aria-label={t("editInputLabel")}
+                        disabled={savingPasskeyId === passkey.id}
+                        className="h-9"
+                        onChange={(event) => {
+                          setPasskeyNameDraft(event.target.value);
+                        }}
+                      />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={savingPasskeyId === passkey.id}
+                        aria-label={t("cancel")}
+                        onClick={handleCancelEditPasskey}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        disabled={savingPasskeyId === passkey.id}
+                        aria-label={t("save")}
+                        onClick={() => {
+                          void handleSavePasskey(passkey.id);
+                        }}
+                      >
+                        {savingPasskeyId === passkey.id && (
+                          <Loader2 className="size-4 animate-spin" />
+                        )}
+                        {savingPasskeyId !== passkey.id && (
+                          <Check className="size-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {passkey.name || t("defaultName")}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {t("createdAt", {
+                          date: formatPasskeyDate(passkey.createdAt, locale),
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={
+                          removingPasskeyId === passkey.id ||
+                          savingPasskeyId === passkey.id
+                        }
+                        aria-label={t("editAriaLabel", {
+                          name: passkey.name || t("defaultName"),
+                        })}
+                        onClick={() => {
+                          handleEditPasskey(passkey.id, passkey.name);
+                        }}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={
+                          removingPasskeyId === passkey.id ||
+                          savingPasskeyId === passkey.id
+                        }
+                        aria-label={t("deleteAriaLabel", {
+                          name: passkey.name || t("defaultName"),
+                        })}
+                        onClick={() => {
+                          void handleDeletePasskey(passkey.id);
+                        }}
+                      >
+                        {removingPasskeyId === passkey.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

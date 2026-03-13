@@ -10,6 +10,12 @@ const mockListUserPasskeys = jest.fn();
 const mockRefresh = jest.fn();
 const mockToastError = jest.fn();
 const mockToastSuccess = jest.fn();
+const mockUpdatePasskey = jest.fn();
+let currentPasskeys: Array<{
+  createdAt: string;
+  id: string;
+  name: string;
+}> = [];
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -35,6 +41,10 @@ jest.mock("next-intl", () => ({
         return `delete-${values?.name}`;
       }
 
+      if (key === "editAriaLabel") {
+        return `edit-${values?.name}`;
+      }
+
       return key;
     };
   },
@@ -53,6 +63,7 @@ jest.mock("@/lib/auth/auth.client", () => ({
       addPasskey: (...args: unknown[]) => mockAddPasskey(...args),
       deletePasskey: (...args: unknown[]) => mockDeletePasskey(...args),
       listUserPasskeys: (...args: unknown[]) => mockListUserPasskeys(...args),
+      updatePasskey: (...args: unknown[]) => mockUpdatePasskey(...args),
     },
   },
 }));
@@ -73,17 +84,28 @@ describe("PasskeySettings", () => {
       },
       error: null,
     });
-    mockListUserPasskeys.mockReset();
-    mockListUserPasskeys.mockResolvedValue({
-      data: [
-        {
-          createdAt: "2026-03-13T10:00:00.000Z",
+    mockUpdatePasskey.mockReset();
+    mockUpdatePasskey.mockResolvedValue({
+      data: {
+        passkey: {
           id: "passkey-1",
-          name: "MacBook Touch ID",
+          name: "Renamed passkey",
         },
-      ],
+      },
       error: null,
     });
+    currentPasskeys = [
+      {
+        createdAt: "2026-03-13T10:00:00.000Z",
+        id: "passkey-1",
+        name: "MacBook Touch ID",
+      },
+    ];
+    mockListUserPasskeys.mockReset();
+    mockListUserPasskeys.mockImplementation(async () => ({
+      data: currentPasskeys,
+      error: null,
+    }));
     mockRefresh.mockReset();
     mockToastError.mockReset();
     mockToastSuccess.mockReset();
@@ -106,9 +128,7 @@ describe("PasskeySettings", () => {
     await user.click(screen.getByRole("button", { name: "add" }));
 
     await waitFor(() => {
-      expect(mockAddPasskey).toHaveBeenCalledWith({
-        name: "defaultName",
-      });
+      expect(mockAddPasskey).toHaveBeenCalledWith();
     });
 
     await waitFor(() => {
@@ -184,6 +204,141 @@ describe("PasskeySettings", () => {
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith("deleteError");
+    });
+  });
+
+  it("enters edit mode with the current passkey name", async () => {
+    const user = userEvent.setup();
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    );
+
+    expect(screen.getByDisplayValue("MacBook Touch ID")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "cancel" })).toBeInTheDocument();
+  });
+
+  it("saves a renamed passkey and refreshes the list", async () => {
+    const user = userEvent.setup();
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    );
+
+    const input = screen.getByRole("textbox", { name: "editInputLabel" });
+
+    await user.clear(input);
+    await user.type(input, "Laptop passkey");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mockUpdatePasskey).toHaveBeenCalledWith({
+        id: "passkey-1",
+        name: "Laptop passkey",
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockListUserPasskeys.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(mockRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockToastSuccess).toHaveBeenCalledWith("renameSuccess");
+  });
+
+  it("saves an empty edited name and falls back to the default label", async () => {
+    const user = userEvent.setup();
+    mockUpdatePasskey.mockImplementationOnce(
+      async ({ id, name }: { id: string; name: string }) => {
+        currentPasskeys = currentPasskeys.map((passkey) =>
+          passkey.id === id
+            ? {
+                ...passkey,
+                name,
+            }
+          : passkey,
+      );
+
+        return {
+          data: {
+            passkey: {
+              id,
+              name,
+          },
+        },
+          error: null,
+        };
+      },
+    );
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    );
+
+    const input = screen.getByRole("textbox", { name: "editInputLabel" });
+
+    await user.clear(input);
+    await user.type(input, "   ");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mockUpdatePasskey).toHaveBeenCalledWith({
+        id: "passkey-1",
+        name: "",
+      });
+    });
+
+    expect(await screen.findByText("defaultName")).toBeInTheDocument();
+  });
+
+  it("cancels passkey rename without saving", async () => {
+    const user = userEvent.setup();
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "cancel" }));
+
+    expect(mockUpdatePasskey).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "editInputLabel" })).toBeNull();
+  });
+
+  it("shows an error when passkey rename fails", async () => {
+    const user = userEvent.setup();
+    mockUpdatePasskey.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "FAILED",
+        message: "rename failed",
+      },
+    });
+
+    render(<PasskeySettings />);
+
+    await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
+    await user.click(
+      screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
+    );
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith(
+        "renameError: rename failed",
+      );
     });
   });
 

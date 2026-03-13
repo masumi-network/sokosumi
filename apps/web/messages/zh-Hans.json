@@ -1780,11 +1780,17 @@
         "add": "Add passkey",
         "addSuccess": "Passkey added successfully",
         "addError": "Failed to add passkey",
+        "save": "Save",
+        "cancel": "Cancel",
+        "renameSuccess": "Passkey renamed successfully",
+        "renameError": "Failed to rename passkey",
         "deleteSuccess": "Passkey deleted successfully",
         "deleteError": "Failed to delete passkey",
         "defaultName": "Passkey",
         "createdAt": "Created {date}",
-        "deleteAriaLabel": "Delete {name}"
+        "deleteAriaLabel": "Delete {name}",
+        "editAriaLabel": "Edit {name}",
+        "editInputLabel": "Passkey name"
       },
       "Theme": {
         "title": "主题",
