@@ -277,7 +277,7 @@ describe("web auth config", () => {
     const request = new Request("https://example.com/auth/sign-in/magic-link", {
       headers: {
         "accept-language": "de-DE,de;q=0.9",
-        cookie: "sokosumi.locale=fr",
+        cookie: "sokosumi.locale=es",
       },
     });
 
@@ -292,17 +292,16 @@ describe("web auth config", () => {
           name: "Andreas",
         },
         headers: new Headers({
-          cookie: "sokosumi.locale=fr",
+          cookie: "sokosumi.locale=es",
         }),
         request,
       },
     );
 
     expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
-      locale: "fr",
+      locale: "es",
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
       name: "Andreas",
-      token: "secret-token",
     });
     expect(postmarkSendEmailMock).toHaveBeenCalledWith({
       From: "no-reply@example.com",
@@ -358,7 +357,7 @@ describe("web auth config", () => {
     );
 
     expect(renderResetPasswordEmailMock).toHaveBeenCalledWith({
-      locale: "de-DE",
+      locale: "de",
       name: "Andreas",
       resetLink: "https://example.com/reset-password",
     });
@@ -408,7 +407,7 @@ describe("web auth config", () => {
     );
 
     expect(renderVerificationEmailMock).toHaveBeenCalledWith({
-      locale: "de-DE",
+      locale: "de",
       name: "Andreas",
       verificationLink: "https://example.com/verify-email",
     });
@@ -465,8 +464,60 @@ describe("web auth config", () => {
     expect(renderOrganizationInvitationEmailMock).toHaveBeenCalledWith({
       invitationLink: "https://example.com/auth/accept-invitation/invite_123",
       invitorUsername: "Andreas",
-      locale: "de-DE",
+      locale: "de",
       organizationName: "Sokosumi Org",
+    });
+  });
+
+  it("uses the legacy locale cookie alias for magic-link emails", async () => {
+    await import("../auth");
+
+    const [[config]] = magicLinkPluginMock.mock.calls as Array<
+      [
+        {
+          sendMagicLink: (
+            data: {
+              email: string;
+              token: string;
+              url: string;
+            },
+            ctx?: {
+              body?: { name?: string };
+              headers?: Headers;
+              request?: Request;
+            },
+          ) => Promise<void>;
+        },
+      ]
+    >;
+
+    const request = new Request("https://example.com/auth/sign-in/magic-link", {
+      headers: {
+        "accept-language": "en-US,en;q=0.9",
+      },
+    });
+
+    await config.sendMagicLink(
+      {
+        email: "andreas@example.com",
+        token: "secret-token",
+        url: "https://example.com/auth/magic-link/verify?token=secret",
+      },
+      {
+        body: {
+          name: "Andreas",
+        },
+        headers: new Headers({
+          cookie: "locale=de",
+        }),
+        request,
+      },
+    );
+
+    expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
+      locale: "de",
+      name: "Andreas",
+      magicLink: "https://example.com/auth/magic-link/verify?token=secret",
     });
   });
 

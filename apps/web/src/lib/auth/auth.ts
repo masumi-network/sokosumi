@@ -31,6 +31,8 @@ import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { resolveRequestLocale } from "@/i18n/locale-resolution";
+import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
 import { getInfraAuthPlugins } from "@/lib/auth/infra-plugins";
 import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
@@ -63,37 +65,11 @@ const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 const betterAuthApiKey = getEnvSecrets().BETTER_AUTH_API_KEY;
-const EMAIL_LOCALE_COOKIE_NAMES = new Set(["sokosumi.locale", "locale"]);
+const EMAIL_LOCALE_COOKIE_NAMES = new Set([LOCALE_COOKIE_NAME, "locale"]);
 
-interface ParsedLanguagePreference {
-  index: number;
-  quality: number;
-  tag: string;
-}
-
-function normalizeLocaleTag(
-  rawLocale: null | string | undefined,
+function getEmailLocaleCookieValue(
+  cookieHeader?: null | string,
 ): null | string {
-  if (!rawLocale) {
-    return null;
-  }
-
-  const trimmedLocale = rawLocale.trim();
-
-  if (!trimmedLocale || trimmedLocale === "*") {
-    return null;
-  }
-
-  try {
-    return (
-      Intl.getCanonicalLocales(trimmedLocale.replaceAll("_", "-")).at(0) ?? null
-    );
-  } catch {
-    return null;
-  }
-}
-
-function parseLocaleCookie(cookieHeader?: null | string): null | string {
   if (!cookieHeader) {
     return null;
   }
@@ -118,81 +94,13 @@ function parseLocaleCookie(cookieHeader?: null | string): null | string {
     }
 
     try {
-      return normalizeLocaleTag(decodeURIComponent(cookieValue));
+      return decodeURIComponent(cookieValue);
     } catch {
-      return normalizeLocaleTag(cookieValue);
+      return cookieValue;
     }
   }
 
   return null;
-}
-
-function parseAcceptLanguage(
-  acceptLanguageHeader?: null | string,
-): null | string {
-  if (!acceptLanguageHeader) {
-    return null;
-  }
-
-  const preferences = acceptLanguageHeader
-    .split(",")
-    .map((part, index): null | ParsedLanguagePreference => {
-      const [rawTag, ...rawParams] = part.split(";");
-      const normalizedTag = normalizeLocaleTag(rawTag);
-
-      if (!normalizedTag) {
-        return null;
-      }
-
-      let quality = 1;
-
-      for (const rawParam of rawParams) {
-        const [rawKey, rawValue] = rawParam.split("=");
-
-        if (rawKey?.trim().toLowerCase() !== "q") {
-          continue;
-        }
-
-        if (!rawValue) {
-          return null;
-        }
-
-        const parsedQuality = Number.parseFloat(rawValue.trim());
-
-        if (
-          Number.isNaN(parsedQuality) ||
-          parsedQuality < 0 ||
-          parsedQuality > 1
-        ) {
-          return null;
-        }
-
-        quality = parsedQuality;
-        break;
-      }
-
-      if (quality === 0) {
-        return null;
-      }
-
-      return {
-        index,
-        quality,
-        tag: normalizedTag,
-      };
-    })
-    .filter((preference): preference is ParsedLanguagePreference =>
-      Boolean(preference),
-    )
-    .sort((left, right) => {
-      if (left.quality !== right.quality) {
-        return right.quality - left.quality;
-      }
-
-      return left.index - right.index;
-    });
-
-  return preferences.at(0)?.tag ?? null;
 }
 
 function getEmailLocale(
@@ -206,11 +114,11 @@ function getEmailLocale(
     fallbackHeaders?.get("accept-language") ??
     null;
 
-  return (
-    parseLocaleCookie(cookieHeader) ??
-    parseAcceptLanguage(acceptLanguageHeader) ??
-    undefined
-  );
+  return resolveRequestLocale({
+    cookieLocale: getEmailLocaleCookieValue(cookieHeader),
+    acceptLanguageHeader,
+    defaultLocale: DEFAULT_LOCALE,
+  });
 }
 
 function getFallbackUserName(email: string): string {
