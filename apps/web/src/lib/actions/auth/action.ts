@@ -10,6 +10,7 @@ import {
   CommonErrorCode,
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
+import { emailSchema } from "@/lib/auth/data";
 import {
   newPasswordFormSchema,
   NewPasswordFormType,
@@ -20,6 +21,14 @@ import {
 } from "@/lib/schemas";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
+
+function getSafeCallbackURL(callbackURL?: string): string {
+  return callbackURL &&
+    callbackURL.startsWith("/") &&
+    !callbackURL.startsWith("//")
+    ? callbackURL
+    : "/";
+}
 
 /**
  * Creates a credential account for the user.
@@ -81,12 +90,7 @@ export async function signUpEmail(
     }
     const parsed = parsedResult.data;
 
-    const safeCallbackURL =
-      callbackURL &&
-      callbackURL.startsWith("/") &&
-      !callbackURL.startsWith("//")
-        ? callbackURL
-        : "/";
+    const safeCallbackURL = getSafeCallbackURL(callbackURL);
 
     const signUpResult = await auth.api.signUpEmail({
       body: {
@@ -173,10 +177,7 @@ export async function signInEmail(
   }
 
   const parsed = parsedResult.data;
-  const safeCallbackURL =
-    callbackURL && callbackURL.startsWith("/") && !callbackURL.startsWith("//")
-      ? callbackURL
-      : "/";
+  const safeCallbackURL = getSafeCallbackURL(callbackURL);
 
   try {
     const signInResult = await auth.api.signInEmail({
@@ -212,6 +213,47 @@ export async function signInEmail(
     });
   } catch (error) {
     console.error("Failed to sign in email", error);
+
+    const parsedBetterAuthApiErrorResult =
+      betterAuthApiErrorSchema.safeParse(error);
+    if (parsedBetterAuthApiErrorResult.success) {
+      return Err({
+        code: parsedBetterAuthApiErrorResult.data.body.code,
+        message: parsedBetterAuthApiErrorResult.data.body.message,
+      });
+    }
+
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
+export async function requestMagicLinkSignIn(
+  email: string,
+  callbackURL?: string,
+): Promise<Result<void, ActionError>> {
+  const parsedResult = emailSchema().safeParse(email);
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+
+  const safeCallbackURL = getSafeCallbackURL(callbackURL);
+
+  try {
+    await auth.api.signInMagicLink({
+      body: {
+        email: parsedResult.data,
+        callbackURL: safeCallbackURL,
+      },
+      headers: await headers(),
+    });
+
+    return Ok();
+  } catch (error) {
+    console.error("Failed to request magic-link sign in", error);
 
     const parsedBetterAuthApiErrorResult =
       betterAuthApiErrorSchema.safeParse(error);

@@ -4,8 +4,9 @@ import { getTranslations } from "next-intl/server";
 
 import Divider from "@/auth/components/divider";
 import SocialButtons, {
-  type SocialButtonProviderId,
+  type SignInMethodId,
 } from "@/auth/components/social-buttons";
+import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -27,22 +28,14 @@ interface SignUpPageProps {
   }>;
 }
 
-function parseLastUsedSocialProvider(
-  value?: string,
-): SocialButtonProviderId | null {
-  if (value === "google" || value === "microsoft") {
-    return value;
-  }
-
-  return null;
-}
-
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const { email, invitationId, returnUrl } = await searchParams;
   const cookieStore = await cookies();
-  const lastUsedSocialProvider = parseLastUsedSocialProvider(
+  const lastUsedAuthMethod = parseLastUsedAuthMethod(
     cookieStore.get("better-auth.last_used_login_method")?.value,
   );
+  const lastUsedMethod: SignInMethodId | null =
+    lastUsedAuthMethod === "email" ? null : lastUsedAuthMethod;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -50,9 +43,11 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         <SocialButtons
           returnUrl={returnUrl}
-          lastUsedSocialProvider={lastUsedSocialProvider}
+          lastUsedMethod={lastUsedMethod}
+          prefilledEmail={email}
+          showMagicLink
         />
-        <Divider />
+        <Divider labelKey="emailDivider" />
         <SignUpForm prefilledEmail={email} returnUrl={returnUrl} />
       </div>
     </div>
