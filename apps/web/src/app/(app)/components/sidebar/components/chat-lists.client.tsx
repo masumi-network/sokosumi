@@ -53,7 +53,7 @@ export default function ChatListsClient() {
   );
 
   const hasAnyChats = conversations.length > 0;
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(hasAnyChats);
   const prevHasAnyChats = useRef(false);
 
   useEffect(() => {
