@@ -55,7 +55,7 @@ export default function Sidebar({
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
         <AnnouncementCards />
-        <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden md:p-2">
+        <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden">
           <UserCredits
             creditsData={creditsData}
             currentTimestampMs={currentTimestampMs}

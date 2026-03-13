@@ -200,6 +200,8 @@ export default function ProfileSwitchClient({
 
   const closeMenu = () => {
     setIsDropdownOpen(false);
+    setIsWorkspaceSectionOpen(false);
+    setIsHelpSectionOpen(false);
   };
 
   const handleWorkspaceSelect = (workspaceId: string | null) => {
