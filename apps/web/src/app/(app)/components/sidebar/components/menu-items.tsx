@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 interface MenuItemConfig {
   key: string;
@@ -65,22 +66,23 @@ export default function MenuItems() {
   return (
     <SidebarGroup className="w-full pt-0">
       <SidebarGroupContent>
-        <SidebarMenu>
+        <SidebarMenu className="gap-0">
           {items.map(({ key, href, label, Icon, hasIndicator }) => {
             const isActive = isPathActive(href);
 
             return (
               <SidebarMenuItem key={key}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive}
-                  className="px-4 py-5"
-                >
+                <SidebarMenuButton asChild isActive={isActive} className="">
                   <SheetClose asChild>
                     <Link
                       href={href}
                       aria-current={isActive ? "page" : undefined}
-                      className="text-primary flex w-full items-center gap-2"
+                      className={cn(
+                        "flex min-h-auto w-full items-center gap-2 px-3",
+                        isActive
+                          ? "text-primary-foreground"
+                          : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                      )}
                     >
                       <Icon className="size-4" aria-hidden />
                       <span className="flex-1 truncate">{label}</span>

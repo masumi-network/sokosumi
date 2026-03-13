@@ -77,9 +77,9 @@ export default function AgentListsClient({
               defaultOpen={agents.length > 0}
               className="group/collapsible"
             >
-              <SidebarGroup key={groupKey}>
+              <SidebarGroup key={groupKey} className="w-full pt-0 pb-0">
                 <SidebarGroupLabel
-                  className="text-primary text-sm text-nowrap group-data-[collapsible=icon]:hidden"
+                  className="text-primary px-3 text-sm text-nowrap group-data-[collapsible=icon]:hidden"
                   asChild
                 >
                   <CollapsibleTrigger>
@@ -105,18 +105,24 @@ export default function AgentListsClient({
                             <SidebarMenuItem key={agent.id}>
                               <SidebarMenuButton
                                 asChild
-                                className={cn("px-4 py-5", {
-                                  "text-primary-foreground hover:text-primary-foreground active:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
-                                    agentId === agent.id,
-                                  "text-tertiary-foreground hover:text-foreground":
-                                    agentId !== agent.id && isAvailable,
-                                  "text-muted-foreground hover:text-foreground":
-                                    agentId !== agent.id && !isAvailable,
-                                })}
+                                className={cn(
+                                  "gap-0 pl-5 group-data-[collapsible=icon]:px-2",
+                                  {
+                                    "text-primary-foreground hover:text-primary-foreground active:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
+                                      agentId === agent.id,
+                                    "text-tertiary-foreground hover:text-foreground":
+                                      agentId !== agent.id && isAvailable,
+                                    "text-muted-foreground hover:text-foreground":
+                                      agentId !== agent.id && !isAvailable,
+                                  },
+                                )}
                               >
                                 <SheetClose asChild>
-                                  <Link href={`/agents/${agent.id}/jobs`}>
-                                    <div className="group/agent-menu flex w-full items-center gap-2">
+                                  <Link
+                                    href={`/agents/${agent.id}/jobs`}
+                                    className="flex min-h-auto w-full items-center justify-start gap-2"
+                                  >
+                                    <div className="group/agent-menu flex min-h-auto w-full items-center justify-start gap-2">
                                       <AgentIcon
                                         agent={{
                                           name: agentName,
