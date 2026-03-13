@@ -100,9 +100,7 @@ export function PasskeySettings() {
   const handleAddPasskey = async () => {
     setIsAddingPasskey(true);
 
-    const result = await authClient.passkey.addPasskey({
-      name: t("defaultName"),
-    });
+    const result = await authClient.passkey.addPasskey();
 
     setIsAddingPasskey(false);
 
