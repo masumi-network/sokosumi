@@ -23,7 +23,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
@@ -32,7 +31,6 @@ import { cn } from "@/lib/utils";
 
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
-  const { open, isMobile, toggleSidebar } = useSidebar();
   const pathname = usePathname();
   const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const { conversations, refreshConversations } = useConversationsContext();
@@ -44,12 +42,6 @@ export default function ChatListsClient() {
   useEffect(() => {
     void refreshConversations();
   }, [refreshConversations]);
-
-  const handleChatClick = () => {
-    if (!isMobile && open) {
-      toggleSidebar();
-    }
-  };
 
   const chatGroups = useMemo(
     () =>
@@ -124,7 +116,6 @@ export default function ChatListsClient() {
                             href={chatHref}
                             onClick={() => {
                               setShowSecondarySidebar(true);
-                              handleChatClick();
                             }}
                           >
                             <div className="group/chat-menu flex w-full items-center justify-start gap-2 group-data-[collapsible=icon]:justify-center">
