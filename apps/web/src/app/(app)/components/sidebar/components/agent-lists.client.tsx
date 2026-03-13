@@ -79,7 +79,7 @@ export default function AgentListsClient({
             >
               <SidebarGroup key={groupKey} className="w-full pt-0 pb-0">
                 <SidebarGroupLabel
-                  className="text-primary group-data-[collapsible=icon]: px-3 text-sm text-nowrap"
+                  className="text-primary px-3 text-sm text-nowrap group-data-[collapsible=icon]:hidden"
                   asChild
                 >
                   <CollapsibleTrigger>

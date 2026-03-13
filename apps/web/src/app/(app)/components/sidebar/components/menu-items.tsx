@@ -81,7 +81,7 @@ export default function MenuItems() {
                         "flex min-h-auto w-full items-center gap-2 px-3",
                         isActive
                           ? "text-primary-foreground"
-                          : "text-tertiary-foreground dark:text-muted-foreground",
+                          : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
                       )}
                     >
                       <Icon className="size-4" aria-hidden />
