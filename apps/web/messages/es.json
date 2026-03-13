@@ -845,9 +845,20 @@
     },
     "SocialButtons": {
       "continueWith": "Continuar con {provider}",
-      "divider": "o continuar con",
+      "passwordDivider": "o iniciar sesión con contraseña",
+      "emailDivider": "o registrarte con correo electrónico",
       "success": "Sesión iniciada correctamente",
-      "error": "Error al iniciar sesión"
+      "error": "Error al iniciar sesión",
+      "lastUsed": "Usado por última vez",
+      "magicLinkProvider": "Magic Link",
+      "magicLinkInputLabel": "Correo electrónico para el Magic Link",
+      "magicLinkPlaceholder": "Introduce tu correo electrónico",
+      "magicLinkSubmit": "Envíame un Magic Link",
+      "magicLinkSubmitting": "Enviando Magic Link...",
+      "magicLinkResend": "Reenviar Magic Link",
+      "magicLinkSuccess": "Revisa tu bandeja de entrada para encontrar tu Magic Link.",
+      "magicLinkError": "No pudimos enviar un Magic Link. Inténtalo de nuevo.",
+      "magicLinkInvalidEmail": "Introduce una dirección de correo electrónico válida."
     },
     "Words": {
       "signIn": "Iniciar sesión",
@@ -2283,86 +2294,6 @@
           "match": "Las contraseñas no coinciden",
           "required": "La confirmación de contraseña es obligatoria"
         }
-      },
-      "Email": {
-        "ResetPassword": {
-          "subject": "Sokosumi - Restablecer contraseña",
-          "title": "Restablece tu contraseña",
-          "greeting": "Hola {name}",
-          "message": "Recibimos una solicitud para restablecer la contraseña de tu cuenta. Si no la hiciste tú, puedes ignorar este email.",
-          "button": "Restablecer contraseña",
-          "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-          "footer": "Si no solicitaste restablecer tu contraseña, ignora este email o contacta con nuestro soporte si tienes dudas."
-        },
-        "Verification": {
-          "subject": "Sokosumi - Verificar dirección de email",
-          "title": "Verifica tu dirección de email",
-          "greeting": "Hola {name}",
-          "message": "Por favor, verifica tu dirección de email haciendo clic en el botón de abajo. Así garantizamos la seguridad de tu cuenta.",
-          "button": "Verificar email",
-          "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-          "footer": "Si no creaste una cuenta, puedes ignorar este email."
-        },
-        "InviteUserEmail": {
-          "subject": "Sokosumi - Invitación a organización",
-          "title": "Únete a {invitorUsername} en {organizationName}",
-          "greeting": "Hola",
-          "message": "Has sido invitado a unirte a {organizationName} en Sokosumi. Haz clic en el botón de abajo para aceptar la invitación.",
-          "button": "Aceptar invitación",
-          "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-          "footer": "Si no solicitaste esta invitación, puedes ignorar este email."
-        }
-      }
-    },
-    "Email": {
-      "JobFinalStatus": {
-        "subject": "Sokosumi - Job {status} de {agentName}",
-        "preview": "Tu job para {agentName} está {status}.",
-        "title": "Job {status}",
-        "greeting": "Hola {name}",
-        "body": "{jobName} para {agentName} está {status}.",
-        "button": "Ver job",
-        "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-        "footer": "Recibes este email porque las notificaciones de jobs están activadas en tu cuenta.",
-        "fallbackJobName": "Tu job",
-        "status": {
-          "completed": "completado",
-          "failed": "fallido",
-          "payment_failed": "pago fallido",
-          "refund_resolved": "reembolsado",
-          "dispute_resolved": "disputa resuelta"
-        }
-      },
-      "JobFailureNotification": {
-        "subject": "Notificación de error de job - {jobId}",
-        "preview": "El job {jobId} ha fallado",
-        "title": "Notificación de error de job",
-        "description": "Un job ha fallado. Aquí están los detalles técnicos:",
-        "network": "Red:",
-        "agentName": "Nombre del Agent:",
-        "agentId": "ID del Agent:",
-        "agentBlockchainIdentifier": "Identificador blockchain del Agent:",
-        "jobId": "Job ID:",
-        "jobBlockchainIdentifier": "Identificador blockchain del job:",
-        "onChainStatus": "Estado on-chain:",
-        "agentStatus": "Estado del Agent:",
-        "inputHash": "Hash de Input:",
-        "resultHash": "Hash de resultado:",
-        "inputSchema": "Esquema de Input:",
-        "input": "Input:",
-        "output": "Output:",
-        "footer": "Esta es una notificación automática de Sōkosumi."
-      },
-      "JobInputRequired": {
-        "subject": "Sokosumi - {agentName} necesita tu Input",
-        "preview": "Tu job para {agentName} necesita Input para continuar.",
-        "title": "Acción requerida",
-        "greeting": "Hola {name}",
-        "body": "Tu job {jobName} para {agentName} está esperando tu Input para continuar.",
-        "button": "Proporcionar Input",
-        "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-        "footer": "Recibes este email porque las notificaciones de jobs están activadas en tu cuenta.",
-        "fallbackJobName": "Tu job"
       }
     },
     "JobInput": {

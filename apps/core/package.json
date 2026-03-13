@@ -32,13 +32,15 @@
     "@hono/node-server": "1.19.11",
     "@hono/zod-openapi": "1.2.2",
     "@openrouter/ai-sdk-provider": "2.3.0",
-    "@scalar/hono-api-reference": "0.10.2",
-    "@scalar/openapi-to-markdown": "0.4.5",
+    "@scalar/hono-api-reference": "0.10.3",
+    "@scalar/openapi-to-markdown": "0.4.7",
     "@sentry/node": "10.43.0",
     "@sentry/profiling-node": "10.43.0",
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/database": "workspace:*",
+    "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
+    "@sokosumi/utils": "workspace:*",
     "@vercel/blob": "2.3.1",
     "@vercel/functions": "3.4.3",
     "ably": "2.19.0",
@@ -47,10 +49,9 @@
     "cron-parser": "5.5.0",
     "dotenv": "17.3.1",
     "hono": "4.12.7",
-    "i18next": "25.8.18",
-    "i18next-fs-backend": "2.6.1",
     "neverthrow": "8.2.0",
     "p-limit": "7.3.0",
+    "postmark": "4.0.7",
     "slugify": "1.6.6",
     "stripe": "20.4.1",
     "uuid": "13.0.0"
@@ -62,6 +63,6 @@
     "typescript": "5.9.3",
     "vite": "7.3.1",
     "vite-tsconfig-paths": "6.1.1",
-    "vitest": "4.0.18"
+    "vitest": "4.1.0"
   }
 }

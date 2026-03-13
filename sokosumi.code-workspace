@@ -21,8 +21,16 @@
       "path": "packages/masumi",
     },
     {
+      "name": "Package: Email",
+      "path": "packages/email",
+    },
+    {
       "name": "Package: Chat",
       "path": "packages/chat",
+    },
+    {
+      "name": "Package: Utils",
+      "path": "packages/utils",
     },
   ],
   "settings": {
