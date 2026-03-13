@@ -331,13 +331,11 @@ describe("core auth config", () => {
       name: "Andreas",
     });
 
-    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith(
-      {
-        email: "andreas@example.com",
-        name: "Andreas",
-        userId: "user_123",
-      },
-    );
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
+      email: "andreas@example.com",
+      name: "Andreas",
+      userId: "user_123",
+    });
   });
 
   it("reports Stripe customer creation failures to Sentry", async () => {
@@ -373,18 +371,15 @@ describe("core auth config", () => {
     await Promise.resolve();
 
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
-      expect.any(Error),
-      {
-        extra: {
-          email: "andreas@example.com",
-          name: "Andreas",
-          userId: "user_123",
-        },
-        tags: {
-          context: "stripe_user_customer_creation",
-        },
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        email: "andreas@example.com",
+        name: "Andreas",
+        userId: "user_123",
       },
-    );
+      tags: {
+        context: "stripe_user_customer_creation",
+      },
+    });
   });
 });

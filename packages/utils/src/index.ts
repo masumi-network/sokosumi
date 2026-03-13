@@ -1,4 +1,1 @@
-export {
-  getFallbackUserName,
-  getStoredUserName,
-} from "./user-name.js";
+export { getFallbackUserName, getStoredUserName } from "./user-name.js";

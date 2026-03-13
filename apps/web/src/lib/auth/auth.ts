@@ -91,7 +91,7 @@ function getEmailLocaleCookieValue(
     const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
 
     if (!cookieValue) {
-      return null;
+      continue;
     }
 
     try {
