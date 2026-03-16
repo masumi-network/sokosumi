@@ -170,7 +170,7 @@ export default function SignInForm({
             {isSubmitting && (
               <Loader2
                 aria-hidden="true"
-                className="absolute left-4 top-1/2 size-4 -translate-y-1/2 animate-spin"
+                className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin"
               />
             )}
             <span className="w-full text-center">{t("submit")}</span>

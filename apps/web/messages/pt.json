@@ -863,6 +863,10 @@
       "signIn": "Iniciar sessão",
       "signUp": "Registar"
     },
+    "PasswordToggle": {
+      "show": "Mostrar palavra-passe",
+      "hide": "Ocultar palavra-passe"
+    },
     "Pages": {
       "SignIn": {
         "Metadata": {
@@ -955,9 +959,6 @@
             },
             "Password": {
               "placeholder": "Palavra-passe"
-            },
-            "ConfirmPassword": {
-              "placeholder": "Confirmar palavra-passe"
             }
           },
           "Errors": {
