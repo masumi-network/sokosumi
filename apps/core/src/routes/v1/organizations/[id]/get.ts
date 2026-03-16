@@ -18,9 +18,9 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/organizations/{id}",
+  path: "/{id}",
   description: "Get organization details by ID or slug for the current member",
-  tags: ["Users"],
+  tags: ["Organizations"],
   request: {
     params,
   },
