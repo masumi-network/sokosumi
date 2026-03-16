@@ -43,7 +43,7 @@
     "@sokosumi/utils": "workspace:*",
     "@vercel/blob": "2.3.1",
     "@vercel/functions": "3.4.3",
-    "ably": "2.19.0",
+    "ably": "2.20.0",
     "ai": "6.0.116",
     "better-auth": "1.5.5",
     "cron-parser": "5.5.0",

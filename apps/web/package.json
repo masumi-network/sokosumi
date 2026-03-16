@@ -65,7 +65,7 @@
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "2.3.1",
     "@vercel/speed-insights": "2.0.0",
-    "ably": "2.19.0",
+    "ably": "2.20.0",
     "ai": "6.0.116",
     "babel-plugin-react-compiler": "1.0.0",
     "better-auth": "1.5.5",
