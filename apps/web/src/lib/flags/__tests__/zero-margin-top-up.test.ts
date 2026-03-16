@@ -34,6 +34,7 @@ describe("zeroMarginTopUpEnabled", () => {
     "member@house-of-communication.com",
     "member@masumi.network",
     "member@nmkr.io",
+    "member@nayokimediaplus.com",
     "MEMBER@NMKR.IO",
   ])("returns true for allowed domain %s", async (email) => {
     getSessionMock.mockResolvedValue({

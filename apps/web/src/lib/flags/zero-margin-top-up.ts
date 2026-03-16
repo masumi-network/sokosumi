@@ -14,6 +14,7 @@ const ZERO_MARGIN_TOP_UP_DOMAINS = new Set([
   "masumi.network",
   "nmkr.io",
   "fmmc.com",
+  "nayokimediaplus.com",
 ]);
 
 function isZeroMarginTopUpDomain(email: string): boolean {
