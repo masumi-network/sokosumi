@@ -19,11 +19,6 @@ export const signUpFormData: FormData<
     type: "password",
   },
   {
-    name: "confirmPassword",
-    placeholderKey: "Fields.ConfirmPassword.placeholder",
-    type: "password",
-  },
-  {
     name: "termsAccepted",
     type: "checkbox",
   },
