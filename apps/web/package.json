@@ -28,7 +28,7 @@
     "@ai-sdk/react": "3.0.118",
     "@better-auth/api-key": "1.5.5",
     "@better-auth/i18n": "1.5.5",
-    "@better-auth/infra": "0.1.11",
+    "@better-auth/infra": "0.1.12",
     "@better-auth/oauth-provider": "1.5.5",
     "@better-auth/passkey": "1.5.5",
     "@better-auth/prisma-adapter": "1.5.5",
@@ -141,7 +141,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "3.3.5",
     "@happy-dom/jest-environment": "20.8.4",
-    "@hey-api/openapi-ts": "0.94.1",
+    "@hey-api/openapi-ts": "0.94.2",
     "@noble/hashes": "2.0.1",
     "@swc/core": "1.15.18",
     "@swc/helpers": "0.5.19",
