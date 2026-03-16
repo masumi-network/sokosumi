@@ -28,6 +28,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  passkeys      Passkey[]
 
   userAgentRatings UserAgentRating[]
   agentLists       AgentList[]
@@ -36,6 +37,7 @@ model User {
   jobSchedules     JobSchedule[]
 
   stripeCustomerId String?
+  preferredOrganizationId String?
 
   members     Member[]
   invitations Invitation[]
@@ -128,6 +130,26 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model Passkey {
+  id           String   @id
+  name         String?
+  publicKey    String
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  aaguid       String?
+
+  @@index([userId])
+  @@index([credentialID])
+  @@map("passkey")
 }
 
 model Subscription {

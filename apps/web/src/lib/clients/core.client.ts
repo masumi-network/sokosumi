@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import type {
+  GetCoworkersData,
   GetTasksData,
   PaginationMetadata,
 } from "@/lib/clients/generated/core";
@@ -451,11 +452,12 @@ export const coreClient = (() => {
     );
   }
 
-  async function getCoworkers() {
+  async function getCoworkers(query?: GetCoworkersData["query"]) {
     return executeOperation(
       (client) =>
         coreGetCoworkers({
           client,
+          query,
           cache: "no-store",
         }),
       "Failed to fetch coworkers",

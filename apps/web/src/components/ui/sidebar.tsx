@@ -27,7 +27,7 @@ import {
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "16rem";
+const SIDEBAR_WIDTH = "14rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3.5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
@@ -40,8 +40,6 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
-  isHovered: boolean;
-  setIsHovered: (hovered: boolean) => void;
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
@@ -70,7 +68,6 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
-  const [isHovered, setIsHovered] = React.useState(false);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -113,9 +110,8 @@ function SidebarProvider({
   }, [toggleSidebar]);
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
-  // The state is "expanded" if either permanently open OR temporarily hovered (on desktop).
-  const state = open || (isHovered && !isMobile) ? "expanded" : "collapsed";
+  // Desktop sidebar state is strictly controlled by `open`.
+  const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContextProps>(
     () => ({
@@ -126,20 +122,8 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
-      isHovered,
-      setIsHovered,
     }),
-    [
-      state,
-      open,
-      setOpen,
-      isMobile,
-      openMobile,
-      setOpenMobile,
-      toggleSidebar,
-      isHovered,
-      setIsHovered,
-    ],
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
   );
 
   return (
@@ -171,8 +155,6 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
-  enableHoverExpand = true,
-  hoverExpandDelay = 100,
   className,
   children,
   ...props
@@ -180,21 +162,8 @@ function Sidebar({
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
-  enableHoverExpand?: boolean;
-  hoverExpandDelay?: number;
 }) {
-  const { isMobile, state, openMobile, setOpenMobile, open, setIsHovered } =
-    useSidebar();
-  const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  // Cleanup timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-    };
-  }, []);
+  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
   if (collapsible === "none") {
     return (
@@ -271,39 +240,6 @@ function Sidebar({
               : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className,
           )}
-          onMouseEnter={
-            enableHoverExpand
-              ? () => {
-                  // Clear any pending timeout
-                  if (hoverTimeoutRef.current) {
-                    clearTimeout(hoverTimeoutRef.current);
-                    hoverTimeoutRef.current = null;
-                  }
-                  // Only expand on hover if sidebar is permanently collapsed and not on mobile
-                  if (!isMobile && !open && collapsible === "icon") {
-                    hoverTimeoutRef.current = setTimeout(() => {
-                      setIsHovered(true);
-                      hoverTimeoutRef.current = null;
-                    }, hoverExpandDelay);
-                  }
-                }
-              : undefined
-          }
-          onMouseLeave={
-            enableHoverExpand
-              ? () => {
-                  // Clear pending timeout if mouse leaves before delay completes
-                  if (hoverTimeoutRef.current) {
-                    clearTimeout(hoverTimeoutRef.current);
-                    hoverTimeoutRef.current = null;
-                  }
-                  // Collapse hover expansion when mouse leaves
-                  if (!isMobile) {
-                    setIsHovered(false);
-                  }
-                }
-              : undefined
-          }
           {...props}
         >
           <div

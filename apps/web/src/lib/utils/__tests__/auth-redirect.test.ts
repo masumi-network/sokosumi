@@ -2,6 +2,7 @@ import {
   buildOAuthConsentReturnUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
+  createAuthSessionGetter,
   getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
@@ -205,5 +206,27 @@ describe("waitForAuthSession", () => {
       2,
       "Session not established after login, proceeding with redirect anyway",
     );
+  });
+});
+
+describe("createAuthSessionGetter", () => {
+  it("unwraps session data from the Better Auth response shape", async () => {
+    const getSession = createAuthSessionGetter(async () => ({
+      data: {
+        session: {
+          id: "session_1",
+        },
+      },
+    }));
+
+    await expect(getSession()).resolves.toEqual({ id: "session_1" });
+  });
+
+  it("returns null when the Better Auth response has no session", async () => {
+    const getSession = createAuthSessionGetter(async () => ({
+      data: null,
+    }));
+
+    await expect(getSession()).resolves.toBeNull();
   });
 });

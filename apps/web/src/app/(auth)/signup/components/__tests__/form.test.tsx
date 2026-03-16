@@ -116,10 +116,6 @@ describe("SignUpForm OAuth workflow", () => {
       screen.getByPlaceholderText("Fields.Password.placeholder"),
       "Passw0rd!",
     );
-    await user.type(
-      screen.getByPlaceholderText("Fields.ConfirmPassword.placeholder"),
-      "Passw0rd!",
-    );
     await user.click(
       screen.getByRole("checkbox", {
         name: /Fields\.TermsAccepted\.Label\.iAgreeTo/,
@@ -127,6 +123,17 @@ describe("SignUpForm OAuth workflow", () => {
     );
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
+
+  it("renders signup with a single password field", () => {
+    render(<SignUpForm />);
+
+    expect(
+      screen.queryByPlaceholderText("Fields.ConfirmPassword.placeholder"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Fields.Password.placeholder"),
+    ).toHaveAttribute("type", "password");
+  });
 
   it("redirects with window.location.href when signup returns oauth redirect", async () => {
     mockSearchParams = new URLSearchParams({
@@ -184,6 +191,34 @@ describe("SignUpForm OAuth workflow", () => {
     expect(window.location.href).toBe("http://localhost/");
   });
 
+  it("passes unwrapped session data to waitForAuthSession after credential signup", async () => {
+    mockSignUpEmail.mockResolvedValue({
+      ok: true,
+      data: {
+        user: { id: "user-4" },
+      },
+    });
+    mockGetSession.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    await waitFor(() => {
+      expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
+    });
+
+    const waitForAuthSessionOptions = mockWaitForAuthSession.mock
+      .calls[0]?.[0] as {
+      getSession: () => Promise<null | { id: string }>;
+    };
+
+    await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
+  });
+
   it("passes oauth consent callback url built from search params", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
@@ -222,7 +257,6 @@ describe("SignUpForm OAuth workflow", () => {
         name: "New User",
         email: "new-user@example.com",
         password: "Passw0rd!",
-        confirmPassword: "Passw0rd!",
         termsAccepted: true,
         marketingOptIn: false,
       }),

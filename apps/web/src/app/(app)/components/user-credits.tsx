@@ -1,16 +1,21 @@
+import { ArrowUpRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
-import { getEnvPublicConfig } from "@/config/env.public";
 import { Session } from "@/lib/auth/auth";
-import { coreClient } from "@/lib/clients/core.client";
+import type { GetUsersMeCreditsResponse } from "@/lib/clients/generated/core/types.gen";
 import { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import BuyCreditsButton from "./buy-credits-button";
+import { resolveLowCreditsBillingPath } from "./top-notice-state";
 import UserAvatar from "./user-avatar";
-import { resolveUserCreditsCta } from "./user-credits-cta";
+
+export type UserCreditsData = GetUsersMeCreditsResponse["data"]["credits"];
 
 interface UserCreditsProps {
+  creditsData: UserCreditsData | null;
+  currentTimestampMs: number;
+  organizationName: string | null;
   session: Session;
   showAvatar?: boolean;
   showCtaButtons?: boolean;
@@ -19,6 +24,9 @@ interface UserCreditsProps {
 }
 
 export default async function UserCredits({
+  creditsData,
+  currentTimestampMs,
+  organizationName,
   session,
   showAvatar = true,
   showCtaButtons = true,
@@ -28,7 +36,6 @@ export default async function UserCredits({
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const tSubscriptions = await getTranslations("App.Subscriptions");
-  const currentTimestampMs = Date.now();
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const hasActiveOrganization = activeOrganizationId !== null;
   const primaryLabel =
@@ -40,54 +47,29 @@ export default async function UserCredits({
   let credits: number | null = null;
   let creditUsage: CreditUsage | null = null;
   let subscriptionPeriodEndMs: number | null = null;
-  let activeOrganizationName: string | null = null;
+  const subscription = creditsData?.subscription ?? null;
 
-  try {
-    const [creditsResult, organizationsResult] = await Promise.allSettled([
-      coreClient.getMyCredits(),
-      activeOrganizationId ? coreClient.getMyOrganizations() : null,
-    ]);
+  if (creditsData) {
+    credits = creditsData.buffer;
+    currentPlan = subscription?.plan ?? "free";
+    subscriptionPeriodEndMs = subscription?.periodEnd
+      ? new Date(subscription.periodEnd).getTime()
+      : null;
+    const subscriptionCredits = subscription?.credits ?? null;
+    if (subscriptionCredits && subscriptionCredits.total > 0) {
+      const total = Math.max(subscriptionCredits.total, 0);
+      const used = Math.min(Math.max(subscriptionCredits.used, 0), total);
+      const remaining = Math.max(subscriptionCredits.remaining, 0);
+      const percentageUsed = Math.min(Math.max((used / total) * 100, 0), 100);
 
-    if (creditsResult.status === "fulfilled") {
-      const creditsResponse = creditsResult.value.data.credits;
-      credits = creditsResponse.buffer;
-      currentPlan = creditsResponse.subscription?.plan ?? "free";
-      subscriptionPeriodEndMs = creditsResponse.subscription?.periodEnd
-        ? new Date(creditsResponse.subscription.periodEnd).getTime()
-        : null;
-      const subscriptionCredits = creditsResponse.subscription?.credits ?? null;
-      if (subscriptionCredits && subscriptionCredits.total > 0) {
-        const total = Math.max(subscriptionCredits.total, 0);
-        const used = Math.min(Math.max(subscriptionCredits.used, 0), total);
-        const remaining = Math.max(subscriptionCredits.remaining, 0);
-        const percentageUsed = Math.min(Math.max((used / total) * 100, 0), 100);
-
-        creditUsage = {
-          hasUsageData: true,
-          percentageUsed,
-          remaining,
-          total,
-          used,
-        };
-      }
+      creditUsage = {
+        hasUsageData: true,
+        percentageUsed,
+        remaining,
+        total,
+        used,
+      };
     }
-
-    if (
-      activeOrganizationId &&
-      organizationsResult.status === "fulfilled" &&
-      organizationsResult.value?.data
-    ) {
-      const foundOrganization = organizationsResult.value.data.find(
-        (organization) => organization.id === activeOrganizationId,
-      );
-
-      if (foundOrganization) {
-        activeOrganizationName = foundOrganization.name;
-      }
-    }
-  } catch (_error) {
-    credits = null;
-    creditUsage = null;
   }
 
   const displayCredits = formatCreditsForDisplay(credits ?? 0);
@@ -104,7 +86,7 @@ export default async function UserCredits({
       planLabel = hasActiveOrganization
         ? tPlan("organizationPlan", {
             plan: planName,
-            organization: activeOrganizationName ?? t("unavailable"),
+            organization: organizationName ?? t("unavailable"),
           })
         : tPlan("userPlan", { plan: planName });
     } catch (_error) {
@@ -113,28 +95,16 @@ export default async function UserCredits({
     }
   }
 
-  const creditsButtonThreshold =
-    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  const hasLowCredits =
-    typeof credits === "number" && credits < creditsButtonThreshold;
-  const cta = resolveUserCreditsCta({
-    currentPlan,
-    hasLowCredits,
-  });
-
-  const shouldShowUpgradeCta = showCtaButtons && cta === "upgradePlan";
-  const shouldShowAddCreditsCta = showCtaButtons && cta === "addCredits";
+  const billingPath = resolveLowCreditsBillingPath(currentPlan);
 
   return (
     <div className="flex w-full flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {shouldShowUpgradeCta ? (
+      {showCtaButtons ? (
         <BuyCreditsButton
-          label={tPlan("upgradeCta")}
-          path="/billing?tab=subscription"
+          label={tPlan("getMoreCredits")}
+          path={billingPath}
+          iconRight={<ArrowUpRight aria-hidden />}
         />
-      ) : null}
-      {shouldShowAddCreditsCta ? (
-        <BuyCreditsButton label={t("buy")} path="/billing?tab=credits" />
       ) : null}
       {showAvatar || showCreditUsage ? (
         <UserAvatar

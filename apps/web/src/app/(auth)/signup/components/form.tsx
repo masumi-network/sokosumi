@@ -19,6 +19,7 @@ import { fireGTMEvent } from "@/lib/gtm-events";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
+  createAuthSessionGetter,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
@@ -48,7 +49,6 @@ export default function SignUpForm({
       email: prefilledEmail ?? "",
       name: "",
       password: "",
-      confirmPassword: "",
       termsAccepted: false,
       marketingOptIn: false,
     },
@@ -76,7 +76,6 @@ export default function SignUpForm({
         email: values.email,
         name: values.name,
         password: values.password,
-        confirmPassword: values.confirmPassword,
         termsAccepted: values.termsAccepted,
         marketingOptIn: values.marketingOptIn,
       },
@@ -91,7 +90,7 @@ export default function SignUpForm({
 
       await waitForAuthSession({
         context: "signup",
-        getSession: () => authClient.getSession(),
+        getSession: createAuthSessionGetter(() => authClient.getSession()),
         logWarning: (message) => {
           Sentry.captureMessage(message, { level: "warning" });
         },

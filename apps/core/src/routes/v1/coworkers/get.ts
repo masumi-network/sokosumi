@@ -69,19 +69,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireUserAuthContext(c.var.authContext);
     const { scope, capability } = c.req.valid("query");
 
-    const where =
+    const baseScope =
       scope === "archived"
         ? { archivedAt: { not: null } }
         : {
             archivedAt: null,
             ...(scope === "whitelisted" ? { isWhitelisted: true } : {}),
           };
+    const where = {
+      ...baseScope,
+      ...(capability ? { capabilities: { hasEvery: capability } } : {}),
+    };
 
     const coworkers = await prisma.coworker.findMany({
-      where: {
-        ...where,
-        ...(capability ? { capabilities: { hasEvery: capability } } : {}),
-      },
+      where,
       orderBy: { createdAt: "desc" },
     });
 

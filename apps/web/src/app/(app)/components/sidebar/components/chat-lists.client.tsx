@@ -4,7 +4,7 @@ import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 
 import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
@@ -23,7 +23,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { useChatSecondarySidebar } from "@/contexts/chat-secondary-sidebar-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
@@ -32,7 +31,6 @@ import { cn } from "@/lib/utils";
 
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
-  const { open, isMobile, toggleSidebar } = useSidebar();
   const pathname = usePathname();
   const { setShowSecondarySidebar } = useChatSecondarySidebar();
   const { conversations, refreshConversations } = useConversationsContext();
@@ -45,12 +43,6 @@ export default function ChatListsClient() {
     void refreshConversations();
   }, [refreshConversations]);
 
-  const handleChatClick = () => {
-    if (!isMobile && open) {
-      toggleSidebar();
-    }
-  };
-
   const chatGroups = useMemo(
     () =>
       buildChatGroups(
@@ -61,12 +53,36 @@ export default function ChatListsClient() {
   );
 
   const hasAnyChats = conversations.length > 0;
+  const [isOpen, setIsOpen] = useState(hasAnyChats);
+  const prevHasAnyChats = useRef(false);
+
+  useEffect(() => {
+    if (hasAnyChats && !prevHasAnyChats.current) {
+      startTransition(() => setIsOpen(true));
+    }
+    if (!hasAnyChats) {
+      startTransition(() => setIsOpen(false));
+    }
+    prevHasAnyChats.current = hasAnyChats;
+  }, [hasAnyChats]);
+
+  const effectiveOpen = hasAnyChats ? isOpen : false;
 
   return (
-    <Collapsible defaultOpen={hasAnyChats} className="group/collapsible">
-      <SidebarGroup className="w-72 md:w-64">
+    <Collapsible
+      key="chat-lists-collapsible-1"
+      open={effectiveOpen}
+      onOpenChange={(open) => {
+        if (hasAnyChats) setIsOpen(open);
+      }}
+      className="group/collapsible"
+    >
+      <SidebarGroup
+        key="chat-lists-group-1"
+        className="w-full pb-0 whitespace-nowrap"
+      >
         <SidebarGroupLabel
-          className="text-primary text-sm group-data-[collapsible=icon]:hidden"
+          className="text-primary px-3 text-sm group-data-[collapsible=icon]:hidden"
           asChild
         >
           <CollapsibleTrigger>
@@ -94,9 +110,9 @@ export default function ChatListsClient() {
           <MessageSquare className="mr-2 size-4" aria-hidden />
         </span>
         <CollapsibleContent>
-          <SidebarGroupContent className="mt-2">
+          <SidebarGroupContent>
             {hasAnyChats ? (
-              <SidebarMenu>
+              <SidebarMenu className="pt-2">
                 {chatGroups.map((group) => {
                   const slug = group.displaySlug;
                   const mostRecentConversation = group.conversations[0];
@@ -110,7 +126,7 @@ export default function ChatListsClient() {
                       <SidebarMenuButton
                         asChild
                         className={cn(
-                          "group/chat-item px-4 py-5 group-data-[collapsible=icon]:px-2",
+                          "group/chat-item gap-0 pl-5 group-data-[collapsible=icon]:px-2",
                           {
                             "text-primary-foreground hover:text-primary-foreground active:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
                               isActive,
@@ -121,10 +137,10 @@ export default function ChatListsClient() {
                       >
                         <SheetClose asChild>
                           <Link
+                            className="flex min-h-auto w-full items-center justify-start gap-2"
                             href={chatHref}
                             onClick={() => {
                               setShowSecondarySidebar(true);
-                              handleChatClick();
                             }}
                           >
                             <div className="group/chat-menu flex w-full items-center justify-start gap-2 group-data-[collapsible=icon]:justify-center">

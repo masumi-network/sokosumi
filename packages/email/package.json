@@ -1,0 +1,60 @@
+{
+  "name": "@sokosumi/email",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && mkdir -p dist/locales && cp src/locales/*.json dist/locales/",
+    "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
+    "prepare": "pnpm build",
+    "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md,css,html}\"",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci",
+    "lint:report": "eslint --max-warnings 0 --output-file=lint-report.json --format json ."
+  },
+  "dependencies": {
+    "@react-email/body": "0.3.0",
+    "@react-email/button": "0.2.1",
+    "@react-email/container": "0.0.16",
+    "@react-email/head": "0.0.13",
+    "@react-email/heading": "0.0.16",
+    "@react-email/hr": "0.0.12",
+    "@react-email/html": "0.0.12",
+    "@react-email/link": "0.0.13",
+    "@react-email/preview": "0.0.14",
+    "@react-email/render": "2.0.4",
+    "@react-email/section": "0.0.17",
+    "@react-email/tailwind": "2.0.5",
+    "@react-email/text": "0.1.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "use-intl": "4.8.3"
+  },
+  "devDependencies": {
+    "@types/jest": "30.0.0",
+    "@types/node": "24.12.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "jest": "30.3.0",
+    "ts-jest": "29.4.6",
+    "typescript": "5.9.3"
+  }
+}

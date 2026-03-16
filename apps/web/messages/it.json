@@ -133,6 +133,7 @@
       "imprint": "Note legali",
       "acceptableUse": "Uso accettabile",
       "settings": "Impostazioni",
+      "expandSidebar": "Espandi barra laterale",
       "logout": "Esci",
       "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
       "creditsSummary": "Riepilogo crediti:",
@@ -146,11 +147,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambia workspace",
-      "searchProfiles": "Cerca profili...",
       "personalAccount": "Account personale",
-      "noProfilesFound": "Nessun profilo trovato",
-      "personalAccountHeading": "Personale",
-      "organization": "Organizzazione",
       "addOrganization": "Aggiungi organizzazione",
       "organizationsHeading": "Organizzazioni",
       "createOrJoinOrganization": "Crea o unisciti a un’organizzazione"
@@ -845,13 +842,30 @@
     },
     "SocialButtons": {
       "continueWith": "Continua con {provider}",
-      "divider": "oppure continua con",
+      "passwordDivider": "oppure accedi con password",
+      "emailDivider": "oppure registrati con l'e-mail",
       "success": "Accesso riuscito",
-      "error": "Accesso non riuscito"
+      "error": "Accesso non riuscito",
+      "lastUsed": "Ultimo usato",
+      "passkeyProvider": "Passkey",
+      "passkeyError": "Non siamo riusciti ad accedere con il passkey. Riprova.",
+      "magicLinkProvider": "Magic Link",
+      "magicLinkInputLabel": "E-mail per il Magic Link",
+      "magicLinkPlaceholder": "Inserisci la tua e-mail",
+      "magicLinkSubmit": "Inviami un Magic Link",
+      "magicLinkSubmitting": "Invio del Magic Link...",
+      "magicLinkResend": "Invia di nuovo il Magic Link",
+      "magicLinkSuccess": "Controlla la tua casella di posta per il tuo Magic Link.",
+      "magicLinkError": "Non siamo riusciti a inviare un Magic Link. Riprova.",
+      "magicLinkInvalidEmail": "Inserisci un indirizzo e-mail valido."
     },
     "Words": {
       "signIn": "Accedi",
       "signUp": "Registrati"
+    },
+    "PasswordToggle": {
+      "show": "Mostra password",
+      "hide": "Nascondi password"
     },
     "Pages": {
       "SignIn": {
@@ -865,6 +879,7 @@
         },
         "Form": {
           "submit": "Accedi",
+          "lastUsed": "Ultimo usato",
           "success": "Accesso riuscito",
           "error": "Email o password non validi",
           "Fields": {
@@ -944,9 +959,6 @@
             },
             "Password": {
               "placeholder": "Password"
-            },
-            "ConfirmPassword": {
-              "placeholder": "Conferma password"
             }
           },
           "Errors": {
@@ -1101,7 +1113,8 @@
           "question": "Come possiamo aiutarti oggi?",
           "title": "Benvenuto! Come possiamo aiutarti oggi?",
           "titleWithName": "Benvenuto {name}! Come possiamo aiutarti oggi?",
-          "placeholder": "A cosa stai pensando?",
+          "placeholder": "Inserisci il tuo compito e invialo a {coworkerSlug}.",
+          "coworkerSlugFallback": "il coworker",
           "suggestionsLabel": "Prova a chiedere",
           "prompts": {
             "alex": {
@@ -1342,7 +1355,7 @@
           "cancelRequested": "Annullamento richiesto"
         },
         "billingCta": {
-          "upgradePlan": "Aggiorna il tuo piano",
+          "upgradePlan": "Ottieni più crediti",
           "addCredits": "Aggiungi crediti",
           "placeholder": "Questo task richiede crediti per continuare. Apri la fatturazione per procedere."
         },
@@ -1481,14 +1494,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Aggiungi crediti",
         "extraCredits": "{credits, plural, =0 {0 disponibili} =1 {1 disponibile} other {# disponibili}}",
         "userBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}}",
         "organizationBalance": "{credits, plural, =0 {Nessun credito} =1 {1 credito} other {# crediti}} ({organization})",
         "unavailable": "Crediti non disponibili"
       },
       "Plan": {
-        "upgradeCta": "Aggiorna piano",
+        "getMoreCredits": "Ottieni più crediti",
         "userPlan": "{plan} (Personale)",
         "organizationPlan": "{plan} ({organization})",
         "unavailable": "Piano non disponibile"
@@ -1500,6 +1512,30 @@
       "button": "Invia di nuovo l’email di verifica",
       "sendSuccess": "Email di verifica inviata. Controlla la tua casella di posta.",
       "sendError": "Impossibile inviare l’email di verifica. Riprova."
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "I tuoi crediti stanno finendo",
+          "description": "Apri la fatturazione per scegliere un abbonamento prima di rimanere senza crediti."
+        },
+        "outOfCredits": {
+          "title": "Attiva un abbonamento per continuare",
+          "description": "Apri la fatturazione per scegliere un abbonamento e continuare a lavorare."
+        },
+        "button": "Vedi abbonamenti"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "I tuoi crediti stanno finendo",
+          "description": "Apri la fatturazione per gestire il tuo abbonamento e aggiungere crediti prima che il lavoro si interrompa."
+        },
+        "outOfCredits": {
+          "title": "I tuoi crediti sono esauriti",
+          "description": "Apri la fatturazione per gestire il tuo abbonamento e aggiungere crediti per continuare."
+        },
+        "button": "Apri fatturazione"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "Abbonamento aggiornato correttamente.",
@@ -1742,6 +1778,29 @@
         "submit": "Imposta password",
         "success": "Password impostata correttamente",
         "error": "Impossibile impostare la password"
+      },
+      "Passkeys": {
+        "title": "Passkeys",
+        "description": "Aggiungi e rimuovi passkey per accedere più velocemente.",
+        "loading": "Caricamento passkeys...",
+        "loadError": "Impossibile caricare i tuoi passkey al momento.",
+        "empty": "Non hai ancora aggiunto nessun passkey.",
+        "retry": "Riprova",
+        "add": "Aggiungi passkey",
+        "addSuccess": "Passkey aggiunto correttamente",
+        "addError": "Impossibile aggiungere il passkey",
+        "refreshError": "La modifica è stata salvata, ma non è stato possibile aggiornare l'elenco dei passkey.",
+        "save": "Salva",
+        "cancel": "Annulla",
+        "renameSuccess": "Passkey rinominato correttamente",
+        "renameError": "Impossibile rinominare il passkey",
+        "deleteSuccess": "Passkey eliminato correttamente",
+        "deleteError": "Impossibile eliminare il passkey",
+        "defaultName": "Passkey",
+        "createdAt": "Creato il {date}",
+        "deleteAriaLabel": "Elimina {name}",
+        "editAriaLabel": "Modifica {name}",
+        "editInputLabel": "Nome passkey"
       },
       "Theme": {
         "title": "Tema",
@@ -2086,7 +2145,7 @@
           "title": "Competenza marketing",
           "description": "Addestrati su campagne reali: strategia, contenuti, media planning e comunicazione del brand."
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "Altri",
         "moreComingSoon": "+ Altri in arrivo"
       },
       "FilterSection": {
@@ -2264,86 +2323,6 @@
           "match": "La password non corrisponde",
           "required": "La conferma della password è obbligatoria"
         }
-      },
-      "Email": {
-        "ResetPassword": {
-          "subject": "Sokosumi - Reimposta la tua password",
-          "title": "Reimposta la tua password",
-          "greeting": "Salve {name}",
-          "message": "Abbiamo ricevuto una richiesta di reimpostazione della password per il tuo account. Se non hai effettuato tu questa richiesta, puoi ignorare questa email in sicurezza.",
-          "button": "Reimposta password",
-          "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
-          "footer": "Se non hai richiesto la reimpostazione della password, ignora questa email o contatta l’assistenza se hai dubbi."
-        },
-        "Verification": {
-          "subject": "Sokosumi - Verifica il tuo indirizzo email",
-          "title": "Verifica il tuo indirizzo email",
-          "greeting": "Salve {name}",
-          "message": "Verifica il tuo indirizzo email cliccando sul pulsante qui sotto. Questo ci aiuta a garantire la sicurezza del tuo account.",
-          "button": "Verifica email",
-          "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
-          "footer": "Se non hai creato un account, puoi ignorare questa email in sicurezza."
-        },
-        "InviteUserEmail": {
-          "subject": "Sokosumi - Invito all’organizzazione",
-          "title": "Unisciti a {invitorUsername} su {organizationName}",
-          "greeting": "Salve",
-          "message": "Sei stato invitato a unirti a {organizationName} su Sokosumi. Clicca sul pulsante qui sotto per accettare l’invito.",
-          "button": "Accetta invito",
-          "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
-          "footer": "Se non hai richiesto questo invito, puoi ignorare questa email in sicurezza."
-        }
-      }
-    },
-    "Email": {
-      "JobFinalStatus": {
-        "subject": "Sokosumi - Job di {agentName} {status}",
-        "preview": "Il tuo job per {agentName} ora è {status}.",
-        "title": "Job {status}",
-        "greeting": "Salve {name}",
-        "body": "{jobName} per {agentName} ora è {status}.",
-        "button": "Visualizza job",
-        "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
-        "footer": "Ricevi questa email perché le notifiche dei job sono abilitate per il tuo account.",
-        "fallbackJobName": "Il tuo job",
-        "status": {
-          "completed": "completato",
-          "failed": "fallito",
-          "payment_failed": "pagamento non riuscito",
-          "refund_resolved": "rimborsato",
-          "dispute_resolved": "contestazione risolta"
-        }
-      },
-      "JobFailureNotification": {
-        "subject": "Notifica di fallimento del job - {jobId}",
-        "preview": "Il job {jobId} è fallito",
-        "title": "Notifica di fallimento del job",
-        "description": "Un job è fallito. Ecco i dettagli tecnici:",
-        "network": "Rete:",
-        "agentName": "Nome agente:",
-        "agentId": "ID agente:",
-        "agentBlockchainIdentifier": "Identificatore blockchain dell’agente:",
-        "jobId": "ID job:",
-        "jobBlockchainIdentifier": "Identificatore blockchain del job:",
-        "onChainStatus": "Stato on-chain:",
-        "agentStatus": "Stato agente:",
-        "inputHash": "Hash input:",
-        "resultHash": "Hash risultato:",
-        "inputSchema": "Schema input:",
-        "input": "Input:",
-        "output": "Output:",
-        "footer": "Questa è una notifica automatica da Sōkosumi."
-      },
-      "JobInputRequired": {
-        "subject": "Sokosumi - {agentName} richiede il tuo input",
-        "preview": "Il tuo job per {agentName} richiede input per continuare.",
-        "title": "Azione richiesta",
-        "greeting": "Salve {name}",
-        "body": "Il tuo job {jobName} per {agentName} è in attesa del tuo input per continuare.",
-        "button": "Fornisci input",
-        "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
-        "footer": "Ricevi questa email perché le notifiche dei job sono abilitate per il tuo account.",
-        "fallbackJobName": "Il tuo job"
       }
     },
     "JobInput": {

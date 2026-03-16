@@ -23,6 +23,8 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_TRUSTED_ORIGIN: z.url(),
+  POSTMARK_SERVER_ID: z.string().min(1),
+  POSTMARK_FROM_EMAIL: z.email(),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),
@@ -65,10 +67,6 @@ const envSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
-  // Coworkers API
-  COWORKERS_API_SERVICE_KEY: z.string().min(1).optional(),
-  COWORKERS_API_BASE_URL: z.url().optional(),
-
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
 
@@ -104,14 +102,4 @@ export function getEnv(): EnvConfig {
     envConfig = validateEnv();
   }
   return envConfig;
-}
-
-export function getResponsesApiBaseUrl(): string | null {
-  const env = getEnv();
-  return env.COWORKERS_API_BASE_URL ?? null;
-}
-
-export function isResponsesApiConfigured(): boolean {
-  const env = getEnv();
-  return Boolean(env.COWORKERS_API_SERVICE_KEY && getResponsesApiBaseUrl());
 }

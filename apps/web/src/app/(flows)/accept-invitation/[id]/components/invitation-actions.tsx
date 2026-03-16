@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
@@ -91,6 +92,21 @@ export default function InvitationActions({
         toast.error(errorMessage);
       }
     } else {
+      try {
+        const persistenceResult = await updatePreferredOrganization({
+          organizationId: result.data.member.organizationId,
+        });
+
+        if (!persistenceResult.ok) {
+          console.error(
+            "Failed to persist preferred organization:",
+            persistenceResult.error,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to persist preferred organization:", error);
+      }
+
       toast.success(t("Success.accept"));
       router.push(`/organizations/${organizationSlug}`);
     }

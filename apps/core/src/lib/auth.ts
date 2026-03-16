@@ -2,10 +2,21 @@ import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import * as Sentry from "@sentry/node";
+import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
+import { getStoredUserName } from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
-import { admin, jwt, openAPI, organization } from "better-auth/plugins";
+import {
+  admin,
+  jwt,
+  magicLink,
+  openAPI,
+  organization,
+} from "better-auth/plugins";
 
+import { postmarkClient } from "@/clients/postmark.client";
+import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -36,6 +47,40 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user, _ctx) => {
+          return {
+            data: {
+              ...user,
+              name: getStoredUserName(user.name, user.email),
+            },
+          };
+        },
+        after: async (user, _ctx) => {
+          stripeClient
+            .createUserCustomer({
+              email: user.email,
+              name: user.name,
+              userId: user.id,
+            })
+            .catch((error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_user_customer_creation",
+                },
+                extra: {
+                  userId: user.id,
+                  email: user.email,
+                  name: user.name,
+                },
+              });
+            });
+        },
+      },
+    },
+  },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   basePath: "/auth",
@@ -76,6 +121,28 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    magicLink({
+      expiresIn: 60 * 60 * 48, // 48 hours in seconds
+      storeToken: "hashed",
+      sendMagicLink: async ({ email, url }, ctx) => {
+        const name =
+          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+        const renderedEmail = await renderMagicLinkEmail({
+          locale: "en",
+          magicLink: url,
+          name,
+        });
+
+        await postmarkClient.sendEmail({
+          From: env.POSTMARK_FROM_EMAIL,
+          To: email,
+          Tag: "magic-link",
+          Subject: renderedEmail.subject,
+          HtmlBody: renderedEmail.html,
+          MessageStream: "authentications",
+        });
+      },
+    }),
     i18n({
       translations: authTranslations,
       defaultLocale: "en",
@@ -127,6 +194,9 @@ export const auth = betterAuth({
         opaqueAccessToken: "soko_access_token_",
         refreshToken: "soko_refresh_token_",
         clientSecret: "soko_client_secret_",
+      },
+      silenceWarnings: {
+        oauthAuthServerConfig: true,
       },
     }),
   ],

@@ -148,7 +148,7 @@ describe("BillingPage", () => {
         id: "user-1",
       },
     });
-    getBalanceMock.mockResolvedValue(0n);
+    getBalanceMock.mockResolvedValue(BigInt(0));
     getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
     listActiveSubscriptionsMock.mockResolvedValue([
       {

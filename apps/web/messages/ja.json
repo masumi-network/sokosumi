@@ -133,6 +133,7 @@
       "imprint": "会社情報",
       "acceptableUse": "利用規定",
       "settings": "設定",
+      "expandSidebar": "サイドバーを展開",
       "logout": "ログアウト",
       "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
       "creditsSummary": "クレジット概要:",
@@ -146,11 +147,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "ワークスペースを切り替える",
-      "searchProfiles": "プロフィールを検索...",
       "personalAccount": "個人アカウント",
-      "noProfilesFound": "プロフィールが見つかりません",
-      "personalAccountHeading": "個人",
-      "organization": "組織",
       "addOrganization": "組織を追加",
       "organizationsHeading": "組織",
       "createOrJoinOrganization": "組織を作成または参加"
@@ -845,13 +842,30 @@
     },
     "SocialButtons": {
       "continueWith": "{provider}で続行",
-      "divider": "または次で続行",
+      "passwordDivider": "またはパスワードでログイン",
+      "emailDivider": "またはメールアドレスで登録",
       "success": "ログインしました",
-      "error": "ログインに失敗しました"
+      "error": "ログインに失敗しました",
+      "lastUsed": "前回使用",
+      "passkeyProvider": "Passkey",
+      "passkeyError": "Passkeyでサインインできませんでした。もう一度お試しください。",
+      "magicLinkProvider": "Magic Link",
+      "magicLinkInputLabel": "Magic Link 送信用メールアドレス",
+      "magicLinkPlaceholder": "メールアドレスを入力",
+      "magicLinkSubmit": "Magic Link を送信",
+      "magicLinkSubmitting": "Magic Link を送信中...",
+      "magicLinkResend": "Magic Link を再送信",
+      "magicLinkSuccess": "受信トレイで Magic Link を確認してください。",
+      "magicLinkError": "Magic Link を送信できませんでした。もう一度お試しください。",
+      "magicLinkInvalidEmail": "有効なメールアドレスを入力してください。"
     },
     "Words": {
       "signIn": "ログイン",
       "signUp": "登録"
+    },
+    "PasswordToggle": {
+      "show": "パスワードを表示",
+      "hide": "パスワードを非表示"
     },
     "Pages": {
       "SignIn": {
@@ -865,6 +879,7 @@
         },
         "Form": {
           "submit": "ログイン",
+          "lastUsed": "前回使用",
           "success": "ログインしました",
           "error": "メールアドレスまたはパスワードが正しくありません",
           "Fields": {
@@ -944,9 +959,6 @@
             },
             "Password": {
               "placeholder": "パスワード"
-            },
-            "ConfirmPassword": {
-              "placeholder": "パスワードを確認"
             }
           },
           "Errors": {
@@ -1101,7 +1113,8 @@
           "question": "本日はどのようにお手伝いできますか？",
           "title": "ようこそ！本日はどのようにお手伝いできますか？",
           "titleWithName": "ようこそ {name} さん！本日はどのようにお手伝いできますか？",
-          "placeholder": "何をお考えですか？",
+          "placeholder": "タスクを入力して {coworkerSlug} に送信してください。",
+          "coworkerSlugFallback": "コワーカー",
           "suggestionsLabel": "試してみる",
           "prompts": {
             "alex": {
@@ -1342,7 +1355,7 @@
           "cancelRequested": "キャンセル申請済み"
         },
         "billingCta": {
-          "upgradePlan": "プランをアップグレード",
+          "upgradePlan": "クレジットをもっと入手",
           "addCredits": "クレジットを追加",
           "placeholder": "このタスクを続行するにはクレジットが必要です。請求を開いて続行してください。"
         },
@@ -1481,14 +1494,13 @@
     },
     "Header": {
       "Credit": {
-        "buy": "クレジットを追加",
         "extraCredits": "{credits, plural, =0 {0 利用可能} =1 {1 利用可能} other {# 利用可能}}",
         "userBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}",
         "organizationBalance": "{credits, plural, =0 {クレジットなし} =1 {1クレジット} other {# クレジット}}（{organization}）",
         "unavailable": "クレジットを利用できません"
       },
       "Plan": {
-        "upgradeCta": "プランをアップグレード",
+        "getMoreCredits": "クレジットをもっと入手",
         "userPlan": "{plan}（個人）",
         "organizationPlan": "{plan}（{organization}）",
         "unavailable": "プランを利用できません"
@@ -1500,6 +1512,30 @@
       "button": "確認メールを再送信",
       "sendSuccess": "確認メールを送信しました。受信箱をご確認ください。",
       "sendError": "確認メールの送信に失敗しました。もう一度お試しください。"
+    },
+    "LowCreditsNotice": {
+      "subscription": {
+        "almostOut": {
+          "title": "クレジットが少なくなっています",
+          "description": "クレジットを使い切る前に、請求ページでサブスクリプションを選択してください。"
+        },
+        "outOfCredits": {
+          "title": "続行するにはサブスクリプションが必要です",
+          "description": "請求ページでサブスクリプションを選択して、作業を続けてください。"
+        },
+        "button": "サブスクリプションを見る"
+      },
+      "credits": {
+        "almostOut": {
+          "title": "クレジットが少なくなっています",
+          "description": "作業が止まる前に、請求ページでサブスクリプションを管理し、クレジットを追加してください。"
+        },
+        "outOfCredits": {
+          "title": "クレジットを使い切りました",
+          "description": "続行するには、請求ページでサブスクリプションを管理し、クレジットを追加してください。"
+        },
+        "button": "請求を開く"
+      }
     },
     "Subscriptions": {
       "statusSuccess": "サブスクリプションが更新されました。",
@@ -1742,6 +1778,29 @@
         "submit": "パスワードを設定",
         "success": "パスワードを設定しました",
         "error": "パスワードの設定に失敗しました"
+      },
+      "Passkeys": {
+        "title": "Passkey",
+        "description": "Passkeyを追加・削除して、より速くサインインできます。",
+        "loading": "Passkeyを読み込み中...",
+        "loadError": "Passkeyを読み込めませんでした。",
+        "empty": "まだPasskeyを追加していません。",
+        "retry": "再試行",
+        "add": "Passkeyを追加",
+        "addSuccess": "Passkeyを追加しました",
+        "addError": "Passkeyの追加に失敗しました",
+        "refreshError": "変更は保存されましたが、Passkeyの一覧を更新できませんでした。",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "renameSuccess": "Passkeyの名前を変更しました",
+        "renameError": "Passkeyの名前変更に失敗しました",
+        "deleteSuccess": "Passkeyを削除しました",
+        "deleteError": "Passkeyの削除に失敗しました",
+        "defaultName": "Passkey",
+        "createdAt": "{date}に作成",
+        "deleteAriaLabel": "{name}を削除",
+        "editAriaLabel": "{name}を編集",
+        "editInputLabel": "Passkey名"
       },
       "Theme": {
         "title": "テーマ",
@@ -2086,7 +2145,7 @@
           "title": "マーケティングの専門性",
           "description": "実際のキャンペーン業務で訓練されています — 戦略、コンテンツ、メディアプランニング、ブランドコミュニケーション。"
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "その他",
         "moreComingSoon": "+ 近日追加予定"
       },
       "FilterSection": {
@@ -2264,86 +2323,6 @@
           "match": "パスワードが一致しません",
           "required": "確認用パスワードは必須です"
         }
-      },
-      "Email": {
-        "ResetPassword": {
-          "subject": "Sokosumi - パスワードをリセット",
-          "title": "パスワードをリセット",
-          "greeting": "こんにちは {name}",
-          "message": "アカウントのパスワードをリセットするリクエストを受け取りました。心当たりがない場合は、このメールを無視して問題ありません。",
-          "button": "パスワードをリセット",
-          "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
-          "footer": "パスワードリセットを依頼していない場合は、このメールを無視するか、不安がある場合はサポートにご連絡ください。"
-        },
-        "Verification": {
-          "subject": "Sokosumi - メールアドレスを確認",
-          "title": "メールアドレスを確認",
-          "greeting": "こんにちは {name}",
-          "message": "下のボタンをクリックしてメールアドレスを確認してください。これはアカウントの安全性を確保するためです。",
-          "button": "メールアドレスを確認",
-          "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
-          "footer": "アカウントを作成していない場合は、このメールを無視して問題ありません。"
-        },
-        "InviteUserEmail": {
-          "subject": "Sokosumi - 組織への招待",
-          "title": "{organizationName}で{invitorUsername}に参加",
-          "greeting": "こんにちは",
-          "message": "Sokosumiで{organizationName}への参加に招待されています。下のボタンをクリックして招待を承諾してください。",
-          "button": "招待を承諾",
-          "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
-          "footer": "この招待に心当たりがない場合は、このメールを無視して問題ありません。"
-        }
-      }
-    },
-    "Email": {
-      "JobFinalStatus": {
-        "subject": "Sokosumi - {agentName} のジョブが{status}",
-        "preview": "{agentName} のジョブは現在{status}です。",
-        "title": "ジョブが{status}になりました",
-        "greeting": "こんにちは {name}",
-        "body": "{agentName} の{jobName}は現在{status}です。",
-        "button": "ジョブを見る",
-        "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
-        "footer": "このメールは、アカウントでジョブ通知が有効になっているため送信されています。",
-        "fallbackJobName": "あなたのジョブ",
-        "status": {
-          "completed": "完了",
-          "failed": "失敗",
-          "payment_failed": "支払い失敗",
-          "refund_resolved": "返金済み",
-          "dispute_resolved": "異議申し立て解決"
-        }
-      },
-      "JobFailureNotification": {
-        "subject": "ジョブ失敗通知 - {jobId}",
-        "preview": "ジョブ{jobId}が失敗しました",
-        "title": "ジョブ失敗通知",
-        "description": "ジョブが失敗しました。技術的な詳細は以下のとおりです:",
-        "network": "ネットワーク:",
-        "agentName": "エージェント名:",
-        "agentId": "エージェントID:",
-        "agentBlockchainIdentifier": "エージェントのブロックチェーン識別子:",
-        "jobId": "ジョブID:",
-        "jobBlockchainIdentifier": "ジョブのブロックチェーン識別子:",
-        "onChainStatus": "オンチェーンステータス:",
-        "agentStatus": "エージェントステータス:",
-        "inputHash": "入力ハッシュ:",
-        "resultHash": "結果ハッシュ:",
-        "inputSchema": "入力スキーマ:",
-        "input": "入力:",
-        "output": "出力:",
-        "footer": "これはSōkosumiからの自動通知です。"
-      },
-      "JobInputRequired": {
-        "subject": "Sokosumi - {agentName} が入力を必要としています",
-        "preview": "{agentName} のジョブを続行するには入力が必要です。",
-        "title": "対応が必要です",
-        "greeting": "こんにちは {name}",
-        "body": "{agentName} のジョブ{jobName}は、続行するための入力を待っています。",
-        "button": "入力する",
-        "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
-        "footer": "このメールは、アカウントでジョブ通知が有効になっているため送信されています。",
-        "fallbackJobName": "あなたのジョブ"
       }
     },
     "JobInput": {
