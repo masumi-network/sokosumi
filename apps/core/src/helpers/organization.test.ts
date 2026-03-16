@@ -160,6 +160,6 @@ describe("resolveMemberOrganizationById", () => {
         tx,
         allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
       }),
-    ).rejects.toThrow("You must be an organization admin or owner");
+    ).rejects.toThrow("You must be owner, admin");
   });
 });
