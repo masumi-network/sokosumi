@@ -137,11 +137,11 @@ function FormInput<T extends FieldValues>({
       <PasswordInput
         autoComplete={autoComplete}
         placeholder={placeholderKey && t(placeholderKey)}
-        disabled={disabled}
         showLabel={authT("PasswordToggle.show")}
         hideLabel={authT("PasswordToggle.hide")}
         {...field}
         value={typeof field.value === "string" ? field.value : ""}
+        disabled={disabled}
       />
     );
   }

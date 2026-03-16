@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import SocialButtons from "../social-buttons";
@@ -516,9 +522,12 @@ describe("SocialButtons", () => {
     await user.click(
       screen.getByRole("button", { name: "continue-with-Magic Link" }),
     );
-    fireEvent.change(screen.getByRole("textbox", { name: "magic-link-email" }), {
-      target: { value: "oauth-login-user@example.com" },
-    });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      {
+        target: { value: "oauth-login-user@example.com" },
+      },
+    );
     await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
 
     await waitFor(() => {
@@ -555,9 +564,12 @@ describe("SocialButtons", () => {
     await user.click(
       screen.getByRole("button", { name: "continue-with-Magic Link" }),
     );
-    fireEvent.change(screen.getByRole("textbox", { name: "magic-link-email" }), {
-      target: { value: "login-user@example.com" },
-    });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      {
+        target: { value: "login-user@example.com" },
+      },
+    );
     await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
 
     await waitFor(() => {
