@@ -863,6 +863,10 @@
       "signIn": "Login",
       "signUp": "Register"
     },
+    "PasswordToggle": {
+      "show": "Show password",
+      "hide": "Hide password"
+    },
     "Pages": {
       "SignIn": {
         "Metadata": {

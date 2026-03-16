@@ -127,6 +127,39 @@ describe("SignInForm", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
+  it("toggles the password field visibility", async () => {
+    const user = userEvent.setup();
+
+    render(<SignInForm />);
+
+    const passwordField = screen.getByPlaceholderText(
+      "Fields.Password.placeholder",
+    ) as HTMLInputElement;
+
+    await user.type(passwordField, "Passw0rd!");
+    passwordField.focus();
+    passwordField.setSelectionRange(4, 4);
+
+    expect(passwordField).toHaveFocus();
+    expect(passwordField.selectionStart).toBe(4);
+    expect(passwordField.selectionEnd).toBe(4);
+    expect(passwordField).toHaveAttribute("type", "password");
+
+    await user.click(
+      screen.getByRole("button", { name: "PasswordToggle.show" }),
+    );
+
+    await waitFor(() => {
+      expect(passwordField).toHaveFocus();
+      expect(passwordField.selectionStart).toBe(4);
+      expect(passwordField.selectionEnd).toBe(4);
+      expect(passwordField).toHaveAttribute("type", "text");
+      expect(
+        screen.getByRole("button", { name: "PasswordToggle.hide" }),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("passes unwrapped session data to waitForAuthSession after credential login", async () => {
     mockSignInEmail.mockResolvedValue({
       ok: true,

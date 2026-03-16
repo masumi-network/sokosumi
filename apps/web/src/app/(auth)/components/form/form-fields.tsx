@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormData } from "@/lib/form";
 
+import { PasswordInput } from "./password-input";
 import { AuthNamespace } from "./types";
 
 interface FormFieldsProps<T extends FieldValues> {
@@ -34,6 +35,7 @@ export function FormFields<T extends FieldValues>({
   namespace,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
+  const authT = useTranslations("Auth");
 
   return (
     <>
@@ -45,7 +47,12 @@ export function FormFields<T extends FieldValues>({
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <FormInput field={field} formDataItem={formDataItem} t={t} />
+                <FormInput
+                  field={field}
+                  formDataItem={formDataItem}
+                  t={t}
+                  authT={authT}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -60,12 +67,14 @@ interface FormInputProps<T extends FieldValues> {
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
+  authT: IntlTranslation<"Auth">;
 }
 
 function FormInput<T extends FieldValues>({
   field,
   formDataItem,
   t,
+  authT,
 }: FormInputProps<T>) {
   const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
     formDataItem;
@@ -120,6 +129,20 @@ function FormInput<T extends FieldValues>({
           </Label>
         )}
       </div>
+    );
+  }
+
+  if (type === "password") {
+    return (
+      <PasswordInput
+        autoComplete={autoComplete}
+        placeholder={placeholderKey && t(placeholderKey)}
+        disabled={disabled}
+        showLabel={authT("PasswordToggle.show")}
+        hideLabel={authT("PasswordToggle.hide")}
+        {...field}
+        value={typeof field.value === "string" ? field.value : ""}
+      />
     );
   }
 

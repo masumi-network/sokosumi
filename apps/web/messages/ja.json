@@ -863,6 +863,10 @@
       "signIn": "ログイン",
       "signUp": "登録"
     },
+    "PasswordToggle": {
+      "show": "パスワードを表示",
+      "hide": "パスワードを非表示"
+    },
     "Pages": {
       "SignIn": {
         "Metadata": {
