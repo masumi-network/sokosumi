@@ -160,6 +160,24 @@ describe("SignInForm", () => {
     });
   });
 
+  it("focuses the password field when submit hits a missing password error", async () => {
+    const user = userEvent.setup();
+
+    render(<SignInForm />);
+
+    await user.type(
+      screen.getByPlaceholderText("Fields.Email.placeholder"),
+      "login-user@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText("Fields.Password.placeholder"),
+      ).toHaveFocus();
+    });
+  });
+
   it("passes unwrapped session data to waitForAuthSession after credential login", async () => {
     mockSignInEmail.mockResolvedValue({
       ok: true,
