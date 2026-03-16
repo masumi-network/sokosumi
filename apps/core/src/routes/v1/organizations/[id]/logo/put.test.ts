@@ -340,21 +340,13 @@ describe("PUT /organizations/{id}/logo", () => {
   });
 
   it("uploads the logo, updates the organization, and returns the payload", async () => {
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(createOrganization()),
-      },
-      member: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "member_123",
-          role: "owner",
-          userId: "user_123",
-          organizationId: "org_123",
-          createdAt: new Date("2026-03-16T09:00:00.000Z"),
-        }),
-      },
-    };
-    mockTransaction(tx);
+    mockPrismaResolve(createOrganization(), {
+      id: "member_123",
+      role: "owner",
+      userId: "user_123",
+      organizationId: "org_123",
+      createdAt: new Date("2026-03-16T09:00:00.000Z"),
+    });
     prismaOrganizationUpdateMock.mockResolvedValue(
       createOrganization({
         logo: "https://blob.example/organizations/org_123/logo",
