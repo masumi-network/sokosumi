@@ -184,37 +184,24 @@ describe("GET /organizations/{id}", () => {
     });
   });
 
-  it("returns the organization payload when resolved by slug", async () => {
+  it("returns 404 when the identifier only matches a slug", async () => {
     const tx: TransactionMock = {
       organization: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(createOrganization()),
+        findUnique: vi.fn().mockResolvedValueOnce(null),
       },
       member: {
-        findUnique: vi.fn().mockResolvedValue({
-          role: "owner",
-        }),
+        findUnique: vi.fn(),
       },
     };
     mockTransaction(tx);
 
     const app = createApp();
     const response = await app.request("http://localhost/acme");
-    const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.data).toMatchObject({
-      id: "org_123",
-      slug: "acme",
-      role: "owner",
-    });
-    expect(tx.organization.findUnique).toHaveBeenNthCalledWith(1, {
+    expect(response.status).toBe(404);
+    expect(tx.organization.findUnique).toHaveBeenCalledWith({
       where: { id: "acme" },
     });
-    expect(tx.organization.findUnique).toHaveBeenNthCalledWith(2, {
-      where: { slug: "acme" },
-    });
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
   });
 });

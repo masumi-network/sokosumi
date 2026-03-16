@@ -2,40 +2,53 @@ import { MemberRole, type Prisma } from "@sokosumi/database";
 
 import { forbidden, notFound } from "@/helpers/error";
 
-interface ResolveMemberOrganizationByIdOrSlugInput {
-  idOrSlug: string;
+interface ResolveMemberOrganizationByIdInput {
+  id: string;
   userId: string;
   tx: Prisma.TransactionClient;
   allowedRoles?: MemberRole[];
 }
 
-export async function resolveMemberOrganizationByIdOrSlug(
-  input: ResolveMemberOrganizationByIdOrSlugInput,
-) {
-  let organization = await input.tx.organization.findUnique({
-    where: { id: input.idOrSlug },
+type OrganizationRecord = Awaited<
+  ReturnType<Prisma.TransactionClient["organization"]["findUnique"]>
+>;
+type MemberAccessRecord = Awaited<
+  ReturnType<Prisma.TransactionClient["member"]["findUnique"]>
+>;
+
+async function getOrganizationById(
+  tx: Prisma.TransactionClient,
+  id: string,
+): Promise<OrganizationRecord> {
+  return await tx.organization.findUnique({
+    where: { id },
   });
+}
 
-  if (!organization) {
-    organization = await input.tx.organization.findUnique({
-      where: { slug: input.idOrSlug },
-    });
-  }
+async function getMemberAccess(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  organizationId: string,
+): Promise<MemberAccessRecord> {
+  return await tx.member.findUnique({
+    where: {
+      userId_organizationId: {
+        userId,
+        organizationId,
+      },
+    },
+  });
+}
 
+export async function resolveMemberOrganizationById(
+  input: ResolveMemberOrganizationByIdInput,
+) {
+  const organization = await getOrganizationById(input.tx, input.id);
   if (!organization) {
     throw notFound("Organization not found");
   }
 
-  const member = await input.tx.member.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: input.userId,
-        organizationId: organization.id,
-      },
-    },
-    select: { role: true },
-  });
-
+  const member = await getMemberAccess(input.tx, input.userId, organization.id);
   if (!member) {
     throw forbidden("You are not a member of this organization");
   }

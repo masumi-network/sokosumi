@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
+import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -11,7 +11,7 @@ import { organizationWithRoleSchema } from "@/schemas/organization.schema";
 const params = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },
-    description: "Organization ID or slug",
+    description: "Organization ID",
     example: "org_123",
   }),
 });
@@ -19,7 +19,7 @@ const params = z.object({
 const route = createRoute({
   method: "get",
   path: "/{id}",
-  description: "Get organization details by ID or slug for the current member",
+  description: "Get organization details by ID for the current member",
   tags: ["Organizations"],
   request: {
     params,
@@ -27,7 +27,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       organizationWithRoleSchema,
-      "Retrieve organization by ID or slug",
+      "Retrieve organization by ID",
       {
         data: {
           id: "org_123",
@@ -58,8 +58,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const organization = await prisma.$transaction(async (tx) => {
-      const { organization, role } = await resolveMemberOrganizationByIdOrSlug({
-        idOrSlug: id,
+      const { organization, role } = await resolveMemberOrganizationById({
+        id,
         userId: authContext.userId,
         tx,
       });

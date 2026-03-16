@@ -6,7 +6,7 @@ import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { payloadTooLarge, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
+import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { uploadOrganizationLogo } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
@@ -21,7 +21,7 @@ const MAX_UPLOAD_REQUEST_SIZE_BYTES =
 const params = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },
-    description: "Organization ID or slug",
+    description: "Organization ID",
     example: "org_123",
   }),
 });
@@ -108,8 +108,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const organization = await prisma.$transaction(async (tx) => {
-      const { organization, role } = await resolveMemberOrganizationByIdOrSlug({
-        idOrSlug: id,
+      const { organization, role } = await resolveMemberOrganizationById({
+        id,
         userId: authContext.userId,
         tx,
         allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
