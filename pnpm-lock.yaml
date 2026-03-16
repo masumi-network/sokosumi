@@ -100,8 +100,8 @@ importers:
         specifier: 3.4.3
         version: 3.4.3
       ably:
-        specifier: 2.19.0
-        version: 2.19.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 2.20.0
+        version: 2.20.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
         specifier: 6.0.116
         version: 6.0.116(zod@4.3.6)
@@ -281,8 +281,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0(next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(vue@3.5.30(typescript@5.9.3))
       ably:
-        specifier: 2.19.0
-        version: 2.19.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: 2.20.0
+        version: 2.20.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       ai:
         specifier: 6.0.116
         version: 6.0.116(zod@4.3.6)
@@ -5390,8 +5390,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  ably@2.19.0:
-    resolution: {integrity: sha512-uEgWf8p6UySLDFTO25S0fsd2ccwjB0hsuOV0EztVoxRhdsqSgnzCOmYSxUprVW5THlCLFA25tP9tIcj5G/XTVA==}
+  ably@2.20.0:
+    resolution: {integrity: sha512-jTNUKKTnnG0A+DpK96+AU56nIrt2xXdliidNOl2ShQSHYXqXAvnK+q9V6lJj88ek0ZMvm23ZzV9inuzmkV16vQ==}
     engines: {node: '>=16'}
     peerDependencies:
       react: '>=16.8.0'
@@ -16397,7 +16397,7 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  ably@2.19.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  ably@2.20.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       '@ably/msgpack-js': 0.4.1
       dequal: 2.0.3
