@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import { MemberRole, type Prisma } from "@sokosumi/database";
 
 import { forbidden, notFound } from "@/helpers/error";
 
@@ -6,6 +6,7 @@ interface ResolveMemberOrganizationByIdOrSlugInput {
   idOrSlug: string;
   userId: string;
   tx: Prisma.TransactionClient;
+  allowedRoles?: MemberRole[];
 }
 
 export async function resolveMemberOrganizationByIdOrSlug(
@@ -37,6 +38,13 @@ export async function resolveMemberOrganizationByIdOrSlug(
 
   if (!member) {
     throw forbidden("You are not a member of this organization");
+  }
+
+  if (
+    input.allowedRoles &&
+    !input.allowedRoles.includes(member.role as MemberRole)
+  ) {
+    throw forbidden("You must be an organization admin or owner");
   }
 
   return {

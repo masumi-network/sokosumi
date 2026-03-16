@@ -22,6 +22,7 @@ const route = createRoute({
             id: "org_123",
             name: "My Organization",
             slug: "my-org",
+            logo: "https://example.com/logo.png",
             createdAt: "2025-01-01T00:00:00.000Z",
             role: "member",
           },
