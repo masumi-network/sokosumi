@@ -7,6 +7,10 @@ export const organizationSchema = z.object({
   createdAt: dateTimeSchema,
   name: z.string().openapi({ example: "My Organization" }),
   slug: z.string().openapi({ example: "my-org" }),
+  logo: z
+    .httpUrl()
+    .nullable()
+    .openapi({ example: "https://example.com/logo.png" }),
 });
 
 export type Organization = z.infer<typeof organizationSchema>;

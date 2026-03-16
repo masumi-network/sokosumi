@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { resolveMemberOrganizationByIdOrSlug } from "@/helpers/organization";
+import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
@@ -12,7 +12,7 @@ import { creditsResponseSchema } from "@/schemas/user.schema";
 const params = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },
-    description: "Organization ID or slug",
+    description: "Organization ID",
     example: "org_123",
   }),
 });
@@ -20,8 +20,7 @@ const params = z.object({
 const route = createRoute({
   method: "get",
   path: "/organizations/{id}/credits",
-  description:
-    "Get organization-context credits for the current member by ID or slug",
+  description: "Get organization-context credits for the current member by ID",
   tags: ["Users"],
   request: {
     params,
@@ -70,8 +69,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const credits = await prisma.$transaction(async (tx) => {
-      const { organization } = await resolveMemberOrganizationByIdOrSlug({
-        idOrSlug: id,
+      const { organization } = await resolveMemberOrganizationById({
+        id,
         userId: authContext.userId,
         tx,
       });
