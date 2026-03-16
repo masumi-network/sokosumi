@@ -3,10 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type {
-  AuthenticationContext,
-  AuthVariables,
-} from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 const { prismaTransactionMock } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
@@ -66,7 +63,9 @@ function createOrganization(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createApp(authContext: AuthenticationContext | null = USER_AUTH_CONTEXT) {
+function createApp(
+  authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & { requestId: string };
   }>();

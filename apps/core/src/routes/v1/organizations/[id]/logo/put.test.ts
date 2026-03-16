@@ -5,18 +5,19 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type {
-  AuthenticationContext,
-  AuthVariables,
-} from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 const {
   getEnvMock,
-  prismaTransactionMock,
+  prismaMemberFindUniqueMock,
+  prismaOrganizationFindUniqueMock,
+  prismaOrganizationUpdateMock,
   uploadOrganizationLogoMock,
 } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
+  prismaMemberFindUniqueMock: vi.fn(),
+  prismaOrganizationFindUniqueMock: vi.fn(),
+  prismaOrganizationUpdateMock: vi.fn(),
   uploadOrganizationLogoMock: vi.fn(),
 }));
 
@@ -42,7 +43,13 @@ vi.mock("@/lib/blob", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    organization: {
+      findUnique: prismaOrganizationFindUniqueMock,
+      update: prismaOrganizationUpdateMock,
+    },
+    member: {
+      findUnique: prismaMemberFindUniqueMock,
+    },
   },
 }));
 
@@ -57,17 +64,15 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   coworkerId: "cow_123",
 };
 
-interface TransactionMock {
-  organization: {
-    findUnique: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
-  };
-  member: {
-    findUnique: ReturnType<typeof vi.fn>;
-  };
-}
-
 let mountPutOrganizationLogo: (app: OpenAPIHonoWithAuth) => void;
+
+function mockPrismaResolve(
+  organization: Record<string, unknown> | null,
+  member: Record<string, unknown> | null,
+) {
+  prismaOrganizationFindUniqueMock.mockResolvedValue(organization);
+  prismaMemberFindUniqueMock.mockResolvedValue(member);
+}
 
 function createOrganization(overrides: Record<string, unknown> = {}) {
   return {
@@ -83,7 +88,9 @@ function createOrganization(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createApp(authContext: AuthenticationContext | null = USER_AUTH_CONTEXT) {
+function createApp(
+  authContext: AuthenticationContext | null = USER_AUTH_CONTEXT,
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & { requestId: string };
   }>({
@@ -124,12 +131,6 @@ function createImageFormData(
   return formData;
 }
 
-function mockTransaction(tx: TransactionMock) {
-  prismaTransactionMock.mockImplementation(async (callback) => {
-    return await callback(tx);
-  });
-}
-
 beforeAll(async () => {
   const module = await import("./put");
   mountPutOrganizationLogo = module.default;
@@ -155,15 +156,12 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
   it("returns 422 when file is not a File instance", async () => {
     const app = createApp();
-    const formData = createImageFormData(
-      "not-a-file" as unknown as File,
-    );
+    const formData = createImageFormData("not-a-file" as unknown as File);
 
     const response = await app.request("http://localhost/org_123/logo", {
       method: "PUT",
@@ -171,7 +169,6 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
@@ -187,7 +184,6 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
@@ -203,7 +199,6 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
@@ -225,7 +220,6 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
@@ -241,7 +235,6 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
@@ -265,26 +258,16 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the member role is insufficient", async () => {
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(createOrganization()),
-        update: vi.fn(),
-      },
-      member: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "member_123",
-          role: "member",
-          userId: "user_123",
-          organizationId: "org_123",
-          createdAt: new Date("2026-03-16T09:00:00.000Z"),
-        }),
-      },
-    };
-    mockTransaction(tx);
+    mockPrismaResolve(createOrganization(), {
+      id: "member_123",
+      role: "member",
+      userId: "user_123",
+      organizationId: "org_123",
+      createdAt: new Date("2026-03-16T09:00:00.000Z"),
+    });
 
     const app = createApp();
 
@@ -294,21 +277,12 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(tx.organization.update).not.toHaveBeenCalled();
+    expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the organization does not exist", async () => {
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        update: vi.fn(),
-      },
-      member: {
-        findUnique: vi.fn(),
-      },
-    };
-    mockTransaction(tx);
+    mockPrismaResolve(null, null);
 
     const app = createApp();
 
@@ -318,7 +292,7 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(tx.member.findUnique).not.toHaveBeenCalled();
+    expect(prismaMemberFindUniqueMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
@@ -338,7 +312,6 @@ describe("PUT /organizations/{id}/logo", () => {
     );
 
     expect(response.status).toBe(413);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 503 when blob storage is not configured", async () => {
@@ -346,22 +319,13 @@ describe("PUT /organizations/{id}/logo", () => {
       BLOB_READ_WRITE_TOKEN: undefined,
     });
 
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(createOrganization()),
-        update: vi.fn(),
-      },
-      member: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "member_123",
-          role: "owner",
-          userId: "user_123",
-          organizationId: "org_123",
-          createdAt: new Date("2026-03-16T09:00:00.000Z"),
-        }),
-      },
-    };
-    mockTransaction(tx);
+    mockPrismaResolve(createOrganization(), {
+      id: "member_123",
+      role: "owner",
+      userId: "user_123",
+      organizationId: "org_123",
+      createdAt: new Date("2026-03-16T09:00:00.000Z"),
+    });
 
     const app = createApp();
 
@@ -371,7 +335,7 @@ describe("PUT /organizations/{id}/logo", () => {
     });
 
     expect(response.status).toBe(503);
-    expect(tx.organization.update).not.toHaveBeenCalled();
+    expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
     expect(uploadOrganizationLogoMock).not.toHaveBeenCalled();
   });
 
@@ -379,11 +343,6 @@ describe("PUT /organizations/{id}/logo", () => {
     const tx: TransactionMock = {
       organization: {
         findUnique: vi.fn().mockResolvedValue(createOrganization()),
-        update: vi.fn().mockResolvedValue(
-          createOrganization({
-            logo: "https://blob.example/organizations/org_123/logo",
-          }),
-        ),
       },
       member: {
         findUnique: vi.fn().mockResolvedValue({
@@ -396,6 +355,11 @@ describe("PUT /organizations/{id}/logo", () => {
       },
     };
     mockTransaction(tx);
+    prismaOrganizationUpdateMock.mockResolvedValue(
+      createOrganization({
+        logo: "https://blob.example/organizations/org_123/logo",
+      }),
+    );
 
     const app = createApp();
     const response = await app.request("http://localhost/org_123/logo", {
@@ -409,7 +373,7 @@ describe("PUT /organizations/{id}/logo", () => {
       expect.any(File),
       "blob-token",
     );
-    expect(tx.organization.update).toHaveBeenCalledWith({
+    expect(prismaOrganizationUpdateMock).toHaveBeenCalledWith({
       where: { id: "org_123" },
       data: {
         logo: "https://blob.example/organizations/org_123/logo",

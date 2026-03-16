@@ -107,32 +107,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw serviceUnavailable("Blob storage is not configured");
     }
 
-    const organization = await prisma.$transaction(async (tx) => {
-      const { organization, role } = await resolveMemberOrganizationById({
-        id,
-        userId: authContext.userId,
-        tx,
-        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
-      });
-
-      const logoUrl = await uploadOrganizationLogo(
-        organization.id,
-        file,
-        token,
-      );
-      const updatedOrganization = await tx.organization.update({
-        where: { id: organization.id },
-        data: {
-          logo: logoUrl,
-        },
-      });
-
-      return {
-        ...updatedOrganization,
-        role,
-      };
+    const { organization, role } = await resolveMemberOrganizationById({
+      id,
+      userId: authContext.userId,
+      tx: prisma,
+      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
     });
 
-    return ok(c, organizationWithRoleSchema.parse(organization));
+    const logoUrl = await uploadOrganizationLogo(organization.id, file, token);
+
+    const updatedOrganization = await prisma.organization.update({
+      where: { id: organization.id },
+      data: { logo: logoUrl },
+    });
+
+    return ok(
+      c,
+      organizationWithRoleSchema.parse({ ...updatedOrganization, role }),
+    );
   });
 }

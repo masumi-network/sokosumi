@@ -2,22 +2,29 @@ import { MemberRole, type Prisma } from "@sokosumi/database";
 
 import { forbidden, notFound } from "@/helpers/error";
 
+/** Client-like type for read-only org + member lookups (transaction or default client). */
+type OrgResolverClient = Pick<
+  Prisma.TransactionClient,
+  "organization" | "member"
+>;
+
 interface ResolveMemberOrganizationByIdInput {
   id: string;
   userId: string;
-  tx: Prisma.TransactionClient;
+  /** Transaction client or default Prisma client. */
+  tx: OrgResolverClient;
   allowedRoles?: MemberRole[];
 }
 
 type OrganizationRecord = Awaited<
-  ReturnType<Prisma.TransactionClient["organization"]["findUnique"]>
+  ReturnType<OrgResolverClient["organization"]["findUnique"]>
 >;
 type MemberAccessRecord = Awaited<
-  ReturnType<Prisma.TransactionClient["member"]["findUnique"]>
+  ReturnType<OrgResolverClient["member"]["findUnique"]>
 >;
 
 async function getOrganizationById(
-  tx: Prisma.TransactionClient,
+  tx: OrgResolverClient,
   id: string,
 ): Promise<OrganizationRecord> {
   return await tx.organization.findUnique({
@@ -26,7 +33,7 @@ async function getOrganizationById(
 }
 
 async function getMemberAccess(
-  tx: Prisma.TransactionClient,
+  tx: OrgResolverClient,
   userId: string,
   organizationId: string,
 ): Promise<MemberAccessRecord> {
@@ -57,7 +64,7 @@ export async function resolveMemberOrganizationById(
     input.allowedRoles &&
     !input.allowedRoles.includes(member.role as MemberRole)
   ) {
-    throw forbidden("You must be an organization admin or owner");
+    throw forbidden(`You must be ${input.allowedRoles.join(", ")}`);
   }
 
   return {
