@@ -959,9 +959,6 @@
             },
             "Password": {
               "placeholder": "Contraseña"
-            },
-            "ConfirmPassword": {
-              "placeholder": "Confirmar contraseña"
             }
           },
           "Errors": {

@@ -959,9 +959,6 @@
             },
             "Password": {
               "placeholder": "密码"
-            },
-            "ConfirmPassword": {
-              "placeholder": "确认密码"
             }
           },
           "Errors": {
