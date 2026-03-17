@@ -1,6 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
+import { getEnv } from "@/config/env";
+
 import agentsRouter from "./agents/index.js";
 import conversationsRouter from "./conversations/index.js";
 import coworkersRouter from "./coworkers/index.js";
@@ -46,6 +48,14 @@ app.doc31("/openapi.json", {
       url: `https://preprod.api.sokosumi.com/v1`,
       description: "Pre-production Server",
     },
+    ...(getEnv().NODE_ENV === "development"
+      ? [
+          {
+            url: `http://localhost:8787/v1`,
+            description: "Local Development Server",
+          },
+        ]
+      : []),
   ],
   security: [{ bearerAuth: [] }],
 });
