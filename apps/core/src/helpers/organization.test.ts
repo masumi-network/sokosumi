@@ -1,7 +1,7 @@
-import type { Prisma } from "@sokosumi/database";
+import { MemberRole, type Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveMemberOrganizationByIdOrSlug } from "./organization";
+import { resolveMemberOrganizationById } from "./organization";
 
 function createTransactionClient() {
   return {
@@ -14,29 +14,41 @@ function createTransactionClient() {
   } as unknown as Prisma.TransactionClient;
 }
 
-describe("resolveMemberOrganizationByIdOrSlug", () => {
+function createOrganization(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "org_123",
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    name: "My Organization",
+    slug: "my-org",
+    logo: null,
+    metadata: null,
+    stripeCustomerId: null,
+    invoiceEmail: null,
+    ...overrides,
+  };
+}
+
+function createMember(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "member_1",
+    role: MemberRole.MEMBER,
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    userId: "user_123",
+    organizationId: "org_123",
+    ...overrides,
+  };
+}
+
+describe("resolveMemberOrganizationById", () => {
   it("resolves organization by id", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
-      id: "org_123",
-      createdAt: new Date("2025-01-01T00:00:00.000Z"),
-      name: "My Organization",
-      slug: "my-org",
-      logo: null,
-      metadata: null,
-      stripeCustomerId: null,
-      invoiceEmail: null,
-    });
-    vi.mocked(tx.member.findUnique).mockResolvedValueOnce({
-      id: "member_1",
-      role: "member",
-      createdAt: new Date("2025-01-01T00:00:00.000Z"),
-      userId: "user_123",
-      organizationId: "org_123",
-    });
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(createMember());
 
-    const result = await resolveMemberOrganizationByIdOrSlug({
-      idOrSlug: "org_123",
+    const result = await resolveMemberOrganizationById({
+      id: "org_123",
       userId: "user_123",
       tx,
     });
@@ -49,49 +61,27 @@ describe("resolveMemberOrganizationByIdOrSlug", () => {
     });
   });
 
-  it("falls back to slug when id lookup fails", async () => {
+  it("throws when the identifier only matches a slug", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.organization.findUnique)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "org_123",
-        createdAt: new Date("2025-01-01T00:00:00.000Z"),
-        name: "My Organization",
-        slug: "my-org",
-        logo: null,
-        metadata: null,
-        stripeCustomerId: null,
-        invoiceEmail: null,
-      });
-    vi.mocked(tx.member.findUnique).mockResolvedValueOnce({
-      id: "member_1",
-      role: "member",
-      createdAt: new Date("2025-01-01T00:00:00.000Z"),
-      userId: "user_123",
-      organizationId: "org_123",
-    });
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(null);
 
-    const result = await resolveMemberOrganizationByIdOrSlug({
-      idOrSlug: "my-org",
-      userId: "user_123",
-      tx,
-    });
-
-    expect(result.organization.slug).toBe("my-org");
-    expect(tx.organization.findUnique).toHaveBeenNthCalledWith(2, {
-      where: { slug: "my-org" },
-    });
+    await expect(
+      resolveMemberOrganizationById({
+        id: "my-org",
+        userId: "user_123",
+        tx,
+      }),
+    ).rejects.toThrow("Organization not found");
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
   });
 
   it("throws when organization does not exist", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.organization.findUnique)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(null);
 
     await expect(
-      resolveMemberOrganizationByIdOrSlug({
-        idOrSlug: "missing-org",
+      resolveMemberOrganizationById({
+        id: "missing-org",
         userId: "user_123",
         tx,
       }),
@@ -100,24 +90,76 @@ describe("resolveMemberOrganizationByIdOrSlug", () => {
 
   it("throws when user is not a member of the organization", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
-      id: "org_123",
-      createdAt: new Date("2025-01-01T00:00:00.000Z"),
-      name: "My Organization",
-      slug: "my-org",
-      logo: null,
-      metadata: null,
-      stripeCustomerId: null,
-      invoiceEmail: null,
-    });
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
     vi.mocked(tx.member.findUnique).mockResolvedValueOnce(null);
 
     await expect(
-      resolveMemberOrganizationByIdOrSlug({
-        idOrSlug: "org_123",
+      resolveMemberOrganizationById({
+        id: "org_123",
         userId: "user_123",
         tx,
       }),
     ).rejects.toThrow("You are not a member of this organization");
+  });
+
+  it("allows owner when owner or admin role is required", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(
+      createMember({
+        role: MemberRole.OWNER,
+      }),
+    );
+
+    const result = await resolveMemberOrganizationById({
+      id: "org_123",
+      userId: "user_123",
+      tx,
+      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+    });
+
+    expect(result.role).toBe(MemberRole.OWNER);
+  });
+
+  it("allows admin when owner or admin role is required", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(
+      createMember({
+        role: MemberRole.ADMIN,
+      }),
+    );
+
+    const result = await resolveMemberOrganizationById({
+      id: "org_123",
+      userId: "user_123",
+      tx,
+      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+    });
+
+    expect(result.role).toBe(MemberRole.ADMIN);
+  });
+
+  it("throws when member role is not allowed", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(createMember());
+
+    await expect(
+      resolveMemberOrganizationById({
+        id: "org_123",
+        userId: "user_123",
+        tx,
+        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+      }),
+    ).rejects.toThrow("You must be owner, admin");
   });
 });

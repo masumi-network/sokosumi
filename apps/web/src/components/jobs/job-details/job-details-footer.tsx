@@ -14,7 +14,7 @@ export function JobDetailsFooter({ legal }: JobDetailsFooterProps) {
     return null;
   }
 
-  const { terms, privacyPolicy, other } = legal;
+  const { terms, privacyPolicy, dpa, other } = legal;
 
   return (
     <div className="text-muted-foreground mt-4 mb-4 flex items-center justify-center gap-2">
@@ -32,6 +32,14 @@ export function JobDetailsFooter({ legal }: JobDetailsFooterProps) {
           className="hover:text-foreground text-sm transition-colors"
         >
           {t("privacyPolicy")}
+        </Link>
+      ) : null}
+      {dpa ? (
+        <Link
+          href={dpa}
+          className="hover:text-foreground text-sm transition-colors"
+        >
+          {t("dpa")}
         </Link>
       ) : null}
       {other ? (

@@ -73,11 +73,13 @@ function createCreditsResponse(plan: string | null, buffer: number) {
     data: {
       credits: {
         buffer,
+        total: buffer,
         subscription:
           plan === null
             ? null
             : {
                 plan,
+                status: "active",
                 periodEnd: null,
                 credits: null,
               },

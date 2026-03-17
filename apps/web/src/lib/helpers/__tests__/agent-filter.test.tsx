@@ -59,6 +59,8 @@ function createMockAgent(
     overrideAuthorOrganization: null,
     legalPrivacyPolicy: null,
     overrideLegalPrivacyPolicy: null,
+    legalDpa: null,
+    overrideLegalDpa: null,
     legalTerms: null,
     overrideLegalTerms: null,
     legalOther: null,

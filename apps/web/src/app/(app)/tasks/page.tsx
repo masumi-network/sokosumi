@@ -34,8 +34,8 @@ export default async function TasksPage() {
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
 
-  const [coworkers, agents, jobsPage] = await Promise.all([
-    coworkerService.listCoworkers(),
+  const [taskCoworkers, agents, jobsPage] = await Promise.all([
+    coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
     userService.listMyJobsForActiveContextPaginated({ limit: 20, session }),
   ]);
@@ -43,7 +43,7 @@ export default async function TasksPage() {
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   const coworkersById = new Map(
-    coworkers.map((coworker) => [coworker.id, coworker]),
+    taskCoworkers.map((coworker) => [coworker.id, coworker]),
   );
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
   const agentNameById = buildAgentNameById(agents);
@@ -79,7 +79,7 @@ export default async function TasksPage() {
     seedTasksById,
   });
 
-  const coworkerOptions: CoworkerOption[] = getCoworkerOptions(coworkers);
+  const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),

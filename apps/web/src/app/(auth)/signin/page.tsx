@@ -4,8 +4,9 @@ import { getTranslations } from "next-intl/server";
 
 import Divider from "@/auth/components/divider";
 import SocialButtons, {
-  type SocialButtonProviderId,
+  type SignInMethodId,
 } from "@/auth/components/social-buttons";
+import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
 import SignInForm from "./components/form";
 import SignInHeader from "./components/header";
@@ -23,23 +24,13 @@ interface SignInPageProps {
   searchParams: Promise<{ returnUrl?: string; email?: string }>;
 }
 
-type LastUsedLoginMethod = SocialButtonProviderId | "email";
-
-function parseLastUsedLoginMethod(value?: string): LastUsedLoginMethod | null {
-  if (value === "google" || value === "microsoft" || value === "email") {
-    return value;
-  }
-
-  return null;
-}
-
 export default async function SignIn({ searchParams }: SignInPageProps) {
   const { returnUrl, email } = await searchParams;
   const cookieStore = await cookies();
-  const lastUsedLoginMethod = parseLastUsedLoginMethod(
+  const lastUsedLoginMethod = parseLastUsedAuthMethod(
     cookieStore.get("better-auth.last_used_login_method")?.value,
   );
-  const lastUsedSocialProvider: SocialButtonProviderId | null =
+  const lastUsedMethod: SignInMethodId | null =
     lastUsedLoginMethod === "email" ? null : lastUsedLoginMethod;
   const isLastUsedEmailLogin = lastUsedLoginMethod === "email";
 
@@ -49,9 +40,12 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         <SocialButtons
           returnUrl={returnUrl}
-          lastUsedSocialProvider={lastUsedSocialProvider}
+          lastUsedMethod={lastUsedMethod}
+          prefilledEmail={email}
+          showMagicLink
+          showPasskey
         />
-        <Divider />
+        <Divider labelKey="passwordDivider" />
         <SignInForm
           returnUrl={returnUrl}
           prefilledEmail={email}

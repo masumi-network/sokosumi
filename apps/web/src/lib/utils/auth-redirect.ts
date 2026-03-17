@@ -24,8 +24,23 @@ interface WaitForAuthSessionOptions {
   waitForMs?: (ms: number) => Promise<void>;
 }
 
+interface AuthSessionResponse<TSession = unknown> {
+  data?: {
+    session?: TSession | null;
+  } | null;
+}
+
 function waitForMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function createAuthSessionGetter<TSession>(
+  getSessionResponse: () => Promise<AuthSessionResponse<TSession> | null>,
+): () => Promise<TSession | null> {
+  return async () => {
+    const sessionResponse = await getSessionResponse();
+    return sessionResponse?.data?.session ?? null;
+  };
 }
 
 export async function waitForAuthSession({

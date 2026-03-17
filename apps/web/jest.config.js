@@ -12,6 +12,7 @@ const customJestConfig = {
   passWithNoTests: true,
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@sokosumi/utils$": "<rootDir>/../../packages/utils/src/index.ts",
     "^@sokosumi/database/(.*)$": "<rootDir>/../../packages/database/src/$1",
     // Resolve Prisma generated .js imports to .ts files
     "^(\\.{1,2}/.*)\\.js$": "$1",

@@ -2,32 +2,44 @@ import "server-only";
 
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
-import { dash, sentinel } from "@better-auth/infra";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, User } from "@sokosumi/database";
 import { memberRepository } from "@sokosumi/database/repositories";
+import {
+  renderMagicLinkEmail,
+  renderOrganizationInvitationEmail,
+  renderResetPasswordEmail,
+  renderVerificationEmail,
+} from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
+import { getStoredUserName } from "@sokosumi/utils";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
-import { admin, jwt, lastLoginMethod, organization } from "better-auth/plugins";
-import { getTranslations } from "next-intl/server";
+import {
+  admin,
+  jwt,
+  lastLoginMethod,
+  magicLink,
+  organization,
+} from "better-auth/plugins";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
 import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { resolveRequestLocale } from "@/i18n/locale-resolution";
+import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
+import { getInfraAuthPlugins } from "@/lib/auth/infra-plugins";
 import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
-import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
-import { reactResetPasswordEmail } from "@/lib/email/reset-password";
-import { reactVerificationEmail } from "@/lib/email/verification";
 import { marketingOptInUserSchema } from "@/lib/schemas";
 import {
   callAccountCreatedWebHook,
@@ -54,6 +66,68 @@ export type Account = Awaited<
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
+const betterAuthApiKey = getEnvSecrets().BETTER_AUTH_API_KEY;
+
+function getEmailLocaleCookieValue(
+  cookieHeader?: null | string,
+): null | string {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  let legacyLocale: null | string = null;
+
+  for (const rawCookie of cookieHeader.split(";")) {
+    const separatorIndex = rawCookie.indexOf("=");
+
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const cookieName = rawCookie.slice(0, separatorIndex).trim();
+    const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
+
+    if (!cookieValue) {
+      continue;
+    }
+
+    const decoded = (() => {
+      try {
+        return decodeURIComponent(cookieValue);
+      } catch {
+        return cookieValue;
+      }
+    })();
+
+    if (cookieName === LOCALE_COOKIE_NAME) {
+      return decoded;
+    }
+
+    if (cookieName === "locale" && legacyLocale === null) {
+      legacyLocale = decoded;
+    }
+  }
+
+  return legacyLocale;
+}
+
+function getEmailLocale(
+  request?: Request,
+  fallbackHeaders?: Headers,
+): string | undefined {
+  const cookieHeader =
+    request?.headers.get("cookie") ?? fallbackHeaders?.get("cookie") ?? null;
+  const acceptLanguageHeader =
+    request?.headers.get("accept-language") ??
+    fallbackHeaders?.get("accept-language") ??
+    null;
+
+  return resolveRequestLocale({
+    cookieLocale: getEmailLocaleCookieValue(cookieHeader),
+    acceptLanguageHeader,
+    defaultLocale: DEFAULT_LOCALE,
+  });
+}
 
 export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
@@ -66,9 +140,7 @@ export const auth = betterAuth({
   experimental: {
     joins: true,
   },
-  silenceWarnings: {
-    oauthAuthServerConfig: true,
-  },
+
   session: {
     cookieCache: {
       enabled: true,
@@ -138,6 +210,14 @@ export const auth = betterAuth({
     },
     user: {
       create: {
+        before: async (user, _ctx) => {
+          return {
+            data: {
+              ...user,
+              name: getStoredUserName(user.name, user.email),
+            },
+          };
+        },
         after: async (user, _ctx) => {
           stripeClient
             .createUserCustomer(user.id, user.name, user.email)
@@ -245,35 +325,37 @@ export const auth = betterAuth({
     minPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
     requireEmailVerification: false,
     autoSignIn: true,
-    sendResetPassword: async ({ user, url }) => {
-      const t = await getTranslations("Library.Auth.Email.ResetPassword");
+    sendResetPassword: async ({ user, url }, request) => {
+      const email = await renderResetPasswordEmail({
+        locale: getEmailLocale(request),
+        name: user.name,
+        resetLink: url,
+      });
 
       postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
         Tag: "reset-password",
-        Subject: t("subject"),
-        HtmlBody: await reactResetPasswordEmail({
-          name: user.name,
-          resetLink: url,
-        }),
+        Subject: email.subject,
+        HtmlBody: email.html,
         MessageStream: "authentications",
       });
     },
   },
   emailVerification: {
-    sendVerificationEmail: async ({ user, url }) => {
-      const t = await getTranslations("Library.Auth.Email.Verification");
+    sendVerificationEmail: async ({ user, url }, request) => {
+      const email = await renderVerificationEmail({
+        locale: getEmailLocale(request),
+        name: user.name,
+        verificationLink: url,
+      });
 
       postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
         Tag: "verification-email",
-        Subject: t("subject"),
-        HtmlBody: await reactVerificationEmail({
-          name: user.name,
-          verificationLink: url,
-        }),
+        Subject: email.subject,
+        HtmlBody: email.html,
         MessageStream: "authentications",
       });
     },
@@ -334,6 +416,34 @@ export const auth = betterAuth({
       enableSessionForAPIKeys: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
+    magicLink({
+      disableSignUp: false,
+      expiresIn: 60 * 10, // 10 minutes
+      storeToken: "hashed",
+      sendMagicLink: async ({ email, url }, ctx) => {
+        const locale = getEmailLocale(ctx?.request, ctx?.headers);
+        const name =
+          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+        const renderedEmail = await renderMagicLinkEmail({
+          locale,
+          magicLink: url,
+          name,
+        });
+
+        await postmarkClient.sendEmail({
+          From: fromEmail,
+          To: email,
+          Tag: "magic-link",
+          Subject: renderedEmail.subject,
+          HtmlBody: renderedEmail.html,
+          MessageStream: "authentications",
+        });
+      },
+    }),
+    passkey({
+      rpID: getEnvSecrets().BETTER_AUTH_RP_ID,
+      rpName: "Sokosumi",
+    }),
     lastLoginMethod(),
     oauthProvider({
       loginPage: "/signin",
@@ -348,6 +458,9 @@ export const auth = betterAuth({
         opaqueAccessToken: "soko_access_token_",
         refreshToken: "soko_refresh_token_",
         clientSecret: "soko_client_secret_",
+      },
+      silenceWarnings: {
+        oauthAuthServerConfig: true,
       },
     }),
     organization({
@@ -403,20 +516,21 @@ export const auth = betterAuth({
           },
         },
       },
-      async sendInvitationEmail(data) {
+      async sendInvitationEmail(data, request) {
         const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
-        const t = await getTranslations("Library.Auth.Email.InviteUserEmail");
+        const email = await renderOrganizationInvitationEmail({
+          invitationLink: inviteLink,
+          invitorUsername: data.inviter.user.name,
+          locale: getEmailLocale(request),
+          organizationName: data.organization.name,
+        });
 
         postmarkClient.sendEmail({
           From: fromEmail,
           To: data.email,
           Tag: "invitation-email",
-          Subject: t("subject"),
-          HtmlBody: await reactInviteUserEmail({
-            organizationName: data.organization.name,
-            invitorUsername: data.inviter.user.name,
-            inviteLink,
-          }),
+          Subject: email.subject,
+          HtmlBody: email.html,
           MessageStream: "organizations",
         });
       },
@@ -435,8 +549,7 @@ export const auth = betterAuth({
       detection: ["header", "cookie"],
     }),
     nextCookies(),
-    dash(),
-    sentinel(),
+    ...getInfraAuthPlugins(betterAuthApiKey),
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,

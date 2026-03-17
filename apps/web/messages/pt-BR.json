@@ -109,6 +109,7 @@
           "title": "Do desenvolvedor",
           "privacyPolicy": "Política de privacidade",
           "terms": "Termos",
+          "dpa": "Acordo de Processamento de Dados (DPA)",
           "other": "Outros"
         },
         "Risk": {
@@ -133,6 +134,7 @@
       "imprint": "Informações legais",
       "acceptableUse": "Uso aceitável",
       "settings": "Configurações",
+      "expandSidebar": "Expandir barra lateral",
       "logout": "Sair",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
       "creditsSummary": "Resumo de créditos:",
@@ -146,11 +148,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Trocar workspace",
-      "searchProfiles": "Pesquisar perfis...",
       "personalAccount": "Conta pessoal",
-      "noProfilesFound": "Nenhum perfil encontrado",
-      "personalAccountHeading": "Pessoal",
-      "organization": "Organização",
       "addOrganization": "Adicionar organização",
       "organizationsHeading": "Organizações",
       "createOrJoinOrganization": "Criar ou entrar em uma organização"
@@ -845,13 +843,30 @@
     },
     "SocialButtons": {
       "continueWith": "Continuar com {provider}",
-      "divider": "ou continuar com",
+      "passwordDivider": "ou entrar com senha",
+      "emailDivider": "ou cadastrar-se com e-mail",
       "success": "Login realizado com sucesso",
-      "error": "Falha no login"
+      "error": "Falha no login",
+      "lastUsed": "Último usado",
+      "passkeyProvider": "Passkey",
+      "passkeyError": "Não foi possível entrar com o passkey. Tente novamente.",
+      "magicLinkProvider": "Magic Link",
+      "magicLinkInputLabel": "E-mail para o Magic Link",
+      "magicLinkPlaceholder": "Digite seu e-mail",
+      "magicLinkSubmit": "Envie-me um Magic Link",
+      "magicLinkSubmitting": "Enviando Magic Link...",
+      "magicLinkResend": "Reenviar Magic Link",
+      "magicLinkSuccess": "Verifique sua caixa de entrada para encontrar seu Magic Link.",
+      "magicLinkError": "Não foi possível enviar um Magic Link. Tente novamente.",
+      "magicLinkInvalidEmail": "Digite um endereço de e-mail válido."
     },
     "Words": {
       "signIn": "Entrar",
       "signUp": "Cadastrar"
+    },
+    "PasswordToggle": {
+      "show": "Mostrar senha",
+      "hide": "Ocultar senha"
     },
     "Pages": {
       "SignIn": {
@@ -865,6 +880,7 @@
         },
         "Form": {
           "submit": "Entrar",
+          "lastUsed": "Último usado",
           "success": "Login realizado com sucesso",
           "error": "E-mail ou senha inválidos",
           "Fields": {
@@ -944,9 +960,6 @@
             },
             "Password": {
               "placeholder": "Senha"
-            },
-            "ConfirmPassword": {
-              "placeholder": "Confirmar senha"
             }
           },
           "Errors": {
@@ -1101,7 +1114,8 @@
           "question": "Como podemos ajudar você hoje?",
           "title": "Bem-vindo! Como podemos ajudar você hoje?",
           "titleWithName": "Bem-vindo, {name}! Como podemos ajudar você hoje?",
-          "placeholder": "No que você está pensando?",
+          "placeholder": "Digite sua tarefa e envie para {coworkerSlug}.",
+          "coworkerSlugFallback": "o coworker",
           "suggestionsLabel": "Tente perguntar",
           "prompts": {
             "alex": {
@@ -1766,6 +1780,29 @@
         "success": "Senha definida com sucesso",
         "error": "Falha ao definir senha"
       },
+      "Passkeys": {
+        "title": "Passkeys",
+        "description": "Adicione e remova passkeys para entrar mais rápido.",
+        "loading": "Carregando passkeys...",
+        "loadError": "Não foi possível carregar seus passkeys no momento.",
+        "empty": "Você ainda não adicionou nenhum passkey.",
+        "retry": "Tentar novamente",
+        "add": "Adicionar passkey",
+        "addSuccess": "Passkey adicionado com sucesso",
+        "addError": "Falha ao adicionar passkey",
+        "refreshError": "Sua alteração foi salva, mas não foi possível atualizar a lista de passkeys.",
+        "save": "Salvar",
+        "cancel": "Cancelar",
+        "renameSuccess": "Passkey renomeado com sucesso",
+        "renameError": "Falha ao renomear passkey",
+        "deleteSuccess": "Passkey excluído com sucesso",
+        "deleteError": "Falha ao excluir passkey",
+        "defaultName": "Passkey",
+        "createdAt": "Criado em {date}",
+        "deleteAriaLabel": "Excluir {name}",
+        "editAriaLabel": "Editar {name}",
+        "editInputLabel": "Nome do passkey"
+      },
       "Theme": {
         "title": "Tema",
         "description": "Escolha como a interface aparece.",
@@ -1924,6 +1961,7 @@
           "authorizeError": "Falha ao autorizar aplicativo",
           "authorizeErrorRedirectUri": "Falha ao autorizar aplicativo. Verifique seu URI de redirecionamento.",
           "authorizeErrorGeneric": "Ocorreu um erro durante a autorização",
+          "authorizeSuccess": "Aplicação autorizada com sucesso",
           "denyError": "Falha ao negar aplicativo"
         }
       },
@@ -2109,7 +2147,7 @@
           "title": "Experiência em marketing",
           "description": "Treinados com trabalho real de campanhas — estratégia, conteúdo, planejamento de mídia e comunicação de marca."
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "Outros",
         "moreComingSoon": "+ Mais em breve"
       },
       "FilterSection": {
@@ -2139,6 +2177,7 @@
         "Footer": {
           "termsAndConditions": "Termos e condições",
           "privacyPolicy": "Política de privacidade",
+          "dpa": "Acordo de Processamento de Dados (DPA)",
           "customerSupport": "Suporte ao cliente"
         },
         "RightSection": {
@@ -2287,86 +2326,6 @@
           "match": "A senha não corresponde",
           "required": "A confirmação de senha é obrigatória"
         }
-      },
-      "Email": {
-        "ResetPassword": {
-          "subject": "Sokosumi - Redefinir sua senha",
-          "title": "Redefinir sua senha",
-          "greeting": "Olá {name}",
-          "message": "Recebemos um pedido para redefinir a senha da sua conta. Se você não fez esse pedido, pode ignorar este e-mail com segurança.",
-          "button": "Redefinir senha",
-          "linkInstructions": "Ou copie e cole esta URL no seu navegador:",
-          "footer": "Se você não pediu para redefinir a senha, ignore este e-mail ou entre em contato com o suporte se tiver dúvidas."
-        },
-        "Verification": {
-          "subject": "Sokosumi - Verifique seu endereço de e-mail",
-          "title": "Verifique seu endereço de e-mail",
-          "greeting": "Olá {name}",
-          "message": "Verifique seu endereço de e-mail clicando no botão abaixo. Isso ajuda a garantir a segurança da sua conta.",
-          "button": "Verificar e-mail",
-          "linkInstructions": "Ou copie e cole esta URL no seu navegador:",
-          "footer": "Se você não criou uma conta, pode ignorar este e-mail com segurança."
-        },
-        "InviteUserEmail": {
-          "subject": "Sokosumi - Convite para organização",
-          "title": "Junte-se a {invitorUsername} em {organizationName}",
-          "greeting": "Olá",
-          "message": "Você foi convidado para entrar em {organizationName} no Sokosumi. Clique no botão abaixo para aceitar o convite.",
-          "button": "Aceitar convite",
-          "linkInstructions": "Ou copie e cole esta URL no seu navegador:",
-          "footer": "Se você não solicitou este convite, pode ignorar este e-mail com segurança."
-        }
-      }
-    },
-    "Email": {
-      "JobFinalStatus": {
-        "subject": "Sokosumi - job de {agentName} {status}",
-        "preview": "Seu job para {agentName} agora está {status}.",
-        "title": "Job {status}",
-        "greeting": "Oi {name}",
-        "body": "{jobName} para {agentName} agora está {status}.",
-        "button": "Ver job",
-        "linkInstructions": "Ou copie e cole esta URL no seu navegador:",
-        "footer": "Você está recebendo este e-mail porque as notificações de jobs estão ativadas na sua conta.",
-        "fallbackJobName": "Seu job",
-        "status": {
-          "completed": "concluído",
-          "failed": "falhou",
-          "payment_failed": "falha no pagamento",
-          "refund_resolved": "reembolsado",
-          "dispute_resolved": "disputa resolvida"
-        }
-      },
-      "JobFailureNotification": {
-        "subject": "Notificação de falha no job - {jobId}",
-        "preview": "O job {jobId} falhou",
-        "title": "Notificação de falha no job",
-        "description": "Um job falhou. Aqui estão os detalhes técnicos:",
-        "network": "Rede:",
-        "agentName": "Nome do agente:",
-        "agentId": "ID do agente:",
-        "agentBlockchainIdentifier": "Identificador do agente na blockchain:",
-        "jobId": "ID do job:",
-        "jobBlockchainIdentifier": "Identificador do job na blockchain:",
-        "onChainStatus": "Status on-chain:",
-        "agentStatus": "Status do agente:",
-        "inputHash": "Hash da entrada:",
-        "resultHash": "Hash do resultado:",
-        "inputSchema": "Schema da entrada:",
-        "input": "Entrada:",
-        "output": "Saída:",
-        "footer": "Esta é uma notificação automática do Sōkosumi."
-      },
-      "JobInputRequired": {
-        "subject": "Sokosumi - {agentName} precisa da sua entrada",
-        "preview": "Seu job para {agentName} precisa de entrada para continuar.",
-        "title": "Ação necessária",
-        "greeting": "Oi {name}",
-        "body": "Seu job {jobName} para {agentName} está esperando sua entrada para continuar.",
-        "button": "Enviar entrada",
-        "linkInstructions": "Ou copie e cole esta URL no seu navegador:",
-        "footer": "Você está recebendo este e-mail porque as notificações de jobs estão ativadas na sua conta.",
-        "fallbackJobName": "Seu job"
       }
     },
     "JobInput": {
@@ -2416,6 +2375,7 @@
         "acceptByClickingSubmit": "Ao clicar em \"Contratar\", você aceita os ",
         "termsOfService": "Termos de serviço",
         "privacyPolicy": "Política de privacidade",
+        "dpa": "Acordo de Processamento de Dados (DPA)",
         "legal": "outros requisitos legais",
         "byCreator": " do criador do agente",
         "Error": {

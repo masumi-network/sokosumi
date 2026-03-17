@@ -9,10 +9,12 @@ describe("organizationWithRoleSchema", () => {
       createdAt: "2025-01-01T00:00:00.000Z",
       name: "My Organization",
       slug: "my-org",
+      logo: "https://example.com/logo.png",
       role: "member",
     });
 
     expect(result.role).toBe("member");
+    expect(result.logo).toBe("https://example.com/logo.png");
   });
 
   it("strips legacy credits field when provided", () => {
@@ -21,6 +23,7 @@ describe("organizationWithRoleSchema", () => {
       createdAt: "2025-01-01T00:00:00.000Z",
       name: "My Organization",
       slug: "my-org",
+      logo: null,
       role: "member",
       credits: 100,
     });
@@ -34,6 +37,7 @@ describe("organizationWithRoleSchema", () => {
       createdAt: "2025-01-01T00:00:00.000Z",
       name: "My Organization",
       slug: "my-org",
+      logo: null,
       role: "member",
       subscription: {
         plan: "starter",

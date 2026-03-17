@@ -1,12 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
-import { getEnv } from "@/config/env.js";
+import { getEnv } from "@/config/env";
 
 import agentsRouter from "./agents/index.js";
 import conversationsRouter from "./conversations/index.js";
 import coworkersRouter from "./coworkers/index.js";
 import jobsRouter from "./jobs/index.js";
+import organizationsRouter from "./organizations/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
 
@@ -76,6 +77,7 @@ app.use(
 app.route("/agents", agentsRouter);
 app.route("/conversations", conversationsRouter);
 app.route("/users", usersRouter);
+app.route("/organizations", organizationsRouter);
 app.route("/jobs", jobsRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);

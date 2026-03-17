@@ -109,6 +109,7 @@
           "title": "来自开发者",
           "privacyPolicy": "隐私政策",
           "terms": "条款",
+          "dpa": "数据处理协议（DPA）",
           "other": "其他"
         },
         "Risk": {
@@ -133,6 +134,7 @@
       "imprint": "法律声明",
       "acceptableUse": "可接受使用政策",
       "settings": "设置",
+      "expandSidebar": "展开侧边栏",
       "logout": "退出登录",
       "creditsUsedOfTotal": "{used, number} / {total, number} 已使用积分",
       "creditsSummary": "积分摘要：",
@@ -146,11 +148,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "切换工作区",
-      "searchProfiles": "搜索资料...",
       "personalAccount": "个人账户",
-      "noProfilesFound": "未找到资料",
-      "personalAccountHeading": "个人",
-      "organization": "组织",
       "addOrganization": "添加组织",
       "organizationsHeading": "组织",
       "createOrJoinOrganization": "创建或加入组织"
@@ -845,13 +843,30 @@
     },
     "SocialButtons": {
       "continueWith": "使用 {provider} 继续",
-      "divider": "或使用以下方式继续",
+      "passwordDivider": "或使用密码登录",
+      "emailDivider": "或使用电子邮件注册",
       "success": "登录成功",
-      "error": "登录失败"
+      "error": "登录失败",
+      "lastUsed": "上次使用",
+      "passkeyProvider": "Passkey",
+      "passkeyError": "无法使用 Passkey 登录，请重试。",
+      "magicLinkProvider": "Magic Link",
+      "magicLinkInputLabel": "用于接收 Magic Link 的电子邮件",
+      "magicLinkPlaceholder": "输入你的电子邮件",
+      "magicLinkSubmit": "给我发送 Magic Link",
+      "magicLinkSubmitting": "正在发送 Magic Link...",
+      "magicLinkResend": "重新发送 Magic Link",
+      "magicLinkSuccess": "请检查收件箱中的 Magic Link。",
+      "magicLinkError": "我们无法发送 Magic Link。请重试。",
+      "magicLinkInvalidEmail": "请输入有效的电子邮件地址。"
     },
     "Words": {
       "signIn": "登录",
       "signUp": "注册"
+    },
+    "PasswordToggle": {
+      "show": "显示密码",
+      "hide": "隐藏密码"
     },
     "Pages": {
       "SignIn": {
@@ -865,6 +880,7 @@
         },
         "Form": {
           "submit": "登录",
+          "lastUsed": "上次使用",
           "success": "登录成功",
           "error": "邮箱或密码无效",
           "Fields": {
@@ -944,9 +960,6 @@
             },
             "Password": {
               "placeholder": "密码"
-            },
-            "ConfirmPassword": {
-              "placeholder": "确认密码"
             }
           },
           "Errors": {
@@ -1101,7 +1114,8 @@
           "question": "今天我们能如何帮助您？",
           "title": "欢迎！今天我们能如何帮助您？",
           "titleWithName": "欢迎 {name}！今天我们能如何帮助您？",
-          "placeholder": "您在想什么？",
+          "placeholder": "输入您的任务并提交给 {coworkerSlug}。",
+          "coworkerSlugFallback": "协作者",
           "suggestionsLabel": "试试问",
           "prompts": {
             "alex": {
@@ -1759,12 +1773,35 @@
       },
       "NewPassword": {
         "title": "设置密码",
-        "description": "为您的账户设置密码",
+        "description": "为你的账户设置密码",
         "newPassword": "新密码",
         "confirmPassword": "确认新密码",
         "submit": "设置密码",
         "success": "密码设置成功",
         "error": "设置密码失败"
+      },
+      "Passkeys": {
+        "title": "Passkey",
+        "description": "添加或删除 Passkey，以便更快登录。",
+        "loading": "正在加载 Passkey...",
+        "loadError": "暂时无法加载你的 Passkey。",
+        "empty": "你还没有添加任何 Passkey。",
+        "retry": "重试",
+        "add": "添加 Passkey",
+        "addSuccess": "Passkey 已添加",
+        "addError": "添加 Passkey 失败",
+        "refreshError": "已保存更改，但无法刷新 Passkey 列表。",
+        "save": "保存",
+        "cancel": "取消",
+        "renameSuccess": "Passkey 已重命名",
+        "renameError": "重命名 Passkey 失败",
+        "deleteSuccess": "Passkey 已删除",
+        "deleteError": "删除 Passkey 失败",
+        "defaultName": "Passkey",
+        "createdAt": "创建于 {date}",
+        "deleteAriaLabel": "删除 {name}",
+        "editAriaLabel": "编辑 {name}",
+        "editInputLabel": "Passkey 名称"
       },
       "Theme": {
         "title": "主题",
@@ -1924,6 +1961,7 @@
           "authorizeError": "授权应用失败",
           "authorizeErrorRedirectUri": "授权应用失败。请检查您的重定向 URI。",
           "authorizeErrorGeneric": "授权过程中发生错误",
+          "authorizeSuccess": "应用授权成功",
           "denyError": "拒绝应用失败"
         }
       },
@@ -2109,7 +2147,7 @@
           "title": "营销专长",
           "description": "基于真实活动工作训练——策略、内容、媒介规划与品牌传播。"
         },
-        "serviceplanLogoAlt": "Serviceplan Group",
+        "others": "其他",
         "moreComingSoon": "+ 更多即将上线"
       },
       "FilterSection": {
@@ -2139,6 +2177,7 @@
         "Footer": {
           "termsAndConditions": "条款与条件",
           "privacyPolicy": "隐私政策",
+          "dpa": "数据处理协议（DPA）",
           "customerSupport": "客户支持"
         },
         "RightSection": {
@@ -2287,86 +2326,6 @@
           "match": "密码不一致",
           "required": "确认密码为必填项"
         }
-      },
-      "Email": {
-        "ResetPassword": {
-          "subject": "Sokosumi - 重置您的密码",
-          "title": "重置您的密码",
-          "greeting": "您好 {name}",
-          "message": "我们收到了为您的账户重置密码的请求。如果这不是您发起的请求，您可以放心忽略此邮件。",
-          "button": "重置密码",
-          "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
-          "footer": "如果您未请求重置密码，请忽略此邮件；如有疑问，请联系支持。"
-        },
-        "Verification": {
-          "subject": "Sokosumi - 验证您的邮箱地址",
-          "title": "验证您的邮箱地址",
-          "greeting": "您好 {name}",
-          "message": "请点击下方按钮验证您的邮箱地址。这有助于我们保障您的账户安全。",
-          "button": "验证邮箱",
-          "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
-          "footer": "如果您未创建账户，您可以放心忽略此邮件。"
-        },
-        "InviteUserEmail": {
-          "subject": "Sokosumi - 组织邀请",
-          "title": "加入 {organizationName}，与 {invitorUsername} 一起协作",
-          "greeting": "您好",
-          "message": "您已被邀请在 Sokosumi 加入 {organizationName}。点击下方按钮接受邀请。",
-          "button": "接受邀请",
-          "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
-          "footer": "如果您未请求此邀请，您可以放心忽略此邮件。"
-        }
-      }
-    },
-    "Email": {
-      "JobFinalStatus": {
-        "subject": "Sokosumi - {agentName} 作业{status}",
-        "preview": "您针对 {agentName} 的作业现在为 {status}。",
-        "title": "作业{status}",
-        "greeting": "您好 {name}",
-        "body": "{agentName} 的 {jobName} 作业现在为 {status}。",
-        "button": "查看作业",
-        "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
-        "footer": "您收到此邮件是因为您的账户已启用作业通知。",
-        "fallbackJobName": "您的作业",
-        "status": {
-          "completed": "已完成",
-          "failed": "已失败",
-          "payment_failed": "付款失败",
-          "refund_resolved": "已退款",
-          "dispute_resolved": "争议已解决"
-        }
-      },
-      "JobFailureNotification": {
-        "subject": "作业失败通知 - {jobId}",
-        "preview": "作业 {jobId} 已失败",
-        "title": "作业失败通知",
-        "description": "某个作业已失败。以下为技术详情：",
-        "network": "网络：",
-        "agentName": "智能体名称：",
-        "agentId": "智能体 ID：",
-        "agentBlockchainIdentifier": "智能体区块链标识：",
-        "jobId": "作业 ID：",
-        "jobBlockchainIdentifier": "作业区块链标识：",
-        "onChainStatus": "链上状态：",
-        "agentStatus": "智能体状态：",
-        "inputHash": "输入哈希：",
-        "resultHash": "结果哈希：",
-        "inputSchema": "输入 Schema：",
-        "input": "输入：",
-        "output": "输出：",
-        "footer": "这是来自 Sōkosumi 的自动通知。"
-      },
-      "JobInputRequired": {
-        "subject": "Sokosumi - {agentName} 需要您的输入",
-        "preview": "您针对 {agentName} 的作业需要输入才能继续。",
-        "title": "需要您处理",
-        "greeting": "您好 {name}",
-        "body": "您针对 {agentName} 的作业 {jobName} 正在等待您的输入以继续。",
-        "button": "提供输入",
-        "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
-        "footer": "您收到此邮件是因为您的账户已启用作业通知。",
-        "fallbackJobName": "您的作业"
       }
     },
     "JobInput": {
@@ -2416,6 +2375,7 @@
         "acceptByClickingSubmit": "点击“雇用”即表示您接受 ",
         "termsOfService": "服务条款",
         "privacyPolicy": "隐私政策",
+        "dpa": "数据处理协议（DPA）",
         "legal": "其他法律要求",
         "byCreator": "（由智能体创建者提供）",
         "Error": {

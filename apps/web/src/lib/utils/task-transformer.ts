@@ -1,5 +1,6 @@
-import type { AgentWithCreditsPrice, Coworker } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
+import type { Coworker } from "@/lib/clients/generated/core";
 import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import { type TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";

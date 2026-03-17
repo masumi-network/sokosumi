@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,9 +11,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm, SubmitButton } from "@/auth/components/form";
+import { AuthForm } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AuthErrorCode } from "@/lib/actions";
 import { signInEmail } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
@@ -22,6 +23,7 @@ import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
+  createAuthSessionGetter,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/utils/auth-redirect";
@@ -105,7 +107,7 @@ export default function SignInForm({
 
     await waitForAuthSession({
       context: "login",
-      getSession: () => authClient.getSession(),
+      getSession: createAuthSessionGetter(() => authClient.getSession()),
       logWarning: (message) => {
         Sentry.captureMessage(message, { level: "warning" });
       },
@@ -151,19 +153,28 @@ export default function SignInForm({
     >
       <div className="flex flex-col gap-4">
         <div className="relative">
-          <SubmitButton
-            isSubmitting={isSubmitting}
-            label={t("submit")}
-            className="w-full"
-          />
           {isLastUsedEmailLogin && (
-            <Badge
-              variant="secondary"
-              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
+            <span
+              aria-hidden="true"
+              className="bg-background text-foreground border-border pointer-events-none absolute top-1/2 right-2 z-10 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[10px] font-medium"
             >
               {t("lastUsed")}
-            </Badge>
+            </span>
           )}
+          <Button
+            type="submit"
+            variant="primary"
+            className="relative w-full"
+            disabled={isSubmitting}
+          >
+            {isSubmitting && (
+              <Loader2
+                aria-hidden="true"
+                className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin"
+              />
+            )}
+            <span className="w-full text-center">{t("submit")}</span>
+          </Button>
         </div>
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <div className="flex flex-row items-center gap-2">
@@ -177,12 +188,14 @@ export default function SignInForm({
               {t("Register.link")}
             </Link>
           </div>
-          <Link
-            href={forgotPasswordUrl}
-            className="text-muted-foreground text-sm hover:underline"
-          >
-            {t("forgotPassword")}
-          </Link>
+          <div className="flex flex-col items-center gap-2 sm:items-end">
+            <Link
+              href={forgotPasswordUrl}
+              className="text-muted-foreground text-sm hover:underline"
+            >
+              {t("forgotPassword")}
+            </Link>
+          </div>
         </div>
       </div>
     </AuthForm>
