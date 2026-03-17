@@ -162,7 +162,7 @@ describe("GET /agents", () => {
     });
   });
 
-  it("filters by category slug and returns parsed category styles", async () => {
+  it("filters by a single category slug and returns parsed category styles", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?category=research");
     const body = await response.json();
@@ -174,7 +174,9 @@ describe("GET /agents", () => {
           isAvailable: true,
           categories: {
             some: {
-              slug: "research",
+              slug: {
+                in: ["research"],
+              },
             },
           },
         },
@@ -189,5 +191,37 @@ describe("GET /agents", () => {
         },
       },
     });
+  });
+
+  it("parses repeated and comma-separated category filters", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?category=research,writing&category=research",
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          isAvailable: true,
+          categories: {
+            some: {
+              slug: {
+                in: ["research", "writing"],
+              },
+            },
+          },
+        },
+      }),
+    );
+  });
+
+  it("rejects empty category values", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?category=research,");
+
+    expect(response.status).toBe(422);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+    expect(agentCountMock).not.toHaveBeenCalled();
   });
 });

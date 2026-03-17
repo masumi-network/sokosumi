@@ -73,6 +73,7 @@ describe("agents routes OpenAPI scope contract", () => {
     expect(categoryParam).toBeDefined();
     expect(categoryParam?.name).toBe("category");
     expect(categoryParam?.description).toContain("category slug");
+    expect(categoryParam?.description).toContain("comma-separated");
   });
 
   it("documents list agents with categories in response", () => {

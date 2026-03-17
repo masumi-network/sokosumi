@@ -20,6 +20,10 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import {
+  deduplicateQueryValues,
+  preprocessMultiValueQueryInput,
+} from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -42,13 +46,15 @@ import {
 
 const agentsListQuerySchema = cursorPaginationQuerySchema.extend({
   category: z
-    .string()
-    .optional()
+    .preprocess(
+      preprocessMultiValueQueryInput,
+      z.array(z.string().min(1)).min(1).optional().transform(deduplicateQueryValues),
+    )
     .openapi({
       param: { name: "category", in: "query" },
       description:
-        "Filter by category slug (stable identifier). Only agents in this category are returned.",
-      example: "research",
+        "Filter by category slug. Supports repeated values and comma-separated lists. When multiple categories are provided, agents matching any category are returned.",
+      example: "research,writing",
     }),
 });
 
@@ -76,6 +82,7 @@ const route = withGlobalHeaderParameters(
         },
       }),
       401: jsonErrorResponse("Unauthorized"),
+      422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
 );
@@ -84,15 +91,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
-    const { category: categorySlug } = queryParams;
+    const { category: categorySlugs } = queryParams;
 
     const result = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
 
       const where = {
         ...buildAvailableAgentWhereClause(creditCosts),
-        ...(categorySlug
-          ? { categories: { some: { slug: categorySlug } } }
+        ...(categorySlugs
+          ? { categories: { some: { slug: { in: categorySlugs } } } }
           : {}),
       };
 
