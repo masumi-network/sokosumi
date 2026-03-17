@@ -109,6 +109,7 @@
           "title": "Vom Entwickler",
           "privacyPolicy": "Datenschutzrichtlinie",
           "terms": "Nutzungsbedingungen",
+          "dpa": "Datenverarbeitungsvereinbarung (DPA)",
           "other": "Sonstiges"
         },
         "Risk": {
@@ -1893,6 +1894,7 @@
           "authorizeError": "Anwendung konnte nicht autorisiert werden",
           "authorizeErrorRedirectUri": "Anwendung konnte nicht autorisiert werden. Bitte überprüfe deine Redirect-URI.",
           "authorizeErrorGeneric": "Bei der Autorisierung ist ein Fehler aufgetreten",
+          "authorizeSuccess": "Anwendung erfolgreich autorisiert",
           "denyError": "Anwendung konnte nicht abgelehnt werden"
         }
       },
@@ -2108,6 +2110,7 @@
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",
           "privacyPolicy": "Datenschutzrichtlinie",
+          "dpa": "Datenverarbeitungsvereinbarung (DPA)",
           "customerSupport": "Kundensupport"
         },
         "RightSection": {
@@ -2367,6 +2370,7 @@
         "acceptByClickingSubmit": "Mit Klick auf \"Beauftragen\" stimmst du den ",
         "termsOfService": "Nutzungsbedingungen",
         "privacyPolicy": "Datenschutzrichtlinie",
+        "dpa": "Datenverarbeitungsvereinbarung (DPA)",
         "legal": "weiteren rechtlichen Anforderungen",
         "byCreator": " des Erstellers des Agents zu",
         "Error": {

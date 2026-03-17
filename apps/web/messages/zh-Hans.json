@@ -109,6 +109,7 @@
           "title": "来自开发者",
           "privacyPolicy": "隐私政策",
           "terms": "条款",
+          "dpa": "数据处理协议（DPA）",
           "other": "其他"
         },
         "Risk": {
@@ -1955,6 +1956,7 @@
           "authorizeError": "授权应用失败",
           "authorizeErrorRedirectUri": "授权应用失败。请检查您的重定向 URI。",
           "authorizeErrorGeneric": "授权过程中发生错误",
+          "authorizeSuccess": "应用授权成功",
           "denyError": "拒绝应用失败"
         }
       },
@@ -2170,6 +2172,7 @@
         "Footer": {
           "termsAndConditions": "条款与条件",
           "privacyPolicy": "隐私政策",
+          "dpa": "数据处理协议（DPA）",
           "customerSupport": "客户支持"
         },
         "RightSection": {
@@ -2367,6 +2370,7 @@
         "acceptByClickingSubmit": "点击“雇用”即表示您接受 ",
         "termsOfService": "服务条款",
         "privacyPolicy": "隐私政策",
+        "dpa": "数据处理协议（DPA）",
         "legal": "其他法律要求",
         "byCreator": "（由智能体创建者提供）",
         "Error": {

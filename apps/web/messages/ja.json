@@ -109,6 +109,7 @@
           "title": "開発者より",
           "privacyPolicy": "プライバシーポリシー",
           "terms": "利用規約",
+          "dpa": "データ処理契約（DPA）",
           "other": "その他"
         },
         "Risk": {
@@ -1955,6 +1956,7 @@
           "authorizeError": "アプリケーションの承認に失敗しました",
           "authorizeErrorRedirectUri": "アプリケーションの承認に失敗しました。リダイレクトURIを確認してください。",
           "authorizeErrorGeneric": "承認中にエラーが発生しました",
+          "authorizeSuccess": "アプリケーションの認可に成功しました",
           "denyError": "アプリケーションの拒否に失敗しました"
         }
       },
@@ -2170,6 +2172,7 @@
         "Footer": {
           "termsAndConditions": "利用規約",
           "privacyPolicy": "プライバシーポリシー",
+          "dpa": "データ処理契約（DPA）",
           "customerSupport": "カスタマーサポート"
         },
         "RightSection": {
@@ -2367,6 +2370,7 @@
         "acceptByClickingSubmit": "「依頼」をクリックすると、次に同意したことになります: ",
         "termsOfService": "利用規約",
         "privacyPolicy": "プライバシーポリシー",
+        "dpa": "データ処理契約（DPA）",
         "legal": "その他の法的要件",
         "byCreator": "（エージェント作成者による）",
         "Error": {

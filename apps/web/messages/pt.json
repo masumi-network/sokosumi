@@ -109,6 +109,7 @@
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
+          "dpa": "Data Processing Agreement (DPA)",
           "other": "Other"
         },
         "Risk": {
@@ -1955,6 +1956,7 @@
           "authorizeError": "Falha ao autorizar a aplicação",
           "authorizeErrorRedirectUri": "Falha ao autorizar a aplicação. Verifique o seu redirect URI.",
           "authorizeErrorGeneric": "Ocorreu um erro durante a autorização",
+          "authorizeSuccess": "Aplicação autorizada com sucesso",
           "denyError": "Falha ao recusar a aplicação"
         }
       },
@@ -2170,6 +2172,7 @@
         "Footer": {
           "termsAndConditions": "Termos e condições",
           "privacyPolicy": "Política de privacidade",
+          "dpa": "Data Processing Agreement (DPA)",
           "customerSupport": "Suporte ao cliente"
         },
         "RightSection": {
@@ -2367,6 +2370,7 @@
         "acceptByClickingSubmit": "Ao clicar em \"Contratar\" está a aceitar os ",
         "termsOfService": "Termos de serviço",
         "privacyPolicy": "Política de privacidade",
+        "dpa": "Data Processing Agreement (DPA)",
         "legal": "outros requisitos legais",
         "byCreator": " do criador do agente",
         "Error": {

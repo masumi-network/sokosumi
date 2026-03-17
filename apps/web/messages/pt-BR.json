@@ -109,6 +109,7 @@
           "title": "Do desenvolvedor",
           "privacyPolicy": "Política de privacidade",
           "terms": "Termos",
+          "dpa": "Acordo de Processamento de Dados (DPA)",
           "other": "Outros"
         },
         "Risk": {
@@ -1955,6 +1956,7 @@
           "authorizeError": "Falha ao autorizar aplicativo",
           "authorizeErrorRedirectUri": "Falha ao autorizar aplicativo. Verifique seu URI de redirecionamento.",
           "authorizeErrorGeneric": "Ocorreu um erro durante a autorização",
+          "authorizeSuccess": "Aplicação autorizada com sucesso",
           "denyError": "Falha ao negar aplicativo"
         }
       },
@@ -2170,6 +2172,7 @@
         "Footer": {
           "termsAndConditions": "Termos e condições",
           "privacyPolicy": "Política de privacidade",
+          "dpa": "Acordo de Processamento de Dados (DPA)",
           "customerSupport": "Suporte ao cliente"
         },
         "RightSection": {
@@ -2367,6 +2370,7 @@
         "acceptByClickingSubmit": "Ao clicar em \"Contratar\", você aceita os ",
         "termsOfService": "Termos de serviço",
         "privacyPolicy": "Política de privacidade",
+        "dpa": "Acordo de Processamento de Dados (DPA)",
         "legal": "outros requisitos legais",
         "byCreator": " do criador do agente",
         "Error": {

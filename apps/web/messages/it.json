@@ -109,6 +109,7 @@
           "title": "Dallo sviluppatore",
           "privacyPolicy": "Informativa sulla privacy",
           "terms": "Termini",
+          "dpa": "Accordo sul trattamento dei dati (DPA)",
           "other": "Altro"
         },
         "Risk": {
@@ -1955,6 +1956,7 @@
           "authorizeError": "Impossibile autorizzare l’applicazione",
           "authorizeErrorRedirectUri": "Impossibile autorizzare l’applicazione. Controlla il redirect URI.",
           "authorizeErrorGeneric": "Si è verificato un errore durante l’autorizzazione",
+          "authorizeSuccess": "Applicazione autorizzata correttamente",
           "denyError": "Impossibile negare l’applicazione"
         }
       },
@@ -2170,6 +2172,7 @@
         "Footer": {
           "termsAndConditions": "Termini e condizioni",
           "privacyPolicy": "Informativa sulla privacy",
+          "dpa": "Accordo sul trattamento dei dati (DPA)",
           "customerSupport": "Assistenza clienti"
         },
         "RightSection": {
@@ -2367,6 +2370,7 @@
         "acceptByClickingSubmit": "Cliccando su \"Assumi\" accetti i ",
         "termsOfService": "Termini di servizio",
         "privacyPolicy": "Informativa sulla privacy",
+        "dpa": "Accordo sul trattamento dei dati (DPA)",
         "legal": "altri requisiti legali",
         "byCreator": " del creatore dell’agente",
         "Error": {
