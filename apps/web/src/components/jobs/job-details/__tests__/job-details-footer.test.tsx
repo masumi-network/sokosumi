@@ -10,13 +10,9 @@ jest.mock("next-intl", () => ({
 
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({
-    children,
-    href,
-  }: {
-    children: ReactNode;
-    href: string;
-  }) => <a href={href}>{children}</a>,
+  default: ({ children, href }: { children: ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
 }));
 
 describe("JobDetailsFooter", () => {
