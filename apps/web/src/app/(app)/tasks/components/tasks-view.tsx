@@ -23,8 +23,10 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
+import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
@@ -111,7 +113,6 @@ const hydrationStore = (() => {
 
 const JOBS_FAILED_FILTER_MODE_STORAGE_KEY =
   "sokosumi.tasks.jobs.failedFilterMode";
-
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
@@ -285,10 +286,14 @@ export function TasksView({
     buildInitialColumnCursorById(columns, initialColumnNextCursorById),
   );
   const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
+  const refreshRoute = useDebouncedCallback(
+    () => router.refresh(),
+    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
+  );
   const scopeKey = activeOrganizationId ?? "personal";
   const previousScopeKeyRef = useRef(scopeKey);
   const handleEventUpdate = (_data: TaskEventData) => {
-    router.refresh();
+    refreshRoute();
   };
 
   useEffect(() => {
@@ -306,6 +311,12 @@ export function TasksView({
   useEffect(() => {
     loadingColumnIdsRef.current = loadingColumnIds;
   }, [loadingColumnIds]);
+
+  useEffect(() => {
+    return () => {
+      refreshRoute.cancel();
+    };
+  }, [refreshRoute]);
 
   useEffect(() => {
     try {
