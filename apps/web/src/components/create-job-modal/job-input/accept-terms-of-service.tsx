@@ -26,6 +26,7 @@ export function AcceptTermsOfService({ legal }: AcceptTermsOfServiceProps) {
         <React.Fragment key={index}>
           <Link
             target="_blank"
+            rel="noreferrer noopener"
             href={legalLink.href}
             className="text-foreground"
           >
