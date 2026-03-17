@@ -88,6 +88,10 @@ export const getAuthorFromAgent = (agent: Agent) => {
 export const agentLegalSchema = z.object({
   privacyPolicy: z.string().nullable().openapi({ example: "Privacy Policy" }),
   terms: z.string().nullable().openapi({ example: "Terms of Service" }),
+  dpa: z
+    .string()
+    .nullable()
+    .openapi({ example: "Data Processing Agreement (DPA)" }),
   other: z.string().nullable().openapi({ example: "Other" }),
 });
 
@@ -95,6 +99,7 @@ export const getAgentLegalFromAgent = (agent: Agent) => {
   return agentLegalSchema.parse({
     privacyPolicy: agent.overrideLegalPrivacyPolicy ?? agent.legalPrivacyPolicy,
     terms: agent.overrideLegalTerms ?? agent.legalTerms,
+    dpa: agent.overrideLegalDpa ?? agent.legalDpa,
     other: agent.overrideLegalOther ?? agent.legalOther,
   });
 };

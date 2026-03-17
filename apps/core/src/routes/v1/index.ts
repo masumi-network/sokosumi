@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 
-import { getEnv } from "@/config/env.js";
+import { getEnv } from "@/config/env";
 
 import agentsRouter from "./agents/index.js";
 import conversationsRouter from "./conversations/index.js";

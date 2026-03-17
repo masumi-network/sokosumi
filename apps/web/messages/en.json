@@ -109,6 +109,7 @@
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
+          "dpa": "Data Processing Agreement (DPA)",
           "other": "Other"
         },
         "Risk": {
@@ -2171,6 +2172,7 @@
         "Footer": {
           "termsAndConditions": "Terms and Conditions",
           "privacyPolicy": "Privacy Policy",
+          "dpa": "Data Processing Agreement (DPA)",
           "customerSupport": "Customer Support"
         },
         "RightSection": {
@@ -2368,6 +2370,7 @@
         "acceptByClickingSubmit": "By clicking on \"Hire\" you're accepting the ",
         "termsOfService": "Terms of Service",
         "privacyPolicy": "Privacy Policy",
+        "dpa": "Data Processing Agreement (DPA)",
         "legal": "other Legal Requirements",
         "byCreator": " by the creator of the Agent",
         "Error": {

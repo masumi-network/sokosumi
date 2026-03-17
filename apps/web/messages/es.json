@@ -109,6 +109,7 @@
           "title": "Del desarrollador",
           "privacyPolicy": "Política de privacidad",
           "terms": "Términos de uso",
+          "dpa": "Acuerdo de procesamiento de datos (DPA)",
           "other": "Otros"
         },
         "Risk": {
@@ -1893,6 +1894,7 @@
           "authorizeError": "No se pudo autorizar la aplicación",
           "authorizeErrorRedirectUri": "No se pudo autorizar la aplicación. Por favor, verifica tu Redirect URI.",
           "authorizeErrorGeneric": "Ocurrió un error durante la autorización",
+          "authorizeSuccess": "Aplicación autorizada correctamente",
           "denyError": "No se pudo rechazar la aplicación"
         }
       },
@@ -2108,6 +2110,7 @@
         "Footer": {
           "termsAndConditions": "Términos y condiciones",
           "privacyPolicy": "Política de privacidad",
+          "dpa": "Acuerdo de procesamiento de datos (DPA)",
           "customerSupport": "Soporte al cliente"
         },
         "RightSection": {
@@ -2367,6 +2370,7 @@
         "acceptByClickingSubmit": "Al hacer clic en \"Contratar\" aceptas ",
         "termsOfService": "Términos de uso",
         "privacyPolicy": "Política de privacidad",
+        "dpa": "Acuerdo de procesamiento de datos (DPA)",
         "legal": "otros requisitos legales",
         "byCreator": " del creador del Agent",
         "Error": {

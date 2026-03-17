@@ -26,6 +26,7 @@ export function AcceptTermsOfService({ legal }: AcceptTermsOfServiceProps) {
         <React.Fragment key={index}>
           <Link
             target="_blank"
+            rel="noreferrer noopener"
             href={legalLink.href}
             className="text-foreground"
           >
@@ -52,6 +53,10 @@ function filterLegalLinks(
     {
       href: legal?.privacyPolicy,
       label: t("privacyPolicy"),
+    },
+    {
+      href: legal?.dpa,
+      label: t("dpa"),
     },
     {
       href: legal?.other,
