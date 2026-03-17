@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
@@ -33,10 +33,23 @@ import {
 } from "@/schemas/agent.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
+  agentCategoriesInclude,
   agentJobsCountInclude,
   agentOrderBy,
   agentPricingInclude,
 } from "@/types/agent";
+
+const agentsListQuerySchema = cursorPaginationQuerySchema.extend({
+  category: z
+    .string()
+    .optional()
+    .openapi({
+      param: { name: "category", in: "query" },
+      description:
+        "Filter by category slug (stable identifier). Only agents in this category are returned.",
+      example: "research",
+    }),
+});
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -45,7 +58,7 @@ const route = withGlobalHeaderParameters(
     description: "List all available agents (paginated)",
     tags: ["Agents"],
     request: {
-      query: cursorPaginationQuerySchema,
+      query: agentsListQuerySchema,
     },
     responses: {
       200: jsonPaginatedSuccessResponse(agentsSchema, "Retrieve all agents", {
@@ -70,11 +83,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { category: categorySlug } = queryParams;
 
     const result = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
 
-      const where = buildAvailableAgentWhereClause(creditCosts);
+      const where = {
+        ...buildAvailableAgentWhereClause(creditCosts),
+        ...(categorySlug
+          ? { categories: { some: { slug: categorySlug } } }
+          : {}),
+      };
 
       const takePlusOne = take + 1;
       const agents = await tx.agent.findMany({
@@ -86,6 +105,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: {
           ...agentPricingInclude,
           ...agentJobsCountInclude,
+          ...agentCategoriesInclude,
         },
       });
       const count = await tx.agent.count({ where });
@@ -124,6 +144,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const ratingMetrics = ratingsMap.get(agent.id);
         return {
           ...agent,
+          categories: agent.categories ?? [],
           metrics: {
             executions: {
               count: agent._count.jobs,

@@ -104,6 +104,33 @@ export const getAgentLegalFromAgent = (agent: Agent) => {
   });
 };
 
+export const categorySchema = z
+  .object({
+    id: z.string().openapi({ example: "cat_123" }),
+    name: z.string().openapi({ example: "Research" }),
+    slug: z.string().openapi({ example: "research" }),
+    description: z
+      .string()
+      .nullable()
+      .openapi({ example: "Agents for research tasks" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/cat.png" }),
+    icon: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/cat.svg" }),
+    priority: z.number().openapi({ example: 0 }),
+    styles: z.string().nullable().openapi({
+      description: "Optional JSON or string for category-specific UI styles",
+      example: null,
+    }),
+  })
+  .openapi("Category");
+
+export type Category = z.infer<typeof categorySchema>;
+
 export const agentSchema = z
   .object({
     id: z.string().openapi({ example: "agent_123" }),
@@ -131,6 +158,9 @@ export const agentSchema = z
     metrics: metricsSchema,
     author: authorSchema,
     legal: agentLegalSchema,
+    categories: z.array(categorySchema).openapi({
+      description: "Categories this agent belongs to",
+    }),
   })
   .openapi("Agent");
 

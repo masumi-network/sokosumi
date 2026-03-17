@@ -24,6 +24,27 @@ function getScopeDescriptionFromGetOperation(
   return scopeParameter?.description ?? "";
 }
 
+function getQueryParamFromGetOperation(
+  doc: ReturnType<typeof agentsRouter.getOpenAPI31Document>,
+  path: string,
+  paramName: string,
+): { name: string; in: string; description?: string } | undefined {
+  const operation = doc.paths?.[path]?.get;
+  const parameters = operation?.parameters ?? [];
+  const param = parameters.find(
+    (p) =>
+      typeof p === "object" &&
+      p !== null &&
+      !("$ref" in p) &&
+      "name" in p &&
+      "in" in p &&
+      (p as { name: string }).name === paramName,
+  );
+  return param as
+    | { name: string; in: string; description?: string }
+    | undefined;
+}
+
 describe("agents routes OpenAPI scope contract", () => {
   it("exposes scope query parameter for agent jobs endpoint", () => {
     const doc = agentsRouter.getOpenAPI31Document({
@@ -37,5 +58,44 @@ describe("agents routes OpenAPI scope contract", () => {
     expect(getScopeDescriptionFromGetOperation(doc, "/{id}/jobs")).toContain(
       "Allowed values: context, owned, shared",
     );
+  });
+
+  it("exposes category query parameter for list agents endpoint", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    const categoryParam = getQueryParamFromGetOperation(doc, "/", "category");
+    expect(categoryParam).toBeDefined();
+    expect(categoryParam?.name).toBe("category");
+    expect(categoryParam?.description).toContain("category slug");
+  });
+
+  it("documents list agents with categories in response", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    const listGet = doc.paths?.["/"]?.get;
+    expect(listGet).toBeDefined();
+    expect(listGet?.responses?.["200"]).toBeDefined();
+    const components = doc.components?.schemas;
+    const agentSchema =
+      components && typeof components === "object" && "Agent" in components
+        ? (components as { Agent?: { properties?: unknown } }).Agent
+        : null;
+    expect(agentSchema?.properties).toBeDefined();
+    const props = agentSchema?.properties as
+      | { categories?: unknown }
+      | undefined;
+    expect(props?.categories).toBeDefined();
   });
 });

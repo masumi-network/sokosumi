@@ -25,7 +25,11 @@ import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
-import { agentJobsCountInclude, agentPricingInclude } from "@/types/agent";
+import {
+  agentCategoriesInclude,
+  agentJobsCountInclude,
+  agentPricingInclude,
+} from "@/types/agent";
 
 const params = z.object({
   id: z.string().openapi({
@@ -66,6 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: {
           ...agentPricingInclude,
           ...agentJobsCountInclude,
+          ...agentCategoriesInclude,
         },
       });
 
@@ -84,6 +89,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         description: getAgentDescription(agent),
         author: getAuthorFromAgent(agent),
         legal: getAgentLegalFromAgent(agent),
+        categories: agent.categories ?? [],
       };
 
       const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
