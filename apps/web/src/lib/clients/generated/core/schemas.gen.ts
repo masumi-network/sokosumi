@@ -171,6 +171,13 @@ export const AgentSchema = {
                     ],
                     example: 'Terms of Service'
                 },
+                dpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'Data Processing Agreement (DPA)'
+                },
                 other: {
                     type: [
                         'string',
@@ -182,6 +189,7 @@ export const AgentSchema = {
             required: [
                 'privacyPolicy',
                 'terms',
+                'dpa',
                 'other'
             ]
         }
@@ -656,6 +664,14 @@ export const OrganizationSchema = {
             type: 'string',
             example: 'my-org'
         },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com/logo.png'
+        },
         role: {
             type: 'string',
             example: 'member'
@@ -666,6 +682,7 @@ export const OrganizationSchema = {
         'createdAt',
         'name',
         'slug',
+        'logo',
         'role'
     ]
 } as const;
