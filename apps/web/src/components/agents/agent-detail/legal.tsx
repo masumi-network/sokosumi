@@ -16,7 +16,7 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
           <a
             target="_blank"
             href={legal.terms}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
+            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("terms")}
           </a>
@@ -25,7 +25,7 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
           <a
             target="_blank"
             href={legal.privacyPolicy}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
+            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("privacyPolicy")}
           </a>
@@ -34,7 +34,7 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
           <a
             target="_blank"
             href={legal.dpa}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
+            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("dpa")}
           </a>
@@ -43,7 +43,7 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
           <a
             target="_blank"
             href={legal.other}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
+            className="text-foreground/80 decoration-foreground/30 hover:text-foreground hover:decoration-foreground/60 text-sm underline underline-offset-2 transition-colors"
           >
             {t("other")}
           </a>
