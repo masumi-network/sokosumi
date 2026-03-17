@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import type { Prisma } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/database/helpers";
 
 import {
@@ -44,6 +45,51 @@ import {
   agentPricingInclude,
 } from "@/types/agent";
 
+const UNCATEGORIZED_CATEGORY_FILTER = "uncategorized";
+
+function buildCategoryWhereClause(
+  categorySlugs: string[] | undefined,
+): Prisma.AgentWhereInput | undefined {
+  if (!categorySlugs?.length) {
+    return undefined;
+  }
+
+  const includesUncategorized = categorySlugs.includes(
+    UNCATEGORIZED_CATEGORY_FILTER,
+  );
+  const persistedCategorySlugs = categorySlugs.filter(
+    (slug) => slug !== UNCATEGORIZED_CATEGORY_FILTER,
+  );
+
+  const filters: Prisma.AgentWhereInput[] = [];
+
+  if (includesUncategorized) {
+    filters.push({
+      categories: {
+        none: {},
+      },
+    });
+  }
+
+  if (persistedCategorySlugs.length > 0) {
+    filters.push({
+      categories: {
+        some: {
+          slug: {
+            in: persistedCategorySlugs,
+          },
+        },
+      },
+    });
+  }
+
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return filters.length === 1 ? filters[0] : { OR: filters };
+}
+
 const agentsListQuerySchema = cursorPaginationQuerySchema.extend({
   category: z
     .preprocess(
@@ -53,8 +99,8 @@ const agentsListQuerySchema = cursorPaginationQuerySchema.extend({
     .openapi({
       param: { name: "category", in: "query" },
       description:
-        "Filter by category slug. Supports repeated values and comma-separated lists. When multiple categories are provided, agents matching any category are returned.",
-      example: "research,writing",
+        "Filter by category slug. Supports repeated values and comma-separated lists. The reserved value `uncategorized` matches agents without assigned categories. When multiple categories are provided, agents matching any category are returned.",
+      example: "research,uncategorized",
     }),
 });
 
@@ -95,13 +141,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const result = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
-
-      const where = {
-        ...buildAvailableAgentWhereClause(creditCosts),
-        ...(categorySlugs
-          ? { categories: { some: { slug: { in: categorySlugs } } } }
-          : {}),
-      };
+      const baseWhere = buildAvailableAgentWhereClause(creditCosts);
+      const categoryWhere = buildCategoryWhereClause(categorySlugs);
+      const where: Prisma.AgentWhereInput = categoryWhere
+        ? {
+            AND: [baseWhere, categoryWhere],
+          }
+        : baseWhere;
 
       const takePlusOne = take + 1;
       const agents = await tx.agent.findMany({

@@ -171,14 +171,18 @@ describe("GET /agents", () => {
     expect(agentFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          isAvailable: true,
-          categories: {
-            some: {
-              slug: {
-                in: ["research"],
+          AND: [
+            { isAvailable: true },
+            {
+              categories: {
+                some: {
+                  slug: {
+                    in: ["research"],
+                  },
+                },
               },
             },
-          },
+          ],
         },
       }),
     );
@@ -203,14 +207,138 @@ describe("GET /agents", () => {
     expect(agentFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          isAvailable: true,
-          categories: {
-            some: {
-              slug: {
-                in: ["research", "writing"],
+          AND: [
+            { isAvailable: true },
+            {
+              categories: {
+                some: {
+                  slug: {
+                    in: ["research", "writing"],
+                  },
+                },
               },
             },
-          },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("matches uncategorized agents when category=uncategorized", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?category=uncategorized",
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { isAvailable: true },
+            {
+              categories: {
+                none: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("combines uncategorized and database categories with OR semantics", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?category=uncategorized&category=research",
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { isAvailable: true },
+            {
+              OR: [
+                {
+                  categories: {
+                    none: {},
+                  },
+                },
+                {
+                  categories: {
+                    some: {
+                      slug: {
+                        in: ["research"],
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("deduplicates uncategorized across repeated and comma-separated values", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?category=uncategorized,research&category=uncategorized",
+    );
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { isAvailable: true },
+            {
+              OR: [
+                {
+                  categories: {
+                    none: {},
+                  },
+                },
+                {
+                  categories: {
+                    some: {
+                      slug: {
+                        in: ["research"],
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("does not treat default as an uncategorized alias", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?category=default");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { isAvailable: true },
+            {
+              categories: {
+                some: {
+                  slug: {
+                    in: ["default"],
+                  },
+                },
+              },
+            },
+          ],
         },
       }),
     );

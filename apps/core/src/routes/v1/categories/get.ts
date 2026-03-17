@@ -18,12 +18,12 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List categories that have at least one available agent. Useful for building filter UIs.",
+      "List persisted categories that have at least one available agent. Useful for building filter UIs.",
     tags: ["Categories"],
     responses: {
       200: jsonSuccessResponse(
         z.array(categorySchema),
-        "Retrieve all categories with available agents",
+        "Retrieve persisted categories with available agents",
       ),
       401: jsonErrorResponse("Unauthorized"),
     },
