@@ -12,6 +12,15 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
         {t("title")}
       </h2>
       <div className="flex flex-wrap gap-4">
+        {legal?.terms && (
+          <a
+            target="_blank"
+            href={legal.terms}
+            className="hover:text-foreground underline underline-offset-4 transition-colors"
+          >
+            {t("terms")}
+          </a>
+        )}
         {legal?.privacyPolicy && (
           <a
             target="_blank"
@@ -21,13 +30,13 @@ function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
             {t("privacyPolicy")}
           </a>
         )}
-        {legal?.terms && (
+        {legal?.dpa && (
           <a
             target="_blank"
-            href={legal.terms}
+            href={legal.dpa}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
-            {t("terms")}
+            {t("dpa")}
           </a>
         )}
         {legal?.other && (
@@ -49,7 +58,7 @@ function AgentDetailLegalSkeleton() {
     <div className="border-border space-y-2 rounded-lg border px-4 py-4">
       <Skeleton className="h-4 w-12" />
       <div className="flex flex-wrap gap-4">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-4 w-24" />
         ))}
       </div>

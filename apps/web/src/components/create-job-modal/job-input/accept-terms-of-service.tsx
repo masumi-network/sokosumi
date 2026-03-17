@@ -54,6 +54,10 @@ function filterLegalLinks(
       label: t("privacyPolicy"),
     },
     {
+      href: legal?.dpa,
+      label: t("dpa"),
+    },
+    {
       href: legal?.other,
       label: t("legal"),
     },

@@ -81,9 +81,10 @@ export function isAgentNew(agent: AgentWithCategories): boolean {
 export function getAgentLegal(agent: Agent): AgentLegal | null {
   const privacyPolicy = getAgentLegalPrivacyPolicy(agent);
   const terms = getAgentLegalTerms(agent);
+  const dpa = getAgentLegalDpa(agent);
   const other = getAgentLegalOther(agent);
-  return privacyPolicy || terms || other
-    ? { privacyPolicy, terms, other }
+  return privacyPolicy || terms || dpa || other
+    ? { privacyPolicy, terms, dpa, other }
     : null;
 }
 
@@ -93,6 +94,10 @@ export function getAgentLegalPrivacyPolicy(agent: Agent): string | null {
 
 export function getAgentLegalTerms(agent: Agent): string | null {
   return agent.overrideLegalTerms ?? agent.legalTerms;
+}
+
+export function getAgentLegalDpa(agent: Agent): string | null {
+  return agent.overrideLegalDpa ?? agent.legalDpa;
 }
 
 export function getAgentLegalOther(agent: Agent): string | null {
