@@ -11,7 +11,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { categorySchema } from "@/schemas/agent.schema";
+import { categorySchema, mapCategoryForApi } from "@/schemas/category.schema";
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -44,6 +44,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    return ok(c, z.array(categorySchema).parse(categories));
+    return ok(
+      c,
+      z.array(categorySchema).parse(categories.map(mapCategoryForApi)),
+    );
   });
 }

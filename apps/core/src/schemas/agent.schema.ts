@@ -3,6 +3,7 @@ import type { Agent } from "@sokosumi/database";
 
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { categorySchema } from "@/schemas/category.schema";
 
 export const executionMetricsSchema = z
   .object({
@@ -103,33 +104,6 @@ export const getAgentLegalFromAgent = (agent: Agent) => {
     other: agent.overrideLegalOther ?? agent.legalOther,
   });
 };
-
-export const categorySchema = z
-  .object({
-    id: z.string().openapi({ example: "cat_123" }),
-    name: z.string().openapi({ example: "Research" }),
-    slug: z.string().openapi({ example: "research" }),
-    description: z
-      .string()
-      .nullable()
-      .openapi({ example: "Agents for research tasks" }),
-    image: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/cat.png" }),
-    icon: z
-      .string()
-      .nullable()
-      .openapi({ example: "https://example.com/cat.svg" }),
-    priority: z.number().openapi({ example: 0 }),
-    styles: z.string().nullable().openapi({
-      description: "Optional JSON or string for category-specific UI styles",
-      example: null,
-    }),
-  })
-  .openapi("Category");
-
-export type Category = z.infer<typeof categorySchema>;
 
 export const agentSchema = z
   .object({

@@ -31,6 +31,7 @@ import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
+import { mapCategoryForApi } from "@/schemas/category.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   agentCategoriesInclude,
@@ -128,6 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             icon: getAgentIcon(agent),
             author: getAuthorFromAgent(agent),
             legal: getAgentLegalFromAgent(agent),
+            categories: (agent.categories ?? []).map(mapCategoryForApi),
           };
         });
 
@@ -144,7 +146,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const ratingMetrics = ratingsMap.get(agent.id);
         return {
           ...agent,
-          categories: agent.categories ?? [],
           metrics: {
             executions: {
               count: agent._count.jobs,

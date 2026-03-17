@@ -76,7 +76,11 @@ describe("GET /categories", () => {
         image: null,
         icon: null,
         priority: 0,
-        styles: null,
+        styles: JSON.stringify({
+          light: {
+            color: "text-default-foreground",
+          },
+        }),
       },
     ]);
 
@@ -94,8 +98,34 @@ describe("GET /categories", () => {
       image: null,
       icon: null,
       priority: 0,
-      styles: null,
+      styles: {
+        light: {
+          color: "text-default-foreground",
+        },
+      },
     });
+  });
+
+  it("returns styles as null when stored JSON is invalid", async () => {
+    categoryFindManyMock.mockResolvedValue([
+      {
+        id: "cat_123",
+        name: "Research",
+        slug: "research",
+        description: "Agents for research",
+        image: null,
+        icon: null,
+        priority: 0,
+        styles: "{invalid json}",
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]?.styles).toBeNull();
   });
 
   it("filters categories by available agents", async () => {

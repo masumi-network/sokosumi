@@ -98,4 +98,23 @@ describe("agents routes OpenAPI scope contract", () => {
       | undefined;
     expect(props?.categories).toBeDefined();
   });
+
+  it("documents category styles as a structured object schema", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    const components = doc.components?.schemas as
+      | Record<string, { properties?: Record<string, unknown> }>
+      | undefined;
+    const categorySchema = components?.Category;
+    const stylesProperty = categorySchema?.properties?.styles;
+
+    expect(stylesProperty).toBeDefined();
+    expect(JSON.stringify(stylesProperty)).toContain("CategoryStyles");
+  });
 });

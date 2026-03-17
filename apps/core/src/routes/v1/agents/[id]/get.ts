@@ -25,6 +25,7 @@ import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
+import { mapCategoryForApi } from "@/schemas/category.schema";
 import {
   agentCategoriesInclude,
   agentJobsCountInclude,
@@ -89,7 +90,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         description: getAgentDescription(agent),
         author: getAuthorFromAgent(agent),
         legal: getAgentLegalFromAgent(agent),
-        categories: agent.categories ?? [],
+        categories: (agent.categories ?? []).map(mapCategoryForApi),
       };
 
       const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
