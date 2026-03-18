@@ -16,9 +16,10 @@ import {
 } from "@/components/ui/sheet";
 import { useAppChatRail } from "@/contexts/app-chat-rail-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
-
-const CHAT_RAIL_READY_POLL_MS = 50;
-const CHAT_RAIL_READY_TIMEOUT_MS = 3000;
+import {
+  CHAT_RAIL_READY_POLL_MS,
+  CHAT_RAIL_READY_TIMEOUT_MS,
+} from "@/lib/constants/chat-rail-ready";
 
 interface ChatRailProps {
   organizationSlug: string | null;

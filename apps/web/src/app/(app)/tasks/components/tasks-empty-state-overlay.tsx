@@ -6,6 +6,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAppChatRail } from "@/contexts/app-chat-rail-context";
+import {
+  CHAT_RAIL_READY_POLL_MS,
+  CHAT_RAIL_READY_TIMEOUT_MS,
+} from "@/lib/constants/chat-rail-ready";
 
 interface TasksEmptyStateOverlayLabels {
   title: string;
@@ -44,8 +48,6 @@ const ADD_FALLBACK_BOTTOM_PADDING = 210;
 const ADD_TARGET_OUTSIDE_OFFSET = 14;
 const ADD_LINE_ENDPOINT_OFFSET = 0;
 const CHAT_BORDER_OUTSIDE_OFFSET = 10;
-const CHAT_RAIL_READY_POLL_MS = 50;
-const CHAT_RAIL_READY_TIMEOUT_MS = 3000;
 
 function selectTasksEmptyStateAddTaskTarget(): HTMLElement | null {
   return (
@@ -352,6 +354,7 @@ export function TasksEmptyStateOverlay({
   useEffect(() => {
     let animationFrameId = 0;
     let pollTimeoutId = 0;
+    let fallbackTimeoutId = 0;
     const scheduleConnectorReadinessUpdate = (isReady: boolean) => {
       if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
       animationFrameId = window.requestAnimationFrame(() => {
@@ -359,11 +362,29 @@ export function TasksEmptyStateOverlay({
       });
     };
 
+    function clearFallbackTimeout() {
+      if (fallbackTimeoutId) {
+        window.clearTimeout(fallbackTimeoutId);
+        fallbackTimeoutId = 0;
+      }
+    }
+
     if (!isChatRailOpen) {
       scheduleConnectorReadinessUpdate(false);
       return () => {
         if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
         if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+        clearFallbackTimeout();
+      };
+    }
+
+    // Desktop `data-chat-rail-ready` is only driven when `open` (rail visible).
+    // Mobile sheet uses `openMobile` only — panel stays not-ready forever; don't poll.
+    if (!open) {
+      scheduleConnectorReadinessUpdate(true);
+      return () => {
+        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+        clearFallbackTimeout();
       };
     }
 
@@ -372,18 +393,33 @@ export function TasksEmptyStateOverlay({
       return () => {
         if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
         if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+        clearFallbackTimeout();
       };
     }
 
     const markReadyIfOpen = () => {
-      scheduleConnectorReadinessUpdate(isTasksEmptyStateChatRailPanelReady());
+      const ready = isTasksEmptyStateChatRailPanelReady();
+      if (ready) clearFallbackTimeout();
+      scheduleConnectorReadinessUpdate(ready);
     };
+
+    fallbackTimeoutId = window.setTimeout(() => {
+      fallbackTimeoutId = 0;
+      if (pollTimeoutId) {
+        window.clearTimeout(pollTimeoutId);
+        pollTimeoutId = 0;
+      }
+      scheduleConnectorReadinessUpdate(true);
+    }, CHAT_RAIL_READY_TIMEOUT_MS);
 
     markReadyIfOpen();
     const pollRailReadyState = () => {
-      markReadyIfOpen();
+      if (isTasksEmptyStateChatRailPanelReady()) {
+        clearFallbackTimeout();
+        markReadyIfOpen();
+        return;
+      }
 
-      if (isTasksEmptyStateChatRailPanelReady()) return;
       pollTimeoutId = window.setTimeout(
         pollRailReadyState,
         CHAT_RAIL_READY_POLL_MS,
@@ -395,8 +431,9 @@ export function TasksEmptyStateOverlay({
     return () => {
       if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
       if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+      clearFallbackTimeout();
     };
-  }, [isChatRailOpen, stepIndex]);
+  }, [isChatRailOpen, open, stepIndex]);
 
   const shouldRenderChatConnector =
     currentStep !== "chat" || isChatPanelReadyForConnector;
