@@ -17,7 +17,14 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Verify your email address");
-    expect(rendered.html).toContain('aria-label="Sokosumi mark"');
+    expect(rendered.html).toContain(
+      'src="https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-kanji-black.png"',
+    );
+    expect(rendered.html).toContain(
+      'src="https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png"',
+    );
+    expect(rendered.html).toContain('alt="Sokosumi kanji"');
+    expect(rendered.html).toContain('alt="Sokosumi"');
     expect(rendered.html).toContain("background-color:rgb(245,243,250)");
     expect(rendered.html).toContain("Verify your email address");
     expect(rendered.html).toContain("Hello Andreas");
