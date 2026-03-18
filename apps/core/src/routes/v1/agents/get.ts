@@ -94,7 +94,11 @@ const agentsListQuerySchema = cursorPaginationQuerySchema.extend({
   category: z
     .preprocess(
       preprocessMultiValueQueryInput,
-      z.array(z.string().min(1)).min(1).optional().transform(deduplicateQueryValues),
+      z
+        .array(z.string().min(1))
+        .min(1)
+        .optional()
+        .transform(deduplicateQueryValues),
     )
     .openapi({
       param: { name: "category", in: "query" },
