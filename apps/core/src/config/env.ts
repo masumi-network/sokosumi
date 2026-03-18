@@ -77,6 +77,16 @@ const envSchema = z.object({
   WEBHOOK_USER_CREATED: z.url().optional(),
   WEBHOOK_USER_UPDATED: z.url().optional(),
   WEBHOOK_ACCOUNT_CREATED: z.url().optional(),
+
+  // Job failure notifications
+  JOB_FAILURE_NOTIFICATION_EMAILS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === "" ? [] : value.split(",").map((email) => email.trim()),
+    )
+    .pipe(z.array(z.email())),
+  JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
