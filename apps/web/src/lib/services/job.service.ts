@@ -12,13 +12,8 @@ import {
   PaidJobWithStatus,
   PricingType,
   Prisma,
-  SokosumiJobStatus,
 } from "@sokosumi/database";
-import {
-  computeJobStatus,
-  getLatestJobEvent,
-  isPaidJob,
-} from "@sokosumi/database/helpers";
+import { isPaidJob } from "@sokosumi/database/helpers";
 import {
   creditBucketRepository,
   jobEventRepository,
@@ -27,85 +22,29 @@ import {
   jobRepository,
   jobShareRepository,
 } from "@sokosumi/database/repositories";
-import {
-  type JobFailureNotificationEmailProps,
-  renderJobFailureNotificationEmail,
-  renderJobFinalStatusEmail,
-  renderJobInputRequiredEmail,
-} from "@sokosumi/email";
 import { InputSchemaType } from "@sokosumi/masumi/schemas";
 import { track } from "@vercel/analytics/server";
-import { err } from "neverthrow";
 import { v4 as uuidv4 } from "uuid";
 
-import { getEnvPublicConfig } from "@/config/env.public";
-import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, openrouterClient, paymentClient } from "@/lib/clients";
 import prisma from "@/lib/db/prisma";
-import { postmarkClient } from "@/lib/email/postmark";
-import { getAgentName } from "@/lib/helpers/agent";
 import { getJobStatusData } from "@/lib/helpers/job";
 import {
   JobStatusResponseSchemaType,
   ProvideJobInputSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { SyncJobTransactionResult } from "@/lib/types/job";
-import {
-  jobStatusToAgentJobStatus,
-  transformPurchaseToJobUpdate,
-} from "@/lib/utils/job-transformers";
+import { transformPurchaseToJobUpdate } from "@/lib/utils/job-transformers";
 
 import { agentService } from "./agent.service";
 import { sourceImportService } from "./source-import.service";
 import { userService } from "./user.service";
 
-const { POSTMARK_FROM_EMAIL } = getEnvSecrets();
-const { NEXT_PUBLIC_SOKOSUMI_URL } = getEnvPublicConfig();
-
 export const jobService = (() => {
-  /**
-   * Helper function to determine if agent status should be synchronized for a job.
-   */
-  function shouldSyncAgentStatus(job: JobWithSokosumiStatus): string | null {
-    // Demo jobs never sync - they are self-contained
-    if (job.jobType === JobType.DEMO) {
-      return null;
-    }
-    if (job.refundedTransactionId) {
-      return null;
-    }
-    const agentCompletedEvent = job.events.find(
-      (event) => event.status === AgentJobStatus.COMPLETED,
-    );
-    if (agentCompletedEvent) {
-      return null;
-    }
-    return job.agentJobId;
-  }
-
-  /**
-   * Helper function to determine if Masumi payment status should be synchronized for a job.
-   * Only PAID jobs require Masumi payment synchronization.
-   */
-  function shouldSyncMasumiStatus(job: JobWithSokosumiStatus): string | null {
-    // Free and demo jobs never sync Masumi payment status
-    if (job.jobType === JobType.FREE || job.jobType === JobType.DEMO) {
-      return null;
-    }
-    if (job.refundedTransactionId) {
-      return null;
-    }
-    if (job.purchase === null) {
-      return null;
-    }
-    return job.purchase.externalId;
-  }
-
   /**
    * Validates that a user has sufficient credit balance (in cents) to cover a specified amount.
    *
@@ -135,230 +74,6 @@ export const jobService = (() => {
       );
     }
   };
-
-  async function dispatchFinalStatusNotification(
-    job: JobWithSokosumiStatus,
-    jobStatus: SokosumiJobStatus,
-  ) {
-    if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
-      return;
-    }
-
-    try {
-      const agentName = getAgentName(job.agent);
-      const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
-      const email = await renderJobFinalStatusEmail({
-        recipientName: job.user.name,
-        agentName,
-        jobName: job.name,
-        jobStatus,
-        jobLink,
-        locale: "en",
-      });
-
-      postmarkClient.sendEmail({
-        From: POSTMARK_FROM_EMAIL,
-        To: job.user.email,
-        Tag: "job-final-status",
-        Subject: email.subject,
-        HtmlBody: email.html,
-        MessageStream: "outbound",
-      });
-    } catch (error) {
-      Sentry.captureException(error, {
-        contexts: {
-          error_classification: {
-            severity: "error",
-            domain: "job_status_notification",
-            category: "service_layer",
-          },
-        },
-        extra: {
-          jobId: job.id,
-          jobStatus,
-          userId: job.userId,
-        },
-      });
-    }
-  }
-
-  async function dispatchInputRequiredNotification(job: JobWithSokosumiStatus) {
-    if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
-      return;
-    }
-
-    try {
-      const agentName = getAgentName(job.agent);
-      const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
-      const email = await renderJobInputRequiredEmail({
-        recipientName: job.user.name,
-        agentName,
-        jobName: job.name,
-        jobLink,
-        locale: "en",
-      });
-
-      postmarkClient.sendEmail({
-        From: POSTMARK_FROM_EMAIL,
-        To: job.user.email,
-        Tag: "job-input-required",
-        Subject: email.subject,
-        HtmlBody: email.html,
-        MessageStream: "outbound",
-      });
-    } catch (error) {
-      Sentry.captureException(error, {
-        contexts: {
-          error_classification: {
-            severity: "error",
-            domain: "job_input_required_notification",
-            category: "service_layer",
-          },
-        },
-        extra: {
-          jobId: job.id,
-          userId: job.userId,
-        },
-      });
-    }
-  }
-
-  /**
-   * Extracts job failure notification data from a job.
-   * This data structure is used for both webhook notifications and email notifications.
-   */
-  function extractJobFailureNotificationData(
-    job: JobWithSokosumiStatus,
-  ): JobFailureNotificationEmailProps {
-    const latestStatus = getLatestJobEvent(job);
-    return {
-      network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-      agentId: job.agentId,
-      agentBlockchainIdentifier: job.agent.blockchainIdentifier,
-      agentName: job.agent.name,
-      jobId: job.id,
-      jobBlockchainIdentifier: job.blockchainIdentifier,
-      onChainStatus: job.purchase?.onChainStatus ?? "N/A",
-      agentStatus: job.status,
-      result: latestStatus?.result ?? "N/A",
-      resultHash: job.purchase?.resultHash ?? "N/A",
-    };
-  }
-
-  async function dispatchJobFailureNotification(job: JobWithSokosumiStatus) {
-    // Skip demo jobs
-    if (job.jobType === JobType.DEMO) {
-      return;
-    }
-
-    try {
-      // Extract notification data for webhook
-      const notificationData = extractJobFailureNotificationData(job);
-
-      // Send webhook notification
-      const { JOB_FAILURE_WEBHOOK_URL } = getEnvSecrets();
-      if (JOB_FAILURE_WEBHOOK_URL) {
-        const request = new Request(JOB_FAILURE_WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(notificationData),
-        });
-        fetch(request).catch((webhookError) => {
-          Sentry.captureException(webhookError, {
-            contexts: {
-              error_classification: {
-                severity: "error",
-                domain: "job_failure_notification",
-                category: "webhook",
-              },
-            },
-            extra: {
-              jobId: job.id,
-            },
-          });
-        });
-      }
-
-      // Send email notification
-      const { JOB_FAILURE_NOTIFICATION_EMAILS } = getEnvSecrets();
-
-      // Get stakeholder emails from environment
-      const stakeholderEmails = JOB_FAILURE_NOTIFICATION_EMAILS.filter(
-        (email) => email.trim() !== "",
-      );
-
-      // Get agent's author contact email
-      const authorContactEmail = job.agent.authorContactEmail?.trim();
-
-      // Determine To and Bcc based on authorContactEmail presence
-      let toRecipients: string[];
-      let bccRecipients: string[] | undefined;
-
-      if (authorContactEmail) {
-        // If author email exists: author as To, stakeholders as Bcc
-        toRecipients = [authorContactEmail];
-        bccRecipients =
-          stakeholderEmails.length > 0 ? stakeholderEmails : undefined;
-      } else {
-        // If no author email: stakeholders as To
-        toRecipients = stakeholderEmails;
-        bccRecipients = undefined;
-      }
-
-      if (toRecipients.length === 0) return;
-
-      // Generate email content (subject and body)
-      const email = await renderJobFailureNotificationEmail({
-        ...notificationData,
-        locale: "en",
-      });
-
-      // Send email with appropriate To and Bcc recipients
-      postmarkClient
-        .sendEmail({
-          From: POSTMARK_FROM_EMAIL,
-          To: toRecipients.join(","),
-          ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
-          Tag: "job-failure-notification",
-          Subject: email.subject,
-          HtmlBody: email.html,
-          MessageStream: "outbound",
-        })
-        .catch((emailError) => {
-          Sentry.captureException(emailError, {
-            contexts: {
-              error_classification: {
-                severity: "error",
-                domain: "job_failure_notification",
-                category: "email",
-              },
-            },
-            extra: {
-              jobId: job.id,
-              userId: job.userId,
-              agentId: job.agentId,
-            },
-          });
-        });
-    } catch (error) {
-      Sentry.captureException(error, {
-        contexts: {
-          error_classification: {
-            severity: "error",
-            domain: "job_failure_notification",
-            category: "service_layer",
-          },
-        },
-        extra: {
-          jobId: job.id,
-          userId: job.userId,
-          agentId: job.agentId,
-        },
-      });
-    }
-  }
 
   /**
    * Generates a job name using AI based on agent information and input data.
@@ -986,190 +701,6 @@ export const jobService = (() => {
   };
 
   /**
-   * Synchronizes a job's status by fetching updates from external services.
-   *
-   * This function updates job status by:
-   * - Fetching agent job status if needed
-   * - Retrieving on-chain purchase status
-   * - Updating database records with new status
-   * - Publishing status changes to job status channels
-   *
-   * @param job - The job to synchronize with current status
-   */
-  const syncJob = async (initialJob: JobWithSokosumiStatus): Promise<void> => {
-    const oldJobStatus = computeJobStatus(initialJob);
-    let job: JobWithSokosumiStatus | null = initialJob;
-    if (isPaidJob(job) && job.purchase === null) {
-      const purchaseResult =
-        await paymentClient.getPurchaseByBlockchainIdentifier(
-          job.blockchainIdentifier,
-        );
-      if (purchaseResult.isOk()) {
-        const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
-        await jobPurchaseRepository.createJobPurchase(
-          {
-            jobId: job.id,
-            ...purchaseData,
-          },
-          prisma,
-        );
-      }
-      job = await jobRepository.getJobById(job.id, prisma);
-    }
-    if (!job) {
-      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-    }
-    const agentJobIdToSync = shouldSyncAgentStatus(job);
-    const purchaseIdToSync = shouldSyncMasumiStatus(job);
-
-    const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
-      agentJobIdToSync
-        ? await agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
-        : Promise.resolve(err("No agent job ID to sync")),
-      purchaseIdToSync
-        ? await paymentClient.getPurchaseById(purchaseIdToSync)
-        : Promise.resolve(err("No purchase ID to sync")),
-    ]);
-
-    const transactionResult =
-      await prisma.$transaction<SyncJobTransactionResult>(
-        async (tx) => {
-          let extractionContext: SyncJobTransactionResult["extractionContext"];
-          if (!job) {
-            throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-          }
-          if (onChainPurchaseResult.isOk()) {
-            const purchaseData = transformPurchaseToJobUpdate(
-              onChainPurchaseResult.value,
-            );
-            await jobPurchaseRepository.updateJobPurchaseByJobId(
-              job.id,
-              purchaseData,
-              tx,
-            );
-          }
-          if (agentJobStatusResult.isOk()) {
-            const agentJobStatus = jobStatusToAgentJobStatus(
-              agentJobStatusResult.value.status,
-            );
-            const latestJobEvent =
-              await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
-
-            if (latestJobEvent) {
-              if (
-                latestJobEvent.statusHash &&
-                latestJobEvent.statusHash ===
-                  agentJobStatusResult.value.statusHash
-              ) {
-                return { jobStatus: computeJobStatus(job) };
-              }
-            }
-
-            const inputSchemaData = agentJobStatusResult.value.input_schema;
-            const inputSchemaValue = inputSchemaData
-              ? JSON.stringify(inputSchemaData)
-              : undefined;
-
-            const newJobStatus =
-              await jobEventRepository.createJobEventForJobId(
-                job.id,
-                {
-                  status: agentJobStatus,
-                  inputSchema: inputSchemaValue,
-                  result: agentJobStatusResult.value.result,
-                  statusHash: agentJobStatusResult.value.statusHash,
-                },
-                tx,
-              );
-            job = await jobRepository.getJobById(job.id, tx);
-            if (!job) {
-              throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-            }
-
-            const outputResult = agentJobStatusResult.value?.result;
-            if (typeof outputResult === "string") {
-              extractionContext = {
-                userId: job.userId,
-                eventId: newJobStatus.id,
-                result: outputResult,
-              };
-            }
-          }
-          const jobStatus = computeJobStatus(job);
-          switch (jobStatus) {
-            case SokosumiJobStatus.PAYMENT_FAILED:
-            case SokosumiJobStatus.REFUND_RESOLVED:
-              await jobRepository.refundJob(job.id, tx);
-              break;
-            default:
-              break;
-          }
-          return { jobStatus, extractionContext };
-        },
-        {
-          maxWait: 5000, // default: 2000
-          timeout: 20000, // default: 5000
-        },
-      );
-
-    const newJobStatus = transactionResult.jobStatus;
-
-    // Extract enqueue outside transaction to avoid blocking DB operations
-    // and prevent transaction timeouts from affecting source import
-    if (transactionResult.extractionContext) {
-      // Fire and forget: enqueue extraction if output is present
-      const { userId, eventId, result } = transactionResult.extractionContext;
-      sourceImportService
-        .enqueueFromMarkdown(userId, eventId, result)
-        .catch((err) => {
-          console.error("Failed to enqueue source import:", err);
-
-          Sentry.captureException(err, {
-            contexts: {
-              error_classification: {
-                severity: "warning",
-                domain: "source_import_enqueue",
-                category: "service_layer",
-              },
-            },
-            extra: {
-              userId,
-              eventId,
-            },
-          });
-        });
-    }
-
-    // if job status changed, publish to job status to channel
-    if (newJobStatus !== oldJobStatus) {
-      console.log(
-        `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
-      );
-
-      switch (newJobStatus) {
-        case SokosumiJobStatus.COMPLETED:
-        case SokosumiJobStatus.REFUND_RESOLVED:
-        case SokosumiJobStatus.DISPUTE_RESOLVED:
-          await dispatchFinalStatusNotification(job, newJobStatus);
-          break;
-        case SokosumiJobStatus.INPUT_REQUIRED:
-          await dispatchInputRequiredNotification(job);
-          break;
-        case SokosumiJobStatus.FAILED:
-        case SokosumiJobStatus.PAYMENT_FAILED:
-          await dispatchJobFailureNotification(job);
-          break;
-      }
-
-      try {
-        await publishJobStatusData(job);
-      } catch (err) {
-        console.error("Error publishing job status data", err);
-      }
-    }
-  };
-
-  /**
    * Retrieves the latest job status data for a list of agent IDs for the current user and organization.
    *
    * For each agent ID provided, this function fetches the most recent job associated with the agent,
@@ -1383,7 +914,6 @@ export const jobService = (() => {
     startJob,
     startDemoJob,
     requestRefund,
-    syncJob,
     getJobStatusesDataForAgents,
     getPubliclySharedJob,
     provideJobInput,
