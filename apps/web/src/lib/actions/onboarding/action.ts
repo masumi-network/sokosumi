@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import { getDefaultAppPath } from "@/lib/flags/task-rail";
 import { userService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -16,7 +15,7 @@ export async function completeOnboarding(): Promise<
     await userService.markOnboardingCompleteForMe();
 
     revalidatePath("/");
-    return Ok({ redirectUrl: await getDefaultAppPath() });
+    return Ok({ redirectUrl: "/tasks" });
   } catch (error) {
     console.error("Error completing onboarding:", error);
     const t = await getTranslations("Onboarding.Actions.Errors");

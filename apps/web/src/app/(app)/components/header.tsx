@@ -3,7 +3,6 @@ import Link from "next/link";
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { Session } from "@/lib/auth/auth";
-import { taskRailEnabled } from "@/lib/flags/task-rail";
 import { cn } from "@/lib/utils";
 
 import ChatRailTrigger from "./chat-rail-trigger";
@@ -26,8 +25,6 @@ export default async function Header({
   session,
   className,
 }: HeaderProps) {
-  const isTaskRailEnabled = await taskRailEnabled();
-
   return (
     <header
       className={cn(
@@ -47,7 +44,7 @@ export default async function Header({
             />
           </Link>
         </div>
-        {isTaskRailEnabled ? <ChatRailTrigger /> : null}
+        <ChatRailTrigger />
       </div>
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
@@ -61,7 +58,7 @@ export default async function Header({
               session={session}
               showAvatar={false}
             />
-            {isTaskRailEnabled ? <ChatRailTrigger /> : null}
+            <ChatRailTrigger />
           </div>
         </HeaderUserSection>
       </div>
