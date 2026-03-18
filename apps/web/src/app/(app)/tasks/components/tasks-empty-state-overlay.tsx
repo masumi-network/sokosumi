@@ -163,8 +163,8 @@ export function TasksEmptyStateOverlay({
           y: leftEnd.y - 0,
         },
         rightLabel: {
-          x: rightEnd.x + 10,
-          y: rightEnd.y - 28,
+          x: rightEnd.x - 80,
+          y: rightEnd.y - 88,
         },
       });
     }

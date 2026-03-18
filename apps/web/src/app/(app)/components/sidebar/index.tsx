@@ -23,7 +23,6 @@ interface SidebarProps {
   currentTimestampMs: number;
   organizationName: string | null;
   session: Session;
-  isTaskRailEnabled: boolean;
 }
 
 export default function Sidebar({
@@ -31,7 +30,6 @@ export default function Sidebar({
   currentTimestampMs,
   organizationName,
   session,
-  isTaskRailEnabled,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -44,7 +42,7 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex flex-col gap-0">
           {/* Top Section: Chats */}
-          <NewChatButton isTaskRailEnabled={isTaskRailEnabled} />
+          <NewChatButton />
           {/* Bottom Section: Agents */}
           <MenuItems />
         </div>
