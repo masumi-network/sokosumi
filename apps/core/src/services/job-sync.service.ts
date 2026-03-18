@@ -532,17 +532,15 @@ async function syncSingleJob(
 
   if (transactionResult.extractionContext) {
     const { eventId, result, userId } = transactionResult.extractionContext;
-    sourceImportService
-      .enqueueFromMarkdown(userId, eventId, result)
-      .catch((error) => {
-        console.error("Failed to enqueue source import:", error);
-        Sentry.captureException(error, {
-          extra: {
-            eventId,
-            userId,
-          },
-        });
+    sourceImportService.enqueueFromMarkdown(eventId, result).catch((error) => {
+      console.error("Failed to enqueue source import:", error);
+      Sentry.captureException(error, {
+        extra: {
+          eventId,
+          userId,
+        },
       });
+    });
   }
 
   const newJobStatus = transactionResult.jobStatus;

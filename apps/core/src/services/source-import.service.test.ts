@@ -43,7 +43,6 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
 
   it("upserts unique file blobs and http links from markdown", async () => {
     await sourceImportService.enqueueFromMarkdown(
-      "user_1",
       "event_1",
       [
         "[file](https://example.com/result.pdf)",
@@ -80,7 +79,6 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
     upsertLinkMock.mockRejectedValueOnce(new Error("link failed"));
 
     await sourceImportService.enqueueFromMarkdown(
-      "user_1",
       "event_1",
       [
         "[file](https://example.com/result.pdf)",
@@ -94,11 +92,7 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
   });
 
   it("skips transaction work when markdown contains no importable links", async () => {
-    await sourceImportService.enqueueFromMarkdown(
-      "user_1",
-      "event_1",
-      "No links here",
-    );
+    await sourceImportService.enqueueFromMarkdown("event_1", "No links here");
 
     expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(upsertOutputBlobMock).not.toHaveBeenCalled();

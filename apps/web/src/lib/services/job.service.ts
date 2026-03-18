@@ -178,7 +178,6 @@ export const jobService = (() => {
       );
       if (eventWithResult?.result) {
         await sourceImportService.enqueueFromMarkdown(
-          userId,
           eventWithResult.id,
           eventWithResult.result,
         );

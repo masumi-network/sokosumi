@@ -14,7 +14,6 @@ import prisma from "@/lib/db/prisma";
 
 export const sourceImportService = {
   async enqueueFromMarkdown(
-    _userId: string,
     jobEventId: string,
     markdown: string,
   ): Promise<void> {

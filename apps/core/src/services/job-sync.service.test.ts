@@ -398,7 +398,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       {},
     );
     expect(sourceImportEnqueueMock).toHaveBeenCalledWith(
-      "user_1",
       "event_2",
       "[result](https://example.com/report.pdf)",
     );

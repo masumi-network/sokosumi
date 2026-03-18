@@ -24,13 +24,11 @@ export const sourceImportService = (() => {
    * - For each HTTP link that is a valid HTTP URL, upserts a link record in the database.
    * - All operations are performed within a single database transaction for consistency.
    *
-   * @param userId - The ID of the user who owns the job and links.
-   * @param jobStatusId - The ID of the job status associated with the result (and blobs).
+   * @param jobEventId - The ID of the job event associated with the result (and blobs).
    * @param markdown - The markdown content to scan for links.
    * @returns A Promise that resolves when the operation is complete.
    */
   async function enqueueFromMarkdown(
-    _userId: string,
     jobEventId: string,
     markdown: string,
   ): Promise<void> {
