@@ -66,12 +66,19 @@ import { TaskCard } from "./task-card";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
+import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { ViewModeSwitch } from "./view-mode-switch";
 
 function HeaderAddButton({ label }: { label: string }) {
   const { handleOpen } = useCreateTaskModal();
   return (
-    <Button size="sm" onClick={handleOpen} className="gap-1.5">
+    <Button
+      size="sm"
+      onClick={handleOpen}
+      className="gap-1.5"
+      data-tasks-add-task-header-anchor
+    >
       <Plus className="size-4" aria-hidden />
       <span className="hidden sm:inline">{label}</span>
     </Button>
@@ -213,6 +220,17 @@ interface TasksViewProps {
     loading: string;
     dragError: string;
     loadMoreError: string;
+    emptyState: {
+      title: string;
+      description: string;
+      chatTitle: string;
+      chatDescription: string;
+      next: string;
+      back: string;
+      addTaskHint: string;
+      chatHint: string;
+      elenaAvatarAlt: string;
+    };
   };
 }
 
@@ -633,6 +651,11 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
+  const shouldShowEmptyStateOverlay = shouldShowTasksEmptyStateOverlay({
+    activeTab,
+    taskCount: items.length,
+    viewMode,
+  });
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -862,9 +885,17 @@ export function TasksView({
             </ChannelProvider>
           ))}
           {tabsContent}
+          {shouldShowEmptyStateOverlay ? (
+            <TasksEmptyStateOverlay labels={labels.emptyState} />
+          ) : null}
         </DynamicAblyProvider>
       ) : (
-        tabsContent
+        <>
+          {tabsContent}
+          {shouldShowEmptyStateOverlay ? (
+            <TasksEmptyStateOverlay labels={labels.emptyState} />
+          ) : null}
+        </>
       )}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}

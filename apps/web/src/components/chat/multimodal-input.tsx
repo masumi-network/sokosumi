@@ -337,6 +337,7 @@ function PureMultimodalInput({
       )}
 
       <PromptInput
+        data-chat-input-border-anchor
         className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border p-3 transition-all duration-200"
         onSubmit={(event) => {
           event.preventDefault();

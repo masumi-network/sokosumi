@@ -131,6 +131,17 @@ export default async function TasksPage() {
             unknownAgent: t("Jobs.unknownAgent"),
             unknownCoworker: t("Jobs.unknownCoworker"),
           },
+          emptyState: {
+            title: t("EmptyState.title"),
+            description: t("EmptyState.description"),
+            chatTitle: t("EmptyState.chatTitle"),
+            chatDescription: t("EmptyState.chatDescription"),
+            next: t("EmptyState.next"),
+            back: t("EmptyState.back"),
+            addTaskHint: t("EmptyState.addTaskHint"),
+            chatHint: t("EmptyState.chatHint"),
+            elenaAvatarAlt: t("EmptyState.elenaAvatarAlt"),
+          },
           loadMore: t("Actions.loadMore"),
           loading: t("Actions.loading"),
         }}
