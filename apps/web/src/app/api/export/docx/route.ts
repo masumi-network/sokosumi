@@ -5,6 +5,7 @@ import { imagePlugin } from "@m2d/image";
 import { listPlugin } from "@m2d/list";
 import { mathPlugin } from "@m2d/math";
 import { tablePlugin } from "@m2d/table";
+import { sanitizeFileName } from "@sokosumi/utils";
 import type { IImageOptions } from "docx";
 import {
   AlignmentType,
@@ -24,7 +25,6 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 
 import { setupDomContext } from "@/lib/utils/dom-context";
-import { sanitizeFileName } from "@/lib/utils/file";
 import { hasHtmlContent } from "@/lib/utils/html-detection";
 
 export const runtime = "nodejs";

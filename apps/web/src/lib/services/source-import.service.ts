@@ -5,10 +5,13 @@ import {
   blobRepository,
   linkRepository,
 } from "@sokosumi/database/repositories";
+import {
+  extractFileLikeLinks,
+  extractHttpLinks,
+  isHttpUrl,
+} from "@sokosumi/utils";
 
-import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import prisma from "@/lib/db/prisma";
-import { isHttpUrl } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {
   function getBasename(url: string): string | null {
