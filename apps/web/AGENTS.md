@@ -48,6 +48,17 @@ src/app/
 - Implement responsive design with Tailwind CSS
 - Follow the established component structure pattern
 
+### useEffect and client-side effects
+
+Use Effects only to **synchronize with external systems** (browser APIs, third-party widgets). Avoid Effects for derived state, user events, or mirroring props/state—dependency arrays hide coupling and effect chains are hard to trace.
+
+- **Do not use Effects for**: derived state (compute during render), filtering lists (derive or `useMemo`), resetting state on prop change (use `key` to remount), user events (use event handlers), data fetching (use a library like React Query/SWR), chains of state updates, notifying parent (use handler or lift state).
+- **Smell tests**: State used as a flag so an effect can “do the real action” → use the event handler. Effect that only resets when an ID/prop changes → use `key` and remount.
+- **Mount-only sync**: For “run once on mount, cleanup on unmount” (DOM focus, third-party widget, browser API), use a named hook such as `useMountEffect(effect)` (i.e. `useEffect(effect, [])`) so intent is explicit. Prefer conditional mounting: don’t mount the child until preconditions are met, then the child can use the mount-only hook.
+- **Do use Effects for**: mount-only external sync (via `useMountEffect`), external store subscriptions (`useSyncExternalStore` when applicable), syncing with non-React systems. For fetching that must stay in sync with props and a library isn’t feasible, use Effects only with proper cleanup to avoid race conditions.
+
+See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and references (react.dev, Factory “Why we banned useEffect”).
+
 ### Linting & Formatting
 
 The web app extends the monorepo's base linting rules with web-specific constraints. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
@@ -252,6 +263,7 @@ Core workflow:
 ## Additional Rules
 
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
+- [Effects](.cursor/rules/effects.mdc)
 - [Interface](.cursor/rules/interface.mdc)
 - [Key Conventions](.cursor/rules/key-convention.mdc)
 - [Key Principles](.cursor/rules/key-principles.mdc)
