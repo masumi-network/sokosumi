@@ -5,6 +5,7 @@ const {
   acquireLockMock,
   releaseLockMock,
   syncAgentSummariesMock,
+  syncJobsMock,
   syncJobSchedulesMock,
   syncRegistryAgentsMock,
   syncSourceImportMock,
@@ -13,6 +14,7 @@ const {
   acquireLockMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
+  syncJobsMock: vi.fn(),
   syncJobSchedulesMock: vi.fn(),
   syncRegistryAgentsMock: vi.fn(),
   syncSourceImportMock: vi.fn(),
@@ -52,6 +54,12 @@ vi.mock("@/services/source-import-sync.service", () => ({
 vi.mock("@/services/job-schedule-sync.service", () => ({
   jobScheduleSyncService: {
     executeDueSchedules: syncJobSchedulesMock,
+  },
+}));
+
+vi.mock("@/services/job-sync.service", () => ({
+  jobSyncService: {
+    syncUnfinishedJobs: syncJobsMock,
   },
 }));
 
@@ -95,6 +103,11 @@ describe("sync routes", () => {
     releaseLockMock.mockResolvedValue(true);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
     syncAgentSummariesMock.mockResolvedValue(undefined);
+    syncJobsMock.mockResolvedValue({
+      processed: 0,
+      unfinishedFound: 0,
+      durationMs: 0,
+    });
     syncJobSchedulesMock.mockResolvedValue({
       dueFound: 0,
       processed: 0,
@@ -168,6 +181,30 @@ describe("sync routes", () => {
     expect(syncJobSchedulesMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401 for missing cron auth on jobs sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/jobs");
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(syncJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for invalid cron auth on jobs sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/jobs", {
+      headers: {
+        Authorization: "Bearer invalid",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(syncJobsMock).not.toHaveBeenCalled();
+  });
+
   it("returns 409 when job schedules sync lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
     const app = await createApp();
@@ -180,6 +217,20 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(409);
     expect(syncJobSchedulesMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when jobs sync lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/jobs", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(409);
+    expect(syncJobsMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 and starts registry sync exactly once in background", async () => {
@@ -249,6 +300,29 @@ describe("sync routes", () => {
     );
   });
 
+  it("returns 200 and starts jobs sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/jobs", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("jobs-sync");
+
+    await flushMicrotasks();
+    expect(syncJobsMock).toHaveBeenCalledTimes(1);
+    expect(syncJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        abortSignal: expect.any(Object),
+        deadlineMs: expect.any(Number),
+        shouldContinue: expect.any(Function),
+      }),
+    );
+  });
+
   it("returns 200 and starts job schedules sync exactly once in background", async () => {
     const app = await createApp();
 
@@ -302,6 +376,55 @@ describe("sync routes", () => {
         expect(response.status).toBe(200);
         await flushPromises();
         expect(syncSourceImportMock).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(4000);
+        await flushPromises();
+
+        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+        expect(releaseLockMock).toHaveBeenCalledTimes(1);
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("releases jobs lock when sync exceeds timeout budget", async () => {
+    vi.useFakeTimers();
+
+    try {
+      syncJobsMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise<{
+            durationMs: number;
+            processed: number;
+            unfinishedFound: number;
+          }>((resolve) => {
+            options.abortSignal.addEventListener("abort", () => {
+              resolve({
+                durationMs: 0,
+                processed: 0,
+                unfinishedFound: 0,
+              });
+            });
+          }),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        const app = await createApp();
+        const response = await app.request("http://localhost/sync/jobs", {
+          headers: {
+            Authorization: "Bearer test-cron-secret",
+          },
+        });
+
+        expect(response.status).toBe(200);
+        await flushPromises();
+        expect(syncJobsMock).toHaveBeenCalledTimes(1);
 
         vi.advanceTimersByTime(4000);
         await flushPromises();
