@@ -1,7 +1,6 @@
 ---
 description: "When and how to move shared logic into packages and avoid duplication"
 alwaysApply: false
-globs: ["packages/utils/**", "apps/**/utils/**", "apps/**/lib/**"]
 ---
 
 ## Shared Packages and Deduplication
