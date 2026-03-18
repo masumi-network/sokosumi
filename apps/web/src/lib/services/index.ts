@@ -3,7 +3,6 @@ export * from "./category.service";
 export * from "./feed.service";
 export * from "./gtm.service";
 export * from "./job.service";
-export * from "./lock.service";
 export * from "./organization.service";
 export * from "./organization-subscription.service";
 export * from "./preferred-organization.service";
