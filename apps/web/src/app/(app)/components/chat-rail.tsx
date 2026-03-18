@@ -17,6 +17,9 @@ import {
 import { useAppChatRail } from "@/contexts/app-chat-rail-context";
 import { useConversationsContext } from "@/contexts/conversations-context";
 
+const CHAT_RAIL_READY_POLL_MS = 50;
+const CHAT_RAIL_READY_TIMEOUT_MS = 3000;
+
 interface ChatRailProps {
   organizationSlug: string | null;
   userImageUrl: string;
@@ -86,6 +89,7 @@ export default function ChatRail({
   useEffect(() => {
     let animationFrame = 0;
     let pollTimeoutId = 0;
+    let fallbackTimeoutId = 0;
     const desktopRailPanel = document.querySelector<HTMLElement>(
       "[data-chat-rail-panel]",
     );
@@ -96,6 +100,13 @@ export default function ChatRail({
         setIsDesktopRailReady(isReady);
       });
     };
+
+    function clearFallbackTimeout() {
+      if (fallbackTimeoutId) {
+        window.clearTimeout(fallbackTimeoutId);
+        fallbackTimeoutId = 0;
+      }
+    }
 
     if (!isVisible) {
       scheduleRailReadyUpdate(false);
@@ -120,17 +131,32 @@ export default function ChatRail({
     };
 
     const syncRailReadyState = () => {
-      scheduleRailReadyUpdate(isPanelFullyOpen() && isChatInputMounted());
+      const ready = isPanelFullyOpen() && isChatInputMounted();
+      if (ready) clearFallbackTimeout();
+      scheduleRailReadyUpdate(ready);
     };
 
     const pollRailReadyState = () => {
       if (isPanelFullyOpen() && isChatInputMounted()) {
+        clearFallbackTimeout();
         scheduleRailReadyUpdate(true);
         return;
       }
 
-      pollTimeoutId = window.setTimeout(pollRailReadyState, 50);
+      pollTimeoutId = window.setTimeout(
+        pollRailReadyState,
+        CHAT_RAIL_READY_POLL_MS,
+      );
     };
+
+    fallbackTimeoutId = window.setTimeout(() => {
+      fallbackTimeoutId = 0;
+      if (pollTimeoutId) {
+        window.clearTimeout(pollTimeoutId);
+        pollTimeoutId = 0;
+      }
+      scheduleRailReadyUpdate(true);
+    }, CHAT_RAIL_READY_TIMEOUT_MS);
 
     syncRailReadyState();
     pollRailReadyState();
@@ -140,6 +166,7 @@ export default function ChatRail({
     return () => {
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
       if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+      clearFallbackTimeout();
       desktopRailPanel?.removeEventListener(
         "transitionend",
         syncRailReadyState,

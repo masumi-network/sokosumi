@@ -120,7 +120,7 @@ export function TasksEmptyStateOverlay({
   const [stepIndex, setStepIndex] = useState(0);
   const [isAdvancingToChatStep, setIsAdvancingToChatStep] = useState(false);
   const [isChatPanelReadyForConnector, setIsChatPanelReadyForConnector] =
-    useState(true);
+    useState(false);
   const isChatRailOpen = open || openMobile;
 
   useEffect(() => {
