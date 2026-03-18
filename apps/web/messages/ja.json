@@ -1270,6 +1270,17 @@
         "loading": "読み込み中...",
         "loadMore": "さらに読み込む"
       },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "chatTitle": "Then use chat to refine the plan",
+        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "chatHint": "Use chat to shape the next task",
+        "elenaAvatarAlt": "Elena avatar"
+      },
       "Errors": {
         "updateStatus": "タスクステータスの更新に失敗しました",
         "loadMore": "タスクをさらに読み込めませんでした"

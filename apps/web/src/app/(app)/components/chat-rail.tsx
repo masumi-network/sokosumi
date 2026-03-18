@@ -87,7 +87,10 @@ export default function ChatRail({
   }
 
   const railBody = (
-    <div className="bg-background flex h-full min-h-0 w-full flex-col">
+    <div
+      className="bg-background flex h-full min-h-0 w-full flex-col"
+      data-chat-rail-anchor
+    >
       <div className="border-border flex h-16 items-center justify-end border-b px-4 py-3">
         <div className="flex w-full items-center justify-between gap-2">
           <Button

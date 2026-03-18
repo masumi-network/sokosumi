@@ -1270,6 +1270,17 @@
         "loading": "加载中...",
         "loadMore": "加载更多"
       },
+      "EmptyState": {
+        "title": "Welcome to Task Manager",
+        "description": "Start by creating your first task so Elena has clear context to execute.",
+        "chatTitle": "Then use chat to refine the plan",
+        "chatDescription": "Try asking Elena: \"Create a research task about my company, including competitors, positioning, and quick wins.\"",
+        "next": "Next",
+        "back": "Back",
+        "addTaskHint": "Start by adding a task",
+        "chatHint": "Use chat to shape the next task",
+        "elenaAvatarAlt": "Elena avatar"
+      },
       "Errors": {
         "updateStatus": "更新任务状态失败",
         "loadMore": "无法加载更多任务"
