@@ -41,11 +41,13 @@ sokosumi/
 │   │   ├── src/helpers/       # Database domain logic
 │   │   ├── src/types/         # Database type definitions
 │   │   └── prisma/            # Database schema and migrations
-│   └── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
-│       ├── src/clients/       # Agent API client
-│       ├── src/hash/          # Hash utilities for job verification
-│       ├── src/schemas/       # Agent protocol Zod schemas
-│       └── src/types/         # Agent types
+│   ├── masumi/                # Masumi protocol utilities (@sokosumi/masumi)
+│   │   ├── src/clients/       # Agent API client
+│   │   ├── src/hash/          # Hash utilities for job verification
+│   │   ├── src/schemas/       # Agent protocol Zod schemas
+│   │   └── src/types/         # Agent types
+│   └── utils/                # Shared utilities (@sokosumi/utils)
+│       └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
 ├── docs/                      # Documentation (future)
 ├── eslint.config.mjs          # Root ESLint configuration
 └── prettier.config.mjs        # Root Prettier configuration
@@ -241,6 +243,12 @@ docs(readme): update setup instructions
 - Minimize `'use client'` usage; prefer Server Components and server actions
 - At the end of every sequence of changes, run a review pass, fix any issues found, and repeat until no issues remain
 
+### Shared Packages and Deduplication
+
+- **When logic is duplicated across apps** (e.g. core and web): move the implementation to a shared package (e.g. `packages/utils`) so there is a single source of truth; fix bugs and add features in one place.
+- **Prefer direct imports** from the shared package (`@sokosumi/utils`, `@sokosumi/database`, etc.). Avoid re-export layers in apps unless they add real value (e.g. app-specific wrapping or configuration).
+- **`packages/utils`** holds framework-agnostic helpers (URL/file utilities, markdown link extraction, user-name helpers). Add new shared helpers here when multiple apps or packages would use them.
+
 ### Code References
 
 - Use backticks for file, directory, function, and class names
@@ -251,6 +259,7 @@ docs(readme): update setup instructions
 
 - [Linting](.cursor/rules/lint.mdc)
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
+- [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
 
 ## References
 
