@@ -43,6 +43,24 @@ const ADD_TARGET_OUTSIDE_OFFSET = 14;
 const ADD_LINE_ENDPOINT_OFFSET = 0;
 const CHAT_BORDER_OUTSIDE_OFFSET = 10;
 
+function selectTasksEmptyStateAddTaskTarget(): HTMLElement | null {
+  return (
+    document.querySelector<HTMLElement>(
+      "[data-tasks-add-task-column-anchor]",
+    ) ??
+    document.querySelector<HTMLElement>("[data-tasks-add-task-header-anchor]")
+  );
+}
+
+function selectTasksEmptyStateChatTarget(): HTMLElement | null {
+  return (
+    document.querySelector<HTMLElement>("[data-chat-input-border-anchor]") ??
+    document.querySelector<HTMLElement>("[data-chat-rail-anchor]") ??
+    document.querySelector<HTMLElement>("[data-chat-rail-trigger-anchor]") ??
+    document.querySelector<HTMLElement>("[data-testid='multimodal-input']")
+  );
+}
+
 const GUIDE_STEPS = ["addTask", "chat"] as const;
 
 type TasksEmptyStateGuideStep = (typeof GUIDE_STEPS)[number];
@@ -93,38 +111,15 @@ export function TasksEmptyStateOverlay({
       scheduleLayoutRecalculation();
     });
 
-    function selectAddTaskTarget() {
-      return (
-        document.querySelector<HTMLElement>(
-          "[data-tasks-add-task-column-anchor]",
-        ) ??
-        document.querySelector<HTMLElement>(
-          "[data-tasks-add-task-header-anchor]",
-        )
-      );
-    }
-
-    function selectChatTarget() {
-      return (
-        document.querySelector<HTMLElement>(
-          "[data-chat-input-border-anchor]",
-        ) ??
-        document.querySelector<HTMLElement>("[data-chat-rail-anchor]") ??
-        document.querySelector<HTMLElement>(
-          "[data-chat-rail-trigger-anchor]",
-        ) ??
-        document.querySelector<HTMLElement>("[data-testid='multimodal-input']")
-      );
-    }
-
-    function recalculateLayout() {
+    function recalculateDesktopLayout() {
       const cardElement = cardRef.current;
       if (!cardElement) return;
 
       const cardRect = cardElement.getBoundingClientRect();
       const addTaskRect =
-        selectAddTaskTarget()?.getBoundingClientRect() ?? null;
-      const chatRect = selectChatTarget()?.getBoundingClientRect() ?? null;
+        selectTasksEmptyStateAddTaskTarget()?.getBoundingClientRect() ?? null;
+      const chatRect =
+        selectTasksEmptyStateChatTarget()?.getBoundingClientRect() ?? null;
 
       const leftEnd: Point = addTaskRect
         ? {
@@ -174,53 +169,13 @@ export function TasksEmptyStateOverlay({
       });
     }
 
-    function scheduleLayoutRecalculation() {
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      animationFrame = window.requestAnimationFrame(recalculateLayout);
-    }
-
-    scheduleLayoutRecalculation();
-    window.addEventListener("resize", scheduleLayoutRecalculation);
-    window.addEventListener("scroll", scheduleLayoutRecalculation, true);
-
-    const cardElement = cardRef.current;
-    if (cardElement) resizeObserver.observe(cardElement);
-    resizeObserver.observe(document.body);
-
-    return () => {
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", scheduleLayoutRecalculation);
-      window.removeEventListener("scroll", scheduleLayoutRecalculation, true);
-      resizeObserver.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let animationFrame = 0;
-    const resizeObserver = new ResizeObserver(() => {
-      scheduleLayoutRecalculation();
-    });
-
-    function selectAddTaskTarget() {
-      return (
-        document.querySelector<HTMLElement>(
-          "[data-tasks-add-task-column-anchor]",
-        ) ??
-        document.querySelector<HTMLElement>(
-          "[data-tasks-add-task-header-anchor]",
-        )
-      );
-    }
-
-    function recalculateLayout() {
+    function recalculateMobileLayout() {
       const cardElement = mobileCardRef.current;
       if (!cardElement) return;
 
       const cardRect = cardElement.getBoundingClientRect();
       const addTaskRect =
-        selectAddTaskTarget()?.getBoundingClientRect() ?? null;
+        selectTasksEmptyStateAddTaskTarget()?.getBoundingClientRect() ?? null;
 
       const end: Point = addTaskRect
         ? {
@@ -248,17 +203,24 @@ export function TasksEmptyStateOverlay({
       });
     }
 
+    function recalculateLayouts() {
+      recalculateDesktopLayout();
+      recalculateMobileLayout();
+    }
+
     function scheduleLayoutRecalculation() {
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      animationFrame = window.requestAnimationFrame(recalculateLayout);
+      animationFrame = window.requestAnimationFrame(recalculateLayouts);
     }
 
     scheduleLayoutRecalculation();
     window.addEventListener("resize", scheduleLayoutRecalculation);
     window.addEventListener("scroll", scheduleLayoutRecalculation, true);
 
-    const cardElement = mobileCardRef.current;
-    if (cardElement) resizeObserver.observe(cardElement);
+    const desktopCard = cardRef.current;
+    if (desktopCard) resizeObserver.observe(desktopCard);
+    const mobileCard = mobileCardRef.current;
+    if (mobileCard) resizeObserver.observe(mobileCard);
     resizeObserver.observe(document.body);
 
     return () => {
