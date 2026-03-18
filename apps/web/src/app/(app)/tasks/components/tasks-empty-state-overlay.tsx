@@ -271,8 +271,16 @@ export function TasksEmptyStateOverlay({
     if (!canMoveNext || isAdvancingToChatStep) return;
 
     const nextStep = GUIDE_STEPS[stepIndex + 1];
-    if (nextStep === "chat" && !isChatRailOpen) {
-      openLatestChat();
+    if (nextStep === "chat") {
+      if (!isChatRailOpen) {
+        openLatestChat();
+        setIsAdvancingToChatStep(true);
+        return;
+      }
+      if (isTasksEmptyStateChatRailPanelReady()) {
+        setStepIndex((prevStepIndex) => prevStepIndex + 1);
+        return;
+      }
       setIsAdvancingToChatStep(true);
       return;
     }
