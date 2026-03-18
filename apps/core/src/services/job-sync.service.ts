@@ -19,6 +19,7 @@ import pLimit from "p-limit";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
 import { getEnv } from "@/config/env";
+import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -155,7 +156,7 @@ function buildFailureNotificationData(
     network: getEnv().NETWORK,
     agentId: job.agentId,
     agentBlockchainIdentifier: job.agent.blockchainIdentifier,
-    agentName: job.agent.name,
+    agentName: getAgentName(job.agent),
     jobId: job.id,
     jobBlockchainIdentifier: job.blockchainIdentifier,
     onChainStatus: job.purchase?.onChainStatus ?? "N/A",
@@ -174,9 +175,10 @@ async function dispatchFinalStatusNotification(
   }
 
   try {
+    const agentName = getAgentName(job.agent);
     const email = await renderJobFinalStatusEmail({
       recipientName: job.user.name,
-      agentName: job.agent.name,
+      agentName,
       jobName: job.name ?? undefined,
       jobStatus,
       jobLink: buildJobLink(job),
@@ -220,9 +222,10 @@ async function dispatchInputRequiredNotification(
   }
 
   try {
+    const agentName = getAgentName(job.agent);
     const email = await renderJobInputRequiredEmail({
       recipientName: job.user.name,
-      agentName: job.agent.name,
+      agentName,
       jobName: job.name ?? undefined,
       jobLink: buildJobLink(job),
       locale: "en",

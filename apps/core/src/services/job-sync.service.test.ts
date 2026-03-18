@@ -326,6 +326,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       status: SokosumiJobStatus.COMPLETED,
       jobStatusSettled: true,
       completedAt: new Date("2026-03-18T10:05:00.000Z"),
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        overrideName: "Display Name",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: null,
+      },
       events: [
         createJobEvent({
           id: "event_2",
@@ -366,7 +373,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     expect(renderJobFinalStatusEmailMock).toHaveBeenCalledWith({
       recipientName: "Ada",
-      agentName: "Planner",
+      agentName: "Display Name",
       jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
       jobName: undefined,
       jobStatus: SokosumiJobStatus.COMPLETED,
@@ -394,6 +401,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       agent: {
         id: "agent_1",
         name: "Planner",
+        overrideName: "Display Name",
         blockchainIdentifier: "agent-chain-1",
         authorContactEmail: "author@example.com",
       },
@@ -425,7 +433,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       network: "Preprod",
       agentId: "agent_1",
       agentBlockchainIdentifier: "agent-chain-1",
-      agentName: "Planner",
+      agentName: "Display Name",
       jobId: "job_1",
       jobBlockchainIdentifier: "blockchain-job-1",
       onChainStatus: "N/A",
@@ -521,6 +529,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   it("sends input-required notifications when a job starts awaiting input", async () => {
     const awaitingInputJob = createJob({
       status: SokosumiJobStatus.INPUT_REQUIRED,
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        overrideName: "Display Name",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: null,
+      },
       events: [
         createJobEvent({
           id: "event_2",
@@ -547,7 +562,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
     expect(renderJobInputRequiredEmailMock).toHaveBeenCalledWith({
       recipientName: "Ada",
-      agentName: "Planner",
+      agentName: "Display Name",
       jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
       jobName: undefined,
       locale: "en",
