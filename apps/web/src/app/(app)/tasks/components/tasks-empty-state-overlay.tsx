@@ -76,7 +76,13 @@ export function TasksEmptyStateOverlay({
   labels,
 }: TasksEmptyStateOverlayProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const mobileCardRef = useRef<HTMLDivElement | null>(null);
   const [layout, setLayout] = useState<ConnectorLayout | null>(null);
+  const [mobileLayout, setMobileLayout] = useState<{
+    start: Point;
+    end: Point;
+    label: Point;
+  } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
@@ -189,6 +195,80 @@ export function TasksEmptyStateOverlay({
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let animationFrame = 0;
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleLayoutRecalculation();
+    });
+
+    function selectAddTaskTarget() {
+      return (
+        document.querySelector<HTMLElement>(
+          "[data-tasks-add-task-column-anchor]",
+        ) ??
+        document.querySelector<HTMLElement>(
+          "[data-tasks-add-task-header-anchor]",
+        )
+      );
+    }
+
+    function recalculateLayout() {
+      const cardElement = mobileCardRef.current;
+      if (!cardElement) return;
+
+      const cardRect = cardElement.getBoundingClientRect();
+      const addTaskRect =
+        selectAddTaskTarget()?.getBoundingClientRect() ?? null;
+
+      const end: Point = addTaskRect
+        ? {
+            x: addTaskRect.left + addTaskRect.width / 2,
+            y: addTaskRect.bottom,
+          }
+        : {
+            x: ADD_FALLBACK_LEFT_PADDING,
+            y: Math.max(
+              cardRect.bottom + 16,
+              window.innerHeight - ADD_FALLBACK_BOTTOM_PADDING,
+            ),
+          };
+
+      setMobileLayout({
+        start: {
+          x: cardRect.left + cardRect.width / 2,
+          y: cardRect.top,
+        },
+        end,
+        label: {
+          x: end.x + 20,
+          y: end.y + 60,
+        },
+      });
+    }
+
+    function scheduleLayoutRecalculation() {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(recalculateLayout);
+    }
+
+    scheduleLayoutRecalculation();
+    window.addEventListener("resize", scheduleLayoutRecalculation);
+    window.addEventListener("scroll", scheduleLayoutRecalculation, true);
+
+    const cardElement = mobileCardRef.current;
+    if (cardElement) resizeObserver.observe(cardElement);
+    resizeObserver.observe(document.body);
+
+    return () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", scheduleLayoutRecalculation);
+      window.removeEventListener("scroll", scheduleLayoutRecalculation, true);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   const connectorPaths = useMemo(() => {
     if (!layout) return null;
 
@@ -219,110 +299,193 @@ export function TasksEmptyStateOverlay({
     currentStep === "addTask" ? connectorPaths?.left : connectorPaths?.right;
   const activeLabelPosition =
     currentStep === "addTask" ? layout?.leftLabel : layout?.rightLabel;
+  const mobileContent = useMemo(
+    () => getTasksEmptyStateGuideContent("addTask", labels),
+    [labels],
+  );
+  const mobileConnectorPath = useMemo(() => {
+    if (!mobileLayout) return null;
+    return buildMobileConnectorPath(mobileLayout.start, mobileLayout.end);
+  }, [mobileLayout]);
 
   return (
-    <div
-      className="pointer-events-none fixed inset-0 z-50 hidden md:block"
-      aria-hidden
-      data-tasks-empty-state-overlay
-    >
-      {connectorPaths && layout ? (
-        <svg className="absolute inset-0 h-full w-full">
-          <defs>
-            <marker
-              id="tasks-overlay-arrowhead"
-              markerUnits="userSpaceOnUse"
-              viewBox="0 0 16 16"
-              markerWidth="8"
-              markerHeight="8"
-              refX="4"
-              refY="8"
-              orient="auto"
-            >
-              <path d="M 0 0 L 16 8 L 0 16 z" className="fill-primary/85" />
-            </marker>
-          </defs>
-          {activeConnectorPath ? (
-            <path
-              key={currentStep}
-              d={activeConnectorPath}
-              className="stroke-primary/70 motion-safe:animate-in motion-safe:fade-in fill-none transition-opacity duration-200"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              markerEnd="url(#tasks-overlay-arrowhead)"
-            />
-          ) : null}
-        </svg>
-      ) : null}
-
-      {activeLabelPosition ? (
-        <div
-          key={`${currentStep}-hint`}
-          className="text-primary bg-background border-primary/30 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 absolute rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-opacity duration-200"
-          style={{
-            left: activeLabelPosition.x,
-            top: activeLabelPosition.y,
-          }}
-        >
-          {currentContent.hint}
-        </div>
-      ) : null}
-
-      <div className="absolute top-1/2 left-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 px-4">
-        <div
-          ref={cardRef}
-          className="bg-muted border-border motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 pointer-events-auto rounded-xl border p-5 shadow-lg"
-        >
-          <div className="flex items-start gap-3">
-            <div className="relative size-20 shrink-0 overflow-hidden rounded-md border">
-              <Image
-                src="/images/coworkers/elena.webp"
-                alt={labels.elenaAvatarAlt}
-                fill
-                className="object-cover object-top"
-                sizes="80px"
+    <>
+      <div
+        className="pointer-events-none fixed inset-0 z-50 hidden md:block"
+        aria-hidden
+        data-tasks-empty-state-overlay
+      >
+        {connectorPaths && layout ? (
+          <svg className="absolute inset-0 h-full w-full">
+            <defs>
+              <marker
+                id="tasks-overlay-arrowhead"
+                markerUnits="userSpaceOnUse"
+                viewBox="0 0 16 16"
+                markerWidth="8"
+                markerHeight="8"
+                refX="4"
+                refY="8"
+                orient="auto"
+              >
+                <path d="M 0 0 L 16 8 L 0 16 z" className="fill-primary/85" />
+              </marker>
+            </defs>
+            {activeConnectorPath ? (
+              <path
+                key={currentStep}
+                d={activeConnectorPath}
+                className="stroke-primary/70 motion-safe:animate-in motion-safe:fade-in fill-none transition-opacity duration-200"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                markerEnd="url(#tasks-overlay-arrowhead)"
               />
-            </div>
-            <div
-              key={currentStep}
-              className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 space-y-1.5"
-            >
-              <h2 className="text-base font-semibold tracking-tight">
-                {currentContent.title}
-              </h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {currentContent.description}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center justify-between border-t pt-3">
-            {canMoveBack ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="pointer-events-auto"
-                onClick={handleMoveBack}
-              >
-                {labels.back}
-              </Button>
-            ) : (
-              <div />
-            )}
-            {canMoveNext ? (
-              <Button
-                type="button"
-                size="sm"
-                className="pointer-events-auto"
-                onClick={handleMoveNext}
-              >
-                {labels.next}
-              </Button>
             ) : null}
+          </svg>
+        ) : null}
+
+        {activeLabelPosition ? (
+          <div
+            key={`${currentStep}-hint`}
+            className="text-primary bg-background border-primary/30 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 absolute rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-opacity duration-200"
+            style={{
+              left: activeLabelPosition.x,
+              top: activeLabelPosition.y,
+            }}
+          >
+            {currentContent.hint}
+          </div>
+        ) : null}
+
+        <div className="absolute top-1/2 left-1/2 w-full max-w-md -translate-x-1/2 -translate-y-1/2 px-4">
+          <div
+            ref={cardRef}
+            className="bg-muted border-border motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 pointer-events-auto rounded-xl border p-5 shadow-lg"
+          >
+            <div className="flex items-start gap-3">
+              <div className="relative size-20 shrink-0 overflow-hidden rounded-md border">
+                <Image
+                  src="/images/coworkers/elena.webp"
+                  alt={labels.elenaAvatarAlt}
+                  fill
+                  className="object-cover object-top"
+                  sizes="80px"
+                />
+              </div>
+              <div
+                key={currentStep}
+                className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 space-y-1.5"
+              >
+                <h2 className="text-base font-semibold tracking-tight">
+                  {currentContent.title}
+                </h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {currentContent.description}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between border-t pt-3">
+              {canMoveBack ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="pointer-events-auto"
+                  onClick={handleMoveBack}
+                >
+                  {labels.back}
+                </Button>
+              ) : (
+                <div />
+              )}
+              {canMoveNext ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="pointer-events-auto"
+                  onClick={handleMoveNext}
+                >
+                  {labels.next}
+                </Button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <div
+        className="pointer-events-none fixed inset-0 z-50 md:hidden"
+        aria-hidden
+        data-tasks-empty-state-overlay-mobile
+      >
+        {mobileLayout ? (
+          <svg className="absolute inset-0 h-full w-full">
+            <defs>
+              <marker
+                id="tasks-overlay-arrowhead-mobile"
+                markerUnits="userSpaceOnUse"
+                viewBox="0 0 16 16"
+                markerWidth="8"
+                markerHeight="8"
+                refX="4"
+                refY="8"
+                orient="auto"
+              >
+                <path d="M 0 0 L 16 8 L 0 16 z" className="fill-primary/85" />
+              </marker>
+            </defs>
+            {mobileConnectorPath ? (
+              <path
+                d={mobileConnectorPath}
+                className="stroke-primary/70 fill-none"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                markerEnd="url(#tasks-overlay-arrowhead-mobile)"
+              />
+            ) : null}
+          </svg>
+        ) : null}
+
+        {mobileLayout ? (
+          <div
+            className="text-primary bg-background border-primary/30 absolute rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm"
+            style={{
+              left: mobileLayout.label.x,
+              top: mobileLayout.label.y,
+            }}
+          >
+            {mobileContent.hint}
+          </div>
+        ) : null}
+
+        <div className="absolute top-1/2 left-1/2 w-full max-w-88 -translate-x-1/2 -translate-y-1/2 px-3">
+          <div
+            ref={mobileCardRef}
+            className="bg-muted border-border pointer-events-auto rounded-xl border p-4 shadow-md"
+          >
+            <div className="flex items-start gap-3">
+              <div className="relative size-12 shrink-0 overflow-hidden rounded-md border">
+                <Image
+                  src="/images/coworkers/elena.webp"
+                  alt={labels.elenaAvatarAlt}
+                  fill
+                  className="object-cover object-top"
+                  sizes="48px"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-sm font-semibold tracking-tight">
+                  {mobileContent.title}
+                </h2>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  {mobileContent.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -357,6 +520,20 @@ function buildConnectorPath(
   const c2: Point = {
     x: end.x - horizontalDelta * 0.35,
     y: end.y - verticalDelta,
+  };
+
+  return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
+}
+
+function buildMobileConnectorPath(start: Point, end: Point) {
+  const verticalDistance = Math.max(start.y - end.y, 0);
+  const c1: Point = {
+    x: start.x - Math.max(Math.abs(start.x - end.x) * 0.22, 26),
+    y: start.y - Math.max(verticalDistance * 0.35, 42),
+  };
+  const c2: Point = {
+    x: end.x,
+    y: end.y + Math.max(verticalDistance * 0.3, 32),
   };
 
   return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
