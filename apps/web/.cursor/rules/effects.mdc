@@ -1,0 +1,58 @@
+---
+description: When to use (or avoid) useEffect — React 'You Might Not Need an Effect'
+globs: **/*.tsx
+alwaysApply: false
+---
+
+# You Might Not Need an Effect
+
+Use Effects only to **synchronize with external systems** (browser APIs, network, third-party widgets). Avoid Effects for transforming data, handling user events, or mirroring props/state.
+
+**Reference**: [react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect)
+
+## Do not use Effects for
+
+- **Derived state** — Compute during render instead of storing in state and syncing in an Effect.
+- **Filtering/transforming lists** — Calculate during render; use `useMemo` only if the calculation is expensive.
+- **Resetting state when a prop changes** — Prefer resetting via a `key` (e.g. `key={userId}`) so React remounts and clears state, or adjust state during render when appropriate.
+- **User events** — Handle in event handlers (e.g. submit → POST in `handleSubmit`, not in an Effect watching form state).
+- **Chains of state updates** — Compute what you can during render and update the rest in the event handler that caused the change.
+- **Notifying parent of child state** — Call the parent callback from the same event handler that updates local state, or lift state up.
+
+## Do use Effects for
+
+- Subscribing to external stores (prefer `useSyncExternalStore` when applicable).
+- Fetching data that must stay in sync with props (with proper cleanup to avoid race conditions).
+- Syncing with non-React systems (e.g. jQuery widget, `navigator.onLine`).
+
+## Examples
+
+```tsx
+// ❌ Redundant state + Effect
+const [fullName, setFullName] = useState("");
+useEffect(() => setFullName(firstName + " " + lastName), [firstName, lastName]);
+
+// ✅ Derive during render
+const fullName = firstName + " " + lastName;
+```
+
+```tsx
+// ❌ Event logic in Effect
+useEffect(() => {
+  if (jsonToSubmit) post("/api/register", jsonToSubmit);
+}, [jsonToSubmit]);
+
+// ✅ Run in event handler
+function handleSubmit(e) {
+  e.preventDefault();
+  post("/api/register", { firstName, lastName });
+}
+```
+
+```tsx
+// ❌ Resetting child state when prop changes via Effect
+useEffect(() => setComment(""), [userId]);
+
+// ✅ Reset by key so React remounts
+<Profile userId={userId} key={userId} />;
+```
