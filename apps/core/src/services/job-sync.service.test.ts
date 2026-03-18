@@ -256,7 +256,26 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     global.fetch = originalFetch;
   });
 
-  it("backfills missing purchases and defers further sync until the next run", async () => {
+  it("backfills missing purchases and continues syncing in the same run", async () => {
+    const backfilledJob = createJob({
+      purchase: {
+        id: "purchase_1",
+        externalId: "purchase_backfilled",
+        onChainStatus: null,
+        onChainTransactionHash: null,
+        onChainTransactionStatus: null,
+        resultHash: "result-hash",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+        createdAt: new Date("2026-03-18T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-18T10:01:00.000Z"),
+        jobId: "job_1",
+        errorNote: null,
+        errorNoteKey: null,
+      },
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
     getJobsNotFinishedMock.mockResolvedValue([
       createJob({
         purchase: null,
@@ -269,6 +288,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         resultHash: "result-hash",
       }),
     );
+    getJobByIdMock.mockResolvedValueOnce(backfilledJob);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -294,9 +314,20 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         signal: expect.any(Object),
       }),
     );
-    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
-    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
-    expect(publishJobStatusDataMock).not.toHaveBeenCalled();
+    expect(getJobByIdMock).toHaveBeenCalledWith("job_1", expect.any(Object));
+    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
+      "purchase_backfilled",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+    expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
+      backfilledJob.agent,
+      backfilledJob.agentJobId,
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
   });
 
   it("skips new events and notifications when the agent status hash is unchanged", async () => {

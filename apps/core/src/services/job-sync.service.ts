@@ -352,7 +352,7 @@ async function syncSingleJob(
   options: JobSyncExecutionOptions,
 ): Promise<boolean> {
   const oldJobStatus = initialJob.status;
-  const job = initialJob;
+  let job = initialJob;
 
   if (job.jobType === JobType.PAID && job.purchase === null) {
     const backfillSignal = createPollingSignal(
@@ -386,9 +386,13 @@ async function syncSingleJob(
         },
         prisma,
       );
-
-      return true;
     }
+
+    const refreshedJob = await jobRepository.getJobById(job.id, prisma);
+    if (!refreshedJob) {
+      throw new Error("Job not found");
+    }
+    job = refreshedJob;
   }
 
   const agentJobIdToSync = shouldSyncAgentStatus(job);
