@@ -295,7 +295,18 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       },
       expect.any(Object),
     );
-    expect(getPurchaseByIdMock).toHaveBeenCalledWith("purchase_backfilled");
+    expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledWith(
+      "blockchain-job-1",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
+      "purchase_backfilled",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
   });
 
   it("skips new events and notifications when the agent status hash is unchanged", async () => {
@@ -542,5 +553,84 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(result.processed).toBe(0);
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
     expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels in-flight remote polling before transaction work begins", async () => {
+    const controller = new AbortController();
+    let resolvePollingStarted: (() => void) | null = null;
+    const pollingStarted = new Promise<void>((resolve) => {
+      resolvePollingStarted = resolve;
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    fetchAgentJobStatusMock.mockImplementation(
+      (
+        _agent,
+        _jobId,
+        options?: {
+          signal?: AbortSignal;
+        },
+      ) => {
+        resolvePollingStarted?.();
+
+        return new Promise((resolve) => {
+          options?.signal?.addEventListener(
+            "abort",
+            () => {
+              resolve(err("aborted"));
+            },
+            { once: true },
+          );
+        });
+      },
+    );
+    getPurchaseByIdMock.mockImplementation(
+      (
+        _purchaseId,
+        options?: {
+          signal?: AbortSignal;
+        },
+      ) => {
+        return new Promise((resolve) => {
+          options?.signal?.addEventListener(
+            "abort",
+            () => {
+              resolve(err("aborted"));
+            },
+            { once: true },
+          );
+        });
+      },
+    );
+
+    const resultPromise = jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions({
+        abortSignal: controller.signal,
+      }),
+    );
+
+    await pollingStarted;
+    controller.abort();
+
+    await expect(resultPromise).resolves.toEqual(
+      expect.objectContaining({
+        processed: 0,
+        unfinishedFound: 1,
+      }),
+    );
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "remote-job-1",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
+      "purchase_1",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
   });
 });

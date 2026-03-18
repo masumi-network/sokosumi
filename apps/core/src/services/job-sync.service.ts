@@ -25,6 +25,8 @@ import prisma from "@/lib/db/prisma";
 import { sourceImportService } from "@/services/source-import.service";
 
 const JOB_SYNC_CONCURRENCY = 5;
+const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
+const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
 
 type JobStatusValue =
   | "awaiting_payment"
@@ -69,6 +71,27 @@ function shouldStopSync(
   }
 
   return false;
+}
+
+function createPollingSignal(
+  options: JobSyncExecutionOptions,
+  reason: string,
+): AbortSignal | null {
+  if (shouldStopSync(options, reason)) {
+    return null;
+  }
+
+  const remainingBudgetMs =
+    options.deadlineMs - Date.now() - JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS;
+  if (remainingBudgetMs <= 0) {
+    console.info(`[sync/jobs] ${reason}`);
+    return null;
+  }
+
+  return AbortSignal.any([
+    options.abortSignal,
+    AbortSignal.timeout(Math.min(remainingBudgetMs, JOB_SYNC_REMOTE_TIMEOUT_MS)),
+  ]);
 }
 
 function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
@@ -321,15 +344,35 @@ async function dispatchJobFailureNotification(
   }
 }
 
-async function syncSingleJob(initialJob: JobWithSokosumiStatus): Promise<void> {
+async function syncSingleJob(
+  initialJob: JobWithSokosumiStatus,
+  options: JobSyncExecutionOptions,
+): Promise<boolean> {
   const oldJobStatus = initialJob.status;
   let job: JobWithSokosumiStatus | null = initialJob;
 
   if (job.jobType === JobType.PAID && job.purchase === null) {
+    const backfillSignal = createPollingSignal(
+      options,
+      `Stopping before backfilling purchase for job ${job.id}`,
+    );
+    if (!backfillSignal) {
+      return false;
+    }
+
     const purchaseResult =
       await paymentClient().getPurchaseByBlockchainIdentifier(
         job.blockchainIdentifier,
+        {
+          signal: backfillSignal,
+        },
       );
+    if (
+      backfillSignal.aborted ||
+      shouldStopSync(options, `Stopping after backfilling purchase for job ${job.id}`)
+    ) {
+      return false;
+    }
 
     if (purchaseResult.isOk()) {
       const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
@@ -351,15 +394,32 @@ async function syncSingleJob(initialJob: JobWithSokosumiStatus): Promise<void> {
 
   const agentJobIdToSync = shouldSyncAgentStatus(job);
   const purchaseIdToSync = shouldSyncMasumiStatus(job);
+  const pollingSignal = createPollingSignal(
+    options,
+    `Stopping before polling remote status for job ${job.id}`,
+  );
+  if (!pollingSignal) {
+    return false;
+  }
 
   const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
     agentJobIdToSync
-      ? createAgentClient().fetchAgentJobStatus(job.agent, agentJobIdToSync)
+      ? createAgentClient().fetchAgentJobStatus(job.agent, agentJobIdToSync, {
+          signal: pollingSignal,
+        })
       : Promise.resolve(err("No agent job ID to sync")),
     purchaseIdToSync
-      ? paymentClient().getPurchaseById(purchaseIdToSync)
+      ? paymentClient().getPurchaseById(purchaseIdToSync, {
+          signal: pollingSignal,
+        })
       : Promise.resolve(err("No purchase ID to sync")),
   ]);
+  if (
+    pollingSignal.aborted ||
+    shouldStopSync(options, `Stopping after polling remote status for job ${job.id}`)
+  ) {
+    return false;
+  }
 
   const transactionResult = await prisma.$transaction(
     async (
@@ -468,7 +528,7 @@ async function syncSingleJob(initialJob: JobWithSokosumiStatus): Promise<void> {
 
   const newJobStatus = transactionResult.jobStatus;
   if (newJobStatus === oldJobStatus || !job) {
-    return;
+    return true;
   }
 
   switch (newJobStatus) {
@@ -499,6 +559,8 @@ async function syncSingleJob(initialJob: JobWithSokosumiStatus): Promise<void> {
   } catch (error) {
     console.error("Error publishing job status data", error);
   }
+
+  return true;
 }
 
 export const jobSyncService = {
@@ -529,7 +591,7 @@ export const jobSyncService = {
           }
 
           try {
-            await syncSingleJob(job);
+            return await syncSingleJob(job, options);
           } catch (error) {
             console.error(`Failed to sync job ${job.id}`, error);
             Sentry.captureException(error, {
@@ -538,7 +600,6 @@ export const jobSyncService = {
               },
             });
           }
-
           return true;
         }),
       );
