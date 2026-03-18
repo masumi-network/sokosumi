@@ -349,7 +349,7 @@ async function syncSingleJob(
   options: JobSyncExecutionOptions,
 ): Promise<boolean> {
   const oldJobStatus = initialJob.status;
-  let job: JobWithSokosumiStatus | null = initialJob;
+  const job = initialJob;
 
   if (job.jobType === JobType.PAID && job.purchase === null) {
     const backfillSignal = createPollingSignal(
@@ -383,13 +383,9 @@ async function syncSingleJob(
         },
         prisma,
       );
+
+      return true;
     }
-
-    job = await jobRepository.getJobById(job.id, prisma);
-  }
-
-  if (!job) {
-    throw new Error("Job not found");
   }
 
   const agentJobIdToSync = shouldSyncAgentStatus(job);
@@ -426,82 +422,85 @@ async function syncSingleJob(
       tx,
     ): Promise<{
       extractionContext?: { eventId: string; result: string; userId: string };
+      job: JobWithSokosumiStatus;
       jobStatus: SokosumiJobStatus;
     }> => {
       let extractionContext:
         | { eventId: string; result: string; userId: string }
         | undefined;
-
-      if (!job) {
-        throw new Error("Job not found");
-      }
+      let currentJob = job;
 
       if (onChainPurchaseResult.isOk()) {
         const purchaseData = transformPurchaseToJobUpdate(
           onChainPurchaseResult.value,
         );
         await jobPurchaseRepository.updateJobPurchaseByJobId(
-          job.id,
+          currentJob.id,
           purchaseData,
           tx,
         );
+
+        const refreshedJob = await jobRepository.getJobById(currentJob.id, tx);
+        if (!refreshedJob) {
+          throw new Error("Job not found");
+        }
+        currentJob = refreshedJob;
       }
 
       if (agentJobStatusResult.isOk()) {
         const latestJobEvent =
-          await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
+          await jobEventRepository.getLatestJobEventByJobId(currentJob.id, tx);
 
-        if (
+        const hasUnchangedStatusHash =
           latestJobEvent?.statusHash &&
-          latestJobEvent.statusHash === agentJobStatusResult.value.statusHash
-        ) {
-          return {
-            jobStatus: job.status,
-          };
-        }
+          latestJobEvent.statusHash === agentJobStatusResult.value.statusHash;
 
-        const inputSchemaData = agentJobStatusResult.value.input_schema;
-        const inputSchemaValue = inputSchemaData
-          ? JSON.stringify(inputSchemaData)
-          : undefined;
+        if (!hasUnchangedStatusHash) {
+          const inputSchemaData = agentJobStatusResult.value.input_schema;
+          const inputSchemaValue = inputSchemaData
+            ? JSON.stringify(inputSchemaData)
+            : undefined;
 
-        const newJobEvent = await jobEventRepository.createJobEventForJobId(
-          job.id,
-          {
-            status: jobStatusToAgentJobStatus(
-              agentJobStatusResult.value.status as JobStatusValue,
-            ),
-            inputSchema: inputSchemaValue,
-            result: agentJobStatusResult.value.result,
-            statusHash: agentJobStatusResult.value.statusHash,
-          },
-          tx,
-        );
+          const newJobEvent = await jobEventRepository.createJobEventForJobId(
+            currentJob.id,
+            {
+              status: jobStatusToAgentJobStatus(
+                agentJobStatusResult.value.status as JobStatusValue,
+              ),
+              inputSchema: inputSchemaValue,
+              result: agentJobStatusResult.value.result,
+              statusHash: agentJobStatusResult.value.statusHash,
+            },
+            tx,
+          );
 
-        job = await jobRepository.getJobById(job.id, tx);
-        if (!job) {
-          throw new Error("Job not found");
-        }
+          const refreshedJob = await jobRepository.getJobById(currentJob.id, tx);
+          if (!refreshedJob) {
+            throw new Error("Job not found");
+          }
+          currentJob = refreshedJob;
 
-        const outputResult = agentJobStatusResult.value.result;
-        if (typeof outputResult === "string") {
-          extractionContext = {
-            eventId: newJobEvent.id,
-            result: outputResult,
-            userId: job.userId,
-          };
+          const outputResult = agentJobStatusResult.value.result;
+          if (typeof outputResult === "string") {
+            extractionContext = {
+              eventId: newJobEvent.id,
+              result: outputResult,
+              userId: currentJob.userId,
+            };
+          }
         }
       }
 
       if (
-        job.status === SokosumiJobStatus.PAYMENT_FAILED ||
-        job.status === SokosumiJobStatus.REFUND_RESOLVED
+        currentJob.status === SokosumiJobStatus.PAYMENT_FAILED ||
+        currentJob.status === SokosumiJobStatus.REFUND_RESOLVED
       ) {
-        await jobRepository.refundJob(job.id, tx);
+        await jobRepository.refundJob(currentJob.id, tx);
       }
 
       return {
-        jobStatus: job.status,
+        job: currentJob,
+        jobStatus: currentJob.status,
         extractionContext,
       };
     },
@@ -510,6 +509,8 @@ async function syncSingleJob(
       timeout: 20_000,
     },
   );
+
+  const updatedJob = transactionResult.job;
 
   if (transactionResult.extractionContext) {
     const { eventId, result, userId } = transactionResult.extractionContext;
@@ -527,7 +528,7 @@ async function syncSingleJob(
   }
 
   const newJobStatus = transactionResult.jobStatus;
-  if (newJobStatus === oldJobStatus || !job) {
+  if (newJobStatus === oldJobStatus) {
     return true;
   }
 
@@ -535,14 +536,14 @@ async function syncSingleJob(
     case SokosumiJobStatus.COMPLETED:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      await dispatchFinalStatusNotification(job, newJobStatus);
+      await dispatchFinalStatusNotification(updatedJob, newJobStatus);
       break;
     case SokosumiJobStatus.INPUT_REQUIRED:
-      await dispatchInputRequiredNotification(job);
+      await dispatchInputRequiredNotification(updatedJob);
       break;
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
-      await dispatchJobFailureNotification(job);
+      await dispatchJobFailureNotification(updatedJob);
       break;
     default:
       break;
@@ -550,11 +551,11 @@ async function syncSingleJob(
 
   try {
     await publishJobStatusData({
-      agentId: job.agentId,
-      userId: job.userId,
-      jobId: job.id,
-      jobStatus: job.status,
-      jobStatusSettled: job.jobStatusSettled,
+      agentId: updatedJob.agentId,
+      userId: updatedJob.userId,
+      jobId: updatedJob.id,
+      jobStatus: updatedJob.status,
+      jobStatusSettled: updatedJob.jobStatusSettled,
     });
   } catch (error) {
     console.error("Error publishing job status data", error);
