@@ -23,10 +23,10 @@ const CONTAINER_CLASS_NAMES = {
   600: "mx-auto w-full max-w-[600px] overflow-hidden rounded-[24px] border border-solid border-[#e9e3f5] bg-white",
 } as const;
 
-const EMAIL_LOGO_URL =
+const EMAIL_KANJI_URL =
+  "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-kanji-black.png";
+const EMAIL_WORDMARK_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png";
-const EMAIL_MARK_URL =
-  "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo.png";
 
 export function EmailShell({
   children,
@@ -56,20 +56,20 @@ export function EmailShell({
                 >
                   <tbody>
                     <tr>
-                      <td valign="middle" width="34">
-                        <img
-                          alt="Sokosumi logo"
-                          height="24"
-                          src={EMAIL_MARK_URL}
-                          width="24"
-                        />
-                      </td>
                       <td valign="middle">
                         <img
                           alt="Sokosumi"
                           height="20"
-                          src={EMAIL_LOGO_URL}
+                          src={EMAIL_WORDMARK_URL}
                           width="156"
+                        />
+                      </td>
+                      <td align="right" valign="middle">
+                        <img
+                          alt="Sokosumi kanji"
+                          height="28"
+                          src={EMAIL_KANJI_URL}
+                          width="14"
                         />
                       </td>
                     </tr>
