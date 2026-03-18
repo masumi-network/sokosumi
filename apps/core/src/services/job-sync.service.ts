@@ -617,7 +617,7 @@ export const jobSyncService = {
               },
             });
           }
-          return true;
+          return false;
         }),
       );
     }

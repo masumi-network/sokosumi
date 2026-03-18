@@ -644,6 +644,67 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
+  it("does not count thrown job sync failures as processed", async () => {
+    const syncError = new Error("event write failed");
+
+    getJobsNotFinishedMock.mockResolvedValue([
+      createJob(),
+      createJob({
+        id: "job_2",
+        agentJobId: "remote-job-2",
+        blockchainIdentifier: "blockchain-job-2",
+        purchase: {
+          externalId: "purchase_2",
+          onChainStatus: null,
+          resultHash: null,
+          nextAction: "NONE",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+    fetchAgentJobStatusMock.mockImplementation((_agent, jobId: string) => {
+      if (jobId === "remote-job-1") {
+        return ok({
+          status: "completed",
+          result: "done",
+          input_schema: null,
+          statusHash: "new-hash",
+        });
+      }
+
+      return ok({
+        status: "running",
+        result: null,
+        input_schema: null,
+        statusHash: "old-hash",
+      });
+    });
+    createJobEventForJobIdMock.mockImplementation(async (jobId: string) => {
+      if (jobId === "job_1") {
+        throw syncError;
+      }
+
+      return { id: `event_${jobId}` };
+    });
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 2,
+      }),
+    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(syncError, {
+      extra: {
+        jobId: "job_1",
+      },
+    });
+  });
+
   it("stops processing when already canceled before work starts", async () => {
     const controller = new AbortController();
     controller.abort();
