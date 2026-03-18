@@ -91,7 +91,9 @@ function createPollingSignal(
 
   return AbortSignal.any([
     options.abortSignal,
-    AbortSignal.timeout(Math.min(remainingBudgetMs, JOB_SYNC_REMOTE_TIMEOUT_MS)),
+    AbortSignal.timeout(
+      Math.min(remainingBudgetMs, JOB_SYNC_REMOTE_TIMEOUT_MS),
+    ),
   ]);
 }
 
@@ -372,7 +374,10 @@ async function syncSingleJob(
       );
     if (
       backfillSignal.aborted ||
-      shouldStopSync(options, `Stopping after backfilling purchase for job ${job.id}`)
+      shouldStopSync(
+        options,
+        `Stopping after backfilling purchase for job ${job.id}`,
+      )
     ) {
       return false;
     }
@@ -419,7 +424,10 @@ async function syncSingleJob(
   ]);
   if (
     pollingSignal.aborted ||
-    shouldStopSync(options, `Stopping after polling remote status for job ${job.id}`)
+    shouldStopSync(
+      options,
+      `Stopping after polling remote status for job ${job.id}`,
+    )
   ) {
     return false;
   }
@@ -481,7 +489,10 @@ async function syncSingleJob(
             tx,
           );
 
-          const refreshedJob = await jobRepository.getJobById(currentJob.id, tx);
+          const refreshedJob = await jobRepository.getJobById(
+            currentJob.id,
+            tx,
+          );
           if (!refreshedJob) {
             throw new Error("Job not found");
           }

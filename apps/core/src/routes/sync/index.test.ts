@@ -93,6 +93,15 @@ async function flushPromises() {
   await Promise.resolve();
 }
 
+/** Returns a promise and its resolver so tests can resolve the promise when needed. */
+function createDeferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
 describe("sync routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -234,13 +243,8 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts registry sync exactly once in background", async () => {
-    let resolveSync: (() => void) | null = null;
-    syncRegistryAgentsMock.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveSync = resolve;
-        }),
-    );
+    const deferred = createDeferred();
+    syncRegistryAgentsMock.mockImplementation(() => deferred.promise);
     const app = await createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
@@ -256,7 +260,7 @@ describe("sync routes", () => {
     expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
     expect(releaseLockMock).not.toHaveBeenCalled();
 
-    resolveSync?.();
+    deferred.resolve();
     await flushMicrotasks();
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
