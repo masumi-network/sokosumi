@@ -3,7 +3,7 @@
 import { MessageSquarePlus, PanelRightIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import ChatInterface from "@/app/chat/components/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ export default function ChatRail({
     openConversation,
   } = useAppChatRail();
   const { conversations } = useConversationsContext();
+  const [isDesktopRailReady, setIsDesktopRailReady] = useState(false);
 
   const isStandaloneChat = pathname.startsWith("/chat");
   const isVisible = !isStandaloneChat && open;
@@ -81,6 +82,70 @@ export default function ChatRail({
     selectedConversationId,
     setSelectedConversationId,
   ]);
+
+  useEffect(() => {
+    let animationFrame = 0;
+    let pollTimeoutId = 0;
+    const desktopRailPanel = document.querySelector<HTMLElement>(
+      "[data-chat-rail-panel]",
+    );
+
+    const scheduleRailReadyUpdate = (isReady: boolean) => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        setIsDesktopRailReady(isReady);
+      });
+    };
+
+    if (!isVisible) {
+      scheduleRailReadyUpdate(false);
+      return () => {
+        if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      };
+    }
+
+    const isChatInputMounted = () =>
+      Boolean(
+        document.querySelector<HTMLElement>(
+          "[data-chat-input-border-anchor]",
+        ) ??
+        document.querySelector<HTMLElement>("[data-testid='multimodal-input']"),
+      );
+
+    const isPanelFullyOpen = () => {
+      if (!desktopRailPanel) return true;
+      return (
+        desktopRailPanel.getBoundingClientRect().right <= window.innerWidth + 1
+      );
+    };
+
+    const syncRailReadyState = () => {
+      scheduleRailReadyUpdate(isPanelFullyOpen() && isChatInputMounted());
+    };
+
+    const pollRailReadyState = () => {
+      if (isPanelFullyOpen() && isChatInputMounted()) {
+        scheduleRailReadyUpdate(true);
+        return;
+      }
+
+      pollTimeoutId = window.setTimeout(pollRailReadyState, 50);
+    };
+
+    syncRailReadyState();
+    pollRailReadyState();
+
+    desktopRailPanel?.addEventListener("transitionend", syncRailReadyState);
+
+    return () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+      desktopRailPanel?.removeEventListener(
+        "transitionend",
+        syncRailReadyState,
+      );
+    };
+  }, [isVisible, conversations.length, isNewChat, selectedConversationId]);
 
   if (isStandaloneChat) {
     return null;
@@ -142,6 +207,9 @@ export default function ChatRail({
 
       <div
         className="border-border bg-background fixed top-0 right-0 bottom-0 z-40 hidden border-l shadow-sm transition-transform duration-200 ease-linear md:flex"
+        data-chat-rail-panel="true"
+        data-chat-rail-open={isVisible ? "true" : "false"}
+        data-chat-rail-ready={isDesktopRailReady ? "true" : "false"}
         style={{
           width: "clamp(24rem, 46vw, 30rem)",
           transform: isVisible ? "translateX(0)" : "translateX(100%)",

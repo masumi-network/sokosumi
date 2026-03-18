@@ -1,9 +1,11 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useAppChatRail } from "@/contexts/app-chat-rail-context";
 
 interface TasksEmptyStateOverlayLabels {
   title: string;
@@ -42,6 +44,8 @@ const ADD_FALLBACK_BOTTOM_PADDING = 210;
 const ADD_TARGET_OUTSIDE_OFFSET = 14;
 const ADD_LINE_ENDPOINT_OFFSET = 0;
 const CHAT_BORDER_OUTSIDE_OFFSET = 10;
+const CHAT_RAIL_READY_POLL_MS = 50;
+const CHAT_RAIL_READY_TIMEOUT_MS = 3000;
 
 function selectTasksEmptyStateAddTaskTarget(): HTMLElement | null {
   return (
@@ -61,6 +65,10 @@ function selectTasksEmptyStateChatTarget(): HTMLElement | null {
   );
 }
 
+function selectTasksEmptyStateChatRailPanel(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("[data-chat-rail-panel]");
+}
+
 const GUIDE_STEPS = ["addTask", "chat"] as const;
 
 type TasksEmptyStateGuideStep = (typeof GUIDE_STEPS)[number];
@@ -69,6 +77,13 @@ interface TasksEmptyStateGuideContent {
   title: string;
   description: string;
   hint: string;
+}
+
+function isTasksEmptyStateChatRailPanelReady(): boolean {
+  const railPanelElement = selectTasksEmptyStateChatRailPanel();
+  if (!railPanelElement) return true;
+
+  return railPanelElement.dataset.chatRailReady === "true";
 }
 
 export function getTasksEmptyStateGuideContent(
@@ -93,6 +108,7 @@ export function getTasksEmptyStateGuideContent(
 export function TasksEmptyStateOverlay({
   labels,
 }: TasksEmptyStateOverlayProps) {
+  const { open, openMobile, openLatestChat } = useAppChatRail();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const mobileCardRef = useRef<HTMLDivElement | null>(null);
   const [layout, setLayout] = useState<ConnectorLayout | null>(null);
@@ -102,6 +118,10 @@ export function TasksEmptyStateOverlay({
     label: Point;
   } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
+  const [isAdvancingToChatStep, setIsAdvancingToChatStep] = useState(false);
+  const [isChatPanelReadyForConnector, setIsChatPanelReadyForConnector] =
+    useState(true);
+  const isChatRailOpen = open || openMobile;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -229,7 +249,7 @@ export function TasksEmptyStateOverlay({
       window.removeEventListener("scroll", scheduleLayoutRecalculation, true);
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [open, openMobile, stepIndex]);
 
   const connectorPaths = useMemo(() => {
     if (!layout) return null;
@@ -248,7 +268,15 @@ export function TasksEmptyStateOverlay({
   const canMoveBack = stepIndex > 0;
 
   const handleMoveNext = () => {
-    if (!canMoveNext) return;
+    if (!canMoveNext || isAdvancingToChatStep) return;
+
+    const nextStep = GUIDE_STEPS[stepIndex + 1];
+    if (nextStep === "chat" && !isChatRailOpen) {
+      openLatestChat();
+      setIsAdvancingToChatStep(true);
+      return;
+    }
+
     setStepIndex((prevStepIndex) => prevStepIndex + 1);
   };
 
@@ -257,10 +285,125 @@ export function TasksEmptyStateOverlay({
     setStepIndex((prevStepIndex) => prevStepIndex - 1);
   };
 
+  useEffect(() => {
+    if (!isAdvancingToChatStep) return;
+    if (GUIDE_STEPS[stepIndex + 1] !== "chat") return;
+    if (!isChatRailOpen) return;
+
+    let hasAdvanced = false;
+    let readyPollTimeoutId = 0;
+    const fallbackTimeoutId = window.setTimeout(
+      advanceToChatStep,
+      CHAT_RAIL_READY_TIMEOUT_MS,
+    );
+
+    function advanceToChatStep() {
+      if (hasAdvanced) return;
+      hasAdvanced = true;
+      setStepIndex((prevStepIndex) => prevStepIndex + 1);
+      setIsAdvancingToChatStep(false);
+    }
+
+    const pollRailReadyState = () => {
+      if (isTasksEmptyStateChatRailPanelReady()) {
+        advanceToChatStep();
+        return;
+      }
+
+      readyPollTimeoutId = window.setTimeout(
+        pollRailReadyState,
+        CHAT_RAIL_READY_POLL_MS,
+      );
+    };
+
+    readyPollTimeoutId = window.setTimeout(
+      pollRailReadyState,
+      CHAT_RAIL_READY_POLL_MS,
+    );
+
+    return () => {
+      if (readyPollTimeoutId) window.clearTimeout(readyPollTimeoutId);
+      window.clearTimeout(fallbackTimeoutId);
+    };
+  }, [isAdvancingToChatStep, isChatRailOpen, stepIndex]);
+
+  useEffect(() => {
+    if (stepIndex !== 1 && !isAdvancingToChatStep) return;
+    if (isChatRailOpen) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setStepIndex(0);
+      setIsAdvancingToChatStep(false);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [isAdvancingToChatStep, isChatRailOpen, stepIndex]);
+
+  useEffect(() => {
+    let animationFrameId = 0;
+    let pollTimeoutId = 0;
+    const scheduleConnectorReadinessUpdate = (isReady: boolean) => {
+      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+      animationFrameId = window.requestAnimationFrame(() => {
+        setIsChatPanelReadyForConnector(isReady);
+      });
+    };
+
+    if (!isChatRailOpen) {
+      scheduleConnectorReadinessUpdate(false);
+      return () => {
+        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+        if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+      };
+    }
+
+    if (!selectTasksEmptyStateChatRailPanel()) {
+      scheduleConnectorReadinessUpdate(true);
+      return () => {
+        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+        if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+      };
+    }
+
+    const markReadyIfOpen = () => {
+      scheduleConnectorReadinessUpdate(isTasksEmptyStateChatRailPanelReady());
+    };
+
+    markReadyIfOpen();
+    const pollRailReadyState = () => {
+      markReadyIfOpen();
+
+      if (isTasksEmptyStateChatRailPanelReady()) return;
+      pollTimeoutId = window.setTimeout(
+        pollRailReadyState,
+        CHAT_RAIL_READY_POLL_MS,
+      );
+    };
+
+    pollRailReadyState();
+
+    return () => {
+      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+      if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+    };
+  }, [isChatRailOpen, stepIndex]);
+
+  const shouldRenderChatConnector =
+    currentStep !== "chat" || isChatPanelReadyForConnector;
   const activeConnectorPath =
-    currentStep === "addTask" ? connectorPaths?.left : connectorPaths?.right;
+    currentStep === "addTask"
+      ? connectorPaths?.left
+      : shouldRenderChatConnector
+        ? connectorPaths?.right
+        : null;
   const activeLabelPosition =
-    currentStep === "addTask" ? layout?.leftLabel : layout?.rightLabel;
+    currentStep === "addTask"
+      ? layout?.leftLabel
+      : shouldRenderChatConnector
+        ? layout?.rightLabel
+        : null;
   const mobileContent = useMemo(
     () => getTasksEmptyStateGuideContent("addTask", labels),
     [labels],
@@ -365,8 +508,12 @@ export function TasksEmptyStateOverlay({
                   type="button"
                   size="sm"
                   className="pointer-events-auto"
+                  disabled={isAdvancingToChatStep}
                   onClick={handleMoveNext}
                 >
+                  {isAdvancingToChatStep ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : null}
                   {labels.next}
                 </Button>
               ) : null}
