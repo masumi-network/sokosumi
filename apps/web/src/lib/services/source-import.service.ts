@@ -8,22 +8,13 @@ import {
 import {
   extractFileLikeLinks,
   extractHttpLinks,
+  getUrlBasename,
   isHttpUrl,
 } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 
 export const sourceImportService = (() => {
-  function getBasename(url: string): string | null {
-    try {
-      const u = new URL(url);
-      const last = u.pathname.split("/").pop() ?? "";
-      return last || null;
-    } catch {
-      return null;
-    }
-  }
-
   /**
    * Enqueues file and HTTP links found in a markdown string for processing.
    *
@@ -49,7 +40,7 @@ export const sourceImportService = (() => {
     await prisma.$transaction(async (tx) => {
       for (const url of fileLinks) {
         if (!isHttpUrl(url)) continue;
-        const guessedName = getBasename(url) ?? undefined;
+        const guessedName = getUrlBasename(url) ?? undefined;
         try {
           await blobRepository.upsertOutputBlob(
             {
