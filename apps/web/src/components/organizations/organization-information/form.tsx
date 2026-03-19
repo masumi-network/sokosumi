@@ -28,6 +28,10 @@ import {
 } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import {
+  ORGANIZATION_LOGO_ACCEPT,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+} from "@/lib/constants/organization-logo";
+import {
   organizationInformationFormSchema,
   OrganizationInformationFormSchemaType,
 } from "@/lib/schemas";
@@ -76,7 +80,7 @@ export default function OrganizationInformationForm({
 
       setIsUploadingLogo(true);
       try {
-        const uploadResult = await uploadOrganizationLogo(logoFile);
+        const uploadResult = await uploadOrganizationLogo({ file: logoFile });
         if (!uploadResult.ok) {
           toast.error(
             uploadResult.error.message ?? t("Fields.Logo.uploadError"),
@@ -205,9 +209,9 @@ export default function OrganizationInformationForm({
                     <FileUpload
                       value={pendingLogoFiles}
                       onValueChange={setPendingLogoFiles}
-                      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                      accept={ORGANIZATION_LOGO_ACCEPT}
                       maxFiles={1}
-                      maxSize={2 * 1024 * 1024}
+                      maxSize={ORGANIZATION_LOGO_MAX_SIZE_BYTES}
                       multiple={false}
                       disabled={isLoading}
                       onAccept={handleLogoUpload}

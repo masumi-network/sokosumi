@@ -9,6 +9,10 @@ import * as z from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
+import {
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+} from "@/lib/constants/organization-logo";
 import prisma from "@/lib/db/prisma";
 import {
   organizationInformationFormSchema,
@@ -49,13 +53,34 @@ export async function generateOrganizationSlug(
   }
 }
 
-export async function uploadOrganizationLogo(
-  file: File,
-): Promise<Result<string, ActionError>> {
+interface UploadOrganizationLogoParameters extends AuthenticatedRequest {
+  file: File;
+}
+
+export const uploadOrganizationLogo = withSession<
+  UploadOrganizationLogoParameters,
+  Result<string, ActionError>
+>(async ({ file }) => {
   if (!(file instanceof File) || file.size <= 0) {
     return Err({
       code: CommonErrorCode.BAD_INPUT,
       message: "File is required",
+    });
+  }
+
+  if (file.size > ORGANIZATION_LOGO_MAX_SIZE_BYTES) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: "File is too large (max 2 MB)",
+    });
+  }
+
+  const allowedMimeTypes: readonly string[] =
+    ORGANIZATION_LOGO_ALLOWED_MIME_TYPES;
+  if (!allowedMimeTypes.includes(file.type)) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: "File type not accepted",
     });
   }
 
@@ -74,7 +99,7 @@ export async function uploadOrganizationLogo(
   } catch (error) {
     return Err(toCoreApiActionError(error));
   }
-}
+});
 
 const updateInvoiceEmailSchema = z.object({
   organizationId: z.string(),
