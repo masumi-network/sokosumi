@@ -176,361 +176,359 @@ export function toCoreApiActionError(error: unknown): ActionError {
   };
 }
 
-export const coreClient = (() => {
-  async function getConversations() {
-    return executeOperation(
-      (client) =>
-        coreGetConversations({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch conversations",
-    );
-  }
+async function getConversations() {
+  return executeOperation(
+    (client) =>
+      coreGetConversations({
+        client,
+        cache: "no-store",
+      }),
+    "Failed to fetch conversations",
+  );
+}
 
-  async function createConversation(body: {
-    openaiId?: string;
-    title?: string;
+async function createConversation(body: {
+  openaiId?: string;
+  title?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  return executeOperation(
+    (client) =>
+      corePostConversations({
+        client,
+        body,
+      }),
+    "Failed to create conversation",
+  );
+}
+
+async function getConversation(id: string) {
+  return executeOperation(
+    (client) =>
+      coreGetConversationsById({
+        client,
+        path: { id },
+        cache: "no-store",
+      }),
+    "Failed to fetch conversation",
+  );
+}
+
+async function updateConversation(
+  id: string,
+  body: {
     metadata?: Record<string, unknown>;
-  }) {
-    return executeOperation(
-      (client) =>
-        corePostConversations({
-          client,
-          body,
-        }),
-      "Failed to create conversation",
-    );
-  }
+    title?: string;
+  },
+) {
+  return executeOperation(
+    (client) =>
+      corePatchConversationsById({
+        client,
+        path: { id },
+        body,
+      }),
+    "Failed to update conversation",
+  );
+}
 
-  async function getConversation(id: string) {
-    return executeOperation(
-      (client) =>
-        coreGetConversationsById({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to fetch conversation",
-    );
-  }
+async function archiveConversation(id: string, archived: boolean = true) {
+  return executeOperation(
+    (client) =>
+      corePatchConversationsByIdArchive({
+        client,
+        path: { id },
+        body: { archived },
+      }),
+    "Failed to archive conversation",
+  );
+}
 
-  async function updateConversation(
-    id: string,
-    body: {
-      metadata?: Record<string, unknown>;
-      title?: string;
-    },
-  ) {
-    return executeOperation(
-      (client) =>
-        corePatchConversationsById({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to update conversation",
-    );
-  }
+async function getConversationItems(
+  id: string,
+  query?: { cursor?: string; limit?: number },
+) {
+  return executeOperation(
+    (client) =>
+      coreGetConversationsByIdItems({
+        client,
+        path: { id },
+        query,
+        cache: "no-store",
+      }),
+    "Failed to fetch conversation items",
+  );
+}
 
-  async function archiveConversation(id: string, archived: boolean = true) {
-    return executeOperation(
-      (client) =>
-        corePatchConversationsByIdArchive({
-          client,
-          path: { id },
-          body: { archived },
-        }),
-      "Failed to archive conversation",
-    );
-  }
+async function addConversationItem(
+  id: string,
+  body: {
+    role: "user" | "assistant" | "system";
+    content: Array<{ type: string; text?: string }> | string;
+  },
+) {
+  return executeOperation(
+    (client) =>
+      corePostConversationsByIdItems({
+        client,
+        path: { id },
+        body,
+      }),
+    "Failed to add conversation item",
+  );
+}
 
-  async function getConversationItems(
-    id: string,
-    query?: { cursor?: string; limit?: number },
-  ) {
-    return executeOperation(
-      (client) =>
-        coreGetConversationsByIdItems({
-          client,
-          path: { id },
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch conversation items",
-    );
-  }
+async function getTasks(query?: GetTasksData["query"]) {
+  return executeOperation(
+    (client) =>
+      coreGetTasks({
+        client,
+        query,
+        cache: "no-store",
+      }),
+    "Failed to fetch tasks",
+  );
+}
 
-  async function addConversationItem(
-    id: string,
-    body: {
-      role: "user" | "assistant" | "system";
-      content: Array<{ type: string; text?: string }> | string;
-    },
-  ) {
-    return executeOperation(
-      (client) =>
-        corePostConversationsByIdItems({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to add conversation item",
-    );
-  }
+async function getTaskById(
+  id: string,
+  scope: Array<"context" | "owned"> = ["context"],
+) {
+  return executeOperation(
+    (client) =>
+      coreGetTasksById({
+        client,
+        path: { id },
+        query: { scope },
+        cache: "no-store",
+      }),
+    "Failed to fetch task",
+  );
+}
 
-  async function getTasks(query?: GetTasksData["query"]) {
-    return executeOperation(
-      (client) =>
-        coreGetTasks({
-          client,
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch tasks",
-    );
-  }
+async function getJobs(query?: {
+  scope?: Array<"context" | "owned" | "shared">;
+  cursor?: string;
+  limit?: number;
+  agentId?: string;
+  status?:
+    | "RUNNING"
+    | "COMPLETED"
+    | "FAILED"
+    | "INITIATED"
+    | "AWAITING_PAYMENT"
+    | "AWAITING_INPUT";
+}) {
+  return executeOperation(
+    (client) =>
+      coreGetJobs({
+        client,
+        query,
+        cache: "no-store",
+      }),
+    "Failed to fetch jobs",
+  );
+}
 
-  async function getTaskById(
-    id: string,
-    scope: Array<"context" | "owned"> = ["context"],
-  ) {
-    return executeOperation(
-      (client) =>
-        coreGetTasksById({
-          client,
-          path: { id },
-          query: { scope },
-          cache: "no-store",
-        }),
-      "Failed to fetch task",
-    );
-  }
+async function getJobById(
+  id: string,
+  scope: Array<"context" | "owned" | "shared"> = ["context"],
+) {
+  return executeOperation(
+    (client) =>
+      coreGetJobsById({
+        client,
+        path: { id },
+        query: { scope },
+        cache: "no-store",
+      }),
+    "Failed to fetch job",
+  );
+}
 
-  async function getJobs(query?: {
-    scope?: Array<"context" | "owned" | "shared">;
-    cursor?: string;
-    limit?: number;
-    agentId?: string;
+async function getAgentById(id: string) {
+  return executeOperation(
+    (client) =>
+      coreGetAgentsById({
+        client,
+        path: { id },
+        cache: "no-store",
+      }),
+    "Failed to fetch agent",
+  );
+}
+
+async function getAgentInputSchema(id: string) {
+  return executeOperation(
+    (client) =>
+      coreGetAgentsByIdInputSchema({
+        client,
+        path: { id },
+      }),
+    "Failed to fetch agent input schema",
+  );
+}
+
+async function createTask(body: {
+  name: string;
+  description?: string | null;
+  coworkerId?: string | null;
+  status?: "DRAFT" | "READY";
+}) {
+  return executeOperation(
+    (client) =>
+      corePostTasks({
+        client,
+        body,
+      }),
+    "Failed to create task",
+  );
+}
+
+async function createTaskEvent(
+  id: string,
+  body: {
     status?:
+      | "DRAFT"
+      | "READY"
+      | "INPUT_REQUIRED"
+      | "AUTHENTICATION_REQUIRED"
+      | "OUT_OF_CREDITS"
+      | "CREDITS_TOPPED_UP"
       | "RUNNING"
+      | "AWAITING_EXTERNAL"
       | "COMPLETED"
       | "FAILED"
-      | "INITIATED"
-      | "AWAITING_PAYMENT"
-      | "AWAITING_INPUT";
-  }) {
-    return executeOperation(
-      (client) =>
-        coreGetJobs({
-          client,
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch jobs",
-    );
-  }
+      | "CANCEL_REQUESTED"
+      | "CANCELED";
+    comment?: string;
+  },
+) {
+  return executeOperation(
+    (client) =>
+      corePostTasksByIdEvents({
+        client,
+        path: { id },
+        body,
+      }),
+    "Failed to create task event",
+  );
+}
 
-  async function getJobById(
-    id: string,
-    scope: Array<"context" | "owned" | "shared"> = ["context"],
-  ) {
-    return executeOperation(
-      (client) =>
-        coreGetJobsById({
-          client,
-          path: { id },
-          query: { scope },
-          cache: "no-store",
-        }),
-      "Failed to fetch job",
-    );
-  }
-
-  async function getAgentById(id: string) {
-    return executeOperation(
-      (client) =>
-        coreGetAgentsById({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to fetch agent",
-    );
-  }
-
-  async function getAgentInputSchema(id: string) {
-    return executeOperation(
-      (client) =>
-        coreGetAgentsByIdInputSchema({
-          client,
-          path: { id },
-        }),
-      "Failed to fetch agent input schema",
-    );
-  }
-
-  async function createTask(body: {
-    name: string;
+async function patchTask(
+  id: string,
+  body: {
+    name?: string;
     description?: string | null;
     coworkerId?: string | null;
-    status?: "DRAFT" | "READY";
-  }) {
-    return executeOperation(
-      (client) =>
-        corePostTasks({
-          client,
-          body,
-        }),
-      "Failed to create task",
-    );
-  }
+  },
+) {
+  return executeOperation(
+    (client) =>
+      corePatchTasksById({
+        client,
+        path: { id },
+        body,
+      }),
+    "Failed to update task",
+  );
+}
 
-  async function createTaskEvent(
-    id: string,
-    body: {
-      status?:
-        | "DRAFT"
-        | "READY"
-        | "INPUT_REQUIRED"
-        | "AUTHENTICATION_REQUIRED"
-        | "OUT_OF_CREDITS"
-        | "CREDITS_TOPPED_UP"
-        | "RUNNING"
-        | "AWAITING_EXTERNAL"
-        | "COMPLETED"
-        | "FAILED"
-        | "CANCEL_REQUESTED"
-        | "CANCELED";
-      comment?: string;
-    },
-  ) {
-    return executeOperation(
-      (client) =>
-        corePostTasksByIdEvents({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to create task event",
-    );
-  }
+async function deleteTask(id: string) {
+  return executeOperation(
+    (client) =>
+      coreDeleteTasksById({
+        client,
+        path: { id },
+      }),
+    "Failed to delete task",
+  );
+}
 
-  async function patchTask(
-    id: string,
-    body: {
-      name?: string;
-      description?: string | null;
-      coworkerId?: string | null;
-    },
-  ) {
-    return executeOperation(
-      (client) =>
-        corePatchTasksById({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to update task",
-    );
-  }
+async function getCoworkers(query?: GetCoworkersData["query"]) {
+  return executeOperation(
+    (client) =>
+      coreGetCoworkers({
+        client,
+        query,
+        cache: "no-store",
+      }),
+    "Failed to fetch coworkers",
+  );
+}
 
-  async function deleteTask(id: string) {
-    return executeOperation(
-      (client) =>
-        coreDeleteTasksById({
-          client,
-          path: { id },
-        }),
-      "Failed to delete task",
-    );
-  }
+async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
+  const response = await executeOperation(
+    (client) =>
+      coreGetUsersMeNoticesPending({
+        client,
+        cache: "no-store",
+      }),
+    "Failed to fetch pending notices",
+  );
 
-  async function getCoworkers(query?: GetCoworkersData["query"]) {
-    return executeOperation(
-      (client) =>
-        coreGetCoworkers({
-          client,
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch coworkers",
-    );
-  }
+  const pendingNotices = response.data.pendingNotices;
+  return kind
+    ? pendingNotices.filter((notice) => notice.kind === kind)
+    : pendingNotices;
+}
 
-  async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
-    const response = await executeOperation(
-      (client) =>
-        coreGetUsersMeNoticesPending({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch pending notices",
-    );
+async function acknowledgeNotice(id: string) {
+  const response = await executeOperation(
+    (client) =>
+      corePostUsersMeNoticesByIdAcknowledge({
+        client,
+        path: { id },
+      }),
+    "Failed to acknowledge notice",
+  );
 
-    const pendingNotices = response.data.pendingNotices;
-    return kind
-      ? pendingNotices.filter((notice) => notice.kind === kind)
-      : pendingNotices;
-  }
+  return response.data;
+}
 
-  async function acknowledgeNotice(id: string) {
-    const response = await executeOperation(
-      (client) =>
-        corePostUsersMeNoticesByIdAcknowledge({
-          client,
-          path: { id },
-        }),
-      "Failed to acknowledge notice",
-    );
+async function getMyCredits() {
+  return executeOperation(
+    (client) =>
+      coreGetUsersMeCredits({
+        client,
+        cache: "no-store",
+      }),
+    "Failed to fetch user credits",
+  );
+}
 
-    return response.data;
-  }
+async function getMyOrganizations() {
+  return executeOperation(
+    (client) =>
+      coreGetUsersMeOrganizations({
+        client,
+        cache: "no-store",
+      }),
+    "Failed to fetch user organizations",
+  );
+}
 
-  async function getMyCredits() {
-    return executeOperation(
-      (client) =>
-        coreGetUsersMeCredits({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch user credits",
-    );
-  }
-
-  async function getMyOrganizations() {
-    return executeOperation(
-      (client) =>
-        coreGetUsersMeOrganizations({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch user organizations",
-    );
-  }
-
-  return {
-    acknowledgeNotice,
-    addConversationItem,
-    archiveConversation,
-    createConversation,
-    createTask,
-    createTaskEvent,
-    deleteTask,
-    getConversation,
-    getConversationItems,
-    getConversations,
-    getAgentInputSchema,
-    getCoworkers,
-    getAgentById,
-    getJobById,
-    getJobs,
-    getPendingNotices,
-    getMyCredits,
-    getMyOrganizations,
-    getTaskById,
-    getTasks,
-    patchTask,
-    updateConversation,
-  };
-})();
+export const coreClient = {
+  acknowledgeNotice,
+  addConversationItem,
+  archiveConversation,
+  createConversation,
+  createTask,
+  createTaskEvent,
+  deleteTask,
+  getConversation,
+  getConversationItems,
+  getConversations,
+  getAgentById,
+  getAgentInputSchema,
+  getCoworkers,
+  getJobById,
+  getJobs,
+  getMyCredits,
+  getMyOrganizations,
+  getPendingNotices,
+  getTaskById,
+  getTasks,
+  patchTask,
+  updateConversation,
+};
