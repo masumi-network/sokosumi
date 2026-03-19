@@ -4,6 +4,10 @@ import { serve } from "@hono/node-server";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
+import {
+  relatedProjects,
+  type VercelRelatedProject,
+} from "@vercel/related-projects";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
@@ -35,7 +39,11 @@ const app = new OpenAPIHono<{
 }>();
 
 app.use("*", async (_c, next) => {
+  const projects: VercelRelatedProject[] = relatedProjects();
+  console.log("--------------------------------");
+  console.log("projects", projects);
   console.log("getWebAppBaseUrl()", getWebAppBaseUrl());
+  console.log("--------------------------------");
   await next();
 });
 

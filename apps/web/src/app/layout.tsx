@@ -62,7 +62,7 @@ export default async function RootLayout({
   const draftUserCentrics = getEnvSecrets().DRAFT_USER_CENTRICS;
   const usersnapSpaceApiKey = getEnvSecrets().USERSNAP_SPACE_API_KEY;
 
-  console.log("coreApiUrl", coreApiUrl);
+  console.log("Core BaseURL => ", coreApiUrl);
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
