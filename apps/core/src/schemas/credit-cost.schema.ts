@@ -40,12 +40,12 @@ export const patchCreditCostRequestSchema = z
   )
   .openapi("PatchCreditCostRequest");
 
-export function mapCreditCostForApi(record: DatabaseCreditCost): CreditCost {
-  return creditCostSchema.parse({
+export function mapCreditCostForApi(record: DatabaseCreditCost) {
+  return {
     id: record.id,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     unit: record.unit,
     creditsPerUnit: convertCentsToCredits(record.centsPerUnit),
-  });
+  };
 }
