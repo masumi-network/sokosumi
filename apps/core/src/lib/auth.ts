@@ -169,9 +169,6 @@ export const auth = betterAuth({
     }),
     jwt({
       disableSettingJwtHeader: true,
-      jwt: {
-        issuer: env.BETTER_AUTH_URL,
-      },
     }),
     organization({
       schema: {
