@@ -1,7 +1,5 @@
 import type { Notice, NoticeKind } from "@sokosumi/database";
-import { withRelatedProject } from "@vercel/related-projects";
 
-import { getEnvPublicConfig } from "@/config/env.public";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import type {
   GetCoworkersData,
@@ -11,6 +9,7 @@ import type {
 import {
   deleteTasksById as coreDeleteTasksById,
   getAgentsById as coreGetAgentsById,
+  getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
   getConversationsByIdItems as coreGetConversationsByIdItems,
@@ -31,7 +30,15 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
 } from "@/lib/clients/generated/core";
-import { type Client, createClient } from "@/lib/clients/generated/core/client";
+import type { Client } from "@/lib/clients/generated/core/client";
+
+import { getCoreTransportAdapter } from "./core.transport";
+
+export {
+  buildAuthHeaders,
+  coreApiBaseUrl,
+  normalizeCoreApiBaseUrl,
+} from "./core.transport.shared";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -59,22 +66,6 @@ export class CoreApiRequestError extends Error {
     this.details = options?.details;
     this.status = options?.status;
   }
-}
-
-export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
-  const authHeaders: HeadersInit = {};
-  const cookie = requestHeaders.get("cookie");
-
-  if (cookie) authHeaders.cookie = cookie;
-
-  return authHeaders;
-}
-
-export function normalizeCoreApiBaseUrl(baseUrl: string): string {
-  const withoutTrailingSlash = baseUrl.replace(/\/+$/, "");
-  return withoutTrailingSlash.endsWith("/v1")
-    ? withoutTrailingSlash
-    : `${withoutTrailingSlash}/v1`;
 }
 
 function extractErrorMessage(error: unknown, status?: number): string {
@@ -113,41 +104,16 @@ type CoreOperationResult<TData, TError> = {
   response: Response;
 };
 
-export const coreApiBaseUrl = withRelatedProject({
-  projectName:
-    getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
-      ? "sokosumi-core-preprod"
-      : "sokosumi-core-mainnet",
-  defaultHost: getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL,
-});
-
-/**
- * Creates a Core API client. In the browser uses credentials (cookies); on the
- * server forwards request headers. Export for use in TanStack Query etc.
- */
-export async function createCoreApiClient(): Promise<Client> {
-  const baseUrl =
-    typeof window !== "undefined"
-      ? normalizeCoreApiBaseUrl(getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL)
-      : normalizeCoreApiBaseUrl(coreApiBaseUrl);
-
-  if (typeof window !== "undefined") {
-    return createClient({ baseUrl, credentials: "include" });
-  }
-
-  const { headers } = await import("next/headers");
-  const requestHeaders = await headers();
-  return createClient({
-    baseUrl,
-    headers: buildAuthHeaders(requestHeaders),
-  });
+async function createCoreGeneratedClient(): Promise<Client> {
+  const transport = await getCoreTransportAdapter();
+  return transport.createGeneratedClient();
 }
 
 async function executeOperation<TData, TError>(
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
   fallbackMessage: string,
 ): Promise<TData> {
-  const client = await createCoreApiClient();
+  const client = await createCoreGeneratedClient();
 
   let result: CoreOperationResult<TData, TError>;
   try {
@@ -395,6 +361,17 @@ export const coreClient = (() => {
     );
   }
 
+  async function getAgentInputSchema(id: string) {
+    return executeOperation(
+      (client) =>
+        coreGetAgentsByIdInputSchema({
+          client,
+          path: { id },
+        }),
+      "Failed to fetch agent input schema",
+    );
+  }
+
   async function createTask(body: {
     name: string;
     description?: string | null;
@@ -545,6 +522,7 @@ export const coreClient = (() => {
     getConversation,
     getConversationItems,
     getConversations,
+    getAgentInputSchema,
     getCoworkers,
     getAgentById,
     getJobById,

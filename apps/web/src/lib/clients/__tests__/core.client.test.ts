@@ -2,29 +2,32 @@ export {};
 
 jest.mock("server-only", () => ({}));
 
-const headersMock = jest.fn();
+const withRelatedProjectMock = jest.fn();
+const getEnvPublicConfigMock = jest.fn();
+const getCoreTransportAdapterMock = jest.fn();
 const getConversationsMock = jest.fn();
+const getAgentsByIdInputSchemaMock = jest.fn();
 const getUsersMeNoticesPendingMock = jest.fn();
 const postUsersMeNoticesByIdAcknowledgeMock = jest.fn();
 const getUsersMeCreditsMock = jest.fn();
 const getUsersMeOrganizationsMock = jest.fn();
-const getEnvPublicConfigMock = jest.fn();
+const createGeneratedClientMock = jest.fn();
 const mockClient = { id: "core-client" } as never;
-const createClientMock = jest.fn(() => mockClient);
 
-jest.mock("next/headers", () => ({
-  headers: headersMock,
+jest.mock("@vercel/related-projects", () => ({
+  withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
 }));
 
 jest.mock("@/config/env.public", () => ({
-  getEnvPublicConfig: getEnvPublicConfigMock,
+  getEnvPublicConfig: () => getEnvPublicConfigMock(),
 }));
 
-jest.mock("@/lib/clients/generated/core/client", () => ({
-  createClient: createClientMock,
+jest.mock("../core.transport", () => ({
+  getCoreTransportAdapter: () => getCoreTransportAdapterMock(),
 }));
 
 jest.mock("@/lib/clients/generated/core", () => ({
+  getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
   getConversations: getConversationsMock,
   getUsersMeNoticesPending: getUsersMeNoticesPendingMock,
   postUsersMeNoticesByIdAcknowledge: postUsersMeNoticesByIdAcknowledgeMock,
@@ -35,9 +38,19 @@ jest.mock("@/lib/clients/generated/core", () => ({
 describe("core.client", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    headersMock.mockResolvedValue(new Headers());
+    jest.resetModules();
+
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_CORE_API_URL: "http://localhost:8787",
+      NEXT_PUBLIC_NETWORK: "Mainnet",
+    });
+    withRelatedProjectMock.mockImplementation(
+      ({ defaultHost }: { defaultHost: string }) => defaultHost,
+    );
+
+    createGeneratedClientMock.mockResolvedValue(mockClient);
+    getCoreTransportAdapterMock.mockResolvedValue({
+      createGeneratedClient: createGeneratedClientMock,
     });
   });
 
@@ -70,13 +83,19 @@ describe("core.client", () => {
     );
   });
 
-  it("forwards auth headers and uses normalized base url for generated operations", async () => {
-    headersMock.mockResolvedValue(
-      new Headers({
-        cookie: "session=abc",
-        "x-organization-slug": "my-org",
-      }),
-    );
+  it("keeps coreApiBaseUrl exported for chat compatibility", async () => {
+    withRelatedProjectMock.mockReturnValue("https://core.example.com");
+
+    const { coreApiBaseUrl } = await import("../core.client");
+
+    expect(coreApiBaseUrl).toBe("https://core.example.com");
+    expect(withRelatedProjectMock).toHaveBeenCalledWith({
+      defaultHost: "http://localhost:8787",
+      projectName: "sokosumi-core-mainnet",
+    });
+  });
+
+  it("executes generated operations through the transport adapter", async () => {
     getConversationsMock.mockResolvedValue({
       data: {
         data: [],
@@ -89,15 +108,10 @@ describe("core.client", () => {
     });
 
     const { coreClient } = await import("../core.client");
-
     const response = await coreClient.getConversations();
 
-    expect(createClientMock).toHaveBeenCalledWith({
-      baseUrl: "http://localhost:8787/v1",
-      headers: {
-        cookie: "session=abc",
-      },
-    });
+    expect(getCoreTransportAdapterMock).toHaveBeenCalledTimes(1);
+    expect(createGeneratedClientMock).toHaveBeenCalledTimes(1);
     expect(getConversationsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
@@ -107,7 +121,60 @@ describe("core.client", () => {
     );
   });
 
-  it("executes user credit and organization operations through the generated client", async () => {
+  it("fetches agent input schemas through the transport adapter", async () => {
+    getAgentsByIdInputSchemaMock.mockResolvedValue({
+      data: {
+        data: {
+          input_data: [
+            {
+              id: "prompt",
+              name: "Prompt",
+              type: "string",
+            },
+          ],
+        },
+      },
+      response: new Response("{}", { status: 200 }),
+    });
+
+    const { coreClient } = await import("../core.client");
+    const response = await coreClient.getAgentInputSchema("agent_1");
+
+    expect(createGeneratedClientMock).toHaveBeenCalledTimes(1);
+    expect(getAgentsByIdInputSchemaMock).toHaveBeenCalledWith({
+      client: mockClient,
+      path: { id: "agent_1" },
+    });
+    expect(response.data.input_data).toHaveLength(1);
+  });
+
+  it("raises CoreApiRequestError for agent input schema failures", async () => {
+    getAgentsByIdInputSchemaMock.mockResolvedValue({
+      error: {
+        error: "Unauthorized",
+        message: "Please sign in",
+      },
+      response: new Response("{}", { status: 401 }),
+    });
+
+    const { CoreApiRequestError, coreClient } = await import("../core.client");
+
+    await expect(coreClient.getAgentInputSchema("agent_1")).rejects.toEqual(
+      expect.objectContaining<Partial<InstanceType<typeof CoreApiRequestError>>>(
+        {
+          details: {
+            error: "Unauthorized",
+            message: "Please sign in",
+          },
+          message: "Please sign in",
+          name: "CoreApiRequestError",
+          status: 401,
+        },
+      ),
+    );
+  });
+
+  it("executes user credit and organization operations through the transport adapter", async () => {
     getUsersMeCreditsMock.mockResolvedValue({
       data: {
         data: {
@@ -179,7 +246,7 @@ describe("core.client", () => {
     });
   });
 
-  it("fetches pending notices through the generated core operation", async () => {
+  it("fetches pending notices through the transport adapter", async () => {
     getUsersMeNoticesPendingMock.mockResolvedValue({
       data: {
         data: {
@@ -209,7 +276,7 @@ describe("core.client", () => {
     expect(response).toHaveLength(1);
   });
 
-  it("acknowledges notices through the generated core operation", async () => {
+  it("acknowledges notices through the transport adapter", async () => {
     postUsersMeNoticesByIdAcknowledgeMock.mockResolvedValue({
       data: {
         data: {
