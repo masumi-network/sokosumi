@@ -11,6 +11,7 @@ import {
   admin,
   jwt,
   magicLink,
+  oAuthProxy,
   openAPI,
   organization,
 } from "better-auth/plugins";
@@ -222,5 +223,6 @@ export const auth = betterAuth({
         oauthAuthServerConfig: true,
       },
     }),
+    oAuthProxy(),
   ],
 });

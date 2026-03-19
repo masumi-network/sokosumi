@@ -25,6 +25,7 @@ import {
   jwt,
   lastLoginMethod,
   magicLink,
+  oAuthProxy,
   organization,
 } from "better-auth/plugins";
 import pTimeout from "p-timeout";
@@ -463,6 +464,7 @@ export const auth = betterAuth({
         oauthAuthServerConfig: true,
       },
     }),
+    oAuthProxy(),
     organization({
       organizationHooks: {
         afterCreateOrganization: async ({ organization }) => {
