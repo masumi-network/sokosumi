@@ -11,6 +11,7 @@ import { requestId } from "hono/request-id";
 
 import { getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
@@ -18,8 +19,6 @@ import authRouter from "@/routes/auth/index";
 import debugRouter from "@/routes/debug/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
-
-import { errorHandler } from "./helpers/error-handler";
 
 validateEnv();
 initSentry();
