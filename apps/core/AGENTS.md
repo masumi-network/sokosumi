@@ -233,6 +233,8 @@ const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 
 **Note**: Credits use base 10^10 for precision (1 credit = 10^10 cents).
 
+For the **credits-only API contract** and **direct Prisma (no repository pattern)** conventions, see [.cursor/rules/credits-api.mdc](.cursor/rules/credits-api.mdc) and [.cursor/rules/data-access.mdc](.cursor/rules/data-access.mdc).
+
 ### Datetime Schemas
 
 Use the reusable datetime schema for consistent date handling:
@@ -610,6 +612,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 ### Credit Handling
 
 - Credits are stored as BigInt cents (base 10^10)
+- **Never expose cents in the API**: request/response and query params use credits only; convert at the boundary with `convertCentsToCredits()` / `convertCreditsToCents()` from `@sokosumi/database/helpers`
 - Always use `convertCentsToCredits()` when returning credit values to users
 - Use `convertCreditsToCents()` when storing user-provided credit values
 - Take absolute value when displaying credits: `Math.abs(convertCentsToCredits(amount))`
@@ -624,6 +627,8 @@ Environment variables required by Vitest (or by code under test) must be set in 
 
 ## Additional Rules
 
+- [Credits API](.cursor/rules/credits-api.mdc) – expose credits only, never cents
+- [Data Access](.cursor/rules/data-access.mdc) – direct Prisma, no repository pattern
 - [Responses](.cursor/rules/responses.mdc)
 
 ## References
