@@ -869,12 +869,7 @@ export default function ChatInterface({
     const cidHasPendingId = convHasPendingId(convForCid);
 
     if (recoveryAttemptedForRef.current === cid) {
-      // After a successful recovery we set recoveredProcessedForRef; the sidebar
-      // can still list this conversation with stale pending metadata for a
-      // short time. Re-running this effect on `conversations` updates must not
-      // flip recovering back on — that hides the input and shows the loading
-      // indicator below the recovered assistant message (MessageList:
-      // showLoadingIndicator forces true when isRecovering).
+      // Don't re-set recovering when we already processed recovery (stale sidebar metadata).
       if (
         cidHasPendingId &&
         mountedRef.current &&

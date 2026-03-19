@@ -3,17 +3,11 @@ import prisma from "@/lib/db/prisma";
 const SSE_DATA_PREFIX = "data: ";
 const UI_MESSAGE_EVENT_TEXT_DELTA = "text-delta";
 
-/** Shared with `onResponseStarted` so persist sees the same Responses API id. */
 export interface ResponsesApiResponseIdRef {
   current: string | null;
 }
 
 export interface StreamWithAssistantPersistenceOptions {
-  /**
-   * Coworker / Responses API streams: set synchronously in `onResponseStarted`.
-   * Used to set `responsesApiResponseId` on the assistant row and to skip
-   * persist when recovery (or a race) already inserted that row.
-   */
   responsesApiResponseIdRef?: ResponsesApiResponseIdRef;
 }
 
@@ -58,12 +52,9 @@ export function streamWithAssistantPersistence(
         if (useResponsesApiId) {
           responsesApiResponseId =
             options!.responsesApiResponseIdRef!.current ?? null;
-          if (!responsesApiResponseId) {
-            const pending = (conv as { metadata?: unknown }).metadata as
-              | Record<string, unknown>
-              | null
-              | undefined;
-            const p = pending?.pending_responses_api_response_id;
+          if (!responsesApiResponseId && "metadata" in conv && conv.metadata) {
+            const meta = conv.metadata as Record<string, unknown>;
+            const p = meta.pending_responses_api_response_id;
             if (typeof p === "string" && p.length > 0) {
               responsesApiResponseId = p;
             }
@@ -96,19 +87,14 @@ export function streamWithAssistantPersistence(
           return;
         }
 
-        try {
-          await prisma.conversationItem.create({
-            data: {
-              conversationId: conv.id,
-              role: "assistant",
-              contentType: "output_text",
-              contentText: text,
-            },
-          });
-        } catch (error) {
-          if (isPrismaUniqueViolation(error)) return;
-          throw error;
-        }
+        await prisma.conversationItem.create({
+          data: {
+            conversationId: conv.id,
+            role: "assistant",
+            contentType: "output_text",
+            contentText: text,
+          },
+        });
       })
       .then(() => undefined)
       .catch((error) => {
