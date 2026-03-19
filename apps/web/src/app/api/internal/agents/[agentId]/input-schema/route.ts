@@ -1,10 +1,9 @@
-import { agentRepository } from "@sokosumi/database/repositories";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
-import { agentClient } from "@/lib/clients/agent.client";
-import prisma from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/utils";
+import { coreClient } from "@/lib/clients/core.client";
 
 interface RouteParams {
   params: Promise<{
@@ -17,25 +16,19 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
+    const session = await getSession();
+    if (!session) {
+      throw new Error("UNAUTHORIZED");
+    }
+
     const { agentId } = await params;
     if (!agentId) {
       throw new Error("INVALID_INPUT");
     }
 
-    const agent = await agentRepository.getAgentWithRelationsById(
-      agentId,
-      prisma,
-    );
-    if (!agent) {
-      throw new Error("AGENT_NOT_FOUND");
-    }
+    const response = await coreClient.getAgentInputSchema(agentId);
+    const inputSchema = inputSchemaSchema.parse(response.data);
 
-    const inputSchemaResult = await agentClient.fetchAgentInputSchema(agent);
-    if (inputSchemaResult.isErr()) {
-      throw new Error(inputSchemaResult.error);
-    }
-
-    const inputSchema = inputSchemaSchema.parse(inputSchemaResult.value);
     return createApiSuccessResponse(inputSchema);
   } catch (error) {
     return handleApiError(error, "retrieve agent input schema", {

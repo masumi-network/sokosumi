@@ -500,11 +500,25 @@
           },
           "Fields": {
             "Name": {
+              "label": "Nome",
               "placeholder": "Nome (ex.: \"Minha organização\")"
             },
             "Url": {
               "label": "Site",
               "placeholder": "URL do site da empresa (ex.: https://example.com)"
+            },
+            "Logo": {
+              "label": "Logo",
+              "description": "Envie uma imagem do logo da organização.",
+              "upload": "Enviar logo",
+              "replace": "Substituir logo",
+              "remove": "Remover logo",
+              "previewAlt": "Visualização do logo da organização",
+              "uploadSuccess": "Logo enviado com sucesso",
+              "uploadError": "Falha ao enviar o logo",
+              "fileTooLarge": "O arquivo é muito grande (máx. 2 MB)",
+              "fileTypeNotAccepted": "Tipo de arquivo não aceito",
+              "maxFilesExceeded": "Máximo de 1 arquivo permitido"
             }
           }
         },

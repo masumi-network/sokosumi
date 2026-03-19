@@ -38,7 +38,7 @@ export default function OrganizationInformationModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[80svh] w-[30vw] max-w-2xl!">
+      <DialogContent className="max-h-[90svh] w-[95vw] max-w-lg! overflow-y-auto sm:w-[85vw] sm:max-w-xl md:w-[70vw] md:max-w-2xl!">
         <DialogTitle className="text-center">
           {isCreating ? t("create") : t("edit")}
         </DialogTitle>

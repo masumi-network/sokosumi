@@ -133,7 +133,6 @@ export const auth = betterAuth({
   appName: "Sokosumi", // Define the name of your application
   advanced: {
     ipAddress: {
-      // For Vercel
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },
@@ -514,6 +513,11 @@ export const auth = betterAuth({
               input: false,
             },
             url: {
+              type: "string",
+              required: false,
+              defaultValue: null,
+            },
+            logo: {
               type: "string",
               required: false,
               defaultValue: null,

@@ -500,11 +500,25 @@
           },
           "Fields": {
             "Name": {
+              "label": "Name",
               "placeholder": "Name (z. B. 'Meine Organisation')"
             },
             "Url": {
               "label": "Webseite",
               "placeholder": "Firmen-Website-URL (z. B. https://example.com)"
+            },
+            "Logo": {
+              "label": "Logo",
+              "description": "Laden Sie ein Organisationslogo hoch.",
+              "upload": "Logo hochladen",
+              "replace": "Logo ersetzen",
+              "remove": "Logo entfernen",
+              "previewAlt": "Organisationslogo-Vorschau",
+              "uploadSuccess": "Logo erfolgreich hochgeladen",
+              "uploadError": "Logo-Upload fehlgeschlagen",
+              "fileTooLarge": "Datei ist zu groß (max. 2 MB)",
+              "fileTypeNotAccepted": "Dateityp nicht akzeptiert",
+              "maxFilesExceeded": "Maximal 1 Datei erlaubt"
             }
           }
         },
