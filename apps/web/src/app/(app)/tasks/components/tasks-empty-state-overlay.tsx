@@ -296,48 +296,6 @@ export function TasksEmptyStateOverlay({
   };
 
   useEffect(() => {
-    if (!isAdvancingToChatStep) return;
-    if (GUIDE_STEPS[stepIndex + 1] !== "chat") return;
-    if (!isChatRailOpen) return;
-
-    let hasAdvanced = false;
-    let readyPollTimeoutId = 0;
-    const fallbackTimeoutId = window.setTimeout(
-      advanceToChatStep,
-      CHAT_RAIL_READY_TIMEOUT_MS,
-    );
-
-    function advanceToChatStep() {
-      if (hasAdvanced) return;
-      hasAdvanced = true;
-      setStepIndex((prevStepIndex) => prevStepIndex + 1);
-      setIsAdvancingToChatStep(false);
-    }
-
-    const pollRailReadyState = () => {
-      if (isTasksEmptyStateChatRailPanelReady()) {
-        advanceToChatStep();
-        return;
-      }
-
-      readyPollTimeoutId = window.setTimeout(
-        pollRailReadyState,
-        CHAT_RAIL_READY_POLL_MS,
-      );
-    };
-
-    readyPollTimeoutId = window.setTimeout(
-      pollRailReadyState,
-      CHAT_RAIL_READY_POLL_MS,
-    );
-
-    return () => {
-      if (readyPollTimeoutId) window.clearTimeout(readyPollTimeoutId);
-      window.clearTimeout(fallbackTimeoutId);
-    };
-  }, [isAdvancingToChatStep, isChatRailOpen, stepIndex]);
-
-  useEffect(() => {
     if (stepIndex !== 1 && !isAdvancingToChatStep) return;
     if (isChatRailOpen) return;
 
@@ -351,16 +309,25 @@ export function TasksEmptyStateOverlay({
     };
   }, [isAdvancingToChatStep, isChatRailOpen, stepIndex]);
 
+  /**
+   * Single source of truth for desktop `data-chat-rail-ready` polling: updates
+   * connector visibility and advances the guide to the chat step when pending.
+   * Avoids duplicate poll/fallback loops racing on the same DOM attribute.
+   */
   useEffect(() => {
     let animationFrameId = 0;
     let pollTimeoutId = 0;
     let fallbackTimeoutId = 0;
-    const scheduleConnectorReadinessUpdate = (isReady: boolean) => {
-      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-      animationFrameId = window.requestAnimationFrame(() => {
-        setIsChatPanelReadyForConnector(isReady);
-      });
-    };
+    let didAdvanceFromReady = false;
+
+    function tryAdvanceToChatStep() {
+      if (didAdvanceFromReady) return;
+      if (!isAdvancingToChatStep) return;
+      if (GUIDE_STEPS[stepIndex + 1] !== "chat") return;
+      didAdvanceFromReady = true;
+      setStepIndex((prevStepIndex) => prevStepIndex + 1);
+      setIsAdvancingToChatStep(false);
+    }
 
     function clearFallbackTimeout() {
       if (fallbackTimeoutId) {
@@ -369,38 +336,44 @@ export function TasksEmptyStateOverlay({
       }
     }
 
+    function scheduleReadinessUpdate(isReady: boolean) {
+      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+      animationFrameId = window.requestAnimationFrame(() => {
+        setIsChatPanelReadyForConnector(isReady);
+        if (isReady) tryAdvanceToChatStep();
+      });
+    }
+
+    function cleanup() {
+      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+      if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
+      clearFallbackTimeout();
+    }
+
     if (!isChatRailOpen) {
-      scheduleConnectorReadinessUpdate(false);
-      return () => {
-        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-        if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
-        clearFallbackTimeout();
-      };
+      scheduleReadinessUpdate(false);
+      return cleanup;
     }
 
     // Desktop `data-chat-rail-ready` is only driven when `open` (rail visible).
-    // Mobile sheet uses `openMobile` only — panel stays not-ready forever; don't poll.
+    // Mobile sheet uses `openMobile` only — panel stays not-ready forever; treat as ready.
     if (!open) {
-      scheduleConnectorReadinessUpdate(true);
-      return () => {
-        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-        clearFallbackTimeout();
-      };
+      scheduleReadinessUpdate(true);
+      return cleanup;
     }
 
     if (!selectTasksEmptyStateChatRailPanel()) {
-      scheduleConnectorReadinessUpdate(true);
-      return () => {
-        if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-        if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
-        clearFallbackTimeout();
-      };
+      scheduleReadinessUpdate(true);
+      return cleanup;
     }
 
-    const markReadyIfOpen = () => {
+    const syncFromDom = () => {
       const ready = isTasksEmptyStateChatRailPanelReady();
       if (ready) clearFallbackTimeout();
-      scheduleConnectorReadinessUpdate(ready);
+      scheduleReadinessUpdate(ready);
+      if (!ready) {
+        pollTimeoutId = window.setTimeout(syncFromDom, CHAT_RAIL_READY_POLL_MS);
+      }
     };
 
     fallbackTimeoutId = window.setTimeout(() => {
@@ -409,31 +382,13 @@ export function TasksEmptyStateOverlay({
         window.clearTimeout(pollTimeoutId);
         pollTimeoutId = 0;
       }
-      scheduleConnectorReadinessUpdate(true);
+      scheduleReadinessUpdate(true);
     }, CHAT_RAIL_READY_TIMEOUT_MS);
 
-    markReadyIfOpen();
-    const pollRailReadyState = () => {
-      if (isTasksEmptyStateChatRailPanelReady()) {
-        clearFallbackTimeout();
-        markReadyIfOpen();
-        return;
-      }
+    syncFromDom();
 
-      pollTimeoutId = window.setTimeout(
-        pollRailReadyState,
-        CHAT_RAIL_READY_POLL_MS,
-      );
-    };
-
-    pollRailReadyState();
-
-    return () => {
-      if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-      if (pollTimeoutId) window.clearTimeout(pollTimeoutId);
-      clearFallbackTimeout();
-    };
-  }, [isChatRailOpen, open, stepIndex]);
+    return cleanup;
+  }, [isAdvancingToChatStep, isChatRailOpen, open, stepIndex]);
 
   const shouldRenderChatConnector =
     currentStep !== "chat" || isChatPanelReadyForConnector;
