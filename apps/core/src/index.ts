@@ -9,7 +9,7 @@ import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
-import { getEnv, validateEnv } from "@/config/env";
+import { getEnv, getWebAppBaseUrl, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { initSentry } from "@/lib/sentry";
@@ -22,6 +22,8 @@ import apiV1 from "@/routes/v1/index";
 
 validateEnv();
 initSentry();
+
+console.log("getWebAppBaseUrl()", getWebAppBaseUrl());
 
 // Build favicon URL - use Vercel URL in production, relative path locally
 const faviconUrl = process.env.VERCEL_URL
