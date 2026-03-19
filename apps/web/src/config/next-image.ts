@@ -19,6 +19,10 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
     protocol: "https",
     hostname: "**.utxoag.com",
   },
+  {
+    protocol: "https",
+    hostname: "external-content.duckduckgo.com",
+  },
 ] as const;
 
 export function canUseNextImageSrc(url: string): boolean {

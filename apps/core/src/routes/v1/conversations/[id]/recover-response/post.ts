@@ -120,17 +120,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ? ("not_found" as const)
             : ("in_progress" as const);
         if (result.status === "not_found") {
-          const currentMeta =
-            (conversation.metadata as Record<string, unknown>) ?? {};
-          await prisma.conversation.update({
-            where: { id: conversation.id },
-            data: {
-              metadata: {
-                ...currentMeta,
-                pending_responses_api_response_id: null,
-              },
-            },
-          });
+          await prisma.$executeRaw`
+            UPDATE conversation
+            SET metadata = metadata - 'pending_responses_api_response_id'
+            WHERE id = ${conversationId}
+              AND "userId" = ${authContext.userId}
+              AND "archivedAt" IS NULL
+              AND (metadata->>'pending_responses_api_response_id') = ${pendingResponseId}
+          `;
         }
         return ok(c, { recovered: false, reason });
       }

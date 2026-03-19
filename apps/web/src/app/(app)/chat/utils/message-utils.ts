@@ -104,7 +104,10 @@ export function deduplicateMessagesById<T extends { id?: string }>(
 ): T[] {
   const seen = new Set<string>();
   return messages.filter((m) => {
-    const id = m.id ?? "";
+    const id = m.id?.trim() ?? "";
+    if (!id) {
+      return true;
+    }
     if (seen.has(id)) return false;
     seen.add(id);
     return true;

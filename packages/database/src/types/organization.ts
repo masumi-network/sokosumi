@@ -1,4 +1,4 @@
-import type { Prisma } from "../generated/prisma/client.js";
+import type { Organization, Prisma } from "../generated/prisma/client.js";
 
 export enum MemberRole {
   OWNER = "owner",
@@ -30,9 +30,10 @@ export const organizationLimitedInfoInclude = {
   slug: true,
 } as const;
 
-export type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
-  include: typeof organizationInclude;
-}>;
+/** Base organization scalars plus members count from {@link organizationInclude}. */
+export type OrganizationWithRelations = Organization & {
+  _count: { members: number };
+};
 
 export type OrganizationWithLimitedInfo = Prisma.OrganizationGetPayload<{
   select: typeof organizationLimitedInfoInclude;

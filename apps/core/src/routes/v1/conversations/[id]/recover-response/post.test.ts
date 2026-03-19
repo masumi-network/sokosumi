@@ -10,6 +10,7 @@ const {
   conversationFindFirstMock,
   conversationItemCreateMock,
   conversationUpdateMock,
+  executeRawMock,
   findCoworkerWithChatBySlugMock,
   getResponseByIdMock,
   requireCoworkerChatCapabilityMock,
@@ -18,6 +19,7 @@ const {
   conversationFindFirstMock: vi.fn(),
   conversationItemCreateMock: vi.fn(),
   conversationUpdateMock: vi.fn(),
+  executeRawMock: vi.fn(),
   findCoworkerWithChatBySlugMock: vi.fn(),
   getResponseByIdMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
@@ -56,6 +58,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: conversationFindFirstMock,
       update: conversationUpdateMock,
     },
+    $executeRaw: executeRawMock,
     $transaction: (fn: (tx: unknown) => Promise<unknown>) =>
       transactionMock(fn) as Promise<unknown>,
   },
@@ -97,6 +100,7 @@ describe("POST /conversations/:id/recover-response", () => {
     });
     conversationItemCreateMock.mockResolvedValue(undefined);
     conversationUpdateMock.mockResolvedValue(undefined);
+    executeRawMock.mockResolvedValue(1);
     transactionMock.mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
@@ -204,14 +208,37 @@ describe("POST /conversations/:id/recover-response", () => {
       sokosumiOrganizationId: "org_123",
       coworkerSlug: "ops-agent",
     });
-    expect(conversationUpdateMock).toHaveBeenCalledWith({
-      where: { id: CONV_ID },
-      data: {
-        metadata: expect.objectContaining({
-          pending_responses_api_response_id: null,
-        }),
+    expect(executeRawMock).toHaveBeenCalledTimes(1);
+    expect(conversationUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 not_found when stale pending id was superseded (no metadata overwrite)", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: CONV_ID,
+      metadata: {
+        pending_responses_api_response_id: "resp_stale",
+        coworker_slug: "ops-agent",
       },
     });
+    findCoworkerWithChatBySlugMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://api.example.com",
+    });
+    getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
+    executeRawMock.mockResolvedValueOnce(0);
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/${CONV_ID}/recover-response`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ recovered: false, reason: "not_found" });
+    expect(executeRawMock).toHaveBeenCalledTimes(1);
+    expect(conversationUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 with recovered true when GET returns completed", async () => {
