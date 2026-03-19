@@ -38,7 +38,6 @@ import { createCoreGeneratedClient } from "./core.transport.server";
 
 export {
   coreApiBaseUrl,
-  normalizeCoreApiBaseUrl,
 } from "./core.transport.shared";
 
 export type CoreApiPagination = PaginationMetadata;

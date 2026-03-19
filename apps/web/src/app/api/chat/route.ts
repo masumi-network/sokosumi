@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     requestHeaders.set("Content-Type", "application/json");
     requestHeaders.delete("Content-Length");
 
-    const response = await fetch(`${coreApiBaseUrl}/v1/conversations/chat`, {
+    const response = await fetch(`${coreApiBaseUrl}/conversations/chat`, {
       method: "POST",
       headers: requestHeaders,
       body: JSON.stringify(body),

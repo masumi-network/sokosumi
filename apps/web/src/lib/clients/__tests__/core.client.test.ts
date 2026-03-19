@@ -57,24 +57,10 @@ describe("core.client", () => {
     createGeneratedClientMock.mockResolvedValue(mockClient);
   });
 
-  it("normalizes core API base urls with and without /v1", async () => {
-    const { normalizeCoreApiBaseUrl } = await import("../core.client");
-
-    expect(normalizeCoreApiBaseUrl("http://localhost:8787")).toBe(
-      "http://localhost:8787/v1",
-    );
-    expect(normalizeCoreApiBaseUrl("http://localhost:8787/v1")).toBe(
-      "http://localhost:8787/v1",
-    );
-    expect(normalizeCoreApiBaseUrl("http://localhost:8787/v1/")).toBe(
-      "http://localhost:8787/v1",
-    );
-  });
-
   it("keeps coreApiBaseUrl exported for chat compatibility", async () => {
     const { coreApiBaseUrl } = await import("../core.client");
 
-    expect(coreApiBaseUrl).toBe("http://localhost:8787");
+    expect(coreApiBaseUrl).toBe("http://localhost:8787/v1");
   });
 
   it("resolves the core API url from the server env via related projects", async () => {

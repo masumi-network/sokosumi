@@ -16,7 +16,7 @@ jest.mock("@/lib/auth/utils", () => ({
 }));
 
 jest.mock("@/lib/clients/core.client", () => ({
-  coreApiBaseUrl: "https://core.example.com",
+  coreApiBaseUrl: "https://core.example.com/v1",
 }));
 
 import { POST } from "../route";
