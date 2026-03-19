@@ -1,3 +1,4 @@
+import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { queryOptions } from "@tanstack/react-query";
 
 import { UnAuthenticatedError } from "@/lib/auth/errors";
@@ -24,7 +25,7 @@ export const getAgentInputSchemaQueryOptions = (agentId: string) =>
     queryFn: async () => {
       try {
         const result = await coreClient.getAgentInputSchema(agentId);
-        return result.data;
+        return inputSchemaSchema.parse(result.data);
       } catch (error) {
         if (error instanceof CoreApiRequestError && error.status === 401) {
           throw new UnAuthenticatedError();
