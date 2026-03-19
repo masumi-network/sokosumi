@@ -512,6 +512,11 @@ export const auth = betterAuth({
               defaultValue: null,
               input: false,
             },
+            url: {
+              type: "string",
+              required: false,
+              defaultValue: null,
+            },
           },
         },
       },

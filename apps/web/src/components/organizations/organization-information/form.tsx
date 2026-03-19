@@ -43,7 +43,8 @@ export default function OrganizationInformationForm({
       ),
     ),
     defaultValues: {
-      name: "",
+      name: organization?.name ?? "",
+      url: organization?.url ?? "",
     },
   });
 
@@ -51,9 +52,13 @@ export default function OrganizationInformationForm({
     setIsLoading(true);
     let result;
     const isCreating = !organization;
+    const normalizedUrl = values.url.trim();
+    const createUrlPayload =
+      normalizedUrl.length > 0 ? normalizedUrl : undefined;
     if (isCreating) {
       const slugResult = await generateOrganizationSlug({
         name: values.name,
+        url: values.url,
       });
       if (!slugResult.ok) {
         toast.error(t("Error.create"));
@@ -63,12 +68,14 @@ export default function OrganizationInformationForm({
       result = await authClient.organization.create({
         slug,
         name: values.name,
+        ...(createUrlPayload && { url: createUrlPayload }),
       });
     } else {
       result = await authClient.organization.update({
         organizationId: organization.id,
         data: {
           name: values.name,
+          url: normalizedUrl,
         },
       });
     }
