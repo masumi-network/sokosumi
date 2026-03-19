@@ -8,6 +8,7 @@ import {
 import * as z from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import {
   organizationInformationFormSchema,
@@ -45,6 +46,33 @@ export async function generateOrganizationSlug(
     return Err({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
+  }
+}
+
+export async function uploadOrganizationLogo(
+  file: File,
+): Promise<Result<string, ActionError>> {
+  if (!(file instanceof File) || file.size <= 0) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: "File is required",
+    });
+  }
+
+  try {
+    const response = await coreClient.uploadMyFile(file);
+    const uploadedFileUrl = response.data.publicUrl;
+
+    if (!uploadedFileUrl) {
+      return Err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Upload did not return a public URL",
+      });
+    }
+
+    return Ok(uploadedFileUrl);
+  } catch (error) {
+    return Err(toCoreApiActionError(error));
   }
 }
 

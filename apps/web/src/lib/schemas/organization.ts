@@ -10,6 +10,7 @@ export const organizationInformationFormSchema = (
       .min(2, t?.("Name.min"))
       .max(50, t?.("Name.max")),
     url: z.union([z.literal(""), z.url({ error: t?.("Url.invalid") })]),
+    logo: z.string(),
   });
 
 export type OrganizationInformationFormSchemaType = z.infer<
