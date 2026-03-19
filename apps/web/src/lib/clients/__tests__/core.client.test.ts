@@ -63,15 +63,14 @@ describe("core.client", () => {
 
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "http://localhost:8787/v1",
-      headers: expect.any(Headers),
+      headers: {
+        cookie: "session=abc",
+      },
     });
     expect(getConversationsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
     });
-    const forwardedHeaders = createClientMock.mock.calls[0]?.[0]
-      ?.headers as Headers;
-    expect(forwardedHeaders.get("cookie")).toBe("session=abc");
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
     );
