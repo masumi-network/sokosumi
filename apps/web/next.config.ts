@@ -4,8 +4,7 @@ import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-import { getEnvPublicConfig } from "@/config/env.public";
-
+import { getEnvPublicConfig } from "./src/config/env.public";
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 
 const publicConfig = getEnvPublicConfig();
