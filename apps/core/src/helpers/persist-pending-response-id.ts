@@ -30,7 +30,7 @@ export async function persistPendingResponseId(
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const delaysMs = options.delaysMs ?? DEFAULT_DELAYS_MS;
 
-  let lastError: unknown;
+  let _lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       const conv = await prisma.conversation.findFirst({
@@ -38,7 +38,7 @@ export async function persistPendingResponseId(
         select: { metadata: true },
       });
       if (!conv) {
-        lastError = new Error("Conversation not found");
+        _lastError = new Error("Conversation not found");
         continue;
       }
       const meta = (conv.metadata as Record<string, unknown>) ?? {};
@@ -61,7 +61,7 @@ export async function persistPendingResponseId(
       });
       return;
     } catch (error) {
-      lastError = error;
+      _lastError = error;
       if (attempt < maxAttempts - 1) {
         const delay = delaysMs[Math.min(attempt, delaysMs.length - 1)] ?? 0;
         await new Promise((r) => setTimeout(r, delay));
@@ -93,7 +93,7 @@ export async function clearPendingAndSetPrevious(
   const maxAttempts = options.maxAttempts ?? 3;
   const delaysMs = options.delaysMs ?? [0, 150, 300];
 
-  let lastError: unknown;
+  let _lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       const conv = await prisma.conversation.findFirst({
@@ -101,7 +101,7 @@ export async function clearPendingAndSetPrevious(
         select: { metadata: true },
       });
       if (!conv) {
-        lastError = new Error("Conversation not found");
+        _lastError = new Error("Conversation not found");
         continue;
       }
       const currentMeta = (conv.metadata as Record<string, unknown>) ?? {};
@@ -117,7 +117,7 @@ export async function clearPendingAndSetPrevious(
       });
       return;
     } catch (error) {
-      lastError = error;
+      _lastError = error;
       if (attempt < maxAttempts - 1) {
         const delay = delaysMs[Math.min(attempt, delaysMs.length - 1)] ?? 0;
         await new Promise((r) => setTimeout(r, delay));
