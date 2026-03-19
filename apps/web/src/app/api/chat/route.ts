@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Forward request to Core API chat endpoint
-    const requestHeaders = await headers();
+    const requestHeaders = new Headers(await headers());
     requestHeaders.set("Content-Type", "application/json");
     requestHeaders.delete("Content-Length");
 
