@@ -116,7 +116,7 @@ type CoreOperationResult<TData, TError> = {
   response: Response;
 };
 
-const coreApiHost = withRelatedProject({
+export const coreApiBaseUrl = withRelatedProject({
   projectName:
     getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
       ? "sokosumi-core-preprod"
@@ -127,7 +127,7 @@ const coreApiHost = withRelatedProject({
 async function createCoreApiClient(): Promise<Client> {
   const requestHeaders = await headers();
   const client = createClient({
-    baseUrl: normalizeCoreApiBaseUrl(coreApiHost),
+    baseUrl: normalizeCoreApiBaseUrl(coreApiBaseUrl),
     headers: buildAuthHeaders(requestHeaders),
   });
   return client;
