@@ -5,7 +5,6 @@ import { withRelatedProject } from "@vercel/related-projects";
 import { headers } from "next/headers";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import type {
   GetCoworkersData,
@@ -122,15 +121,13 @@ const coreApiHost = withRelatedProject({
     getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
       ? "sokosumi-core-preprod"
       : "sokosumi-core-mainnet",
-  defaultHost: getEnvSecrets().CORE_API_URL,
+  defaultHost: getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL,
 });
 
 async function createCoreApiClient(): Promise<Client> {
-  const baseUrl = normalizeCoreApiBaseUrl(coreApiHost);
-  console.log("baseUrl", baseUrl);
   const requestHeaders = await headers();
   const client = createClient({
-    baseUrl,
+    baseUrl: normalizeCoreApiBaseUrl(coreApiHost),
     headers: buildAuthHeaders(requestHeaders),
   });
   return client;
