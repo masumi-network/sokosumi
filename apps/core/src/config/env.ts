@@ -23,7 +23,7 @@ const envSchema = z.object({
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
-  BETTER_AUTH_URL: z.url(),
+  BETTER_AUTH_URL: z.url().default("http://localhost:8787"),
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 

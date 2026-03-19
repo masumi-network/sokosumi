@@ -142,6 +142,7 @@ export const auth = betterAuth({
       "*.vercel.app", // All Vercel previews
       "localhost:*", // Local development
     ],
+    fallback: getEnvSecrets().BETTER_AUTH_URL,
   },
   experimental: {
     joins: true,
