@@ -2,7 +2,6 @@ export {};
 
 jest.mock("server-only", () => ({}));
 
-const withRelatedProjectMock = jest.fn();
 const getEnvPublicConfigMock = jest.fn();
 const getCoreTransportAdapterMock = jest.fn();
 const getConversationsMock = jest.fn();
@@ -13,10 +12,6 @@ const getUsersMeCreditsMock = jest.fn();
 const getUsersMeOrganizationsMock = jest.fn();
 const createGeneratedClientMock = jest.fn();
 const mockClient = { id: "core-client" } as never;
-
-jest.mock("@vercel/related-projects", () => ({
-  withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
-}));
 
 jest.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
@@ -44,9 +39,6 @@ describe("core.client", () => {
       NEXT_PUBLIC_CORE_API_URL: "http://localhost:8787",
       NEXT_PUBLIC_NETWORK: "Mainnet",
     });
-    withRelatedProjectMock.mockImplementation(
-      ({ defaultHost }: { defaultHost: string }) => defaultHost,
-    );
 
     createGeneratedClientMock.mockResolvedValue(mockClient);
     getCoreTransportAdapterMock.mockResolvedValue({
@@ -84,15 +76,9 @@ describe("core.client", () => {
   });
 
   it("keeps coreApiBaseUrl exported for chat compatibility", async () => {
-    withRelatedProjectMock.mockReturnValue("https://core.example.com");
-
     const { coreApiBaseUrl } = await import("../core.client");
 
-    expect(coreApiBaseUrl).toBe("https://core.example.com");
-    expect(withRelatedProjectMock).toHaveBeenCalledWith({
-      defaultHost: "http://localhost:8787",
-      projectName: "sokosumi-core-mainnet",
-    });
+    expect(coreApiBaseUrl).toBe("http://localhost:8787");
   });
 
   it("executes generated operations through the transport adapter", async () => {

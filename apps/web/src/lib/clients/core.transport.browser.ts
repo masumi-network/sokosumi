@@ -9,7 +9,7 @@ import {
 export const coreBrowserTransportAdapter: CoreTransportAdapter = {
   async createGeneratedClient() {
     const baseUrl = normalizeCoreApiBaseUrl(coreApiBaseUrl);
-
+    console.log("browser core base url", baseUrl);
     return createClient({
       baseUrl,
       credentials: "include",

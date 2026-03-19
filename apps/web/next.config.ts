@@ -1,12 +1,27 @@
 /* eslint-disable no-restricted-properties */
 import { withSentryConfig } from "@sentry/nextjs";
+import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+
 import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
+
+const publicConfig = getEnvPublicConfig();
+const resolvedCoreApiUrl = withRelatedProject({
+  projectName:
+    publicConfig.NEXT_PUBLIC_NETWORK === "Preprod"
+      ? "sokosumi-core-preprod"
+      : "sokosumi-core-mainnet",
+  defaultHost: publicConfig.NEXT_PUBLIC_CORE_API_URL,
+});
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  env: {
+    NEXT_PUBLIC_CORE_API_URL: resolvedCoreApiUrl,
+  },
   images: {
     remotePatterns: [...NEXT_IMAGE_REMOTE_PATTERNS],
   },

@@ -2,11 +2,6 @@ export {};
 
 const createClientMock = jest.fn();
 const getEnvPublicConfigMock = jest.fn();
-const withRelatedProjectMock = jest.fn();
-
-jest.mock("@vercel/related-projects", () => ({
-  withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
-}));
 
 jest.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
@@ -22,27 +17,19 @@ describe("core.transport.browser", () => {
     jest.resetModules();
 
     getEnvPublicConfigMock.mockReturnValue({
-      NEXT_PUBLIC_CORE_API_URL: "http://localhost:8787/",
+      NEXT_PUBLIC_CORE_API_URL: "https://core-browser.example.com/",
       NEXT_PUBLIC_NETWORK: "Mainnet",
     });
-    withRelatedProjectMock.mockImplementation(
-      ({ defaultHost }: { defaultHost: string }) => defaultHost,
-    );
   });
 
-  it("creates a generated client with the related-project base url", async () => {
+  it("creates a generated client with the resolved public base url", async () => {
     createClientMock.mockReturnValue({ id: "browser-client" });
-    withRelatedProjectMock.mockReturnValue("https://core-browser.example.com/");
 
     const { coreBrowserTransportAdapter } = await import(
       "../core.transport.browser"
     );
     const client = await coreBrowserTransportAdapter.createGeneratedClient();
 
-    expect(withRelatedProjectMock).toHaveBeenCalledWith({
-      defaultHost: "http://localhost:8787/",
-      projectName: "sokosumi-core-mainnet",
-    });
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "https://core-browser.example.com/v1",
       credentials: "include",

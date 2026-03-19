@@ -1,5 +1,3 @@
-import { withRelatedProject } from "@vercel/related-projects";
-
 import { getEnvPublicConfig } from "@/config/env.public";
 
 export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
@@ -18,10 +16,4 @@ export function normalizeCoreApiBaseUrl(baseUrl: string): string {
     : `${withoutTrailingSlash}/v1`;
 }
 
-export const coreApiBaseUrl = withRelatedProject({
-  projectName:
-    getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
-      ? "sokosumi-core-preprod"
-      : "sokosumi-core-mainnet",
-  defaultHost: getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL,
-});
+export const coreApiBaseUrl = getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL;
