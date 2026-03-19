@@ -16,12 +16,12 @@ export async function POST(req: NextRequest) {
 
     // Forward request to Core API chat endpoint
     const requestHeaders = await headers();
+    requestHeaders.set("Content-Type", "application/json");
+    requestHeaders.delete("Content-Length");
+
     const response = await fetch(`${coreApiBaseUrl}/v1/conversations/chat`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...requestHeaders,
-      },
+      headers: requestHeaders,
       body: JSON.stringify(body),
     });
 
