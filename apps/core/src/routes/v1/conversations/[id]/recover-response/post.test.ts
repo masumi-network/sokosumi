@@ -10,16 +10,16 @@ const {
   conversationFindFirstMock,
   conversationItemCreateMock,
   conversationUpdateMock,
+  findCoworkerWithChatBySlugMock,
   getResponseByIdMock,
-  isResponsesApiConfiguredMock,
   requireCoworkerChatCapabilityMock,
   transactionMock,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
   conversationItemCreateMock: vi.fn(),
   conversationUpdateMock: vi.fn(),
+  findCoworkerWithChatBySlugMock: vi.fn(),
   getResponseByIdMock: vi.fn(),
-  isResponsesApiConfiguredMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
@@ -43,15 +43,8 @@ vi.mock("@/clients/coworker-api.client", () => ({
   getResponseById: (...args: unknown[]) => getResponseByIdMock(...args),
 }));
 
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    isResponsesApiConfigured: isResponsesApiConfiguredMock,
-  };
-});
-
 vi.mock("@/helpers/access-control", () => ({
+  findCoworkerWithChatBySlug: findCoworkerWithChatBySlugMock,
   requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
 }));
 
@@ -90,8 +83,12 @@ const CONV_ID = "550e8400-e29b-41d4-a716-446655440000";
 describe("POST /conversations/:id/recover-response", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isResponsesApiConfiguredMock.mockReturnValue(true);
     requireCoworkerChatCapabilityMock.mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://api.example.com",
+    });
+    findCoworkerWithChatBySlugMock.mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: "https://api.example.com",
@@ -101,7 +98,12 @@ describe("POST /conversations/:id/recover-response", () => {
     transactionMock.mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
-          conversationItem: { create: conversationItemCreateMock },
+          $executeRaw: vi.fn().mockResolvedValue(1),
+          $queryRaw: vi.fn().mockResolvedValue([]),
+          conversationItem: {
+            create: conversationItemCreateMock,
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
           conversation: { update: conversationUpdateMock },
         }),
     );
@@ -146,6 +148,11 @@ describe("POST /conversations/:id/recover-response", () => {
         coworker_slug: "ops-agent",
       },
     });
+    findCoworkerWithChatBySlugMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://api.example.com",
+    });
     getResponseByIdMock.mockResolvedValueOnce({ status: "in_progress" });
 
     const app = createApp();
@@ -156,11 +163,52 @@ describe("POST /conversations/:id/recover-response", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data).toEqual({ recovered: false });
+    expect(body.data).toEqual({ recovered: false, reason: "in_progress" });
     expect(getResponseByIdMock).toHaveBeenCalledWith("resp_456", {
+      responsesApiBaseUrl: "https://api.example.com",
       sokosumiUserId: "user_123",
       sokosumiOrganizationId: "org_123",
       coworkerSlug: "ops-agent",
+    });
+  });
+
+  it("returns 200 with recovered false and reason not_found when GET returns 404", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: CONV_ID,
+      metadata: {
+        pending_responses_api_response_id: "resp_404",
+        coworker_slug: "ops-agent",
+      },
+    });
+    findCoworkerWithChatBySlugMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://api.example.com",
+    });
+    getResponseByIdMock.mockResolvedValueOnce({ status: "not_found" });
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/${CONV_ID}/recover-response`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ recovered: false, reason: "not_found" });
+    expect(getResponseByIdMock).toHaveBeenCalledWith("resp_404", {
+      responsesApiBaseUrl: "https://api.example.com",
+      sokosumiUserId: "user_123",
+      sokosumiOrganizationId: "org_123",
+      coworkerSlug: "ops-agent",
+    });
+    expect(conversationUpdateMock).toHaveBeenCalledWith({
+      where: { id: CONV_ID },
+      data: {
+        metadata: expect.objectContaining({
+          pending_responses_api_response_id: null,
+        }),
+      },
     });
   });
 
@@ -171,6 +219,11 @@ describe("POST /conversations/:id/recover-response", () => {
         pending_responses_api_response_id: "resp_789",
         coworker_slug: "ops-agent",
       },
+    });
+    findCoworkerWithChatBySlugMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://api.example.com",
     });
     getResponseByIdMock.mockResolvedValueOnce({
       status: "completed",
@@ -193,13 +246,21 @@ describe("POST /conversations/:id/recover-response", () => {
     const body = await response.json();
     expect(body.data).toEqual({ recovered: true });
     expect(transactionMock).toHaveBeenCalled();
+    expect(conversationItemCreateMock).toHaveBeenCalled();
   });
 
-  it("returns 400 when Responses API is not configured", async () => {
-    isResponsesApiConfiguredMock.mockReturnValue(false);
+  it("returns 400 when coworker has no base URL", async () => {
+    requireCoworkerChatCapabilityMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    });
     conversationFindFirstMock.mockResolvedValueOnce({
       id: CONV_ID,
-      metadata: { pending_responses_api_response_id: "resp_1" },
+      metadata: {
+        pending_responses_api_response_id: "resp_1",
+        coworker_id: "cow_123",
+      },
     });
 
     const app = createApp();
@@ -229,7 +290,58 @@ describe("POST /conversations/:id/recover-response", () => {
     expect(requireCoworkerChatCapabilityMock).toHaveBeenCalledWith("cow_123");
     expect(getResponseByIdMock).toHaveBeenCalledWith(
       "resp_2",
-      expect.objectContaining({ coworkerSlug: "ops-agent" }),
+      expect.objectContaining({
+        coworkerSlug: "ops-agent",
+        responsesApiBaseUrl: "https://api.example.com",
+      }),
     );
+  });
+
+  it("does not create duplicate item when one already exists for same response id", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: CONV_ID,
+      metadata: {
+        pending_responses_api_response_id: "resp_789",
+        coworker_slug: "ops-agent",
+      },
+    });
+    findCoworkerWithChatBySlugMock.mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://api.example.com",
+    });
+    getResponseByIdMock.mockResolvedValueOnce({
+      status: "completed",
+      id: "resp_789",
+      output: [
+        {
+          type: "message",
+          content: [{ type: "output_text", text: "Recovered message" }],
+        },
+      ],
+    });
+    transactionMock.mockImplementationOnce(
+      async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          $executeRaw: vi.fn().mockResolvedValue(1),
+          $queryRaw: vi.fn().mockResolvedValue([]),
+          conversationItem: {
+            create: conversationItemCreateMock,
+            findFirst: vi.fn().mockResolvedValue({ id: "existing-item-id" }),
+          },
+          conversation: { update: conversationUpdateMock },
+        }),
+    );
+
+    const app = createApp();
+    const response = await app.request(
+      `http://localhost/${CONV_ID}/recover-response`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ recovered: true });
+    expect(conversationItemCreateMock).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { streamResponsesApi } from "@/clients/coworker-api.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { requireCoworkerChatCapability } from "@/helpers/access-control";
-import { streamWithAssistantPersistence } from "@/helpers/chat-stream-persist";
+import {
+  type ResponsesApiResponseIdRef,
+  streamWithAssistantPersistence,
+} from "@/helpers/chat-stream-persist";
 import {
   badRequest,
   internalServerError,
@@ -15,6 +18,10 @@ import {
   formatMessageContentForConversation,
 } from "@/helpers/message-content";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import {
+  clearPendingAndSetPrevious,
+  persistPendingResponseId,
+} from "@/helpers/persist-pending-response-id";
 import prisma from "@/lib/db/prisma";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -239,68 +246,70 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
             select: { _count: { select: { items: true } } },
           });
+          const itemCountBefore = convWithCount?._count.items ?? 0;
           const isFirstUserMessage =
-            convWithCount?._count.items === 0 &&
+            itemCountBefore === 0 &&
             lastMessage.role === "user" &&
             extractedText.trim().length > 0;
 
-          prisma.conversationItem
-            .create({
-              data: {
-                conversationId: internalConversationId,
-                role: lastMessage.role,
-                contentType: formattedContent[0]?.type || null,
-                contentText: extractedText,
-              },
-            })
-            .then(async () => {
-              if (!isFirstUserMessage) return;
-              const generatedTitle =
-                await openrouterClient.generateChatTitle(extractedText);
-              if (generatedTitle) {
-                await prisma.conversation.update({
-                  where: { id: internalConversationId },
-                  data: { title: generatedTitle },
-                });
-              }
-            })
-            .catch((error) => {
-              console.error("Failed to add message to conversation:", error);
-            });
+          await prisma.conversationItem.create({
+            data: {
+              conversationId: internalConversationId,
+              role: lastMessage.role,
+              contentType: formattedContent[0]?.type || null,
+              contentText: extractedText,
+            },
+          });
+          if (isFirstUserMessage) {
+            void openrouterClient
+              .generateChatTitle(extractedText)
+              .then((generatedTitle) => {
+                if (generatedTitle) {
+                  return prisma.conversation.update({
+                    where: { id: internalConversationId },
+                    data: { title: generatedTitle },
+                  });
+                }
+              })
+              .catch((error) => {
+                console.error("Failed to generate/update title:", error);
+              });
+          }
         }
       }
 
       if (useResponsesApi) {
+        const responsesApiResponseIdRef: ResponsesApiResponseIdRef = {
+          current: null,
+        };
         const responsesApiOptions = {
           responsesApiBaseUrl: coworker!.baseURL!.trim(),
           sokosumiUserId: authContext.userId,
           sokosumiOrganizationId: authContext.organizationId ?? null,
           coworkerSlug: coworker!.slug,
           previousResponseId: previousResponseIdFromMeta ?? null,
+          onResponseStarted: async (responseId: string) => {
+            responsesApiResponseIdRef.current = responseId;
+            if (!internalConversationId) return;
+            void persistPendingResponseId({
+              conversationId: internalConversationId,
+              userId: authContext.userId,
+              responseId,
+              coworkerSlug: coworker!.slug,
+              coworkerId: coworker!.id,
+            });
+          },
           onResponseCompleted: async (responseId: string) => {
             if (!internalConversationId) return;
             try {
-              const conv = await prisma.conversation.findFirst({
-                where: {
-                  id: internalConversationId,
-                  userId: authContext.userId,
-                },
-                select: { metadata: true },
-              });
-              const currentMeta =
-                (conv?.metadata as Record<string, unknown>) ?? {};
-              await prisma.conversation.update({
-                where: { id: internalConversationId },
-                data: {
-                  metadata: {
-                    ...currentMeta,
-                    previous_response_id: responseId,
-                  },
-                },
+              await clearPendingAndSetPrevious({
+                conversationId: internalConversationId,
+                userId: authContext.userId,
+                responseId,
               });
             } catch (error) {
               console.error(
-                "Failed to persist Responses API response id to conversation:",
+                "Failed to clear pending and set previous response id:",
                 error,
               );
             }
@@ -364,6 +373,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             result.body,
             internalConversationId,
             authContext.userId,
+            { responsesApiResponseIdRef },
           );
           return new Response(wrapped, {
             headers: result.headers,

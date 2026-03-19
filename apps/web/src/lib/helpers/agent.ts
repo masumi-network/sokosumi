@@ -26,6 +26,22 @@ import {
 } from "@/lib/types/agent";
 import { CategoryStyles } from "@/lib/types/category";
 
+/** Agent type including legal/author fields from schema (Prisma client may not expose them). */
+type AgentWithOverrides = Agent & {
+  authorName?: string | null;
+  authorOrganization?: string | null;
+  legalDpa?: string | null;
+  legalOther?: string | null;
+  legalPrivacyPolicy?: string | null;
+  legalTerms?: string | null;
+  overrideAuthorName?: string | null;
+  overrideAuthorOrganization?: string | null;
+  overrideLegalDpa?: string | null;
+  overrideLegalOther?: string | null;
+  overrideLegalPrivacyPolicy?: string | null;
+  overrideLegalTerms?: string | null;
+};
+
 export function getAgentName(agent: Agent | AgentWithCreditsPrice): string {
   return agent.overrideName ?? agent.name;
 }
@@ -89,38 +105,43 @@ export function getAgentLegal(agent: Agent): AgentLegal | null {
 }
 
 export function getAgentLegalPrivacyPolicy(agent: Agent): string | null {
-  return agent.overrideLegalPrivacyPolicy ?? agent.legalPrivacyPolicy;
+  const a = agent as AgentWithOverrides;
+  return a.overrideLegalPrivacyPolicy ?? a.legalPrivacyPolicy ?? null;
 }
 
 export function getAgentLegalTerms(agent: Agent): string | null {
-  return agent.overrideLegalTerms ?? agent.legalTerms;
+  const a = agent as AgentWithOverrides;
+  return a.overrideLegalTerms ?? a.legalTerms ?? null;
 }
 
 export function getAgentLegalDpa(agent: Agent): string | null {
-  return agent.overrideLegalDpa ?? agent.legalDpa;
+  const a = agent as AgentWithOverrides;
+  return a.overrideLegalDpa ?? a.legalDpa ?? null;
 }
 
 export function getAgentLegalOther(agent: Agent): string | null {
-  return agent.overrideLegalOther ?? agent.legalOther;
+  const a = agent as AgentWithOverrides;
+  return a.overrideLegalOther ?? a.legalOther ?? null;
 }
 
 export function getAgentAuthorOrganization(agent: Agent): string | null {
-  return agent.overrideAuthorOrganization ?? agent.authorOrganization;
+  const a = agent as AgentWithOverrides;
+  return a.overrideAuthorOrganization ?? a.authorOrganization ?? null;
 }
 
 export function getShortAgentAuthorName(agent: Agent): string | null {
-  // Prioritize organization over name
+  const a = agent as AgentWithOverrides;
   const organization = getAgentAuthorOrganization(agent);
   if (organization) {
     return organization;
   }
-  return agent.overrideAuthorName ?? agent.authorName;
+  return a.overrideAuthorName ?? a.authorName ?? null;
 }
 
 export function getFullAgentAuthorName(agent: Agent): string | null {
-  // For detail pages, show both organization and name
+  const a = agent as AgentWithOverrides;
   const organization = getAgentAuthorOrganization(agent);
-  const name = agent.overrideAuthorName ?? agent.authorName;
+  const name = a.overrideAuthorName ?? a.authorName ?? null;
 
   if (organization && name) {
     return `${organization} (${name})`;

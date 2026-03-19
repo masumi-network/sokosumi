@@ -260,6 +260,7 @@ describe("POST /conversations/chat", () => {
       sokosumiOrganizationId: "org_123",
       coworkerSlug: "ops-agent",
       previousResponseId: "resp_prev",
+      onResponseStarted: expect.any(Function),
       onResponseCompleted: expect.any(Function),
     });
     expect(openrouterStreamChatResponseMock).not.toHaveBeenCalled();

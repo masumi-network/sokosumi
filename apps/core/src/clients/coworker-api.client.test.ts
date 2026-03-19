@@ -6,26 +6,12 @@ import {
 } from "@/clients/coworker-api.client";
 
 const fetchMock = vi.fn();
-const isResponsesApiConfiguredMock = vi.fn();
-const getResponsesApiBaseUrlMock = vi.fn();
-const getEnvMock = vi.fn();
 
-vi.mock("@/config/env", () => ({
-  getEnv: () => getEnvMock(),
-  getResponsesApiBaseUrl: () => getResponsesApiBaseUrlMock(),
-  isResponsesApiConfigured: () => isResponsesApiConfiguredMock(),
-}));
+const DEFAULT_BASE_URL = "https://api.coworker.example.com/v1";
 
 describe("coworker-api.client", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
-    isResponsesApiConfiguredMock.mockReturnValue(true);
-    getResponsesApiBaseUrlMock.mockReturnValue(
-      "https://api.coworker.example.com",
-    );
-    getEnvMock.mockReturnValue({
-      COWORKERS_API_SERVICE_KEY: "sk_test_123",
-    });
   });
 
   afterEach(() => {
@@ -77,6 +63,7 @@ describe("coworker-api.client", () => {
       });
 
       const result = await getResponseById("resp_123", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
         sokosumiUserId: "user_1",
         sokosumiOrganizationId: null,
         coworkerSlug: "ops-agent",
@@ -92,6 +79,7 @@ describe("coworker-api.client", () => {
       });
 
       const result = await getResponseById("resp_123", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
         sokosumiUserId: "user_1",
         sokosumiOrganizationId: null,
         coworkerSlug: "ops-agent",
@@ -118,6 +106,7 @@ describe("coworker-api.client", () => {
       });
 
       const result = await getResponseById("resp_123", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
         sokosumiUserId: "user_1",
         sokosumiOrganizationId: "org_1",
         coworkerSlug: "ops-agent",
@@ -130,17 +119,16 @@ describe("coworker-api.client", () => {
       });
     });
 
-    it("throws when Responses API is not configured", async () => {
-      isResponsesApiConfiguredMock.mockReturnValue(false);
+    it("throws when responsesApiBaseUrl is missing", async () => {
       fetchMock.mockClear();
-
       await expect(
         getResponseById("resp_123", {
+          responsesApiBaseUrl: "",
           sokosumiUserId: "user_1",
           sokosumiOrganizationId: null,
           coworkerSlug: "ops-agent",
         }),
-      ).rejects.toThrow("Responses API is not configured");
+      ).rejects.toThrow("Responses API base URL is required");
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -153,6 +141,7 @@ describe("coworker-api.client", () => {
 
       await expect(
         getResponseById("resp_123", {
+          responsesApiBaseUrl: DEFAULT_BASE_URL,
           sokosumiUserId: "user_1",
           sokosumiOrganizationId: null,
           coworkerSlug: "ops-agent",
@@ -168,6 +157,8 @@ describe("coworker-api.client", () => {
       });
 
       await getResponseById("resp_abc", {
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
+        responsesApiServiceKey: "sk_test_123",
         sokosumiUserId: "user_1",
         sokosumiOrganizationId: "org_1",
         coworkerSlug: "my-slug",

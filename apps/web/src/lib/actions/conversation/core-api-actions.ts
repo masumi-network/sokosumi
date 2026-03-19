@@ -61,6 +61,10 @@ interface GetConversationItemsParameters extends AuthenticatedRequest {
   cursor?: string | null;
 }
 
+interface RecoverConversationResponseParameters extends AuthenticatedRequest {
+  conversationId: string; // Internal database ID
+}
+
 /** API response may have optional title/metadata; we normalize to Conversation. */
 function toConversation(conversation: CoreConversation): Conversation {
   return {
@@ -149,6 +153,47 @@ export const getConversationItems = withSession<
 });
 
 /**
+ * Recovers a pending coworker response after client disconnect via Core API.
+ * Returns { recovered: true } if a response was persisted, { recovered: false, reason? } otherwise.
+ * reason is "not_found" when the coworker API returned 404 (response not completed on their side).
+ */
+export const recoverConversationResponse = withSession<
+  RecoverConversationResponseParameters,
+  Result<
+    { recovered: boolean; reason?: "not_found" | "in_progress" },
+    ActionError
+  >
+>(async ({ conversationId }) => {
+  const result = await makeCoreApiRequest(() =>
+    coreClient.postConversationsByIdRecoverResponse(conversationId),
+  );
+
+  if (result.isErr()) {
+    return {
+      ok: false,
+      error: result.error,
+    } as unknown as Result<
+      { recovered: boolean; reason?: "not_found" | "in_progress" },
+      ActionError
+    >;
+  }
+
+  const value = result.value as
+    | { recovered?: boolean; reason?: "not_found" | "in_progress" }
+    | undefined;
+  return {
+    ok: true,
+    data: {
+      recovered: value?.recovered ?? false,
+      reason: value?.reason,
+    },
+  } as unknown as Result<
+    { recovered: boolean; reason?: "not_found" | "in_progress" },
+    ActionError
+  >;
+});
+
+/**
  * Gets a conversation by internal database ID via Core API
  * CRITICAL: Validates ownership before returning.
  * Fetches conversation items from the database.
@@ -169,8 +214,11 @@ export const getConversation = withSession<
     } as unknown as Result<ConversationWithItems, ActionError>;
   }
 
-  // Fetch conversation items from database
-  const itemsResult = await getConversationItems({ conversationId: id });
+  // Fetch conversation items from database (limit 100 so list/conversation view has full history)
+  const itemsResult = await getConversationItems({
+    conversationId: id,
+    limit: 100,
+  });
 
   // Handle serialized Result format from getConversationItems
   if (

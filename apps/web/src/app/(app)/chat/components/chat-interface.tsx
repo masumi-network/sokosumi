@@ -23,11 +23,20 @@ import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSelection } from "@/app/chat/hooks/use-chat-selection";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { usePendingResponsePolling } from "@/app/chat/hooks/use-pending-response-polling";
-import { extractMessageContent } from "@/app/chat/utils/message-utils";
+import { useRecoverOnTabHide } from "@/app/chat/hooks/use-recover-on-tab-hide";
+import {
+  convertItemsToMessages,
+  deduplicateMessagesById,
+  extractMessageContent,
+} from "@/app/chat/utils/message-utils";
 import type { Chat, Coworker } from "@/app/chat/utils/types";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
-import type { Conversation } from "@/lib/actions/conversation";
+import {
+  type Conversation,
+  getConversationItems,
+  recoverConversationResponse,
+} from "@/lib/actions/conversation";
 
 import ChatInputContainer from "./chat-input-container";
 import MessageList from "./message-list";
@@ -35,6 +44,8 @@ import SelectCoworkerModal from "./select-coworker-modal";
 import WelcomeScreen from "./welcome-screen";
 
 const NUM_SLOTS = 3;
+const RECOVERY_POLL_INTERVAL_MS = 2500;
+const RECOVERY_POLL_TIMEOUT_MS = 90_000;
 
 interface SlotPayload {
   conversationId: string | null;
@@ -68,8 +79,19 @@ export default function ChatInterface({
   const searchParams = useSearchParams();
   const isRouteDriven = navigationMode === "route";
   const isChatPath = pathname.startsWith("/chat");
+  const conversationIdFromPath = useMemo(() => {
+    if (!pathname?.startsWith("/chat")) return null;
+    const segments = pathname.split("/").filter(Boolean);
+    if (
+      segments[0] !== "chat" ||
+      segments[2] !== "conversation" ||
+      !segments[3]
+    )
+      return null;
+    return segments[3] ?? null;
+  }, [pathname]);
   const urlConversationId = isRouteDriven
-    ? (params?.conversationId ?? null)
+    ? (params?.conversationId ?? conversationIdFromPath ?? null)
     : controlledConversationId;
 
   const {
@@ -84,6 +106,12 @@ export default function ChatInterface({
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [input, setInput] = useState<string>("");
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [isRecoveringPolling, setIsRecoveringPolling] = useState(false);
+  const [
+    recoveryNotFoundForConversationId,
+    setRecoveryNotFoundForConversationId,
+  ] = useState<string | null>(null);
   const [showSelectCoworkerModal, setShowSelectCoworkerModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState<{
     id: string;
@@ -92,6 +120,12 @@ export default function ChatInterface({
   const [selectedChatId, setSelectedChatId] = useState<string | null>(
     urlConversationId || null,
   );
+
+  useEffect(() => {
+    if (!isRouteDriven || !urlConversationId) return;
+    if (selectedChatId === urlConversationId) return;
+    setSelectedChatId(urlConversationId);
+  }, [isRouteDriven, urlConversationId, selectedChatId]);
 
   const urlIdInList =
     !urlConversationId ||
@@ -217,8 +251,11 @@ export default function ChatInterface({
       return;
     }
 
-    const willSync =
-      urlConversationId && selectedChatId !== urlConversationId && urlIdInList;
+    const urlHasConversation =
+      urlConversationId && selectedChatId !== urlConversationId;
+    const willSync = urlHasConversation && urlIdInList;
+    const willSyncFromUrlOnly =
+      urlHasConversation && !urlIdInList && conversations.length > 0;
     const pending = pendingUrlConversationIdRef.current;
     let pendingFromStorage: string | null = null;
     try {
@@ -227,7 +264,7 @@ export default function ChatInterface({
       );
     } catch {}
     const skipSync =
-      willSync &&
+      (willSync || willSyncFromUrlOnly) &&
       (pending != null
         ? pending === selectedChatId
         : pendingFromStorage === selectedChatId);
@@ -239,10 +276,16 @@ export default function ChatInterface({
         sessionStorage.removeItem(PENDING_CONVERSATION_STORAGE_KEY);
       } catch {}
     }
-    if (willSync && !skipSync) {
+    if ((willSync || willSyncFromUrlOnly) && !skipSync) {
       setSelectedChatId(urlConversationId);
     }
-  }, [isRouteDriven, urlConversationId, selectedChatId, urlIdInList]);
+  }, [
+    isRouteDriven,
+    urlConversationId,
+    selectedChatId,
+    urlIdInList,
+    conversations.length,
+  ]);
 
   const [conversationToSlot, setConversationToSlot] = useState<
     Map<string, number>
@@ -349,6 +392,15 @@ export default function ChatInterface({
     };
   }, []);
 
+  const onErrorForSlot = useCallback(
+    (slotIndex: number) => (error: unknown) => {
+      console.error(`Chat API error (slot ${slotIndex}):`, error);
+      const convId = slotPayloadRef.current[slotIndex]?.conversationId ?? null;
+      if (convId) void selectConversation(convId);
+    },
+    [selectConversation],
+  );
+
   const onFinishForSlot = useCallback(
     (slotIndex: number) =>
       ({ messages: finishedMessages }: { messages: UIMessage[] }) => {
@@ -386,22 +438,19 @@ export default function ChatInterface({
   const chat0 = useChat({
     transport: transport0,
     onData: onDataForSlot(0),
-    onError: (error: unknown) =>
-      console.error("Chat API error (slot 0):", error),
+    onError: onErrorForSlot(0),
     onFinish: onFinishForSlot(0),
   });
   const chat1 = useChat({
     transport: transport1,
     onData: onDataForSlot(1),
-    onError: (error: unknown) =>
-      console.error("Chat API error (slot 1):", error),
+    onError: onErrorForSlot(1),
     onFinish: onFinishForSlot(1),
   });
   const chat2 = useChat({
     transport: transport2,
     onData: onDataForSlot(2),
-    onError: (error: unknown) =>
-      console.error("Chat API error (slot 2):", error),
+    onError: onErrorForSlot(2),
     onFinish: onFinishForSlot(2),
   });
 
@@ -475,6 +524,34 @@ export default function ChatInterface({
       const s = slotStatuses[slot];
       return s === "streaming" || s === "submitted";
     })();
+
+  const refetchedForEmptyAssistantRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedChatId || isSelectedChatLoading) {
+      return;
+    }
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot === undefined) return;
+    const msgs = (slotMessages[slot] ?? []) as UIMessage[];
+    const last = msgs[msgs.length - 1];
+    const lastContent =
+      last?.role === "assistant" ? extractMessageContent(last).trim() : "";
+    const emptyAssistantEnd =
+      last?.role === "assistant" && lastContent === "" && msgs.length > 0;
+    if (!emptyAssistantEnd) {
+      refetchedForEmptyAssistantRef.current = null;
+      return;
+    }
+    if (refetchedForEmptyAssistantRef.current === selectedChatId) return;
+    refetchedForEmptyAssistantRef.current = selectedChatId;
+    void selectConversation(selectedChatId);
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotMessages,
+    isSelectedChatLoading,
+    selectConversation,
+  ]);
 
   const setMessagesForConversation = useCallback(
     (convId: string, messages: UIMessage[]) => {
@@ -662,7 +739,7 @@ export default function ChatInterface({
     return slot !== undefined
       ? (reasoningStartedAtBySlotRef.current[slot] ?? null)
       : null;
-  }, [selectedChatId, conversationToSlot, reasoningBySlot]);
+  }, [selectedChatId, conversationToSlot]);
 
   const selectedChatReasoningEndedAt = useMemo(() => {
     const slot =
@@ -678,6 +755,25 @@ export default function ChatInterface({
       (selectedConversation.metadata as Record<string, unknown> | null)
         ?.type === "coworker") ||
       Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
+  );
+
+  const conversationForRecovery =
+    selectedConversation?.id === selectedChatId
+      ? selectedConversation
+      : selectedChatId
+        ? (conversations.find((c) => c.id === selectedChatId) ?? null)
+        : null;
+  const hasPendingIdInMetadata = Boolean(
+    selectedChatId &&
+    conversationForRecovery &&
+    (() => {
+      const meta = (conversationForRecovery.metadata ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const id = meta.pending_responses_api_response_id;
+      return typeof id === "string" && id.length > 0;
+    })(),
   );
 
   useChatSelection({
@@ -714,6 +810,7 @@ export default function ChatInterface({
     useChatMessages({
       selectedChatId,
       selectedConversation,
+      skipLoadWhenPendingId: hasPendingIdInMetadata,
       setMessagesForConversation,
       previousChatIdRef,
       messagesChatIdRef,
@@ -721,14 +818,628 @@ export default function ChatInterface({
       streamingConversationIdsRef,
     });
 
-  const { isPollingForPendingResponse, pendingResponseFailed } =
-    usePendingResponsePolling({
-      selectedChatId,
-      displayedMessages,
-      isStreaming: isSelectedChatLoading,
-      setMessagesForConversation,
-      refreshConversations,
-    });
+  const {
+    isPollingForPendingResponse,
+    pendingResponseFailed,
+    clearPendingResponseFailed,
+  } = usePendingResponsePolling({
+    selectedChatId,
+    displayedMessages,
+    isStreaming: isSelectedChatLoading,
+    hasPendingIdInMetadata,
+    setMessagesForConversation,
+    refreshConversations,
+  });
+
+  const recoveryAttemptedForRef = useRef<string | null>(null);
+  const recoveredProcessedForRef = useRef<string | null>(null);
+  const currentCidRef = useRef<string | null>(null);
+  const recoveryCidRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
+
+  currentCidRef.current = urlConversationId ?? selectedChatId ?? null;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  function convHasPendingId(conv: { metadata?: unknown } | null): boolean {
+    if (!conv) return false;
+    const meta = (conv.metadata ?? {}) as Record<string, unknown>;
+    const id = meta.pending_responses_api_response_id;
+    return typeof id === "string" && id.length > 0;
+  }
+
+  useEffect(() => {
+    const cid = urlConversationId ?? selectedChatId;
+    if (!cid || !isRouteDriven || !isChatPath) {
+      return;
+    }
+    if (conversationToSlot.get(cid) !== undefined) {
+      return;
+    }
+
+    const convForCid =
+      (conversationForRecovery?.id === cid ? conversationForRecovery : null) ??
+      conversations.find((c) => c.id === cid) ??
+      null;
+    const cidHasPendingId = convHasPendingId(convForCid);
+
+    if (recoveryAttemptedForRef.current === cid) {
+      // After a successful recovery we set recoveredProcessedForRef; the sidebar
+      // can still list this conversation with stale pending metadata for a
+      // short time. Re-running this effect on `conversations` updates must not
+      // flip recovering back on — that hides the input and shows the loading
+      // indicator below the recovered assistant message (MessageList:
+      // showLoadingIndicator forces true when isRecovering).
+      if (
+        cidHasPendingId &&
+        mountedRef.current &&
+        recoveredProcessedForRef.current !== cid
+      ) {
+        setIsRecovering(true);
+        setIsRecoveringPolling(true);
+      }
+      return;
+    }
+    recoveryAttemptedForRef.current = cid;
+    recoveryCidRef.current = cid;
+    if (urlConversationId && selectedChatId !== urlConversationId) {
+      setSelectedChatId(urlConversationId);
+    }
+    if (cidHasPendingId) {
+      setIsRecovering(true);
+      setIsRecoveringPolling(true);
+    }
+    (async () => {
+      const isCancelled = () => recoveryCidRef.current !== cid;
+      async function loadConversationItemsIntoCache(conversationId: string) {
+        const itemsResult = await getConversationItems({
+          conversationId,
+          limit: 100,
+        });
+        if (isCancelled()) return;
+        const itemsPayload =
+          itemsResult &&
+          typeof itemsResult === "object" &&
+          "ok" in itemsResult &&
+          itemsResult.ok
+            ? (itemsResult as { data?: { items?: unknown[] } }).data
+            : itemsResult &&
+                typeof itemsResult === "object" &&
+                "value" in itemsResult
+              ? (itemsResult as { value?: { items?: unknown[] } }).value
+              : undefined;
+        if (
+          itemsPayload &&
+          Array.isArray(itemsPayload.items) &&
+          mountedRef.current
+        ) {
+          const msgs = convertItemsToMessages(
+            itemsPayload.items as Array<{
+              id: string;
+              role: string;
+              content: Array<{ type: string; text?: string }> | string;
+              createdAt: number;
+            }>,
+          );
+          setMessagesForConversation(conversationId, msgs);
+          chatMessagesRef.current.set(conversationId, msgs);
+        }
+      }
+      function parseRecoverPayload(result: unknown) {
+        if (!result || typeof result !== "object") return undefined;
+        const data =
+          "ok" in result && result.ok && "data" in result
+            ? (
+                result as {
+                  data?: {
+                    recovered?: boolean;
+                    reason?: "not_found" | "in_progress";
+                  };
+                }
+              ).data
+            : "value" in result
+              ? (
+                  result as {
+                    value?: {
+                      recovered?: boolean;
+                      reason?: "not_found" | "in_progress";
+                    };
+                  }
+                ).value
+              : undefined;
+        return data;
+      }
+      try {
+        await loadConversationItemsIntoCache(cid);
+        if (isCancelled()) return;
+        const result = await recoverConversationResponse({
+          conversationId: cid,
+        });
+        if (isCancelled()) return;
+        const recoverPayload = parseRecoverPayload(result);
+        if (!recoverPayload?.recovered) {
+          if (recoverPayload?.reason === "not_found") {
+            if (mountedRef.current) setRecoveryNotFoundForConversationId(cid);
+            return;
+          }
+          if (recoverPayload?.reason === "in_progress") {
+            if (mountedRef.current) {
+              setIsRecovering(true);
+              setIsRecoveringPolling(true);
+            }
+            const startTime = Date.now();
+            for (;;) {
+              await new Promise((r) =>
+                setTimeout(r, RECOVERY_POLL_INTERVAL_MS),
+              );
+              if (isCancelled()) break;
+              if (Date.now() - startTime > RECOVERY_POLL_TIMEOUT_MS) {
+                if (mountedRef.current) {
+                  setRecoveryNotFoundForConversationId(cid);
+                  setIsRecoveringPolling(false);
+                  setIsRecovering(false);
+                }
+                return;
+              }
+              const pollResult = await recoverConversationResponse({
+                conversationId: cid,
+              });
+              if (isCancelled()) return;
+              const pollPayload = parseRecoverPayload(pollResult);
+              if (pollPayload?.recovered) {
+                if (recoveredProcessedForRef.current !== cid) {
+                  recoveredProcessedForRef.current = cid;
+                  const itemsResult = await getConversationItems({
+                    conversationId: cid,
+                    limit: 100,
+                  });
+                  if (isCancelled()) return;
+                  const itemsPayload =
+                    itemsResult &&
+                    typeof itemsResult === "object" &&
+                    "ok" in itemsResult &&
+                    itemsResult.ok
+                      ? (itemsResult as { data?: { items?: unknown[] } }).data
+                      : itemsResult &&
+                          typeof itemsResult === "object" &&
+                          "value" in itemsResult
+                        ? (itemsResult as { value?: { items?: unknown[] } })
+                            .value
+                        : undefined;
+                  if (
+                    itemsPayload &&
+                    Array.isArray(itemsPayload.items) &&
+                    mountedRef.current
+                  ) {
+                    const newMessages = deduplicateMessagesById(
+                      convertItemsToMessages(
+                        itemsPayload.items as Array<{
+                          id: string;
+                          role: string;
+                          content:
+                            | Array<{ type: string; text?: string }>
+                            | string;
+                          createdAt: number;
+                        }>,
+                      ),
+                    );
+                    setMessagesForConversation(cid, newMessages);
+                    chatMessagesRef.current.set(cid, newMessages);
+                    const slot = conversationToSlot.get(cid);
+                    if (
+                      typeof slot === "number" &&
+                      slot >= 0 &&
+                      slot < NUM_SLOTS &&
+                      setMessagesSlots[slot]
+                    ) {
+                      setMessagesSlots[slot](newMessages);
+                      setReasoningBySlot((prev) => {
+                        const next = { ...prev };
+                        delete next[slot];
+                        return next;
+                      });
+                      setReasoningEndedAtBySlot((prev) => {
+                        const next = { ...prev };
+                        delete next[slot];
+                        return next;
+                      });
+                      delete reasoningStartedAtBySlotRef.current[slot];
+                    }
+                    if (mountedRef.current) {
+                      setIsRecoveringPolling(false);
+                      setIsRecovering(false);
+                    }
+                    await refreshConversations();
+                  }
+                }
+                if (mountedRef.current) {
+                  setIsRecoveringPolling(false);
+                  setIsRecovering(false);
+                }
+                return;
+              }
+              if (pollPayload?.reason === "not_found") {
+                if (mountedRef.current) {
+                  setRecoveryNotFoundForConversationId(cid);
+                  setIsRecoveringPolling(false);
+                  setIsRecovering(false);
+                }
+                return;
+              }
+            }
+            if (mountedRef.current) {
+              setIsRecoveringPolling(false);
+              setIsRecovering(false);
+            }
+            return;
+          }
+          if (mountedRef.current) setIsRecovering(false);
+          return;
+        }
+        if (recoveredProcessedForRef.current !== cid) {
+          recoveredProcessedForRef.current = cid;
+          const itemsResult = await getConversationItems({
+            conversationId: cid,
+            limit: 100,
+          });
+          if (isCancelled()) return;
+          const itemsPayload =
+            itemsResult &&
+            typeof itemsResult === "object" &&
+            "ok" in itemsResult &&
+            itemsResult.ok
+              ? (itemsResult as { data?: { items?: unknown[] } }).data
+              : itemsResult &&
+                  typeof itemsResult === "object" &&
+                  "value" in itemsResult
+                ? (itemsResult as { value?: { items?: unknown[] } }).value
+                : undefined;
+          if (
+            itemsPayload &&
+            Array.isArray(itemsPayload.items) &&
+            mountedRef.current
+          ) {
+            const newMessages = deduplicateMessagesById(
+              convertItemsToMessages(
+                itemsPayload.items as Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  createdAt: number;
+                }>,
+              ),
+            );
+            setMessagesForConversation(cid, newMessages);
+            chatMessagesRef.current.set(cid, newMessages);
+            const slot = conversationToSlot.get(cid);
+            if (
+              typeof slot === "number" &&
+              slot >= 0 &&
+              slot < NUM_SLOTS &&
+              setMessagesSlots[slot]
+            ) {
+              setMessagesSlots[slot](newMessages);
+              setReasoningBySlot((prev) => {
+                const next = { ...prev };
+                delete next[slot];
+                return next;
+              });
+              setReasoningEndedAtBySlot((prev) => {
+                const next = { ...prev };
+                delete next[slot];
+                return next;
+              });
+              delete reasoningStartedAtBySlotRef.current[slot];
+            }
+            if (mountedRef.current) {
+              setIsRecoveringPolling(false);
+              setIsRecovering(false);
+            }
+            await refreshConversations();
+          }
+        }
+      } catch (_err) {
+        if (mountedRef.current && !isCancelled()) setIsRecovering(false);
+      } finally {
+        if (mountedRef.current && !isCancelled()) {
+          setIsRecoveringPolling(false);
+          setIsRecovering(false);
+        }
+      }
+    })();
+    return () => {
+      setIsRecoveringPolling(false);
+      setIsRecovering(false);
+    };
+  }, [
+    urlConversationId,
+    selectedChatId,
+    isRouteDriven,
+    isChatPath,
+    conversationToSlot,
+    setMessagesForConversation,
+    setMessagesSlots,
+    refreshConversations,
+    conversationForRecovery,
+    conversations,
+  ]);
+
+  useEffect(() => {
+    const conv = conversationForRecovery;
+    const cid = selectedChatId;
+    if (!conv?.id || conv.id !== cid) return;
+    if (recoveryAttemptedForRef.current === conv.id) return;
+    const meta = (conv.metadata as Record<string, unknown> | null) ?? null;
+    const isCoworker =
+      meta?.type === "coworker" ||
+      (typeof meta?.coworker_id === "string" && meta.coworker_id.length > 0) ||
+      (typeof meta?.coworker_slug === "string" &&
+        meta.coworker_slug.length > 0);
+    if (!isCoworker) return;
+
+    const pendingId = meta?.pending_responses_api_response_id;
+    if (typeof pendingId !== "string" || pendingId.length === 0) return;
+
+    setIsRecovering(true);
+    setIsRecoveringPolling(true);
+    let cancelled = false;
+    (async () => {
+      async function loadConversationItemsIntoCache(conversationId: string) {
+        const itemsResult = await getConversationItems({
+          conversationId,
+          limit: 100,
+        });
+        if (cancelled) return;
+        const itemsPayload =
+          itemsResult &&
+          typeof itemsResult === "object" &&
+          "ok" in itemsResult &&
+          itemsResult.ok
+            ? (itemsResult as { data?: { items?: unknown[] } }).data
+            : itemsResult &&
+                typeof itemsResult === "object" &&
+                "value" in itemsResult
+              ? (itemsResult as { value?: { items?: unknown[] } }).value
+              : undefined;
+        if (itemsPayload && Array.isArray(itemsPayload.items)) {
+          const msgs = convertItemsToMessages(
+            itemsPayload.items as Array<{
+              id: string;
+              role: string;
+              content: Array<{ type: string; text?: string }> | string;
+              createdAt: number;
+            }>,
+          );
+          setMessagesForConversation(conversationId, msgs);
+          chatMessagesRef.current.set(conversationId, msgs);
+        }
+      }
+      function parseRecoverPayload(result: unknown) {
+        if (!result || typeof result !== "object") return undefined;
+        const data =
+          "ok" in result && result.ok && "data" in result
+            ? (
+                result as {
+                  data?: {
+                    recovered?: boolean;
+                    reason?: "not_found" | "in_progress";
+                  };
+                }
+              ).data
+            : "value" in result
+              ? (
+                  result as {
+                    value?: {
+                      recovered?: boolean;
+                      reason?: "not_found" | "in_progress";
+                    };
+                  }
+                ).value
+              : undefined;
+        return data;
+      }
+      try {
+        await loadConversationItemsIntoCache(conv.id);
+        if (cancelled) return;
+        const result = await recoverConversationResponse({
+          conversationId: conv.id,
+        });
+        if (cancelled) return;
+        const recoverPayload = parseRecoverPayload(result);
+        if (!recoverPayload?.recovered) {
+          if (recoverPayload?.reason === "not_found") {
+            setRecoveryNotFoundForConversationId(conv.id);
+            setIsRecovering(false);
+            return;
+          }
+          if (recoverPayload?.reason === "in_progress") {
+            setIsRecovering(true);
+            setIsRecoveringPolling(true);
+            const startTime = Date.now();
+            for (;;) {
+              await new Promise((r) =>
+                setTimeout(r, RECOVERY_POLL_INTERVAL_MS),
+              );
+              if (cancelled) break;
+              if (Date.now() - startTime > RECOVERY_POLL_TIMEOUT_MS) {
+                setRecoveryNotFoundForConversationId(conv.id);
+                setIsRecoveringPolling(false);
+                setIsRecovering(false);
+                return;
+              }
+              const pollResult = await recoverConversationResponse({
+                conversationId: conv.id,
+              });
+              if (cancelled) return;
+              const pollPayload = parseRecoverPayload(pollResult);
+              if (pollPayload?.recovered) {
+                if (recoveredProcessedForRef.current !== conv.id) {
+                  recoveredProcessedForRef.current = conv.id;
+                  const itemsResult = await getConversationItems({
+                    conversationId: conv.id,
+                    limit: 100,
+                  });
+                  if (cancelled) return;
+                  const itemsPayload =
+                    itemsResult &&
+                    typeof itemsResult === "object" &&
+                    "ok" in itemsResult &&
+                    itemsResult.ok
+                      ? (itemsResult as { data?: { items?: unknown[] } }).data
+                      : itemsResult &&
+                          typeof itemsResult === "object" &&
+                          "value" in itemsResult
+                        ? (itemsResult as { value?: { items?: unknown[] } })
+                            .value
+                        : undefined;
+                  if (itemsPayload && Array.isArray(itemsPayload.items)) {
+                    const newMessages = deduplicateMessagesById(
+                      convertItemsToMessages(
+                        itemsPayload.items as Array<{
+                          id: string;
+                          role: string;
+                          content:
+                            | Array<{ type: string; text?: string }>
+                            | string;
+                          createdAt: number;
+                        }>,
+                      ),
+                    );
+                    setMessagesForConversation(conv.id, newMessages);
+                    chatMessagesRef.current.set(conv.id, newMessages);
+                    const slot = conversationToSlot.get(conv.id);
+                    if (
+                      typeof slot === "number" &&
+                      slot >= 0 &&
+                      slot < NUM_SLOTS &&
+                      setMessagesSlots[slot]
+                    ) {
+                      setMessagesSlots[slot](newMessages);
+                      setReasoningBySlot((prev) => {
+                        const next = { ...prev };
+                        delete next[slot];
+                        return next;
+                      });
+                      setReasoningEndedAtBySlot((prev) => {
+                        const next = { ...prev };
+                        delete next[slot];
+                        return next;
+                      });
+                      delete reasoningStartedAtBySlotRef.current[slot];
+                    }
+                    setIsRecoveringPolling(false);
+                    setIsRecovering(false);
+                    await refreshConversations();
+                  }
+                }
+                setIsRecoveringPolling(false);
+                setIsRecovering(false);
+                return;
+              }
+              if (pollPayload?.reason === "not_found") {
+                setRecoveryNotFoundForConversationId(conv.id);
+                setIsRecoveringPolling(false);
+                setIsRecovering(false);
+                return;
+              }
+            }
+            setIsRecoveringPolling(false);
+            setIsRecovering(false);
+            return;
+          }
+          setIsRecovering(false);
+          return;
+        }
+        if (recoveredProcessedForRef.current !== conv.id) {
+          recoveredProcessedForRef.current = conv.id;
+          const itemsResult = await getConversationItems({
+            conversationId: conv.id,
+            limit: 100,
+          });
+          if (cancelled) return;
+          const itemsPayload =
+            itemsResult &&
+            typeof itemsResult === "object" &&
+            "ok" in itemsResult &&
+            itemsResult.ok
+              ? (itemsResult as { data?: { items?: unknown[] } }).data
+              : itemsResult &&
+                  typeof itemsResult === "object" &&
+                  "value" in itemsResult
+                ? (itemsResult as { value?: { items?: unknown[] } }).value
+                : undefined;
+          if (itemsPayload && Array.isArray(itemsPayload.items)) {
+            const newMessages = deduplicateMessagesById(
+              convertItemsToMessages(
+                itemsPayload.items as Array<{
+                  id: string;
+                  role: string;
+                  content: Array<{ type: string; text?: string }> | string;
+                  createdAt: number;
+                }>,
+              ),
+            );
+            setMessagesForConversation(conv.id, newMessages);
+            chatMessagesRef.current.set(conv.id, newMessages);
+            const slot = conversationToSlot.get(conv.id);
+            if (
+              typeof slot === "number" &&
+              slot >= 0 &&
+              slot < NUM_SLOTS &&
+              setMessagesSlots[slot]
+            ) {
+              setMessagesSlots[slot](newMessages);
+              setReasoningBySlot((prev) => {
+                const next = { ...prev };
+                delete next[slot];
+                return next;
+              });
+              setReasoningEndedAtBySlot((prev) => {
+                const next = { ...prev };
+                delete next[slot];
+                return next;
+              });
+              delete reasoningStartedAtBySlotRef.current[slot];
+            }
+            setIsRecoveringPolling(false);
+            setIsRecovering(false);
+            await refreshConversations();
+          }
+        }
+      } catch (_) {
+        if (!cancelled) setIsRecovering(false);
+      } finally {
+        if (!cancelled) {
+          setIsRecoveringPolling(false);
+          setIsRecovering(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      setIsRecoveringPolling(false);
+      setIsRecovering(false);
+    };
+  }, [
+    conversationForRecovery,
+    selectedChatId,
+    setMessagesForConversation,
+    refreshConversations,
+    conversationToSlot,
+    setMessagesSlots,
+  ]);
+
+  useRecoverOnTabHide({
+    selectedConversation,
+    selectedChatId,
+    setMessagesForConversation,
+    refreshConversations,
+  });
 
   const {
     createModelChat,
@@ -923,9 +1634,13 @@ export default function ChatInterface({
   const handleResendLastMessage = useCallback(
     (text: string) => {
       if (!selectedChatId || !text.trim()) return;
+      setRecoveryNotFoundForConversationId((prev) =>
+        prev === selectedChatId ? null : prev,
+      );
+      clearPendingResponseFailed();
       sendInConversation(selectedChatId, text.trim());
     },
-    [selectedChatId, sendInConversation],
+    [selectedChatId, sendInConversation, clearPendingResponseFailed],
   );
 
   const handleStop = () => {
@@ -984,9 +1699,14 @@ export default function ChatInterface({
           <>
             {showMessagesAfterTransition && (
               <>
-                {isConversationLoading &&
-                displayedMessages.length === 0 &&
-                conversationToSlot.get(selectedChatId) === undefined ? (
+                {(!isRecovering &&
+                  hasPendingIdInMetadata &&
+                  displayedMessages.length === 0 &&
+                  conversationToSlot.get(selectedChatId) === undefined) ||
+                (!isRecovering &&
+                  isConversationLoading &&
+                  displayedMessages.length === 0 &&
+                  conversationToSlot.get(selectedChatId) === undefined) ? (
                   <div className="flex h-full min-h-[300px] flex-1 items-center justify-center">
                     <Loader2
                       className="text-muted-foreground size-8 animate-spin"
@@ -997,12 +1717,30 @@ export default function ChatInterface({
                   <MessageList
                     chats={chats}
                     coworkers={coworkers}
+                    conversationCoworkerFallback={
+                      selectedChatCoworker
+                        ? {
+                            id: selectedChatCoworker.id,
+                            name: selectedChatCoworker.name,
+                            avatar: selectedChatCoworker.avatar,
+                          }
+                        : null
+                    }
+                    hasPendingIdInMetadata={hasPendingIdInMetadata}
                     isLoading={isLoading}
                     isCoworker={isSelectedChatCoworker}
+                    isRecovering={isRecovering}
+                    isRecoveringPolling={isRecoveringPolling}
+                    isRecoveryNotFound={
+                      recoveryNotFoundForConversationId === selectedChatId
+                    }
                     isPollingForPendingResponse={isPollingForPendingResponse}
                     messages={displayedMessages}
                     onResendLastMessage={handleResendLastMessage}
-                    pendingResponseFailed={pendingResponseFailed}
+                    pendingResponseFailed={
+                      pendingResponseFailed ||
+                      recoveryNotFoundForConversationId === selectedChatId
+                    }
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
                       selectedChatReasoningStartedAt ?? undefined
@@ -1015,31 +1753,37 @@ export default function ChatInterface({
                 )}
               </>
             )}
-            {!isConversationLoading && (
-              <>
-                <div
-                  aria-hidden
-                  className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
-                />
-                <ChatInputContainer
-                  key={selectedChatId}
-                  mobileKeyboardOptimized={mobileKeyboardOptimized}
-                  selectedChatId={selectedChatId}
-                  input={input}
-                  setInput={setInput}
-                  status={selectedChatStatus}
-                  stop={handleStop}
-                  messages={displayedMessages}
-                  setMessages={setMessagesForInput}
-                  sendMessage={sendMessageForInput}
-                  onSendMessage={handleSendMessage}
-                  selectedModel={selectedModel}
-                  onSelectModel={handleModelSelected}
-                  selectedChatCoworker={selectedChatCoworker}
-                  coworkers={coworkers}
-                />
-              </>
-            )}
+            {!isConversationLoading &&
+              !isRecovering &&
+              !(
+                hasPendingIdInMetadata &&
+                displayedMessages.length === 0 &&
+                conversationToSlot.get(selectedChatId) === undefined
+              ) && (
+                <>
+                  <div
+                    aria-hidden
+                    className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-[5] h-32 bg-gradient-to-t to-transparent"
+                  />
+                  <ChatInputContainer
+                    key={selectedChatId}
+                    mobileKeyboardOptimized={mobileKeyboardOptimized}
+                    selectedChatId={selectedChatId}
+                    input={input}
+                    setInput={setInput}
+                    status={selectedChatStatus}
+                    stop={handleStop}
+                    messages={displayedMessages}
+                    setMessages={setMessagesForInput}
+                    sendMessage={sendMessageForInput}
+                    onSendMessage={handleSendMessage}
+                    selectedModel={selectedModel}
+                    onSelectModel={handleModelSelected}
+                    selectedChatCoworker={selectedChatCoworker}
+                    coworkers={coworkers}
+                  />
+                </>
+              )}
           </>
         ) : (
           <WelcomeScreen

@@ -1180,6 +1180,7 @@
         "uploadFileErrorRetry": "ファイルのアップロードに失敗しました。もう一度お試しください。",
         "uploadPastedImageError": "貼り付けた画像のアップロードに失敗しました",
         "pendingResponseFailed": "こちら側で問題が発生しました。最後のメッセージを再送してみてください。",
+        "noResponseConnectionLost": "接続が切断されました。ブラウザを更新してもう一度お試しください。",
         "waitForResponses": "他の回答が完了するまでお待ちください（同時最大3件）。",
         "imageAttachment": "画像の添付ファイル",
         "fileLabel": "ファイル",

@@ -239,7 +239,7 @@ export default function ChatMessage({
                   </span>
                 ) : (
                   <span className="text-muted-foreground italic">
-                    {isUser ? "(Empty message)" : "(No response yet)"}
+                    {isUser ? "(Empty message)" : t("noResponseConnectionLost")}
                   </span>
                 )}
               </div>

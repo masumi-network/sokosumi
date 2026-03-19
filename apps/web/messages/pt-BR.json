@@ -1180,6 +1180,7 @@
         "uploadFileErrorRetry": "Falha ao enviar o arquivo, tente novamente!",
         "uploadPastedImageError": "Falha ao enviar a(s) imagem(ns) colada(s)",
         "pendingResponseFailed": "Algo deu errado do nosso lado. Tente reenviar sua última mensagem.",
+        "noResponseConnectionLost": "A conexão foi perdida. Atualize o navegador e tente novamente.",
         "waitForResponses": "Aguarde outras respostas terminarem (máx. 3 ao mesmo tempo).",
         "imageAttachment": "Um anexo de imagem",
         "fileLabel": "Arquivo",

@@ -1206,6 +1206,7 @@
         "tryAgain": "Erneut versuchen",
         "networkErrorAfterRetry": "Der Server konnte nach mehreren Versuchen nicht erreicht werden. Bitte prüfe deine Verbindung und versuche es erneut.",
         "pendingResponseFailed": "Bei uns ist etwas schiefgelaufen. Bitte sende deine letzte Nachricht erneut.",
+        "noResponseConnectionLost": "Die Verbindung wurde unterbrochen. Bitte lade die Seite neu und versuche es erneut.",
         "authorize": "Autorisieren"
       }
     },

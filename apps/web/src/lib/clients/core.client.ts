@@ -296,6 +296,23 @@ export const coreClient = (() => {
     );
   }
 
+  async function postConversationsByIdRecoverResponse(id: string) {
+    return executeOperation(async (_client) => {
+      const requestHeaders = await headers();
+      const baseUrl = normalizeCoreApiBaseUrl(getEnvSecrets().CORE_API_URL);
+      const url = `${baseUrl}/conversations/${encodeURIComponent(id)}/recover-response`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: buildAuthHeaders(requestHeaders),
+        cache: "no-store",
+      });
+      const json = await response.json().catch(() => ({}));
+      const data = response.ok ? json?.data : undefined;
+      const error = !response.ok ? json : undefined;
+      return { data, error, response };
+    }, "Failed to recover conversation response");
+  }
+
   async function getTasks(query?: GetTasksData["query"]) {
     return executeOperation(
       (client) =>
@@ -526,6 +543,7 @@ export const coreClient = (() => {
     getConversation,
     getConversationItems,
     getConversations,
+    postConversationsByIdRecoverResponse,
     getCoworkers,
     getAgentById,
     getJobById,

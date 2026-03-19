@@ -1180,6 +1180,7 @@
         "uploadFileErrorRetry": "Caricamento del file non riuscito, riprova!",
         "uploadPastedImageError": "Caricamento delle immagini incollate non riuscito",
         "pendingResponseFailed": "Qualcosa è andato storto da parte nostra. Prova a reinviare il tuo ultimo messaggio.",
+        "noResponseConnectionLost": "La connessione è andata persa. Aggiorna la pagina e riprova.",
         "waitForResponses": "Attendi il completamento delle altre risposte (max 3 alla volta).",
         "imageAttachment": "Un allegato immagine",
         "fileLabel": "File",

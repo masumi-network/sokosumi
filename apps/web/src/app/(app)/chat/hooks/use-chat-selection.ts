@@ -37,7 +37,7 @@ interface UseChatSelectionProps {
   enabled?: boolean;
 }
 
-function getNextConversationAfterDelete(
+function _getNextConversationAfterDelete(
   conversations: Conversation[],
   bucketSlug: string | undefined,
 ): { nextId: string | null; nextSlug: string } {
@@ -240,104 +240,16 @@ export function useChatSelection({
         return;
       }
       if (!conversations.some((c) => c.id === currentUrlConversationId)) {
-        if (conversations.length === 0) {
-          pendingUrlConversationIdRef.current = null;
-          if (!isConversationsLoading) {
-            router.replace(
-              bucketSlug ? `${basePath}/${bucketSlug}` : basePath,
-              {
-                scroll: false,
-              },
-            );
-            setSelectedChatId(null);
-            currentChatIdRef.current = null;
-            setSelectedModel(null);
-            selectedModelRef.current = null;
-            setMessages([]);
-            setInput("");
-            return;
-          }
-          handleSelectChat(currentUrlConversationId);
-          return;
-        }
-        const { nextId, nextSlug } = getNextConversationAfterDelete(
-          conversations,
-          bucketSlug ?? undefined,
-        );
-        const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
-        const targetPathForNext = nextId
-          ? `${basePath}/${nextSegment}/conversation/${nextId}`
-          : bucketSlug
-            ? `${basePath}/${bucketSlug}`
-            : basePath;
-        if (pending === nextId) {
-          pendingUrlConversationIdRef.current = null;
-          router.replace(withSearch(targetPathForNext), { scroll: false });
-          if (nextId === null) {
-            setSelectedChatId(null);
-            currentChatIdRef.current = null;
-            setSelectedModel(null);
-            selectedModelRef.current = null;
-            setMessages([]);
-            setInput("");
-          }
-          return;
-        }
         pendingUrlConversationIdRef.current = null;
-        router.replace(withSearch(targetPathForNext), { scroll: false });
-        handleSelectChat(nextId);
+        void handleSelectChat(currentUrlConversationId);
         return;
       }
       pendingUrlConversationIdRef.current = null;
       handleSelectChat(currentUrlConversationId);
     } else if (urlConversationNotLoaded) {
       if (!conversations.some((c) => c.id === currentUrlConversationId)) {
-        if (conversations.length === 0) {
-          pendingUrlConversationIdRef.current = null;
-          if (!isConversationsLoading) {
-            router.replace(
-              bucketSlug ? `${basePath}/${bucketSlug}` : basePath,
-              {
-                scroll: false,
-              },
-            );
-            setSelectedChatId(null);
-            currentChatIdRef.current = null;
-            setSelectedModel(null);
-            selectedModelRef.current = null;
-            setMessages([]);
-            setInput("");
-            return;
-          }
-          handleSelectChat(currentUrlConversationId);
-          return;
-        }
-        const { nextId, nextSlug } = getNextConversationAfterDelete(
-          conversations,
-          bucketSlug ?? undefined,
-        );
-        const nextSegment = nextSlug || bucketSlug || FALLBACK_BUCKET_SEGMENT;
-        const targetPathForNext = nextId
-          ? `${basePath}/${nextSegment}/conversation/${nextId}`
-          : bucketSlug
-            ? `${basePath}/${bucketSlug}`
-            : basePath;
-        if (pending === nextId) {
-          pendingUrlConversationIdRef.current = null;
-          router.replace(withSearch(targetPathForNext), { scroll: false });
-          if (nextId === null) {
-            setSelectedChatId(null);
-            currentChatIdRef.current = null;
-            setSelectedModel(null);
-            selectedModelRef.current = null;
-            setMessages([]);
-            setInput("");
-          }
-          return;
-        }
         pendingUrlConversationIdRef.current = null;
-        router.replace(withSearch(targetPathForNext), { scroll: false });
-        handleSelectChat(nextId);
+        void handleSelectChat(currentUrlConversationId);
         return;
       }
       // First load with conversation in path: selectedChatId may already match but conversation not loaded

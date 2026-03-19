@@ -10,8 +10,6 @@ export function useTypingReveal(text: string): string {
   const targetRef = useRef(0);
   const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  targetRef.current = text.length;
-
   useEffect(() => {
     if (text === prevTextRef.current) return;
     const prev = prevTextRef.current;
@@ -19,11 +17,11 @@ export function useTypingReveal(text: string): string {
     if (prev.length > 0 && text.startsWith(prev)) {
       return;
     }
-    setRevealedLength(0);
     if (intervalIdRef.current) {
       clearInterval(intervalIdRef.current);
       intervalIdRef.current = null;
     }
+    queueMicrotask(() => setRevealedLength(0));
   }, [text]);
 
   useEffect(() => {
@@ -32,6 +30,7 @@ export function useTypingReveal(text: string): string {
       intervalIdRef.current = null;
     }
     const target = text.length;
+    targetRef.current = target;
     if (target === 0) return;
     if (revealedLength >= target) return;
 
@@ -55,7 +54,8 @@ export function useTypingReveal(text: string): string {
         intervalIdRef.current = null;
       }
     };
-  }, [text.length]);
+    // Only re-run when text length changes; revealedLength is updated by the interval
+  }, [text.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return text.slice(0, revealedLength);
 }

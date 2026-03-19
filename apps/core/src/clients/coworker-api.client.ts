@@ -115,41 +115,37 @@ export type GetResponseResult =
   | { status: "in_progress" | "not_found" };
 
 export interface GetResponseByIdOptions {
+  responsesApiBaseUrl: string;
   sokosumiUserId: string;
   sokosumiOrganizationId: string | null;
   coworkerSlug: string;
+  responsesApiServiceKey?: string;
 }
 
 export async function getResponseById(
   responseId: string,
   options: GetResponseByIdOptions,
 ): Promise<GetResponseResult> {
-  if (!isResponsesApiConfigured()) {
-    throw new Error(
-      "Responses API is not configured (missing key or base URL)",
-    );
-  }
-
-  const baseUrl = getResponsesApiBaseUrl();
-  const env = getEnv();
-  const serviceKey = env.COWORKERS_API_SERVICE_KEY;
-
-  if (!baseUrl || !serviceKey) {
-    throw new Error("Responses API base URL or service key missing");
+  const baseUrl = options.responsesApiBaseUrl?.trim();
+  if (!baseUrl) {
+    throw new Error("Responses API base URL is required");
   }
   if (!options.coworkerSlug?.trim()) {
     throw new Error("Responses API requires a coworker slug");
   }
 
-  const url = `${baseUrl.replace(/\/$/, "")}/v1/responses/${encodeURIComponent(responseId)}`;
+  const base = baseUrl.replace(/\/$/, "");
+  const url = `${base}/responses/${encodeURIComponent(responseId)}`;
   const requestHeaders: Record<string, string> = {
-    Authorization: `Bearer ${serviceKey}`,
     "X-Sokosumi-User-Id": options.sokosumiUserId,
     "X-Coworker-Slug": options.coworkerSlug,
   };
   if (options.sokosumiOrganizationId) {
     requestHeaders["X-Sokosumi-Organization-Id"] =
       options.sokosumiOrganizationId;
+  }
+  if (options.responsesApiServiceKey) {
+    requestHeaders.Authorization = `Bearer ${options.responsesApiServiceKey}`;
   }
 
   const response = await fetch(url, {
@@ -168,17 +164,34 @@ export async function getResponseById(
     throw new Error(`Responses API GET error: ${response.status} ${errorText}`);
   }
 
-  const body = (await response.json()) as {
-    id?: string;
-    status?: string;
-    output?: unknown;
-  };
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (parseErr) {
+    throw new Error(
+      `Responses API GET invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+    );
+  }
 
-  if (body.status === "completed" && body.output !== undefined) {
+  const bodyObj = body as Record<string, unknown>;
+  const dataOrResponse = bodyObj?.data ?? bodyObj?.response ?? bodyObj;
+  const inner = (dataOrResponse as Record<string, unknown>) ?? {};
+  const status =
+    (typeof bodyObj?.status === "string" ? bodyObj.status : null) ??
+    (typeof inner?.status === "string" ? inner.status : null);
+  const output = bodyObj?.output ?? inner?.output;
+  const id =
+    typeof bodyObj?.id === "string"
+      ? bodyObj.id
+      : typeof inner?.id === "string"
+        ? inner.id
+        : responseId;
+
+  if (status === "completed" && output !== undefined) {
     return {
       status: "completed",
-      id: typeof body.id === "string" ? body.id : responseId,
-      output: body.output,
+      id,
+      output,
     };
   }
 
@@ -208,7 +221,7 @@ function createResponsesApiUiStream(
   const responseStartedState = { called: false };
   const pendingDeltaChunks: string[] = [];
   const reasoningAccumulator: Record<string, string> = {};
-  const needNewlineBeforeNextDelta = false;
+  let needNewlineBeforeNextDelta = false;
 
   function closeStream(
     controller: ReadableStreamDefaultController<Uint8Array>,
