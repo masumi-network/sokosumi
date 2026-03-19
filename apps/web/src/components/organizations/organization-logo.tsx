@@ -24,6 +24,7 @@ export function OrganizationLogo({
         alt={name}
         width={size}
         height={size}
+        className="size-full rounded-sm object-cover"
       />
     );
   }

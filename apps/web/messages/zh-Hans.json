@@ -500,11 +500,25 @@
           },
           "Fields": {
             "Name": {
+              "label": "名称",
               "placeholder": "名称（例如 '我的组织'）"
             },
             "Url": {
               "label": "网站",
               "placeholder": "公司网站 URL（例如 https://example.com）"
+            },
+            "Logo": {
+              "label": "Logo",
+              "description": "上传组织标志图片。",
+              "upload": "上传 Logo",
+              "replace": "替换 Logo",
+              "remove": "移除 Logo",
+              "previewAlt": "组织 Logo 预览",
+              "uploadSuccess": "Logo 上传成功",
+              "uploadError": "Logo 上传失败",
+              "fileTooLarge": "文件过大（最大 2 MB）",
+              "fileTypeNotAccepted": "不支持的文件类型",
+              "maxFilesExceeded": "最多允许 1 个文件"
             }
           }
         },
