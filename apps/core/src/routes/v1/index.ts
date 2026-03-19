@@ -7,6 +7,7 @@ import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
 import conversationsRouter from "./conversations/index.js";
 import coworkersRouter from "./coworkers/index.js";
+import creditCostsRouter from "./credit-costs/index.js";
 import jobsRouter from "./jobs/index.js";
 import organizationsRouter from "./organizations/index.js";
 import tasksRouter from "./tasks/index.js";
@@ -78,6 +79,7 @@ app.use(
 app.route("/agents", agentsRouter);
 app.route("/categories", categoriesRouter);
 app.route("/conversations", conversationsRouter);
+app.route("/credit-costs", creditCostsRouter);
 app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
 app.route("/jobs", jobsRouter);
