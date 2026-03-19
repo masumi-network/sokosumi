@@ -847,7 +847,7 @@ export default function ChatInterface({
   const coworkerChatRecoveryGenerationRef = useRef(0);
   const recoveredProcessedForRef = useRef<string | null>(null);
   const currentCidRef = useRef<string | null>(null);
-  const recoveryCidRef = useRef<string | null>(null);
+  const routeDrivenRecoveryGenerationRef = useRef(0);
   const mountedRef = useRef(true);
 
   currentCidRef.current = urlConversationId ?? selectedChatId ?? null;
@@ -894,7 +894,7 @@ export default function ChatInterface({
       return;
     }
     recoveryAttemptedForRef.current = cid;
-    recoveryCidRef.current = cid;
+    const routeRecoveryGeneration = routeDrivenRecoveryGenerationRef.current;
     if (urlConversationId && selectedChatId !== urlConversationId) {
       setSelectedChatId(urlConversationId);
     }
@@ -903,7 +903,8 @@ export default function ChatInterface({
       setIsRecoveringPolling(true);
     }
     (async () => {
-      const isCancelled = () => recoveryCidRef.current !== cid;
+      const isCancelled = () =>
+        routeRecoveryGeneration !== routeDrivenRecoveryGenerationRef.current;
       async function loadConversationItemsIntoCache(conversationId: string) {
         const itemsResult = await getConversationItems({
           conversationId,
@@ -1175,6 +1176,7 @@ export default function ChatInterface({
       }
     })();
     return () => {
+      routeDrivenRecoveryGenerationRef.current += 1;
       setIsRecoveringPolling(false);
       setIsRecovering(false);
     };
