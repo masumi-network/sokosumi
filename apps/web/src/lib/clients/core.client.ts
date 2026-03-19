@@ -1,7 +1,11 @@
 import "server-only";
 
 import type { Notice, NoticeKind } from "@sokosumi/database";
+import { withRelatedProject } from "@vercel/related-projects";
+import { headers } from "next/headers";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import type {
   GetCoworkersData,
@@ -32,13 +36,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postUsersMeNoticesByIdAcknowledge as corePostUsersMeNoticesByIdAcknowledge,
 } from "@/lib/clients/generated/core";
-import type { Client } from "@/lib/clients/generated/core/client";
-
-import { createCoreGeneratedClient } from "./core.transport.server";
-
-export {
-  coreApiBaseUrl,
-} from "./core.transport.shared";
+import { type Client, createClient } from "@/lib/clients/generated/core/client";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -103,6 +101,27 @@ type CoreOperationResult<TData, TError> = {
   error?: TError;
   response: Response;
 };
+
+const resolvedCoreApiHost = withRelatedProject({
+  projectName:
+    getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
+      ? "sokosumi-core-preprod"
+      : "sokosumi-core-mainnet",
+  defaultHost: getEnvSecrets().CORE_API_URL,
+});
+
+const withoutTrailingSlash = resolvedCoreApiHost.replace(/\/+$/, "");
+
+export const coreApiBaseUrl = withoutTrailingSlash.endsWith("/v1")
+  ? withoutTrailingSlash
+  : `${withoutTrailingSlash}/v1`;
+
+async function createCoreGeneratedClient(): Promise<Client> {
+  return createClient({
+    baseUrl: coreApiBaseUrl,
+    headers: await headers(),
+  });
+}
 
 async function executeOperation<TData, TError>(
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,

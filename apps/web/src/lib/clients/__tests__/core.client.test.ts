@@ -11,7 +11,8 @@ const getUsersMeNoticesPendingMock = jest.fn();
 const postUsersMeNoticesByIdAcknowledgeMock = jest.fn();
 const getUsersMeCreditsMock = jest.fn();
 const getUsersMeOrganizationsMock = jest.fn();
-const createGeneratedClientMock = jest.fn();
+const createClientMock = jest.fn();
+const headersMock = jest.fn();
 const mockClient = { id: "core-client" } as never;
 
 jest.mock("@/config/env.public", () => ({
@@ -22,12 +23,16 @@ jest.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
+jest.mock("next/headers", () => ({
+  headers: () => headersMock(),
+}));
+
 jest.mock("@vercel/related-projects", () => ({
   withRelatedProject: (...args: unknown[]) => withRelatedProjectMock(...args),
 }));
 
-jest.mock("../core.transport.server", () => ({
-  createCoreGeneratedClient: () => createGeneratedClientMock(),
+jest.mock("@/lib/clients/generated/core/client", () => ({
+  createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 
 jest.mock("@/lib/clients/generated/core", () => ({
@@ -54,25 +59,26 @@ describe("core.client", () => {
       (options: { defaultHost: string }) => options.defaultHost,
     );
 
-    createGeneratedClientMock.mockResolvedValue(mockClient);
-  });
-
-  it("keeps coreApiBaseUrl exported for chat compatibility", async () => {
-    const { coreApiBaseUrl } = await import("../core.client");
-
-    expect(coreApiBaseUrl).toBe("http://localhost:8787/v1");
+    headersMock.mockResolvedValue(
+      new Headers({
+        cookie: "session=abc",
+        "x-organization-slug": "my-org",
+      }),
+    );
+    createClientMock.mockReturnValue(mockClient);
   });
 
   it("resolves the core API url from the server env via related projects", async () => {
-    await import("../core.client");
+    const { coreApiBaseUrl } = await import("../core.client");
 
     expect(withRelatedProjectMock).toHaveBeenCalledWith({
       projectName: "sokosumi-core-mainnet",
       defaultHost: "http://localhost:8787",
     });
+    expect(coreApiBaseUrl).toBe("http://localhost:8787/v1");
   });
 
-  it("executes generated operations through the server transport", async () => {
+  it("executes generated operations through the generated client", async () => {
     getConversationsMock.mockResolvedValue({
       data: {
         data: [],
@@ -87,11 +93,17 @@ describe("core.client", () => {
     const { coreClient } = await import("../core.client");
     const response = await coreClient.getConversations();
 
-    expect(createGeneratedClientMock).toHaveBeenCalledTimes(1);
+    expect(createClientMock).toHaveBeenCalledWith({
+      baseUrl: "http://localhost:8787/v1",
+      headers: expect.any(Headers),
+    });
     expect(getConversationsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
     });
+    const forwardedHeaders = createClientMock.mock.calls[0]?.[0]?.headers as Headers;
+    expect(forwardedHeaders.get("cookie")).toBe("session=abc");
+    expect(forwardedHeaders.get("x-organization-slug")).toBe("my-org");
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
     );
@@ -116,7 +128,7 @@ describe("core.client", () => {
     const { coreClient } = await import("../core.client");
     const response = await coreClient.getAgentInputSchema("agent_1");
 
-    expect(createGeneratedClientMock).toHaveBeenCalledTimes(1);
+    expect(createClientMock).toHaveBeenCalledTimes(1);
     expect(getAgentsByIdInputSchemaMock).toHaveBeenCalledWith({
       client: mockClient,
       path: { id: "agent_1" },
@@ -175,6 +187,7 @@ describe("core.client", () => {
     await coreClient.getMyCredits();
     await coreClient.getMyOrganizations();
 
+    expect(createClientMock).toHaveBeenCalledTimes(2);
     expect(getUsersMeCreditsMock).toHaveBeenCalledWith({
       cache: "no-store",
       client: mockClient,
