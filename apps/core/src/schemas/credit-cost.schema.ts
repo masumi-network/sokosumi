@@ -35,7 +35,6 @@ export const patchCreditCostRequestSchema = z
     (data) => data.unit !== undefined || data.creditsPerUnit !== undefined,
     {
       message: "At least one of unit or creditsPerUnit is required",
-      path: ["unit", "creditsPerUnit"],
     },
   )
   .openapi("PatchCreditCostRequest");
