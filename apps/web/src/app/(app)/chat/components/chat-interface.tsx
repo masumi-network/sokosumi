@@ -844,6 +844,7 @@ export default function ChatInterface({
   });
 
   const recoveryAttemptedForRef = useRef<string | null>(null);
+  const coworkerChatRecoveryGenerationRef = useRef(0);
   const recoveredProcessedForRef = useRef<string | null>(null);
   const currentCidRef = useRef<string | null>(null);
   const recoveryCidRef = useRef<string | null>(null);
@@ -1194,7 +1195,6 @@ export default function ChatInterface({
     const conv = conversationForRecovery;
     const cid = selectedChatId;
     if (!conv?.id || conv.id !== cid) return;
-    if (recoveryAttemptedForRef.current === conv.id) return;
     const meta = (conv.metadata as Record<string, unknown> | null) ?? null;
     const isCoworker =
       meta?.type === "coworker" ||
@@ -1208,16 +1208,24 @@ export default function ChatInterface({
 
     recoveryAttemptedForRef.current = conv.id;
 
+    const recoveryGeneration = coworkerChatRecoveryGenerationRef.current;
+
     setIsRecovering(true);
     setIsRecoveringPolling(true);
     let cancelled = false;
+    function isAborted() {
+      return (
+        cancelled ||
+        recoveryGeneration !== coworkerChatRecoveryGenerationRef.current
+      );
+    }
     (async () => {
       async function loadConversationItemsIntoCache(conversationId: string) {
         const itemsResult = await getConversationItems({
           conversationId,
           limit: 100,
         });
-        if (cancelled) return;
+        if (isAborted()) return;
         const itemsPayload =
           itemsResult &&
           typeof itemsResult === "object" &&
@@ -1268,11 +1276,11 @@ export default function ChatInterface({
       }
       try {
         await loadConversationItemsIntoCache(conv.id);
-        if (cancelled) return;
+        if (isAborted()) return;
         const result = await recoverConversationResponse({
           conversationId: conv.id,
         });
-        if (cancelled) return;
+        if (isAborted()) return;
         const recoverPayload = parseRecoverPayload(result);
         if (!recoverPayload?.recovered) {
           if (
@@ -1291,7 +1299,7 @@ export default function ChatInterface({
               await new Promise((r) =>
                 setTimeout(r, RECOVERY_POLL_INTERVAL_MS),
               );
-              if (cancelled) break;
+              if (isAborted()) break;
               if (Date.now() - startTime > RECOVERY_POLL_TIMEOUT_MS) {
                 setRecoveryNotFoundForConversationId(conv.id);
                 setIsRecoveringPolling(false);
@@ -1301,7 +1309,7 @@ export default function ChatInterface({
               const pollResult = await recoverConversationResponse({
                 conversationId: conv.id,
               });
-              if (cancelled) return;
+              if (isAborted()) return;
               const pollPayload = parseRecoverPayload(pollResult);
               if (pollPayload?.recovered) {
                 if (recoveredProcessedForRef.current !== conv.id) {
@@ -1310,7 +1318,7 @@ export default function ChatInterface({
                     conversationId: conv.id,
                     limit: 100,
                   });
-                  if (cancelled) return;
+                  if (isAborted()) return;
                   const itemsPayload =
                     itemsResult &&
                     typeof itemsResult === "object" &&
@@ -1394,7 +1402,7 @@ export default function ChatInterface({
             conversationId: conv.id,
             limit: 100,
           });
-          if (cancelled) return;
+          if (isAborted()) return;
           const itemsPayload =
             itemsResult &&
             typeof itemsResult === "object" &&
@@ -1449,9 +1457,9 @@ export default function ChatInterface({
           }
         }
       } catch (_) {
-        if (!cancelled) setIsRecovering(false);
+        if (!isAborted()) setIsRecovering(false);
       } finally {
-        if (!cancelled) {
+        if (!isAborted()) {
           setIsRecoveringPolling(false);
           setIsRecovering(false);
         }
@@ -1459,6 +1467,7 @@ export default function ChatInterface({
     })();
     return () => {
       cancelled = true;
+      coworkerChatRecoveryGenerationRef.current += 1;
       if (recoveryAttemptedForRef.current === conv.id) {
         recoveryAttemptedForRef.current = null;
       }

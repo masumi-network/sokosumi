@@ -30,7 +30,7 @@ export async function persistPendingResponseId(
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const delaysMs = options.delaysMs ?? DEFAULT_DELAYS_MS;
 
-  let _lastError: unknown;
+  let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       await prisma.$transaction(async (tx) => {
@@ -63,13 +63,18 @@ export async function persistPendingResponseId(
       });
       return;
     } catch (error) {
-      _lastError = error;
+      lastError = error;
       if (attempt < maxAttempts - 1) {
         const delay = delaysMs[Math.min(attempt, delaysMs.length - 1)] ?? 0;
         await new Promise((r) => setTimeout(r, delay));
       }
     }
   }
+
+  throw (
+    lastError ??
+    new Error("Failed to persist pending response id after retries")
+  );
 }
 
 export interface ClearPendingAndSetPreviousParams {

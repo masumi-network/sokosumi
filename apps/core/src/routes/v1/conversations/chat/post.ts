@@ -297,6 +297,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               responseId,
               coworkerSlug: coworker!.slug,
               coworkerId: coworker!.id,
+            }).catch((error) => {
+              console.error("Failed to persist pending response id:", error);
             });
           },
           onResponseCompleted: async (responseId: string) => {
