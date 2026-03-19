@@ -23,23 +23,10 @@ const CONTAINER_CLASS_NAMES = {
   600: "mx-auto w-full max-w-[600px] overflow-hidden rounded-[24px] border border-solid border-[#e9e3f5] bg-white",
 } as const;
 
-function SokosumiMark() {
-  return (
-    <svg
-      aria-label="Sokosumi mark"
-      fill="none"
-      height="24"
-      viewBox="0 0 950 950"
-      width="24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M475 0C737.335 0 950 212.665 950 475C950 737.335 737.335 950 475 950C212.665 950 0 737.335 0 475C0 212.665 212.665 0 475 0ZM153 475.721C153 613.086 265.71 724.483 404.701 724.483C543.692 724.483 656.402 613.125 656.402 475.721H586.485C586.485 574.783 504.96 655.361 404.701 655.361C304.442 655.361 222.917 574.745 222.917 475.721H153ZM545.732 225C406.742 225 294.031 337.236 294.031 475.722H363.948C363.948 375.879 445.474 294.666 545.732 294.666C645.991 294.666 727.516 375.918 727.517 475.722H797.434C797.433 337.274 684.723 225 545.732 225Z"
-        fill="#6A36FF"
-      />
-    </svg>
-  );
-}
+const EMAIL_KANJI_URL =
+  "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-kanji-black.png";
+const EMAIL_WORDMARK_URL =
+  "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png";
 
 export function EmailShell({
   children,
@@ -69,13 +56,21 @@ export function EmailShell({
                 >
                   <tbody>
                     <tr>
-                      <td width="32" valign="middle">
-                        <SokosumiMark />
-                      </td>
                       <td valign="middle">
-                        <Text className="m-0 text-[13px] font-semibold tracking-[0.12em] text-[#6a36ff] uppercase">
-                          Sokosumi
-                        </Text>
+                        <img
+                          alt="Sokosumi"
+                          height="20"
+                          src={EMAIL_WORDMARK_URL}
+                          width="156"
+                        />
+                      </td>
+                      <td align="right" valign="middle">
+                        <img
+                          alt="Sokosumi kanji"
+                          height="28"
+                          src={EMAIL_KANJI_URL}
+                          width="14"
+                        />
                       </td>
                     </tr>
                   </tbody>

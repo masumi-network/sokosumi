@@ -1,6 +1,7 @@
 "use client";
 
 import { BlobStatus } from "@sokosumi/database";
+import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -14,10 +15,6 @@ import { SourcesGrid } from "@/components/sources/sources-grid";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import {
-  extractFileLikeLinks,
-  extractHttpLinks,
-} from "@/lib/data/markdown/links";
 import type { FeedItem } from "@/lib/services/feed.service";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import {

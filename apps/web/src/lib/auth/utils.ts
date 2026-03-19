@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { auth, Session } from "@/lib/auth/auth";
 
 /**
@@ -64,45 +63,4 @@ export async function verifyUserId(userId: string): Promise<boolean> {
     return false;
   }
   return true;
-}
-
-/**
- * Authenticates a request using a Bearer token that should match the CRON_SECRET
- * environment variable. This is typically used for internal cron job authentication
- * to ensure only authorized services can trigger scheduled tasks.
- *
- * @param request - The incoming request to authenticate
- * @returns An object indicating authentication success or failure with appropriate response
- *
- */
-export function authenticateCronSecret(
-  request: Request,
-): { ok: true } | { ok: false; response: Response } {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = getEnvSecrets().CRON_SECRET;
-  if (!cronSecret) {
-    return {
-      ok: false,
-      response: new Response(
-        JSON.stringify({ message: "Cron secret not set" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    };
-  }
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return {
-      ok: false,
-      response: new Response(
-        JSON.stringify({ message: "Invalid cron secret" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    };
-  }
-  return { ok: true };
 }

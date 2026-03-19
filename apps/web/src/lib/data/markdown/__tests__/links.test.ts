@@ -1,4 +1,4 @@
-import { extractFileLikeLinks } from "@/lib/data/markdown";
+import { extractFileLikeLinks } from "@sokosumi/utils";
 
 const memeMarkdown = `
 The agent is now working on your task. Please check back soon.

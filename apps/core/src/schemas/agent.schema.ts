@@ -3,6 +3,7 @@ import type { Agent } from "@sokosumi/database";
 
 import { getAgentAuthorImage } from "@/helpers/agent";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { categorySchema } from "@/schemas/category.schema";
 
 export const executionMetricsSchema = z
   .object({
@@ -131,6 +132,9 @@ export const agentSchema = z
     metrics: metricsSchema,
     author: authorSchema,
     legal: agentLegalSchema,
+    categories: z.array(categorySchema).openapi({
+      description: "Categories this agent belongs to",
+    }),
   })
   .openapi("Agent");
 

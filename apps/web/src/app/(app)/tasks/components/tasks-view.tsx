@@ -23,8 +23,10 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 
 import { loadMoreJobs, loadMoreTasksColumn } from "@/app/tasks/actions";
+import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
@@ -64,12 +66,19 @@ import { TaskCard } from "./task-card";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
+import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
 import { ViewModeSwitch } from "./view-mode-switch";
 
 function HeaderAddButton({ label }: { label: string }) {
   const { handleOpen } = useCreateTaskModal();
   return (
-    <Button size="sm" onClick={handleOpen} className="gap-1.5">
+    <Button
+      size="sm"
+      onClick={handleOpen}
+      className="gap-1.5"
+      data-tasks-add-task-header-anchor
+    >
       <Plus className="size-4" aria-hidden />
       <span className="hidden sm:inline">{label}</span>
     </Button>
@@ -111,7 +120,6 @@ const hydrationStore = (() => {
 
 const JOBS_FAILED_FILTER_MODE_STORAGE_KEY =
   "sokosumi.tasks.jobs.failedFilterMode";
-
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
@@ -212,6 +220,17 @@ interface TasksViewProps {
     loading: string;
     dragError: string;
     loadMoreError: string;
+    emptyState: {
+      title: string;
+      description: string;
+      chatTitle: string;
+      chatDescription: string;
+      next: string;
+      back: string;
+      addTaskHint: string;
+      chatHint: string;
+      elenaAvatarAlt: string;
+    };
   };
 }
 
@@ -285,10 +304,14 @@ export function TasksView({
     buildInitialColumnCursorById(columns, initialColumnNextCursorById),
   );
   const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
+  const refreshRoute = useDebouncedCallback(
+    () => router.refresh(),
+    TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
+  );
   const scopeKey = activeOrganizationId ?? "personal";
   const previousScopeKeyRef = useRef(scopeKey);
   const handleEventUpdate = (_data: TaskEventData) => {
-    router.refresh();
+    refreshRoute();
   };
 
   useEffect(() => {
@@ -306,6 +329,12 @@ export function TasksView({
   useEffect(() => {
     loadingColumnIdsRef.current = loadingColumnIds;
   }, [loadingColumnIds]);
+
+  useEffect(() => {
+    return () => {
+      refreshRoute.cancel();
+    };
+  }, [refreshRoute]);
 
   useEffect(() => {
     try {
@@ -622,6 +651,11 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
+  const shouldShowEmptyStateOverlay = shouldShowTasksEmptyStateOverlay({
+    activeTab,
+    taskCount: items.length,
+    viewMode,
+  });
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -851,9 +885,17 @@ export function TasksView({
             </ChannelProvider>
           ))}
           {tabsContent}
+          {shouldShowEmptyStateOverlay ? (
+            <TasksEmptyStateOverlay labels={labels.emptyState} />
+          ) : null}
         </DynamicAblyProvider>
       ) : (
-        tabsContent
+        <>
+          {tabsContent}
+          {shouldShowEmptyStateOverlay ? (
+            <TasksEmptyStateOverlay labels={labels.emptyState} />
+          ) : null}
+        </>
       )}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}

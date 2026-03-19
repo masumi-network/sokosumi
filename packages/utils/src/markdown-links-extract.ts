@@ -1,26 +1,28 @@
-import { isFileLikeUrl } from "@/lib/utils/file";
+import { isFileLikeUrl } from "./file-url.js";
 import {
   createMarkdownLinkRegex,
   unescapeMarkdownLinkUrl,
-} from "@/lib/utils/markdown-links";
+} from "./markdown-links.js";
 
 export interface ExtractedLink {
   url: string;
   text?: string;
 }
 
-// Very small markdown link extractor; good enough for our use-case.
-// Matches [text](url) and bare autolinks <http://...>
+const AUTO_LINKS = /<((?:https?:)\/\/[^>\s]+)>/gi;
+
+/**
+ * Extracts markdown-style links [text](url) and autolinks <http://...> from markdown.
+ */
 export function extractLinks(markdown: string): ExtractedLink[] {
   const results: ExtractedLink[] = [];
-  const linkRegex = createMarkdownLinkRegex(); // [text](url "title")
-  const autoRegex = /<((?:https?:)\/\/[^>\s]+)>/gi; // <http://...>
+  const linkRegex = createMarkdownLinkRegex();
 
   for (const match of markdown.matchAll(linkRegex)) {
     const [, text, rawUrl] = match;
     results.push({ url: unescapeMarkdownLinkUrl(rawUrl), text });
   }
-  for (const match of markdown.matchAll(autoRegex)) {
+  for (const match of markdown.matchAll(AUTO_LINKS)) {
     const [, url] = match;
     results.push({ url });
   }
@@ -32,7 +34,9 @@ export function extractFileLikeLinks(markdown: string): string[] {
   const links = extractLinks(markdown);
   const fileLinks = new Set<string>();
   for (const l of links) {
-    if (isFileLikeUrl(l.url)) fileLinks.add(l.url);
+    if (isFileLikeUrl(l.url)) {
+      fileLinks.add(l.url);
+    }
   }
   return Array.from(fileLinks);
 }
@@ -50,7 +54,7 @@ export function extractHttpLinks(markdown: string): string[] {
         http.add(l.url);
       }
     } catch {
-      // ignore
+      // ignore malformed URLs
     }
   }
   return Array.from(http);

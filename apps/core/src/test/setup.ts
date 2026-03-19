@@ -20,6 +20,7 @@ const envDefaults: Record<string, string> = {
   SHOW_AGENTS_BY_DEFAULT: "true",
   MAINTENANCE_MODE: "false",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
+  JOB_FAILURE_NOTIFICATION_EMAILS: "",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {

@@ -4,6 +4,7 @@ import { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi";
 import { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
+import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -21,7 +22,6 @@ import {
   normalizeAndValidateInputSchema,
 } from "@/lib/schemas/job";
 import { cn } from "@/lib/utils";
-import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 import { FileChipWithMetadata } from "./file-chip-with-metadata";
 import { HashGroupRow } from "./hash-group-row";

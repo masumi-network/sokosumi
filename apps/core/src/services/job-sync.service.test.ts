@@ -1,0 +1,811 @@
+import { AgentJobStatus, JobType, SokosumiJobStatus } from "@sokosumi/database";
+import { err, ok } from "neverthrow";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { jobSyncService } from "./job-sync.service";
+
+const {
+  captureExceptionMock,
+  createJobEventForJobIdMock,
+  createJobPurchaseMock,
+  fetchAgentJobStatusMock,
+  getJobByIdMock,
+  getJobsNotFinishedMock,
+  getLatestJobEventByJobIdMock,
+  publishJobStatusDataMock,
+  renderJobFailureNotificationEmailMock,
+  renderJobFinalStatusEmailMock,
+  renderJobInputRequiredEmailMock,
+  requestFetchMock,
+  sendEmailMock,
+  sourceImportEnqueueMock,
+  paymentClientFactoryMock,
+  getPurchaseByBlockchainIdentifierMock,
+  getPurchaseByIdMock,
+  updateJobPurchaseByJobIdMock,
+  refundJobMock,
+  prismaTransactionMock,
+} = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
+  createJobEventForJobIdMock: vi.fn(),
+  createJobPurchaseMock: vi.fn(),
+  fetchAgentJobStatusMock: vi.fn(),
+  getJobByIdMock: vi.fn(),
+  getJobsNotFinishedMock: vi.fn(),
+  getLatestJobEventByJobIdMock: vi.fn(),
+  publishJobStatusDataMock: vi.fn(),
+  renderJobFailureNotificationEmailMock: vi.fn(),
+  renderJobFinalStatusEmailMock: vi.fn(),
+  renderJobInputRequiredEmailMock: vi.fn(),
+  requestFetchMock: vi.fn(),
+  sendEmailMock: vi.fn(),
+  sourceImportEnqueueMock: vi.fn(),
+  paymentClientFactoryMock: vi.fn(),
+  getPurchaseByBlockchainIdentifierMock: vi.fn(),
+  getPurchaseByIdMock: vi.fn(),
+  updateJobPurchaseByJobIdMock: vi.fn(),
+  refundJobMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+}));
+
+vi.mock("@vercel/related-projects", () => ({
+  withRelatedProject: (opts: { defaultHost: string }) => opts.defaultHost,
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: captureExceptionMock,
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  jobEventRepository: {
+    createJobEventForJobId: createJobEventForJobIdMock,
+    getLatestJobEventByJobId: getLatestJobEventByJobIdMock,
+  },
+  jobPurchaseRepository: {
+    createJobPurchase: createJobPurchaseMock,
+    updateJobPurchaseByJobId: updateJobPurchaseByJobIdMock,
+  },
+  jobRepository: {
+    getJobById: getJobByIdMock,
+    getJobsNotFinished: getJobsNotFinishedMock,
+    refundJob: refundJobMock,
+  },
+}));
+
+vi.mock("@sokosumi/masumi", () => ({
+  createAgentClient: () => ({
+    fetchAgentJobStatus: fetchAgentJobStatusMock,
+  }),
+}));
+
+vi.mock("@/clients/masumi-payment.client", () => ({
+  paymentClient: paymentClientFactoryMock,
+}));
+
+vi.mock("@/clients/postmark.client", () => ({
+  postmarkClient: {
+    sendEmail: sendEmailMock,
+  },
+}));
+
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({
+    BETTER_AUTH_TRUSTED_ORIGIN: "https://app.sokosumi.test",
+    JOB_FAILURE_NOTIFICATION_EMAILS: [
+      "stakeholder1@example.com",
+      "stakeholder2@example.com",
+    ],
+    JOB_FAILURE_WEBHOOK_URL: "https://hooks.example.com/job-failure",
+    NETWORK: "Preprod",
+    POSTMARK_FROM_EMAIL: "no-reply@example.com",
+  }),
+  getWebAppBaseUrl: () => "https://app.sokosumi.test",
+}));
+
+vi.mock("@/helpers/purchase", () => ({
+  transformPurchaseToJobUpdate: (purchase: {
+    id: string;
+    nextAction?: string | null;
+    nextActionErrorNote?: string | null;
+    nextActionErrorType?: string | null;
+    onChainStatus?: string | null;
+    resultHash?: string | null;
+  }) => ({
+    externalId: purchase.id,
+    onChainStatus: purchase.onChainStatus ?? null,
+    resultHash: purchase.resultHash ?? null,
+    nextAction: purchase.nextAction ?? "NONE",
+    nextActionErrorType: purchase.nextActionErrorType ?? null,
+    nextActionErrorNote: purchase.nextActionErrorNote ?? null,
+  }),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishJobStatusData: publishJobStatusDataMock,
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: prismaTransactionMock,
+  },
+}));
+
+vi.mock("@/services/source-import.service", () => ({
+  sourceImportService: {
+    enqueueFromMarkdown: sourceImportEnqueueMock,
+  },
+}));
+
+vi.mock("@sokosumi/email", () => ({
+  renderJobFailureNotificationEmail: renderJobFailureNotificationEmailMock,
+  renderJobFinalStatusEmail: renderJobFinalStatusEmailMock,
+  renderJobInputRequiredEmail: renderJobInputRequiredEmailMock,
+}));
+
+const originalFetch = global.fetch;
+
+function createJobEvent(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    id: "event_1",
+    status: AgentJobStatus.RUNNING,
+    result: null,
+    statusHash: "old-hash",
+    input: null,
+    createdAt: new Date("2026-03-18T10:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+function createJob(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const events = (overrides.events as
+    | Record<string, unknown>[]
+    | undefined) ?? [createJobEvent()];
+
+  return {
+    id: "job_1",
+    agentId: "agent_1",
+    agentJobId: "remote-job-1",
+    userId: "user_1",
+    jobType: JobType.PAID,
+    refundedTransactionId: null,
+    blockchainIdentifier: "blockchain-job-1",
+    purchase: {
+      externalId: "purchase_1",
+      onChainStatus: null,
+      resultHash: null,
+      nextAction: "NONE",
+      nextActionErrorType: null,
+      nextActionErrorNote: null,
+    },
+    events,
+    agent: {
+      id: "agent_1",
+      name: "Planner",
+      blockchainIdentifier: "agent-chain-1",
+      authorContactEmail: null,
+    },
+    user: {
+      id: "user_1",
+      email: "user@example.com",
+      name: "Ada",
+      notificationsOptIn: true,
+    },
+    externalDisputeUnlockTime: new Date("2026-03-18T11:00:00.000Z"),
+    completedAt: null,
+    status: SokosumiJobStatus.PROCESSING,
+    jobStatusSettled: false,
+    ...overrides,
+  };
+}
+
+function createExecutionOptions(
+  overrides: Partial<{
+    abortSignal: AbortSignal;
+    deadlineMs: number;
+    shouldContinue: () => boolean;
+  }> = {},
+) {
+  return {
+    abortSignal: new AbortController().signal,
+    deadlineMs: Date.now() + 60_000,
+    shouldContinue: () => true,
+    ...overrides,
+  };
+}
+
+describe("jobSyncService.syncUnfinishedJobs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    paymentClientFactoryMock.mockReturnValue({
+      getPurchaseByBlockchainIdentifier: getPurchaseByBlockchainIdentifierMock,
+      getPurchaseById: getPurchaseByIdMock,
+    });
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({});
+    });
+    getJobsNotFinishedMock.mockResolvedValue([]);
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(err("not found"));
+    getPurchaseByIdMock.mockReturnValue(err("not found"));
+    fetchAgentJobStatusMock.mockReturnValue(err("not found"));
+    getLatestJobEventByJobIdMock.mockResolvedValue(createJobEvent());
+    createJobEventForJobIdMock.mockResolvedValue({ id: "event_2" });
+    getJobByIdMock.mockResolvedValue(createJob());
+    renderJobFailureNotificationEmailMock.mockResolvedValue({
+      subject: "failure",
+      html: "<p>failure</p>",
+    });
+    renderJobFinalStatusEmailMock.mockResolvedValue({
+      subject: "completed",
+      html: "<p>completed</p>",
+    });
+    renderJobInputRequiredEmailMock.mockResolvedValue({
+      subject: "input",
+      html: "<p>input</p>",
+    });
+    sendEmailMock.mockResolvedValue(undefined);
+    publishJobStatusDataMock.mockResolvedValue(undefined);
+    sourceImportEnqueueMock.mockResolvedValue(undefined);
+    refundJobMock.mockResolvedValue(undefined);
+    createJobPurchaseMock.mockResolvedValue(undefined);
+    updateJobPurchaseByJobIdMock.mockResolvedValue(undefined);
+    global.fetch = requestFetchMock as unknown as typeof fetch;
+    requestFetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("backfills missing purchases and continues syncing in the same run", async () => {
+    const backfilledJob = createJob({
+      purchase: {
+        id: "purchase_1",
+        externalId: "purchase_backfilled",
+        onChainStatus: null,
+        onChainTransactionHash: null,
+        onChainTransactionStatus: null,
+        resultHash: "result-hash",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+        createdAt: new Date("2026-03-18T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-18T10:01:00.000Z"),
+        jobId: "job_1",
+        errorNote: null,
+        errorNoteKey: null,
+      },
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    getJobsNotFinishedMock.mockResolvedValue([
+      createJob({
+        purchase: null,
+        status: SokosumiJobStatus.PAYMENT_PENDING,
+      }),
+    ]);
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({
+        id: "purchase_backfilled",
+        resultHash: "result-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(backfilledJob);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result.unfinishedFound).toBe(1);
+    expect(result.processed).toBe(1);
+    expect(createJobPurchaseMock).toHaveBeenCalledWith(
+      {
+        jobId: "job_1",
+        externalId: "purchase_backfilled",
+        onChainStatus: null,
+        resultHash: "result-hash",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+      expect.any(Object),
+    );
+    expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledWith(
+      "blockchain-job-1",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+    expect(getJobByIdMock).toHaveBeenCalledWith("job_1", expect.any(Object));
+    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
+      "purchase_backfilled",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+    expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
+      backfilledJob.agent,
+      backfilledJob.agentJobId,
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+  });
+
+  it("skips new events and notifications when the agent status hash is unchanged", async () => {
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "running",
+        result: null,
+        input_schema: null,
+        statusHash: "old-hash",
+      }),
+    );
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result.processed).toBe(1);
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(publishJobStatusDataMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("creates new job events, enqueues source imports, and sends final notifications", async () => {
+    const initialJob = createJob();
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      completedAt: new Date("2026-03-18T10:05:00.000Z"),
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        overrideName: "Display Name",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: null,
+      },
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          result: "[result](https://example.com/report.pdf)",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([initialJob]);
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "[result](https://example.com/report.pdf)",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobEventForJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      {
+        status: AgentJobStatus.COMPLETED,
+        inputSchema: undefined,
+        result: "[result](https://example.com/report.pdf)",
+        statusHash: "new-hash",
+      },
+      {},
+    );
+    expect(sourceImportEnqueueMock).toHaveBeenCalledWith(
+      "event_2",
+      "[result](https://example.com/report.pdf)",
+    );
+    expect(renderJobFinalStatusEmailMock).toHaveBeenCalledWith({
+      recipientName: "Ada",
+      agentName: "Display Name",
+      jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
+      jobName: undefined,
+      jobStatus: SokosumiJobStatus.COMPLETED,
+      locale: "en",
+    });
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        To: "user@example.com",
+        From: "no-reply@example.com",
+        Tag: "job-final-status",
+      }),
+    );
+    expect(publishJobStatusDataMock).toHaveBeenCalledWith({
+      agentId: "agent_1",
+      userId: "user_1",
+      jobId: "job_1",
+      jobStatus: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+    });
+  });
+
+  it("refunds terminal payment failures and emits failure notifications", async () => {
+    const updatedFailedJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        overrideName: "Display Name",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: "author@example.com",
+      },
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.FAILED,
+          result: "boom",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "failed",
+        result: "boom",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(updatedFailedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(refundJobMock).toHaveBeenCalledWith("job_1", {});
+    expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
+      network: "Preprod",
+      agentId: "agent_1",
+      agentBlockchainIdentifier: "agent-chain-1",
+      agentName: "Display Name",
+      jobId: "job_1",
+      jobBlockchainIdentifier: "blockchain-job-1",
+      onChainStatus: "N/A",
+      agentStatus: SokosumiJobStatus.PAYMENT_FAILED,
+      result: "boom",
+      resultHash: "N/A",
+      locale: "en",
+    });
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        To: "author@example.com",
+        Bcc: "stakeholder1@example.com,stakeholder2@example.com",
+        Tag: "job-failure-notification",
+      }),
+    );
+    expect(requestFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes on-chain-only payment failures even when the agent status hash is unchanged", async () => {
+    const paymentFailedJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+      events: [
+        createJobEvent({
+          id: "event_1",
+          status: AgentJobStatus.RUNNING,
+          result: null,
+          statusHash: "old-hash",
+        }),
+      ],
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    getPurchaseByIdMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "running",
+        result: null,
+        input_schema: null,
+        statusHash: "old-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+      }),
+      {},
+    );
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(refundJobMock).toHaveBeenCalledWith("job_1", {});
+    expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
+      network: "Preprod",
+      agentId: "agent_1",
+      agentBlockchainIdentifier: "agent-chain-1",
+      agentName: "Planner",
+      jobId: "job_1",
+      jobBlockchainIdentifier: "blockchain-job-1",
+      onChainStatus: "FUNDS_OR_DATUM_INVALID",
+      agentStatus: SokosumiJobStatus.PAYMENT_FAILED,
+      result: "N/A",
+      resultHash: "N/A",
+      locale: "en",
+    });
+    expect(publishJobStatusDataMock).toHaveBeenCalledWith({
+      agentId: "agent_1",
+      userId: "user_1",
+      jobId: "job_1",
+      jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
+      jobStatusSettled: false,
+    });
+  });
+
+  it("sends input-required notifications when a job starts awaiting input", async () => {
+    const awaitingInputJob = createJob({
+      status: SokosumiJobStatus.INPUT_REQUIRED,
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        overrideName: "Display Name",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: null,
+      },
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.AWAITING_INPUT,
+          result: null,
+          statusHash: "new-hash",
+          input: null,
+        }),
+      ],
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "awaiting_input",
+        result: null,
+        input_schema: [{ id: "prompt", type: "string", name: "Prompt" }],
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(awaitingInputJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(renderJobInputRequiredEmailMock).toHaveBeenCalledWith({
+      recipientName: "Ada",
+      agentName: "Display Name",
+      jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
+      jobName: undefined,
+      locale: "en",
+    });
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        To: "user@example.com",
+        Tag: "job-input-required",
+      }),
+    );
+  });
+
+  it("does not fail the sync when webhook, email, or ably publishing fails", async () => {
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      completedAt: new Date("2026-03-18T10:05:00.000Z"),
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          result: "done",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    sendEmailMock.mockRejectedValue(new Error("email down"));
+    publishJobStatusDataMock.mockRejectedValue(new Error("ably down"));
+    requestFetchMock.mockRejectedValue(new Error("webhook down"));
+
+    await expect(
+      jobSyncService.syncUnfinishedJobs(createExecutionOptions()),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 1,
+      }),
+    );
+  });
+
+  it("does not count thrown job sync failures as processed", async () => {
+    const syncError = new Error("event write failed");
+
+    getJobsNotFinishedMock.mockResolvedValue([
+      createJob(),
+      createJob({
+        id: "job_2",
+        agentJobId: "remote-job-2",
+        blockchainIdentifier: "blockchain-job-2",
+        purchase: {
+          externalId: "purchase_2",
+          onChainStatus: null,
+          resultHash: null,
+          nextAction: "NONE",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    ]);
+    fetchAgentJobStatusMock.mockImplementation((_agent, jobId: string) => {
+      if (jobId === "remote-job-1") {
+        return ok({
+          status: "completed",
+          result: "done",
+          input_schema: null,
+          statusHash: "new-hash",
+        });
+      }
+
+      return ok({
+        status: "running",
+        result: null,
+        input_schema: null,
+        statusHash: "old-hash",
+      });
+    });
+    createJobEventForJobIdMock.mockImplementation(async (jobId: string) => {
+      if (jobId === "job_1") {
+        throw syncError;
+      }
+
+      return { id: `event_${jobId}` };
+    });
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        processed: 1,
+        unfinishedFound: 2,
+      }),
+    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(syncError, {
+      extra: {
+        jobId: "job_1",
+      },
+    });
+  });
+
+  it("stops processing when already canceled before work starts", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    getJobsNotFinishedMock.mockResolvedValue([
+      createJob(),
+      createJob({ id: "job_2" }),
+    ]);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions({
+        abortSignal: controller.signal,
+      }),
+    );
+
+    expect(result.unfinishedFound).toBe(2);
+    expect(result.processed).toBe(0);
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
+    expect(getPurchaseByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels in-flight remote polling before transaction work begins", async () => {
+    const controller = new AbortController();
+    let resolvePollingStarted: (() => void) | null = null;
+    const pollingStarted = new Promise<void>((resolve) => {
+      resolvePollingStarted = resolve;
+    });
+
+    getJobsNotFinishedMock.mockResolvedValue([createJob()]);
+    fetchAgentJobStatusMock.mockImplementation(
+      (
+        _agent,
+        _jobId,
+        options?: {
+          signal?: AbortSignal;
+        },
+      ) => {
+        resolvePollingStarted?.();
+
+        return new Promise((resolve) => {
+          options?.signal?.addEventListener(
+            "abort",
+            () => {
+              resolve(err("aborted"));
+            },
+            { once: true },
+          );
+        });
+      },
+    );
+    getPurchaseByIdMock.mockImplementation(
+      (
+        _purchaseId,
+        options?: {
+          signal?: AbortSignal;
+        },
+      ) => {
+        return new Promise((resolve) => {
+          options?.signal?.addEventListener(
+            "abort",
+            () => {
+              resolve(err("aborted"));
+            },
+            { once: true },
+          );
+        });
+      },
+    );
+
+    const resultPromise = jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions({
+        abortSignal: controller.signal,
+      }),
+    );
+
+    await pollingStarted;
+    controller.abort();
+
+    await expect(resultPromise).resolves.toEqual(
+      expect.objectContaining({
+        processed: 0,
+        unfinishedFound: 1,
+      }),
+    );
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(fetchAgentJobStatusMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "remote-job-1",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+    expect(getPurchaseByIdMock).toHaveBeenCalledWith(
+      "purchase_1",
+      expect.objectContaining({
+        signal: expect.any(Object),
+      }),
+    );
+  });
+});

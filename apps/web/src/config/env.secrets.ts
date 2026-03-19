@@ -1,7 +1,6 @@
 import "server-only";
 
 /* eslint-disable no-restricted-properties */
-import { v4 as uuidv4 } from "uuid";
 import * as z from "zod";
 
 /**
@@ -89,13 +88,8 @@ const envSecretsSchema = z.object({
     .optional(),
   VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
-  CRON_SECRET: z.string().optional(),
-
   PAYMENT_API_KEY: z.string().min(1),
   PAYMENT_API_URL: z.url().default("https://payment.masumi.network/api/v1"),
-
-  // Core API
-  CORE_API_URL: z.url().default("http://localhost:3001"),
 
   // Social Secrets
   GOOGLE_CLIENT_ID: z.string().min(1),
@@ -130,15 +124,6 @@ const envSecretsSchema = z.object({
     .number()
     .min(86400)
     .default(172800), // 2 days in seconds
-  LOCK_TIMEOUT: z.coerce
-    .number()
-    .min(1 * 60 * 1000)
-    .default(2 * 60 * 1000), // 2 minutes
-  LOCK_TIMEOUT_BUFFER: z.coerce
-    .number()
-    .min(1000)
-    .default(1000 * 25), // 25 seconds
-  INSTANCE_ID: z.string().min(1).default(uuidv4()),
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
   BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
@@ -152,16 +137,6 @@ const envSecretsSchema = z.object({
   USER_CREATED_WEBHOOK: z.url().optional(),
   USER_UPDATED_WEBHOOK: z.url().optional(),
   ACCOUNT_CREATED_WEBHOOK: z.url().optional(),
-
-  // Job failure notifications
-  JOB_FAILURE_NOTIFICATION_EMAILS: z
-    .string()
-    .transform((val: string) =>
-      val.trim() === "" ? [] : val.split(",").map((e) => e.trim()),
-    )
-    .pipe(z.array(z.email()))
-    .default([]),
-  JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

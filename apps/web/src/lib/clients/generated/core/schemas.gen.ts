@@ -192,6 +192,13 @@ export const AgentSchema = {
                 'dpa',
                 'other'
             ]
+        },
+        categories: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/Category'
+            },
+            description: 'Categories this agent belongs to'
         }
     },
     required: [
@@ -206,8 +213,256 @@ export const AgentSchema = {
         'description',
         'metrics',
         'author',
-        'legal'
+        'legal',
+        'categories'
     ]
+} as const;
+
+export const CategorySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cat_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Research'
+        },
+        slug: {
+            type: 'string',
+            example: 'research'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Agents for research tasks'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/cat.png'
+        },
+        icon: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/cat.svg'
+        },
+        priority: {
+            type: 'number',
+            example: 0
+        },
+        styles: {
+            $ref: '#/components/schemas/CategoryStyles'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'description',
+        'image',
+        'icon',
+        'priority',
+        'styles'
+    ]
+} as const;
+
+export const CategoryStylesSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        light: {
+            type: 'object',
+            properties: {
+                color: {
+                    type: 'string',
+                    example: 'text-default-foreground'
+                },
+                border: {
+                    type: 'object',
+                    properties: {
+                        gradient: {
+                            type: 'object',
+                            properties: {
+                                type: {
+                                    type: 'string',
+                                    example: 'linear'
+                                },
+                                angle: {
+                                    type: 'number',
+                                    example: 135
+                                },
+                                shape: {
+                                    type: 'string',
+                                    example: 'ellipse'
+                                },
+                                extent: {
+                                    type: 'string',
+                                    example: 'farthest-corner'
+                                },
+                                position: {
+                                    type: 'object',
+                                    properties: {
+                                        x: {
+                                            type: 'number',
+                                            example: 0.5
+                                        },
+                                        y: {
+                                            type: 'number',
+                                            example: 0.5
+                                        }
+                                    },
+                                    required: [
+                                        'x',
+                                        'y'
+                                    ]
+                                },
+                                stops: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            color: {
+                                                type: 'string',
+                                                example: 'text-default-foreground'
+                                            },
+                                            offset: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.5
+                                            },
+                                            opacity: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.8
+                                            }
+                                        },
+                                        required: [
+                                            'color',
+                                            'offset'
+                                        ]
+                                    },
+                                    minItems: 1
+                                }
+                            },
+                            required: [
+                                'type',
+                                'stops'
+                            ]
+                        }
+                    },
+                    required: [
+                        'gradient'
+                    ]
+                }
+            }
+        },
+        dark: {
+            type: 'object',
+            properties: {
+                color: {
+                    type: 'string',
+                    example: 'text-default-foreground'
+                },
+                border: {
+                    type: 'object',
+                    properties: {
+                        gradient: {
+                            type: 'object',
+                            properties: {
+                                type: {
+                                    type: 'string',
+                                    example: 'linear'
+                                },
+                                angle: {
+                                    type: 'number',
+                                    example: 135
+                                },
+                                shape: {
+                                    type: 'string',
+                                    example: 'ellipse'
+                                },
+                                extent: {
+                                    type: 'string',
+                                    example: 'farthest-corner'
+                                },
+                                position: {
+                                    type: 'object',
+                                    properties: {
+                                        x: {
+                                            type: 'number',
+                                            example: 0.5
+                                        },
+                                        y: {
+                                            type: 'number',
+                                            example: 0.5
+                                        }
+                                    },
+                                    required: [
+                                        'x',
+                                        'y'
+                                    ]
+                                },
+                                stops: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            color: {
+                                                type: 'string',
+                                                example: 'text-default-foreground'
+                                            },
+                                            offset: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.5
+                                            },
+                                            opacity: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1,
+                                                example: 0.8
+                                            }
+                                        },
+                                        required: [
+                                            'color',
+                                            'offset'
+                                        ]
+                                    },
+                                    minItems: 1
+                                }
+                            },
+                            required: [
+                                'type',
+                                'stops'
+                            ]
+                        }
+                    },
+                    required: [
+                        'gradient'
+                    ]
+                }
+            }
+        }
+    },
+    description: 'Optional category-specific UI styles.',
+    example: {
+        light: {
+            color: 'text-default-foreground'
+        }
+    }
 } as const;
 
 export const PaginationMetadataSchema = {

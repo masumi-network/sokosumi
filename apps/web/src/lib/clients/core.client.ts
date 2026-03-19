@@ -1,9 +1,10 @@
 import "server-only";
 
 import type { Notice, NoticeKind } from "@sokosumi/database";
+import { withRelatedProject } from "@vercel/related-projects";
 import { headers } from "next/headers";
 
-import { getEnvSecrets } from "@/config/env.secrets";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import type {
   GetCoworkersData,
@@ -115,10 +116,18 @@ type CoreOperationResult<TData, TError> = {
   response: Response;
 };
 
+export const coreApiBaseUrl = withRelatedProject({
+  projectName:
+    getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Preprod"
+      ? "sokosumi-core-preprod"
+      : "sokosumi-core-mainnet",
+  defaultHost: getEnvPublicConfig().NEXT_PUBLIC_CORE_API_URL,
+});
+
 async function createCoreApiClient(): Promise<Client> {
   const requestHeaders = await headers();
   const client = createClient({
-    baseUrl: normalizeCoreApiBaseUrl(getEnvSecrets().CORE_API_URL),
+    baseUrl: normalizeCoreApiBaseUrl(coreApiBaseUrl),
     headers: buildAuthHeaders(requestHeaders),
   });
   return client;

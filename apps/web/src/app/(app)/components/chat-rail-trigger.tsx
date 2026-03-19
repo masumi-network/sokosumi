@@ -17,6 +17,7 @@ export default function ChatRailTrigger() {
       onClick={toggleRail}
       className="gap-2"
       aria-label={t("chat")}
+      data-chat-rail-trigger-anchor
     >
       <MessageSquare className="size-4" aria-hidden />
       <span className="hidden sm:inline">{t("chat")}</span>

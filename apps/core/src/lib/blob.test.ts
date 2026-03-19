@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { listUserFiles, uploadOrganizationLogo, uploadUserFile } from "./blob";
+import { listUserFiles, uploadUserFile } from "./blob";
 
 const { putMock, headMock, listMock, sentryCaptureExceptionMock } = vi.hoisted(
   () => ({
@@ -263,65 +263,5 @@ describe("listUserFiles", () => {
     await expect(listUserFiles("user_123", "token_123")).rejects.toThrow(
       "Blob list pagination is invalid: hasMore=true without cursor",
     );
-  });
-});
-
-describe("uploadOrganizationLogo", () => {
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("uploads into the organization namespace with overwrite enabled", async () => {
-    putMock.mockResolvedValue({
-      url: "https://blob.example/organizations/org_123/logo",
-      downloadUrl: "https://blob.example/download/logo",
-      pathname: "organizations/org_123/logo",
-      etag: "etag-put",
-    });
-    headMock.mockResolvedValue({
-      size: 321,
-      uploadedAt: new Date("2026-03-16T10:00:00.000Z"),
-      pathname: "organizations/org_123/logo",
-      contentType: "image/png",
-      contentDisposition: "inline",
-      url: "https://blob.example/organizations/org_123/logo",
-      downloadUrl: "https://blob.example/download/logo",
-      cacheControl: "public, max-age=3600",
-      etag: "etag-head",
-    });
-
-    const file = new File(["logo"], "logo.png", {
-      type: "image/png",
-    });
-
-    const logoUrl = await uploadOrganizationLogo("org_123", file, "token_123");
-
-    expect(putMock).toHaveBeenCalledWith("organizations/org_123/logo", file, {
-      access: "public",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: "image/png",
-      token: "token_123",
-    });
-    expect(logoUrl).toBe("https://blob.example/organizations/org_123/logo");
-  });
-
-  it("falls back to the blob url when head fails", async () => {
-    putMock.mockResolvedValue({
-      url: "https://blob.example/organizations/org_123/logo",
-      downloadUrl: "https://blob.example/download/logo",
-      pathname: "organizations/org_123/logo",
-      etag: "etag-put",
-    });
-    headMock.mockRejectedValue(new Error("head failed"));
-
-    const file = new File(["logo"], "logo.png", {
-      type: "image/png",
-    });
-
-    const logoUrl = await uploadOrganizationLogo("org_123", file, "token_123");
-
-    expect(logoUrl).toBe("https://blob.example/organizations/org_123/logo");
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });
