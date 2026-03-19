@@ -23,7 +23,9 @@ export function useTypingReveal(text: string): string {
       prevTextRef.current = text;
       const isExtension = prev.length > 0 && text.startsWith(prev);
       if (!isExtension) {
-        setRevealedLength(0);
+        queueMicrotask(() => {
+          setRevealedLength(0);
+        });
       }
     }
 
