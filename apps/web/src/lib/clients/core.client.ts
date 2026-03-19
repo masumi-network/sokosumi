@@ -308,7 +308,7 @@ export const coreClient = (() => {
   async function postConversationsByIdRecoverResponse(id: string) {
     return executeOperation(async (_client) => {
       const requestHeaders = await headers();
-      const baseUrl = normalizeCoreApiBaseUrl(getEnvSecrets().CORE_API_URL);
+      const baseUrl = normalizeCoreApiBaseUrl(coreApiBaseUrl);
       const url = `${baseUrl}/conversations/${encodeURIComponent(id)}/recover-response`;
       const response = await fetch(url, {
         method: "POST",
