@@ -159,7 +159,6 @@ export default function ChatRail({
       scheduleRailReadyUpdate(true);
     }, CHAT_RAIL_READY_TIMEOUT_MS);
 
-    syncRailReadyState();
     pollRailReadyState();
 
     desktopRailPanel?.addEventListener("transitionend", syncRailReadyState);
