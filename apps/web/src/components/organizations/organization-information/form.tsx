@@ -205,7 +205,7 @@ export default function OrganizationInformationForm({
                     <FileUpload
                       value={pendingLogoFiles}
                       onValueChange={setPendingLogoFiles}
-                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                       maxFiles={1}
                       maxSize={2 * 1024 * 1024}
                       multiple={false}
