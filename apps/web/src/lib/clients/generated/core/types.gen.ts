@@ -61,7 +61,68 @@ export type Agent = {
         dpa: string | null;
         other: string | null;
     };
+    /**
+     * Categories this agent belongs to
+     */
+    categories: Array<Category>;
 };
+
+export type Category = {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    image: string | null;
+    icon: string | null;
+    priority: number;
+    styles: CategoryStyles;
+};
+
+/**
+ * Optional category-specific UI styles.
+ */
+export type CategoryStyles = {
+    light?: {
+        color?: string;
+        border?: {
+            gradient: {
+                type: string;
+                angle?: number;
+                shape?: string;
+                extent?: string;
+                position?: {
+                    x: number;
+                    y: number;
+                };
+                stops: Array<{
+                    color: string;
+                    offset: number;
+                    opacity?: number;
+                }>;
+            };
+        };
+    };
+    dark?: {
+        color?: string;
+        border?: {
+            gradient: {
+                type: string;
+                angle?: number;
+                shape?: string;
+                extent?: string;
+                position?: {
+                    x: number;
+                    y: number;
+                };
+                stops: Array<{
+                    color: string;
+                    offset: number;
+                    opacity?: number;
+                }>;
+            };
+        };
+    };
+} | null;
 
 export type PaginationMetadata = {
     /**
@@ -434,6 +495,10 @@ export type GetAgentsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * Filter by category slug. Supports repeated values and comma-separated lists. The reserved value `uncategorized` matches agents without assigned categories. When multiple categories are provided, agents matching any category are returned.
+         */
+        category?: Array<string>;
     };
     url: '/agents';
 };
@@ -443,6 +508,19 @@ export type GetAgentsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         meta: {
@@ -2648,6 +2726,53 @@ export type PostAgentsByIdJobsResponses = {
 
 export type PostAgentsByIdJobsResponse = PostAgentsByIdJobsResponses[keyof PostAgentsByIdJobsResponses];
 
+export type GetCategoriesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/categories';
+};
+
+export type GetCategoriesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCategoriesError = GetCategoriesErrors[keyof GetCategoriesErrors];
+
+export type GetCategoriesResponses = {
+    /**
+     * Retrieve persisted categories with available agents
+     */
+    200: {
+        data: Array<Category>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
+
 export type GetConversationsData = {
     body?: never;
     path?: never;
@@ -4290,7 +4415,9 @@ export type GetUsersMeFilesResponses = {
 export type GetUsersMeFilesResponse = GetUsersMeFilesResponses[keyof GetUsersMeFilesResponses];
 
 export type PostUsersMeFilesData = {
-    body?: never;
+    body: {
+        file: Blob | File;
+    };
     path?: never;
     query?: never;
     url: '/users/me/files';
@@ -4340,6 +4467,19 @@ export type PostUsersMeFilesErrors = {
      * Payload Too Large
      */
     413: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         meta: {
@@ -4560,145 +4700,6 @@ export type GetOrganizationsByIdResponses = {
 };
 
 export type GetOrganizationsByIdResponse = GetOrganizationsByIdResponses[keyof GetOrganizationsByIdResponses];
-
-export type PutOrganizationsByIdLogoData = {
-    body: {
-        file: Blob | File;
-    };
-    path: {
-        /**
-         * Organization ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/organizations/{id}/logo';
-};
-
-export type PutOrganizationsByIdLogoErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Payload Too Large
-     */
-    413: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PutOrganizationsByIdLogoError = PutOrganizationsByIdLogoErrors[keyof PutOrganizationsByIdLogoErrors];
-
-export type PutOrganizationsByIdLogoResponses = {
-    /**
-     * Organization logo uploaded successfully
-     */
-    200: {
-        data: Organization;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PutOrganizationsByIdLogoResponse = PutOrganizationsByIdLogoResponses[keyof PutOrganizationsByIdLogoResponses];
 
 export type GetJobsData = {
     body?: never;
