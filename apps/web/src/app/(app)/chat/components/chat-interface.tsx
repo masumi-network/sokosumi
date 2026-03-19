@@ -298,7 +298,9 @@ export default function ChatInterface({
   const [reasoningBySlot, setReasoningBySlot] = useState<
     Record<number, Array<{ id: string; message: string }>>
   >({});
-  const reasoningStartedAtBySlotRef = useRef<Record<number, number>>({});
+  const [reasoningStartedAtBySlot, setReasoningStartedAtBySlot] = useState<
+    Record<number, number>
+  >({});
   const [reasoningEndedAtBySlot, setReasoningEndedAtBySlot] = useState<
     Record<number, number>
   >({});
@@ -348,7 +350,11 @@ export default function ChatInterface({
           delete next[slotIndex];
           return next;
         });
-        delete reasoningStartedAtBySlotRef.current[slotIndex];
+        setReasoningStartedAtBySlot((prev) => {
+          const next = { ...prev };
+          delete next[slotIndex];
+          return next;
+        });
         const payload = slotPayloadRef.current[slotIndex];
         return {
           body: {
@@ -380,7 +386,10 @@ export default function ChatInterface({
       setReasoningBySlot((prev) => {
         const list = prev[slotIndex] ?? [];
         if (list.length === 0) {
-          reasoningStartedAtBySlotRef.current[slotIndex] = Date.now();
+          setReasoningStartedAtBySlot((p) => ({
+            ...p,
+            [slotIndex]: Date.now(),
+          }));
         }
         const existingIndex = list.findIndex((r) => r.id === id);
         const nextList =
@@ -616,6 +625,11 @@ export default function ChatInterface({
         delete next[slot];
         return next;
       });
+      setReasoningStartedAtBySlot((prev) => {
+        const next = { ...prev };
+        delete next[slot];
+        return next;
+      });
       const msgs = slotMessages[slot] as UIMessage[];
       if (msgs?.length > 0) {
         setCachedMessagesByConversation((prev) => ({
@@ -643,7 +657,7 @@ export default function ChatInterface({
     let changed = false;
     const next: Record<number, number> = {};
     for (let slot = 0; slot < NUM_SLOTS; slot++) {
-      const startedAt = reasoningStartedAtBySlotRef.current[slot];
+      const startedAt = reasoningStartedAtBySlot[slot];
       if (startedAt == null || reasoningEndedAtBySlot[slot] != null) continue;
       const messages = (slotMessages[slot] ?? []) as UIMessage[];
       const last = messages[messages.length - 1];
@@ -656,7 +670,7 @@ export default function ChatInterface({
     if (changed) {
       setReasoningEndedAtBySlot((prev) => ({ ...prev, ...next }));
     }
-  }, [slotMessages, reasoningEndedAtBySlot]);
+  }, [slotMessages, reasoningEndedAtBySlot, reasoningStartedAtBySlot]);
 
   const sendInConversation = useCallback(
     (conversationId: string, text: string): boolean => {
@@ -736,10 +750,8 @@ export default function ChatInterface({
       selectedChatId != null
         ? conversationToSlot.get(selectedChatId)
         : undefined;
-    return slot !== undefined
-      ? (reasoningStartedAtBySlotRef.current[slot] ?? null)
-      : null;
-  }, [selectedChatId, conversationToSlot]);
+    return slot !== undefined ? (reasoningStartedAtBySlot[slot] ?? null) : null;
+  }, [selectedChatId, conversationToSlot, reasoningStartedAtBySlot]);
 
   const selectedChatReasoningEndedAt = useMemo(() => {
     const slot =
@@ -1043,7 +1055,11 @@ export default function ChatInterface({
                         delete next[slot];
                         return next;
                       });
-                      delete reasoningStartedAtBySlotRef.current[slot];
+                      setReasoningStartedAtBySlot((prev) => {
+                        const next = { ...prev };
+                        delete next[slot];
+                        return next;
+                      });
                     }
                     if (mountedRef.current) {
                       setIsRecoveringPolling(false);
@@ -1129,7 +1145,11 @@ export default function ChatInterface({
                 delete next[slot];
                 return next;
               });
-              delete reasoningStartedAtBySlotRef.current[slot];
+              setReasoningStartedAtBySlot((prev) => {
+                const next = { ...prev };
+                delete next[slot];
+                return next;
+              });
             }
             if (mountedRef.current) {
               setIsRecoveringPolling(false);
@@ -1327,7 +1347,11 @@ export default function ChatInterface({
                         delete next[slot];
                         return next;
                       });
-                      delete reasoningStartedAtBySlotRef.current[slot];
+                      setReasoningStartedAtBySlot((prev) => {
+                        const next = { ...prev };
+                        delete next[slot];
+                        return next;
+                      });
                     }
                     setIsRecoveringPolling(false);
                     setIsRecovering(false);
@@ -1401,7 +1425,11 @@ export default function ChatInterface({
                 delete next[slot];
                 return next;
               });
-              delete reasoningStartedAtBySlotRef.current[slot];
+              setReasoningStartedAtBySlot((prev) => {
+                const next = { ...prev };
+                delete next[slot];
+                return next;
+              });
             }
             setIsRecoveringPolling(false);
             setIsRecovering(false);
