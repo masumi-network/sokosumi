@@ -11,7 +11,6 @@ import { requestId } from "hono/request-id";
 
 import { getEnv, getWebAppBaseUrl, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
-import { errorHandler } from "@/helpers/error-handler";
 import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
@@ -22,8 +21,6 @@ import apiV1 from "@/routes/v1/index";
 
 validateEnv();
 initSentry();
-
-console.log("getWebAppBaseUrl()", getWebAppBaseUrl());
 
 // Build favicon URL - use Vercel URL in production, relative path locally
 const faviconUrl = process.env.VERCEL_URL
@@ -37,12 +34,15 @@ const app = new OpenAPIHono<{
   Variables: RequestIdVariables;
 }>();
 
+app.use("*", async (_c, next) => {
+  console.log("getWebAppBaseUrl()", getWebAppBaseUrl());
+  await next();
+});
+
 app.use(logger());
 app.use(requestId());
 app.use(maintenanceMiddleware());
 app.use(sentryMiddleware());
-
-app.onError(errorHandler);
 
 app.notFound(() => {
   throw notFound();
